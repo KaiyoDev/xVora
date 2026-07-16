@@ -30,6 +30,43 @@ fn find_protoc_include_dir(protoc: Option<&Path>) -> Option<PathBuf> {
     }
 }
 
+/// Parse protoc `--dependency_out` make-style content into prerequisite paths.
+///
+/// Windows paths break naive `split_once(':')` because `C:\out: C:\dep` has
+/// its first colon in the drive letter. Use `: ` as the target/prereq
+/// separator, then split prereqs on whitespace (and line continuations).
+fn parse_depfile_prerequisites(output: &str) -> anyhow::Result<Vec<String>> {
+    let mut lines = output.lines();
+    let first_line = lines.next().context("protoc dependency output is empty")?;
+
+    let rem = if let Some(idx) = first_line.find(": ") {
+        &first_line[idx + 2..]
+    } else if let Some((_, rest)) = first_line.split_once(':') {
+        // Unix / rare form without space after colon.
+        rest
+    } else {
+        return Err(anyhow::anyhow!(
+            "protoc dependency output must start with '<out>: ...', got: {output:?}"
+        ));
+    };
+
+    let mut paths = Vec::new();
+    for line in iter::once(rem).chain(lines) {
+        let line = line.trim();
+        let line = line.strip_suffix('\\').unwrap_or(line).trim();
+        if line.is_empty() {
+            continue;
+        }
+        for token in line.split_whitespace() {
+            let token = token.trim_matches('"');
+            if !token.is_empty() {
+                paths.push(token.to_string());
+            }
+        }
+    }
+    Ok(paths)
+}
+
 pub struct XaiProtoBuilder {
     builder: tonic_prost_build::Builder,
     file_descriptor_set_path: Option<PathBuf>,
@@ -165,38 +202,27 @@ impl XaiProtoBuilder {
                 )
             })?;
 
-            // Format: "<descriptor_set_path>: dep1 dep2 \"
-            //          dep3 ..."
-            let mut lines = output.lines();
-            let first_line = lines.next().context("protoc dependency output is empty")?;
-            let rem = first_line
-                .split_once(':')
-                .map(|(_, rest)| rest)
-                .with_context(|| {
-                    format!(
-                        "protoc dependency output must start with '<out>: ...', got: {output:?}"
-                    )
-                })?;
-            for line in iter::once(rem).chain(lines) {
-                let line = line.trim();
-                let line = line.strip_suffix('\\').unwrap_or(line).trim();
-                if line.is_empty() {
-                    continue;
-                }
+            // Make-style: "<target>: dep1 dep2 \" then "  dep3 ..."
+            // On Windows the target is `C:\...\file`, so the first `:` is the
+            // drive letter — never use split_once(':'). Prefer `: ` (colon +
+            // space), which is what protoc emits between target and prereqs.
+            for dep in parse_depfile_prerequisites(&output)? {
                 // Depending on absolute paths like
                 // /Users/user/homebrew/Cellar/protobuf/29.1/include/google/protobuf/timestamp.proto
                 // is valid, but we want to have output more deterministic.
-                if line.contains("/include/google/protobuf/")
-                    || line.contains("\\include\\google\\protobuf\\")
+                if dep.contains("/include/google/protobuf/")
+                    || dep.contains("\\include\\google\\protobuf\\")
                 {
                     continue;
                 }
 
-                if !fs::exists(line)? {
-                    return Err(anyhow::anyhow!("dependency file not found: {line}"));
+                if !fs::exists(&dep).with_context(|| {
+                    format!("failed to check dependency path existence: {dep:?}")
+                })? {
+                    return Err(anyhow::anyhow!("dependency file not found: {dep}"));
                 }
 
-                println!("cargo:rerun-if-changed={line}");
+                println!("cargo:rerun-if-changed={dep}");
             }
         }
 
@@ -316,5 +342,36 @@ pub fn configure() -> XaiProtoBuilder {
         pbjson_ignore_unknown_fields: false,
         pbjson_preserve_proto_field_names: false,
         file_descriptor_set_path: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_depfile_prerequisites;
+
+    #[test]
+    fn depfile_windows_drive_letter_not_split() {
+        let out = r"C:\Users\runner\AppData\Local\Temp\abc.desc: C:\a\xVora\proto\foo.proto C:\a\xVora\include\google\protobuf\timestamp.proto";
+        let deps = parse_depfile_prerequisites(out).unwrap();
+        assert_eq!(
+            deps,
+            vec![
+                r"C:\a\xVora\proto\foo.proto".to_string(),
+                r"C:\a\xVora\include\google\protobuf\timestamp.proto".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn depfile_unix_and_line_continuation() {
+        let out = "/tmp/out.desc: /repo/proto/foo.proto \\\n  /repo/proto/bar.proto\n";
+        let deps = parse_depfile_prerequisites(out).unwrap();
+        assert_eq!(
+            deps,
+            vec![
+                "/repo/proto/foo.proto".to_string(),
+                "/repo/proto/bar.proto".to_string(),
+            ]
+        );
     }
 }
