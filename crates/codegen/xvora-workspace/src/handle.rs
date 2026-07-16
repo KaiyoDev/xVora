@@ -3836,10 +3836,10 @@ pub async fn connect_local_workspace(
 /// 2. `<xvora_home>/workspace`, where `<xvora_home>` honours `$XVORA_HOME` and
 ///    otherwise falls back to `~/.xvora` (see [`xvora_config::xvora_home`]).
 pub fn resolve_workspace_home() -> std::path::PathBuf {
-    if let Ok(p) = std::env::var("XVORA_WORKSPACE_HOME") {
-        if !p.trim().is_empty() {
-            return std::path::PathBuf::from(p);
-        }
+    if let Ok(p) = std::env::var("XVORA_WORKSPACE_HOME")
+        && !p.trim().is_empty()
+    {
+        return std::path::PathBuf::from(p);
     }
     xvora_config::xvora_home().join("workspace")
 }
