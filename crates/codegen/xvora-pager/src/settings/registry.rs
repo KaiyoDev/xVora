@@ -580,6 +580,10 @@ pub fn current_value_for(
                 .as_deref()
                 .unwrap_or(&pager.voice_stt_language),
         )))),
+        // UI language: unset / auto → "auto".
+        "language" => Some(SettingValue::Enum(crate::i18n::config_language_canonical(
+            ui.language.as_deref(),
+        ))),
         // Theme: unknown disk values fall through to canonical default.
         // auto_dark/light additionally filter out "auto" (circular ref).
         "theme" => Some(SettingValue::Enum(
@@ -788,6 +792,16 @@ mod tests {
                         *default,
                         ui.simple_mode.unwrap_or(true),
                         "simple_mode default drifts from UiConfig::default()"
+                    );
+                }
+                ("language", SettingKind::Enum { default, .. }) => {
+                    assert_eq!(
+                        ui.language, None,
+                        "test assumes UiConfig::default().language is None",
+                    );
+                    assert_eq!(
+                        *default, "auto",
+                        "language default must be auto when UiConfig.language is None",
                     );
                 }
                 ("theme", SettingKind::Enum { default, .. }) => {

@@ -17,7 +17,7 @@ pub mod enums;
 pub mod settings;
 pub mod slash;
 
-use std::sync::OnceLock;
+use std::sync::RwLock;
 
 /// Active UI language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -47,25 +47,72 @@ pub enum Msg {
     CliAbout,
 }
 
-static LOCALE: OnceLock<Locale> = OnceLock::new();
+/// Runtime-switchable locale (Settings → Language). `None` until first
+/// [`locale`] / [`set_locale`] / [`apply_from_config`].
+static LOCALE: RwLock<Option<Locale>> = RwLock::new(None);
 
-/// Force locale (tests / early init). No-op if already initialized.
-pub fn init(locale: Locale) {
-    let _ = LOCALE.set(locale);
-}
-
-/// Resolved locale (detects once per process).
-pub fn locale() -> Locale {
-    *LOCALE.get_or_init(detect)
-}
-
-/// Parse / detect language without caching (tests).
-pub fn detect() -> Locale {
-    if let Ok(v) = std::env::var("XVORA_LANG") {
-        if let Some(l) = parse_lang_tag(&v) {
-            return l;
-        }
+/// Set the process locale (Settings picker, tests, startup).
+pub fn set_locale(locale: Locale) {
+    if let Ok(mut g) = LOCALE.write() {
+        *g = Some(locale);
     }
+}
+
+/// Force locale (alias of [`set_locale`]; kept for older call sites).
+pub fn init(locale: Locale) {
+    set_locale(locale);
+}
+
+/// Resolved locale (detects once if never set).
+pub fn locale() -> Locale {
+    if let Ok(g) = LOCALE.read()
+        && let Some(l) = *g
+    {
+        return l;
+    }
+    let d = detect();
+    set_locale(d);
+    d
+}
+
+/// Apply language from `[ui].language` after loading config.
+///
+/// Precedence: `XVORA_LANG` env (always wins) → config `en`/`vi`/`auto` →
+/// system `LANG` → English.
+pub fn apply_from_config(language: Option<&str>) {
+    if let Ok(v) = std::env::var("XVORA_LANG")
+        && let Some(l) = parse_lang_tag(&v)
+    {
+        set_locale(l);
+        return;
+    }
+    match language.map(str::trim).filter(|s| !s.is_empty()) {
+        Some("auto") | None => set_locale(detect_system()),
+        Some(tag) => set_locale(parse_lang_tag(tag).unwrap_or(Locale::En)),
+    }
+}
+
+/// Canonical value for the settings enum (`en` | `vi` | `auto`).
+pub fn config_language_canonical(stored: Option<&str>) -> &'static str {
+    match stored.map(str::trim).filter(|s| !s.is_empty()) {
+        None | Some("auto") => "auto",
+        Some(s) if parse_lang_tag(s) == Some(Locale::Vi) => "vi",
+        Some(s) if parse_lang_tag(s) == Some(Locale::En) => "en",
+        _ => "auto",
+    }
+}
+
+/// Parse / detect language without writing the global (tests / system path).
+pub fn detect() -> Locale {
+    if let Ok(v) = std::env::var("XVORA_LANG")
+        && let Some(l) = parse_lang_tag(&v)
+    {
+        return l;
+    }
+    detect_system()
+}
+
+fn detect_system() -> Locale {
     for key in ["LC_ALL", "LC_MESSAGES", "LANG", "USER_LANGUAGE", "Language"] {
         if let Ok(v) = std::env::var(key)
             && let Some(l) = parse_lang_tag(&v)
@@ -76,9 +123,9 @@ pub fn detect() -> Locale {
     Locale::En
 }
 
-fn parse_lang_tag(raw: &str) -> Option<Locale> {
+pub fn parse_lang_tag(raw: &str) -> Option<Locale> {
     let s = raw.trim().to_ascii_lowercase();
-    if s.is_empty() || s == "c" || s.starts_with("c.") {
+    if s.is_empty() || s == "c" || s.starts_with("c.") || s == "auto" {
         return None;
     }
     // `vi`, `vi_VN`, `vi-VN.UTF-8`, …

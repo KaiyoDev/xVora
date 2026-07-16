@@ -144,6 +144,11 @@ pub struct UiConfig {
     /// `"fullscreen"` | `"minimal"`; unset → product default fullscreen.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub screen_mode: Option<String>,
+    /// UI language: `"en"` | `"vi"` | `"auto"` (follow system / `LANG`).
+    /// Written by the settings modal (`Language`); `XVORA_LANG` env overrides
+    /// at process start. Unset → auto-detect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
     /// Retired hidden opt-in for terminal-like double/triple-click word/line
     /// selection. Superseded by `keep_text_selection = "word_select"`. Still
     /// read only when `keep_text_selection` is unset; Settings clears this on
@@ -261,6 +266,7 @@ impl Default for UiConfig {
             prompt_suggestions: None,
             cursor_blink: None,
             screen_mode: None,
+            language: None,
             double_click_action: None,
             contextual_hints: ContextualHints::default(),
             display_refresh: DisplayRefreshSettings::default(),

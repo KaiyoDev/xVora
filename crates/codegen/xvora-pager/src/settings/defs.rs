@@ -37,6 +37,25 @@ pub(crate) const MAX_THOUGHTS_WIDTH_KEY: &str = "max_thoughts_width";
 // Bounded by `MAX_PICKER_CHOICES`.
 // ---------------------------------------------------------------------------
 
+/// UI language catalog (`[ui].language`).
+const LANGUAGE_CHOICES: &[EnumChoice] = &[
+    EnumChoice {
+        canonical: "auto",
+        display: "Auto (system)",
+        description: "Follow the system language (LANG / OS UI). XVORA_LANG still overrides.",
+    },
+    EnumChoice {
+        canonical: "en",
+        display: "English",
+        description: "English UI.",
+    },
+    EnumChoice {
+        canonical: "vi",
+        display: "Tiếng Việt",
+        description: "Giao diện tiếng Việt.",
+    },
+];
+
 /// Full theme catalog including the "auto" meta-variant. Used by `theme` only.
 const THEME_CHOICES: &[EnumChoice] = &[
     EnumChoice {
@@ -645,6 +664,32 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Bool {
                 default: ui_default.vim_mode.unwrap_or(false),
+            },
+            restart_required: false,
+            hidden_in_minimal: false,
+        },
+        // --- language --------------------------------------------------------
+        SettingMeta {
+            key: "language",
+            category: SettingCategory::Appearance,
+            owner: SettingOwner::Shared,
+            label: "Language",
+            description: "UI language for menus, settings, and shortcuts. Takes effect immediately. \
+                          Environment variable XVORA_LANG overrides this setting.",
+            keywords: &[
+                "language",
+                "lang",
+                "locale",
+                "i18n",
+                "vietnamese",
+                "english",
+                "tiếng việt",
+                "ngôn ngữ",
+            ],
+            kind: SettingKind::Enum {
+                default: "auto",
+                choices: LANGUAGE_CHOICES,
+                supports_preview: false,
             },
             restart_required: false,
             hidden_in_minimal: false,

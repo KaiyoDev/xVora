@@ -1001,6 +1001,9 @@ pub(crate) async fn run(
     // Seed app state from disk once at the I/O boundary so dispatch
     // stays sans-IO.
     app.current_ui = load_initial_ui_config();
+    // Apply UI language from `[ui].language` (Settings → Language). Env
+    // `XVORA_LANG` still wins inside `apply_from_config`.
+    crate::i18n::apply_from_config(app.current_ui.language.as_deref());
     // Field-tolerant: a whole-`UiConfig` default (malformed unrelated `[ui]`
     // field) must not wipe a valid `show_timeline` or leave appearance /
     // cache / `current_ui` disagreeing — `/timeline` and the rail all read

@@ -10,8 +10,8 @@ use super::setters::{
     set_multiline_mode, set_prompt_suggestions_inner, set_remember_tool_approvals_inner,
     set_render_mermaid_inner, set_respect_manual_folds_inner, set_screen_mode_inner,
     set_scroll_lines_inner, set_scroll_mode_inner, set_scroll_speed_inner,
-    set_show_thinking_blocks_inner, set_show_tips_inner, set_simple_mode_inner, set_theme_inner,
-    set_timeline_inner, set_timestamps, set_timestamps_inner, set_vim_mode_inner,
+    set_show_thinking_blocks_inner, set_show_tips_inner, set_simple_mode_inner, set_language_inner,
+    set_theme_inner, set_timeline_inner, set_timestamps, set_timestamps_inner, set_vim_mode_inner,
     set_voice_capture_mode_inner, set_voice_stt_language_inner,
 };
 use crate::app::actions::{Action, Effect};
@@ -736,6 +736,7 @@ pub(in crate::app::dispatch) fn action_for_reset(
             Some(Action::SetDefaultSelectedPermission((*s).to_owned()))
         }
         ("theme", SettingValue::Enum(s)) => Some(Action::SetTheme((*s).to_owned())),
+        ("language", SettingValue::Enum(s)) => Some(Action::SetLanguage((*s).to_owned())),
         ("auto_dark_theme", SettingValue::Enum(s)) => {
             Some(Action::SetAutoDarkTheme((*s).to_owned()))
         }
@@ -895,6 +896,7 @@ pub(in crate::app::dispatch) fn apply_setting_rollback(
         }
         ("respect_manual_folds", SettingValue::Bool(b)) => set_respect_manual_folds_inner(app, *b),
         ("theme", SettingValue::Enum(s)) => set_theme_inner(app, s),
+        ("language", SettingValue::Enum(s)) => set_language_inner(app, s),
         ("default_selected_permission", SettingValue::Enum(s)) => {
             set_default_selected_permission_inner(
                 app,

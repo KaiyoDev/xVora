@@ -1191,6 +1191,45 @@ pub(super) fn set_theme_inner(app: &mut AppView, value: &str) {
     apply_theme_kind_for_display(kind);
 }
 
+/// Apply + persist UI language (`en` | `vi` | `auto`).
+pub(super) fn set_language_inner(app: &mut AppView, value: &str) {
+    let canonical = crate::i18n::config_language_canonical(Some(value));
+    app.current_ui.language = match canonical {
+        "auto" => None,
+        other => Some(other.to_string()),
+    };
+    crate::i18n::apply_from_config(app.current_ui.language.as_deref());
+}
+
+/// State + toast + persist for `language` commits.
+pub(in crate::app::dispatch) fn set_language(app: &mut AppView, new: String) -> Vec<Effect> {
+    let prev = crate::i18n::config_language_canonical(app.current_ui.language.as_deref());
+    let new_canonical = crate::i18n::config_language_canonical(Some(&new));
+    if prev == new_canonical {
+        return vec![];
+    }
+    set_language_inner(app, new_canonical);
+    refresh_open_settings_modals(app);
+    let label = match new_canonical {
+        "vi" => "Tiếng Việt",
+        "en" => "English",
+        _ => "Auto (system)",
+    };
+    tracing::info!(
+        target: "settings",
+        key = "language",
+        value = %new_canonical,
+        "setting changed",
+    );
+    let toast_label = crate::i18n::settings::setting_label("language", "Language");
+    app.show_toast(&format!("\u{2713} {toast_label}: {label}"));
+    vec![Effect::PersistSetting {
+        key: "language",
+        value: crate::settings::SettingValue::Enum(new_canonical),
+        rollback_value: crate::settings::SettingValue::Enum(prev),
+    }]
+}
+
 /// State + cache + persist for `theme` commits.
 pub(in crate::app::dispatch) fn set_theme(app: &mut AppView, new: String) -> Vec<Effect> {
     let prev_canonical: &'static str = app

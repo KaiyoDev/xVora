@@ -5,6 +5,10 @@ pub fn display(canonical: &str, fallback: &'static str) -> &'static str {
     match (locale(), canonical) {
         (Locale::Vi, "auto") => "Tự động",
         (Locale::En, "auto") => "Auto",
+        (Locale::Vi, "en") => "English",
+        (Locale::En, "en") => "English",
+        (Locale::Vi, "vi") => "Tiếng Việt",
+        (Locale::En, "vi") => "Tiếng Việt",
         (Locale::Vi, "groknight") => "xVora Night",
         (Locale::En, "groknight") => "xVora Night",
         (Locale::Vi, "grokday") => "xVora Day",

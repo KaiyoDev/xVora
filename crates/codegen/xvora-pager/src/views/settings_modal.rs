@@ -751,6 +751,7 @@ fn action_for_enum(key: SettingKey, choice: &'static str) -> Option<Action> {
 fn action_for_enum_commit(key: SettingKey, choice: &'static str) -> Option<Action> {
     match key {
         "theme" => Some(Action::SetTheme(choice.to_string())),
+        "language" => Some(Action::SetLanguage(choice.to_string())),
         "auto_dark_theme" => Some(Action::SetAutoDarkTheme(choice.to_string())),
         "auto_light_theme" => Some(Action::SetAutoLightTheme(choice.to_string())),
         // Canonical strings from settings/defs.rs are the source of truth.
