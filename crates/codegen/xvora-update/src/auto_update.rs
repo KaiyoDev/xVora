@@ -15,7 +15,7 @@ use crate::version::{
     is_version_cache_fresh, try_fetch_stable_pointer, write_version_cache,
 };
 use xvora_shell::util::config;
-use xvora_shell::util::xvora_home::{grok_application, xvora_home};
+use xvora_shell::util::xvora_home::{xvora_application, xvora_home};
 
 #[derive(Clone, Copy, Debug)]
 pub enum UpdateRunMode {

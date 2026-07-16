@@ -23,7 +23,7 @@ pub use env::detach_from_tty;
 pub use env::substitute_plugin_tokens;
 pub use env::{XVORA_AGENT_ENV, XVORA_AGENT_ENV_VALUE, apply_grok_agent_marker, pager_env};
 pub use fs::{UnicodePathMatch, canonicalize_with_timeout, try_resolve_unicode_filename};
-pub use xvora_home::{grok_application, xvora_home};
+pub use xvora_home::{xvora_application, xvora_home};
 pub use path_suggestions::format_not_found_error;
 pub use remap::{remap_json_keys, remap_schema_properties, reverse_map};
 pub use spawn::{
