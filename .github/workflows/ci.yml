@@ -35,11 +35,17 @@ jobs:
       - name: Install protoc
         uses: arduino/setup-protoc@v3
         with:
+          version: "25.1"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Show protoc
+      - name: Resolve PROTOC absolute path
         shell: pwsh
-        run: protoc --version
+        run: |
+          $protoc = (Get-Command protoc -ErrorAction Stop).Source
+          Write-Host "protoc = $protoc"
+          & $protoc --version
+          # Force build scripts off repo bin/protoc (dotslash, not Win32).
+          "PROTOC=$protoc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
@@ -51,7 +57,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: xvora-pager-bin-windows
+          shared-key: xvora-pager-bin-windows-v2
           cache-on-failure: true
 
       - name: cargo fmt (check)
@@ -61,15 +67,21 @@ jobs:
 
       - name: cargo check (xvora-pager-bin)
         shell: pwsh
+        env:
+          PROTOC: ${{ env.PROTOC }}
         run: cargo check -p xvora-pager-bin
 
       - name: cargo clippy (xvora-pager-bin)
         shell: pwsh
+        env:
+          PROTOC: ${{ env.PROTOC }}
         run: cargo clippy -p xvora-pager-bin -- -D warnings
         continue-on-error: true
 
       - name: cargo build --release (xvora-pager-bin)
         shell: pwsh
+        env:
+          PROTOC: ${{ env.PROTOC }}
         run: cargo build -p xvora-pager-bin --release
 
       - name: Smoke test binary
