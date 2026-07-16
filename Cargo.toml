@@ -3,80 +3,80 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/build/xai-proto-build",
+    "crates/build/proto-build",
     "crates/codegen/ptyctl",
     "crates/codegen/ptyctl-cli",
-    "crates/codegen/xai-acp-lib",
-    "crates/codegen/xai-agent-lifecycle",
-    "crates/codegen/xai-chat-state",
-    "crates/codegen/xai-codebase-graph",
-    "crates/codegen/xai-crash-handler",
-    "crates/codegen/xai-fast-worktree",
-    "crates/codegen/xai-file-utils",
-    "crates/codegen/xai-fsnotify",
-    "crates/codegen/xai-gix-status",
-    "crates/codegen/xai-xvora-agent",
-    "crates/codegen/xai-xvora-announcements",
-    "crates/codegen/xai-xvora-auth",
-    "crates/codegen/xai-xvora-config",
-    "crates/codegen/xai-xvora-config-types",
-    "crates/codegen/xai-xvora-env",
-    "crates/codegen/xai-xvora-hooks",
-    "crates/codegen/xai-xvora-http",
-    "crates/codegen/xai-xvora-markdown",
-    "crates/codegen/xai-xvora-markdown-core",
-    "crates/codegen/xai-xvora-mcp",
-    "crates/codegen/xai-xvora-memory",
-    "crates/codegen/xai-xvora-mermaid",
-    "crates/codegen/xai-xvora-models",
-    "crates/codegen/xai-xvora-pager",
-    "crates/codegen/xai-xvora-pager-bin",
-    "crates/codegen/xai-xvora-pager-minimal",
-    "crates/codegen/xai-xvora-pager-pty-harness",
-    "crates/codegen/xai-xvora-pager-render",
-    "crates/codegen/xai-xvora-paths",
-    "crates/codegen/xai-xvora-plugin-marketplace",
-    "crates/codegen/xai-xvora-sampler",
-    "crates/codegen/xai-xvora-sampling-types",
-    "crates/codegen/xai-xvora-sandbox",
-    "crates/codegen/xai-xvora-secrets",
-    "crates/codegen/xai-xvora-shared",
-    "crates/codegen/xai-xvora-shell",
-    "crates/codegen/xai-xvora-shell-base",
-    "crates/codegen/xai-xvora-shell-session-support",
-    "crates/codegen/xai-xvora-subagent-resolution",
-    "crates/codegen/xai-xvora-telemetry",
-    "crates/codegen/xai-xvora-test-support",
-    "crates/codegen/xai-xvora-tools",
-    "crates/codegen/xai-xvora-tools-api",
-    "crates/codegen/xai-xvora-update",
-    "crates/codegen/xai-xvora-version",
-    "crates/codegen/xai-xvora-voice",
-    "crates/codegen/xai-xvora-workspace",
-    "crates/codegen/xai-xvora-workspace-client",
-    "crates/codegen/xai-xvora-workspace-types",
-    "crates/codegen/xai-hooks-plugins-types",
-    "crates/codegen/xai-hunk-tracker",
-    "crates/codegen/xai-mixpanel",
-    "crates/codegen/xai-prompt-queue",
-    "crates/codegen/xai-ratatui-inline",
-    "crates/codegen/xai-ratatui-textarea",
-    "crates/codegen/xai-sqlite-journal",
-    "crates/codegen/xai-system-power",
-    "crates/codegen/xai-token-estimation",
-    "crates/codegen/xai-tracing-macros",
-    "crates/codegen/xai-tty-utils",
-    "crates/common/xai-circuit-breaker",
-    "crates/common/xai-computer-hub-core",
-    "crates/common/xai-computer-hub-mcp-adapter",
-    "crates/common/xai-computer-hub-sdk",
-    "crates/common/xai-xvora-compaction",
-    "crates/common/xai-interjection-core",
-    "crates/common/xai-test-utils",
-    "crates/common/xai-tool-protocol",
-    "crates/common/xai-tool-runtime",
-    "crates/common/xai-tool-types",
-    "crates/common/xai-tracing",
+    "crates/codegen/acp-lib",
+    "crates/codegen/agent-lifecycle",
+    "crates/codegen/chat-state",
+    "crates/codegen/codebase-graph",
+    "crates/codegen/crash-handler",
+    "crates/codegen/fast-worktree",
+    "crates/codegen/file-utils",
+    "crates/codegen/xvora-fsnotify",
+    "crates/codegen/xvora-gix-status",
+    "crates/codegen/xvora-agent",
+    "crates/codegen/xvora-announcements",
+    "crates/codegen/xvora-auth",
+    "crates/codegen/xvora-config",
+    "crates/codegen/xvora-config-types",
+    "crates/codegen/xvora-env",
+    "crates/codegen/xvora-hooks",
+    "crates/codegen/xvora-http",
+    "crates/codegen/xvora-markdown",
+    "crates/codegen/xvora-markdown-core",
+    "crates/codegen/xvora-mcp",
+    "crates/codegen/xvora-memory",
+    "crates/codegen/xvora-mermaid",
+    "crates/codegen/xvora-models",
+    "crates/codegen/xvora-pager",
+    "crates/codegen/xvora-pager-bin",
+    "crates/codegen/xvora-pager-minimal",
+    "crates/codegen/xvora-pager-pty-harness",
+    "crates/codegen/xvora-pager-render",
+    "crates/codegen/xvora-paths",
+    "crates/codegen/xvora-plugin-marketplace",
+    "crates/codegen/xvora-sampler",
+    "crates/codegen/xvora-sampling-types",
+    "crates/codegen/xvora-sandbox",
+    "crates/codegen/xvora-secrets",
+    "crates/codegen/xvora-shared",
+    "crates/codegen/xvora-shell",
+    "crates/codegen/xvora-shell-base",
+    "crates/codegen/xvora-shell-session-support",
+    "crates/codegen/xvora-subagent-resolution",
+    "crates/codegen/xvora-telemetry",
+    "crates/codegen/xvora-test-support",
+    "crates/codegen/xvora-tools",
+    "crates/codegen/xvora-tools-api",
+    "crates/codegen/xvora-update",
+    "crates/codegen/xvora-version",
+    "crates/codegen/xvora-voice",
+    "crates/codegen/xvora-workspace",
+    "crates/codegen/xvora-workspace-client",
+    "crates/codegen/xvora-workspace-types",
+    "crates/codegen/hooks-plugins-types",
+    "crates/codegen/hunk-tracker",
+    "crates/codegen/xvora-mixpanel",
+    "crates/codegen/prompt-queue",
+    "crates/codegen/ratatui-inline",
+    "crates/codegen/ratatui-textarea",
+    "crates/codegen/sqlite-journal",
+    "crates/codegen/system-power",
+    "crates/codegen/token-estimation",
+    "crates/codegen/tracing-macros",
+    "crates/codegen/tty-utils",
+    "crates/common/circuit-breaker",
+    "crates/common/computer-hub-core",
+    "crates/common/computer-hub-mcp-adapter",
+    "crates/common/computer-hub-sdk",
+    "crates/common/xvora-compaction",
+    "crates/common/interjection-core",
+    "crates/common/test-utils",
+    "crates/common/tool-protocol",
+    "crates/common/tool-runtime",
+    "crates/common/tool-types",
+    "crates/common/tracing-util",
     "prod/mc/cli-chat-proxy-types",
     "third_party/dagre_rust",
     "third_party/graphlib_rust",
@@ -270,54 +270,55 @@ whoami = "1.4"
 windows = { version = "0.61", features = ["Win32_Security", "Win32_Security_Authorization", "Win32_Foundation", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_System_Console", "Win32_System_Pipes"] }
 wiremock = "0.6"
 wl-clipboard-rs = "0.9"
-xai-acp-lib = { path = "crates/codegen/xai-acp-lib" }
-xai-agent-lifecycle = { path = "crates/codegen/xai-agent-lifecycle" }
-xai-circuit-breaker = { path = "crates/common/xai-circuit-breaker" }
-xai-computer-hub-core = { path = "crates/common/xai-computer-hub-core" }
-xai-computer-hub-sdk = { path = "crates/common/xai-computer-hub-sdk" }
-xai-gix-status = { path = "crates/codegen/xai-gix-status" }
-xai-xvora-agent = { path = "crates/codegen/xai-xvora-agent" }
-xai-xvora-announcements = { path = "crates/codegen/xai-xvora-announcements" }
-xai-xvora-auth = { path = "crates/codegen/xai-xvora-auth" }
-xai-xvora-config = { path = "crates/codegen/xai-xvora-config" }
-xai-xvora-config-types = { path = "crates/codegen/xai-xvora-config-types" }
-xai-xvora-env = { path = "crates/codegen/xai-xvora-env" }
-xai-xvora-http = { path = "crates/codegen/xai-xvora-http" }
-xai-xvora-markdown = { path = "crates/codegen/xai-xvora-markdown" }
-xai-xvora-markdown-core = { path = "crates/codegen/xai-xvora-markdown-core" }
-xai-xvora-mcp = { path = "crates/codegen/xai-xvora-mcp" }
-xai-xvora-memory = { path = "crates/codegen/xai-xvora-memory" }
-xai-xvora-mermaid = { path = "crates/codegen/xai-xvora-mermaid" }
-xai-xvora-models = { path = "crates/codegen/xai-xvora-models" }
-xai-xvora-sampler = { path = "crates/codegen/xai-xvora-sampler" }
-xai-xvora-secrets = { path = "crates/codegen/xai-xvora-secrets" }
-xai-xvora-shared = { path = "crates/codegen/xai-xvora-shared" }
-xai-xvora-shell = { path = "crates/codegen/xai-xvora-shell" }
-xai-xvora-shell-base = { path = "crates/codegen/xai-xvora-shell-base" }
-xai-xvora-shell-session-support = { path = "crates/codegen/xai-xvora-shell-session-support" }
-xai-xvora-telemetry = { path = "crates/codegen/xai-xvora-telemetry" }
-xai-xvora-test-support = { path = "crates/codegen/xai-xvora-test-support" }
-xai-xvora-tools = { path = "crates/codegen/xai-xvora-tools" }
-xai-xvora-tools-api = { path = "crates/codegen/xai-xvora-tools-api" }
-xai-xvora-version = { path = "crates/codegen/xai-xvora-version" }
-xai-xvora-workspace = { path = "crates/codegen/xai-xvora-workspace" }
-xai-xvora-workspace-types = { path = "crates/codegen/xai-xvora-workspace-types" }
-xai-hooks-plugins-types = { path = "crates/codegen/xai-hooks-plugins-types" }
-xai-interjection-core = { path = "crates/common/xai-interjection-core" }
-xai-mixpanel = { path = "crates/codegen/xai-mixpanel" }
-xai-prompt-queue = { path = "crates/codegen/xai-prompt-queue" }
-xai-proto-build = { path = "crates/build/xai-proto-build" }
-xai-ratatui-inline = { path = "crates/codegen/xai-ratatui-inline" }
-xai-ratatui-textarea = { path = "crates/codegen/xai-ratatui-textarea" }
-xai-sqlite-journal = { path = "crates/codegen/xai-sqlite-journal" }
-xai-system-power = { path = "crates/codegen/xai-system-power" }
-xai-test-utils = { path = "crates/common/xai-test-utils" }
-xai-token-estimation = { path = "crates/codegen/xai-token-estimation" }
-xai-tool-protocol = { path = "crates/common/xai-tool-protocol" }
-xai-tool-runtime = { path = "crates/common/xai-tool-runtime" }
-xai-tool-types = { path = "crates/common/xai-tool-types" }
-xai-tracing = { path = "crates/common/xai-tracing" }
-xai-tty-utils = { path = "crates/codegen/xai-tty-utils" }
+acp-lib = { path = "crates/codegen/acp-lib" }
+agent-lifecycle = { path = "crates/codegen/agent-lifecycle" }
+circuit-breaker = { path = "crates/common/circuit-breaker" }
+computer-hub-core = { path = "crates/common/computer-hub-core" }
+computer-hub-sdk = { path = "crates/common/computer-hub-sdk" }
+xvora-gix-status = { path = "crates/codegen/xvora-gix-status" }
+xvora-fsnotify = { path = "crates/codegen/xvora-fsnotify" }
+xvora-agent = { path = "crates/codegen/xvora-agent" }
+xvora-announcements = { path = "crates/codegen/xvora-announcements" }
+xvora-auth = { path = "crates/codegen/xvora-auth" }
+xvora-config = { path = "crates/codegen/xvora-config" }
+xvora-config-types = { path = "crates/codegen/xvora-config-types" }
+xvora-env = { path = "crates/codegen/xvora-env" }
+xvora-http = { path = "crates/codegen/xvora-http" }
+xvora-markdown = { path = "crates/codegen/xvora-markdown" }
+xvora-markdown-core = { path = "crates/codegen/xvora-markdown-core" }
+xvora-mcp = { path = "crates/codegen/xvora-mcp" }
+xvora-memory = { path = "crates/codegen/xvora-memory" }
+xvora-mermaid = { path = "crates/codegen/xvora-mermaid" }
+xvora-models = { path = "crates/codegen/xvora-models" }
+xvora-sampler = { path = "crates/codegen/xvora-sampler" }
+xvora-secrets = { path = "crates/codegen/xvora-secrets" }
+xvora-shared = { path = "crates/codegen/xvora-shared" }
+xvora-shell = { path = "crates/codegen/xvora-shell" }
+xvora-shell-base = { path = "crates/codegen/xvora-shell-base" }
+xvora-shell-session-support = { path = "crates/codegen/xvora-shell-session-support" }
+xvora-telemetry = { path = "crates/codegen/xvora-telemetry" }
+xvora-test-support = { path = "crates/codegen/xvora-test-support" }
+xvora-tools = { path = "crates/codegen/xvora-tools" }
+xvora-tools-api = { path = "crates/codegen/xvora-tools-api" }
+xvora-version = { path = "crates/codegen/xvora-version" }
+xvora-workspace = { path = "crates/codegen/xvora-workspace" }
+xvora-workspace-types = { path = "crates/codegen/xvora-workspace-types" }
+hooks-plugins-types = { path = "crates/codegen/hooks-plugins-types" }
+interjection-core = { path = "crates/common/interjection-core" }
+xvora-mixpanel = { path = "crates/codegen/xvora-mixpanel" }
+prompt-queue = { path = "crates/codegen/prompt-queue" }
+proto-build = { path = "crates/build/proto-build" }
+ratatui-inline = { path = "crates/codegen/ratatui-inline" }
+ratatui-textarea = { path = "crates/codegen/ratatui-textarea" }
+sqlite-journal = { path = "crates/codegen/sqlite-journal" }
+system-power = { path = "crates/codegen/system-power" }
+test-utils = { path = "crates/common/test-utils" }
+token-estimation = { path = "crates/codegen/token-estimation" }
+tool-protocol = { path = "crates/common/tool-protocol" }
+tool-runtime = { path = "crates/common/tool-runtime" }
+tool-types = { path = "crates/common/tool-types" }
+tracing-util = { path = "crates/common/tracing-util" }
+tty-utils = { path = "crates/codegen/tty-utils" }
 zbus = { version = "5" }
 zstd = "0.13"
 
@@ -353,14 +354,14 @@ codegen-units = 1
 debug = "line-tables-only"
 panic = "unwind"
 
-# Desktop release profile. Functionally identical to release-dist — kept as a
+# Desktop release profile. Functionally identical to release-dist â€” kept as a
 # named alias so the desktop workflow can reference it without coupling to the
 # CLI pipeline's profile name. Alpha and stable share a single release-dist
 # profile so that stable promotion can pointer-swap the alpha binary without
 # rebuilding.
 [profile.release-dist-jemalloc]
 inherits = "release-dist"
-# All settings now match the parent — this is an intentional alias.
+# All settings now match the parent â€” this is an intentional alias.
 
 
 [profile.dev]
@@ -396,7 +397,7 @@ too_many_arguments = "allow"
 # TODO: -> "deny" once/if merge queue enabled
 uninlined_format_args = "allow"
 
-# The `fastrace::trace(properties = { … })` proc-macro expands `"{param}"`
+# The `fastrace::trace(properties = { â€¦ })` proc-macro expands `"{param}"`
 # into `format!("{}", param)`, which clippy flags as useless_format.
 # Suppressed until the upstream crate fixes its codegen (fixed in 0.7.16+).
 useless_format = "allow"
