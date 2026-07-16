@@ -210,7 +210,9 @@ Please keep changes focused; run `cargo check -p …` on touched crates before o
 
 ## License
 
-First-party code: **Apache License 2.0** — see [`LICENSE`](LICENSE).
+**Apache License 2.0** — see [`LICENSE`](LICENSE).
+
+Copyright SpaceXAI (upstream) and KaiyoDev (xVora modifications).
 
 Third-party / vendored code keeps its original licenses — see [`THIRD-PARTY-NOTICES`](THIRD-PARTY-NOTICES) and notices under individual crates / `third_party/`.
 
@@ -218,4 +220,6 @@ Third-party / vendored code keeps its original licenses — see [`THIRD-PARTY-NO
 
 ## Acknowledgments
 
-xVora builds on ideas and open-sourced components from the broader coding-agent ecosystem. See third-party notices for attribution.
+xVora is derived from **[Grok Build](https://github.com/xai-org/grok-build)** (`xai-org/grok-build`) — cảm ơn / thank you to the authors and contributors of that open-source harness.
+
+Other third-party components are listed in [`THIRD-PARTY-NOTICES`](THIRD-PARTY-NOTICES).
