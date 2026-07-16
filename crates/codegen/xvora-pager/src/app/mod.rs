@@ -745,9 +745,9 @@ fn print_exit_resume_hint(session_id: &str, minimal: bool, w: &mut impl Write) {
     let _ = writeln!(w);
     let _ = writeln!(w, "Resume this session with:");
     if minimal {
-        let _ = writeln!(w, "  grok --minimal --resume {session_id}");
+        let _ = writeln!(w, "  xvora --minimal --resume {session_id}");
     } else {
-        let _ = writeln!(w, "  grok --resume {session_id}");
+        let _ = writeln!(w, "  xvora --resume {session_id}");
     }
 }
 /// Screen-mode relaunch failure fallback (same quit tail as plain resume).
@@ -1774,7 +1774,7 @@ mod tests {
         print_exit_resume_hint("sess-abc", false, &mut buf);
         assert_eq!(
             String::from_utf8(buf).unwrap(),
-            "\nResume this session with:\n  grok --resume sess-abc\n"
+            "\nResume this session with:\n  xvora --resume sess-abc\n"
         );
     }
     #[test]
@@ -1783,7 +1783,7 @@ mod tests {
         print_exit_resume_hint("sess-abc", true, &mut buf);
         assert_eq!(
             String::from_utf8(buf).unwrap(),
-            "\nResume this session with:\n  grok --minimal --resume sess-abc\n"
+            "\nResume this session with:\n  xvora --minimal --resume sess-abc\n"
         );
     }
     #[test]

@@ -482,8 +482,15 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
         }
         TaskResult::ChangelogFetched { markdown, entries } => {
             app.changelog_markdown = markdown;
-            app.changelog_bullets =
+            let mut bullets =
                 xvora_shell::util::changelog::bullets_from_entries(&entries, 3);
+            // CDN for unreleased `0.2.0-dev` serves dummy layout-test entries;
+            // those are filtered. When nothing real remains, show product
+            // bullets so the welcome screen is not empty/ugly.
+            if bullets.is_empty() {
+                bullets = crate::i18n::default_welcome_changelog_bullets();
+            }
+            app.changelog_bullets = bullets;
             vec![]
         }
         TaskResult::ClipboardAttachmentProbed {

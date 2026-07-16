@@ -686,6 +686,19 @@ async fn eager_auth_or_login_fallback(
             None,
         );
     }
+    // No non-interactive method → skip eager auth entirely (do not open OAuth).
+    if select_eager_auth_method(auth_methods, default_auth_method_id).is_none() {
+        // Still surface optional login labels for the welcome Login action.
+        let (label, method_id, mode) = if login_method_id.is_some() {
+            (login_label, login_method_id, auth_start_mode)
+        } else {
+            find_interactive_login_method(auth_methods)
+        };
+        // OSS / BYOK-first: never force the login splash when nothing non-interactive
+        // is available — user can press Login or use config.toml keys.
+        return (false, label, method_id, mode, None);
+    }
+
     match authenticate(tx, auth_methods, default_auth_method_id).await {
         Ok(meta) => (
             needs_login,
@@ -695,16 +708,16 @@ async fn eager_auth_or_login_fallback(
             meta,
         ),
         Err(_) => {
-            // Non-interactive credentials were advertised; shell fallthrough
-            // already preferred them — do not auto-open browser login.
-            let has_api_key = auth_methods
-                .iter()
-                .any(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::XaiApiKey);
-            if has_api_key {
-                return (false, login_label, login_method_id, auth_start_mode, None);
-            }
+            // Non-interactive credentials failed. Keep optional Login labels but
+            // never force interactive OAuth at startup (OSS BYOK-first).
             let (label, method_id, mode) = find_interactive_login_method(auth_methods);
-            (true, label, method_id, mode, None)
+            (
+                false,
+                label.or(login_label),
+                method_id.or(login_method_id),
+                mode,
+                None,
+            )
         }
     }
 }
@@ -743,22 +756,39 @@ async fn authenticate(
 
 /// Pick the method id for eager authenticate.
 ///
-/// 1. Agent's `defaultAuthMethodId` when present in the advertised list
-/// 2. Legacy: `cached_token` if advertised, else first method
+/// Eager auth must never start a browser / device OAuth flow (OSS BYOK-first).
+/// Only non-interactive methods are eligible:
+/// 1. Agent's `defaultAuthMethodId` when present **and** non-interactive
+/// 2. `cached_token` if advertised
+/// 3. `xai.api_key` if advertised
+///
+/// Interactive methods (`grok.com`, `oidc`) are never auto-started — the user
+/// can still open them via Login on the welcome screen.
 pub fn select_eager_auth_method(
     auth_methods: &[acp::AuthMethod],
     default_auth_method_id: Option<&acp::AuthMethodId>,
 ) -> Option<acp::AuthMethodId> {
+    let is_non_interactive = |m: &acp::AuthMethod| {
+        matches!(
+            AuthMethodKind::from_id(m.id()),
+            AuthMethodKind::XaiApiKey | AuthMethodKind::CachedToken
+        )
+    };
+
     if let Some(default_id) = default_auth_method_id
-        && auth_methods.iter().any(|m| m.id() == default_id)
+        && let Some(m) = auth_methods.iter().find(|m| m.id() == default_id)
+        && is_non_interactive(m)
     {
         return Some(default_id.clone());
     }
-    let cached_token_method = auth_methods
+    auth_methods
         .iter()
-        .find(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::CachedToken);
-    cached_token_method
-        .or_else(|| auth_methods.first())
+        .find(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::CachedToken)
+        .or_else(|| {
+            auth_methods
+                .iter()
+                .find(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::XaiApiKey)
+        })
         .map(|m| m.id().clone())
 }
 
@@ -857,10 +887,11 @@ mod tests {
     }
 
     #[test]
-    fn startup_auth_grok_com_no_provider_needs_login_pending() {
+    fn startup_auth_grok_com_no_provider_keeps_labels_but_never_forces_login() {
+        // OSS BYOK-first: optional Login still gets a method, but needs_login is false.
         let methods = vec![make_auth_method("grok.com", "grok.com", None)];
         let (needs, label, method_id, mode) = startup_auth_metadata(&methods);
-        assert!(needs);
+        assert!(!needs);
         assert_eq!(label.as_deref(), Some("grok.com"));
         assert_eq!(method_id.as_ref().unwrap().0.as_ref(), "grok.com");
         assert_eq!(mode, AuthStartMode::Pending);
@@ -871,10 +902,30 @@ mod tests {
         let meta = serde_json::json!({ "external_provider": true });
         let methods = vec![make_auth_method("grok.com", "Acme Corp", Some(meta))];
         let (needs, label, method_id, mode) = startup_auth_metadata(&methods);
-        assert!(needs);
+        assert!(!needs);
         assert_eq!(label.as_deref(), Some("Acme Corp"));
         assert_eq!(method_id.as_ref().unwrap().0.as_ref(), "grok.com");
         assert_eq!(mode, AuthStartMode::Command);
+    }
+
+    #[test]
+    fn select_eager_auth_never_picks_interactive_grok_com() {
+        let methods = vec![make_auth_method("grok.com", "grok.com", None)];
+        assert!(
+            select_eager_auth_method(&methods, None).is_none(),
+            "eager auth must not auto-start device OAuth"
+        );
+    }
+
+    #[test]
+    fn select_eager_auth_prefers_cached_token_over_api_key() {
+        let methods = vec![
+            make_auth_method("xai.api_key", "API Key", None),
+            make_auth_method("cached_token", "Session", None),
+            make_auth_method("grok.com", "grok.com", None),
+        ];
+        let id = select_eager_auth_method(&methods, None).expect("non-interactive");
+        assert_eq!(id.0.as_ref(), "cached_token");
     }
 
     #[test]
@@ -938,17 +989,12 @@ mod tests {
         assert_eq!(mode, AuthStartMode::Pending);
     }
 
-    /// Inverse direction: when `xai.api_key` is NOT in the list, the pager
-    /// MUST show the login screen. We assert this with `xai.api_key` present
-    /// LATER in the list (the shape of a past regression) and confirm the
-    /// pager still requires login -- because the pager only inspects
-    /// `auth_methods.first()`. This locks the failure mode of the regression:
-    /// if a future refactor makes the pager scan past `.first()`, this test
-    /// stops being equivalent to
-    /// `startup_auth_grok_com_no_provider_needs_login_pending` above and
-    /// either passes or fails on a meaningful new code path.
+    /// OSS BYOK-first: even when `grok.com` is first in the advertised list,
+    /// `startup_auth_metadata` never forces the login splash (`needs_login`
+    /// stays false). Eager auth still prefers non-interactive methods via
+    /// [`select_eager_auth_method`].
     #[test]
-    fn startup_auth_xai_api_key_not_first_still_requires_login() {
+    fn startup_auth_xai_api_key_not_first_still_does_not_force_login() {
         use xvora_shell::agent::auth_method::{XVORA_COM_METHOD_ID, XAI_API_KEY_METHOD_ID};
 
         let methods = vec![
@@ -957,10 +1003,12 @@ mod tests {
         ];
         let (needs, _, _, _) = startup_auth_metadata(&methods);
         assert!(
-            needs,
-            "with grok.com first, the pager must require login -- pinning \
-             the BAD-ordering failure mode (xai.api_key not first)",
+            !needs,
+            "OSS must never force login splash even if grok.com is advertised first",
         );
+        // Eager path still picks the non-interactive key when present.
+        let id = select_eager_auth_method(&methods, None).expect("api key");
+        assert_eq!(id.0.as_ref(), XAI_API_KEY_METHOD_ID);
     }
 
     #[test]

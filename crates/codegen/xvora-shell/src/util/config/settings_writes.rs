@@ -243,6 +243,22 @@ pub async fn set_voice_stt_language(value: String) -> Result<()> {
     update_config(|cfg| cfg.ui.voice_stt_language = Some(value)).await
 }
 
+/// Persist `[ui].language` (`en` | `vi` | `auto`).
+///
+/// `auto` (or empty) clears the key so the process re-detects from `LANG` /
+/// system locale on next start. Explicit `en` / `vi` are stored as-is.
+pub async fn set_language(value: String) -> Result<()> {
+    update_config(|cfg| {
+        let v = value.trim();
+        cfg.ui.language = if v.is_empty() || v.eq_ignore_ascii_case("auto") {
+            None
+        } else {
+            Some(v.to_ascii_lowercase())
+        };
+    })
+    .await
+}
+
 /// Persist `[ui].default_selected_permission` via `update_config`. Value is
 /// one of the canonical strings from `DEFAULT_SELECTED_PERMISSION_CHOICES`
 /// (`default` | `allow_once` | `allow_always` | `reject`); `default` is the

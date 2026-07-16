@@ -1054,6 +1054,14 @@ pub(crate) async fn persist_setting(
                 .await
                 .map_err(|e| e.to_string())
         }
+        "language" => {
+            let SettingValue::Enum(s) = value else {
+                return Err(kind_mismatch("language", "Enum", &value));
+            };
+            xvora_shell::util::config::set_language(s.to_string())
+                .await
+                .map_err(|e| e.to_string())
+        }
         "max_thoughts_width" => {
             let SettingValue::Int(i) = value else {
                 return Err(kind_mismatch("max_thoughts_width", "Int", &value));

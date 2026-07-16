@@ -219,14 +219,27 @@ fn strip_markdown_inline(s: &str) -> String {
 ///
 /// Strips `**bold**` and backtick formatting from each description,
 /// skips entries with empty descriptions (from tolerant deserialization),
-/// and returns at most `max` entries.
+/// drops xAI CDN **dummy / layout-test** placeholders (served for unreleased
+/// versions like `0.2.0-dev`), and returns at most `max` entries.
 pub fn bullets_from_entries(entries: &[ChangelogEntry], max: usize) -> Vec<String> {
     entries
         .iter()
         .filter(|e| !e.description.is_empty())
+        .filter(|e| !is_dummy_changelog_description(&e.description))
         .take(max)
         .map(|e| strip_markdown_inline(&e.description))
         .collect()
+}
+
+/// CDN placeholders for unreleased / test builds (e.g. `0.2.0-dev`).
+fn is_dummy_changelog_description(description: &str) -> bool {
+    let d = description.to_ascii_lowercase();
+    d.contains("dummy changelog")
+        || d.contains("dummy feature")
+        || d.contains("dummy bug")
+        || d.contains("for testing purposes")
+        || d.contains("for layout testing")
+        || d.contains("verify the welcome screen")
 }
 
 /// Blocking HTTP fetch. Callers (`std::thread::scope` threads) are already
@@ -295,6 +308,35 @@ mod tests {
             Some("# fallback md\n"),
             "CDN miss must fall back to the seeded CHANGELOG.md"
         );
+    }
+
+    #[test]
+    fn bullets_drop_cdn_dummy_layout_test_entries() {
+        let entries = vec![
+            ChangelogEntry {
+                category: "features".into(),
+                description: "This is a dummy changelog entry for testing purposes.".into(),
+                breaking_change: false,
+            },
+            ChangelogEntry {
+                category: "features".into(),
+                description: "Another dummy feature to verify the welcome screen renders correctly."
+                    .into(),
+                breaking_change: false,
+            },
+            ChangelogEntry {
+                category: "fixes".into(),
+                description: "Dummy bug fix entry for layout testing.".into(),
+                breaking_change: false,
+            },
+            ChangelogEntry {
+                category: "features".into(),
+                description: "Real feature: Vietnamese UI.".into(),
+                breaking_change: false,
+            },
+        ];
+        let bullets = bullets_from_entries(&entries, 5);
+        assert_eq!(bullets, vec!["Real feature: Vietnamese UI.".to_string()]);
     }
 
     #[test]

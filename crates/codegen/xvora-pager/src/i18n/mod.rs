@@ -195,6 +195,23 @@ pub fn login_with(label: &str) -> String {
     format!("{} {}", t(Msg::WelcomeLoginWithPrefix), label)
 }
 
+/// Welcome-screen changelog bullets when CDN / cache has nothing real
+/// (e.g. unreleased `0.2.0-dev` only has dummy layout-test entries).
+pub fn default_welcome_changelog_bullets() -> Vec<String> {
+    match locale() {
+        Locale::Vi => vec![
+            "Ưu tiên BYOK — không bắt buộc đăng nhập xAI.".into(),
+            "Đổi ngôn ngữ: Settings → Language (en / vi / auto).".into(),
+            "Gõ /settings để cấu hình model, theme và phím tắt.".into(),
+        ],
+        Locale::En => vec![
+            "BYOK-first — no forced xAI login.".into(),
+            "Switch language: Settings → Language (en / vi / auto).".into(),
+            "Use /settings for models, theme, and shortcuts.".into(),
+        ],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
