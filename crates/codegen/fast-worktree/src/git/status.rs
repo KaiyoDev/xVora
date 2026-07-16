@@ -6,7 +6,8 @@ use anyhow::{Context, Result};
 use dashmap::DashSet;
 use gix::bstr::BString;
 use gix::status::index_worktree::Item;
-use xvora_gix_status::index_as_worktree::{Change, EntryStatus};
+// crates.io `gix-status` (index/worktree change types) — not our budget helper crate.
+use gix_status::index_as_worktree::{Change, EntryStatus};
 
 use crate::copy::DirtyFilesReport;
 
