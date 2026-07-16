@@ -212,6 +212,11 @@ impl ActionDef {
         if t.is_empty() { self.description } else { t }
     }
 
+    /// Localized long help for the shortcuts cheatsheet detail page.
+    pub fn long_help_i18n(&self) -> Option<&'static str> {
+        crate::i18n::actions_long_help::long_help(self.id).or(self.long_help)
+    }
+
     /// Convert this action def into a [`HintItem`] for the shortcuts bar.
     ///
     /// Uses `default_key` only. For paired hints (j/k, h/l), the view should

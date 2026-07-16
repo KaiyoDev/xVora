@@ -11,6 +11,9 @@
 //! Phase C modules: [`actions`], [`settings`], [`slash`].
 
 pub mod actions;
+pub mod actions_long_help;
+pub mod chrome;
+pub mod enums;
 pub mod settings;
 pub mod slash;
 
@@ -63,7 +66,7 @@ pub fn detect() -> Locale {
             return l;
         }
     }
-    for key in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+    for key in ["LC_ALL", "LC_MESSAGES", "LANG", "USER_LANGUAGE", "Language"] {
         if let Ok(v) = std::env::var(key)
             && let Some(l) = parse_lang_tag(&v)
         {

@@ -202,6 +202,11 @@ pub fn setting_description(key: &str, fallback: &'static str) -> &'static str {
 }
 
 pub fn enum_display(canonical: &str, fallback: &'static str) -> &'static str {
+    // Prefer the fuller enums table (display + aliases).
+    let from_enums = super::enums::display(canonical, "");
+    if !from_enums.is_empty() {
+        return from_enums;
+    }
     match (locale(), canonical) {
         (Locale::Vi, "auto") => "Tự động",
         (Locale::En, "auto") => "Auto",
@@ -262,6 +267,11 @@ pub fn enum_display(canonical: &str, fallback: &'static str) -> &'static str {
 }
 
 pub fn chrome(key: &str) -> &'static str {
+    // Prefer the expanded chrome table (footers, toasts, validation, …).
+    let from_chrome = super::chrome::t(key);
+    if !from_chrome.is_empty() {
+        return from_chrome;
+    }
     match (locale(), key) {
         (Locale::Vi, "settings.title") => "Cài đặt",
         (Locale::En, "settings.title") => "Settings",

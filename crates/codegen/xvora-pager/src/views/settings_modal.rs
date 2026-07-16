@@ -421,7 +421,7 @@ impl SettingsModalState {
                         .map(|c| OwnedEnumChoice {
                             canonical: c.canonical.to_string(),
                             display: crate::i18n::settings::enum_display(c.canonical, c.display).to_string(),
-                            description: c.description.to_string(),
+                            description: crate::i18n::enums::description(c.canonical, c.description).to_string(),
                         })
                         .collect(),
                 ),
@@ -1872,7 +1872,7 @@ fn render_picking_enum(buf: &mut Buffer, area: Rect, state: &SettingsModalState,
                 .map(|c| OwnedEnumChoice {
                     canonical: c.canonical.to_string(),
                     display: crate::i18n::settings::enum_display(c.canonical, c.display).to_string(),
-                    description: c.description.to_string(),
+                    description: crate::i18n::enums::description(c.canonical, c.description).to_string(),
                 })
                 .collect()
         }

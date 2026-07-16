@@ -246,7 +246,7 @@ pub fn build_entries(
                 item,
                 dimmed,
                 action_id: Some(def.id),
-                long_help: def.long_help,
+                long_help: def.long_help_i18n(),
             };
             match seen_in_cat.entry(def.default_key) {
                 std::collections::hash_map::Entry::Vacant(slot) => {
@@ -268,7 +268,9 @@ pub fn build_entries(
         // handled inline; surface it here for discoverability.
         if vim_mode && cat == Category::ConversationNav {
             let mut item = HintItem::new(crate::key!('/'), "search");
-            item.description = Some("Search scrollback".into());
+            item.description = Some(
+                crate::i18n::chrome::t("shortcuts.pseudo.search").into(),
+            );
             let dimmed = !active_contexts.contains(&When::ScrollbackFocused);
             entries.push(ShortcutsHelpEntry::Hint {
                 item,
@@ -282,7 +284,9 @@ pub fn build_entries(
         // swallow it. Lit on the agent prompt and the dashboard (both paste).
         if cat == Category::Input {
             let mut item = HintItem::new(crate::key!('v', CONTROL), "paste");
-            item.description = Some("Paste images (and text) from the clipboard".into());
+            item.description = Some(
+                crate::i18n::chrome::t("shortcuts.pseudo.paste").into(),
+            );
             #[cfg(target_os = "windows")]
             item.keys.push(crate::key!('v', ALT));
             let dimmed = !active_contexts.contains(&When::PromptFocused)
