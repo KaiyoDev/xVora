@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="xVora logo" width="160">
+
 # xVora
 
 [![CI](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml/badge.svg)](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml)
