@@ -1,4 +1,4 @@
-//! `grok inspect` — configuration introspection.
+//! `xvora inspect` — configuration introspection.
 //!
 //! Shows everything Grok discovers in the current directory: project
 //! instructions, permissions, hooks, skills, agents, plugins, MCP servers,
@@ -265,7 +265,7 @@ pub struct ConfigSources {
     pub layers: Vec<ConfigLayer>,
 }
 
-/// A single config layer entry for `grok inspect`.
+/// A single config layer entry for `xvora inspect`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigLayer {

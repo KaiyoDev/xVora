@@ -1,4 +1,4 @@
-//! Data APIs for `grok models`. Clients own display.
+//! Data APIs for `xvora models`. Clients own display.
 
 use agent_client_protocol as acp;
 use anyhow::Result;
@@ -6,7 +6,7 @@ use acp_lib::{AcpAgentTx, acp_send};
 
 use crate::agent::config::Config as AgentConfig;
 
-/// Status for the `grok models` banner (display order ≠ sampling priority; see [`AuthStatus::resolve`]).
+/// Status for the `xvora models` banner (display order ≠ sampling priority; see [`AuthStatus::resolve`]).
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthStatus {
     ApiKey,

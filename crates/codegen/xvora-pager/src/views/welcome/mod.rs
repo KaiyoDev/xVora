@@ -465,7 +465,7 @@ pub(super) fn render_version_badge(
         }
         VersionBadgeMode::HeroInline => {
             spans.push(Span::styled(
-                "xvora Beta  ",
+                crate::i18n::t(crate::i18n::Msg::WelcomeBetaLabel),
                 Style::default()
                     .fg(theme.text_primary)
                     .add_modifier(Modifier::BOLD),
@@ -684,9 +684,12 @@ pub fn render_welcome(
 
     let mut result = match params.auth_state {
         AuthState::Pending { error } => {
-            let label = params.login_label.unwrap_or("grok.com");
-            let login_text = format!("Login with {}", label);
-            let menu = [("l", login_text.as_str()), ("q", "Quit")];
+            let label = params.login_label.unwrap_or("xVora");
+            let login_text = crate::i18n::login_with(label);
+            let menu = [
+                ("l", login_text.as_str()),
+                ("q", crate::i18n::t(crate::i18n::Msg::WelcomeQuit)),
+            ];
             let msg = error.as_deref().map(|e| (e, theme.accent_error));
             let info = PromptInfo {
                 model_name: params.model_name,
@@ -755,7 +758,10 @@ pub fn render_welcome(
             }
         }
         AuthState::Done if params.is_zdr_blocked => {
-            let menu = [("l", "Switch account"), ("q", "Quit")];
+            let menu = [
+                ("l", crate::i18n::t(crate::i18n::Msg::WelcomeSwitchAccount)),
+                ("q", crate::i18n::t(crate::i18n::Msg::WelcomeQuit)),
+            ];
             let (menu_rects, post_flush_escapes) = render_welcome_blocked(
                 content_area,
                 buf,
@@ -931,7 +937,10 @@ fn render_welcome_trust(
     h_margin: u16,
     compact: bool,
 ) -> WelcomeRenderResult {
-    let menu_items = [("y", "Yes, proceed"), ("n", "No, quit")];
+    let menu_items = [
+        ("y", crate::i18n::t(crate::i18n::Msg::TrustYes)),
+        ("n", crate::i18n::t(crate::i18n::Msg::TrustNo)),
+    ];
     let lines = vec![
         Line::from(Span::styled(
             "Do you trust the contents of this directory?",
@@ -1199,7 +1208,10 @@ fn render_raw_url_mode(
                 .fg(theme.accent_user)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled("  go back", Style::default().fg(theme.gray)),
+        Span::styled(
+            crate::i18n::t(crate::i18n::Msg::AuthGoBack),
+            Style::default().fg(theme.gray),
+        ),
     ];
     let hints = Line::from(hint_spans).alignment(Alignment::Center);
     Paragraph::new(hints).render(hint_area, buf);
@@ -1243,10 +1255,14 @@ fn render_browser_status_arm(
 
     // Device also parses the user code from the verification URL.
     let (header, waiting_text, user_code) = match kind {
-        BrowserStatusKind::Command => (AUTH_HEADER, "Waiting for login to complete...", None),
+        BrowserStatusKind::Command => (
+            AUTH_HEADER,
+            crate::i18n::t(crate::i18n::Msg::AuthWaitingLogin),
+            None,
+        ),
         BrowserStatusKind::Device => (
             DEVICE_AUTH_HEADER,
-            "Waiting for approval...",
+            crate::i18n::t(crate::i18n::Msg::AuthWaitingApproval),
             auth_url.and_then(extract_user_code),
         ),
     };
@@ -1541,7 +1557,7 @@ fn render_changelog_section(
             .fg(theme.gray_bright)
             .add_modifier(Modifier::DIM),
     );
-    let title = "Changelog";
+    let title = crate::i18n::t(crate::i18n::Msg::WelcomeChangelog);
     buf.set_span(
         centered.x,
         centered.y,
@@ -1706,7 +1722,11 @@ fn render_welcome_done(
     let gate_menu;
     let owned_menu;
     let menu_items: &[(&str, &str)] = if !p.has_access {
-        gate_menu = [(key_g, cta), (key_l, "Logout"), (key_q, "Quit")];
+        gate_menu = [
+            (key_g, cta),
+            (key_l, crate::i18n::t(crate::i18n::Msg::WelcomeLogout)),
+            (key_q, crate::i18n::t(crate::i18n::Msg::WelcomeQuit)),
+        ];
         &gate_menu
     } else {
         let (key_w, key_s, key_q, key_i_with_x) = (
@@ -1724,15 +1744,24 @@ fn render_welcome_done(
             // 3 cells of this row as dismiss instead of open. Keyboard:
             // ctrl-shift-i. The key string is right-aligned by render_menu,
             // so [x] sits at the very end of the row.
-            items.push((key_i_with_x, "Import Claude settings"));
+            items.push((
+                key_i_with_x,
+                crate::i18n::t(crate::i18n::Msg::WelcomeImportClaude),
+            ));
         }
-        items.push((key_w, "New worktree"));
-        items.push((key_s, "Resume session"));
-        // "Changelog" above Quit; no shortcut — opened by click (row or block).
+        items.push((
+            key_w,
+            crate::i18n::t(crate::i18n::Msg::WelcomeNewWorktree),
+        ));
+        items.push((
+            key_s,
+            crate::i18n::t(crate::i18n::Msg::WelcomeResumeSession),
+        ));
+        // Changelog above Quit; no shortcut — opened by click (row or block).
         if show_changelog_action {
-            items.push(("", "Changelog"));
+            items.push(("", crate::i18n::t(crate::i18n::Msg::WelcomeChangelog)));
         }
-        items.push((key_q, "Quit"));
+        items.push((key_q, crate::i18n::t(crate::i18n::Msg::WelcomeQuit)));
         owned_menu = items;
         owned_menu.as_slice()
     };
@@ -2358,7 +2387,7 @@ pub(crate) fn render_session_picker(
     }
 
     let config = PickerConfig {
-        title: Some("Resume session"),
+        title: Some(crate::i18n::t(crate::i18n::Msg::WelcomeResumeSession)),
         show_search_hint: true,
         expandable: true,
         esc_clears_query: true,
@@ -2903,7 +2932,7 @@ mod tests {
 
     fn resume_picker_config() -> crate::views::picker::PickerConfig<'static> {
         crate::views::picker::PickerConfig {
-            title: Some("Resume session"),
+            title: Some(crate::i18n::t(crate::i18n::Msg::WelcomeResumeSession)),
             show_search_hint: true,
             expandable: true,
             esc_clears_query: true,

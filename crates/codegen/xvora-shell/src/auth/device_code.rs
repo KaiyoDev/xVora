@@ -25,7 +25,7 @@ const MIN_DEVICE_CODE_EXPIRY_FALLBACK_SECS: i64 = 10 * 60;
 pub enum DeviceCodeError {
     #[error(
         "Device-code login is not available for this deployment. \
-         Try `grok login` or set XAI_API_KEY instead."
+         Try `xvora login` or set XAI_API_KEY instead."
     )]
     NotEnabled,
     #[error(transparent)]

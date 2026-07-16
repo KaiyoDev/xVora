@@ -322,7 +322,7 @@ impl EndpointsConfig {
     pub fn resolve_trace_upload_url(&self) -> String {
         blank_as_unset(&self.trace_upload_url).unwrap_or_else(|| self.proxy_url())
     }
-    /// Managed deployment-config URL (`grok setup`): explicit `managed_config_url`,
+    /// Managed deployment-config URL (`xvora setup`): explicit `managed_config_url`,
     /// else `proxy_url` + `/deployment/config`. Never `xai_api_base_url`, so the
     /// deployment key reaches the proxy, not the inference host.
     pub fn resolve_managed_config_url(&self) -> String {
@@ -1277,7 +1277,7 @@ pub struct Config {
     /// `[model.*]` overrides from config.toml. Resolve via `resolve_model_list()`.
     #[serde(skip)]
     pub config_models: IndexMap<String, ConfigModelOverride>,
-    /// Warnings from `[model.*]` parsing; surfaced by `grok inspect`.
+    /// Warnings from `[model.*]` parsing; surfaced by `xvora inspect`.
     #[serde(skip)]
     pub model_override_warnings: Vec<super::config_model_override_parse::ModelOverrideWarning>,
     pub grok_com_config: GrokComConfig,
@@ -3009,7 +3009,7 @@ pub(crate) fn external_otel_master_switch_from(
 /// Layering follows `resolve_telemetry_mode`: **requirement > env > config >
 /// remote > default**, where the `[telemetry]` `otel_*` keys from the
 /// effective config (which already includes managed-config layers distributed
-/// by `grok setup`) sit under the env vars, requirements pins are applied on
+/// by `xvora setup`) sit under the env vars, requirements pins are applied on
 /// top, and the remote layer is restrictive-only + asynchronous
 /// ([`apply_external_otel_remote_policy`]).
 pub fn resolve_external_otel_config(

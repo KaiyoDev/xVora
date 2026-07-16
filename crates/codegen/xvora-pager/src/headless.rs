@@ -512,7 +512,7 @@ fn auth_required_message(interactive: bool) -> String {
             .to_string()
     } else {
         "Not signed in. To authenticate without a browser, run:\n  \
-         grok login --device-code\n\n\
+         xvora login --device-code\n\n\
          Alternatively, set the XAI_API_KEY environment variable \
          or run `xvora login` on a machine with a browser."
             .to_string()
@@ -800,7 +800,7 @@ async fn apply_headless_model_and_effort(
     .map_err(|e| {
         if let Some(name) = model_name {
             anyhow::anyhow!(
-                "Couldn't set model '{}': {}. Run 'grok models' to see available models.",
+                "Couldn't set model '{}': {}. Run 'xvora models' to see available models.",
                 name,
                 e
             )

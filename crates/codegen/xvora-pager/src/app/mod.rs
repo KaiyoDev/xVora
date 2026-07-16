@@ -1734,7 +1734,7 @@ mod tests {
         assert_eq!(
             first_5,
             vec![
-                "xvora TUI",
+                "xVora — Terminal AI (BYOK-first)",
                 "",
                 "Usage: xvora [OPTIONS] [PROMPT] [COMMAND]",
                 "",
