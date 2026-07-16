@@ -121,22 +121,21 @@ Guide: [`crates/codegen/xvora-pager/docs/user-guide/11-custom-models.md`](crates
 
 ---
 
-## CI / download binary
+## CI / download binary (Windows)
 
 Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 
 On push to `main` (and PRs):
 
-1. `cargo check` + `cargo build --release -p xvora-pager-bin` (Linux)
-2. Upload artifact **`xvora-linux-x64`**
+1. `cargo check` + `cargo build --release -p xvora-pager-bin` on **`windows-latest`**
+2. Upload artifact **`xvora-win-x64`** (`xvora.exe`)
 3. **Only the newest run stays active** (`cancel-in-progress`)
 4. Older completed runs of this workflow are cleaned up
 
-**Download:** [Actions → CI → latest green run → Artifacts → `xvora-linux-x64`](https://github.com/KaiyoDev/xVora/actions)
+**Download:** [Actions → CI → latest green run → Artifacts → `xvora-win-x64`](https://github.com/KaiyoDev/xVora/actions)
 
-```sh
-chmod +x xvora
-./xvora --version
+```powershell
+.\xvora.exe --version
 ```
 
 ---

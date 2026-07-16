@@ -1,4 +1,4 @@
-# CI + release binary for weak local machines.
+# CI + Windows release binary (for weak local machines).
 # concurrency.cancel-in-progress: only the newest run for a ref stays alive.
 # cleanup job: delete older completed runs of this workflow (keep latest only).
 
@@ -25,55 +25,66 @@ env:
 
 jobs:
   build:
-    name: check + build (linux)
-    runs-on: ubuntu-latest
+    name: check + build (windows)
+    runs-on: windows-latest
     timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install protoc
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show protoc
+        shell: pwsh
+        run: protoc --version
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.92.0"
           components: rustfmt, clippy
+          targets: x86_64-pc-windows-msvc
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: xvora-pager-bin
+          shared-key: xvora-pager-bin-windows
           cache-on-failure: true
 
       - name: cargo fmt (check)
+        shell: pwsh
         run: cargo fmt --all -- --check
         continue-on-error: true
 
       - name: cargo check (xvora-pager-bin)
+        shell: pwsh
         run: cargo check -p xvora-pager-bin
 
       - name: cargo clippy (xvora-pager-bin)
+        shell: pwsh
         run: cargo clippy -p xvora-pager-bin -- -D warnings
         continue-on-error: true
 
       - name: cargo build --release (xvora-pager-bin)
+        shell: pwsh
         run: cargo build -p xvora-pager-bin --release
 
       - name: Smoke test binary
+        shell: pwsh
         run: |
-          ./target/release/xvora --version
-          ls -lh target/release/xvora
+          $bin = "target\release\xvora.exe"
+          if (-not (Test-Path $bin)) { throw "missing $bin" }
+          & $bin --version
+          Get-Item $bin | Format-List Name, Length, FullName
 
-      - name: Upload xvora binary
+      - name: Upload xvora Windows binary
         uses: actions/upload-artifact@v4
         with:
-          name: xvora-linux-x64
-          path: target/release/xvora
+          name: xvora-win-x64
+          path: target/release/xvora.exe
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
@@ -95,8 +106,6 @@ jobs:
           set -euo pipefail
           echo "Keeping run id: $KEEP_RUN_ID"
 
-          # List completed runs for this workflow; delete all except the current one.
-          # Paginate with gh; stop after a reasonable batch so we don't burn API quota.
           mapfile -t IDS < <(
             gh api \
               --paginate \
