@@ -2,6 +2,8 @@
 
 # xVora
 
+[![CI](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml/badge.svg)](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml)
+
 **Terminal AI coding agent** — full-screen TUI, headless automation, and ACP for editors.
 
 Bring your own keys. Run local models. No forced cloud lock-in.
@@ -11,6 +13,7 @@ Bring your own keys. Run local models. No forced cloud lock-in.
 [Quick start](#quick-start) ·
 [BYOK / custom models](#byok--custom-models) ·
 [Build from source](#build-from-source) ·
+[CI](#ci-github-actions) ·
 [Docs](#documentation) ·
 [Layout](#repository-layout) ·
 [License](#license)
@@ -141,6 +144,21 @@ cargo fmt --all
 Always target **specific crates** (`-p …`). Full workspace builds are large and slow.
 
 Binary package: **`xvora-pager-bin`** → artifact name **`xvora`**.
+
+---
+
+## CI (GitHub Actions)
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+On every push to `main` / PR / manual dispatch:
+
+1. **`cargo check`** + **`cargo build --release -p xvora-pager-bin`** on `ubuntu-latest`
+2. Upload artifact **`xvora-linux-x64`** (download from the Actions run)
+3. **Concurrency**: only the **newest** run per branch stays active — older in-progress runs are **cancelled**
+4. **Cleanup**: after a run finishes, older **completed** history for this workflow is **deleted** (keeps the latest)
+
+Download the binary from: **Actions → CI → latest run → Artifacts → `xvora-linux-x64`**
 
 ---
 

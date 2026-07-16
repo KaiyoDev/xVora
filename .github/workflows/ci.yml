@@ -1,0 +1,123 @@
+# CI + release binary for weak local machines.
+# concurrency.cancel-in-progress: only the newest run for a ref stays alive.
+# cleanup job: delete older completed runs of this workflow (keep latest only).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# One active run per branch/PR; new commits cancel the previous run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build:
+    name: check + build (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.92.0"
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xvora-pager-bin
+          cache-on-failure: true
+
+      - name: cargo fmt (check)
+        run: cargo fmt --all -- --check
+        continue-on-error: true
+
+      - name: cargo check (xvora-pager-bin)
+        run: cargo check -p xvora-pager-bin
+
+      - name: cargo clippy (xvora-pager-bin)
+        run: cargo clippy -p xvora-pager-bin -- -D warnings
+        continue-on-error: true
+
+      - name: cargo build --release (xvora-pager-bin)
+        run: cargo build -p xvora-pager-bin --release
+
+      - name: Smoke test binary
+        run: |
+          ./target/release/xvora --version
+          ls -lh target/release/xvora
+
+      - name: Upload xvora binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: xvora-linux-x64
+          path: target/release/xvora
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 9
+
+  # Keep only the newest completed run history for this workflow file.
+  cleanup-old-runs:
+    name: cleanup old runs
+    needs: [build]
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete older workflow runs (keep latest)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: ci.yml
+        run: |
+          set -euo pipefail
+          echo "Keeping run id: $KEEP_RUN_ID"
+
+          # List completed runs for this workflow; delete all except the current one.
+          # Paginate with gh; stop after a reasonable batch so we don't burn API quota.
+          mapfile -t IDS < <(
+            gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${REPO}/actions/workflows/${WORKFLOW}/runs?status=completed&per_page=100" \
+              --jq ".workflow_runs[] | select(.id != ${KEEP_RUN_ID}) | .id" \
+              | head -n 50
+          )
+
+          if [[ ${#IDS[@]} -eq 0 ]]; then
+            echo "No older completed runs to delete."
+            exit 0
+          fi
+
+          echo "Deleting ${#IDS[@]} older run(s)..."
+          for id in "${IDS[@]}"; do
+            echo "  delete run $id"
+            gh api -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${REPO}/actions/runs/${id}" \
+              || echo "  (skip $id — may already be gone)"
+          done
+
+          echo "Done."
