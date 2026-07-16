@@ -1759,11 +1759,18 @@ impl MvpAgent {
     }
     /// Check whether the user has access via remote settings `allow_access`.
     ///
-    /// Non-xAI auth (API keys, enterprise) always passes. For xAI OAuth2
-    /// users, reads `allow_access` from remote settings. Defaults to
-    /// `false` (blocked) when remote settings are unavailable.
+    /// Unrestricted local auth always passes:
+    /// - Non-xAI auth (API keys, external IdP, enterprise)
+    /// - Pure BYOK / custom endpoints (`[model.*]` with credentials or
+    ///   `base_url`, custom models endpoint, or `XAI_API_KEY`)
+    ///
+    /// For xAI OAuth2 users without local BYOK, reads `allow_access` from
+    /// remote settings. Defaults to `false` (blocked) when remote settings
+    /// are unavailable.
     pub(super) async fn enforce_grok_code_access(&self, auth: &crate::auth::GrokAuth) {
-        if !auth.is_xai_auth() {
+        if !auth.is_xai_auth()
+            || crate::agent::config::is_byok_or_custom_local(&self.cfg.borrow())
+        {
             self.tier_allowed.set(true);
             return;
         }
@@ -1834,6 +1841,7 @@ impl MvpAgent {
                 self.reconfigure_heap_profile_monitor();
             }
             if crate::util::config::resolve_remote_fetch_enabled()
+                && !crate::agent::config::is_byok_or_custom_local(&self.cfg.borrow())
                 && !settings_allow_access(self.cfg.borrow().remote_settings.as_ref())
             {
                 tracing::info!(
@@ -1948,17 +1956,27 @@ impl MvpAgent {
         }
     }
     pub(crate) fn auth_response_with_meta(&self) -> AuthenticateResponse {
+        let byok_unrestricted =
+            crate::agent::config::is_byok_or_custom_local(&self.cfg.borrow());
+        // BYOK / custom endpoints never hit the subscription paywall — the
+        // user's own credentials are the access control.
+        if byok_unrestricted {
+            self.tier_allowed.set(true);
+        }
         let (show_resolved_model, gate, subscription_tier) = {
             let cfg = self.cfg.borrow();
             let rs = cfg.remote_settings.as_ref();
-            let gate = rs
-                .and_then(|s| s.gate_message.as_ref())
-                .filter(|m| !m.is_empty())
-                .map(|message| crate::auth::GateInfo {
-                    message: message.clone(),
-                    url: rs.and_then(|s| s.gate_url.clone()),
-                    label: rs.and_then(|s| s.gate_label.clone()),
-                });
+            let gate = if byok_unrestricted {
+                None
+            } else {
+                rs.and_then(|s| s.gate_message.as_ref())
+                    .filter(|m| !m.is_empty())
+                    .map(|message| crate::auth::GateInfo {
+                        message: message.clone(),
+                        url: rs.and_then(|s| s.gate_url.clone()),
+                        label: rs.and_then(|s| s.gate_label.clone()),
+                    })
+            };
             let subscription_tier = rs.and_then(|s| s.subscription_tier_display.clone());
             (rs.and_then(|s| s.show_resolved_model), gate, subscription_tier)
         };
@@ -1970,7 +1988,9 @@ impl MvpAgent {
             .auth_manager
             .current()
             .map(|auth| {
-                let gate = if !self.tier_allowed.get() && gate.is_none() {
+                let gate = if byok_unrestricted {
+                    None
+                } else if !self.tier_allowed.get() && gate.is_none() {
                     let message = "A subscription is required.".to_string();
                     Some(crate::auth::GateInfo {
                         message,
@@ -2630,7 +2650,8 @@ fn spawn_post_unblock_jwt_and_catalog_retry(
 ///
 /// Used by both `enforce_grok_code_access` (initial login gate) and
 /// `retry_subscription_check` (poller gate lift) to keep the decision in
-/// one place.
+/// one place. Callers that need BYOK / custom-endpoint freedom should also
+/// consult [`crate::agent::config::is_byok_or_custom_local`].
 pub(crate) fn settings_allow_access(
     rs: Option<&crate::util::config::RemoteSettings>,
 ) -> bool {

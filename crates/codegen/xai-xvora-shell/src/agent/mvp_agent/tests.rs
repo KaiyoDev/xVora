@@ -354,10 +354,48 @@ fn trace_turn_to_i32_saturates_at_max() {
     let result = i32::try_from(boundary).unwrap_or(i32::MAX);
     assert_eq!(result, i32::MAX);
 }
-/// When remote settings are absent (`None`), default to blocked.
+/// When remote settings are absent (`None`), default to blocked for
+/// subscription-gated xAI OAuth. BYOK / custom endpoints bypass via
+/// `is_byok_or_custom_local` instead of this helper.
 #[test]
 fn settings_allow_access_none_settings_is_blocked() {
     assert!(!settings_allow_access(None));
+}
+
+/// Pure BYOK (per-model api_key) is unrestricted even without remote allow.
+#[test]
+fn byok_or_custom_local_with_model_api_key() {
+    let toml = r#"
+        [model.my-openai]
+        model = "gpt-4o"
+        base_url = "https://api.openai.com/v1"
+        api_key = "sk-test"
+        context_window = 128000
+    "#;
+    let val: toml::Value = toml::from_str(toml).unwrap();
+    let cfg = crate::agent::config::Config::new_from_toml_cfg(&val).unwrap();
+    assert!(crate::agent::config::is_byok_or_custom_local(&cfg));
+}
+
+/// Local Ollama-style endpoint (no api_key) still counts as unrestricted.
+#[test]
+fn byok_or_custom_local_with_ollama_base_url() {
+    let toml = r#"
+        [model.ollama]
+        model = "llama3"
+        base_url = "http://127.0.0.1:11434/v1"
+        context_window = 128000
+    "#;
+    let val: toml::Value = toml::from_str(toml).unwrap();
+    let cfg = crate::agent::config::Config::new_from_toml_cfg(&val).unwrap();
+    assert!(crate::agent::config::is_byok_or_custom_local(&cfg));
+}
+
+/// Built-in first-party defaults alone do not unlock BYOK freedom.
+#[test]
+fn byok_or_custom_local_defaults_only_is_false() {
+    let cfg = crate::agent::config::Config::default();
+    assert!(!crate::agent::config::is_byok_or_custom_local(&cfg));
 }
 /// When `allow_access` is `Some(true)`, user is allowed.
 #[test]

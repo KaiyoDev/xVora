@@ -3124,6 +3124,47 @@ fn managed_settings_env_flag(key: &str) -> Option<bool> {
     let json: serde_json::Value = serde_json::from_str(&content).ok()?;
     xai_xvora_workspace::permission::resolution::json_env_flag(json.get("env"), key)
 }
+/// True when the user can run fully without an xAI subscription / login
+/// paywall: per-model BYOK credentials, a custom `base_url`, a custom models
+/// endpoint, or a global `XAI_API_KEY`.
+///
+/// Personal forks use this so users who bring their own keys or self-host
+/// models are never blocked by `xvora_access_gate`.
+pub fn is_byok_or_custom_local(cfg: &Config) -> bool {
+    if crate::agent::auth_method::has_xai_api_key_env() {
+        return true;
+    }
+    if cfg.endpoints.has_custom_endpoint() {
+        return true;
+    }
+    let models = resolve_model_list(cfg, None);
+    models.values().any(|entry| {
+        entry.has_own_credentials()
+            || entry
+                .api_base_url
+                .as_ref()
+                .is_some_and(|u| !u.trim().is_empty())
+            || is_non_first_party_base_url(&entry.info.base_url)
+    })
+}
+
+/// A model `base_url` that is not a first-party xAI / grok proxy counts as a
+/// user-owned endpoint (Ollama, OpenRouter, corporate proxy, …).
+fn is_non_first_party_base_url(base_url: &str) -> bool {
+    let url = base_url.trim().to_ascii_lowercase();
+    if url.is_empty() {
+        return false;
+    }
+    if url.contains("api.x.ai")
+        || url.contains("cli-chat-proxy")
+        || url.contains("grok.com")
+        || url.contains("x.ai/")
+    {
+        return false;
+    }
+    true
+}
+
 /// Assemble the final model map. Priority (highest wins):
 /// config.toml `[model.*]` > prefetched (remote) > hardcoded defaults.
 pub fn resolve_model_list(
@@ -3704,7 +3745,14 @@ impl ConfigModelOverride {
         if self.api_base_url.is_some() {
             entry.api_base_url.clone_from(&self.api_base_url);
         }
-        if self.supported_in_api.is_none() && (self.api_key.is_some() || self.env_key.is_some()) {
+        // Custom / BYOK models must stay visible under API-key auth: either an
+        // explicit key, or a user-supplied base_url (Ollama / OpenRouter / …).
+        if self.supported_in_api.is_none()
+            && (self.api_key.is_some()
+                || self.env_key.is_some()
+                || self.base_url.is_some()
+                || self.api_base_url.is_some())
+        {
             entry.info.supported_in_api = true;
         }
         entry

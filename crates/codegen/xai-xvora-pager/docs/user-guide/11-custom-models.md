@@ -1,12 +1,37 @@
 # Custom Models
 
-Grok connects to custom model endpoints for alternative providers, self-hosted models, and overriding built-in settings. This guide explains how to select models, configure endpoints, and integrate third-party providers.
+Xvora connects to custom model endpoints for alternative providers, self-hosted models, and overriding built-in settings. This guide explains how to select models, configure endpoints, and integrate third-party providers.
+
+## Pure BYOK (no xAI login)
+
+If you configure **any** of the following, Xvora treats you as a full local user:
+
+- A `[model.*]` entry with `api_key` / `env_key`
+- A `[model.*]` entry with a non-xAI `base_url` (Ollama, OpenRouter, OpenAI, …)
+- Global `XAI_API_KEY` (or `XVORA_CODE_XAI_API_KEY`)
+- Custom models endpoint (`[endpoints] models_base_url` / `models_list_url`)
+
+In that mode there is **no subscription paywall** and **no forced xAI login**.
+Point `models.default` at your BYOK model and start coding.
+
+```toml
+[models]
+default = "openai-gpt"
+
+[model.openai-gpt]
+model = "gpt-4o"
+base_url = "https://api.openai.com/v1"
+api_key = "sk-..."            # or env_key = "OPENAI_API_KEY"
+api_backend = "chat_completions"
+context_window = 128000
+name = "GPT-4o"
+```
 
 ---
 
 ## Default Models
 
-By default, Grok uses models hosted by SpaceXAI, and new sessions start with `xvora`. Default models require no configuration. Authenticate with `xvora login` or an API key, then start a session.
+By default, Xvora can use SpaceXAI-hosted models (when authenticated). New sessions start with `xvora` unless you set `[models] default`. Authenticate with `xvora login`, an API key, or pure BYOK as above.
 
 List all available models:
 

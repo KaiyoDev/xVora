@@ -734,8 +734,17 @@ pub(crate) async fn run(
     app.apply_voice_mode_enabled(voice_mode_enabled);
 
     // Fallback: prefetch may have gate info the shell's AuthMeta missed.
-    // Errs on the side of blocking if stale.
-    if app.gate.is_none()
+    // Errs on the side of blocking if stale — except pure BYOK / custom
+    // endpoints, which never take the subscription paywall.
+    let byok_unrestricted = xai_xvora_shell::config::load_effective_config()
+        .ok()
+        .and_then(|root| {
+            xai_xvora_shell::agent::config::Config::new_from_toml_cfg(&root).ok()
+        })
+        .is_some_and(|c| xai_xvora_shell::agent::config::is_byok_or_custom_local(&c));
+    if byok_unrestricted {
+        app.gate = None;
+    } else if app.gate.is_none()
         && let Some(rs) = remote_settings.as_ref()
     {
         app.gate = AppView::gate_from_settings(rs);
@@ -744,7 +753,9 @@ pub(crate) async fn run(
     // Re-impose the startup gate through the chokepoint: cached auth meta
     // and the settings prefetch are both possibly stale, so a consumer
     // session's gate is deferred for live verification before first paint.
-    if let Some(gate) = app.gate.take() {
+    if byok_unrestricted {
+        app.gate = None;
+    } else if let Some(gate) = app.gate.take() {
         post_render_effects.extend(app.impose_gate(gate));
     }
 
