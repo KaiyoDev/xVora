@@ -200,14 +200,26 @@ pub struct ActionDef {
 }
 
 impl ActionDef {
+    /// Localized shortcuts-bar label (falls back to the English `label` field).
+    pub fn label_i18n(&self) -> &'static str {
+        let t = crate::i18n::actions::label(self.id);
+        if t.is_empty() { self.label } else { t }
+    }
+
+    /// Localized palette / cheatsheet description.
+    pub fn description_i18n(&self) -> &'static str {
+        let t = crate::i18n::actions::description(self.id);
+        if t.is_empty() { self.description } else { t }
+    }
+
     /// Convert this action def into a [`HintItem`] for the shortcuts bar.
     ///
     /// Uses `default_key` only. For paired hints (j/k, h/l), the view should
     /// use [`HintItem::paired`] with keys from two related action defs.
     pub fn hint(&self) -> HintItem {
-        let mut item = HintItem::new(self.default_key, self.label);
+        let mut item = HintItem::new(self.default_key, self.label_i18n());
         item.custom_display = self.hint_key_display;
-        item.description = Some(std::borrow::Cow::Borrowed(self.description));
+        item.description = Some(std::borrow::Cow::Borrowed(self.description_i18n()));
         item
     }
 }

@@ -74,16 +74,29 @@ impl ShortcutsHelpEntry {
 // Modal state construction
 // ---------------------------------------------------------------------------
 
-/// Category display order and labels for the cheatsheet.
-const CATEGORY_ORDER: &[(Category, &str)] = &[
-    (Category::GettingStarted, "Essentials"),
-    (Category::Input, "Input"),
-    (Category::ConversationNav, "Conversation Navigation"),
-    (Category::ConversationAction, "Conversation Actions"),
-    (Category::Panels, "Panels"),
-    (Category::Session, "Session"),
-    (Category::Dashboard, "Dashboard"),
+/// Category display order for the cheatsheet (labels via i18n).
+const CATEGORY_ORDER: &[Category] = &[
+    Category::GettingStarted,
+    Category::Input,
+    Category::ConversationNav,
+    Category::ConversationAction,
+    Category::Panels,
+    Category::Session,
+    Category::Dashboard,
 ];
+
+fn category_label(cat: Category) -> &'static str {
+    let key = match cat {
+        Category::GettingStarted => "shortcuts.cat.essentials",
+        Category::Input => "shortcuts.cat.input",
+        Category::ConversationNav => "shortcuts.cat.conversation_nav",
+        Category::ConversationAction => "shortcuts.cat.conversation_action",
+        Category::Panels => "shortcuts.cat.panels",
+        Category::Session => "shortcuts.cat.session",
+        Category::Dashboard => "shortcuts.cat.dashboard",
+    };
+    crate::i18n::settings::chrome(key)
+}
 
 pub fn default_collapsed() -> std::collections::HashSet<usize> {
     (1..CATEGORY_ORDER.len()).collect()
@@ -139,7 +152,7 @@ pub fn build_entries(
             std::collections::HashSet::new()
         };
 
-    for (cat_idx, &(cat, label)) in CATEGORY_ORDER.iter().enumerate() {
+    for (cat_idx, &cat) in CATEGORY_ORDER.iter().enumerate() {
         // Dedup per category on the default key, preferring the def
         // whose `When` context is active: `DashboardStop` (list) and
         // `DashboardOverlayStop` (overlay) share Ctrl+X and category,
@@ -157,7 +170,7 @@ pub fn build_entries(
         }
         let header_idx = entries.len();
         entries.push(ShortcutsHelpEntry::SectionHeader {
-            label,
+            label: category_label(cat),
             category_idx: cat_idx,
             entry_count: 0,
         });

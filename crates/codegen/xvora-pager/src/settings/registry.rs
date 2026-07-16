@@ -57,9 +57,9 @@ impl SettingCategory {
         Self::Advanced,
     ];
 
-    /// Section-header label as rendered in the modal.
+    /// Section-header label as rendered in the modal (locale-aware).
     pub fn label(&self) -> &'static str {
-        match self {
+        let en = match self {
             Self::Appearance => "Appearance",
             Self::Mouse => "Mouse",
             Self::Editor => "Editor & Input",
@@ -68,7 +68,8 @@ impl SettingCategory {
             Self::Models => "Models",
             Self::Session => "Session",
             Self::Advanced => "Advanced",
-        }
+        };
+        crate::i18n::settings::category(en)
     }
 }
 
@@ -212,6 +213,18 @@ pub struct SettingMeta {
     /// When `true`, the row is hidden in minimal mode (the setting still
     /// exists and applies to the full TUI).
     pub hidden_in_minimal: bool,
+}
+
+impl SettingMeta {
+    /// Locale-aware row label.
+    pub fn label_i18n(&self) -> &'static str {
+        crate::i18n::settings::setting_label(self.key, self.label)
+    }
+
+    /// Locale-aware expanded description.
+    pub fn description_i18n(&self) -> &'static str {
+        crate::i18n::settings::setting_description(self.key, self.description)
+    }
 }
 
 /// A typed value carried by `Action::Set*` payloads, modal preview state,

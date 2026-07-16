@@ -181,7 +181,11 @@ impl Widget for ShortcutsBar<'_> {
         // If pending confirmation, show only "press again to {label}"
         if let Some(pending) = &self.pending_confirmation {
             let key_text = pending.shortcut.display();
-            let label = format!("press again to {}", pending.label);
+            let label = format!(
+                "{} {}",
+                crate::i18n::settings::chrome("shortcuts.press_again"),
+                pending.label
+            );
 
             let mut x = area.x;
 

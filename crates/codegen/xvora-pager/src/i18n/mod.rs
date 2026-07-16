@@ -7,6 +7,12 @@
 //!
 //! Call [`t`] for static strings. Prefer this over scattering hard-coded copy
 //! so new languages stay a single-file addition.
+//!
+//! Phase C modules: [`actions`], [`settings`], [`slash`].
+
+pub mod actions;
+pub mod settings;
+pub mod slash;
 
 use std::sync::OnceLock;
 

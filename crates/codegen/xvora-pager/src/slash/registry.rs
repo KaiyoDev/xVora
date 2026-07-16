@@ -65,7 +65,9 @@ impl CommandTrigger {
             alias: alias.map(|s| s.to_string()),
             display,
             match_text,
-            description: command.description().to_string(),
+            description: crate::i18n::slash::description(command.name())
+                .unwrap_or_else(|| command.description())
+                .to_string(),
             usage: command.usage().to_string(),
             takes_args: command.takes_args(),
             args_required: command.args_required(),
