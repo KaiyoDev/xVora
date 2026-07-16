@@ -1,0 +1,20 @@
+[package]
+license = "Apache-2.0"
+name = "xai-xvora-http"
+version = "0.1.0"
+edition.workspace = true
+description = "Shared reqwest HTTP clients and User-Agent construction for the Xvora CLI."
+
+[dependencies]
+reqwest = { workspace = true, features = ["blocking"] }
+reqwest-middleware = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+xai-xvora-auth = { workspace = true, features = ["middleware"] }
+xai-xvora-sampler = { path = "../xai-xvora-sampler" }
+xai-xvora-telemetry = { workspace = true }
+xai-xvora-version = { workspace = true }
+xai-xvora-workspace = { workspace = true }
+
+[lints]
+workspace = true

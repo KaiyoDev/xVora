@@ -114,9 +114,9 @@ pub struct WorktreeDb {
 }
 
 impl WorktreeDb {
-    /// Open (or create) the DB at `grok_home/worktrees.db`.
-    pub fn open(grok_home: &Path) -> Result<Self> {
-        Self::open_at(&grok_home.join("worktrees.db"))
+    /// Open (or create) the DB at `xvora_home/worktrees.db`.
+    pub fn open(xvora_home: &Path) -> Result<Self> {
+        Self::open_at(&xvora_home.join("worktrees.db"))
     }
 
     /// Open with an explicit path.
@@ -201,15 +201,15 @@ impl WorktreeDb {
         })
     }
 
-    /// Open the default DB at `~/.grok/worktrees.db`.
+    /// Open the default DB at `~/.xvora/worktrees.db`.
     ///
-    /// Discovers grok home via `$GROK_HOME`, falling back to the canonicalized
-    /// `$HOME/.grok` (matching `xai_grok_config::grok_home`).
+    /// Discovers grok home via `$XVORA_HOME`, falling back to the canonicalized
+    /// `$HOME/.xvora` (matching `xai_xvora_config::xvora_home`).
     /// Path is resolved fresh each call (~1µs env var read) to support
     /// test overrides. Each call opens its own connection — callers in hot
     /// paths should cache the `WorktreeDb` instance.
     pub fn open_default() -> Result<Self> {
-        Self::open(&resolve_grok_home()?)
+        Self::open(&resolve_xvora_home()?)
     }
 
     /// Open an in-memory DB (for tests).
@@ -337,34 +337,34 @@ pub fn now_epoch_secs() -> i64 {
         .as_secs() as i64
 }
 
-pub fn resolve_grok_home() -> Result<PathBuf> {
-    if let Ok(v) = std::env::var("GROK_HOME") {
+pub fn resolve_xvora_home() -> Result<PathBuf> {
+    if let Ok(v) = std::env::var("XVORA_HOME") {
         return Ok(PathBuf::from(v));
     }
-    let home = PathBuf::from(std::env::var("HOME").context("neither $GROK_HOME nor $HOME is set")?);
+    let home = PathBuf::from(std::env::var("HOME").context("neither $XVORA_HOME nor $HOME is set")?);
     // Canonicalize the home dir so worktree paths share the same physical .grok
     // tree as trust/hooks even when it is symlinked. The dunce canonicalization
-    // must stay in sync with xai_grok_config::default_grok_home();
+    // must stay in sync with xai_xvora_config::default_xvora_home();
     // home resolution deliberately differs ($HOME here vs std::env::home_dir()).
-    Ok(dunce::canonicalize(&home).unwrap_or(home).join(".grok"))
+    Ok(dunce::canonicalize(&home).unwrap_or(home).join(".xvora"))
 }
 
-/// Serializes tests that mutate the process-global `GROK_HOME` env var so they
+/// Serializes tests that mutate the process-global `XVORA_HOME` env var so they
 /// don't clobber each other under `cargo test`, where tests share one process
 /// (nextest isolates per-process, but the suite must also pass under `cargo test`).
 #[cfg(test)]
-static GROK_HOME_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static XVORA_HOME_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Test-only isolation for code that resolves the DB via `open_default()`.
 ///
-/// Holds [`GROK_HOME_ENV_LOCK`] (serializing concurrent setters), points
-/// `GROK_HOME` at a fresh private tmp dir, and restores the prior value on drop.
+/// Holds [`XVORA_HOME_ENV_LOCK`] (serializing concurrent setters), points
+/// `XVORA_HOME` at a fresh private tmp dir, and restores the prior value on drop.
 /// Use instead of hand-rolling the lock + restore guard + tmp dir per test.
 ///
-/// `Drop` restores `GROK_HOME` before `_lock` releases, so the env is correct
+/// `Drop` restores `XVORA_HOME` before `_lock` releases, so the env is correct
 /// before another waiting setter proceeds.
 #[cfg(test)]
-pub(crate) struct GrokHomeFixture {
+pub(crate) struct XvoraHomeFixture {
     _lock: std::sync::MutexGuard<'static, ()>,
     prev: Option<std::ffi::OsString>,
     /// The isolated grok home; pass to `WorktreeDb::open` to read the same DB
@@ -374,20 +374,20 @@ pub(crate) struct GrokHomeFixture {
 }
 
 #[cfg(test)]
-impl GrokHomeFixture {
+impl XvoraHomeFixture {
     pub(crate) fn new() -> Self {
-        let lock = GROK_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let lock = XVORA_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::TempDir::new().unwrap();
-        let home = tmp.path().join("grok-home");
+        let home = tmp.path().join("xvora-home");
         std::fs::create_dir_all(&home).unwrap();
         // Warm up the DB (journal-mode conversion + schema) before exposing it
-        // via GROK_HOME, sparing the test hot loop set_journal_mode's retry
+        // via XVORA_HOME, sparing the test hot loop set_journal_mode's retry
         // sleeps. This open has exclusive access (nothing reaches the path
-        // until GROK_HOME points here); set_journal_mode's retry is the actual
+        // until XVORA_HOME points here); set_journal_mode's retry is the actual
         // race fix.
         let _ = WorktreeDb::open(&home);
-        let prev = std::env::var_os("GROK_HOME");
-        unsafe { std::env::set_var("GROK_HOME", &home) };
+        let prev = std::env::var_os("XVORA_HOME");
+        unsafe { std::env::set_var("XVORA_HOME", &home) };
         Self {
             _lock: lock,
             prev,
@@ -398,12 +398,12 @@ impl GrokHomeFixture {
 }
 
 #[cfg(test)]
-impl Drop for GrokHomeFixture {
+impl Drop for XvoraHomeFixture {
     fn drop(&mut self) {
         unsafe {
             match self.prev.take() {
-                Some(p) => std::env::set_var("GROK_HOME", p),
-                None => std::env::remove_var("GROK_HOME"),
+                Some(p) => std::env::set_var("XVORA_HOME", p),
+                None => std::env::remove_var("XVORA_HOME"),
             }
         }
     }

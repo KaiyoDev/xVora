@@ -547,7 +547,7 @@ pub struct SubagentDescriptor {
     pub tools: Option<String>,
 }
 
-/// A built-in subagent type shared by the CLI (`xai-grok-agent`) and other
+/// A built-in subagent type shared by the CLI (`xai-xvora-agent`) and other
 /// agent hosts: its `subagent_type` name, canonical model-facing description,
 /// tool-access fragment, and type-specific prompt body.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1375,8 +1375,8 @@ mod tests {
     // ── Lifecycle tool descriptions ──────────────────────────────────────
     //
     // These lock the exact model-facing text. The "cli_default" cases must
-    // match what the grok-shell MiniJinja templates render for the default
-    // grok-build toolset (monitor + task + bash + read present, POSIX). The
+    // match what the xvora-shell MiniJinja templates render for the default
+    // xvora toolset (monitor + task + bash + read present, POSIX). The
     // "toolbox" cases lock the subagent-only rendering used by the backend toolbox.
 
     #[test]
