@@ -1,21 +1,34 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="xVora" width="180">
+<!-- Full-width banner (logo already includes wordmark) -->
+<img src="assets/logo.png" alt="xVora Code" width="100%">
 
-# xVora
+<br>
 
-**Terminal AI coding agent**
+### xVora Code — Terminal AI, BYOK-first
 
-TUI · Headless · ACP · BYOK-first
+TUI · Headless · ACP · Bring your own models
+
+<br>
 
 [![CI](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml/badge.svg)](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml)
+&nbsp;
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+&nbsp;
+[![Release](https://img.shields.io/github/v/release/KaiyoDev/xVora?include_prereleases&label=release)](https://github.com/KaiyoDev/xVora/releases)
 
-[Install](#install) ·
-[Quick start](#quick-start) ·
-[BYOK](#byok--custom-models) ·
-[CI binary](#ci--download-binary) ·
-[Docs](#documentation) ·
+<br>
+
+[Install](#install)
+&nbsp;·&nbsp;
+[Quick start](#quick-start)
+&nbsp;·&nbsp;
+[BYOK](#byok--custom-models)
+&nbsp;·&nbsp;
+[CI binary](#ci--download-binary)
+&nbsp;·&nbsp;
+[Docs](#documentation)
+&nbsp;·&nbsp;
 [License](#license)
 
 </div>
@@ -24,18 +37,21 @@ TUI · Headless · ACP · BYOK-first
 
 ## Overview
 
-**xVora** (`xvora`) is an open-source terminal coding agent maintained at
-[KaiyoDev/xVora](https://github.com/KaiyoDev/xVora).
+**xVora** (`xvora`) is an open-source **terminal coding agent** — [KaiyoDev/xVora](https://github.com/KaiyoDev/xVora).
 
-| Mode | Use |
-|------|-----|
+| Mode | What it does |
+|------|----------------|
 | **TUI** | Full-screen interactive coding session |
-| **Headless** | Scripts, automation, CI (`xvora -p "…"`) |
-| **Agent / ACP** | Editor integration (`xvora agent stdio`) |
+| **Headless** | Scripts & CI — `xvora -p "…"` |
+| **Agent / ACP** | Editor integration — `xvora agent stdio` |
 
-**Bring your own key.** Point xVora at OpenAI, Anthropic, OpenRouter, Ollama, or any OpenAI-compatible API — no forced cloud subscription for pure BYOK setups.
+**Bring your own key.** OpenAI · Anthropic · OpenRouter · Ollama · any OpenAI-compatible API.  
+Pure BYOK setups skip subscription paywalls.
 
-Config: `~/.xvora/` · Env: `XVORA_*`
+```
+~/.xvora/          # config, auth, sessions
+XVORA_*            # environment prefix
+```
 
 ---
 
