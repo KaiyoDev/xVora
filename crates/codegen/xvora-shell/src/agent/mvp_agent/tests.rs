@@ -362,7 +362,7 @@ fn settings_allow_access_none_settings_is_blocked() {
     assert!(!settings_allow_access(None));
 }
 
-/// Pure BYOK (per-model api_key) is unrestricted even without remote allow.
+/// Pure BYOK (per-model api_key) is detected by the credential probe.
 #[test]
 fn byok_or_custom_local_with_model_api_key() {
     let toml = r#"
@@ -374,7 +374,9 @@ fn byok_or_custom_local_with_model_api_key() {
     "#;
     let val: toml::Value = toml::from_str(toml).unwrap();
     let cfg = crate::agent::config::Config::new_from_toml_cfg(&val).unwrap();
+    // OSS: access gate always open.
     assert!(crate::agent::config::is_byok_or_custom_local(&cfg));
+    assert!(crate::agent::config::has_byok_or_custom_credentials(&cfg));
 }
 
 /// Local Ollama-style endpoint (no api_key) still counts as unrestricted.
@@ -389,13 +391,22 @@ fn byok_or_custom_local_with_ollama_base_url() {
     let val: toml::Value = toml::from_str(toml).unwrap();
     let cfg = crate::agent::config::Config::new_from_toml_cfg(&val).unwrap();
     assert!(crate::agent::config::is_byok_or_custom_local(&cfg));
+    assert!(crate::agent::config::has_byok_or_custom_credentials(&cfg));
 }
 
-/// Built-in first-party defaults alone do not unlock BYOK freedom.
+/// Built-in first-party defaults: no BYOK credentials, but OSS still opens the
+/// access gate (no forced xAI login / subscription paywall).
 #[test]
 fn byok_or_custom_local_defaults_only_is_false() {
     let cfg = crate::agent::config::Config::default();
-    assert!(!crate::agent::config::is_byok_or_custom_local(&cfg));
+    assert!(
+        crate::agent::config::is_byok_or_custom_local(&cfg),
+        "OSS always skips xAI access gate"
+    );
+    assert!(
+        !crate::agent::config::has_byok_or_custom_credentials(&cfg),
+        "defaults alone are not user-owned credentials"
+    );
 }
 /// When `allow_access` is `Some(true)`, user is allowed.
 #[test]

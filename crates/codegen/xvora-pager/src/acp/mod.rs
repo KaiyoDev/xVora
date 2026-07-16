@@ -567,10 +567,15 @@ pub fn parse_session_recap_available(meta: Option<&acp::Meta>) -> bool {
 
 /// Determine whether interactive login is needed based on the advertised auth methods.
 ///
-/// Matches TUI startup behavior: if the first method is `grok.com`, defer auth
-/// and show the login-aware welcome flow. Otherwise, authenticate eagerly.
+/// **Open-source (xVora):** never force interactive xAI / OIDC login at TUI
+/// startup. Access is BYOK (`config.toml` model keys, `XAI_API_KEY`, custom
+/// endpoints). Optional `xvora login` / slash login still works when the user
+/// wants a session. Upstream grok-build deferred to the login splash when
+/// `auth_methods.first()` was `grok.com`.
 ///
 /// Returns `(needs_login, login_label, login_method_id, auth_start_mode)`.
+/// `needs_login` is always `false` here; label/id are still filled so optional
+/// login UI can discover a method.
 pub fn startup_auth_metadata(
     auth_methods: &[acp::AuthMethod],
 ) -> (
@@ -579,19 +584,16 @@ pub fn startup_auth_metadata(
     Option<acp::AuthMethodId>,
     AuthStartMode,
 ) {
-    let first_method = auth_methods.first();
-    let needs_login = first_method
-        .map(|m| AuthMethodKind::from_id(m.id()).needs_interactive_login())
-        .unwrap_or(false);
+    let interactive = auth_methods
+        .iter()
+        .find(|m| AuthMethodKind::from_id(m.id()).needs_interactive_login());
 
-    if !needs_login {
+    let Some(method) = interactive else {
         return (false, None, None, AuthStartMode::Pending);
-    }
+    };
 
-    let method = first_method.unwrap(); // safe: needs_login == true implies first_method.is_some()
     let login_label = Some(method.name().to_string());
     let login_method_id = Some(method.id().clone());
-
     let is_provider = method
         .meta()
         .as_ref()
@@ -604,7 +606,8 @@ pub fn startup_auth_metadata(
         AuthStartMode::Pending
     };
 
-    (needs_login, login_label, login_method_id, auth_start_mode)
+    // Never force the login splash at startup (OSS / BYOK-first).
+    (false, login_label, login_method_id, auth_start_mode)
 }
 
 /// Find an interactive login method from the auth methods list.

@@ -3128,9 +3128,17 @@ fn managed_settings_env_flag(key: &str) -> Option<bool> {
 /// paywall: per-model BYOK credentials, a custom `base_url`, a custom models
 /// endpoint, or a global `XAI_API_KEY`.
 ///
-/// Personal forks use this so users who bring their own keys or self-host
-/// models are never blocked by `xvora_access_gate`.
-pub fn is_byok_or_custom_local(cfg: &Config) -> bool {
+/// **xVora open-source:** always `true`. This product is BYOK-first — no
+/// account, subscription gate, or OAuth splash is required to open the TUI.
+/// Upstream grok-build used remote `xvora_access_gate`; we never block on it.
+pub fn is_byok_or_custom_local(_cfg: &Config) -> bool {
+    true
+}
+
+/// Credential / endpoint probe kept for tests and diagnostics. Prefer
+/// [`is_byok_or_custom_local`] for access-control decisions (always open on OSS).
+#[cfg(test)]
+pub fn has_byok_or_custom_credentials(cfg: &Config) -> bool {
     if crate::agent::auth_method::has_xai_api_key_env() {
         return true;
     }
@@ -3150,6 +3158,7 @@ pub fn is_byok_or_custom_local(cfg: &Config) -> bool {
 
 /// A model `base_url` that is not a first-party xAI / grok proxy counts as a
 /// user-owned endpoint (Ollama, OpenRouter, corporate proxy, …).
+#[cfg(test)]
 fn is_non_first_party_base_url(base_url: &str) -> bool {
     let url = base_url.trim().to_ascii_lowercase();
     if url.is_empty() {

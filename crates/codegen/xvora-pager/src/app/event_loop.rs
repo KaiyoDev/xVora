@@ -633,9 +633,10 @@ pub(crate) async fn run(
     app.auth_methods = connection.auth_methods.clone();
 
     // Seed auth state from ACP connection metadata.
-    // --force-login overrides: show the login screen even when credentials exist.
+    // --force-login: only explicit flag shows the login screen (optional OAuth).
+    // Open-source: never auto-force login from connection.needs_login (BYOK-first).
     let force_login = args.force_login && !connection.auth_methods.is_empty();
-    let needs_interactive_login = connection.needs_login || force_login;
+    let needs_interactive_login = force_login;
     if needs_interactive_login {
         app.welcome_prompt_focused = false;
 

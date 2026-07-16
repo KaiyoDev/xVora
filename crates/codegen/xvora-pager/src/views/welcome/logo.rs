@@ -16,9 +16,10 @@ const LOGO: &str = include_str!("../../../assets/logo/logo07.txt");
 const LOGO_SMALL: &str = include_str!("../../../assets/logo/logo05.txt");
 
 /// Height at or above which the small logo is shown (below it, no logo).
-const SMALL_LOGO_MIN_HEIGHT: u16 = 22;
-/// Height at or above which the full logo is shown.
-const FULL_LOGO_MIN_HEIGHT: u16 = 26;
+/// Sized for logo05 (~5 lines) so typical Windows terminals still show art.
+const SMALL_LOGO_MIN_HEIGHT: u16 = 14;
+/// Height at or above which the full logo is shown (logo07 ~7 lines).
+const FULL_LOGO_MIN_HEIGHT: u16 = 18;
 
 fn pick_logo(window_height: u16) -> Option<&'static str> {
     pick_logo_for(window_height, logo_hidden())
@@ -35,9 +36,21 @@ fn pick_logo_for(window_height: u16, hidden: bool) -> Option<&'static str> {
     }
 }
 
-/// The braille art has no ASCII stand-in; see the module doc.
+/// Whether to suppress the braille logo entirely.
+///
+/// Default: **show** the logo from `assets/logo/*.txt`. Modern Windows
+/// Terminal / ConPTY / WT render U+2800 fine. Bare ConHost raster fonts can
+/// show tofu — those users can set `XVORA_FORCE_LEGACY_CONSOLE=1` to hide
+/// the logo (same override as the ASCII glyph fallbacks).
+///
+/// Previously we default-denied on any non-branded Windows console, which
+/// hid the logo even when launched from Windows Terminal / Cursor / cmd
+/// without `WT_SESSION` exported to the child process.
 fn logo_hidden() -> bool {
-    crate::glyphs::is_legacy_windows_console()
+    match std::env::var("XVORA_FORCE_LEGACY_CONSOLE").ok().as_deref() {
+        Some("1" | "true") => true,
+        _ => false,
+    }
 }
 
 fn non_empty_lines(logo: &str) -> impl Iterator<Item = &str> {
