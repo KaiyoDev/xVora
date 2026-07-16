@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Grok CLI installer (enterprise channel) — https://x.ai/cli/enterprise-install.sh
+# Xvora CLI installer (enterprise channel) — https://x.ai/cli/enterprise-install.sh
 #
 # Standalone installer for the enterprise channel. This is intentionally a full
 # copy of the install logic (not a wrapper around install.sh) so that changes to
 # the stable installer cannot accidentally break enterprise deployments.
 #
-# Auth: GROK_DEPLOYMENT_KEY (takes precedence) or ~/.grok/auth.json from `grok login`.
+# Auth: GROK_DEPLOYMENT_KEY (takes precedence) or ~/.grok/auth.json from `xvora login`.
 # Env: GROK_BIN_DIR, GROK_PROXY_URL
 #
 # Usage:
@@ -194,9 +194,9 @@ if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9._]+)?$ ]]; then
 fi
 
 if [ -n "$AUTH_SOURCE" ]; then
-    echo "Installing Grok $version ($platform, $AUTH_SOURCE)..." >&2
+    echo "Installing Xvora $version ($platform, $AUTH_SOURCE)..." >&2
 else
-    echo "Installing Grok $version ($platform)..." >&2
+    echo "Installing Xvora $version ($platform)..." >&2
 fi
 
 binary_path="$DOWNLOAD_DIR/grok-$platform"
@@ -206,13 +206,13 @@ if [ "$os" = "windows" ]; then
     binary_path="${binary_path}.exe"
 fi
 
-echo "  Downloading grok ${version}..." >&2
+echo "  Downloading xvora ${version}..." >&2
 if [ "$os" = "windows" ]; then
     if ! download_file_parallel "${artifact_base}.exe" "$binary_path"; then
         if ! download_file_parallel "$artifact_base" "$binary_path"; then
             rm -f "$binary_path"
             if is_not_found "${artifact_base}.exe"; then
-                echo "Error: Grok is not yet available for your system ($platform)." >&2
+                echo "Error: Xvora is not yet available for your system ($platform)." >&2
             else
                 echo "Error: binary download failed (${artifact_base}.exe and ${artifact_base})" >&2
             fi
@@ -222,7 +222,7 @@ if [ "$os" = "windows" ]; then
 elif ! download_file_parallel "$artifact_base" "$binary_path"; then
     rm -f "$binary_path"
     if is_not_found "$artifact_base"; then
-        echo "Error: Grok is not yet available for your system ($platform)." >&2
+        echo "Error: Xvora is not yet available for your system ($platform)." >&2
     else
         echo "Error: binary download failed from ${artifact_base}" >&2
     fi
@@ -232,7 +232,7 @@ fi
 if [ "$os" = "windows" ]; then
     # Symlinks require Developer Mode on Windows; copy instead.
     # If the exe is locked by a running process, rename it aside then retry.
-    for bin_name in grok.exe agent.exe; do
+    for bin_name in xvora.exe agent.exe; do
         rm -f "$BIN_DIR/$bin_name.old" 2>/dev/null || true  # stale backup from prior update
         if ! cp -f "$binary_path" "$BIN_DIR/$bin_name" 2>/dev/null; then
             mv -f "$BIN_DIR/$bin_name" "$BIN_DIR/$bin_name.old" 2>/dev/null || true
@@ -244,21 +244,21 @@ if [ "$os" = "windows" ]; then
             fi
         fi
     done
-    echo "  Binary installed to $BIN_DIR/grok.exe and $BIN_DIR/agent.exe." >&2
+    echo "  Binary installed to $BIN_DIR/xvora.exe and $BIN_DIR/agent.exe." >&2
 else
     chmod +x "$binary_path"
-    ln -sf "$binary_path" "$BIN_DIR/grok"
+    ln -sf "$binary_path" "$BIN_DIR/xvora"
     ln -sf "$binary_path" "$BIN_DIR/agent"
-    echo "  Binary linked to $BIN_DIR/grok and $BIN_DIR/agent." >&2
+    echo "  Binary linked to $BIN_DIR/xvora and $BIN_DIR/agent." >&2
 fi
 
 # Generate shell completions (best-effort)
 mkdir -p "$HOME/.grok/completions/bash" "$HOME/.grok/completions/zsh"
-"$BIN_DIR/grok" completions bash > "$HOME/.grok/completions/bash/grok.bash" 2>/dev/null || true
-"$BIN_DIR/grok" completions zsh  > "$HOME/.grok/completions/zsh/_grok"     2>/dev/null || true
+"$BIN_DIR/xvora" completions bash > "$HOME/.grok/completions/bash/xvora.bash" 2>/dev/null || true
+"$BIN_DIR/xvora" completions zsh  > "$HOME/.grok/completions/zsh/_xvora"     2>/dev/null || true
 # Fish: write to the auto-loaded completions dir so it works immediately
 if mkdir -p "$HOME/.config/fish/completions" 2>/dev/null; then
-    "$BIN_DIR/grok" completions fish > "$HOME/.config/fish/completions/grok.fish" 2>/dev/null || true
+    "$BIN_DIR/xvora" completions fish > "$HOME/.config/fish/completions/xvora.fish" 2>/dev/null || true
 fi
 
 # Persist installer source and channel to config
@@ -315,27 +315,27 @@ if [ -n "$GROK_DEPLOYMENT_KEY" ]; then
 fi
 
 if [ "$os" = "windows" ]; then
-    echo "Grok $version installed to $BIN_DIR/grok.exe" >&2
+    echo "Xvora $version installed to $BIN_DIR/xvora.exe" >&2
 else
-    echo "Grok $version installed to $BIN_DIR/grok" >&2
+    echo "Xvora $version installed to $BIN_DIR/xvora" >&2
 fi
 
-# --- Ensure grok is on PATH ---
+# --- Ensure xvora is on PATH ---
 
 path_has_dir() {
     case ":$PATH:" in *":$1:"*) return 0 ;; *) return 1 ;; esac
 }
 
-# Try to symlink into a directory already on PATH so grok works immediately
+# Try to symlink into a directory already on PATH so xvora works immediately
 # without restarting the shell. Candidate dirs in preference order.
 SYMLINK_CREATED=""
 if [ "$os" != "windows" ] && ! path_has_dir "$BIN_DIR"; then
     for candidate in "$HOME/.local/bin" "/usr/local/bin"; do
         if path_has_dir "$candidate" && [ -d "$candidate" ] && [ -w "$candidate" ]; then
-            ln -sf "$BIN_DIR/grok" "$candidate/grok"
+            ln -sf "$BIN_DIR/xvora" "$candidate/xvora"
             ln -sf "$BIN_DIR/agent" "$candidate/agent"
             SYMLINK_CREATED="$candidate"
-            echo "  Symlinked $candidate/grok -> $BIN_DIR/grok" >&2
+            echo "  Symlinked $candidate/xvora -> $BIN_DIR/xvora" >&2
             echo "  Symlinked $candidate/agent -> $BIN_DIR/agent" >&2
             break
         fi
@@ -376,28 +376,28 @@ if [ -n "$config_file" ]; then
 
     # Build the new installer block
     if [ "$user_shell" = "fish" ]; then
-        new_block='# >>> grok installer >>>
+        new_block='# >>> xvora installer >>>
 fish_add_path $HOME/.grok/bin
-# <<< grok installer <<<'
+# <<< xvora installer <<<'
     elif [ "$user_shell" = "zsh" ]; then
-        new_block='# >>> grok installer >>>
+        new_block='# >>> xvora installer >>>
 export PATH="$HOME/.grok/bin:$PATH"
 fpath=(~/.grok/completions/zsh $fpath)
 autoload -Uz compinit && compinit -C
-# <<< grok installer <<<'
+# <<< xvora installer <<<'
     else
-        new_block='# >>> grok installer >>>
+        new_block='# >>> xvora installer >>>
 export PATH="$HOME/.grok/bin:$PATH"
-[[ -r "$HOME/.grok/completions/bash/grok.bash" ]] && source "$HOME/.grok/completions/bash/grok.bash"
-# <<< grok installer <<<'
+[[ -r "$HOME/.grok/completions/bash/xvora.bash" ]] && source "$HOME/.grok/completions/bash/xvora.bash"
+# <<< xvora installer <<<'
     fi
 
-    if grep -qs "grok installer" "$config_file" 2>/dev/null; then
+    if grep -qs "xvora installer" "$config_file" 2>/dev/null; then
         # Replace existing block in-place (strip old >>> to <<< lines, insert new)
         tmp="$config_file.tmp.$$"
         awk '
-            /# >>> grok installer >>>/ { skip=1; next }
-            /# <<< grok installer <<</ { skip=0; next }
+            /# >>> xvora installer >>>/ { skip=1; next }
+            /# <<< xvora installer <<</ { skip=0; next }
             !skip { print }
         ' "$config_file" > "$tmp" && mv "$tmp" "$config_file"
     else

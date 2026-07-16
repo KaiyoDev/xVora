@@ -1,4 +1,4 @@
-//! Grok tools library.
+//! Xvora tools library.
 
 pub use xai_grok_version::VERSION;
 

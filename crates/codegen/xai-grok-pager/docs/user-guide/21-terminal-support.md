@@ -1,6 +1,6 @@
 # Terminal Support and Troubleshooting
 
-Grok Build runs as a full-screen TUI. To draw the interface, it relies on terminal escape sequences for color, clipboard, mouse, and full-screen control. Some terminals, multiplexers, and SSH sessions handle these sequences differently.
+Xvora runs as a full-screen TUI. To draw the interface, it relies on terminal escape sequences for color, clipboard, mouse, and full-screen control. Some terminals, multiplexers, and SSH sessions handle these sequences differently.
 
 ## Quick Fixes
 
@@ -103,9 +103,9 @@ Grok writes to the clipboard through up to three routes, which match the **Clipb
 **Known limitation — Apple Terminal + SSH**:
 Apple Terminal ignores OSC 52, so copying from a Grok session over SSH can't reach your local clipboard. Use the workaround below.
 
-**Temporary workaround**: Use `grok wrap ssh` instead of plain `ssh` (for example, `grok wrap ssh user@host`). It runs the command in a local PTY that intercepts OSC 52 sequences, including tmux-wrapped ones, and writes their contents to your local clipboard. The same command wraps anything else whose clipboard can't reach you — for example `grok wrap docker exec -it <container> bash` or `grok wrap kubectl exec -it <pod> -- bash`.
+**Temporary workaround**: Use `xvora wrap ssh` instead of plain `ssh` (for example, `xvora wrap ssh user@host`). It runs the command in a local PTY that intercepts OSC 52 sequences, including tmux-wrapped ones, and writes their contents to your local clipboard. The same command wraps anything else whose clipboard can't reach you — for example `xvora wrap docker exec -it <container> bash` or `xvora wrap kubectl exec -it <pod> -- bash`.
 
-> **Warning**: `grok wrap` is **experimental** and may misbehave in some setups.
+> **Warning**: `xvora wrap` is **experimental** and may misbehave in some setups.
 
 **iTerm2 setting**:
 iTerm2 requires explicit permission for OSC 52:
@@ -157,7 +157,7 @@ Add this after `config = wezterm.config_builder()` in `~/.config/wezterm/wezterm
 config.enable_kitty_keyboard = true
 ```
 
-Reload (`Cmd+Shift+R` or restart WezTerm) and restart `grok`.
+Reload (`Cmd+Shift+R` or restart WezTerm) and restart `xvora`.
 
 **Verify**: Run `/terminal-setup` inside Grok. While a turn is active, you see the interject hint, and `Ctrl+Enter` interjects.
 

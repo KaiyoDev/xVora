@@ -209,7 +209,7 @@ Grok loads MCP server configurations from multiple sources for compatibility:
 
 All sources are merged in priority order: config.toml > Claude > Cursor > `.mcp.json`. Servers from higher-priority sources take precedence when names conflict.
 
-The Claude and Cursor MCP sources are scanned by default. To disable scanning for a specific vendor, set `[compat.<vendor>] mcps = false` in `~/.grok/config.toml` or the corresponding environment variable (`GROK_CURSOR_MCPS_ENABLED`, `GROK_CLAUDE_MCPS_ENABLED`). See [Configuration](05-configuration.md#harness-compatibility) for details. Use `grok inspect` to see which MCP servers were loaded and their vendor origin (`[cursor]`, `[claude]`).
+The Claude and Cursor MCP sources are scanned by default. To disable scanning for a specific vendor, set `[compat.<vendor>] mcps = false` in `~/.grok/config.toml` or the corresponding environment variable (`GROK_CURSOR_MCPS_ENABLED`, `GROK_CLAUDE_MCPS_ENABLED`). See [Configuration](05-configuration.md#harness-compatibility) for details. Use `xvora inspect` to see which MCP servers were loaded and their vendor origin (`[cursor]`, `[claude]`).
 
 ---
 
@@ -332,11 +332,11 @@ tail -f ~/.grok/logs/mcp/filesystem.stderr.log
 
 ### Viewing Server Status
 
-Use `grok inspect` to see all loaded MCP servers and their sources:
+Use `xvora inspect` to see all loaded MCP servers and their sources:
 
 ```bash
-grok inspect          # Human-readable
-grok inspect --json   # Machine-readable
+xvora inspect          # Human-readable
+xvora inspect --json   # Machine-readable
 ```
 
 ### Debug Logging

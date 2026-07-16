@@ -99,13 +99,13 @@ An SQLite index supports hybrid search across all memory files:
 
 ## Automatic Saves
 
-When a session ends, Grok saves a structured metadata summary to that session's daily log. The summary contains:
+When a session ends, Xvora saves a structured metadata summary to that session's daily log. The summary contains:
 
 - Message counts (user, assistant, and tool results).
 - Topics: the first few substantive user prompts from the session, up to five.
 - The session date and time (UTC).
 
-Grok builds the summary from conversation metadata without an LLM call, without added latency. Grok skips the save for trivial sessions -- those with fewer than three substantive prompts, or fewer than 50 bytes of user text.
+Xvora builds the summary from conversation metadata without an LLM call, without added latency. Xvora skips the save for trivial sessions -- those with fewer than three substantive prompts, or fewer than 50 bytes of user text.
 
 The summary does not record tool usage, file paths, or shell commands. The session ID forms part of the log filename. To turn automatic saves off, set `session.save_on_end = false`. For richer capture of decisions, patterns, and reasoning, use `/flush`.
 
@@ -450,7 +450,7 @@ enabled = true    # default
 
 ### Memory Not Working
 
-1. Verify memory is enabled: check `grok inspect` output.
+1. Verify memory is enabled: check `xvora inspect` output.
 2. Check the flag: `grok --experimental-memory` or `GROK_MEMORY=1`.
 3. Check for `--no-memory` or `GROK_MEMORY=0` overriding your config.
 

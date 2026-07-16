@@ -7,10 +7,10 @@
     <img alt="SpaceXAI logo" src="https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png" width="96">
   </picture>
   <br>
-  Grok Build (<code>grok</code>)
+  Xvora (<code>xvora</code>)
 </h1>
 
-**Grok Build** is SpaceXAI's terminal-based AI coding agent. It runs as a
+**Xvora** is a terminal-based AI coding agent. It runs as a
 full-screen TUI that understands your codebase, edits files, executes shell
 commands, searches the web, and manages long-running tasks — interactively,
 headlessly for scripting/CI, or embedded in editors via the Agent Client
@@ -24,12 +24,10 @@ Protocol (ACP).
 [Contributing](#contributing) ·
 [License](#license)
 
-![Grok Build TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)
+![Xvora TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)
 
-**Learn more about Grok Build at [x.ai/cli](https://x.ai/cli)**
-
-This repository contains the Rust source for the `grok` CLI/TUI and its agent
-runtime. It is synced periodically from the SpaceXAI monorepo.
+This repository contains the Rust source for the `xvora` CLI/TUI and its agent
+runtime.
 
 </div>
 
@@ -40,13 +38,11 @@ runtime. It is synced periodically from the SpaceXAI monorepo.
 Prebuilt binaries are published for macOS, Linux, and Windows:
 
 ```sh
-curl -fsSL https://x.ai/cli/install.sh | bash   # macOS / Linux / Git Bash
-irm https://x.ai/cli/install.ps1 | iex          # Windows PowerShell
-grok --version
+cargo run -p xai-grok-pager-bin              # build + launch the TUI
+cargo build -p xai-grok-pager-bin --release  # → target/release/xvora
+cargo check -p xai-grok-pager-bin
+./target/release/xvora --version
 ```
-
-See the [changelog](https://x.ai/build/changelog) for the latest fixes,
-features, and improvements in each release.
 
 ## Building from source
 
@@ -61,13 +57,12 @@ Requirements:
   and not currently tested from this tree.
 
 ```sh
-cargo run -p xai-grok-pager-bin              # build + launch the TUI
-cargo build -p xai-grok-pager-bin --release  # release binary: target/release/xai-grok-pager
-cargo check -p xai-grok-pager-bin            # fast validation
+cargo run -p xai-grok-pager-bin
+cargo build -p xai-grok-pager-bin --release
 ```
 
-The binary artifact is named `xai-grok-pager`; official installs ship it as
-`grok`. On first launch it opens your browser to authenticate — see the
+The composition-root binary is named `xvora` (`xai-grok-pager-bin`). On first
+launch it opens your browser to authenticate — see the
 [authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).
 
 ## Documentation

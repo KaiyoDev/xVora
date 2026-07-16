@@ -19,10 +19,10 @@ Grok stores credentials in `~/.grok/auth.json` and reuses them across sessions. 
 To switch accounts or resolve an authentication problem, run:
 
 ```bash
-grok login
+xvora login
 ```
 
-Running `grok login` starts the sign-in flow again, replacing your cached session. By default, it opens your browser and signs in through SpaceXAI OAuth at `auth.x.ai`. Pass a flag to select a different flow:
+Running `xvora login` starts the sign-in flow again, replacing your cached session. By default, it opens your browser and signs in through SpaceXAI OAuth at `auth.x.ai`. Pass a flag to select a different flow:
 
 | Flag | Description |
 |------|-------------|
@@ -80,7 +80,7 @@ You can also override the API endpoint to point at your own proxy:
 export GROK_CLI_CHAT_PROXY_BASE_URL="https://grok-proxy.acme.com/v1"
 ```
 
-### 3. Run `grok`
+### 3. Run `xvora`
 
 The CLI discovers endpoints via `{issuer}/.well-known/openid-configuration`, opens the IdP login page, and stores tokens in `~/.grok/auth.json`. Tokens auto-refresh silently via the stored `refresh_token`.
 
@@ -208,7 +208,7 @@ echo "{\"access_token\": \"$TOKEN\", \"expires_in\": 3600}"
 For headless environments (SSH sessions, Docker containers, remote VMs) where no browser is available locally:
 
 ```bash
-grok login --device-auth    # or: grok login --device-code
+xvora login --device-auth    # or: xvora login --device-code
 ```
 
 This prints a URL and code to the terminal. Open the URL on any device, enter the code, and complete authentication. Grok polls until the login is confirmed.
@@ -279,7 +279,7 @@ tail -f /tmp/grok.log
 In headless mode, logs go to stderr. Redirect them to a file:
 
 ```bash
-RUST_LOG=debug grok -p "hello" 2> /tmp/grok.log
+RUST_LOG=debug xvora -p "hello" 2> /tmp/grok.log
 ```
 
 ### Common log messages
@@ -294,7 +294,7 @@ RUST_LOG=debug grok -p "hello" 2> /tmp/grok.log
 
 ### Common fixes
 
-- **"Authentication failed"** -- Run `grok logout` to clear cached credentials, then `grok login` to sign in again.
+- **"Authentication failed"** -- Run `grok logout` to clear cached credentials, then `xvora login` to sign in again.
 - **Token expires too quickly** -- Set `auth_token_ttl` or return `expires_in` in your auth provider's JSON output.
 - **OIDC redirect fails** -- Ensure your IdP allows loopback redirect URIs (`http://127.0.0.1/callback`).
 - **External auth provider not found** -- Check that the `auth_provider_command` path is correct and the binary is executable.

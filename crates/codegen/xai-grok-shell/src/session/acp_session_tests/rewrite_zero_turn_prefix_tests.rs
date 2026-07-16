@@ -151,7 +151,7 @@ fn stale_source_reminder() -> ConversationItem {
 }
 /// Regression: a zero-turn agent rebuild INTO a grok/Default agent
 /// must re-inject the baseline skill `<system-reminder>`. `initialize()`
-/// is otherwise the only place skills are surfaced for the grok agent, so
+/// is otherwise the only place skills are surfaced for the Xvora agent, so
 /// before the fix a switch into such an agent — whose rebuilt bridge holds
 /// a pending `BaselineChange` — dropped the skill listing for a no-tool first
 /// turn. Drives the real `inject_baseline_skill_reminder` seam that
@@ -187,7 +187,7 @@ async fn rebuild_reinjects_baseline_skill_reminder_for_non_cursor() {
             let text = reminder.text_content();
             assert!(
                 text.contains("The following skills are available for use:"),
-                "reminder must carry the grok skill catalog header:\n{text}",
+                "reminder must carry the Xvora skill catalog header:\n{text}",
             );
             assert!(
                 text.contains("regression-baseline-skill"),

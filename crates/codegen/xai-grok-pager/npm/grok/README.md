@@ -1,6 +1,6 @@
-# Grok
+# Xvora
 
-Bring Grok into your terminal. Fast, flicker-free CLI built for plans, subagents, and parallel work.
+Bring Xvora into your terminal. Fast, flicker-free CLI built for plans, subagents, and parallel work.
 
 **[Homepage](https://x.ai/cli)** | **[Documentation](https://docs.x.ai/build/overview)**
 

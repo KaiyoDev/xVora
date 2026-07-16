@@ -78,7 +78,7 @@ pub enum ClientType {
     #[default]
     #[serde(rename = "generic", alias = "grok-shell", alias = "grok_shell")]
     Generic,
-    /// Grok TUI client - show fancy options with interactive bash term selection
+    /// Xvora TUI client - show fancy options with interactive bash term selection
     #[serde(rename = "grok-tui", alias = "grok_tui")]
     GrokTUI,
     /// Grok Web client - identified by clientIdentifier "grok-web"

@@ -1,4 +1,4 @@
-//! Config file loading for Grok.
+//! Config file loading for Xvora.
 //!
 //! Merge order (lowest → highest priority):
 //! 1. `/etc/grok/managed_config.toml`

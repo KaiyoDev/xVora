@@ -1,6 +1,6 @@
 # Getting Started
 
-Grok Build is a terminal-based AI coding assistant from SpaceXAI. It runs as a TUI (Terminal User Interface) that understands your codebase, executes shell commands, edits files, searches the web, and manages tasks.
+Xvora is a terminal-based AI coding assistant from SpaceXAI. It runs as a TUI (Terminal User Interface) that understands your codebase, executes shell commands, edits files, searches the web, and manages tasks.
 
 You can use it interactively as a full-screen TUI, run it headlessly for scripting and CI/CD, or integrate it into editors via the Agent Client Protocol (ACP).
 
@@ -37,13 +37,13 @@ The PowerShell installer automatically adds `%USERPROFILE%\.grok\bin` to your Us
 Verify the installation:
 
 ```bash
-grok --version
+xvora --version
 ```
 
 Update to the latest version at any time:
 
 ```bash
-grok update
+xvora update
 ```
 
 ---
@@ -194,7 +194,7 @@ grok --resume <session-id>
 # Continue the most recent session
 grok -c
 
-# Experimental scrollback-native render mode. Sticky: plain `grok` reopens in
+# Experimental scrollback-native render mode. Sticky: plain `xvora` reopens in
 # the mode last chosen via --minimal/--fullscreen (or /minimal//fullscreen).
 grok --minimal
 
@@ -202,7 +202,7 @@ grok --minimal
 grok --fullscreen
 
 # Headless mode (for scripts)
-grok -p "Explain this codebase"
+xvora -p "Explain this codebase"
 ```
 
 ---
@@ -212,7 +212,7 @@ grok -p "Explain this codebase"
 Run Grok non-interactively for scripting, CI/CD, and automation:
 
 ```bash
-grok -p "Your prompt here"
+xvora -p "Your prompt here"
 ```
 
 Output formats:
@@ -226,7 +226,7 @@ Output formats:
 Example CI/CD usage:
 
 ```bash
-grok -p "Review changes for bugs" --output-format json --yolo | jq -r '.text'
+xvora -p "Review changes for bugs" --output-format json --yolo | jq -r '.text'
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Hook Examples
 
-Sample hooks for Grok. Copy to `~/.grok/hooks/` to enable globally, or to `<project>/.grok/hooks/` for project-scoped hooks (requires `/hooks-trust`).
+Sample hooks for Xvora. Copy to `~/.grok/hooks/` to enable globally, or to `<project>/.grok/hooks/` for project-scoped hooks (requires `/hooks-trust`).
 
 ## Available Examples
 

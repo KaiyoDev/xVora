@@ -1,7 +1,7 @@
 #
-# Grok CLI installer for PowerShell — https://x.ai/cli/install.ps1
+# Xvora CLI installer for PowerShell — https://x.ai/cli/install.ps1
 #
-# Auth: GROK_DEPLOYMENT_KEY env var (takes precedence) or ~/.grok/auth.json from `grok login`.
+# Auth: GROK_DEPLOYMENT_KEY env var (takes precedence) or ~/.grok/auth.json from `xvora login`.
 # Env: GROK_CHANNEL (stable|alpha|enterprise, default: stable), GROK_BIN_DIR, GROK_PROXY_URL
 #
 # Usage:
@@ -180,9 +180,9 @@ if ($Version) {
 }
 
 if ($AuthSource) {
-    Write-Host "Installing Grok $resolvedVersion ($platform, $AuthSource)..." -ForegroundColor Cyan
+    Write-Host "Installing Xvora $resolvedVersion ($platform, $AuthSource)..." -ForegroundColor Cyan
 } else {
-    Write-Host "Installing Grok $resolvedVersion ($platform)..." -ForegroundColor Cyan
+    Write-Host "Installing Xvora $resolvedVersion ($platform)..." -ForegroundColor Cyan
 }
 
 # --- Download binary ---
@@ -209,7 +209,7 @@ if (-not $downloaded) {
 
 # --- Install binary (locked-file safe) ---
 
-foreach ($binName in @('grok.exe', 'agent.exe')) {
+foreach ($binName in @('xvora.exe', 'agent.exe')) {
     $dest = Join-Path $BinDir $binName
     $old = "$dest.old"
 
@@ -229,14 +229,14 @@ foreach ($binName in @('grok.exe', 'agent.exe')) {
     }
 }
 
-Write-Host "  Installed to $BinDir\grok.exe and $BinDir\agent.exe." -ForegroundColor DarkGray
+Write-Host "  Installed to $BinDir\xvora.exe and $BinDir\agent.exe." -ForegroundColor DarkGray
 
 # --- Generate completions (best-effort) ---
 
 $completionsDir = Join-Path (Join-Path $GrokDir 'completions') 'powershell'
 try {
     New-Item -ItemType Directory -Path $completionsDir -Force | Out-Null
-    & (Join-Path $BinDir 'grok.exe') completions powershell 2>$null |
+    & (Join-Path $BinDir 'xvora.exe') completions powershell 2>$null |
         Set-Content (Join-Path $completionsDir 'grok.ps1') -ErrorAction SilentlyContinue
 } catch {}
 
@@ -314,9 +314,9 @@ if ($env:GROK_DEPLOYMENT_KEY) {
     }
 }
 
-Write-Host "Grok $resolvedVersion installed to $BinDir\grok.exe" -ForegroundColor Green
+Write-Host "Xvora $resolvedVersion installed to $BinDir\xvora.exe" -ForegroundColor Green
 
-# --- Ensure grok is on PATH ---
+# --- Ensure xvora is on PATH ---
 
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $pathEntries = if ($userPath) { $userPath -split ';' | Where-Object { $_ -ne '' } } else { @() }
@@ -324,7 +324,7 @@ if ($pathEntries -notcontains $BinDir) {
     $newPath = (@($BinDir) + $pathEntries) -join ';'
     [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
     Write-Host "  Added $BinDir to your User PATH." -ForegroundColor DarkGray
-    # Update current session so grok works immediately.
+    # Update current session so xvora works immediately.
     if ($env:Path -notlike "*$BinDir*") {
         $env:Path = "$BinDir;$env:Path"
     }

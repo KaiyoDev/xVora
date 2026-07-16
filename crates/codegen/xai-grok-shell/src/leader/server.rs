@@ -1432,7 +1432,7 @@ fn make_version_mismatch_notification(
             "clientVersion" : client_version, "leaderVersion" : leader_version, "message"
             :
             format!("Client version {client_version} differs from leader version \
-                     {leader_version}. Restart the grok binary to use the same version.")
+                     {leader_version}. Restart the xvora binary to use the same version.")
             } }
         )
         .to_string(),

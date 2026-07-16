@@ -39,14 +39,14 @@ Grok discovers plugins from these locations, in priority order:
 | Location | Scope | Trust |
 |----------|-------|-------|
 | `_meta.pluginDirs` (`session/new` / `session/load`) | Session -- loaded for that session only | Trusted automatically |
-| `--plugin-dir` (CLI flag, `grok agent`) | Process -- loaded for that agent process only | Trusted automatically |
+| `--plugin-dir` (CLI flag, `xvora agent`) | Process -- loaded for that agent process only | Trusted automatically |
 | `.grok/plugins/` | Project -- shared with the team through version control | Requires trust |
 | `~/.grok/plugins/` | User -- personal plugins for every project | Trusted automatically |
 | `[plugins].paths` (config) | Custom directories you add in `config.toml` | Depends on location |
 
 Grok also reads the `.claude/plugins/` equivalents for compatibility. When two plugins share a name, the higher-priority location wins.
 
-The Agent SDKs load per-session plugins through `GrokOptions.plugins`, which arrives as `_meta.pluginDirs` on `session/new` and `session/load`; because the caller controls the directory, these plugins are always trusted -- their hooks and MCP servers activate without a prompt, and they never persist beyond the session. The `--plugin-dir` flag is the process-wide equivalent for direct CLI use (repeatable: `grok agent --no-leader --plugin-dir A --plugin-dir B stdio`); it applies to dedicated agent processes only and is ignored in leader mode (the shared leader discovers its own plugins).
+The Agent SDKs load per-session plugins through `GrokOptions.plugins`, which arrives as `_meta.pluginDirs` on `session/new` and `session/load`; because the caller controls the directory, these plugins are always trusted -- their hooks and MCP servers activate without a prompt, and they never persist beyond the session. The `--plugin-dir` flag is the process-wide equivalent for direct CLI use (repeatable: `xvora agent --no-leader --plugin-dir A --plugin-dir B stdio`); it applies to dedicated agent processes only and is ignored in leader mode (the shared leader discovers its own plugins).
 
 ---
 
@@ -245,11 +245,11 @@ grok plugin install <source> --trust
 
 ## Inspect plugins
 
-Run `grok inspect` to see every discovered plugin and what it provides:
+Run `xvora inspect` to see every discovered plugin and what it provides:
 
 ```bash
-grok inspect          # Show plugins with their skills, agents, hooks, and MCP servers
-grok inspect --json   # Emit machine-readable JSON
+xvora inspect          # Show plugins with their skills, agents, hooks, and MCP servers
+xvora inspect --json   # Emit machine-readable JSON
 ```
 
 Plugin-provided components appear in their sections (Skills, Agents, MCP Servers, and so on) with a `plugin: <name>` label, so you can see where each component originates.

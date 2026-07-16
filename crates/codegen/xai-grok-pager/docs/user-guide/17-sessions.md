@@ -92,7 +92,7 @@ Run `grok --resume` without an ID to resume the most recent session for the curr
 
 ### From the Welcome Screen
 
-When you launch `grok`, the welcome screen lists recent sessions for the current directory. Select one to resume it.
+When you launch `xvora`, the welcome screen lists recent sessions for the current directory. Select one to resume it.
 
 ---
 
@@ -184,13 +184,13 @@ In headless mode, you manage sessions through command-line flags:
 
 ```bash
 # New session each time (default)
-grok -p "Hello"
+xvora -p "Hello"
 
 # Resume an existing session by ID (errors if it does not exist)
-grok -p "Continue where we left off" -r <session-id>
+xvora -p "Continue where we left off" -r <session-id>
 
 # Continue the most recent session in the current directory
-grok -p "What were we doing?" -c
+xvora -p "What were we doing?" -c
 ```
 
 In headless mode, resume an existing session with `-r`/`--resume`, which errors if the session does not exist, or continue the most recent session in the current directory with `-c`/`--continue`. Pass the session ID from JSON output (see below) to `-r`.
@@ -200,7 +200,7 @@ Use `-s`/`--session-id` only to **create** a new session with a **UUID** (errors
 To read the session ID back, request JSON output:
 
 ```bash
-grok -p "Hello" --output-format json | jq -r '.sessionId'
+xvora -p "Hello" --output-format json | jq -r '.sessionId'
 ```
 
 ---

@@ -1820,7 +1820,7 @@
 - **Goal mode** is now opt-in via config.toml or the GROK_GOAL environment variable.
 - **Commands** in workspace/proxy mode now preserve environment variables, cwd, functions, and aliases across calls.
 - **Background tasks** now report termination signals, reject self-killing patterns, and support unbounded timeouts.
-- **Grok CLI** now runs natively on Intel Macs via x86_64 builds.
+- **Xvora CLI** now runs natively on Intel Macs via x86_64 builds.
 
 ## Bug Fixes
 
@@ -1885,7 +1885,7 @@
 - **Paywall** now lifts automatically after subscribing via grok login or external purchase without needing to re-login.
 - **Commands** in workspace/proxy mode now preserve environment variables, cwd, functions, and aliases across calls.
 - **New /goal slash command** for tracking multi-step coding goals with live status and automatic pausing on Ctrl+C.
-- **Grok CLI** now runs natively on Intel Macs via x86_64 builds.
+- **Xvora CLI** now runs natively on Intel Macs via x86_64 builds.
 - **New `image_edit` tool** supports editing images from reference photos.
 - **Goal mode** now supports a "verification blocked" pause state with a user-visible reason.
 - **read_file** now extracts text from PowerPoint (.pptx) files in addition to PDF and images.
@@ -2064,7 +2064,7 @@
 - **Directly waited** background tasks no longer trigger extra notifications.
 - **Loop indicators** are now properly removed when subagents shut down.
 - **run_terminal_cmd** tool name restored; background parameter rename preserved.
-- **Model picker** now recovers automatically after sleep/resume or temporary network issues instead of staying stuck on Grok Build.
+- **Model picker** now recovers automatically after sleep/resume or temporary network issues instead of staying stuck on Xvora.
 - **MCP server connections** now succeed for servers that enforce audience binding on OAuth tokens.
 - **read_file** now accesses gitignored files by default (grep/list_dir/search_replace still block them unless configured).
 - **--no-ask-user** flag now correctly disables the ask_user_question tool in both TUI and headless modes.
@@ -2692,7 +2692,7 @@
 
 ## Features
 
-- **Native Windows support** (opt-in) lets you run Grok CLI directly without WSL, with MCP server compatibility.
+- **Native Windows support** (opt-in) lets you run Xvora CLI directly without WSL, with MCP server compatibility.
 - **New interactive import** for Claude settings (Ctrl-I or /import-claude) lets you pick permissions, env vars, MCP servers, hooks, or paths to migrate.
 - **Cancel with Ctrl+C** before any response to restore your unsent prompt (text and images) to the input box.
 - **dontAsk permission mode** now auto-rejects tools without prompting in headless sessions.
@@ -3000,7 +3000,7 @@
 
 ## Features
 
-- **X Premium and Premium+** tiers now grant access to Grok Build.
+- **X Premium and Premium+** tiers now grant access to Xvora.
 
 ## Bug Fixes
 

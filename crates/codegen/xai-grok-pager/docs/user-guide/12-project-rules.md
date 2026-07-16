@@ -166,7 +166,7 @@ To replace the system prompt entirely, pass `--system-prompt-override` (alias `-
 
 ## File Size
 
-Grok loads each project instruction file in full; there is no character cap and no truncation. Even so, keep instructions concise and focused. Shorter, specific rules are easier for Grok to follow than long ones, and every file you load consumes context.
+Xvora loads each project instruction file in full; there is no character cap and no truncation. Even so, keep instructions concise and focused. Shorter, specific rules are easier for Xvora to follow than long ones, and every file you load consumes context.
 
 ---
 
@@ -202,10 +202,10 @@ These are all optional. See the respective guides for details on each.
 
 ## Inspecting Loaded Rules
 
-Use `grok inspect` to see all loaded project instructions:
+Use `xvora inspect` to see all loaded project instructions:
 
 ```bash
-grok inspect
+xvora inspect
 ```
 
 This shows each project instruction file it finds, with its path and approximate token count. Use it to confirm Grok picks up your rules.

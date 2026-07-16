@@ -95,7 +95,7 @@ impl AuthCredentialProvider for ShellAuthCredentialProvider {
 /// Every call site **must** pass the correct `client_identifier` so that
 /// the API proxy (and telemetry / metrics backends) can properly attribute requests:
 ///
-/// - `"grok-shell"`   — classic Grok CLI / TUI (xai-grok-shell)
+/// - `"grok-shell"`   — classic Xvora CLI / TUI (xai-grok-shell)
 /// - `"grok-pager"`   — new Grok Pager / TUI (xai-grok-pager)
 /// - `"grok-desktop"` — Grok Desktop app
 /// - `"grok-extension"` — VS Code / browser extension

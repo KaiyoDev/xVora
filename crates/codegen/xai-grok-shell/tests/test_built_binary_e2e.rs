@@ -1,4 +1,4 @@
-//! Built-binary end-to-end tests for the grok (xai-grok-pager) binary.
+//! Built-binary end-to-end tests for the xvora (xai-grok-pager) binary.
 //!
 //! These tests verify that the built grok binary works end-to-end against a mock
 //! inference server. They catch dynamic linking failures (libgit2/OpenSSL),
@@ -386,7 +386,7 @@ async fn test_headless_free_usage_exhausted_prints_paywall_message() {
     assert_no_crashes(&result.stderr);
     let combined = format!("{}\n{}", result.stdout, result.stderr);
     assert!(
-        combined.contains("reached your free Grok Build usage limit"),
+        combined.contains("reached your free Xvora usage limit"),
         "expected the free-usage paywall message\nstdout:\n{}\nstderr tail:\n{}",
         result.stdout,
         stderr_tail(&result.stderr, 1000)

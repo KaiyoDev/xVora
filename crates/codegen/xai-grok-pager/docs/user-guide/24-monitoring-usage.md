@@ -4,7 +4,7 @@
 > additive changes may occur without notice, renames/removals will bump the
 > version and be called out in the changelog.
 
-Grok CLI can export usage **metrics** and **events** to your organization's
+Xvora CLI can export usage **metrics** and **events** to your organization's
 own OpenTelemetry collector, so platform teams can monitor adoption, token
 consumption, tool-permission decisions, and errors across the fleet — without
 any data flowing through SpaceXAI.
