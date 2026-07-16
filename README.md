@@ -1,61 +1,47 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="xVora logo" width="160">
+<img src="assets/logo.png" alt="xVora" width="180">
 
 # xVora
 
+**Terminal AI coding agent**
+
+TUI · Headless · ACP · BYOK-first
+
 [![CI](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml/badge.svg)](https://github.com/KaiyoDev/xVora/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-**Terminal AI coding agent** — full-screen TUI, headless automation, and ACP for editors.
-
-Bring your own keys. Run local models. No forced cloud lock-in.
-
-[Features](#features) ·
 [Install](#install) ·
 [Quick start](#quick-start) ·
-[BYOK / custom models](#byok--custom-models) ·
-[Build from source](#build-from-source) ·
-[CI](#ci-github-actions) ·
+[BYOK](#byok--custom-models) ·
+[CI binary](#ci--download-binary) ·
 [Docs](#documentation) ·
-[Layout](#repository-layout) ·
 [License](#license)
 
 </div>
 
 ---
 
-## What is xVora?
+## Overview
 
-**xVora** (`xvora`) is an open terminal coding agent:
+**xVora** (`xvora`) is an open-source terminal coding agent maintained at
+[KaiyoDev/xVora](https://github.com/KaiyoDev/xVora).
 
-- Interactive **TUI** for day-to-day coding
-- **Headless** mode for scripts and CI
-- **Agent / ACP** mode for IDE integration
-- Built-in tools: shell, read/edit files, search, web, subagents, skills, MCP, sandbox
+| Mode | Use |
+|------|-----|
+| **TUI** | Full-screen interactive coding session |
+| **Headless** | Scripts, automation, CI (`xvora -p "…"`) |
+| **Agent / ACP** | Editor integration (`xvora agent stdio`) |
 
-Config lives under `~/.xvora/`. Environment variables use the `XVORA_*` prefix.
+**Bring your own key.** Point xVora at OpenAI, Anthropic, OpenRouter, Ollama, or any OpenAI-compatible API — no forced cloud subscription for pure BYOK setups.
 
-> This tree is maintained as **[KaiyoDev/xVora](https://github.com/KaiyoDev/xVora)**.
-> It is a hard fork / rebrand of an open-sourced coding harness; first-party code is Apache-2.0.
-
----
-
-## Features
-
-| Area | Notes |
-|------|--------|
-| **Pure BYOK** | OpenAI / Anthropic / OpenRouter / Ollama / any OpenAI-compatible endpoint |
-| **No paywall for BYOK** | Custom keys & local endpoints skip subscription gates |
-| **Tools** | bash, read, edit, grep, list_dir, web, tasks/subagents, MCP, plan mode |
-| **Skills & hooks** | Project and user skill packs; lifecycle hooks |
-| **Worktrees** | Isolated worktrees for parallel agents |
-| **Sandbox** | Optional OS-level isolation (where supported) |
+Config: `~/.xvora/` · Env: `XVORA_*`
 
 ---
 
 ## Install
 
-### From source (recommended)
+### From source
 
 ```sh
 git clone https://github.com/KaiyoDev/xVora.git
@@ -63,58 +49,51 @@ cd xVora
 cargo run -p xvora-pager-bin
 ```
 
-Release binary:
+Release build:
 
 ```sh
 cargo build -p xvora-pager-bin --release
-# → target/release/xvora   (or xvora.exe on Windows)
-./target/release/xvora --version
+# → target/release/xvora   (xvora.exe on Windows)
 ```
 
 ### Requirements
 
-- **Rust** — pinned in [`rust-toolchain.toml`](rust-toolchain.toml) (`rustup` installs it)
-- **protoc** — [`bin/protoc`](bin/protoc) (dotslash) or `protoc` on `PATH` / `$PROTOC`
-- Linux / macOS are the primary hosts; Windows is best-effort
+- **Rust** — see [`rust-toolchain.toml`](rust-toolchain.toml) (installed by `rustup`)
+- **protoc** — [`bin/protoc`](bin/protoc) or system `protoc` / `$PROTOC`
+- Primary hosts: Linux & macOS · Windows: best-effort
 
 ---
 
 ## Quick start
 
 ```sh
-# Interactive TUI
-xvora
-
-# One-shot headless prompt
-xvora -p "Explain this repository"
-
-# Agent mode (stdio / ACP)
-xvora agent stdio
+xvora                              # interactive TUI
+xvora -p "Explain this repo"       # headless
+xvora agent stdio                  # ACP / agent mode
 ```
 
-First launch may open a browser for auth if you use cloud providers that need login.
-For **pure BYOK**, configure `~/.xvora/config.toml` first (see below) — no forced cloud login.
+Prefer BYOK first? Write `~/.xvora/config.toml` (below) **before** first launch — no login required for custom endpoints.
 
 ---
 
 ## BYOK / custom models
 
-Create `~/.xvora/config.toml`:
-
 ```toml
+# ~/.xvora/config.toml
+
 [models]
 default = "openai-gpt"
 
 [model.openai-gpt]
 model = "gpt-4o"
 base_url = "https://api.openai.com/v1"
-api_key = "sk-..."                    # or: env_key = "OPENAI_API_KEY"
-api_backend = "chat_completions"      # chat_completions | responses | messages
+api_key = "sk-..."                 # or: env_key = "OPENAI_API_KEY"
+api_backend = "chat_completions"   # chat_completions | responses | messages
 context_window = 128000
 name = "GPT-4o"
 ```
 
-Local Ollama (no API key):
+Local (e.g. Ollama):
 
 ```toml
 [models]
@@ -126,105 +105,93 @@ base_url = "http://127.0.0.1:11434/v1"
 context_window = 128000
 ```
 
-With a custom model + key (or non-xAI `base_url`), xVora runs **without** subscription paywall.
+If you set a custom model with credentials or a non-first-party `base_url`, xVora **skips subscription paywalls**.
 
-Full guide: [`crates/codegen/xvora-pager/docs/user-guide/11-custom-models.md`](crates/codegen/xvora-pager/docs/user-guide/11-custom-models.md)
+Guide: [`crates/codegen/xvora-pager/docs/user-guide/11-custom-models.md`](crates/codegen/xvora-pager/docs/user-guide/11-custom-models.md)
 
 ---
 
-## Build from source
+## Features
+
+- **Tools** — shell, read/edit, search, list dir, web, tasks & subagents, MCP
+- **Skills & hooks** — reusable packs and project lifecycle scripts
+- **Worktrees** — isolated workspaces for parallel agents
+- **Sandbox** — optional OS-level isolation (where supported)
+- **Theming** — TUI themes, welcome logo (braille), animations
+
+---
+
+## CI / download binary
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+On push to `main` (and PRs):
+
+1. `cargo check` + `cargo build --release -p xvora-pager-bin` (Linux)
+2. Upload artifact **`xvora-linux-x64`**
+3. **Only the newest run stays active** (`cancel-in-progress`)
+4. Older completed runs of this workflow are cleaned up
+
+**Download:** [Actions → CI → latest green run → Artifacts → `xvora-linux-x64`](https://github.com/KaiyoDev/xVora/actions)
 
 ```sh
-cargo check -p xvora-pager-bin          # fast validation
-cargo run   -p xvora-pager-bin          # dev TUI
-cargo build -p xvora-pager-bin --release
-cargo test  -p xvora-config             # example per-crate tests
+chmod +x xvora
+./xvora --version
+```
+
+---
+
+## Build notes
+
+```sh
+cargo check  -p xvora-pager-bin
+cargo run    -p xvora-pager-bin
+cargo build  -p xvora-pager-bin --release
+cargo test   -p xvora-config
 cargo clippy -p xvora-pager-bin
 cargo fmt --all
 ```
 
-Always target **specific crates** (`-p …`). Full workspace builds are large and slow.
+Always pass **`-p <crate>`** — a full workspace build is large and slow.
 
-Binary package: **`xvora-pager-bin`** → artifact name **`xvora`**.
+| Crate | Role |
+|-------|------|
+| `xvora-pager-bin` | Binary entry (`xvora`) |
+| `xvora-pager` | TUI |
+| `xvora-shell` | Agent runtime |
+| `xvora-tools` | Tools |
+| `xvora-workspace` | FS / VCS / execution |
+| `xvora-config` | Config & `~/.xvora` |
 
----
-
-## CI (GitHub Actions)
-
-Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
-
-On every push to `main` / PR / manual dispatch:
-
-1. **`cargo check`** + **`cargo build --release -p xvora-pager-bin`** on `ubuntu-latest`
-2. Upload artifact **`xvora-linux-x64`** (download from the Actions run)
-3. **Concurrency**: only the **newest** run per branch stays active — older in-progress runs are **cancelled**
-4. **Cleanup**: after a run finishes, older **completed** history for this workflow is **deleted** (keeps the latest)
-
-Download the binary from: **Actions → CI → latest run → Artifacts → `xvora-linux-x64`**
+More layout detail under `crates/codegen/` and `crates/common/`.
 
 ---
 
 ## Documentation
 
-User guide (shipped with the pager crate):
-
-[`crates/codegen/xvora-pager/docs/user-guide/`](crates/codegen/xvora-pager/docs/user-guide/)
-
-Topics: getting started, auth, shortcuts, slash commands, config, theming, MCP, skills, plugins, hooks, headless, sandbox, permissions, custom models.
-
-Shell/agent deep dive:
-
-[`crates/codegen/xvora-shell/README.md`](crates/codegen/xvora-shell/README.md)
+| Doc | Path |
+|-----|------|
+| User guide | [`crates/codegen/xvora-pager/docs/user-guide/`](crates/codegen/xvora-pager/docs/user-guide/) |
+| Shell / agent | [`crates/codegen/xvora-shell/README.md`](crates/codegen/xvora-shell/README.md) |
 
 ---
 
-## Repository layout
-
-| Path | Role |
-|------|------|
-| `crates/codegen/xvora-pager-bin` | Composition root — builds the `xvora` binary |
-| `crates/codegen/xvora-pager` | TUI (scrollback, prompt, modals, views) |
-| `crates/codegen/xvora-shell` | Agent runtime, auth, sessions, leader/stdio/headless |
-| `crates/codegen/xvora-tools` | Tool implementations |
-| `crates/codegen/xvora-workspace` | Host FS, VCS, execution, checkpoints |
-| `crates/codegen/xvora-config` | Config load / `~/.xvora` |
-| `crates/codegen/…` | MCP, markdown, sandbox, memory, sampler, … |
-| `crates/common/` | Shared protocol, tool runtime, compaction, tracing |
-| `crates/build/` | Build helpers (e.g. protoc) |
-| `third_party/` | Vendored Mermaid → SVG stack |
-
-> Root `Cargo.toml` workspace members and shared dependency versions may be treated as generated in upstream workflows — prefer editing **per-crate** `Cargo.toml` files when unsure.
-
----
-
-## Configuration paths
+## Paths
 
 | Item | Location |
 |------|----------|
 | Config | `~/.xvora/config.toml` |
 | Auth | `~/.xvora/auth.json` |
-| Sessions / data | `~/.xvora/` |
+| Data / sessions | `~/.xvora/` |
 | Env prefix | `XVORA_*` |
-
----
-
-## Development notes
-
-```sh
-cargo check -p <crate>
-cargo test  -p <crate>
-cargo clippy -p <crate>
-```
-
-Rust edition and channel: see [`rust-toolchain.toml`](rust-toolchain.toml).
 
 ---
 
 ## Contributing
 
-Issues and PRs are welcome on **[KaiyoDev/xVora](https://github.com/KaiyoDev/xVora)**.
+Issues and PRs: **[github.com/KaiyoDev/xVora](https://github.com/KaiyoDev/xVora)**
 
-Please keep changes focused; run `cargo check -p …` on touched crates before opening a PR.
+Keep changes focused; run `cargo check -p …` on touched crates before opening a PR.
 
 ---
 
@@ -234,12 +201,10 @@ Please keep changes focused; run `cargo check -p …` on touched crates before o
 
 Copyright SpaceXAI (upstream) and KaiyoDev (xVora modifications).
 
-Third-party / vendored code keeps its original licenses — see [`THIRD-PARTY-NOTICES`](THIRD-PARTY-NOTICES) and notices under individual crates / `third_party/`.
+Third-party notices: [`THIRD-PARTY-NOTICES`](THIRD-PARTY-NOTICES).
 
 ---
 
 ## Acknowledgments
 
-xVora is derived from **[Grok Build](https://github.com/xai-org/grok-build)** (`xai-org/grok-build`) — cảm ơn / thank you to the authors and contributors of that open-source harness.
-
-Other third-party components are listed in [`THIRD-PARTY-NOTICES`](THIRD-PARTY-NOTICES).
+xVora is derived from **[Grok Build](https://github.com/xai-org/grok-build)** — thank you to the authors and contributors of that open-source project.
