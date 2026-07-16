@@ -1170,6 +1170,8 @@ mod platform {
 #[cfg(not(target_os = "macos"))]
 mod platform {
     use super::ImageData;
+    // CLI clipboard backends (wl-copy/xclip/…) are Linux-only; Windows uses arboard.
+    #[cfg(target_os = "linux")]
     use std::process::{Command, Stdio};
 
     /// No subprocess-free pasteboard probe exists off-macOS.
@@ -1931,32 +1933,38 @@ mod platform {
     // -- Public API ----------------------------------------------------------
 
     pub fn get_text() -> anyhow::Result<Option<String>> {
-        let mut arboard_error = None;
         match arboard_get_text() {
-            Ok(Some(text)) => return Ok(Some(text)),
-            // Wayland-only: arboard's empty answer is not authoritative,
-            // fall through to wl-paste (see `wayland_tool_selected`).
+            Ok(Some(text)) => Ok(Some(text)),
+            // Wayland-only: arboard's empty answer is not authoritative —
+            // try wl-paste (see `wayland_tool_selected`).
             #[cfg(target_os = "linux")]
-            Ok(None) if wayland_tool_selected(linux_tool_spec()) => {}
-            Ok(None) => return Ok(None),
+            Ok(None) if wayland_tool_selected(linux_tool_spec()) => {
+                if let Some(spec) = linux_tool_spec() {
+                    let bytes = run_capture_out_checked(spec.read_text, CLI_READ_WAIT)?;
+                    Ok(if bytes.is_empty() {
+                        None
+                    } else {
+                        Some(String::from_utf8_lossy(&bytes).into_owned())
+                    })
+                } else {
+                    Ok(None)
+                }
+            }
+            Ok(None) => Ok(None),
             Err(e) => {
                 tracing::debug!("arboard get_text failed: {e}");
-                arboard_error = Some(e);
+                #[cfg(target_os = "linux")]
+                if let Some(spec) = linux_tool_spec() {
+                    let bytes = run_capture_out_checked(spec.read_text, CLI_READ_WAIT)?;
+                    return Ok(if bytes.is_empty() {
+                        None
+                    } else {
+                        Some(String::from_utf8_lossy(&bytes).into_owned())
+                    });
+                }
+                Err(e)
             }
         }
-        #[cfg(target_os = "linux")]
-        if let Some(spec) = linux_tool_spec() {
-            let bytes = run_capture_out_checked(spec.read_text, CLI_READ_WAIT)?;
-            return Ok(if bytes.is_empty() {
-                None
-            } else {
-                Some(String::from_utf8_lossy(&bytes).into_owned())
-            });
-        }
-        if let Some(error) = arboard_error {
-            return Err(error);
-        }
-        Ok(None)
     }
 
     #[cfg(target_os = "linux")]
@@ -2044,37 +2052,46 @@ mod platform {
     }
 
     pub fn get_image() -> anyhow::Result<Option<ImageData>> {
-        let mut arboard_error = None;
         match arboard_get_image() {
-            Ok(Some(image)) => return Ok(Some(image)),
-            // Wayland-only: arboard's empty answer is not authoritative,
-            // fall through to wl-paste (see `wayland_tool_selected`).
+            Ok(Some(image)) => Ok(Some(image)),
+            // Wayland-only: arboard's empty answer is not authoritative —
+            // try wl-paste (see `wayland_tool_selected`).
             #[cfg(target_os = "linux")]
-            Ok(None) if wayland_tool_selected(linux_tool_spec()) => {}
-            Ok(None) => return Ok(None),
+            Ok(None) if wayland_tool_selected(linux_tool_spec()) => {
+                if let Some(spec) = linux_tool_spec()
+                    && let Some(argv) = spec.read_png
+                {
+                    let bytes = run_capture_out_checked(argv, CLI_READ_WAIT)?;
+                    if !bytes.is_empty() {
+                        let mime = super::mime_from_bytes(&bytes);
+                        return Ok(Some(ImageData {
+                            data: bytes,
+                            mime_type: mime.to_owned(),
+                        }));
+                    }
+                }
+                Ok(None)
+            }
+            Ok(None) => Ok(None),
             Err(e) => {
                 tracing::debug!("arboard get_image failed: {e}");
-                arboard_error = Some(e);
+                #[cfg(target_os = "linux")]
+                if let Some(spec) = linux_tool_spec()
+                    && let Some(argv) = spec.read_png
+                {
+                    let bytes = run_capture_out_checked(argv, CLI_READ_WAIT)?;
+                    if !bytes.is_empty() {
+                        let mime = super::mime_from_bytes(&bytes);
+                        return Ok(Some(ImageData {
+                            data: bytes,
+                            mime_type: mime.to_owned(),
+                        }));
+                    }
+                    return Ok(None);
+                }
+                Err(e)
             }
         }
-        #[cfg(target_os = "linux")]
-        if let Some(spec) = linux_tool_spec()
-            && let Some(argv) = spec.read_png
-        {
-            let bytes = run_capture_out_checked(argv, CLI_READ_WAIT)?;
-            if !bytes.is_empty() {
-                let mime = super::mime_from_bytes(&bytes);
-                return Ok(Some(ImageData {
-                    data: bytes,
-                    mime_type: mime.to_owned(),
-                }));
-            }
-            return Ok(None);
-        }
-        if let Some(error) = arboard_error {
-            return Err(error);
-        }
-        Ok(None)
     }
 
     /// Unlike `set_text`/`get_text`/`get_image`, this skips arboard and goes
