@@ -1750,16 +1750,16 @@ mod tests {
     }
     #[test]
     fn dynamic_resolver_refreshes_proxy_token() {
-        use crate::auth::{GrokAuth, GrokComConfig};
+        use crate::auth::{XaiAuth, GrokComConfig};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
         let dir = tempfile::tempdir().unwrap();
         let grok_com_config = GrokComConfig::default();
         let scope = grok_com_config.auth_scope();
-        let initial_auth = GrokAuth {
+        let initial_auth = XaiAuth {
             key: "initial-token".into(),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = BTreeMap::new();
         store.insert(scope.clone(), initial_auth);
@@ -1795,10 +1795,10 @@ mod tests {
             Some("initial-token"),
             "snapshot should reflect AuthManager.current(), not the stale base_config token"
         );
-        let refreshed_auth = GrokAuth {
+        let refreshed_auth = XaiAuth {
             key: "refreshed-token".into(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         store.insert(scope, refreshed_auth);
         let auth_json = serde_json::to_string_pretty(&store).unwrap();
@@ -1819,17 +1819,17 @@ mod tests {
     }
     #[test]
     fn dynamic_resolver_rereads_disk_on_expired_token() {
-        use crate::auth::{GrokAuth, GrokComConfig};
+        use crate::auth::{XaiAuth, GrokComConfig};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
         let dir = tempfile::tempdir().unwrap();
         let grok_com_config = GrokComConfig::default();
         let scope = grok_com_config.auth_scope();
-        let expired_auth = GrokAuth {
+        let expired_auth = XaiAuth {
             key: "expired-token".into(),
             expires_at: Some(Utc::now() - Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = BTreeMap::new();
         store.insert(scope.clone(), expired_auth);
@@ -1857,10 +1857,10 @@ mod tests {
                 },
             },
         };
-        let fresh_auth = GrokAuth {
+        let fresh_auth = XaiAuth {
             key: "fresh-from-chat-flow".into(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         store.insert(scope, fresh_auth);
         let auth_json = serde_json::to_string_pretty(&store).unwrap();
@@ -1881,17 +1881,17 @@ mod tests {
     /// This verifies the error path doesn't panic.
     #[tokio::test]
     async fn resolve_async_falls_back_when_no_refresher() {
-        use crate::auth::{GrokAuth, GrokComConfig};
+        use crate::auth::{XaiAuth, GrokComConfig};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
         let dir = tempfile::tempdir().unwrap();
         let grok_com_config = GrokComConfig::default();
         let scope = grok_com_config.auth_scope();
-        let expired_auth = GrokAuth {
+        let expired_auth = XaiAuth {
             key: "expired-on-disk".into(),
             expires_at: Some(Utc::now() - Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = BTreeMap::new();
         store.insert(scope, expired_auth);
@@ -1927,17 +1927,17 @@ mod tests {
     /// token is expired and a valid one exists on disk (written by another flow).
     #[tokio::test]
     async fn resolve_async_picks_up_disk_refreshed_token() {
-        use crate::auth::{GrokAuth, GrokComConfig};
+        use crate::auth::{XaiAuth, GrokComConfig};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
         let dir = tempfile::tempdir().unwrap();
         let grok_com_config = GrokComConfig::default();
         let scope = grok_com_config.auth_scope();
-        let valid_auth = GrokAuth {
+        let valid_auth = XaiAuth {
             key: "fresh-disk-token".into(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = BTreeMap::new();
         store.insert(scope, valid_auth);
@@ -1978,18 +1978,18 @@ mod tests {
     /// `base_config` snapshot.
     #[tokio::test]
     async fn resolve_async_drives_refresh_chain_when_token_expired() {
-        use crate::auth::{GrokAuth, GrokComConfig};
+        use crate::auth::{XaiAuth, GrokComConfig};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
         let dir = tempfile::tempdir().unwrap();
         let grok_com_config = GrokComConfig::default();
         let scope = grok_com_config.auth_scope();
-        let expired_auth = GrokAuth {
+        let expired_auth = XaiAuth {
             key: "expired-oidc".into(),
             refresh_token: Some("rt-old".into()),
             expires_at: Some(Utc::now() - Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = BTreeMap::new();
         store.insert(scope, expired_auth);
@@ -2003,11 +2003,11 @@ mod tests {
                 &self,
                 _r: crate::auth::manager::RefreshReason,
             ) -> crate::auth::refresh::RefreshOutcome {
-                crate::auth::refresh::RefreshOutcome::Success(Box::new(crate::auth::GrokAuth {
+                crate::auth::refresh::RefreshOutcome::Success(Box::new(crate::auth::XaiAuth {
                     key: "refresher-fresh-token".into(),
                     expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
                     refresh_token: Some("rt-new".into()),
-                    ..crate::auth::GrokAuth::test_default()
+                    ..crate::auth::XaiAuth::test_default()
                 }))
             }
         }
@@ -2046,17 +2046,17 @@ mod tests {
     /// without calling the refresher again.
     #[tokio::test]
     async fn proactive_refresh_makes_trace_resolve_a_cache_hit() {
-        use crate::auth::{GrokAuth, GrokComConfig};
+        use crate::auth::{XaiAuth, GrokComConfig};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         let dir = tempfile::tempdir().unwrap();
         let grok_com_config = GrokComConfig::default();
         let auth_manager = Arc::new(crate::auth::AuthManager::new(dir.path(), grok_com_config));
-        auth_manager.hot_swap(GrokAuth {
+        auth_manager.hot_swap(XaiAuth {
             key: "expired-oidc".into(),
             refresh_token: Some("rt".into()),
             expires_at: Some(Utc::now() - Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         });
         let call_count = Arc::new(std::sync::atomic::AtomicU32::new(0));
         let cc = call_count.clone();
@@ -2068,11 +2068,11 @@ mod tests {
                 _: crate::auth::manager::RefreshReason,
             ) -> crate::auth::refresh::RefreshOutcome {
                 self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+                crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
                     key: "proactive-fresh".into(),
                     expires_at: Some(chrono::Utc::now() + Duration::hours(1)),
                     refresh_token: Some("rt-new".into()),
-                    ..GrokAuth::test_default()
+                    ..XaiAuth::test_default()
                 }))
             }
         }
@@ -2150,15 +2150,15 @@ mod tests {
     }
     #[test]
     fn dynamic_resolver_noop_for_direct_mode() {
-        use crate::auth::GrokAuth;
+        use crate::auth::XaiAuth;
         use crate::session::repo_changes::UploadMethod;
         use std::collections::BTreeMap;
         let dir = tempfile::tempdir().unwrap();
         let grok_com_config = crate::auth::GrokComConfig::default();
         let scope = grok_com_config.auth_scope();
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             key: "some-token".into(),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = BTreeMap::new();
         store.insert(scope, auth);
@@ -2248,10 +2248,10 @@ mod tests {
             dir.path(),
             crate::auth::GrokComConfig::default(),
         ));
-        auth_manager.hot_swap(crate::auth::GrokAuth {
+        auth_manager.hot_swap(crate::auth::XaiAuth {
             key: "fresh-token".into(),
             expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-            ..crate::auth::GrokAuth::test_default()
+            ..crate::auth::XaiAuth::test_default()
         });
         let resolver = DynamicResolver {
             auth_manager,
@@ -2291,10 +2291,10 @@ mod tests {
             dir.path(),
             crate::auth::GrokComConfig::default(),
         ));
-        auth_manager.hot_swap(crate::auth::GrokAuth {
+        auth_manager.hot_swap(crate::auth::XaiAuth {
             key: "session-token".into(),
             expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-            ..crate::auth::GrokAuth::test_default()
+            ..crate::auth::XaiAuth::test_default()
         });
         let resolver = DynamicResolver {
             auth_manager,

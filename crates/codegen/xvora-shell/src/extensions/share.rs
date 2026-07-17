@@ -172,7 +172,7 @@ async fn upload_share_data_to_gcs(
 
 fn require_xai_auth_for_share(
     auth_manager: &crate::auth::AuthManager,
-) -> Result<crate::auth::GrokAuth, acp::Error> {
+) -> Result<crate::auth::XaiAuth, acp::Error> {
     super::auth_gate::require_xai_auth(
         auth_manager,
         "Authentication required to share session",
@@ -184,7 +184,7 @@ fn require_xai_auth_for_share(
 mod tests {
     use super::*;
     use crate::auth::GrokComConfig;
-    use crate::auth::{AuthMode, GrokAuth};
+    use crate::auth::{AuthMode, XaiAuth};
     use chrono::{Duration, Utc};
     use std::sync::Arc;
     use tempfile::tempdir;
@@ -204,7 +204,7 @@ mod tests {
         // Only OIDC tokens against https://auth.x.ai (or the local-dev equivalent)
         // return true from is_xai_auth(). This is required for the share tests to
         // exercise the happy path through require_xai_auth_for_share.
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some("https://auth.x.ai".to_string()),
             key: "test-key".into(),
@@ -261,7 +261,7 @@ mod tests {
 
         // API key is the simplest non-xAI credential (External and enterprise OIDC
         // are also rejected the same way).
-        let non_xai = GrokAuth {
+        let non_xai = XaiAuth {
             auth_mode: AuthMode::ApiKey,
             key: "xai-test-key".into(),
             create_time: Utc::now(),

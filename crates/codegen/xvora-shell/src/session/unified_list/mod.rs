@@ -567,11 +567,11 @@ mod tests {
             dir,
             crate::auth::GrokComConfig::default(),
         ));
-        am.hot_swap(crate::auth::GrokAuth {
+        am.hot_swap(crate::auth::XaiAuth {
             auth_mode: crate::auth::AuthMode::Oidc,
             oidc_issuer: Some(crate::auth::xai_oauth2_issuer().to_owned()),
             expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-            ..crate::auth::GrokAuth::test_default()
+            ..crate::auth::XaiAuth::test_default()
         });
         am
     }

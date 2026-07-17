@@ -211,7 +211,7 @@ impl AuthProvider for LeaderAuthProvider {
     }
     /// Owner identity from the leader's `AuthManager`, so the workspace derives
     /// `WorkspaceIdentity` from this provider instead of a separate auth.json
-    /// read. Mirrors the in-process path (`mvp_agent`): prefer `GrokAuth.team_id`
+    /// read. Mirrors the in-process path (`mvp_agent`): prefer `XaiAuth.team_id`
     /// (what shell telemetry/snapshot use) mapped onto a `"Team"` principal so
     /// team attribution is derived; otherwise pass principal fields through.
     /// `None` when no credential is available (identity resolution never blocks).

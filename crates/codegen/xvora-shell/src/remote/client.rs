@@ -1,5 +1,5 @@
 //! HTTP client for backend CRUD operations.
-use crate::auth::{GrokAuth, GrokComConfig};
+use crate::auth::{XaiAuth, GrokComConfig};
 use crate::session::export::{ExportedMessage, ExportedMetadata, ExportedSession};
 use indexmap::IndexMap;
 use prod_mc_cli_chat_proxy_types::SubagentBundle;
@@ -16,7 +16,7 @@ pub fn share_url(permission_id: &str) -> String {
 }
 fn add_cli_chat_proxy_headers_blocking(
     builder: reqwest::blocking::RequestBuilder,
-    auth: &GrokAuth,
+    auth: &XaiAuth,
     alpha_test_key: Option<&str>,
     url: &str,
 ) -> reqwest::blocking::RequestBuilder {
@@ -314,7 +314,7 @@ impl BackendClient {
         }
     }
     /// Attach a live `AuthManager` so every request resolves a fresh token
-    /// instead of requiring the caller to pass `&GrokAuth`.
+    /// instead of requiring the caller to pass `&XaiAuth`.
     pub fn with_auth_manager(mut self, manager: std::sync::Arc<crate::auth::AuthManager>) -> Self {
         let credentials: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> =
             std::sync::Arc::new(
@@ -329,7 +329,7 @@ impl BackendClient {
         self
     }
     /// Resolve auth from the attached `AuthManager`.
-    async fn resolve_auth(&self) -> Result<GrokAuth, BackendError> {
+    async fn resolve_auth(&self) -> Result<XaiAuth, BackendError> {
         let manager = self
             .auth_manager
             .as_ref()
@@ -557,7 +557,7 @@ impl BackendClient {
 /// network). 4xx and parse errors are not retried.
 pub fn fetch_settings_blocking(
     cli_chat_proxy_base_url: &str,
-    auth: &GrokAuth,
+    auth: &XaiAuth,
     alpha_test_key: Option<&str>,
 ) -> Option<crate::util::config::RemoteSettings> {
     let client = crate::http::shared_blocking_client();
@@ -714,7 +714,7 @@ pub struct FetchModelsResult {
 }
 pub(crate) fn fetch_models_blocking(
     endpoints: &crate::agent::config::EndpointsConfig,
-    auth: Option<&GrokAuth>,
+    auth: Option<&XaiAuth>,
     fetch_auth: crate::agent::models::ModelFetchAuth,
 ) -> Result<FetchModelsResult, BackendError> {
     let client = crate::http::shared_blocking_client();
@@ -1283,8 +1283,8 @@ mod tests {
         let handle = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         (format!("{base}/v1"), seen_headers, handle)
     }
-    fn test_auth() -> GrokAuth {
-        GrokAuth {
+    fn test_auth() -> XaiAuth {
+        XaiAuth {
             key: "token".to_string(),
             auth_mode: crate::auth::AuthMode::Oidc,
             create_time: chrono::Utc::now(),

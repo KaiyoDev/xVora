@@ -36,8 +36,13 @@ pub enum AuthMode {
 /// the auth service). Single source for every comparison site.
 pub(crate) const TEAM_PRINCIPAL_TYPE: &str = "Team";
 
+/// Session credential for the **xAI provider** (OAuth / API key stored in auth.json).
+///
+/// Product multi-provider: this is not “app auth” generically — only the xAI
+/// provider path. Field names stay wire-stable for existing `auth.json` files.
+/// Formerly named `GrokAuth`.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct GrokAuth {
+pub struct XaiAuth {
     pub key: String,
     pub auth_mode: AuthMode,
     pub create_time: DateTime<Utc>,
@@ -97,9 +102,9 @@ pub struct GrokAuth {
     pub oidc_client_id: Option<String>,
 }
 
-impl std::fmt::Debug for GrokAuth {
+impl std::fmt::Debug for XaiAuth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GrokAuth")
+        f.debug_struct("XaiAuth")
             .field("key", &token_suffix(&self.key))
             .field("auth_mode", &self.auth_mode)
             .field("user_id", &self.user_id)
@@ -112,7 +117,7 @@ impl std::fmt::Debug for GrokAuth {
     }
 }
 
-impl GrokAuth {
+impl XaiAuth {
     /// Seconds since this credential was minted. Negative when the local
     /// clock stepped back past `create_time` (NTP correction, VM restore, or
     /// a sibling machine's clock via an adopted auth.json) — `create_time`
@@ -180,7 +185,7 @@ impl GrokAuth {
     }
 
     /// Carry `/user`-derived fields from a previous auth so refresh rebuilds don't drop them.
-    pub(crate) fn carry_user_profile_from(&mut self, prev: &GrokAuth) {
+    pub(crate) fn carry_user_profile_from(&mut self, prev: &XaiAuth) {
         self.user_id = prev.user_id.clone();
         self.email = prev.email.clone();
         self.principal_type = prev.principal_type.clone();
@@ -197,7 +202,7 @@ impl GrokAuth {
     }
 }
 
-impl Default for GrokAuth {
+impl Default for XaiAuth {
     fn default() -> Self {
         Self {
             key: String::new(),
@@ -229,11 +234,11 @@ impl Default for GrokAuth {
 }
 
 #[cfg(test)]
-impl GrokAuth {
-    /// Returns a `GrokAuth` with sensible defaults for tests. Override fields
+impl XaiAuth {
+    /// Returns a `XaiAuth` with sensible defaults for tests. Override fields
     /// with struct update syntax:
     /// ```ignore
-    /// GrokAuth { key: "my-key".into(), ..GrokAuth::test_default() }
+    /// XaiAuth { key: "my-key".into(), ..XaiAuth::test_default() }
     /// ```
     pub fn test_default() -> Self {
         Self {
@@ -244,7 +249,7 @@ impl GrokAuth {
     }
 }
 
-pub(crate) type AuthStore = BTreeMap<String, GrokAuth>;
+pub(crate) type AuthStore = BTreeMap<String, XaiAuth>;
 
 /// User information from the cli-chat-proxy `GET /v1/user` endpoint.
 #[derive(Debug, Clone, Deserialize)]
@@ -303,7 +308,7 @@ pub(crate) fn token_suffix(t: &str) -> &str {
 /// flow) are skipped — they are validated via a per-request DB lookup
 /// server-side which fails at high volume.  Skipping them here forces
 /// affected users to re-authenticate via OIDC on next launch.
-pub fn lookup_auth(map: &AuthStore, scope: &str) -> Option<GrokAuth> {
+pub fn lookup_auth(map: &AuthStore, scope: &str) -> Option<XaiAuth> {
     let auth = map.get(scope).cloned().or_else(|| {
         if scope == LEGACY_SCOPE {
             None
@@ -328,14 +333,14 @@ pub(super) fn early_invalidation() -> Duration {
         .unwrap_or_else(|| Duration::seconds(DEFAULT_EARLY_INVALIDATION_SECS as i64))
 }
 
-pub(crate) fn is_expired(auth: &GrokAuth) -> bool {
+pub(crate) fn is_expired(auth: &XaiAuth) -> bool {
     is_expired_with_buffer(auth, early_invalidation())
 }
 
 /// Like [`is_expired`] but with an explicit pre-expiry buffer. Pass
 /// `Duration::zero()` for actual (hard) expiry — the instant the token would
 /// really be rejected on the wire, with no early-invalidation margin.
-pub(crate) fn is_expired_with_buffer(auth: &GrokAuth, buffer: Duration) -> bool {
+pub(crate) fn is_expired_with_buffer(auth: &XaiAuth, buffer: Duration) -> bool {
     if let Some(expires_at) = auth.expires_at {
         Utc::now() >= (expires_at - buffer)
     } else {
@@ -348,8 +353,8 @@ pub(crate) fn is_expired_with_buffer(auth: &GrokAuth, buffer: Duration) -> bool 
 mod tests {
     use super::*;
 
-    fn make_auth(mode: AuthMode) -> GrokAuth {
-        GrokAuth {
+    fn make_auth(mode: AuthMode) -> XaiAuth {
+        XaiAuth {
             key: "k".into(),
             auth_mode: mode,
             create_time: Utc::now(),
@@ -380,7 +385,7 @@ mod tests {
     #[test]
     fn is_xai_auth_matrix() {
         use crate::auth::XAI_OAUTH2_ISSUER;
-        let with_issuer = |mode: AuthMode, issuer: Option<&str>| GrokAuth {
+        let with_issuer = |mode: AuthMode, issuer: Option<&str>| XaiAuth {
             oidc_issuer: issuer.map(str::to_owned),
             ..make_auth(mode)
         };
@@ -401,7 +406,7 @@ mod tests {
     #[test]
     fn is_session_auth_requires_first_party_for_external() {
         use crate::auth::XAI_OAUTH2_ISSUER;
-        let with_issuer = |mode: AuthMode, issuer: Option<&str>| GrokAuth {
+        let with_issuer = |mode: AuthMode, issuer: Option<&str>| XaiAuth {
             oidc_issuer: issuer.map(str::to_owned),
             ..make_auth(mode)
         };

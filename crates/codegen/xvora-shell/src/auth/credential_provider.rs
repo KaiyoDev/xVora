@@ -7,7 +7,7 @@ use xvora_auth::{
 };
 /// `api_key.id` for the active credential: hash the stable API key, never the
 /// OIDC bearer (which rotates). `None` for non-API-key auth.
-fn api_key_id_for(auth: Option<&crate::auth::GrokAuth>) -> Option<String> {
+fn api_key_id_for(auth: Option<&crate::auth::XaiAuth>) -> Option<String> {
     auth.filter(|a| matches!(a.auth_mode, crate::auth::AuthMode::ApiKey))
         .map(|a| xvora_telemetry::config::deployment_id_from_key(&a.key))
 }
@@ -400,7 +400,7 @@ pub fn build_default_otel_layer_config() -> xvora_telemetry::otel_layer::OtelLay
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::GrokAuth;
+    use crate::auth::XaiAuth;
     use crate::auth::GrokComConfig;
     use crate::auth::manager::AuthManager;
     use chrono::{Duration as ChronoDuration, Utc};
@@ -440,18 +440,18 @@ mod tests {
             }
         }
     }
-    fn make_auth(key: &str, expires_in: ChronoDuration) -> GrokAuth {
-        GrokAuth {
+    fn make_auth(key: &str, expires_in: ChronoDuration) -> XaiAuth {
+        XaiAuth {
             key: key.to_string(),
             user_id: "test-user".to_string(),
             create_time: Utc::now(),
             expires_at: Some(Utc::now() + expires_in),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         }
     }
     /// Build an `AuthManager` rooted at `dir`. Caller keeps `dir` alive for
     /// the duration of the test so the `TempDir` `Drop` actually cleans up.
-    fn make_manager(dir: &tempfile::TempDir, initial: Option<GrokAuth>) -> Arc<AuthManager> {
+    fn make_manager(dir: &tempfile::TempDir, initial: Option<XaiAuth>) -> Arc<AuthManager> {
         let mgr = AuthManager::new(dir.path(), GrokComConfig::default());
         if let Some(auth) = initial {
             mgr.hot_swap(auth);
@@ -524,14 +524,14 @@ mod tests {
             dir.path(),
             crate::auth::GrokComConfig::default(),
         ));
-        mgr.hot_swap(GrokAuth {
+        mgr.hot_swap(XaiAuth {
             key: "stale".into(),
             auth_mode: crate::auth::AuthMode::Oidc,
             create_time: chrono::Utc::now() - ChronoDuration::hours(2),
             user_id: "u".into(),
             refresh_token: Some("rt-stale".into()),
             expires_at: Some(chrono::Utc::now() - ChronoDuration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         });
         struct OkRefresher {
             calls: Arc<std::sync::atomic::AtomicU32>,
@@ -543,14 +543,14 @@ mod tests {
                 _r: crate::auth::manager::RefreshReason,
             ) -> crate::auth::refresh::RefreshOutcome {
                 self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+                crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
                     key: "fresh".into(),
                     auth_mode: crate::auth::AuthMode::Oidc,
                     create_time: chrono::Utc::now(),
                     user_id: "u".into(),
                     refresh_token: Some("rt-new".into()),
                     expires_at: Some(chrono::Utc::now() + ChronoDuration::hours(1)),
-                    ..GrokAuth::test_default()
+                    ..XaiAuth::test_default()
                 }))
             }
         }
@@ -594,11 +594,11 @@ mod tests {
             Some(deployment_id_from_key("xai-token-EX").as_str())
         );
         assert!(dep.api_key_id.is_none());
-        let api_auth = GrokAuth {
+        let api_auth = XaiAuth {
             key: "sk-apikey-xyz".into(),
             auth_mode: crate::auth::AuthMode::ApiKey,
             expires_at: Some(Utc::now() + ChronoDuration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let api = ShellAuthCredentialProvider::new(make_manager(&dir, Some(api_auth)), None, None)
             .snapshot();
@@ -688,14 +688,14 @@ mod tests {
             live_dir.path(),
             crate::auth::GrokComConfig::default(),
         ));
-        live_mgr.hot_swap(GrokAuth {
+        live_mgr.hot_swap(XaiAuth {
             key: "stale".into(),
             auth_mode: crate::auth::AuthMode::Oidc,
             create_time: chrono::Utc::now() - ChronoDuration::hours(2),
             user_id: "u".into(),
             refresh_token: Some("rt-stale".into()),
             expires_at: Some(chrono::Utc::now() - ChronoDuration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         });
         struct OkRefresher;
         #[async_trait::async_trait]
@@ -704,14 +704,14 @@ mod tests {
                 &self,
                 _r: crate::auth::manager::RefreshReason,
             ) -> crate::auth::refresh::RefreshOutcome {
-                crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+                crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
                     key: "refreshed".into(),
                     auth_mode: crate::auth::AuthMode::Oidc,
                     create_time: chrono::Utc::now(),
                     user_id: "u".into(),
                     refresh_token: Some("rt-new".into()),
                     expires_at: Some(chrono::Utc::now() + ChronoDuration::hours(1)),
-                    ..GrokAuth::test_default()
+                    ..XaiAuth::test_default()
                 }))
             }
         }

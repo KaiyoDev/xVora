@@ -6,7 +6,7 @@ use tokio::io::AsyncBufReadExt as _;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::auth::config::LEGACY_AUTH_SCOPE;
-use crate::auth::{AuthManager, GrokAuth, GrokComConfig, parse_output};
+use crate::auth::{AuthManager, XaiAuth, GrokComConfig, parse_output};
 use crate::util::xvora_home;
 
 pub type StderrCallback = Box<dyn Fn(&str)>;
@@ -15,7 +15,7 @@ pub type StderrCallback = Box<dyn Fn(&str)>;
 /// mismatched issuer, or its team principal violates the `force_login_team_uuid`
 /// pin — so interactive login starts fresh instead of reusing a stale/wrong-team
 /// session.
-fn is_cached_credential_compatible(auth: &GrokAuth, grok_com_config: &GrokComConfig) -> bool {
+fn is_cached_credential_compatible(auth: &XaiAuth, grok_com_config: &GrokComConfig) -> bool {
     let expected_issuer = grok_com_config
         .oidc
         .as_ref()
@@ -206,7 +206,7 @@ async fn run_external_auth_provider(
     auth_manager: &Arc<AuthManager>,
     is_refresh: bool,
     on_stderr: Option<StderrCallback>,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     let inherit_stderr = on_stderr.is_none();
     tracing::info!(
         cmd = %command,
@@ -318,7 +318,7 @@ pub async fn run_auth_flow_with_stderr_bridge(
     reauth: bool,
     force_interactive: bool,
     login_override: LoginTransportOverride,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     let url_tx = Rc::new(RefCell::new(channels.url_tx));
     let stderr_lines: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
@@ -407,7 +407,7 @@ pub async fn run_auth_flow(
     url_tx: Option<Rc<RefCell<Option<oneshot::Sender<AuthUrlInfo>>>>>,
     code_rx: Option<mpsc::Receiver<String>>,
     login_override: LoginTransportOverride,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     run_auth_flow_inner(
         auth_manager,
         grok_com_config,
@@ -431,7 +431,7 @@ pub async fn run_auth_flow_interactive(
     url_tx: Option<Rc<RefCell<Option<oneshot::Sender<AuthUrlInfo>>>>>,
     code_rx: Option<mpsc::Receiver<String>>,
     login_override: LoginTransportOverride,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     run_auth_flow_inner(
         auth_manager,
         grok_com_config,
@@ -454,7 +454,7 @@ async fn run_auth_flow_inner(
     url_tx: Option<Rc<RefCell<Option<oneshot::Sender<AuthUrlInfo>>>>>,
     code_rx: Option<mpsc::Receiver<String>>,
     login_override: LoginTransportOverride,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     tracing::info!(
         has_oidc = grok_com_config.oidc.is_some(),
         has_oauth2 = grok_com_config.oauth2.is_some(),
@@ -674,7 +674,7 @@ async fn run_auth_flow_inner(
 /// 3. External auth provider command (if configured)
 ///
 /// Returns `None` when no valid credentials can be obtained non-interactively.
-pub async fn try_ensure_fresh_auth(grok_com_config: &GrokComConfig) -> Option<GrokAuth> {
+pub async fn try_ensure_fresh_auth(grok_com_config: &GrokComConfig) -> Option<XaiAuth> {
     let xvora_home = xvora_home::xvora_home();
     let auth_manager = std::sync::Arc::new(AuthManager::new(&xvora_home, grok_com_config.clone()));
 
@@ -694,7 +694,7 @@ pub async fn try_ensure_fresh_auth(grok_com_config: &GrokComConfig) -> Option<Gr
 /// devbox, never a browser; may take up to ~300s). For detached modes only.
 pub(crate) async fn try_ensure_session_noninteractive(
     grok_com_config: &GrokComConfig,
-) -> Option<GrokAuth> {
+) -> Option<XaiAuth> {
     if let Some(auth) = try_ensure_fresh_auth(grok_com_config).await {
         return Some(auth);
     }
@@ -713,7 +713,7 @@ pub(crate) async fn try_ensure_session_noninteractive(
 
 /// A cached, refreshable session (not BYOK/ApiKey). Reached only after fresh
 /// auth failed, so in practice the token is expired but recoverable on 401.
-fn expired_refreshable_session(auth_manager: &AuthManager) -> Option<GrokAuth> {
+fn expired_refreshable_session(auth_manager: &AuthManager) -> Option<XaiAuth> {
     auth_manager
         .current_or_expired()
         .filter(|a| a.is_xai_auth() && a.refresh_token.is_some())
@@ -724,7 +724,7 @@ fn expired_refreshable_session(auth_manager: &AuthManager) -> Option<GrokAuth> {
 async fn mint_session_noninteractive(
     auth_manager: &Arc<AuthManager>,
     grok_com_config: &GrokComConfig,
-) -> Option<GrokAuth> {
+) -> Option<XaiAuth> {
     // preferred_method=api_key: never auto-mint OIDC (fail-closed).
     if grok_com_config.blocks_automatic_oidc() {
         tracing::debug!(
@@ -756,7 +756,7 @@ async fn mint_session_noninteractive(
 
 /// Persist a minted token; on persist failure, return it unpersisted rather
 /// than dropping a valid credential.
-async fn persist_or_use_minted(auth_manager: &AuthManager, new_auth: GrokAuth) -> GrokAuth {
+async fn persist_or_use_minted(auth_manager: &AuthManager, new_auth: XaiAuth) -> XaiAuth {
     match auth_manager.save_without_enrichment(new_auth.clone()).await {
         Ok(auth) => {
             let _ = auth_manager.remove_scope(LEGACY_AUTH_SCOPE);
@@ -770,7 +770,7 @@ async fn persist_or_use_minted(auth_manager: &AuthManager, new_auth: GrokAuth) -
 }
 
 /// Print the CLI "signed in" confirmation, clearing the spinner line first.
-fn report_signed_in(auth: &GrokAuth) {
+fn report_signed_in(auth: &XaiAuth) {
     eprint!("\r\x1b[K");
     match auth.email {
         Some(ref email) => eprintln!("✓ Signed in as {email}"),
@@ -783,7 +783,7 @@ pub async fn ensure_authenticated(
     grok_com_config: &GrokComConfig,
     reauth: bool,
     message_prefix: Option<&str>,
-) -> anyhow::Result<GrokAuth> {
+) -> anyhow::Result<XaiAuth> {
     ensure_authenticated_with_override(
         grok_com_config,
         reauth,
@@ -800,7 +800,7 @@ pub async fn ensure_authenticated_with_override(
     reauth: bool,
     message_prefix: Option<&str>,
     login_override: LoginTransportOverride,
-) -> anyhow::Result<GrokAuth> {
+) -> anyhow::Result<XaiAuth> {
     let xvora_home = xvora_home::xvora_home();
     let auth_manager = Arc::new(AuthManager::new(&xvora_home, grok_com_config.clone()));
 
@@ -847,7 +847,7 @@ pub async fn ensure_authenticated_or_noninteractive(
     grok_com_config: &GrokComConfig,
     has_noninteractive_auth: bool,
     message_prefix: Option<&str>,
-) -> anyhow::Result<Option<GrokAuth>> {
+) -> anyhow::Result<Option<XaiAuth>> {
     if has_noninteractive_auth {
         Ok(try_ensure_fresh_auth(grok_com_config).await)
     } else {
@@ -1051,13 +1051,13 @@ mod tests {
     }
 
     // A grok.com first-party (x.ai-issuer) OIDC session — `is_xai_auth()` true.
-    fn oidc_session(key: &str, refresh: Option<&str>) -> GrokAuth {
-        GrokAuth {
+    fn oidc_session(key: &str, refresh: Option<&str>) -> XaiAuth {
+        XaiAuth {
             key: key.into(),
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             refresh_token: refresh.map(str::to_string),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         }
     }
 
@@ -1068,7 +1068,7 @@ mod tests {
 
         // Expired but refreshable → returned. Guards a `current_or_expired()` ->
         // `current()` regression that would disable the relay on a transient blip.
-        mgr.hot_swap(GrokAuth {
+        mgr.hot_swap(XaiAuth {
             expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
             ..oidc_session("expired-but-refreshable", Some("rt"))
         });
@@ -1089,7 +1089,7 @@ mod tests {
         // An expired first-party *external* credential with a refresh token
         // is likewise recoverable — 401 recovery re-runs the provider binary
         // (the refresh token is a recoverability marker, not a grant input).
-        mgr.hot_swap(GrokAuth {
+        mgr.hot_swap(XaiAuth {
             auth_mode: AuthMode::External,
             expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
             ..oidc_session("expired-external", Some("rt"))
@@ -1100,7 +1100,7 @@ mod tests {
         );
 
         // Third-party external (no x.ai issuer) stays excluded.
-        mgr.hot_swap(GrokAuth {
+        mgr.hot_swap(XaiAuth {
             oidc_issuer: None,
             auth_mode: AuthMode::External,
             expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
@@ -1246,7 +1246,7 @@ mod tests {
             AuthManager::new(dir.path(), GrokComConfig::default())
                 .with_proxy_base_url(&dead_proxy_url()),
         );
-        mgr.hot_swap(GrokAuth {
+        mgr.hot_swap(XaiAuth {
             team_blocked_reasons: vec!["BLOCKED_REASON_NO_LOGS".into()],
             organization_id: Some("org-1".into()),
             ..oidc_session("old-token", None)
@@ -1541,8 +1541,8 @@ mod tests {
         });
     }
 
-    fn legacy_auth() -> GrokAuth {
-        GrokAuth {
+    fn legacy_auth() -> XaiAuth {
+        XaiAuth {
             key: "k".into(),
             auth_mode: AuthMode::WebLogin,
             create_time: Utc::now(),
@@ -1570,8 +1570,8 @@ mod tests {
         }
     }
 
-    fn oidc_auth(issuer: &str) -> GrokAuth {
-        GrokAuth {
+    fn oidc_auth(issuer: &str) -> XaiAuth {
+        XaiAuth {
             oidc_issuer: Some(issuer.into()),
             auth_mode: AuthMode::Oidc,
             ..legacy_auth()
@@ -1601,7 +1601,7 @@ mod tests {
         // reused by interactive login like an OIDC session instead of
         // re-running the provider.
         assert!(is_cached_credential_compatible(
-            &GrokAuth {
+            &XaiAuth {
                 auth_mode: AuthMode::External,
                 ..oidc_auth(XAI_OAUTH2_ISSUER)
             },
@@ -1611,7 +1611,7 @@ mod tests {
         // Without an issuer (bare-token providers), external credentials stay
         // incompatible and interactive login starts fresh, as before.
         assert!(!is_cached_credential_compatible(
-            &GrokAuth {
+            &XaiAuth {
                 auth_mode: AuthMode::External,
                 oidc_issuer: None,
                 ..legacy_auth()
@@ -1650,7 +1650,7 @@ mod tests {
     /// interactive login — it falls through to a fresh, compliant login.
     #[test]
     fn cached_cred_with_wrong_team_is_incompatible() {
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             key: team_jwt("team-wrong"),
             ..oidc_auth(XAI_OAUTH2_ISSUER)
         };
@@ -1663,7 +1663,7 @@ mod tests {
     /// A cached session for the pinned team is reused normally.
     #[test]
     fn cached_cred_with_matching_team_is_compatible() {
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             key: team_jwt("team-good"),
             ..oidc_auth(XAI_OAUTH2_ISSUER)
         };
@@ -1687,27 +1687,27 @@ mod tests {
         let writer = Arc::new(
             AuthManager::new(dir.path(), cfg.clone()).with_proxy_base_url("http://127.0.0.1:1"),
         );
-        let valid_disk = GrokAuth {
+        let valid_disk = XaiAuth {
             key: "fresh-token-from-disk".into(),
             auth_mode: AuthMode::Oidc,
             expires_at: Some(Utc::now() + chrono::Duration::hours(1)),
             refresh_token: Some("new-rt".into()),
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.into()),
             oidc_client_id: Some("client-1".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         writer.update(valid_disk).await.unwrap();
 
         // Primary manager: in-memory token is expired
         let mgr = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
-        let expired = GrokAuth {
+        let expired = XaiAuth {
             key: "expired-access-token".into(),
             auth_mode: AuthMode::Oidc,
             expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
             refresh_token: Some("old-rt".into()),
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.into()),
             oidc_client_id: Some("client-1".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         mgr.hot_swap(expired);
         assert!(mgr.is_expired());
@@ -1738,13 +1738,13 @@ mod tests {
         let cfg = GrokComConfig::default();
         let mgr = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
 
-        let valid = GrokAuth {
+        let valid = XaiAuth {
             key: "still-valid".into(),
             auth_mode: AuthMode::Oidc,
             expires_at: Some(Utc::now() + chrono::Duration::hours(1)),
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.into()),
             oidc_client_id: Some("client-1".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         mgr.hot_swap(valid);
 
@@ -1772,14 +1772,14 @@ mod tests {
         let writer = Arc::new(
             AuthManager::new(dir.path(), cfg.clone()).with_proxy_base_url("http://127.0.0.1:1"),
         );
-        let expired_with_rt = GrokAuth {
+        let expired_with_rt = XaiAuth {
             key: "expired-access-token".into(),
             auth_mode: AuthMode::Oidc,
             expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
             refresh_token: Some("valid-refresh-token".into()),
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.into()),
             oidc_client_id: Some("client-1".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         writer.update(expired_with_rt.clone()).await.unwrap();
 
@@ -1816,12 +1816,12 @@ mod tests {
         let writer = Arc::new(
             AuthManager::new(dir.path(), cfg.clone()).with_proxy_base_url("http://127.0.0.1:1"),
         );
-        let expired_no_rt = GrokAuth {
+        let expired_no_rt = XaiAuth {
             key: "expired-legacy".into(),
             auth_mode: AuthMode::WebLogin,
             expires_at: Some(Utc::now() - chrono::Duration::hours(1)),
             refresh_token: None,
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         writer.update(expired_no_rt.clone()).await.unwrap();
 
@@ -1940,12 +1940,12 @@ mod tests {
         let mut store = crate::auth::model::AuthStore::new();
         store.insert(
             cfg.auth_scope(),
-            GrokAuth {
+            XaiAuth {
                 key: REPRO_JWT.into(),
                 auth_mode: AuthMode::Oidc,
                 team_id: Some("team-wrong".into()),
                 expires_at: chrono::DateTime::from_timestamp(9_999_999_999, 0),
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             },
         );
         let auth_path = dir.path().join("auth.json");

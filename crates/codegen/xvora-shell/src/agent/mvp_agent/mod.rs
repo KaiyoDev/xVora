@@ -149,7 +149,7 @@ pub(crate) fn jwt_tier_claim(jwt: &str) -> Option<String> {
 /// 3. JWT `tier` claim via [`jwt_tier_claim`] (OAuth free → `"free"`)
 pub(crate) fn resolve_subscription_tier_for_telemetry(
     display: Option<String>,
-    auth: Option<&crate::auth::GrokAuth>,
+    auth: Option<&crate::auth::XaiAuth>,
 ) -> Option<String> {
     if let Some(t) = display.filter(|s| !s.trim().is_empty()) {
         return Some(t);
@@ -1770,7 +1770,7 @@ impl MvpAgent {
     /// For xAI OAuth2 users without local BYOK, reads `allow_access` from
     /// remote settings. Defaults to `false` (blocked) when remote settings
     /// are unavailable.
-    pub(super) async fn enforce_grok_code_access(&self, auth: &crate::auth::GrokAuth) {
+    pub(super) async fn enforce_grok_code_access(&self, auth: &crate::auth::XaiAuth) {
         if !auth.is_xai_auth()
             || crate::agent::config::is_byok_or_custom_local(&self.cfg.borrow())
         {

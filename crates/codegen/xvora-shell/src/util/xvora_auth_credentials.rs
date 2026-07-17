@@ -141,7 +141,7 @@ impl xvora_auth::HttpAuth for XvoraAuthCredentials {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
+    use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
     use chrono::{Duration, Utc};
     use std::sync::Arc;
     fn make_manager_with_token(
@@ -149,12 +149,12 @@ mod tests {
     ) -> (Arc<AuthManager>, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();
         let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             key: "test-bearer-token".into(),
             auth_mode: AuthMode::External,
             expires_at: Some(expires_at),
             create_time: Utc::now(),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         mgr.hot_swap(auth);
         (mgr, dir)

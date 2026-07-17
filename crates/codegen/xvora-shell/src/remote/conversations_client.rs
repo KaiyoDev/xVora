@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{AuthManager, GrokAuth};
+use crate::auth::{AuthManager, XaiAuth};
 
 const XVORA_WEB_URL: &str = "https://grok.com";
 
@@ -108,7 +108,7 @@ impl ConversationsClient {
         }
     }
 
-    async fn require_xai_auth(&self) -> Result<GrokAuth, ConvError> {
+    async fn require_xai_auth(&self) -> Result<XaiAuth, ConvError> {
         let auth = self.auth.auth().await.map_err(|_| ConvError::NoOauth)?;
         if !auth.is_xai_auth() {
             return Err(ConvError::NoOauth);
@@ -119,7 +119,7 @@ impl ConversationsClient {
     fn apply_auth_headers(
         &self,
         builder: reqwest::RequestBuilder,
-        auth: &GrokAuth,
+        auth: &XaiAuth,
     ) -> reqwest::RequestBuilder {
         let mut builder = builder
             .header("Authorization", format!("Bearer {}", auth.key))

@@ -1361,7 +1361,7 @@ mod tests {
     async fn test_is_auth_permanently_failed_reads_auth_manager() {
         use crate::agent::feedback_client::FeedbackClient;
         use crate::auth::error::RefreshTokenFailedReason;
-        use crate::auth::{AuthManager, GrokAuth, GrokComConfig};
+        use crate::auth::{AuthManager, XaiAuth, GrokComConfig};
         use std::sync::Arc;
 
         let dir = tempfile::tempdir().unwrap();
@@ -1371,9 +1371,9 @@ mod tests {
         assert!(!client.is_auth_permanently_failed());
 
         // The verdict is scoped to the live credential's key.
-        am.hot_swap(GrokAuth {
+        am.hot_swap(XaiAuth {
             key: "tok".into(),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         });
         // Use a non-sticky reason: only recoverable verdicts age out (a sticky
         // `RefreshTokenRejected` never expires), and this exercises the TTL path.

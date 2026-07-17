@@ -18,9 +18,9 @@ use axum::{
 use tokio::net::TcpListener;
 
 use super::super::config::{GrokComConfig, OidcAuthConfig};
-use super::super::{AuthManager, GrokAuth};
+use super::super::{AuthManager, XaiAuth};
 use super::protocol::{
-    OidcError, build_authorize_url, build_grok_auth, discover, enforce_login_principal,
+    OidcError, build_authorize_url, build_xai_auth, discover, enforce_login_principal,
     exchange_code, extract_user_info, generate_pkce, login_principal_policy,
     peek_access_token_principal, peek_access_token_principal_id, validate_state,
 };
@@ -349,7 +349,7 @@ pub async fn run_login_flow(
     config: &GrokComConfig,
     auth_manager: &Arc<AuthManager>,
     channels: Option<super::super::flow::AuthChannels>,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     let oidc = config
         .oidc
         .as_ref()
@@ -373,7 +373,7 @@ pub async fn run_login_flow_with_config(
     oidc: &OidcAuthConfig,
     auth_manager: &Arc<AuthManager>,
     channels: Option<super::super::flow::AuthChannels>,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     tracing::info!(issuer = %oidc.issuer, client_id = %oidc.client_id, "OIDC: starting login flow");
 
     // Ensure jsonwebtoken CryptoProvider is installed (required for JWT validation).
@@ -531,7 +531,7 @@ pub async fn run_login_flow_with_config(
     .await?;
     tracing::debug!(user_id = %user_info.user_id, "OIDC: extracted user info");
 
-    let mut auth = build_grok_auth(tokens, user_info, &oidc.issuer, &oidc.client_id);
+    let mut auth = build_xai_auth(tokens, user_info, &oidc.issuer, &oidc.client_id);
     auth_manager.enrich_auth_inline(&mut auth).await;
     let auth = auth_manager
         .update(auth)
@@ -638,7 +638,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let auth = build_grok_auth(tokens, user_info, &oidc_cfg.issuer, &oidc_cfg.client_id);
+        let auth = build_xai_auth(tokens, user_info, &oidc_cfg.issuer, &oidc_cfg.client_id);
         let auth = auth_manager.update(auth).await.unwrap();
 
         assert_eq!(auth.key, "mock-access-token");

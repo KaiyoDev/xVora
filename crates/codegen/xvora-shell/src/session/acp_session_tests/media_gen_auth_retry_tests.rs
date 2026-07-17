@@ -1,17 +1,17 @@
 use super::*;
-use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
+use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use xvora_tools::types::output::{ToolOutput, ToolRunResult};
 
 fn succeeding_am() -> Arc<AuthManager> {
     let dir = tempfile::tempdir().unwrap();
     let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    am.hot_swap(GrokAuth {
+    am.hot_swap(XaiAuth {
         key: "expired".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(chrono::Utc::now() - chrono::Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     struct Ok;
     #[async_trait::async_trait]
@@ -20,11 +20,11 @@ fn succeeding_am() -> Arc<AuthManager> {
             &self,
             _: crate::auth::refresh::RefreshReason,
         ) -> crate::auth::refresh::RefreshOutcome {
-            crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+            crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
                 key: "fresh".into(),
                 expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
                 refresh_token: Some("rt-new".into()),
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             }))
         }
     }
@@ -37,12 +37,12 @@ fn succeeding_am() -> Arc<AuthManager> {
 fn failing_am() -> Arc<AuthManager> {
     let dir = tempfile::tempdir().unwrap();
     let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    am.hot_swap(GrokAuth {
+    am.hot_swap(XaiAuth {
         key: "expired".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(chrono::Utc::now() - chrono::Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     struct Fail;
     #[async_trait::async_trait]

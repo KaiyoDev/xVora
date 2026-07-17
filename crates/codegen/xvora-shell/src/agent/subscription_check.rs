@@ -37,7 +37,7 @@ pub(crate) struct UnblockResult {
 async fn fetch_user_info(
     http_client: &reqwest::Client,
     url: &str,
-    auth: &crate::auth::GrokAuth,
+    auth: &crate::auth::XaiAuth,
     auth_manager: &AuthManager,
     alpha_test_key: Option<&str>,
 ) -> Result<UserInfo, &'static str> {

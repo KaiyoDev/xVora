@@ -94,7 +94,7 @@ mod tests {
     use super::*;
     use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
     use crate::agent::config::Config;
-    use crate::auth::{AuthMode, GrokAuth};
+    use crate::auth::{AuthMode, XaiAuth};
     use serial_test::serial;
     use xvora_test_support::EnvGuard;
 
@@ -155,10 +155,10 @@ mod tests {
     #[serial]
     fn resolve_oauth_session() {
         let (_dir, _g) = isolate_auth_sources();
-        let token = GrokAuth {
+        let token = XaiAuth {
             key: "session-token".into(),
             auth_mode: AuthMode::WebLogin,
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let json = serde_json::to_string(&token).unwrap();
         let _auth = EnvGuard::set("XVORA_AUTH", &json);
@@ -247,10 +247,10 @@ mod tests {
     #[serial]
     fn resolve_priority_session_over_byok_and_deployment() {
         let (_dir, _g) = isolate_auth_sources();
-        let token = GrokAuth {
+        let token = XaiAuth {
             key: "session-token".into(),
             auth_mode: AuthMode::WebLogin,
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let json = serde_json::to_string(&token).unwrap();
         let _auth = EnvGuard::set("XVORA_AUTH", &json);

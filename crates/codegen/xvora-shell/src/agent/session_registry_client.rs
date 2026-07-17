@@ -550,7 +550,7 @@ mod tests {
     /// Verify per-request auth resolve picks up rotated tokens.
     #[tokio::test]
     async fn session_registry_client_uses_active_auth_for_each_request() {
-        use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
+        use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
         use axum::{Router, response::IntoResponse, routing::post};
         use chrono::{Duration, Utc};
         use std::net::SocketAddr;
@@ -577,13 +577,13 @@ mod tests {
 
         let dir = tempfile::tempdir().unwrap();
         let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-        am.hot_swap(GrokAuth {
+        am.hot_swap(XaiAuth {
             key: "fresh-from-auth-manager".into(),
             auth_mode: AuthMode::ApiKey,
             create_time: Utc::now(),
             user_id: "user-42".into(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         });
 
         let client = SessionRegistryClient::new(format!("http://{addr}"), "STALE-build-time-token")

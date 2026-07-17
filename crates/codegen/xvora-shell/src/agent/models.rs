@@ -10,7 +10,7 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use indexmap::IndexMap;
 
 use crate::agent::config::{self, ModelEntry, resolve_credentials, sampling_config_for_model};
-use crate::auth::{AuthManager, GrokAuth, GrokComConfig};
+use crate::auth::{AuthManager, XaiAuth, GrokComConfig};
 use crate::remote::{FetchModelsResult, fetch_models_blocking};
 use crate::sampling::SamplerConfig as SamplingConfig;
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -1398,7 +1398,7 @@ fn build_prefetched_map(
 /// Fetch remote models. Checks disk cache first; persists after fetch.
 pub(crate) fn prefetch_models_blocking(
     endpoints: &config::EndpointsConfig,
-    auth: Option<&GrokAuth>,
+    auth: Option<&XaiAuth>,
     fetch_auth: ModelFetchAuth,
 ) -> Option<IndexMap<String, ModelEntry>> {
     prefetch_models_blocking_gated(
@@ -1415,7 +1415,7 @@ pub(crate) fn prefetch_models_blocking(
 /// decisions cannot disagree mid-startup.
 pub(crate) fn prefetch_models_and_settings_blocking(
     endpoints: &config::EndpointsConfig,
-    auth: Option<&GrokAuth>,
+    auth: Option<&XaiAuth>,
     fetch_auth: ModelFetchAuth,
 ) -> (
     Option<IndexMap<String, ModelEntry>>,
@@ -1442,7 +1442,7 @@ pub(crate) fn prefetch_models_and_settings_blocking(
 /// knob once for both halves.
 fn prefetch_models_blocking_gated(
     endpoints: &config::EndpointsConfig,
-    auth: Option<&GrokAuth>,
+    auth: Option<&XaiAuth>,
     fetch_auth: ModelFetchAuth,
     remote_fetch_enabled: bool,
 ) -> Option<IndexMap<String, ModelEntry>> {
@@ -1500,12 +1500,12 @@ pub struct EarlyPrefetchResult {
 pub type EarlyPrefetchHandle = std::thread::JoinHandle<EarlyPrefetchResult>;
 
 struct PrefetchEnv {
-    auth: Option<GrokAuth>,
+    auth: Option<XaiAuth>,
     endpoints: config::EndpointsConfig,
     model_fetch_auth: ModelFetchAuth,
 }
 
-fn resolve_prefetch_env_with_auth(auth: Option<GrokAuth>) -> Option<PrefetchEnv> {
+fn resolve_prefetch_env_with_auth(auth: Option<XaiAuth>) -> Option<PrefetchEnv> {
     let _timer = crate::instrumentation_timer!("startup.early_prefetch_launch");
     // Config-aware (not env-only) so the prefetch can't leak the bearer to api.x.ai.
     let mut endpoints = config::EndpointsConfig::from_effective_config();
@@ -1530,7 +1530,7 @@ fn resolve_prefetch_env_with_auth(auth: Option<GrokAuth>) -> Option<PrefetchEnv>
 /// `deployment_key` would re-arm the prefetch — and with it the `/v1/settings`
 /// fetch and the deployment-config sync on the prefetch thread.
 fn resolve_prefetch_env_from_parts(
-    auth: Option<GrokAuth>,
+    auth: Option<XaiAuth>,
     endpoints: config::EndpointsConfig,
     remote_fetch_enabled: bool,
 ) -> Option<PrefetchEnv> {
@@ -1567,7 +1567,7 @@ fn resolve_prefetch_env(grok_com_config: Option<GrokComConfig>) -> Option<Prefet
 /// When the caller has already obtained valid credentials (e.g. via
 /// `try_ensure_fresh_auth`), pass them here to avoid re-reading stale cached
 /// credentials from disk.
-pub fn start_early_prefetch_with_auth(auth: Option<GrokAuth>) -> Option<EarlyPrefetchHandle> {
+pub fn start_early_prefetch_with_auth(auth: Option<XaiAuth>) -> Option<EarlyPrefetchHandle> {
     let env = resolve_prefetch_env_with_auth(auth)?;
     Some(spawn_prefetch_thread(env))
 }
@@ -1970,7 +1970,7 @@ pub(crate) fn validate_selectable(
 /// Async wrapper around `prefetch_models_blocking`.
 pub(crate) async fn fetch_models_async(
     endpoints: config::EndpointsConfig,
-    auth: Option<GrokAuth>,
+    auth: Option<XaiAuth>,
     fetch_auth: ModelFetchAuth,
 ) -> Option<IndexMap<String, ModelEntry>> {
     tokio::task::spawn_blocking(move || {
@@ -3223,7 +3223,7 @@ mod tests {
         };
         assert!(
             resolve_prefetch_env_from_parts(
-                Some(GrokAuth::test_default()),
+                Some(XaiAuth::test_default()),
                 endpoints.clone(),
                 false,
             )

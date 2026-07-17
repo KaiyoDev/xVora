@@ -7,13 +7,13 @@ use crate::auth::error::RefreshTokenError;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 
-fn make_auth(expires_at: Option<DateTime<Utc>>, create_time: DateTime<Utc>) -> GrokAuth {
-    GrokAuth {
+fn make_auth(expires_at: Option<DateTime<Utc>>, create_time: DateTime<Utc>) -> XaiAuth {
+    XaiAuth {
         auth_mode: AuthMode::External,
         create_time,
         user_id: String::new(),
         expires_at,
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     }
 }
 
@@ -124,11 +124,11 @@ fn new_scope_takes_precedence_over_legacy() {
     let dir = tempfile::tempdir().unwrap();
     let auth_path = dir.path().join("auth.json");
 
-    let legacy_auth = GrokAuth {
+    let legacy_auth = XaiAuth {
         key: "legacy-key".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
-    let new_auth = GrokAuth {
+    let new_auth = XaiAuth {
         key: "new-key".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
@@ -158,7 +158,7 @@ fn near_expiry_token_invisible_to_current_visible_to_expired_auth() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
     // Token expires in 3 minutes -- inside the 5-minute buffer.
-    let near_expiry = GrokAuth {
+    let near_expiry = XaiAuth {
         key: "near-expiry-key".into(),
         user_id: "user-1".into(),
         email: Some("user@test.com".into()),
@@ -166,7 +166,7 @@ fn near_expiry_token_invisible_to_current_visible_to_expired_auth() {
         expires_at: Some(Utc::now() + Duration::minutes(3)),
         oidc_issuer: Some("https://idp.example.com".into()),
         oidc_client_id: Some("client-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(near_expiry);
 
@@ -203,7 +203,7 @@ async fn update_preserves_other_scope_entries() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
 
     // Pre-populate with an external auth entry
-    let external = GrokAuth {
+    let external = XaiAuth {
         key: "external-key".into(),
         auth_mode: AuthMode::External,
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
@@ -215,7 +215,7 @@ async fn update_preserves_other_scope_entries() {
     }
 
     // Now update via auth_manager
-    let new_auth = GrokAuth {
+    let new_auth = XaiAuth {
         key: "oidc-token".into(),
         auth_mode: AuthMode::Oidc,
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
@@ -241,7 +241,7 @@ async fn update_recovers_from_corrupt_auth_json_by_backing_up_old_file() {
     let bad_content = b"NOT VALID JSON {{{";
     std::fs::write(&auth_path, bad_content).unwrap();
 
-    let new_auth = GrokAuth {
+    let new_auth = XaiAuth {
         key: "fresh-token".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("fresh-rt".into()),
@@ -297,7 +297,7 @@ async fn update_preserves_team_fields_when_proxy_omits_them() {
     // fails and falls back to the auth-flow values.
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url("http://127.0.0.1:1"));
 
-    let team_auth = GrokAuth {
+    let team_auth = XaiAuth {
         key: "team-token".into(),
         auth_mode: AuthMode::Oidc,
         principal_type: Some("Team".into()),
@@ -342,7 +342,7 @@ async fn update_stores_team_token_under_base_scope() {
     let base_scope = cfg.auth_scope();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url("http://127.0.0.1:1"));
 
-    let team_auth = GrokAuth {
+    let team_auth = XaiAuth {
         key: "team-token".into(),
         auth_mode: AuthMode::Oidc,
         principal_type: Some("Team".into()),
@@ -373,7 +373,7 @@ async fn team_login_then_personal_evicts_team_token() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url("http://127.0.0.1:1"));
 
     // Step 1: login as team
-    let team_auth = GrokAuth {
+    let team_auth = XaiAuth {
         key: "team-token".into(),
         principal_type: Some("Team".into()),
         principal_id: Some("team-abc".into()),
@@ -382,7 +382,7 @@ async fn team_login_then_personal_evicts_team_token() {
     mgr.update(team_auth).await.unwrap();
 
     // Step 2: login as personal
-    let personal_auth = GrokAuth {
+    let personal_auth = XaiAuth {
         key: "personal-token".into(),
         principal_type: None,
         principal_id: None,
@@ -409,11 +409,11 @@ fn clear_does_not_remove_legacy_scope() {
     let dir = tempfile::tempdir().unwrap();
     let auth_path = dir.path().join("auth.json");
 
-    let legacy_auth = GrokAuth {
+    let legacy_auth = XaiAuth {
         key: "legacy-key".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
-    let oauth_auth = GrokAuth {
+    let oauth_auth = XaiAuth {
         key: "oauth-key".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
@@ -469,10 +469,10 @@ fn is_data_collection_disabled_matrix() {
         ),
     ];
     for (reasons, opt_out, expected) in cases {
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             team_blocked_reasons: reasons.iter().map(|s| (*s).into()).collect(),
             coding_data_retention_opt_out: *opt_out,
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         assert_eq!(
             auth.is_data_collection_disabled(),
@@ -500,21 +500,21 @@ fn manager_collection_predicates_fail_directions() {
     );
 
     // Normal user: both predicates allow collection.
-    mgr.hot_swap(GrokAuth::test_default());
+    mgr.hot_swap(XaiAuth::test_default());
     assert!(!mgr.is_data_collection_disabled());
     assert!(mgr.allows_data_collection());
 
     // Opted-out user: both predicates suppress collection.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         coding_data_retention_opt_out: true,
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert!(mgr.is_data_collection_disabled());
     assert!(!mgr.allows_data_collection());
 
     // Mid-session `/logout`: the fail-closed predicate flips back to
     // "no collection" even after a previously permissive credential.
-    mgr.hot_swap(GrokAuth::test_default());
+    mgr.hot_swap(XaiAuth::test_default());
     assert!(mgr.allows_data_collection(), "precondition");
     mgr.clear_in_memory();
     assert!(
@@ -549,7 +549,7 @@ fn hot_swap_updates_in_memory_without_disk() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
     assert!(mgr.current().is_none());
-    let auth = GrokAuth {
+    let auth = XaiAuth {
         key: "swapped".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
@@ -565,7 +565,7 @@ fn try_use_disk_token_accepts_valid_disk_token() {
     let cfg = GrokComConfig::default();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
-    let valid_disk = GrokAuth {
+    let valid_disk = XaiAuth {
         key: "valid-disk".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
@@ -594,7 +594,7 @@ fn try_use_disk_token_rejects_same_key_on_server_rejected() {
     let cfg = GrokComConfig::default();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
-    let auth = GrokAuth {
+    let auth = XaiAuth {
         key: "same-key".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
@@ -613,13 +613,13 @@ fn try_use_disk_token_accepts_different_key_on_server_rejected() {
     let cfg = GrokComConfig::default();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
-    let mem_auth = GrokAuth {
+    let mem_auth = XaiAuth {
         key: "old-key".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
     mgr.hot_swap(mem_auth);
 
-    let disk_auth = GrokAuth {
+    let disk_auth = XaiAuth {
         key: "new-key".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
@@ -643,22 +643,22 @@ async fn disk_refresh_wins_over_expired_in_memory() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
     // Simulate: in-memory token is expired
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "expired-key".into(),
         refresh_token: Some("old-rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
     assert!(mgr.is_expired());
     assert!(mgr.current().is_none());
 
     // Simulate: another process wrote a valid token to disk
-    let fresh_disk = GrokAuth {
+    let fresh_disk = XaiAuth {
         key: "fresh-key-from-sibling".into(),
         refresh_token: Some("new-rt".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = AuthStore::new();
     store.insert(scope, fresh_disk);
@@ -690,11 +690,11 @@ impl TokenRefresher for CountingRefresher {
     async fn refresh(&self, _reason: RefreshReason) -> crate::auth::refresh::RefreshOutcome {
         self.call_count.fetch_add(1, Ordering::SeqCst);
         tokio::time::sleep(self.delay).await;
-        let fresh = GrokAuth {
+        let fresh = XaiAuth {
             key: "fresh-token".into(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
             refresh_token: Some("rt-new".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         crate::auth::refresh::RefreshOutcome::Success(Box::new(fresh))
     }
@@ -761,12 +761,12 @@ async fn storm_cap_engages_with_empty_inner_and_dead_disk_refresh_token() {
 
     // Disk: an expired token carrying the (dead) refresh_token the OIDC
     // refresher resolves. `inner` stays empty.
-    let dead = GrokAuth {
+    let dead = XaiAuth {
         key: "disk-dead".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-dead".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = read_auth_json(&dir.path().join("auth.json")).unwrap_or_default();
     store.insert(scope, dead);
@@ -805,21 +805,21 @@ async fn verdict_not_keyed_on_in_mem_bearer() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
     // in-mem: stale bearer K_mem (expired, with RT).
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "mem-stale".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-mem".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     // disk: a DIFFERENT stale credential K_disk (expired, with RT) — what the
     // refresher resolves first.
-    let disk = GrokAuth {
+    let disk = XaiAuth {
         key: "disk-stale".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-disk".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = read_auth_json(&dir.path().join("auth.json")).unwrap_or_default();
     store.insert(scope, disk);
@@ -842,12 +842,12 @@ async fn verdict_not_keyed_on_in_mem_bearer() {
 
     // Swap the in-mem bearer to yet another stale key: a verdict mis-keyed to
     // the old in-mem bearer would now read absent.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "mem-stale-2".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-mem-2".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     let _ = mgr
@@ -873,12 +873,12 @@ async fn refresh_persist_failure_is_transient_but_swaps_in_memory() {
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
     // Expired in-mem bearer so the chain proceeds to the IdP (no early return).
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "stale".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     // `write_auth_json_atomic` writes `auth.json.<pid>.tmp` then renames; a
@@ -914,12 +914,12 @@ async fn refresh_persist_failure_is_transient_but_swaps_in_memory() {
 async fn auth_concurrent_refresh_deduplicates() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "expired-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-old".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -962,12 +962,12 @@ async fn auth_concurrent_refresh_deduplicates() {
 async fn auth_permanent_failure_stops_retries() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "expired-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-old".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -998,10 +998,10 @@ async fn auth_permanent_failure_stops_retries() {
     );
 
     // hot_swap clears permanent failure; subsequent auth() succeeds.
-    let valid = GrokAuth {
+    let valid = XaiAuth {
         key: "new-valid-key".into(),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(valid);
     assert_eq!(mgr.auth().await.unwrap().key, "new-valid-key");
@@ -1016,19 +1016,19 @@ async fn auth_legacy_session_picks_up_sibling_disk_token() {
     let scope = cfg.auth_scope();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "stale-oidc".into(),
         auth_mode: AuthMode::Oidc,
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     // Sibling writes a valid token to disk.
-    let fresh = GrokAuth {
+    let fresh = XaiAuth {
         key: "fresh-from-sibling".into(),
         auth_mode: AuthMode::Oidc,
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = AuthStore::new();
     store.insert(scope, fresh);
@@ -1043,12 +1043,12 @@ async fn auth_legacy_session_picks_up_sibling_disk_token() {
 async fn refresh_chain_surfaces_transient_failure() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "expired".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     struct TransientRefresher;
@@ -1083,13 +1083,13 @@ async fn auth_returns_expired_api_key_consistently_with_current() {
     // Seed an API key that is past the 30-day TTL: `create_time` 60
     // days ago and no `expires_at`. `is_token_expired` falls through
     // to the TTL check and reports `true`.
-    let expired_key = GrokAuth {
+    let expired_key = XaiAuth {
         key: "stale-api-key".into(),
         auth_mode: AuthMode::ApiKey,
         create_time: Utc::now() - Duration::days(60),
         expires_at: None,
         refresh_token: None,
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired_key);
 
@@ -1113,13 +1113,13 @@ async fn auth_returns_expired_api_key_consistently_with_current() {
     );
 
     // Sanity: a fresh API key restores both paths.
-    let fresh_key = GrokAuth {
+    let fresh_key = XaiAuth {
         key: "fresh-api-key".into(),
         auth_mode: AuthMode::ApiKey,
         create_time: Utc::now(),
         expires_at: None,
         refresh_token: None,
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(fresh_key);
     assert_eq!(
@@ -1148,12 +1148,12 @@ async fn proactive_refresh_backs_off_on_permanent_failure() {
 
     // Past-expiry OIDC token: without the backoff guard, the
     // proactive loop computes sleep_dur=0 forever.
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "expired".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -1230,13 +1230,13 @@ async fn start_proactive_refresh_is_idempotent() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
-    let stale_api_key = GrokAuth {
+    let stale_api_key = XaiAuth {
         key: "stale-api-key".into(),
         auth_mode: AuthMode::ApiKey,
         create_time: Utc::now() - Duration::days(60),
         expires_at: None,
         refresh_token: None,
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(stale_api_key);
 
@@ -1266,12 +1266,12 @@ async fn proactive_refresh_and_consumer_see_fresh_token_end_to_end() {
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
     // expires_at inside the 5-min buffer -> proactive fires immediately.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "soon-to-expire".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-original".into()),
         expires_at: Some(Utc::now() + Duration::seconds(2)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     let call_count = Arc::new(AtomicU32::new(0));
@@ -1297,12 +1297,12 @@ async fn reactive_401_recovery_produces_fresh_token_end_to_end() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "expired-bearer".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-valid".into()),
         expires_at: Some(Utc::now() - Duration::minutes(10)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     let call_count = Arc::new(AtomicU32::new(0));
@@ -1334,25 +1334,25 @@ async fn refresh_chain_records_permanent_failure_when_disk_rt_differs_but_at_exp
     // Memory has rt-old; disk has rt-new (different RT) but its
     // access_token is also expired so try_use_disk_token rejects it
     // and we fall through to the refresher.
-    let stale = GrokAuth {
+    let stale = XaiAuth {
         key: "stale-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-old".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some("https://issuer.example".into()),
         oidc_client_id: Some("client-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(stale);
 
-    let sibling = GrokAuth {
+    let sibling = XaiAuth {
         key: "sibling-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-new".into()),
         expires_at: Some(Utc::now() - Duration::minutes(30)),
         oidc_issuer: Some("https://issuer.example".into()),
         oidc_client_id: Some("client-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = AuthStore::new();
     store.insert(scope, sibling);
@@ -1406,25 +1406,25 @@ async fn refresh_chain_demotes_to_transient_when_disk_rt_differs_and_at_valid() 
     let scope = cfg.auth_scope();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
-    let stale = GrokAuth {
+    let stale = XaiAuth {
         key: "stale-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-old".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some("https://issuer.example".into()),
         oidc_client_id: Some("client-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(stale);
 
-    let sibling = GrokAuth {
+    let sibling = XaiAuth {
         key: "sibling-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-new".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some("https://issuer.example".into()),
         oidc_client_id: Some("client-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = AuthStore::new();
     store.insert(scope, sibling);
@@ -1471,12 +1471,12 @@ async fn permanent_failure_reads_absent_after_clear_so_auth_reports_not_logged_i
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
     // Seed + record a permanent failure (as if invalid_grant fired).
-    let session = GrokAuth {
+    let session = XaiAuth {
         key: "broken-session".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-revoked".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(session);
     record_permanent_failure(
@@ -1501,12 +1501,12 @@ async fn permanent_failure_reads_absent_after_clear_so_auth_reports_not_logged_i
     );
 
     // Same check for the hot_swap_clear() path.
-    let session = GrokAuth {
+    let session = XaiAuth {
         key: "broken-2".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-2".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(session);
     record_permanent_failure(
@@ -1535,9 +1535,9 @@ async fn permanent_failure_expires_on_wall_clock_across_sleep() {
     // Seed a credential so the verdict scopes to it (an unscoped verdict
     // reads through as absent), using the non-sticky `Other` reason — the
     // "transient escalation just before lid close" case the TTL exists for.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "tok".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     record_permanent_failure(&mgr, crate::auth::error::RefreshTokenFailedReason::Other);
     assert!(
@@ -1570,12 +1570,12 @@ async fn oidc_refresh_not_blocked_by_model_api_key() {
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
     // Expired OIDC token (user has config.toml with api_key on another model).
-    let expired_oidc = GrokAuth {
+    let expired_oidc = XaiAuth {
         key: "expired-session-token".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("valid-rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired_oidc);
 
@@ -1608,12 +1608,12 @@ async fn oidc_refresh_not_blocked_by_model_api_key() {
 fn compute_proactive_sleep_permanent_failure_returns_backoff() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    let oidc = GrokAuth {
+    let oidc = XaiAuth {
         key: "x".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(oidc);
     record_permanent_failure(
@@ -1643,22 +1643,22 @@ fn compute_proactive_sleep_non_refreshable_returns_backoff() {
 
     // (a) LegacySession (WebLogin) + Some(past) -- the canonical
     //     scenario where the absence of the gate produces a busy-loop.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "legacy".into(),
         auth_mode: AuthMode::WebLogin,
         create_time: Utc::now() - Duration::hours(2),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert_eq!(mgr.token_type(), TokenType::LegacySession);
     assert_eq!(compute_proactive_sleep(&mgr), BACKOFF_INTERVAL);
 
     // (b) ApiKey + Some(past).
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "api".into(),
         auth_mode: AuthMode::ApiKey,
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert_eq!(mgr.token_type(), TokenType::ApiKey);
     assert_eq!(compute_proactive_sleep(&mgr), BACKOFF_INTERVAL);
@@ -1682,12 +1682,12 @@ fn compute_proactive_sleep_sleep_gated_returns_backoff() {
     }));
     // Refreshable OidcSession past the early-invalidation boundary: without
     // the gate this returns 0 (would busy-loop).
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "oidc".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert_eq!(
         compute_proactive_sleep(&mgr),
@@ -1717,12 +1717,12 @@ fn compute_proactive_sleep_dark_wake_returns_backoff() {
     }));
     // Refreshable OidcSession past the early-invalidation boundary: without
     // the dark-wake gate this returns 0 (would busy-loop).
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "oidc".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert_eq!(
         compute_proactive_sleep(&mgr),
@@ -1752,12 +1752,12 @@ fn compute_proactive_sleep_dark_wake_returns_backoff() {
 fn compute_proactive_sleep_no_refresher_returns_backoff() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "oidc".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     // No `set_refresher` call -- the refresher slot is None.
     assert!(mgr.refresher.read().is_none());
@@ -1774,11 +1774,11 @@ fn compute_proactive_sleep_refreshable_no_expiry_returns_backoff() {
         call_count: Arc::new(AtomicU32::new(0)),
         delay: StdDuration::from_millis(0),
     }));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "external".into(),
         auth_mode: AuthMode::External,
         expires_at: None,
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert_eq!(mgr.token_type(), TokenType::ExternalBinary);
     assert_eq!(compute_proactive_sleep(&mgr), BACKOFF_INTERVAL);
@@ -1794,12 +1794,12 @@ fn compute_proactive_sleep_refreshable_past_expiry_returns_zero() {
         call_count: Arc::new(AtomicU32::new(0)),
         delay: StdDuration::from_millis(0),
     }));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "oidc".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert_eq!(mgr.token_type(), TokenType::OidcSession);
     assert_eq!(compute_proactive_sleep(&mgr), StdDuration::from_secs(0));
@@ -1818,12 +1818,12 @@ fn compute_proactive_sleep_refreshable_future_expiry_returns_delta() {
         delay: StdDuration::from_millis(0),
     }));
     let expires_at = Utc::now() + Duration::hours(1);
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "oidc".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(expires_at),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     let dur = compute_proactive_sleep(&mgr);
     // Expected: 1h - 5min (early_invalidation) - jitter (0–60s) ≈ 54–55min.
@@ -1842,9 +1842,9 @@ fn compute_proactive_sleep_refreshable_future_expiry_returns_delta() {
 async fn permanent_failure_expires_after_ttl() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "tok".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     record_permanent_failure(
         &mgr,
@@ -1898,9 +1898,9 @@ async fn sticky_verdict_survives_both_clocks_but_not_a_credential_change() {
 
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "dead".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     record_permanent_failure(
         &mgr,
@@ -1921,9 +1921,9 @@ async fn sticky_verdict_survives_both_clocks_but_not_a_credential_change() {
     }
 
     // Time never heals it; a credential change does (read-through, no clear).
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "fresh".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert!(
         mgr.permanent_failure().is_none(),
@@ -1939,9 +1939,9 @@ async fn permanent_failure_is_scoped_to_its_credential() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "dead".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     record_permanent_failure(
         &mgr,
@@ -1950,9 +1950,9 @@ async fn permanent_failure_is_scoped_to_its_credential() {
     assert!(mgr.permanent_failure().is_some());
 
     // A different credential — no clear call — reads through as no failure.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "fresh".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     assert!(
         mgr.permanent_failure().is_none(),
@@ -1976,12 +1976,12 @@ async fn auth_serves_wire_valid_token_despite_permanent_verdict() {
 
     // Token in the 5-min buffer (1 min before real expiry): buffer-expired,
     // still valid by the IdP's clock.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "wire-valid".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-dead".into()),
         expires_at: Some(Utc::now() + Duration::minutes(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     record_permanent_failure(
         &mgr,
@@ -2016,12 +2016,12 @@ async fn auth_serves_wire_valid_token_despite_permanent_verdict() {
 
     // Same credential (same key, so the verdict still scopes to it) past its
     // real expiry: the bypass no longer applies.
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "wire-valid".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-dead".into()),
         expires_at: Some(Utc::now() - Duration::minutes(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     let err = mgr.auth().await.unwrap_err();
     assert!(
@@ -2049,7 +2049,7 @@ async fn auth_returns_cached_token_when_refresh_fails_within_real_expiry() {
 
     // Token in the 5-min buffer (1 min before real expiry) -- past
     // the buffer threshold but still valid by the IdP's clock.
-    let in_buffer = GrokAuth {
+    let in_buffer = XaiAuth {
         key: "still-valid-by-idp".into(),
         auth_mode: AuthMode::Oidc,
         create_time: Utc::now() - Duration::minutes(55),
@@ -2059,7 +2059,7 @@ async fn auth_returns_cached_token_when_refresh_fails_within_real_expiry() {
         expires_at: Some(Utc::now() + Duration::minutes(1)),
         oidc_issuer: Some("http://127.0.0.1:1".into()),
         oidc_client_id: Some("client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(in_buffer);
 
@@ -2102,7 +2102,7 @@ async fn update_writes_disk_before_user_enrichment() {
     // yet know its user_id; that's exactly what /user enriches.
     // (If user_id were set AND mismatched the proxy's response, the
     // enrichment would correctly bail with reason=user_changed.)
-    let new_auth = GrokAuth {
+    let new_auth = XaiAuth {
         key: "rotated-key".into(),
         refresh_token: Some("rotated-rt".into()),
         user_id: String::new(),
@@ -2206,13 +2206,13 @@ async fn enrichment_task_preserves_interleaved_token_rotation() {
 
     // Same user_id so neither enrichment aborts; only the rotated
     // token fields differ -- the property under test.
-    let auth_v1 = GrokAuth {
+    let auth_v1 = XaiAuth {
         key: "key-v1".into(),
         refresh_token: Some("rt-v1".into()),
         user_id: "stable-user".into(),
         ..make_auth(Some(Utc::now() + Duration::hours(1)), Utc::now())
     };
-    let auth_v2 = GrokAuth {
+    let auth_v2 = XaiAuth {
         key: "key-v2".into(),
         refresh_token: Some("rt-v2".into()),
         user_id: "stable-user".into(),
@@ -2290,7 +2290,7 @@ async fn enrichment_aborts_when_disk_user_changes_mid_flight() {
 
     // Initial entry's user_id matches what /user will return, so
     // enrichment WOULD apply normally.
-    let initial = GrokAuth {
+    let initial = XaiAuth {
         key: "initial-key".into(),
         refresh_token: Some("initial-rt".into()),
         user_id: "fetched-user".into(),
@@ -2301,7 +2301,7 @@ async fn enrichment_aborts_when_disk_user_changes_mid_flight() {
     // Race: while /user is in-flight, a "different user" overwrites
     // disk. The enrichment must NOT overlay onto this new entry.
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    let intruder = GrokAuth {
+    let intruder = XaiAuth {
         key: "intruder-key".into(),
         refresh_token: Some("intruder-rt".into()),
         user_id: "intruder-user".into(),
@@ -2398,7 +2398,7 @@ async fn enrichment_overlays_team_login_placeholder_user_id() {
     // Mirrors what `extract_user_info` returns for a Team principal:
     // user_id stamped with the team_id placeholder; email + profile
     // + team_name + org_* all empty until /user lands.
-    let team_login = GrokAuth {
+    let team_login = XaiAuth {
         key: "team-key".into(),
         refresh_token: Some("team-rt".into()),
         user_id: "team-xyz".into(),
@@ -2454,15 +2454,15 @@ async fn enrichment_overlays_team_login_placeholder_user_id() {
 /// Type-system invariant: `apply_user_info_enrichment` must NEVER
 /// touch `key`, `refresh_token`, `expires_at`, `oidc_issuer`,
 /// `oidc_client_id`, `auth_mode`, `create_time`, or
-/// `has_grok_code_access`. The `&mut GrokAuth` signature already
+/// `has_grok_code_access`. The `&mut XaiAuth` signature already
 /// enforces this at the type level (you cannot construct a fresh
 /// auth from a `UserInfo` -- there's no `From` impl), but a unit
 /// test pins the exact list of preserved fields so a future
-/// contributor adding a token-like field to both `GrokAuth` and
+/// contributor adding a token-like field to both `XaiAuth` and
 /// `UserInfo` is forced to look here.
 #[test]
 fn apply_user_info_enrichment_preserves_token_fields() {
-    let mut disk = GrokAuth {
+    let mut disk = XaiAuth {
         key: "ROT_KEY".into(),
         refresh_token: Some("ROT_RT".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
@@ -2474,7 +2474,7 @@ fn apply_user_info_enrichment_preserves_token_fields() {
         user_id: "old-user".into(),
         email: Some("old@corp.com".into()),
         team_id: Some("old-team".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let snapshot = disk.clone();
 
@@ -2525,12 +2525,12 @@ async fn current_api_key_async_drives_refresh_chain() {
 
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "expired-oidc".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     let call_count = Arc::new(AtomicU32::new(0));
     mgr.set_refresher(Arc::new(CountingRefresher {
@@ -2558,7 +2558,7 @@ async fn update_recovers_from_empty_auth_json() {
 
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
 
-    let new_auth = GrokAuth {
+    let new_auth = XaiAuth {
         key: "recovered-token".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("recovered-rt".into()),
@@ -2606,7 +2606,7 @@ async fn update_recovers_from_whitespace_only_auth_json() {
 
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
 
-    let new_auth = GrokAuth {
+    let new_auth = XaiAuth {
         key: "ws-token".into(),
         auth_mode: AuthMode::Oidc,
         user_id: "ws-user".into(),
@@ -2633,22 +2633,22 @@ async fn sibling_different_rt_with_expired_at_is_not_treated_as_live() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
 
     // In-memory: the original RT (revoked via rotation), AT expired.
-    let original = GrokAuth {
+    let original = XaiAuth {
         key: "original-at".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-original".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(original);
 
     // Disk: the successor RT from rotation, AT also expired.
-    let successor = GrokAuth {
+    let successor = XaiAuth {
         key: "successor-at".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-successor".into()),
         expires_at: Some(Utc::now() - Duration::minutes(30)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = AuthStore::new();
     store.insert(cfg.auth_scope(), successor);
@@ -2667,22 +2667,22 @@ async fn sibling_different_rt_with_valid_at_is_treated_as_live() {
     let cfg = GrokComConfig::default();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
 
-    let original = GrokAuth {
+    let original = XaiAuth {
         key: "original-at".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-original".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(original);
 
     // Disk: valid token from sibling process.
-    let sibling = GrokAuth {
+    let sibling = XaiAuth {
         key: "sibling-at".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-sibling".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = AuthStore::new();
     store.insert(cfg.auth_scope(), sibling);
@@ -2705,12 +2705,12 @@ async fn refresh_chain_server_rejected_bypasses_valid_token_double_check() {
 
     // Seed a valid (non-expired) token — simulates a JWT that is missing
     // the subscription claim but is otherwise fine.
-    let valid_but_rejected = GrokAuth {
+    let valid_but_rejected = XaiAuth {
         key: "pre-subscription-jwt".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-original".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(valid_but_rejected);
 
@@ -2758,12 +2758,12 @@ async fn refresh_chain_server_rejected_concurrent_skips_redundant_refresh() {
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
     // Seed the "rejected" token that both tasks will see.
-    let rejected = GrokAuth {
+    let rejected = XaiAuth {
         key: "rejected-jwt".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-old".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(rejected);
 
@@ -2812,12 +2812,12 @@ async fn refresh_chain_pre_request_short_circuits_on_valid_token() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
-    let valid = GrokAuth {
+    let valid = XaiAuth {
         key: "still-good".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(valid);
 
@@ -2872,9 +2872,9 @@ async fn enrich_auth_inline_populates_zdr_flags() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base);
 
-    let mut auth = GrokAuth {
+    let mut auth = XaiAuth {
         key: "tok".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     assert!(!auth.is_data_collection_disabled(), "precondition");
 
@@ -2892,11 +2892,11 @@ async fn enrich_auth_inline_keeps_fields_absent_from_response() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base);
 
-    let mut auth = GrokAuth {
+    let mut auth = XaiAuth {
         key: "tok".into(),
         principal_type: Some("Team".into()),
         principal_id: Some("team-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
 
     mgr.enrich_auth_inline(&mut auth).await;
@@ -2921,9 +2921,9 @@ async fn enrich_auth_inline_unreachable_server_leaves_auth_unchanged() {
     let mgr = AuthManager::new(dir.path(), GrokComConfig::default())
         .with_proxy_base_url(&format!("http://127.0.0.1:{port}"));
 
-    let mut auth = GrokAuth {
+    let mut auth = XaiAuth {
         key: "tok".into(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let before = auth.clone();
     mgr.enrich_auth_inline(&mut auth).await;
@@ -2985,15 +2985,15 @@ fn pinned_cfg(team: &str) -> GrokComConfig {
 }
 
 /// A valid, non-expired OIDC session whose access token carries `principal_id`.
-fn oidc_session_for_team(principal_id: &str) -> GrokAuth {
-    GrokAuth {
+fn oidc_session_for_team(principal_id: &str) -> XaiAuth {
+    XaiAuth {
         key: team_jwt(principal_id),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some(crate::auth::config::XAI_OAUTH2_ISSUER.to_string()),
         oidc_client_id: Some("client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     }
 }
 
@@ -3095,12 +3095,12 @@ async fn auth_rejects_token_refreshed_into_wrong_team() {
     #[async_trait::async_trait]
     impl TokenRefresher for WrongTeamRefresher {
         async fn refresh(&self, _reason: RefreshReason) -> crate::auth::refresh::RefreshOutcome {
-            crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+            crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
                 key: self.jwt.clone(),
                 auth_mode: AuthMode::Oidc,
                 refresh_token: Some("rt-new".into()),
                 expires_at: Some(Utc::now() + Duration::hours(1)),
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             }))
         }
     }
@@ -3109,7 +3109,7 @@ async fn auth_rejects_token_refreshed_into_wrong_team() {
     let mgr = Arc::new(AuthManager::new(dir.path(), pinned_cfg("team-good")));
     // Expired matching session forces a refresh; the refresher returns a
     // wrong-team token (e.g. a re-pinned token family).
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         expires_at: Some(Utc::now() - Duration::minutes(10)),
         ..oidc_session_for_team("team-good")
     });
@@ -3161,12 +3161,12 @@ fn force_reload_retains_live_rt_on_transient_file_missing() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
-    let session = GrokAuth {
+    let session = XaiAuth {
         key: "live-session".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("live-rt".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(session);
     assert!(mgr.permanent_failure().is_none());
@@ -3195,12 +3195,12 @@ async fn force_reload_drops_rt_when_permanent_failure_set() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
-    let session = GrokAuth {
+    let session = XaiAuth {
         key: "broken".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-revoked".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(session);
     record_permanent_failure(
@@ -3233,12 +3233,12 @@ fn force_reload_drops_creds_on_entry_missing() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
 
-    let session = GrokAuth {
+    let session = XaiAuth {
         key: "live-session".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("live-rt".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(session);
 
@@ -3268,19 +3268,19 @@ fn force_reload_adopts_fresh_disk_token() {
     let scope = cfg.auth_scope();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg));
 
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "stale".into(),
         refresh_token: Some("old-rt".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
-    let fresh = GrokAuth {
+    let fresh = XaiAuth {
         key: "fresh-from-disk".into(),
         refresh_token: Some("new-rt".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = AuthStore::new();
     store.insert(scope, fresh);
@@ -3297,11 +3297,11 @@ fn force_reload_adopts_fresh_disk_token() {
 async fn pin_matches_principal_id_without_principal_type() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), pinned_cfg("team-good")));
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: principal_id_only_jwt("team-good"),
         auth_mode: AuthMode::Oidc,
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     assert!(
@@ -3315,11 +3315,11 @@ async fn pin_matches_principal_id_without_principal_type() {
 /// implied by a team pin), and honored when it's off.
 #[tokio::test]
 async fn cached_api_key_session_rejected_when_api_key_auth_disabled() {
-    let api_key_session = || GrokAuth {
+    let api_key_session = || XaiAuth {
         key: "xai-cached-key".into(),
         auth_mode: AuthMode::ApiKey,
         expires_at: Some(Utc::now() + Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
 
     // Switch ON (via a team pin, which implies api_key_auth_disabled): reject.
@@ -3350,11 +3350,11 @@ async fn cached_api_key_session_rejected_when_api_key_auth_disabled() {
 async fn shared_api_key_provider_resolves_live_bearer() {
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    let auth = GrokAuth {
+    let auth = XaiAuth {
         key: "shared-provider-token".into(),
         expires_at: Some(Utc::now() + Duration::hours(1)),
         create_time: Utc::now(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(auth);
 
@@ -3376,11 +3376,11 @@ async fn shared_api_key_provider_resolves_live_bearer() {
     );
 
     // A hot-swap is reflected on the next resolution (no startup snapshot).
-    let rotated = GrokAuth {
+    let rotated = XaiAuth {
         key: "rotated-token".into(),
         expires_at: Some(Utc::now() + Duration::hours(1)),
         create_time: Utc::now(),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(rotated);
     assert_eq!(
@@ -3390,13 +3390,13 @@ async fn shared_api_key_provider_resolves_live_bearer() {
     );
 }
 
-fn expired_oidc() -> GrokAuth {
-    GrokAuth {
+fn expired_oidc() -> XaiAuth {
+    XaiAuth {
         key: "expired-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt-old".into()),
         expires_at: Some(Utc::now() - Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     }
 }
 
@@ -3413,11 +3413,11 @@ impl TokenRefresher for BlockingRefresher {
         self.call_count.fetch_add(1, Ordering::SeqCst);
         self.started.notify_one();
         self.release.notified().await;
-        crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+        crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
             key: "fresh-token".into(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
             refresh_token: Some("rt-new".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         }))
     }
 }
@@ -3951,12 +3951,12 @@ async fn manual_auth_capture_attributes_and_recorder_debounces() {
     use crate::auth::recovery::{ManualAuthTracker, RejectedAuth};
     use xvora_telemetry::events::{AuthTokenKind, ManualAuthSurface};
 
-    let auth = GrokAuth {
+    let auth = XaiAuth {
         key: "dead-token".into(),
         user_id: "user-1".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let snap = RejectedAuth::capture(Some(&auth));
     assert_eq!(snap.principal_for_test(), Some("user-1"));
@@ -3982,7 +3982,7 @@ async fn manual_auth_capture_attributes_and_recorder_debounces() {
     assert_eq!(last(), id);
 
     // A different credential re-arms.
-    let rearmed = GrokAuth {
+    let rearmed = XaiAuth {
         key: "another-token".into(),
         ..auth.clone()
     };

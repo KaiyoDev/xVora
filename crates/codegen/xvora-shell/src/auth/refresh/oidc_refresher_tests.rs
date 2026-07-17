@@ -3,7 +3,7 @@
 //! wired in via `#[path = "oidc_refresher_tests.rs"] mod tests;`.
 
 use super::*;
-use crate::auth::{GrokAuth, GrokComConfig};
+use crate::auth::{XaiAuth, GrokComConfig};
 use chrono::{Duration, Utc};
 
 // ── OIDC refresh E2E with mock IdP ─────────────────────────────────
@@ -65,7 +65,7 @@ async fn start_mock_oidc_and_proxy() -> (String, tokio::task::JoinHandle<()>) {
     (base, handle)
 }
 
-fn write_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &GrokAuth) {
+fn write_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &XaiAuth) {
     let path = dir.join("auth.json");
     let mut map = crate::auth::read_auth_json(&path).unwrap_or_default();
     map.insert(scope.to_owned(), auth.clone());
@@ -82,7 +82,7 @@ async fn oidc_refresher_e2e_full_refresh_cycle() {
     );
 
     // Seed an expired OIDC token with all required fields.
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "old-expired-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -91,7 +91,7 @@ async fn oidc_refresher_e2e_full_refresh_cycle() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -121,7 +121,7 @@ async fn oidc_refresher_e2e_proactive_returns_cached_when_valid() {
     );
 
     // Seed a valid (not expired) OIDC token.
-    let valid = GrokAuth {
+    let valid = XaiAuth {
         key: "still-valid-token".into(),
         user_id: "user-42".into(),
         email: Some("test@corp.com".into()),
@@ -129,7 +129,7 @@ async fn oidc_refresher_e2e_proactive_returns_cached_when_valid() {
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(valid);
 
@@ -158,7 +158,7 @@ async fn oidc_refresher_e2e_force_refreshes_locally_valid_token() {
     // the reactive 401 path — server rejected the token even though it
     // looks locally valid (e.g. clock skew, server-side revocation).
     // The refresher should still attempt an OIDC refresh.
-    let valid = GrokAuth {
+    let valid = XaiAuth {
         key: "still-valid-token".into(),
         user_id: "user-42".into(),
         email: Some("test@corp.com".into()),
@@ -166,7 +166,7 @@ async fn oidc_refresher_e2e_force_refreshes_locally_valid_token() {
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(valid);
 
@@ -202,7 +202,7 @@ async fn oidc_refresher_e2e_near_expiry_within_buffer_refreshes() {
 
     // Token expires in 3 minutes — inside the 5-minute buffer.
     // current() will return None, but expired_auth() will return it.
-    let near_expiry = GrokAuth {
+    let near_expiry = XaiAuth {
         key: "about-to-expire-token".into(),
         user_id: "user-42".into(),
         email: Some("test@corp.com".into()),
@@ -210,7 +210,7 @@ async fn oidc_refresher_e2e_near_expiry_within_buffer_refreshes() {
         expires_at: Some(Utc::now() + Duration::minutes(3)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(near_expiry);
 
@@ -290,14 +290,14 @@ async fn oidc_refresher_e2e_near_expiry_idp_rejects_refresh() {
         AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base_url),
     );
 
-    let near_expiry = GrokAuth {
+    let near_expiry = XaiAuth {
         key: "about-to-expire-token".into(),
         user_id: "user-42".into(),
         refresh_token: Some("rt-revoked".into()),
         expires_at: Some(Utc::now() + Duration::minutes(3)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(near_expiry);
 
@@ -358,7 +358,7 @@ async fn oidc_refresher_e2e_invalid_client_caches_verdict_and_retains_credential
         AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base_url),
     );
 
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "old-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -366,7 +366,7 @@ async fn oidc_refresher_e2e_invalid_client_caches_verdict_and_retains_credential
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("deleted-client-id".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -448,14 +448,14 @@ async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
 
     // Pre-populate disk with auth that has a *different* client_id,
     // simulating another process having re-authenticated.
-    let disk_auth = GrokAuth {
+    let disk_auth = XaiAuth {
         key: "disk-fresh-token".into(),
         user_id: "user-42".into(),
         refresh_token: Some("rt-disk".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("rotated-new-client-id".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     let mut store = std::collections::BTreeMap::new();
     store.insert(scope, disk_auth);
@@ -463,7 +463,7 @@ async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
     std::fs::write(dir.path().join("auth.json"), json).unwrap();
 
     // In-memory auth has the OLD client_id that the server rejects.
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "old-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -471,7 +471,7 @@ async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("deleted-client-id".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -517,7 +517,7 @@ async fn oidc_refresh_picks_up_valid_disk_token() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url("http://127.0.0.1:1"));
 
     // Seed in-memory with an expired token (stale refresh_token).
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "old-expired-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -525,12 +525,12 @@ async fn oidc_refresh_picks_up_valid_disk_token() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some("https://idp.example.com".into()),
         oidc_client_id: Some("client-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
     // Simulate another process writing a valid token to disk.
-    let fresh_on_disk = GrokAuth {
+    let fresh_on_disk = XaiAuth {
         key: "fresh-from-other-process".into(),
         user_id: "user-42".into(),
         email: Some("user@test.com".into()),
@@ -538,7 +538,7 @@ async fn oidc_refresh_picks_up_valid_disk_token() {
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some("https://idp.example.com".into()),
         oidc_client_id: Some("client-1".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &fresh_on_disk);
 
@@ -613,7 +613,7 @@ async fn oidc_refresh_uses_disk_refresh_token() {
     let scope = cfg.auth_scope();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    mgr.hot_swap(GrokAuth {
+    mgr.hot_swap(XaiAuth {
         key: "old-mem-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -622,13 +622,13 @@ async fn oidc_refresh_uses_disk_refresh_token() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
 
     write_auth_to_disk(
         dir.path(),
         &scope,
-        &GrokAuth {
+        &XaiAuth {
             key: "old-disk-token".into(),
             create_time: Utc::now() - Duration::hours(2),
             user_id: "user-42".into(),
@@ -637,7 +637,7 @@ async fn oidc_refresh_uses_disk_refresh_token() {
             expires_at: Some(Utc::now() - Duration::hours(1)),
             oidc_issuer: Some(base_url.clone()),
             oidc_client_id: Some("test-client".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         },
     );
 
@@ -666,7 +666,7 @@ async fn lock_timeout_falls_through_to_refresh() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
     // Seed with expired token that has a valid refresh_token.
-    let expired = GrokAuth {
+    let expired = XaiAuth {
         key: "old-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -675,7 +675,7 @@ async fn lock_timeout_falls_through_to_refresh() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -837,7 +837,7 @@ async fn refresher_retries_with_disk_token_after_invalid_grant() {
 
     // Disk and memory both have rt-stale; mock rotates disk on
     // the first invalid_grant so the retry sees the fresh RT.
-    let stale = GrokAuth {
+    let stale = XaiAuth {
         key: "stale-access-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -845,7 +845,7 @@ async fn refresher_retries_with_disk_token_after_invalid_grant() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &stale);
     mgr.hot_swap(stale);
@@ -961,7 +961,7 @@ async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_
 
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    let stale = GrokAuth {
+    let stale = XaiAuth {
         key: "stale-access".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -969,7 +969,7 @@ async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("client-stale".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &stale);
     mgr.hot_swap(stale);
@@ -1031,7 +1031,7 @@ async fn refresher_disk_retry_is_one_shot() {
 
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    let stale = GrokAuth {
+    let stale = XaiAuth {
         key: "stale-access-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -1039,7 +1039,7 @@ async fn refresher_disk_retry_is_one_shot() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &stale);
     mgr.hot_swap(stale);
@@ -1118,8 +1118,8 @@ async fn start_counting_mock_oidc(
     (base, handle)
 }
 
-fn expired_oidc_for(base_url: &str) -> GrokAuth {
-    GrokAuth {
+fn expired_oidc_for(base_url: &str) -> XaiAuth {
+    XaiAuth {
         key: "old-expired-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -1128,7 +1128,7 @@ fn expired_oidc_for(base_url: &str) -> GrokAuth {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.to_owned()),
         oidc_client_id: Some("test-client".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     }
 }
 
@@ -1270,13 +1270,13 @@ async fn sleep_gate_e2e_in_flight_refresh_completes_across_imminent_sleep() {
 /// isolation (it never reads credential state).
 struct EmptySnapshot;
 impl AuthSnapshot for EmptySnapshot {
-    fn current(&self) -> Option<GrokAuth> {
+    fn current(&self) -> Option<XaiAuth> {
         None
     }
-    fn expired_auth(&self) -> Option<GrokAuth> {
+    fn expired_auth(&self) -> Option<XaiAuth> {
         None
     }
-    fn read_disk_auth(&self) -> Option<GrokAuth> {
+    fn read_disk_auth(&self) -> Option<XaiAuth> {
         None
     }
     fn is_expired(&self) -> bool {

@@ -20,7 +20,7 @@ use crate::agent::config::{Config as AgentConfig, ModelEntry};
 use crate::agent::init::{bootstrap, exit_on_config_error};
 use crate::agent::models::{ModelFetchAuth, prefetch_models_blocking};
 use crate::agent::mvp_agent::MvpAgent;
-use crate::auth::{AuthManager, AuthMode, GrokAuth, run_auth_flow};
+use crate::auth::{AuthManager, AuthMode, XaiAuth, run_auth_flow};
 use crate::util::xvora_home;
 use dirs;
 
@@ -687,9 +687,9 @@ async fn run_headless_inner(
 /// drop the legacy scope). No-op outside a devbox or for non-WebLogin / `None`.
 /// On mint/save failure, returns the existing token so the leader still starts.
 async fn migrate_devbox_auth_if_legacy(
-    auth: Option<GrokAuth>,
+    auth: Option<XaiAuth>,
     agent_config: &AgentConfig,
-) -> Option<GrokAuth> {
+) -> Option<XaiAuth> {
     let auth = auth?;
     if !crate::auth::devbox_login::is_devbox_environment() || auth.auth_mode != AuthMode::WebLogin {
         return Some(auth);
@@ -771,7 +771,7 @@ async fn migrate_devbox_auth_if_legacy(
 /// Never clobbers an equal-or-fresher token: the same key (already in sync) or
 /// a token whose `create_time` is newer (e.g. a sibling process refreshed disk
 /// in the manager-construction→here window).
-fn should_seed_shared_session(existing: Option<&GrokAuth>, session: &GrokAuth) -> bool {
+fn should_seed_shared_session(existing: Option<&XaiAuth>, session: &XaiAuth) -> bool {
     match existing {
         None => true,
         Some(existing) => {
@@ -791,7 +791,7 @@ fn should_seed_shared_session(existing: Option<&GrokAuth>, session: &GrokAuth) -
 /// `refresh_lock` and `permanent_failure` cache as every other consumer,
 /// so concurrent recovery paths cannot double-spend a refresh token.
 fn relay_config_for_session(
-    auth: Option<&GrokAuth>,
+    auth: Option<&XaiAuth>,
     agent_config: &AgentConfig,
     shared_auth_manager: &Arc<AuthManager>,
 ) -> Option<crate::agent::relay::RelayConfig> {
@@ -1138,12 +1138,12 @@ pub async fn run_leader(
 
     let ctx = &agent_config.grok_com_config;
     // Never interactive: a detached leader has no TTY (forcing OAuth here hung BYOK).
-    let auth: Option<GrokAuth> = crate::auth::try_ensure_session_noninteractive(ctx).await;
+    let auth: Option<XaiAuth> = crate::auth::try_ensure_session_noninteractive(ctx).await;
 
     // ── Phase 6b: Legacy devbox auth migration ─────────────────────────────
-    let auth: Option<GrokAuth> = migrate_devbox_auth_if_legacy(auth, &agent_config).await;
+    let auth: Option<XaiAuth> = migrate_devbox_auth_if_legacy(auth, &agent_config).await;
 
-    let auth_for_prefetch: Option<GrokAuth> = auth.clone();
+    let auth_for_prefetch: Option<XaiAuth> = auth.clone();
     let endpoints_for_prefetch = agent_config.endpoints.clone();
     let fetch_auth_for_prefetch = ModelFetchAuth::resolve(&endpoints_for_prefetch, auth.is_some());
     // The shared pair helper owns the remote_fetch gate for both halves, so a
@@ -1714,15 +1714,15 @@ mod tests {
 
     // ===== relay shared-manager seeding tests =====
 
-    fn oidc_session(key: &str, create_time: chrono::DateTime<chrono::Utc>) -> GrokAuth {
-        GrokAuth {
+    fn oidc_session(key: &str, create_time: chrono::DateTime<chrono::Utc>) -> XaiAuth {
+        XaiAuth {
             key: key.into(),
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(crate::auth::XAI_OAUTH2_ISSUER.to_string()),
             refresh_token: Some(format!("rt-{key}")),
             create_time,
             expires_at: Some(create_time + chrono::Duration::minutes(15)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         }
     }
 
@@ -1795,10 +1795,10 @@ mod tests {
     /// Relay config pointing at the mock server, built through the only
     /// constructor (`for_session`) with a relay-eligible x.ai OIDC session.
     fn test_relay_config(addr: std::net::SocketAddr) -> crate::agent::relay::RelayConfig {
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(crate::auth::XAI_OAUTH2_ISSUER.to_string()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let cfg = crate::auth::GrokComConfig {
             grok_ws_url: format!("ws://{addr}"),

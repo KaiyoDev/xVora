@@ -36,8 +36,8 @@ fn jwt_tier_claim_maps_free_and_paid() {
     );
     assert_eq!(jwt_tier_claim(&jwt_with_tier(99)).as_deref(), Some("99"));
 }
-fn auth_with_mode(mode: crate::auth::AuthMode, key: &str) -> crate::auth::GrokAuth {
-    crate::auth::GrokAuth {
+fn auth_with_mode(mode: crate::auth::AuthMode, key: &str) -> crate::auth::XaiAuth {
+    crate::auth::XaiAuth {
         key: key.into(),
         auth_mode: mode,
         create_time: chrono::Utc::now(),
@@ -1621,10 +1621,10 @@ async fn ext_method_routes_auth_cleared_and_refreshes_resident_sessions() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let agent = build_agent_with_auth(crate::auth::GrokAuth {
+            let agent = build_agent_with_auth(crate::auth::XaiAuth {
                 key: "eligible".into(),
                 auth_mode: crate::auth::AuthMode::WebLogin,
-                ..crate::auth::GrokAuth::test_default()
+                ..crate::auth::XaiAuth::test_default()
             });
             use acp::Agent as _;
             agent.managed_mcp_cache.lock().await.enable_gateway_tools();
@@ -1661,7 +1661,7 @@ fn build_minimal_agent_for_tests() -> MvpAgent {
     MvpAgent::new(gateway, &cfg, auth_manager, None).expect("valid test config")
 }
 /// Build a minimal MvpAgent with pre-loaded auth for gate tests.
-fn build_agent_with_auth(auth: crate::auth::GrokAuth) -> MvpAgent {
+fn build_agent_with_auth(auth: crate::auth::XaiAuth) -> MvpAgent {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
     let temp_dir = tempfile::tempdir().unwrap();
@@ -2373,12 +2373,12 @@ async fn auth_type_xai_api_key_no_current_returns_api_key() {
 /// common case during a healthy session.
 #[tokio::test(flavor = "current_thread")]
 async fn auth_type_session_based_with_current_returns_session_token() {
-    use crate::auth::GrokAuth;
+    use crate::auth::XaiAuth;
     let agent = build_minimal_agent_for_tests();
     agent.set_auth_method(acp::AuthMethodId::new(
         crate::agent::auth_method::OIDC_METHOD_ID,
     ));
-    agent.auth_manager.hot_swap(GrokAuth::test_default());
+    agent.auth_manager.hot_swap(XaiAuth::test_default());
     assert!(agent.auth_manager.current().is_some());
     assert_eq!(agent.auth_type(), chat_state::AuthType::SessionToken,);
 }
@@ -2401,9 +2401,9 @@ async fn auth_type_no_method_id_no_current_returns_api_key() {
 /// here matches pre-fix behavior and keeps logging stable.
 #[tokio::test(flavor = "current_thread")]
 async fn auth_type_no_method_id_with_current_returns_session_token() {
-    use crate::auth::GrokAuth;
+    use crate::auth::XaiAuth;
     let agent = build_minimal_agent_for_tests();
-    agent.auth_manager.hot_swap(GrokAuth::test_default());
+    agent.auth_manager.hot_swap(XaiAuth::test_default());
     assert!(agent.auth_method_id.load().is_none());
     assert!(agent.auth_manager.current().is_some());
     assert_eq!(agent.auth_type(), chat_state::AuthType::SessionToken,);
@@ -2569,7 +2569,7 @@ async fn prepare_image_gen_config_fails_open_without_auth() {
 }
 #[tokio::test]
 async fn data_collection_enabled_for_normal_user() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth::test_default());
+    let agent = build_agent_with_auth(crate::auth::XaiAuth::test_default());
     assert!(
         !agent.is_data_collection_disabled(),
         "normal user must have data collection enabled"
@@ -2577,9 +2577,9 @@ async fn data_collection_enabled_for_normal_user() {
 }
 #[tokio::test]
 async fn data_collection_disabled_for_zdr_team() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         team_blocked_reasons: vec!["BLOCKED_REASON_NO_LOGS".into()],
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     assert!(
         agent.is_data_collection_disabled(),
@@ -2592,9 +2592,9 @@ async fn data_collection_disabled_for_zdr_team() {
 }
 #[tokio::test]
 async fn data_collection_disabled_for_zdr_moderated_team() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         team_blocked_reasons: vec!["BLOCKED_REASON_NO_LOGS_MODERATED".into()],
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     assert!(
         agent.is_data_collection_disabled(),
@@ -2603,9 +2603,9 @@ async fn data_collection_disabled_for_zdr_moderated_team() {
 }
 #[tokio::test]
 async fn data_collection_disabled_for_opted_out_team() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         coding_data_retention_opt_out: true,
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     assert!(
         agent.is_data_collection_disabled(),
@@ -2618,10 +2618,10 @@ async fn data_collection_disabled_for_opted_out_team() {
 }
 #[tokio::test]
 async fn data_collection_disabled_for_zdr_plus_opt_out() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         team_blocked_reasons: vec!["BLOCKED_REASON_NO_LOGS".into()],
         coding_data_retention_opt_out: true,
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     assert!(
         agent.is_data_collection_disabled(),
@@ -2630,12 +2630,12 @@ async fn data_collection_disabled_for_zdr_plus_opt_out() {
 }
 #[tokio::test]
 async fn data_collection_enabled_for_non_zdr_team_with_unrelated_blocks() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         team_blocked_reasons: vec![
             "BLOCKED_REASON_BILLING".into(),
             "BLOCKED_REASON_SUSPENDED".into(),
         ],
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     assert!(
         !agent.is_data_collection_disabled(),
@@ -2654,15 +2654,15 @@ fn enable_trace_upload_config(agent: &MvpAgent) {
 }
 #[tokio::test]
 async fn product_analytics_enabled_for_normal_user_with_telemetry_on() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth::test_default());
+    let agent = build_agent_with_auth(crate::auth::XaiAuth::test_default());
     enable_product_telemetry(&agent);
     assert!(agent.product_analytics_enabled());
 }
 #[tokio::test]
 async fn product_analytics_enabled_despite_coding_retention_opt_out() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         coding_data_retention_opt_out: true,
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     enable_product_telemetry(&agent);
     assert!(agent.is_data_collection_disabled());
@@ -2670,16 +2670,16 @@ async fn product_analytics_enabled_despite_coding_retention_opt_out() {
 }
 #[tokio::test]
 async fn product_analytics_disabled_for_zdr_team() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         team_blocked_reasons: vec!["BLOCKED_REASON_NO_LOGS".into()],
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     enable_product_telemetry(&agent);
     assert!(!agent.product_analytics_enabled());
 }
 #[tokio::test]
 async fn product_analytics_disabled_when_telemetry_off() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth::test_default());
+    let agent = build_agent_with_auth(crate::auth::XaiAuth::test_default());
     agent.cfg.borrow_mut().features.telemetry = Some(crate::agent::config::TelemetryMode::Disabled);
     assert!(!agent.product_analytics_enabled());
 }
@@ -2709,9 +2709,9 @@ async fn spawn_counting_storage_stub() -> (String, std::sync::Arc<std::sync::ato
 #[tokio::test]
 async fn diagnostic_upload_skipped_for_opted_out_user() {
     let (stub_url, count) = spawn_counting_storage_stub().await;
-    let agent = build_agent_with_auth(crate::auth::GrokAuth {
+    let agent = build_agent_with_auth(crate::auth::XaiAuth {
         coding_data_retention_opt_out: true,
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
     enable_trace_upload_config(&agent);
     agent.cfg.borrow_mut().endpoints.trace_upload_url = Some(stub_url);
@@ -2728,7 +2728,7 @@ async fn diagnostic_upload_skipped_for_opted_out_user() {
 #[tokio::test]
 async fn diagnostic_upload_sent_for_normal_user() {
     let (stub_url, count) = spawn_counting_storage_stub().await;
-    let agent = build_agent_with_auth(crate::auth::GrokAuth::test_default());
+    let agent = build_agent_with_auth(crate::auth::XaiAuth::test_default());
     enable_trace_upload_config(&agent);
     agent.cfg.borrow_mut().endpoints.trace_upload_url = Some(stub_url);
     let uploader = agent
@@ -2766,7 +2766,7 @@ async fn diagnostic_upload_skipped_without_credentials() {
 #[tokio::test]
 async fn diagnostic_upload_skipped_after_mid_session_trace_upload_kill_switch() {
     let (stub_url, count) = spawn_counting_storage_stub().await;
-    let agent = build_agent_with_auth(crate::auth::GrokAuth::test_default());
+    let agent = build_agent_with_auth(crate::auth::XaiAuth::test_default());
     enable_trace_upload_config(&agent);
     agent.cfg.borrow_mut().endpoints.trace_upload_url = Some(stub_url);
     agent.sync_collection_config_gate();
@@ -2793,7 +2793,7 @@ async fn diagnostic_upload_skipped_after_mid_session_trace_upload_kill_switch() 
 /// collection without a new session.
 #[tokio::test]
 async fn collection_config_gate_mirror_follows_trace_upload_flip() {
-    let agent = build_agent_with_auth(crate::auth::GrokAuth::test_default());
+    let agent = build_agent_with_auth(crate::auth::XaiAuth::test_default());
     enable_trace_upload_config(&agent);
     agent.sync_collection_config_gate();
     assert!(

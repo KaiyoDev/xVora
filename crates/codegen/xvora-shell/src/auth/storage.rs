@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use super::model::{API_KEY_SCOPE, AuthMode, AuthStore, GrokAuth, lookup_auth};
+use super::model::{API_KEY_SCOPE, AuthMode, AuthStore, XaiAuth, lookup_auth};
 
 /// RAII guard for an exclusive advisory lock on `auth.json.lock`.
 /// The lock is released when the inner `File` is dropped (closing the FD).
@@ -352,7 +352,7 @@ pub fn store_api_key(xvora_home: &Path, api_key: &str) -> std::io::Result<()> {
     let mut map = read_auth_json_or_empty_recovering_corrupt(&path)?;
     map.insert(
         API_KEY_SCOPE.to_owned(),
-        GrokAuth {
+        XaiAuth {
             key: api_key.to_owned(),
             auth_mode: AuthMode::ApiKey,
             ..Default::default()
@@ -383,7 +383,7 @@ mod write_fallback_tests {
         let mut map = AuthStore::new();
         map.insert(
             API_KEY_SCOPE.to_owned(),
-            GrokAuth {
+            XaiAuth {
                 key: "secret-key".to_owned(),
                 auth_mode: AuthMode::ApiKey,
                 ..Default::default()
@@ -481,7 +481,7 @@ mod write_fallback_tests {
         let mut replacement = AuthStore::new();
         replacement.insert(
             API_KEY_SCOPE.to_owned(),
-            GrokAuth {
+            XaiAuth {
                 key: "replacement-key".to_owned(),
                 auth_mode: AuthMode::ApiKey,
                 ..Default::default()

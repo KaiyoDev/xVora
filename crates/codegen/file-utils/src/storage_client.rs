@@ -351,12 +351,12 @@ fn is_retryable_status(status: u16) -> bool {
 /// `ShellAuthCredentialProvider`). A future reader should not innocently
 /// make the static provider the production default -- the obfuscated
 /// routing + obfstr-protected literals only live in the shell impl.
-pub struct StaticGrokAuth {
+pub struct StaticXaiAuth {
     pub user_token: Option<String>,
     pub deployment_key: Option<String>,
 }
 
-impl StaticGrokAuth {
+impl StaticXaiAuth {
     pub fn new(user_token: Option<String>) -> Self {
         Self {
             user_token,
@@ -374,7 +374,7 @@ impl StaticGrokAuth {
     }
 }
 
-impl xvora_auth::HttpAuth for StaticGrokAuth {
+impl xvora_auth::HttpAuth for StaticXaiAuth {
     fn apply(&self, builder: reqwest::RequestBuilder, _base_url: &str) -> reqwest::RequestBuilder {
         if let Some(ref key) = self.deployment_key {
             builder.header("Authorization", format!("Bearer {}", key))
@@ -390,17 +390,17 @@ impl xvora_auth::HttpAuth for StaticGrokAuth {
 
 #[cfg(test)]
 mod static_grok_auth_tests {
-    use super::StaticGrokAuth;
+    use super::StaticXaiAuth;
 
     /// Deployment key must win over the user token (incl. the empty one the
     /// deployment-key path supplies); falls back to the user token otherwise.
     #[test]
     fn wire_bearer_prefers_deployment_key_then_falls_back_to_user_token() {
-        let mut deployment = StaticGrokAuth::new(Some(String::new()));
+        let mut deployment = StaticXaiAuth::new(Some(String::new()));
         deployment.deployment_key = Some("deploy-key".to_string());
         assert_eq!(deployment.wire_bearer().as_deref(), Some("deploy-key"));
 
-        let oauth = StaticGrokAuth::new(Some("oauth-token".to_string()));
+        let oauth = StaticXaiAuth::new(Some("oauth-token".to_string()));
         assert_eq!(oauth.wire_bearer().as_deref(), Some("oauth-token"));
     }
 }
@@ -456,7 +456,7 @@ impl StorageClient {
     /// * `proxy_base_url` - Base URL for the proxy (e.g., "https://cli-chat-proxy.grok.com/v1")
     /// * `user_token` - User's grok.com auth token
     pub fn new(proxy_base_url: &str, user_token: &str) -> Self {
-        let creds = StaticGrokAuth::new(Some(user_token.to_owned()));
+        let creds = StaticXaiAuth::new(Some(user_token.to_owned()));
         let bearer = creds.wire_bearer();
         let provider = Arc::new(xvora_auth::StaticAuthCredentialProvider::new(
             Box::new(creds),

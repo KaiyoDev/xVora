@@ -159,9 +159,9 @@ async fn actor_with_proxy(
         crate::auth::GrokComConfig::default(),
     ));
     // Valid (1h) token in-memory only — `auth()` fast-paths it without network.
-    auth_manager.hot_swap(crate::auth::GrokAuth {
+    auth_manager.hot_swap(crate::auth::XaiAuth {
         expires_at: Some(Utc::now() + chrono::Duration::hours(1)),
-        ..crate::auth::GrokAuth::test_default()
+        ..crate::auth::XaiAuth::test_default()
     });
 
     let cfg = crate::agent::config::Config {

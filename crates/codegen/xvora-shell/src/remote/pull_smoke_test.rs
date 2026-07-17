@@ -4,16 +4,16 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::auth::GrokAuth;
+    use crate::auth::XaiAuth;
     use crate::remote::client::BackendClient;
     use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};
     use std::collections::BTreeMap;
     use std::sync::Arc;
 
-    fn load_prod_auth() -> Option<GrokAuth> {
+    fn load_prod_auth() -> Option<XaiAuth> {
         let path = crate::util::xvora_home::xvora_home().join("auth.json");
         let contents = std::fs::read_to_string(&path).ok()?;
-        let store: BTreeMap<String, GrokAuth> = serde_json::from_str(&contents).ok()?;
+        let store: BTreeMap<String, XaiAuth> = serde_json::from_str(&contents).ok()?;
         let scope = crate::auth::GrokComConfig::default().auth_scope();
         crate::auth::lookup_auth(&store, &scope)
     }

@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use crate::auth::error::{AuthError, RefreshTokenError, RefreshTokenFailedReason};
 use crate::auth::manager::AuthManager;
-use crate::auth::model::GrokAuth;
+use crate::auth::model::XaiAuth;
 use crate::auth::token_type::TokenType;
 use xvora_telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
 
@@ -101,7 +101,7 @@ pub(crate) struct RejectedAuth {
 }
 
 impl RejectedAuth {
-    pub(crate) fn capture(auth: Option<&GrokAuth>) -> Self {
+    pub(crate) fn capture(auth: Option<&XaiAuth>) -> Self {
         Self {
             principal: auth.map(|a| a.user_id.clone()).filter(|id| !id.is_empty()),
             token_kind: TokenType::from_auth(auth).telemetry_kind(),
@@ -239,7 +239,7 @@ impl UnauthorizedRecovery {
     /// and (for user-facing sources) its identity is the KPI attribution.
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        rejected: Option<GrokAuth>,
+        rejected: Option<XaiAuth>,
         source: RecoverySource,
     ) -> Self {
         let rejected_token = rejected.as_ref().map(|a| a.key.clone()).unwrap_or_default();
@@ -265,7 +265,7 @@ impl UnauthorizedRecovery {
         skip(self),
         fields(step = ?self.step, token_type = tracing::field::Empty),
     )]
-    pub async fn next(&mut self) -> Result<GrokAuth, AuthError> {
+    pub async fn next(&mut self) -> Result<XaiAuth, AuthError> {
         let span = tracing::Span::current();
         if !span.is_disabled() {
             // Only acquire the inner-lock when tracing actually
@@ -287,7 +287,7 @@ impl UnauthorizedRecovery {
     }
 
     /// Walk the recovery steps and apply the team-pin policy gate.
-    async fn resolve_next(&mut self) -> Result<GrokAuth, AuthError> {
+    async fn resolve_next(&mut self) -> Result<XaiAuth, AuthError> {
         // Team-pin gate: 401 recovery must not resurrect a wrong-team session
         // (disk adoption / refresh / devbox mint) for the relay to reconnect
         // with. Clear + reject on mismatch.
@@ -299,7 +299,7 @@ impl UnauthorizedRecovery {
         Ok(auth)
     }
 
-    async fn next_step_loop(&mut self) -> Result<GrokAuth, AuthError> {
+    async fn next_step_loop(&mut self) -> Result<XaiAuth, AuthError> {
         loop {
             match self.step {
                 RecoveryStep::ReloadFromDisk => {
@@ -350,7 +350,7 @@ impl UnauthorizedRecovery {
 
     /// Re-read `auth.json` from disk. Accept the token only if it differs
     /// from the one that was rejected.
-    async fn try_reload_from_disk(&self) -> Option<GrokAuth> {
+    async fn try_reload_from_disk(&self) -> Option<XaiAuth> {
         let _lock = self
             .auth_manager
             .try_lock_auth_file_async(crate::auth::manager::AUTH_LOCK_TIMEOUT)
@@ -414,7 +414,7 @@ impl UnauthorizedRecovery {
     /// token; a genuinely-bad one refreshes once the window passes. Lives
     /// here, not in `refresh_chain`, so paywall claims re-mints that call
     /// `refresh_chain(ServerRejected)` directly are unaffected.
-    fn fresh_mint_guard(&self) -> Option<GrokAuth> {
+    fn fresh_mint_guard(&self) -> Option<XaiAuth> {
         let auth = self.auth_manager.current()?;
         let mint_age_seconds = auth.mint_age_seconds();
         if !(-FRESH_MINT_GUARD_SECS..FRESH_MINT_GUARD_SECS).contains(&mint_age_seconds) {
@@ -454,7 +454,7 @@ impl UnauthorizedRecovery {
     ///   reading the variant can distinguish "ran past local TTL" from
     ///   "server actively rejected".
     /// - **None**: no credentials at all.
-    async fn try_refresh_from_authority(&self) -> Result<GrokAuth, AuthError> {
+    async fn try_refresh_from_authority(&self) -> Result<XaiAuth, AuthError> {
         let tt = self.auth_manager.token_type();
         match tt {
             TokenType::OidcSession | TokenType::ExternalBinary => {
@@ -503,7 +503,7 @@ impl UnauthorizedRecovery {
     }
 
     /// Check if a candidate token is different from the rejected one.
-    fn is_different_token(&self, candidate: &GrokAuth) -> bool {
+    fn is_different_token(&self, candidate: &XaiAuth) -> bool {
         candidate.key != self.rejected_token
     }
 }
@@ -525,17 +525,17 @@ mod tests {
     use super::*;
     use crate::auth::config::GrokComConfig;
     use crate::auth::error::{RefreshTokenError, RefreshTokenFailedReason};
-    use crate::auth::model::{AuthMode, GrokAuth};
+    use crate::auth::model::{AuthMode, XaiAuth};
     use crate::auth::refresh::{RefreshOutcome, TokenRefresher};
     use crate::auth::storage::{read_auth_json, write_auth_json};
     use chrono::{Duration, Utc};
     use std::sync::atomic::{AtomicU32, Ordering};
 
     /// The rejected wire bearer these tests seed into the manager.
-    fn rejected_cred() -> Option<GrokAuth> {
-        Some(GrokAuth {
+    fn rejected_cred() -> Option<XaiAuth> {
+        Some(XaiAuth {
             key: "rejected-tok".into(),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         })
     }
 
@@ -547,12 +547,12 @@ mod tests {
     impl TokenRefresher for OkRefresher {
         async fn refresh(&self, _reason: crate::auth::manager::RefreshReason) -> RefreshOutcome {
             self.calls.fetch_add(1, Ordering::SeqCst);
-            RefreshOutcome::Success(Box::new(GrokAuth {
+            RefreshOutcome::Success(Box::new(XaiAuth {
                 key: "fresh-from-authority".into(),
                 auth_mode: AuthMode::Oidc,
                 refresh_token: Some("rt-new".into()),
                 expires_at: Some(Utc::now() + Duration::hours(1)),
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             }))
         }
     }
@@ -576,14 +576,14 @@ mod tests {
     }
 
     fn seed(mgr: &AuthManager, mode: AuthMode, refresh_token: Option<&str>) {
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             key: "rejected-tok".into(),
             auth_mode: mode,
             refresh_token: refresh_token.map(str::to_string),
             // Past expiry so `current()` returns None and the refresh
             // chain actually has to do work.
             expires_at: Some(Utc::now() - Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         mgr.hot_swap(auth);
     }
@@ -626,19 +626,19 @@ mod tests {
     /// Seed a *valid* (unexpired) in-memory token whose `create_time` lies
     /// `mint_age` in the past (negative = clock stepped back since mint).
     fn seed_valid(mgr: &AuthManager, mode: AuthMode, mint_age: Duration) {
-        mgr.hot_swap(GrokAuth {
+        mgr.hot_swap(XaiAuth {
             key: "rejected-tok".into(),
             auth_mode: mode,
             refresh_token: Some("rt".into()),
             create_time: Utc::now() - mint_age,
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         });
     }
 
     /// Run one recovery against a counting refresher; return the outcome and
     /// how many times the authority was consulted.
-    async fn recover_with_ok_refresher(m: &Arc<AuthManager>) -> (Result<GrokAuth, AuthError>, u32) {
+    async fn recover_with_ok_refresher(m: &Arc<AuthManager>) -> (Result<XaiAuth, AuthError>, u32) {
         let calls = Arc::new(AtomicU32::new(0));
         m.set_refresher(Arc::new(OkRefresher {
             calls: calls.clone(),
@@ -747,13 +747,13 @@ mod tests {
             ..GrokComConfig::default()
         };
         let m = Arc::new(AuthManager::new(dir.path(), cfg));
-        m.hot_swap(GrokAuth {
+        m.hot_swap(XaiAuth {
             key: team_jwt("team-wrong"),
             auth_mode: AuthMode::Oidc,
             refresh_token: Some("rt".into()),
             create_time: Utc::now(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         });
         let calls = Arc::new(AtomicU32::new(0));
         m.set_refresher(Arc::new(OkRefresher {
@@ -837,12 +837,12 @@ mod tests {
 
         // Sibling process wrote a different valid token to disk.
         let scope = m.grok_com_config().auth_scope();
-        let fresh = GrokAuth {
+        let fresh = XaiAuth {
             key: "fresh-from-disk".into(),
             auth_mode: AuthMode::Oidc,
             refresh_token: Some("rt-new".into()),
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = read_auth_json(&dir.path().join("auth.json")).unwrap_or_default();
         store.insert(scope, fresh);
@@ -863,12 +863,12 @@ mod tests {
 
         // Disk has the SAME token that was rejected -- skip, fall through.
         let scope = m.grok_com_config().auth_scope();
-        let same = GrokAuth {
+        let same = XaiAuth {
             key: "rejected-tok".into(),
             auth_mode: AuthMode::Oidc,
             refresh_token: Some("rt".into()),
             expires_at: Some(Utc::now() + Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = read_auth_json(&dir.path().join("auth.json")).unwrap_or_default();
         store.insert(scope, same);
@@ -1016,12 +1016,12 @@ mod tests {
         seed(&m, AuthMode::Oidc, Some("rt"));
 
         let scope = m.grok_com_config().auth_scope();
-        let expired_different = GrokAuth {
+        let expired_different = XaiAuth {
             key: "different-but-expired".into(),
             auth_mode: AuthMode::Oidc,
             refresh_token: Some("rt-new".into()),
             expires_at: Some(Utc::now() - Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let mut store = read_auth_json(&dir.path().join("auth.json")).unwrap_or_default();
         store.insert(scope, expired_different);
@@ -1048,12 +1048,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn manual_auth_record_dedups_concurrent_same_credential() {
         let tracker = Arc::new(ManualAuthTracker::default());
-        let auth = GrokAuth {
+        let auth = XaiAuth {
             key: "rejected".into(),
             auth_mode: AuthMode::Oidc,
             refresh_token: Some("rt".into()),
             user_id: "user-1".into(),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let snapshot = Arc::new(RejectedAuth::capture(Some(&auth)));
         let err = Arc::new(AuthError::permanent(
@@ -1120,12 +1120,12 @@ mod tests {
         let mut store = read_auth_json(&dir.path().join("auth.json")).unwrap_or_default();
         store.insert(
             scope,
-            GrokAuth {
+            XaiAuth {
                 key: team_jwt("team-wrong"),
                 auth_mode: AuthMode::Oidc,
                 refresh_token: Some("rt-sibling".into()),
                 expires_at: Some(Utc::now() + Duration::hours(1)),
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             },
         );
         write_auth_json(&dir.path().join("auth.json"), &store).unwrap();

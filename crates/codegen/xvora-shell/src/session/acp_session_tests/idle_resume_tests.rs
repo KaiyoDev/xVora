@@ -134,11 +134,11 @@ async fn test_e2e_idle_resume_refreshes_model_metadata() {
                         dir.path(),
                         crate::auth::GrokComConfig::default(),
                     ));
-                    mgr.hot_swap(crate::auth::GrokAuth {
+                    mgr.hot_swap(crate::auth::XaiAuth {
                         auth_mode: crate::auth::AuthMode::Oidc,
                         refresh_token: Some("rt".into()),
                         expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-                        ..crate::auth::GrokAuth::test_default()
+                        ..crate::auth::XaiAuth::test_default()
                     });
                     std::mem::forget(dir);
                     Some(mgr)

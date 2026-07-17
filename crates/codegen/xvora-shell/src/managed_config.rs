@@ -3,7 +3,7 @@
 
 mod response;
 
-use crate::auth::GrokAuth;
+use crate::auth::XaiAuth;
 pub use response::ManagedConfigError;
 use response::{ApplyOutcome, ManagedConfigResponse, ManagedConfigSource, verify_signed_envelope};
 
@@ -78,13 +78,13 @@ fn remove_managed_path(path: &std::path::Path) -> std::io::Result<bool> {
 
 /// A team principal is eligible to fetch only if non-expired (an expired token
 /// would just 401).
-fn eligible_team_principal(auth: GrokAuth) -> Option<GrokAuth> {
+fn eligible_team_principal(auth: XaiAuth) -> Option<XaiAuth> {
     (auth.is_team_principal() && !crate::auth::is_expired(&auth)).then_some(auth)
 }
 
 /// The eligible team principal in `auth.json`, or `None`. Single-team: managed
 /// config is a grok.com feature with one grok.com auth.
-fn read_active_team_auth() -> Option<GrokAuth> {
+fn read_active_team_auth() -> Option<XaiAuth> {
     let home = crate::util::xvora_home::xvora_home();
     let store = crate::auth::read_auth_json(&home.join("auth.json")).ok()?;
     let team = store.values().find(|a| a.is_team_principal())?.clone();
@@ -481,7 +481,7 @@ impl SyncOutcome {
 /// elapses first.
 async fn sync_bounded(
     budget: SyncBudget,
-    team_override: Option<GrokAuth>,
+    team_override: Option<XaiAuth>,
 ) -> Option<Result<SyncOutcome, ManagedConfigError>> {
     let sync = sync_with_budget(budget, team_override);
     match budget.deadline() {
@@ -495,7 +495,7 @@ async fn sync_bounded(
 /// [`read_active_team_auth`] (the current eligible team).
 async fn sync_with_budget(
     budget: SyncBudget,
-    team_override: Option<GrokAuth>,
+    team_override: Option<XaiAuth>,
 ) -> Result<SyncOutcome, ManagedConfigError> {
     let outcome = sync_inner(budget, team_override).await?;
     // Mark only when a principal was consulted AND the fetch wasn't signature-rejected —
@@ -520,7 +520,7 @@ enum FetchedConfig {
         body: ManagedConfigResponse,
     },
     Team {
-        auth: Box<GrokAuth>,
+        auth: Box<XaiAuth>,
         body: ManagedConfigResponse,
     },
     /// No deployment key configured and no eligible team signed in.
@@ -532,7 +532,7 @@ enum FetchedConfig {
 /// read-only `grok setup --json` both build on this.
 async fn fetch_for_principal(
     budget: SyncBudget,
-    team_override: Option<GrokAuth>,
+    team_override: Option<XaiAuth>,
 ) -> Result<FetchedConfig, ManagedConfigError> {
     let max_attempts = budget.max_attempts();
     // Resolve from the merged config (managed_config_url > cli_chat_proxy_base_url,
@@ -583,7 +583,7 @@ async fn fetch_for_principal(
 
 async fn sync_inner(
     budget: SyncBudget,
-    team_override: Option<GrokAuth>,
+    team_override: Option<XaiAuth>,
 ) -> Result<SyncOutcome, ManagedConfigError> {
     match fetch_for_principal(budget, team_override).await? {
         FetchedConfig::DeploymentKey { key, body } => {
@@ -744,7 +744,7 @@ pub enum ManagedConfigSync {
 /// waiting for the background tick. `authenticated` pins the just-logged-in
 /// principal (`None` = on-disk team). Latency-bounded by [`SyncBudget::Login`];
 /// failures are logged, not propagated (the background loop retries).
-pub async fn post_login_sync(authenticated: Option<GrokAuth>) -> ManagedConfigSync {
+pub async fn post_login_sync(authenticated: Option<XaiAuth>) -> ManagedConfigSync {
     clear_orphan();
     if !is_fetch_enabled() {
         return ManagedConfigSync::Skipped;
@@ -876,7 +876,7 @@ pub async fn ensure_managed_policy_present(
         .await
         .ok()
         .and_then(Result::ok)
-        .filter(GrokAuth::is_team_principal);
+        .filter(XaiAuth::is_team_principal);
     if !has_principal() {
         return;
     }

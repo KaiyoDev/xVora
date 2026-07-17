@@ -1743,7 +1743,7 @@ async fn post_login_pins_authenticated_team_over_disk() {
     write_team_auth(&home, "team-disk");
 
     // But we just authenticated as a different team with a distinct token.
-    let pinned: xvora_shell::auth::GrokAuth = serde_json::from_value(serde_json::json!({
+    let pinned: xvora_shell::auth::XaiAuth = serde_json::from_value(serde_json::json!({
         "key": "pinned-token",
         "auth_mode": "oidc",
         "create_time": "2026-01-01T00:00:00Z",

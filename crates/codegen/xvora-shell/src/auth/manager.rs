@@ -28,7 +28,7 @@ use xvora_telemetry::events::ManualAuthSurface;
 #[cfg(test)]
 use super::model::UserInfo;
 use super::model::{
-    AuthMode, GrokAuth, early_invalidation, is_expired, is_expired_with_buffer, lookup_auth,
+    AuthMode, XaiAuth, early_invalidation, is_expired, is_expired_with_buffer, lookup_auth,
     token_suffix,
 };
 use super::refresh::{RefreshOutcome, TokenRefresher, resolve_refresh_credential};
@@ -130,7 +130,7 @@ pub struct AuthManager {
     /// [`Self::refresh_chain`]; the closure helpers' sync return type
     /// enforces "no `.await` while holding the lock". `Arc`
     /// so the spawned `/user` enrichment task can write back.
-    inner: Arc<RwLock<Option<GrokAuth>>>,
+    inner: Arc<RwLock<Option<XaiAuth>>>,
     path: PathBuf,
     scope: String,
     grok_com_config: GrokComConfig,
@@ -253,7 +253,7 @@ impl ScopeRemoval {
 /// it without refreshing.
 enum LockOutcome {
     Held(AuthFileLock),
-    Adopted(Box<GrokAuth>),
+    Adopted(Box<XaiAuth>),
 }
 
 // ── Construction + builders ──────────────────────────────────────────
@@ -279,7 +279,7 @@ impl AuthManager {
 
         // XVORA_AUTH: inline JSON credentials (highest priority, read-only).
         if let Ok(inline_json) = std::env::var("XVORA_AUTH") {
-            if let Ok(auth) = serde_json::from_str::<GrokAuth>(&inline_json) {
+            if let Ok(auth) = serde_json::from_str::<XaiAuth>(&inline_json) {
                 return Self::assemble(
                     Some(auth),
                     xvora_home.join("auth.json"),
@@ -378,7 +378,7 @@ impl AuthManager {
     /// threaded fields. One literal means a newly added field can't be silently
     /// dropped from one branch.
     fn assemble(
-        inner: Option<GrokAuth>,
+        inner: Option<XaiAuth>,
         path: PathBuf,
         scope: String,
         grok_com_config: GrokComConfig,
@@ -624,7 +624,7 @@ impl AuthManager {
     /// fail-fast defense-in-depth, not the security boundary (the server is
     /// authoritative). An API-key session is rejected under the kill switch,
     /// else allowed.
-    pub(crate) fn cached_token_policy_error(&self, auth: &GrokAuth) -> Option<AuthError> {
+    pub(crate) fn cached_token_policy_error(&self, auth: &XaiAuth) -> Option<AuthError> {
         if auth.auth_mode == AuthMode::ApiKey {
             // Else enforce_disable_api_key_auth swaps the key for itself (no-op).
             return self
@@ -661,7 +661,7 @@ impl AuthManager {
 
     /// Hide a cached token rejected by the login policy. No clear here (keeps
     /// the sync read path lock-free); `auth()`/recovery/`new()` do the clearing.
-    fn vet_cached(&self, auth: GrokAuth) -> Option<GrokAuth> {
+    fn vet_cached(&self, auth: XaiAuth) -> Option<XaiAuth> {
         match self.cached_token_policy_error(&auth) {
             None => Some(auth),
             Some(e) => {
@@ -672,7 +672,7 @@ impl AuthManager {
     }
 
     /// Cached in-memory token if outside the early-invalidation buffer.
-    pub(crate) fn current(&self) -> Option<GrokAuth> {
+    pub(crate) fn current(&self) -> Option<XaiAuth> {
         let auth = self
             .inner
             .read()
@@ -685,14 +685,14 @@ impl AuthManager {
     /// Closure-scoped write. Sync return type prevents `.await` while
     /// the lock is held. Prefer this over `self.inner.write()`.
     #[inline]
-    pub(crate) fn with_inner_write<R>(&self, f: impl FnOnce(&mut Option<GrokAuth>) -> R) -> R {
+    pub(crate) fn with_inner_write<R>(&self, f: impl FnOnce(&mut Option<XaiAuth>) -> R) -> R {
         let mut guard = self.inner.write();
         f(&mut guard)
     }
 
     /// Closure-scoped read counterpart to [`Self::with_inner_write`].
     #[inline]
-    pub(crate) fn with_inner_read<R>(&self, f: impl FnOnce(Option<&GrokAuth>) -> R) -> R {
+    pub(crate) fn with_inner_read<R>(&self, f: impl FnOnce(Option<&XaiAuth>) -> R) -> R {
         let guard = self.inner.read();
         f(guard.as_ref())
     }
@@ -707,7 +707,7 @@ impl AuthManager {
 
     /// In-memory bearer regardless of the early-invalidation buffer.
     /// Prefer [`Self::auth`] when `.await` is available.
-    pub(crate) fn current_or_expired(&self) -> Option<GrokAuth> {
+    pub(crate) fn current_or_expired(&self) -> Option<XaiAuth> {
         self.current().or_else(|| self.expired_auth())
     }
 
@@ -735,7 +735,7 @@ impl AuthManager {
     }
 
     /// Expired in-memory entry (for its `refresh_token`).
-    pub(crate) fn expired_auth(&self) -> Option<GrokAuth> {
+    pub(crate) fn expired_auth(&self) -> Option<XaiAuth> {
         let auth = self
             .inner
             .read()
@@ -748,7 +748,7 @@ impl AuthManager {
     /// Expiry policy: `expires_at - early_invalidation` if present;
     /// `External` with `auth_token_ttl` -> `create_time + ttl`;
     /// fallback `create_time + 30d` (WebLogin-style).
-    fn is_token_expired(&self, auth: &GrokAuth) -> bool {
+    fn is_token_expired(&self, auth: &XaiAuth) -> bool {
         self.token_expired_with_buffer(auth, early_invalidation())
     }
 
@@ -757,11 +757,11 @@ impl AuthManager {
     /// ([`Self::has_usable_token`]) uses this instead of [`Self::is_token_expired`]
     /// because a token still inside the buffer is sent — and accepted — on the
     /// wire via `current_or_expired()`, so it must not count as unusable.
-    fn is_token_hard_expired(&self, auth: &GrokAuth) -> bool {
+    fn is_token_hard_expired(&self, auth: &XaiAuth) -> bool {
         self.token_expired_with_buffer(auth, Duration::zero())
     }
 
-    fn token_expired_with_buffer(&self, auth: &GrokAuth, buffer: Duration) -> bool {
+    fn token_expired_with_buffer(&self, auth: &XaiAuth, buffer: Duration) -> bool {
         if auth.expires_at.is_some() {
             return is_expired_with_buffer(auth, buffer);
         }
@@ -784,9 +784,9 @@ impl AuthManager {
     /// - **Caller holds the `auth.json` file lock** (production callers:
     ///   `refresh_chain` Success arm, `flow::run_auth_flow`).
     ///
-    /// Returns the input `GrokAuth` BEFORE enrichment lands; callers
+    /// Returns the input `XaiAuth` BEFORE enrichment lands; callers
     /// needing the post-enrichment view re-read `current()`.
-    pub(crate) async fn update(self: &Arc<Self>, auth: GrokAuth) -> std::io::Result<GrokAuth> {
+    pub(crate) async fn update(self: &Arc<Self>, auth: XaiAuth) -> std::io::Result<XaiAuth> {
         let update_started = std::time::Instant::now();
         let map = match read_auth_json_or_empty_recovering_corrupt(&self.path) {
             Ok(map) => map,
@@ -847,8 +847,8 @@ impl AuthManager {
     /// (already merged inline, or a stale fetch must not race a fresh write).
     pub(crate) async fn save_without_enrichment(
         &self,
-        auth: GrokAuth,
-    ) -> std::io::Result<GrokAuth> {
+        auth: XaiAuth,
+    ) -> std::io::Result<XaiAuth> {
         let started = std::time::Instant::now();
         let map = match read_auth_json_or_empty_recovering_corrupt(&self.path) {
             Ok(map) => map,
@@ -895,12 +895,12 @@ impl AuthManager {
     }
 
     /// Spawn the `/user` enrichment task; body in the `enrichment` submodule.
-    fn spawn_user_info_enrichment(self: &Arc<Self>, auth: GrokAuth) {
+    fn spawn_user_info_enrichment(self: &Arc<Self>, auth: XaiAuth) {
         enrichment::spawn(Arc::clone(self), auth);
     }
 
     /// Blocking `/user` enrichment for login flows that exit before the background task lands.
-    pub(crate) async fn enrich_auth_inline(&self, auth: &mut GrokAuth) {
+    pub(crate) async fn enrich_auth_inline(&self, auth: &mut XaiAuth) {
         enrichment::enrich_inline(self, auth).await;
     }
 
@@ -937,13 +937,13 @@ impl AuthManager {
 
     /// Run the external auth command and parse its output. Pure: no
     /// state mutation, no logging (refresher logs once on its arm).
-    pub(crate) fn run_external_refresh_command(&self, command: &str) -> Option<GrokAuth> {
+    pub(crate) fn run_external_refresh_command(&self, command: &str) -> Option<XaiAuth> {
         let prev = self.inner_auth_or_external_default();
         crate::auth::refresh_with_command(command, &prev)
     }
 
     /// Hot-swap credentials (called by config watcher). Does NOT write to disk.
-    pub(crate) fn hot_swap(&self, new_auth: GrokAuth) {
+    pub(crate) fn hot_swap(&self, new_auth: XaiAuth) {
         self.with_inner_write(|inner| *inner = Some(new_auth));
     }
 
@@ -960,9 +960,9 @@ impl AuthManager {
     /// disk key must differ from in-memory (else no one refreshed).
     pub(crate) fn try_use_disk_token(
         &self,
-        disk_auth: Option<&GrokAuth>,
+        disk_auth: Option<&XaiAuth>,
         reason: RefreshReason,
-    ) -> Option<GrokAuth> {
+    ) -> Option<XaiAuth> {
         let disk_auth = disk_auth?;
         if self.is_token_expired(disk_auth) {
             return None;
@@ -983,7 +983,7 @@ impl AuthManager {
     /// telemetry on success. Combines `read_disk_auth` +
     /// `try_use_disk_token` + the structured log that was previously
     /// duplicated at each callsite in `refresh_chain`.
-    fn try_adopt_disk_token(&self, reason: RefreshReason, msg: &str) -> Option<GrokAuth> {
+    fn try_adopt_disk_token(&self, reason: RefreshReason, msg: &str) -> Option<XaiAuth> {
         let disk_auth = self.read_disk_auth();
         let refreshed = self.try_use_disk_token(disk_auth.as_ref(), reason)?;
         let adopted = token_suffix(&refreshed.key);
@@ -1004,8 +1004,8 @@ impl AuthManager {
     /// path only** -- the placeholder's `auth_mode = External` would
     /// mis-classify an OIDC token. Carries user fields forward into the
     /// binary's freshly-minted token.
-    fn inner_auth_or_external_default(&self) -> GrokAuth {
-        self.inner.read().clone().unwrap_or_else(|| GrokAuth {
+    fn inner_auth_or_external_default(&self) -> XaiAuth {
+        self.inner.read().clone().unwrap_or_else(|| XaiAuth {
             auth_mode: AuthMode::External,
             ..Default::default()
         })
@@ -1014,7 +1014,7 @@ impl AuthManager {
     /// Test-only hot_swap + disk write (skips proxy `/user`).
     /// Production persistence routes through `update()`.
     #[cfg(test)]
-    fn persist_and_swap(&self, auth: GrokAuth) -> Option<GrokAuth> {
+    fn persist_and_swap(&self, auth: XaiAuth) -> Option<XaiAuth> {
         self.hot_swap(auth.clone());
         let mut map = match read_auth_json_or_empty(&self.path) {
             Ok(m) => m,
@@ -1054,7 +1054,7 @@ impl AuthManager {
     }
 
     /// Re-read `auth.json` from disk without updating in-memory state.
-    pub(crate) fn read_disk_auth(&self) -> Option<GrokAuth> {
+    pub(crate) fn read_disk_auth(&self) -> Option<XaiAuth> {
         self.read_disk_auth_with_state().0
     }
 
@@ -1062,7 +1062,7 @@ impl AuthManager {
     /// `disk_state` write, no transition telemetry). For side-effect-free
     /// getters like [`Self::attempted_verdict_key`]; prefer [`Self::read_disk_auth`]
     /// when the read should drive transition logging.
-    fn read_disk_auth_silent(&self) -> Option<GrokAuth> {
+    fn read_disk_auth_silent(&self) -> Option<XaiAuth> {
         read_auth_json(&self.path)
             .ok()
             .and_then(|map| lookup_auth(&map, &self.scope))
@@ -1090,7 +1090,7 @@ impl AuthManager {
     /// can tell a transient disk anomaly (`FileMissing`/`Unreadable`) apart from
     /// a genuine logout (`EntryMissing`). Observes the state for transition
     /// logging, exactly like `read_disk_auth`.
-    pub(crate) fn read_disk_auth_with_state(&self) -> (Option<GrokAuth>, DiskAuthState) {
+    pub(crate) fn read_disk_auth_with_state(&self) -> (Option<XaiAuth>, DiskAuthState) {
         let (auth, state, err_detail) = match read_auth_json(&self.path) {
             Ok(map) => {
                 let found = lookup_auth(&map, &self.scope);
@@ -1124,7 +1124,7 @@ impl AuthManager {
     fn observe_disk_state(
         &self,
         new_state: DiskAuthState,
-        auth: Option<&GrokAuth>,
+        auth: Option<&XaiAuth>,
         err_detail: Option<String>,
     ) {
         let prev = {
@@ -1243,7 +1243,7 @@ impl AuthManager {
     /// Also the team-pin gate: a cached/refreshed wrong-team session is cleared
     /// and rejected here, never handed to a consumer.
     #[tracing::instrument(skip(self), fields(token_type = tracing::field::Empty))]
-    pub async fn auth(self: &Arc<Self>) -> Result<GrokAuth, AuthError> {
+    pub async fn auth(self: &Arc<Self>) -> Result<XaiAuth, AuthError> {
         let auth = self.auth_dispatch().await?;
         if let Some(e) = self.cached_token_policy_error(&auth) {
             self.reject_and_clear(&e);
@@ -1252,10 +1252,10 @@ impl AuthManager {
         Ok(auth)
     }
 
-    async fn auth_dispatch(self: &Arc<Self>) -> Result<GrokAuth, AuthError> {
+    async fn auth_dispatch(self: &Arc<Self>) -> Result<XaiAuth, AuthError> {
         // Snapshot inner ONCE for dispatch atomicity (closes a TOCTOU
         // where a concurrent `clear()` raced `token_type()` + `inner.read()`).
-        let snapshot: Option<GrokAuth> = self.with_inner_read(|inner| inner.cloned());
+        let snapshot: Option<XaiAuth> = self.with_inner_read(|inner| inner.cloned());
         let token_type = TokenType::from_auth(snapshot.as_ref());
         tracing::Span::current().record("token_type", tracing::field::debug(token_type));
 
@@ -1389,7 +1389,7 @@ impl AuthManager {
     ///
     /// Fail-closed under `preferred_method=api_key` (no automatic OIDC mint),
     /// including direct callers such as sampler 401 recovery.
-    pub(crate) async fn try_devbox_recovery(self: &Arc<Self>) -> Result<GrokAuth, AuthError> {
+    pub(crate) async fn try_devbox_recovery(self: &Arc<Self>) -> Result<XaiAuth, AuthError> {
         if self.grok_com_config.blocks_automatic_oidc() {
             tracing::debug!(
                 "auth: devbox recovery skipped (preferred_method=api_key blocks automatic OIDC)"
@@ -1468,7 +1468,7 @@ impl AuthManager {
         self: &Arc<Self>,
         token_type: TokenType,
         reason: RefreshReason,
-    ) -> Result<GrokAuth, AuthError> {
+    ) -> Result<XaiAuth, AuthError> {
         // 0. Sticky permanent-failure short-circuit, checked BEFORE acquiring
         //    the refresh lock so a backed-off chain doesn't block concurrent
         //    traffic. Mirrors `auth()` so callers routing through
@@ -1738,7 +1738,7 @@ impl AuthManager {
         reason: RefreshReason,
         attempted_key: Option<String>,
         _lock: &AuthFileLock,
-    ) -> Result<GrokAuth, AuthError> {
+    ) -> Result<XaiAuth, AuthError> {
         let pre_key_prefix = attempted_key.as_deref().map(token_suffix);
         match outcome {
             RefreshOutcome::Success(new_auth) => match self.update(*new_auth).await {
@@ -1838,7 +1838,7 @@ impl AuthManager {
     }
 
     /// Check if a candidate auth has a different token than what's in memory.
-    pub(crate) fn is_different_token(&self, candidate: &GrokAuth) -> bool {
+    pub(crate) fn is_different_token(&self, candidate: &XaiAuth) -> bool {
         let current_key = self.inner.read().as_ref().map(|a| a.key.clone());
         current_key.as_deref() != Some(&candidate.key)
     }
@@ -1965,7 +1965,7 @@ impl AuthManager {
     /// one-shot recovery off the live bearer, use `try_recover_unauthorized()`.
     pub(crate) fn unauthorized_recovery(
         self: &Arc<Self>,
-        rejected: Option<GrokAuth>,
+        rejected: Option<XaiAuth>,
         source: crate::auth::recovery::RecoverySource,
     ) -> crate::auth::recovery::UnauthorizedRecovery {
         crate::auth::recovery::UnauthorizedRecovery::new(self.clone(), rejected, source)

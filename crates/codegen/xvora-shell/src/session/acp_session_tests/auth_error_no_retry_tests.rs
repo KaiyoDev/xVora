@@ -1,6 +1,6 @@
 use super::support::*;
 use super::*;
-use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
+use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc;
@@ -17,12 +17,12 @@ impl crate::auth::refresh::TokenRefresher for AlwaysSucceedRefresher {
         _reason: crate::auth::refresh::RefreshReason,
     ) -> crate::auth::refresh::RefreshOutcome {
         self.called.store(true, Ordering::SeqCst);
-        crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+        crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
             key: "refreshed-test-token".to_string(),
             auth_mode: AuthMode::Oidc,
             refresh_token: Some("rt-new".into()),
             expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         }))
     }
 }
@@ -35,12 +35,12 @@ fn auth_manager_with_refresher(
 ) -> (tempfile::TempDir, Arc<AuthManager>) {
     let dir = tempfile::tempdir().expect("tempdir");
     let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    am.hot_swap(GrokAuth {
+    am.hot_swap(XaiAuth {
         key: "initial-test-key".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(chrono::Utc::now() - chrono::Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     am.set_refresher(refresher);
     (dir, am)
@@ -122,12 +122,12 @@ async fn make_actor_with_method_and_credentials(
 fn auth_manager_with_valid_token(key: &str) -> (tempfile::TempDir, Arc<AuthManager>) {
     let dir = tempfile::tempdir().expect("tempdir");
     let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    am.hot_swap(GrokAuth {
+    am.hot_swap(XaiAuth {
         key: key.into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     });
     (dir, am)
 }
@@ -305,12 +305,12 @@ async fn proactive_refresh_makes_per_turn_refresh_a_cache_hit() {
                         _: crate::auth::refresh::RefreshReason,
                     ) -> crate::auth::refresh::RefreshOutcome {
                         self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                        crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
+                        crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
                             key: "proactive-fresh".into(),
                             auth_mode: AuthMode::Oidc,
                             refresh_token: Some("rt-new".into()),
                             expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-                            ..GrokAuth::test_default()
+                            ..XaiAuth::test_default()
                         }))
                     }
                 }
@@ -379,10 +379,10 @@ async fn legacy_auth_hint_on_404_model_not_found() {
         .run_until(async {
             let dir = tempfile::tempdir().expect("tempdir");
             let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-            am.hot_swap(GrokAuth {
+            am.hot_swap(XaiAuth {
                 key: "legacy-token".into(),
                 auth_mode: AuthMode::WebLogin,
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             });
 
             let (actor, _rx) = make_actor_with_auth_manager(Some(am)).await;
@@ -446,10 +446,10 @@ async fn legacy_auth_hint_on_401_unauthorized() {
         .run_until(async {
             let dir = tempfile::tempdir().expect("tempdir");
             let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-            am.hot_swap(GrokAuth {
+            am.hot_swap(XaiAuth {
                 key: "legacy-token".into(),
                 auth_mode: AuthMode::WebLogin,
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             });
 
             let (actor, _rx) = make_actor_with_auth_manager(Some(am)).await;
@@ -486,12 +486,12 @@ async fn no_legacy_hint_on_401_for_oidc_auth() {
         .run_until(async {
             let dir = tempfile::tempdir().expect("tempdir");
             let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-            am.hot_swap(GrokAuth {
+            am.hot_swap(XaiAuth {
                 key: "oidc-token".into(),
                 auth_mode: AuthMode::Oidc,
                 refresh_token: Some("rt".into()),
                 expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             });
 
             let (actor, _rx) = make_actor_with_auth_manager(Some(am)).await;
@@ -528,12 +528,12 @@ async fn no_legacy_hint_for_oidc_auth() {
         .run_until(async {
             let dir = tempfile::tempdir().expect("tempdir");
             let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-            am.hot_swap(GrokAuth {
+            am.hot_swap(XaiAuth {
                 key: "oidc-token".into(),
                 auth_mode: AuthMode::Oidc,
                 refresh_token: Some("rt".into()),
                 expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-                ..GrokAuth::test_default()
+                ..XaiAuth::test_default()
             });
 
             let (actor, _rx) = make_actor_with_auth_manager(Some(am)).await;

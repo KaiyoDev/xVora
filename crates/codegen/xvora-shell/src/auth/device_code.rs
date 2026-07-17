@@ -14,7 +14,7 @@ use serde::Deserialize;
 use thiserror::Error;
 
 use crate::auth::oidc::with_alpha_test_key;
-use crate::auth::{AuthChannels, AuthManager, AuthMode, AuthUrlInfo, AuthUrlMode, GrokAuth};
+use crate::auth::{AuthChannels, AuthManager, AuthMode, AuthUrlInfo, AuthUrlMode, XaiAuth};
 
 const DEVICE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_code";
 const DEFAULT_DEVICE_POLL_INTERVAL_SECS: i32 = 5;
@@ -205,7 +205,7 @@ pub async fn request_device_code(
 /// Poll the token endpoint until the user approves (or denies / expires).
 ///
 /// On success, persists credentials to `~/.xvora/auth.json` and returns
-/// the authenticated `GrokAuth`.
+/// the authenticated `XaiAuth`.
 ///
 /// Callers should have already displayed `device_code.verification_uri`
 /// and `device_code.user_code` to the user before calling this.
@@ -215,7 +215,7 @@ pub async fn complete_device_code_login(
     device_code: DeviceCode,
     auth_manager: &Arc<AuthManager>,
     surface: ClientSurface,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     let client = crate::http::shared_client();
     let token_url = format!("{}/oauth2/token", issuer.trim_end_matches('/'));
     let mut poll_interval = std::time::Duration::from_secs(device_code.interval.max(1) as u64);
@@ -302,7 +302,7 @@ pub async fn run_device_code_login_channels(
     scopes: &[String],
     auth_manager: &Arc<AuthManager>,
     channels: &mut Option<AuthChannels>,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     // A front-end (TUI/IDE) listening on `url_tx` renders the URL to a human, so
     // it's `Ui`. Without one we're on the CLI: a TTY means a human can act
     // (`Cli`), no TTY means headless automation (`Headless`) that will never
@@ -356,7 +356,7 @@ async fn prompt_and_poll(
     device_code: DeviceCode,
     auth_manager: &Arc<AuthManager>,
     surface: ClientSurface,
-) -> anyhow::Result<(GrokAuth, bool)> {
+) -> anyhow::Result<(XaiAuth, bool)> {
     let display_uri = device_code
         .verification_uri_complete
         .as_deref()
@@ -423,7 +423,7 @@ async fn build_auth(
     issuer: &str,
     client_id: &str,
     auth_manager: &Arc<AuthManager>,
-) -> anyhow::Result<GrokAuth> {
+) -> anyhow::Result<XaiAuth> {
     let (user_id, email) = if let Some(ref id_token) = tokens.id_token {
         decode_jwt_claims(id_token)
     } else {
@@ -463,7 +463,7 @@ async fn build_auth(
         };
 
     let now = Utc::now();
-    let mut auth = GrokAuth {
+    let mut auth = XaiAuth {
         key: tokens.access_token.clone(),
         auth_mode: AuthMode::Oidc,
         create_time: now,
@@ -814,7 +814,7 @@ pub(crate) mod tests {
     // floored at 10 min (MIN_DEVICE_CODE_EXPIRY_FALLBACK_SECS).
     async fn run_poll(
         responses: Vec<(u16, serde_json::Value)>,
-    ) -> anyhow::Result<(super::GrokAuth, bool)> {
+    ) -> anyhow::Result<(super::XaiAuth, bool)> {
         let (issuer, server) = spawn_token_server(responses).await;
         let temp_dir = tempfile::tempdir().unwrap();
         let auth_manager = auth_manager_with_xvora_home(temp_dir.path(), "http://127.0.0.1:9");

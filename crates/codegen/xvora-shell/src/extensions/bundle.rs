@@ -484,8 +484,8 @@ mod tests {
             .insert("review".to_string(), "# Review skill\n".to_string());
         bundle
     }
-    fn test_auth() -> crate::auth::GrokAuth {
-        crate::auth::GrokAuth {
+    fn test_auth() -> crate::auth::XaiAuth {
+        crate::auth::XaiAuth {
             key: "token".to_string(),
             auth_mode: crate::auth::AuthMode::Oidc,
             create_time: chrono::Utc::now(),

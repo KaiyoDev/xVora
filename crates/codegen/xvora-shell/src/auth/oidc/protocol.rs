@@ -4,7 +4,7 @@
 //! No `AuthManager` mutation here. The login orchestration is in
 //! [`super::login`]; refresh primitives are in [`super::refresh`].
 use super::super::config::{ForceLoginTeam, GrokComConfig, OAuth2ProviderConfig, OidcAuthConfig};
-use super::super::{AuthMode, GrokAuth};
+use super::super::{AuthMode, XaiAuth};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{Duration, Utc};
@@ -221,14 +221,14 @@ pub(super) struct OidcUserInfo {
     pub(super) team_blocked_reasons: Vec<String>,
     pub(super) coding_data_retention_opt_out: bool,
 }
-pub(super) fn build_grok_auth(
+pub(super) fn build_xai_auth(
     tokens: TokenResponse,
     user_info: OidcUserInfo,
     issuer: &str,
     client_id: &str,
-) -> GrokAuth {
+) -> XaiAuth {
     let now = Utc::now();
-    GrokAuth {
+    XaiAuth {
         key: tokens.access_token,
         auth_mode: AuthMode::Oidc,
         create_time: now,

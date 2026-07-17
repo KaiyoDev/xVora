@@ -79,7 +79,7 @@ impl MvpAgent {
         self.auth_method_id.store(Some(std::sync::Arc::new(id)));
     }
     /// Return auth for sync config construction.
-    pub(super) fn current_or_buffered_auth(&self) -> Option<crate::auth::GrokAuth> {
+    pub(super) fn current_or_buffered_auth(&self) -> Option<crate::auth::XaiAuth> {
         self.auth_manager
             .current()
             .or_else(|| {
@@ -567,8 +567,8 @@ impl MvpAgent {
     pub(crate) fn session_turn_number(&self, sid: &acp::SessionId) -> Option<u64> {
         self.session_turn_numbers.borrow().get(sid).copied()
     }
-    /// Return the current GrokAuth credentials, if authenticated and not expired.
-    pub(crate) fn current_auth(&self) -> Option<crate::auth::GrokAuth> {
+    /// Return the current XaiAuth credentials, if authenticated and not expired.
+    pub(crate) fn current_auth(&self) -> Option<crate::auth::XaiAuth> {
         self.auth_manager.current()
     }
     /// Shared plugin registry handle used by extensions for snapshot/reload.
@@ -764,7 +764,7 @@ impl MvpAgent {
     /// Agent-level fields materialised at startup (`worktree_type`,
     /// `restore_code`) are NOT re-resolved here; that requires a
     /// broader refactor of the init path.
-    pub(super) async fn refresh_remote_settings(&self, auth: &crate::auth::GrokAuth) {
+    pub(super) async fn refresh_remote_settings(&self, auth: &crate::auth::XaiAuth) {
         if !crate::util::config::resolve_remote_fetch_enabled() {
             tracing::debug!("post-auth settings refresh skipped: remote_fetch disabled");
             return;
@@ -844,7 +844,7 @@ impl MvpAgent {
     /// In-flight sessions are unaffected — they snapshot config at creation.
     pub(super) async fn refresh_settings_and_reapply(
         &self,
-        auth: &crate::auth::GrokAuth,
+        auth: &crate::auth::XaiAuth,
     ) {
         self.refresh_remote_settings(auth).await;
         let cwd = std::env::current_dir().ok();
@@ -1009,7 +1009,7 @@ impl MvpAgent {
     /// separate (full reapply vs announcements-only).
     pub(super) async fn fetch_remote_settings(
         &self,
-        auth: crate::auth::GrokAuth,
+        auth: crate::auth::XaiAuth,
     ) -> Option<crate::util::config::RemoteSettings> {
         if !crate::util::config::resolve_remote_fetch_enabled() {
             tracing::debug!("settings fetch skipped: remote_fetch disabled");

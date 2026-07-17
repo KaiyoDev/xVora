@@ -921,7 +921,7 @@ mod tests {
 
     // -- grok login --legacy regression coverage ------------------------
     //
-    // `grok login --legacy` produces a GrokAuth with `auth_mode: WebLogin`,
+    // `grok login --legacy` produces a XaiAuth with `auth_mode: WebLogin`,
     // `oidc_issuer: None`, and no `expires_at` (30-day hardcoded TTL).
     // When this token is present via the `XVORA_AUTH` env var (or via legacy
     // scope fallback in auth.json), `AuthManager::new` returns it from
@@ -943,7 +943,7 @@ mod tests {
     #[test]
     #[serial]
     fn grok_login_legacy_token_does_not_require_login() {
-        use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
+        use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
 
         // Ensure clean slate for "no other auth available".
         let _g1 = EnvGuard::unset("XVORA_AUTH_PATH");
@@ -952,7 +952,7 @@ mod tests {
         // Construct a legacy-style token exactly as `grok login --legacy`
         // produces: WebLogin mode, no OIDC fields, no refresh_token, no
         // expires_at (is_expired falls back to 30-day age check).
-        let legacy_token = GrokAuth {
+        let legacy_token = XaiAuth {
             key: "legacy-relay-token".into(),
             auth_mode: AuthMode::WebLogin,
             create_time: chrono::Utc::now(),
@@ -962,7 +962,7 @@ mod tests {
             oidc_client_id: None,
             refresh_token: None,
             expires_at: None,
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
 
         // Provide it via XVORA_AUTH env var (highest priority code path in

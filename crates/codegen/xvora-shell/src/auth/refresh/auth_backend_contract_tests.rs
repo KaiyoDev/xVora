@@ -5,7 +5,7 @@
 use super::*;
 use crate::auth::error::RefreshTokenFailedReason;
 use crate::auth::recovery::RecoverySource;
-use crate::auth::{GrokAuth, GrokComConfig};
+use crate::auth::{XaiAuth, GrokComConfig};
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -66,8 +66,8 @@ async fn start_idp(
     (base, handle)
 }
 
-fn expired_oidc(base_url: &str) -> GrokAuth {
-    GrokAuth {
+fn expired_oidc(base_url: &str) -> XaiAuth {
+    XaiAuth {
         key: "expired-at".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -76,7 +76,7 @@ fn expired_oidc(base_url: &str) -> GrokAuth {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.to_owned()),
         oidc_client_id: Some("client-under-test".into()),
-        ..GrokAuth::test_default()
+        ..XaiAuth::test_default()
     }
 }
 

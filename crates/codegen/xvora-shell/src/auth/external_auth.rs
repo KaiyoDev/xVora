@@ -1,4 +1,4 @@
-use crate::auth::{AuthMode, GrokAuth};
+use crate::auth::{AuthMode, XaiAuth};
 
 #[derive(serde::Deserialize)]
 pub(crate) struct ExternalAuthOutput {
@@ -8,13 +8,13 @@ pub(crate) struct ExternalAuthOutput {
     #[serde(default)]
     pub expires_in: Option<u64>,
     /// Token issuer. An xAI issuer marks the credential as first-party;
-    /// see [`GrokAuth::is_xai_auth`].
+    /// see [`XaiAuth::is_xai_auth`].
     #[serde(default)]
     pub issuer: Option<String>,
 }
 
-/// Parse process output (stdout) into a `GrokAuth`. Accepts bare token or JSON.
-pub(crate) fn parse_output(output: &std::process::Output) -> anyhow::Result<GrokAuth> {
+/// Parse process output (stdout) into a `XaiAuth`. Accepts bare token or JSON.
+pub(crate) fn parse_output(output: &std::process::Output) -> anyhow::Result<XaiAuth> {
     if !output.status.success() {
         anyhow::bail!("exited with {}", output.status);
     }
@@ -53,7 +53,7 @@ pub(crate) fn parse_output(output: &std::process::Output) -> anyhow::Result<Grok
             (stdout, None, None, None)
         };
 
-    Ok(GrokAuth {
+    Ok(XaiAuth {
         key: token,
         auth_mode: AuthMode::External,
         create_time: chrono::Utc::now(),
@@ -82,7 +82,7 @@ pub(crate) fn parse_output(output: &std::process::Output) -> anyhow::Result<Grok
 }
 
 /// Sync version for mid-session refresh. 5s timeout for refresh, 60s for initial.
-pub(crate) fn run_external_auth_sync(command: &str, is_refresh: bool) -> Option<GrokAuth> {
+pub(crate) fn run_external_auth_sync(command: &str, is_refresh: bool) -> Option<XaiAuth> {
     use std::process::{Command, Stdio};
 
     let timeout_secs = if is_refresh { 5 } else { 60 };
@@ -153,7 +153,7 @@ pub(crate) fn run_external_auth_sync(command: &str, is_refresh: bool) -> Option<
 }
 
 /// Run external auth provider, carrying forward `/user`-derived fields from previous auth.
-pub(crate) fn refresh_with_command(command: &str, prev_auth: &GrokAuth) -> Option<GrokAuth> {
+pub(crate) fn refresh_with_command(command: &str, prev_auth: &XaiAuth) -> Option<XaiAuth> {
     let mut auth = run_external_auth_sync(command, true)?;
     auth.carry_user_profile_from(prev_auth);
     Some(auth)
@@ -247,12 +247,12 @@ mod tests {
 
     #[test]
     fn refresh_carries_zdr_flags_forward() {
-        let prev = GrokAuth {
+        let prev = XaiAuth {
             user_blocked_reason: Some("BLOCKED_REASON_OTHER".into()),
             team_blocked_reasons: vec!["BLOCKED_REASON_NO_LOGS".into()],
             coding_data_retention_opt_out: true,
             organization_id: Some("org-1".into()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         };
         let auth = refresh_with_command("echo fresh-token", &prev).unwrap();
         assert_eq!(auth.key, "fresh-token");

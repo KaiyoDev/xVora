@@ -4,7 +4,7 @@
 //! connection to the grok.com relay server with automatic reconnection.
 //! It is used by both `run_headless` and `run_leader` modes to avoid code duplication.
 use super::proxy;
-use crate::auth::{GrokAuth, GrokComConfig};
+use crate::auth::{XaiAuth, GrokComConfig};
 use crate::{teprintln, tprintln};
 use futures_util::{SinkExt as _, StreamExt as _};
 use std::sync::Arc;
@@ -53,7 +53,7 @@ pub struct RelayConfig {
     ws_url: String,
     ws_origin: String,
     token_header: String,
-    auth: GrokAuth,
+    auth: XaiAuth,
     auth_manager: Option<Arc<AuthManager>>,
 }
 impl RelayConfig {
@@ -63,7 +63,7 @@ impl RelayConfig {
     /// third-party external providers), and deprecated WebLogin get `None`
     /// (relay-off; the leader still serves clients over IPC).
     pub(crate) fn for_session(
-        session: &GrokAuth,
+        session: &XaiAuth,
         ctx: &GrokComConfig,
         alpha_test_key: Option<String>,
         auth_manager: Option<Arc<AuthManager>>,
@@ -768,62 +768,62 @@ mod tests {
         .expect("session should not error");
         assert_eq!(result, SessionEndReason::Normal);
     }
-    /// Helper to create a test GrokAuth with the given key.
-    fn test_auth(key: &str) -> GrokAuth {
-        GrokAuth {
+    /// Helper to create a test XaiAuth with the given key.
+    fn test_auth(key: &str) -> XaiAuth {
+        XaiAuth {
             key: key.to_string(),
             refresh_token: Some("rt".to_string()),
-            ..GrokAuth::test_default()
+            ..XaiAuth::test_default()
         }
     }
     #[test]
     fn for_session_builds_only_for_xai_issuer() {
         use crate::auth::XAI_OAUTH2_ISSUER;
         let cfg = GrokComConfig::default();
-        let builds = |a: &GrokAuth| RelayConfig::for_session(a, &cfg, None, None).is_some();
-        let xai = GrokAuth {
+        let builds = |a: &XaiAuth| RelayConfig::for_session(a, &cfg, None, None).is_some();
+        let xai = XaiAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             ..test_auth("xai-bearer")
         };
         assert!(xai.is_xai_auth(), "precondition: is_xai_auth");
         assert!(builds(&xai));
-        let external_xai = GrokAuth {
+        let external_xai = XaiAuth {
             auth_mode: AuthMode::External,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             ..test_auth("ext-bearer")
         };
         assert!(external_xai.is_xai_auth(), "precondition: is_xai_auth");
         assert!(builds(&external_xai));
-        assert!(!builds(&GrokAuth {
+        assert!(!builds(&XaiAuth {
             key: String::new(),
             ..xai.clone()
         }));
-        assert!(!builds(&GrokAuth {
+        assert!(!builds(&XaiAuth {
             auth_mode: AuthMode::ApiKey,
             ..test_auth("k")
         }));
-        assert!(!builds(&GrokAuth {
+        assert!(!builds(&XaiAuth {
             auth_mode: AuthMode::External,
             ..test_auth("k")
         }));
-        assert!(!builds(&GrokAuth {
+        assert!(!builds(&XaiAuth {
             auth_mode: AuthMode::WebLogin,
             ..test_auth("k")
         }));
-        assert!(!builds(&GrokAuth {
+        assert!(!builds(&XaiAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some("https://login.acme-corp.example/oauth2".to_string()),
             ..test_auth("k")
         }));
-        assert!(!builds(&GrokAuth {
+        assert!(!builds(&XaiAuth {
             auth_mode: AuthMode::External,
             oidc_issuer: Some("https://login.acme-corp.example/oauth2".to_string()),
             ..test_auth("k")
         }));
     }
-    /// Helper: write a GrokAuth to disk under the given scope.
-    fn write_test_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &GrokAuth) {
+    /// Helper: write a XaiAuth to disk under the given scope.
+    fn write_test_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &XaiAuth) {
         let path = dir.join("auth.json");
         let mut map = crate::auth::read_auth_json(&path).unwrap_or_default();
         map.insert(scope.to_owned(), auth.clone());
@@ -852,13 +852,13 @@ mod tests {
                 _reason: crate::auth::manager::RefreshReason,
             ) -> RefreshOutcome {
                 self.calls.fetch_add(1, Ordering::SeqCst);
-                RefreshOutcome::Success(Box::new(GrokAuth {
+                RefreshOutcome::Success(Box::new(XaiAuth {
                     key: "fresh-from-authority".into(),
                     auth_mode: AuthMode::Oidc,
                     oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
                     refresh_token: Some("rt-rotated".into()),
                     expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-                    ..GrokAuth::test_default()
+                    ..XaiAuth::test_default()
                 }))
             }
         }
@@ -868,7 +868,7 @@ mod tests {
         let am = Arc::new(
             AuthManager::new(dir.path(), cfg.clone()).with_proxy_base_url("http://127.0.0.1:1"),
         );
-        let expired_session = GrokAuth {
+        let expired_session = XaiAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             refresh_token: Some("rt-valid-unconsumed".into()),
@@ -918,7 +918,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cfg = crate::auth::GrokComConfig::default();
         let am = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
-        let fresh_session = GrokAuth {
+        let fresh_session = XaiAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             refresh_token: Some("rt-valid".into()),
