@@ -4514,12 +4514,21 @@ pub fn is_xai_provider_model(model: &ModelEntry) -> bool {
     model_provider_id(model) == PROVIDER_XAI
 }
 
+/// Whether xAI OAuth / `XAI_API_KEY` may be attached for this model.
+///
+/// Requires both: catalog `provider == xai` **and** a first-party xAI host on
+/// the URL that would receive the credential. Prevents a mis-tagged
+/// `provider = "xai"` model on `api.openai.com` from sending an xAI JWT.
+fn allows_xai_credential_fallthrough(model: &ModelEntry, for_url: &str) -> bool {
+    is_xai_provider_model(model) && is_first_party_xai_url(for_url)
+}
+
 /// Resolve credentials for a model.
 ///
 /// Priority:
 /// 1. Model `api_key` / `env_key` (BYOK — any provider)
-/// 2. **xAI provider only:** session token (OAuth), then `XAI_API_KEY`
-/// 3. Non-xAI without own credentials → no key (do not send xAI JWT to OpenAI/Ollama)
+/// 2. **xAI provider + first-party host only:** session token (OAuth), then `XAI_API_KEY`
+/// 3. Otherwise → no key (do not send xAI JWT to OpenAI/Ollama)
 ///
 /// When `env_key` lists multiple names, the first set non-empty value is used.
 pub fn resolve_credentials(model: &ModelEntry, session_key: Option<&str>) -> ResolvedCredentials {
@@ -4531,50 +4540,43 @@ pub fn resolve_credentials(model: &ModelEntry, session_key: Option<&str>) -> Res
             info.base_url.clone(),
             chat_state::AuthType::ApiKey,
         )
-    } else if provider == PROVIDER_XAI {
-        // xAI provider: OAuth session then global XAI_API_KEY.
-        if let Some(key) = session_key {
-            (
-                Some(key.to_owned()),
-                info.base_url.clone(),
-                chat_state::AuthType::SessionToken,
-            )
-        } else if let Ok(key) = crate::agent::auth_method::read_xai_api_key_env() {
-            let url = model
-                .api_base_url
-                .clone()
-                .unwrap_or_else(|| info.base_url.clone());
+    } else if let Some(key) = session_key
+        .filter(|_| allows_xai_credential_fallthrough(model, &info.base_url))
+    {
+        (
+            Some(key.to_owned()),
+            info.base_url.clone(),
+            chat_state::AuthType::SessionToken,
+        )
+    } else if let Ok(key) = crate::agent::auth_method::read_xai_api_key_env() {
+        let url = model
+            .api_base_url
+            .clone()
+            .unwrap_or_else(|| info.base_url.clone());
+        if allows_xai_credential_fallthrough(model, &url) {
             (Some(key), url, chat_state::AuthType::ApiKey)
         } else {
-            if let Some(ref env_keys) = model.env_key
-                && !env_keys.is_empty()
-            {
-                tracing::warn!(
-                    model = % info.model, env_key = % env_keys,
-                    "model has env_key configured but none of the environment variables are set — \
-                     requests will have no API key",
+            if provider != PROVIDER_XAI {
+                tracing::debug!(
+                    model = % info.model, provider = % provider,
+                    "skipping XAI_API_KEY fallthrough for non-xAI provider"
+                );
+            } else {
+                tracing::debug!(
+                    model = % info.model, base_url = % url,
+                    "skipping XAI_API_KEY fallthrough: host is not first-party xAI"
                 );
             }
-            (
-                None,
-                info.base_url.clone(),
-                chat_state::AuthType::ApiKey,
-            )
+            (None, info.base_url.clone(), chat_state::AuthType::ApiKey)
         }
     } else {
-        // Non-xAI provider: never fall through to xAI session / XAI_API_KEY.
         if let Some(ref env_keys) = model.env_key
             && !env_keys.is_empty()
         {
             tracing::warn!(
                 model = % info.model, provider = % provider, env_key = % env_keys,
-                "non-xAI model has env_key configured but none of the environment variables are set — \
-                 requests will have no API key (xAI session credentials are not used)",
-            );
-        } else {
-            tracing::debug!(
-                model = % info.model, provider = % provider,
-                "non-xAI model has no BYOK credentials; skipping xAI session fallthrough"
+                "model has env_key configured but none of the environment variables are set — \
+                 requests will have no API key",
             );
         }
         (
@@ -6025,6 +6027,31 @@ reasoning_effort = "low"
         assert_eq!(
             creds.api_key, None,
             "must not send xAI OAuth/API key to a non-xAI provider"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn resolve_credentials_rejects_xai_tag_on_non_first_party_host() {
+        use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
+        use chat_state::AuthType;
+        use xvora_test_support::EnvGuard;
+        let _global = EnvGuard::set(XAI_API_KEY_ENV_VAR, "xai-should-not-leak");
+        let _legacy = EnvGuard::unset(LEGACY_XAI_API_KEY_ENV_VAR);
+        // Mis-tagged: provider=xai but base_url is OpenAI.
+        let mut bad = test_model_entry(
+            "spoof",
+            "https://api.openai.com/v1",
+            None,
+            None,
+            None,
+        );
+        bad.info.provider = Some(PROVIDER_XAI.into());
+        let creds = resolve_credentials(&bad, Some("xai-session-jwt"));
+        assert_eq!(creds.auth_type, AuthType::ApiKey);
+        assert_eq!(
+            creds.api_key, None,
+            "must not attach xAI credentials to a non-first-party host"
         );
     }
     /// Regression: BYOK env-var auth must stay ApiKey even when signed in,

@@ -120,6 +120,9 @@ pub fn dynamic_enum_choices(
                 description: "Inherit the default model (no per-user override).".to_string(),
             });
             for (name, _id) in &snapshot.available_models {
+                // Display label doubles as choice key (matches
+                // `current_model_name` / multi-provider `provider · name`).
+                // Commit path resolves label → ModelId via `resolve_model_name`.
                 out.push(OwnedEnumChoice {
                     canonical: name.clone(),
                     display: name.clone(),
@@ -370,16 +373,35 @@ impl PagerLocalSnapshot {
     }
 
     /// Resolve a user-supplied name to a `ModelId` via the snapshot.
-    /// Case-insensitive ASCII match against display names only (ids
-    /// aren't carried in the snapshot's primary key — callers needing
-    /// id-based resolution should reach for `ModelState::resolve_by_name_or_id`).
+    ///
+    /// Match order (case-insensitive):
+    /// 1. Full display label (`openai · GPT-4o` when multi-provider)
+    /// 2. Catalog / ACP model id
+    /// 3. Bare name after a ` · ` provider prefix on the display label
     pub fn resolve_model_name(&self, query: &str) -> Option<acp::ModelId> {
+        let q = query.trim();
+        if q.is_empty() {
+            return None;
+        }
+        // Exact display label (includes multi-provider prefix).
+        if let Some(id) = self.available_models.iter().find_map(|(name, id)| {
+            name.eq_ignore_ascii_case(q).then(|| id.clone())
+        }) {
+            return Some(id);
+        }
+        // Model id string.
+        if let Some(id) = self.available_models.iter().find_map(|(_, id)| {
+            id.0.eq_ignore_ascii_case(q).then(|| id.clone())
+        }) {
+            return Some(id);
+        }
+        // Bare display name without `provider · ` prefix.
         self.available_models.iter().find_map(|(name, id)| {
-            if name.eq_ignore_ascii_case(query) {
-                Some(id.clone())
-            } else {
-                None
-            }
+            let bare = name
+                .rsplit_once(" · ")
+                .map(|(_, rest)| rest)
+                .unwrap_or(name.as_str());
+            bare.eq_ignore_ascii_case(q).then(|| id.clone())
         })
     }
 }
