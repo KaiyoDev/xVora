@@ -8,31 +8,23 @@ You can use it interactively as a full-screen TUI, run it headlessly for scripti
 
 ## Installation
 
-Install the latest stable release (macOS, Linux, or Windows via Git Bash):
+**Open-source xVora** ships from [KaiyoDev/xVora](https://github.com/KaiyoDev/xVora) — not the xAI / grok-build CDN.
 
-```bash
-curl -fsSL https://x.ai/cli/install.sh | bash
-```
+### From GitHub (recommended)
 
-Install a specific version:
-
-```bash
-curl -fsSL https://x.ai/cli/install.sh | bash -s 0.1.42
-```
-
-On **Windows (PowerShell)**, use the native PowerShell installer:
+1. Open [Actions → CI](https://github.com/KaiyoDev/xVora/actions) (or [Releases](https://github.com/KaiyoDev/xVora/releases))
+2. Download artifact **`xvora-win-x64`** (`xvora.exe`) or the platform binary for your OS
+3. Place it on your `PATH`, or run it directly:
 
 ```powershell
-irm https://x.ai/cli/install.ps1 | iex
+.\xvora.exe --version
 ```
 
-Install a specific version:
+### From npm (if published)
 
-```powershell
-$env:XVORA_VERSION="0.1.42"; irm https://x.ai/cli/install.ps1 | iex
+```bash
+npm i -g @kaiyodev/xvora
 ```
-
-The PowerShell installer automatically adds `%USERPROFILE%\.grok\bin` to your User PATH. Alternatively, install via [Git for Windows](https://gitforwindows.org/) (Git Bash) or MSYS2 using the bash script above. WSL users get the Linux binary automatically.
 
 Verify the installation:
 

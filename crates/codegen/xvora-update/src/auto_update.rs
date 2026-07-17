@@ -25,21 +25,21 @@ pub enum UpdateRunMode {
 
 const PROMPT_UPDATE_NOW: &str = "Update now? [Y/n/d]";
 const MSG_AUTO_UPDATE_BACKGROUND: &str = "Auto-update running in background.";
-const MSG_RUN_UPDATE_MANUAL: &str = "Run `grok update` to get the latest version.";
+const MSG_RUN_UPDATE_MANUAL: &str = "Run `xvora update` to get the latest version.";
 /// Manual-install one-liner for this platform's bootstrap installer.
 fn manual_install_cmd() -> &'static str {
     if cfg!(windows) {
-        "irm https://x.ai/cli/install.ps1 | iex"
+        "See https://github.com/KaiyoDev/xVora/releases (download xvora.exe)"
     } else {
-        "curl -fsSL https://x.ai/cli/install.sh | bash"
+        "See https://github.com/KaiyoDev/xVora/releases (download xvora binary)"
     }
 }
 
 /// Build a reinstall hint for a known installer type.
 fn reinstall_hint(installer: &str) -> String {
     match installer {
-        "npm" => "Please reinstall via npm:\n  npm i -g @kaiyodev/grok".to_string(),
-        "gh-release" => "Please reinstall via GitHub Releases:\n  gh release download --repo xai-org-shared/xvora --pattern 'grok-*' --output grok && chmod +x grok".to_string(),
+        "npm" => "Please reinstall via npm:\n  npm i -g @kaiyodev/xvora".to_string(),
+        "gh-release" => "Please reinstall via GitHub Releases:\n  gh release download --repo KaiyoDev/xVora --pattern 'xvora*' --dir .".to_string(),
         _ => format!("Please reinstall via:\n  {}", manual_install_cmd()),
     }
 }
@@ -483,8 +483,9 @@ pub async fn run_update_if_available(
         return Ok(false);
     }
 
-    // Resolve effective auto_update: None defaults to true (first-run).
-    let auto_update = current_config.cli.auto_update.unwrap_or(true);
+    // Resolve effective auto_update: OSS default is off (no xAI CDN); opt-in
+    // via Settings or `[cli].auto_update = true`.
+    let auto_update = current_config.cli.auto_update.unwrap_or(false);
 
     if current_config.cli.auto_update.is_none()
         && let Err(e) = config::update_config(|st| {
@@ -1901,11 +1902,11 @@ async fn gh_release_download(tag: &str, pattern: &str, dest: &std::path::Path) -
     Ok(())
 }
 
-/// Download and install grok from GitHub Releases (xai-org-shared/xvora).
+/// Download and install xvora from GitHub Releases (`KaiyoDev/xVora`).
 ///
 /// Uses `gh release download` to fetch the binary matching the current platform.
 /// This works anywhere the `gh` CLI is authenticated, without needing npm or
-/// internal network access.
+/// internal network access. Never pulls from x.ai / grok-build CDNs.
 async fn install_gh_release(target: Option<&str>) -> Result<()> {
     let (os, arch) = detect_platform()?;
     let platform = format!("{}-{}", os, arch);
@@ -1921,16 +1922,43 @@ async fn install_gh_release(target: Option<&str>) -> Result<()> {
     tokio::fs::create_dir_all(&download_dir).await?;
     tokio::fs::create_dir_all(&bin_dir).await?;
 
-    let binary_name = format!("grok-{}-{}", version, platform);
+    // Preferred asset names for OSS releases (CI / GitHub Releases).
+    // Fall back through a few patterns for compatibility.
+    let candidates = [
+        format!("xvora-{}-{}", version, platform),
+        format!("xvora-{}", platform),
+        format!("xvora-win-x64{}", if cfg!(windows) { ".exe" } else { "" }),
+        format!("xvora{}", if cfg!(windows) { ".exe" } else { "" }),
+    ];
+    let binary_name = candidates[0].clone();
     let binary_path = download_dir.join(&binary_name);
     let tag = format!("v{}", version);
 
     eprintln!(
-        "  Downloading grok v{} ({}) from GitHub Releases...",
+        "  Downloading xvora v{} ({}) from GitHub Releases (KaiyoDev/xVora)...",
         version, platform
     );
 
-    gh_release_download(&tag, &binary_name, &binary_path).await?;
+    // Try preferred name first; then alternate asset names if the release
+    // uses CI-style artifact names.
+    let mut last_err = None;
+    let mut downloaded = false;
+    for name in &candidates {
+        let dest = download_dir.join(name);
+        match gh_release_download(&tag, name, &dest).await {
+            Ok(()) => {
+                if dest != binary_path {
+                    tokio::fs::rename(&dest, &binary_path).await?;
+                }
+                downloaded = true;
+                break;
+            }
+            Err(e) => last_err = Some(e),
+        }
+    }
+    if !downloaded {
+        return Err(last_err.unwrap_or_else(|| anyhow::anyhow!("no matching release asset")));
+    }
 
     // chmod +x
     #[cfg(unix)]
@@ -1974,8 +2002,9 @@ async fn install_gh_release(target: Option<&str>) -> Result<()> {
     eprintln!();
 
     // Clean up old versioned binaries (keeps current + 1 previous).
-    cleanup_old_downloads(&download_dir, "grok", &version).await;
+    cleanup_old_downloads(&download_dir, "xvora", &version).await;
     cleanup_old_downloads(&download_dir, "xvora-pager", &version).await;
+    cleanup_old_downloads(&download_dir, "grok", &version).await;
 
     // Persist installer to config.toml so future runs auto-detect gh-release.
     let _ = config::update_config(|st| {
@@ -2072,7 +2101,7 @@ fn install_npm(target: Option<&str>, channel: &str, npm_registry: Option<&str>) 
     warn_if_other_grok_processes_running();
 
     let version_arg = match target {
-        Some(ver) => format!("@kaiyodev/grok@{ver}"),
+        Some(ver) => format!("@kaiyodev/xvora@{ver}"),
         None => {
             // All current callers resolve the version via get_latest_version
             // (which applies max(stable, alpha) for the alpha channel) before
@@ -2083,7 +2112,7 @@ fn install_npm(target: Option<&str>, channel: &str, npm_registry: Option<&str>) 
                 "install_npm called without a resolved version, falling back to dist-tag"
             );
             format!(
-                "@kaiyodev/grok@{}",
+                "@kaiyodev/xvora@{}",
                 if channel == "alpha" {
                     "alpha"
                 } else {
@@ -3227,27 +3256,22 @@ mod tests {
             "should suggest gh release download: {hint}"
         );
         assert!(
-            hint.contains("xai-org-shared/xvora"),
-            "should name the repo: {hint}"
+            hint.contains("KaiyoDev/xVora"),
+            "should name the OSS repo: {hint}"
         );
     }
 
     #[test]
     fn test_reinstall_hint_internal_mentions_platform_installer() {
         let hint = reinstall_hint("internal");
-        if cfg!(windows) {
-            assert!(hint.contains("irm"), "should suggest irm install: {hint}");
-            assert!(
-                hint.contains("install.ps1"),
-                "should reference install.ps1: {hint}"
-            );
-        } else {
-            assert!(hint.contains("curl"), "should suggest curl install: {hint}");
-            assert!(
-                hint.contains("install.sh"),
-                "should reference install.sh: {hint}"
-            );
-        }
+        assert!(
+            hint.contains("KaiyoDev/xVora"),
+            "OSS reinstall should point at GitHub Releases: {hint}"
+        );
+        assert!(
+            hint.contains("releases"),
+            "should mention releases: {hint}"
+        );
     }
 
     #[test]
@@ -3967,7 +3991,7 @@ mod tests {
         );
         assert_eq!(
             MSG_RUN_UPDATE_MANUAL,
-            "Run `grok update` to get the latest version."
+            "Run `xvora update` to get the latest version."
         );
     }
 

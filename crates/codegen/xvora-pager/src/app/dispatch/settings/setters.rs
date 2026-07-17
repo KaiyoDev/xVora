@@ -1935,7 +1935,7 @@ pub(super) fn pr13_effective_default(key: &str) -> Option<bool> {
     use xvora_tools::implementations::xvora::ask_user_question;
     match key {
         "show_tips" => Some(true),
-        "auto_update" => Some(true),
+        "auto_update" => Some(false),
         "toolset.ask_user_question.timeout_enabled" => {
             Some(ask_user_question::DEFAULT_ASK_USER_QUESTION_TIMEOUT_ENABLED)
         }

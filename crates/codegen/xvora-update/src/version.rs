@@ -11,16 +11,20 @@ use xvora_shell::util::xvora_home::xvora_home;
 
 const TTL_SECONDS_BEFORE_AUTO_UPDATE: Duration = Duration::from_secs(60 * 30);
 const NPM_PACKAGE: &str = "@kaiyodev/xvora";
-pub const GH_RELEASE_REPO: &str = "xai-org-shared/xvora";
+/// GitHub Releases repo for open-source xVora (KaiyoDev fork).
+/// Not xAI / grok-build — updates must never pull from those hosts.
+pub const GH_RELEASE_REPO: &str = "KaiyoDev/xVora";
 
-/// Primary CLI base URL: Cloudflare-fronted x.ai endpoint with edge caching
-/// for binaries and origin-respecting no-cache for channel pointers.
-pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://x.ai/cli";
+/// Primary CLI base URL for channel pointers + artifacts.
+/// OSS: GitHub Releases API is the source of truth via `gh-release` installer;
+/// this constant is only used by the legacy "internal" CDN path (disabled for
+/// production OSS installs — leave as a no-op placeholder that fails closed).
+pub(crate) const CLI_BASE_URL_PRIMARY: &str =
+    "https://github.com/KaiyoDev/xVora/releases/latest/download";
 
-/// Fallback CLI base URL: direct GCS, used when the primary is unreachable
-/// (Cloudflare outage, regional CF egress issue, DNS hijack, etc.).
+/// Fallback CLI base URL (same host; kept for dual-try callers).
 pub(crate) const CLI_BASE_URL_FALLBACK: &str =
-    "https://storage.googleapis.com/xvora-public-artifacts/cli";
+    "https://github.com/KaiyoDev/xVora/releases/download";
 
 /// CLI base URLs in preference order. Callers (channel-pointer fetch, binary
 /// download, in-app updater) try each in turn and stop at the first success.

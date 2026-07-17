@@ -8,7 +8,9 @@ Use it interactively as a TUI, or integrate it into your own apps via headless m
 
 ```bash
 # Install
-curl -fsSL https://x.ai/cli/install.sh | bash
+# See GitHub Releases: https://github.com/KaiyoDev/xVora/releases
+# CI artifact: Actions → xvora-win-x64 / platform binaries
+
 
 # Interactive TUI
 xvora
@@ -59,10 +61,14 @@ xvora agent stdio
 
 ```bash
 # Install latest stable
-curl -fsSL https://x.ai/cli/install.sh | bash
+# See GitHub Releases: https://github.com/KaiyoDev/xVora/releases
+# CI artifact: Actions → xvora-win-x64 / platform binaries
+
 
 # Install a specific version
-curl -fsSL https://x.ai/cli/install.sh | bash -s 0.1.42
+# See GitHub Releases: https://github.com/KaiyoDev/xVora/releases
+# CI artifact: Actions → xvora-win-x64 / platform binaries
+ -s 0.1.42
 ```
 
 Verify installation:
@@ -81,34 +87,23 @@ xvora update
 
 ## Authentication
 
-### Browser Login (Default)
+### BYOK-first (recommended)
 
-On first launch, Grok opens your browser to authenticate with grok.com:
+xVora does **not** require xAI / grok.com login. Configure models in
+`~/.xvora/config.toml` (OpenAI, Ollama, OpenRouter, …) or set API keys:
 
 ```bash
-grok
+export XAI_API_KEY="xai-..."   # optional, for xAI models only
+xvora
 ```
 
-Credentials are stored in `~/.xvora/auth.json` and persist across sessions. Tokens expire after 7 days; Grok will prompt you to re-authenticate when needed.
-
-### Re-authenticate
-
-To switch accounts or fix authentication issues:
+### Optional OAuth login
 
 ```bash
 xvora login
 ```
 
-### API Key
-
-For CI/CD, automation, or environments without browser access, use an API key from [console.x.ai](https://console.x.ai):
-
-```bash
-export XAI_API_KEY="xai-..."
-grok
-```
-
-The API key takes precedence over browser credentials.
+Optional credentials may be stored in `~/.xvora/auth.json`.
 
 ### OIDC (Customer SSO)
 

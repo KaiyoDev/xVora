@@ -1,18 +1,27 @@
 //! Changelog fetching from CDN with local disk cache.
 //!
 //! Both markdown (`*.external.md`) and JSON (`*.external.json`) changelogs
-//! are published per-version to the CDN at `x.ai/cli/changelogs/`.
+//! may be published per-version. Open-source xVora does **not** fetch from
+//! the xAI/Grok CDN; optional remote base is GitHub raw (or env override).
 //!
 //! `ChangelogManager::fetch()` retrieves both formats in parallel and
 //! returns a `Changelog` with optional markdown + structured entries.
 //! Consumers pick the format they need:
 //! - `/release-notes` uses `changelog.markdown` for rich scrollback display
 //! - Welcome screen uses `changelog.entries` for bullet rendering
+//!
+//! When remote is unavailable, disk cache under `$XVORA_HOME` is used; the
+//! pager falls back to product default bullets when empty/dummy.
 
 use std::path::PathBuf;
 
-/// CDN base for all changelogs (proxies to GCS, cache-friendly).
-const CHANGELOG_BASE: &str = "https://x.ai/cli/changelogs";
+/// Changelog base URL for OSS. Override with `XVORA_CHANGELOG_BASE`.
+/// Empty remote failures are fine — welcome uses i18n defaults.
+fn changelog_base() -> String {
+    std::env::var("XVORA_CHANGELOG_BASE").unwrap_or_else(|_| {
+        "https://raw.githubusercontent.com/KaiyoDev/xVora/main/changelogs".to_string()
+    })
+}
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
 /// A single structured changelog entry from the published JSON changelog.
@@ -101,7 +110,8 @@ impl ChangelogManager {
     pub fn fetch(&self) -> Changelog {
         // Always re-resolve from env so a caller holding an older manager
         // (or OnceLock lag) still reads the live harness home.
-        Self::from_env_home().fetch_with(changelog_offline(), CHANGELOG_BASE)
+        let base = changelog_base();
+        Self::from_env_home().fetch_with(changelog_offline(), &base)
     }
 
     /// Fetch using this manager's already-resolved cache paths, an explicit
@@ -281,7 +291,7 @@ mod tests {
         .unwrap();
 
         // Offline path: read only the seeded disk cache, no network.
-        let changelog = manager_for(&home).fetch_with(true, CHANGELOG_BASE);
+        let changelog = manager_for(&home).fetch_with(true, &changelog_base());
         assert_eq!(
             changelog.markdown.as_deref(),
             Some("# seeded offline md\n"),

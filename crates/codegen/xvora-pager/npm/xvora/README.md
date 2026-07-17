@@ -1,36 +1,28 @@
 # Xvora
 
-Bring Xvora into your terminal. Fast, flicker-free CLI built for plans, subagents, and parallel work.
+Bring xVora into your terminal. Fast, flicker-free CLI built for plans, subagents, and parallel work.
 
-**[Homepage](https://x.ai/cli)** | **[Documentation](https://docs.x.ai/build/overview)**
+**[GitHub](https://github.com/KaiyoDev/xVora)** | **[Releases](https://github.com/KaiyoDev/xVora/releases)**
 
 ## Install
-
-```bash
-curl -fsSL https://x.ai/cli/install.sh | bash
-```
-
-Or install with npm:
 
 ```bash
 npm i -g @kaiyodev/xvora
 ```
 
+Or download a binary from [GitHub Releases / CI artifacts](https://github.com/KaiyoDev/xVora/releases).
+
 ## Get Started
 
 ```bash
 # Launch the interactive TUI
-grok
+xvora
 
 # Run a single task
 xvora -p "Explain this codebase"
 ```
 
-On first launch, xVora opens your browser to authenticate. For CI or headless environments, use an API key from [console.x.ai](https://console.x.ai):
-
-```bash
-export XAI_API_KEY="xai-..."
-```
+xVora is **BYOK-first** — no forced xAI login. Configure models in `~/.xvora/config.toml` or set provider API keys (e.g. `XAI_API_KEY`, `OPENAI_API_KEY`).
 
 ## Update
 
@@ -38,24 +30,4 @@ export XAI_API_KEY="xai-..."
 xvora update
 ```
 
-Or if installed via npm:
-
-```bash
-npm i -g @kaiyodev/xvora@latest
-```
-
-## Supported Platforms
-
-| Platform | Architecture |
-|---|---|
-| macOS | Apple Silicon (arm64) |
-| Linux | x86_64, arm64 |
-| Windows | x86_64 |
-
-## Documentation
-
-For full documentation including configuration, MCP servers, custom models, headless mode, agent mode, and more, visit [docs.x.ai/build/overview](https://docs.x.ai/build/overview).
-
-## Feedback
-
-Run `/feedback` inside xVora to report issues or send feedback directly.
+Updates resolve from **GitHub Releases** (`KaiyoDev/xVora`), not x.ai/cli.

@@ -120,7 +120,7 @@ fn shine_opacity(diag: f32, secs: f32) -> f32 {
     (pulse + SHINE * shine).clamp(0.0, 1.0)
 }
 
-fn render_into(area: Rect, buf: &mut Buffer, theme: &Theme, logo: &str) {
+fn render_into(area: Rect, buf: &mut Buffer, _theme: &Theme, logo: &str) {
     let lines: Vec<&str> = non_empty_lines(logo).collect();
     let rows = lines.len().max(1) as f32;
     let cols = lines
@@ -131,12 +131,11 @@ fn render_into(area: Rect, buf: &mut Buffer, theme: &Theme, logo: &str) {
         .max(1) as f32;
     let secs = anim_phase_secs();
 
-    // Blend each glyph from the resting gray toward the bright text color by its
-    // shine opacity, so a sheen sweeps across the braille art. Adjacent glyphs
-    // that land on the same blended color share one Span to hold down the
-    // per-frame allocation.
-    let base = theme.gray;
-    let hilite = theme.text_primary;
+    // Brand orange (assets/logo.png mark) as resting color; shimmer toward
+    // brighter peach so the X-mark matches the KaiyoDev brand board.
+    // Adjacent glyphs that land on the same blended color share one Span.
+    let base = Color::Rgb(0xF0, 0x6A, 0x28); // warm orange from xVora mark
+    let hilite = Color::Rgb(0xFF, 0xB0, 0x70);
     let logo_lines: Vec<Line> = lines
         .iter()
         .enumerate()
