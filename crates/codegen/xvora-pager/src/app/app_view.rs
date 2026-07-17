@@ -3176,13 +3176,18 @@ fn handle_welcome_input(ev: &Event, ctx: &mut WelcomeInputCtx<'_>) -> InputOutco
                 }
             }
         }
-        if !*ctx.prompt_focused && matches!(ctx.auth_state, AuthState::Done) {
+        if matches!(ctx.auth_state, AuthState::Done) {
+            // Arrow navigation always moves the menu (even if the prompt was
+            // focused — otherwise hover-select + keyboard feels broken).
             if let Some(outcome) = handle_menu_nav(key, ctx.menu_index, ctx.menu_count) {
+                *ctx.prompt_focused = false;
                 return outcome;
             }
+            // Enter activates the highlighted menu row (Quit / Changelog / …).
             if key!(Enter).matches(key)
                 && let Some(idx) = *ctx.menu_index
             {
+                *ctx.prompt_focused = false;
                 return dispatch_menu_action(
                     idx,
                     ctx.has_claude_import,
@@ -3190,7 +3195,7 @@ fn handle_welcome_input(ev: &Event, ctx: &mut WelcomeInputCtx<'_>) -> InputOutco
                     ctx.changelog_markdown.as_deref(),
                 );
             }
-            if crate::input::key::is_text_input_key(key) {
+            if !*ctx.prompt_focused && crate::input::key::is_text_input_key(key) {
                 *ctx.prompt_focused = true;
                 *ctx.menu_index = None;
                 return InputOutcome::ActionThenForward(Action::NewSession);

@@ -1140,7 +1140,7 @@ pub fn render_doc_viewer_overlay(
     compact: bool,
     theme: &Theme,
 ) {
-    use ratatui::widgets::{Paragraph, Widget, Wrap};
+    use ratatui::widgets::{Paragraph, Widget};
     let doc_shortcuts = vec![
         super::modal_window::Shortcut {
             label: "\u{2191}/\u{2193} scroll",
@@ -1195,7 +1195,10 @@ pub fn render_doc_viewer_overlay(
             .take(content_area.height as usize)
             .cloned()
             .collect();
-        let para = Paragraph::new(visible).wrap(Wrap { trim: false });
+        // MarkdownContent.output(w) already wraps to the content width. Applying
+        // Paragraph::wrap again reflows pre-wrapped Lines and produces the
+        // garble users see on Release Notes (mid-word splits, bleed, overlap).
+        let para = Paragraph::new(visible);
         para.render(content_area, buf);
     }
 }
