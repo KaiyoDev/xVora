@@ -71,13 +71,7 @@ pub(crate) fn refresh_open_settings_modals(app: &mut AppView) {
                 yolo_mode: agent.session.is_yolo(),
                 auto_mode: agent.session.is_auto(),
                 current_model_name: agent.session.models.current_model_name(),
-                available_models: agent
-                    .session
-                    .models
-                    .available
-                    .iter()
-                    .map(|(id, info)| (info.name.clone(), id.clone()))
-                    .collect(),
+                available_models: agent.session.models.available_display_pairs(),
                 coding_data_sharing_opt_out: coding_data_sharing_opt_out_from_app,
                 // Prefer optimistic pending over confirmed active.
                 plan_mode_active: agent.plan_mode_pending.unwrap_or(agent.plan_mode_active),
@@ -184,13 +178,7 @@ pub(in crate::app::dispatch) fn dispatch_open_settings(app: &mut AppView) -> Vec
         yolo_mode: agent.session.is_yolo(),
         auto_mode: agent.session.is_auto(),
         current_model_name: agent.session.models.current_model_name(),
-        available_models: agent
-            .session
-            .models
-            .available
-            .iter()
-            .map(|(id, info)| (info.name.clone(), id.clone()))
-            .collect(),
+        available_models: agent.session.models.available_display_pairs(),
         coding_data_sharing_opt_out: coding_data_sharing_opt_out_from_app,
         // Prefer optimistic pending over confirmed active.
         plan_mode_active: agent.plan_mode_pending.unwrap_or(agent.plan_mode_active),
@@ -643,13 +631,7 @@ fn agent_available_models(app: &AppView) -> Vec<(String, acp::ModelId)> {
     if let ActiveView::Agent(id) = app.active_view
         && let Some(agent) = app.agents.get(&id)
     {
-        return agent
-            .session
-            .models
-            .available
-            .iter()
-            .map(|(id, info)| (info.name.clone(), id.clone()))
-            .collect();
+        return agent.session.models.available_display_pairs();
     }
     Vec::new()
 }

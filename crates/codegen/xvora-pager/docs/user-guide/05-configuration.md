@@ -255,9 +255,9 @@ client_id = "0oa1b2c3d4e5f6g7h8i9"
 # audience = "https://api.acme.com"
 ```
 
-### Custom Models
+### Custom Models (providers)
 
-Add custom model endpoints to use alternative providers or self-hosted models.
+xVora is multi-provider. Each model has a `provider` id (`xai`, `openai`, `ollama`, `custom`, …) — explicit or inferred from `base_url`. **xAI is one provider**, not the whole product.
 
 ```toml
 [model.my-model]
@@ -265,17 +265,23 @@ model = "model-id"                    # model identifier sent to API
 base_url = "https://api.example.com/v1"  # OpenAI-compatible endpoint
 name = "Display Name"                 # shown in model picker
 description = "Model description"     # optional
+provider = "custom"                   # optional; inferred when omitted
 api_key = "sk-..."                    # API key for this provider
-env_key = "XAI_API_KEY"               # env var(s) holding the API key; string or array (first set, non-empty wins)
+env_key = "MY_PROVIDER_KEY"           # env var(s); string or array (first set, non-empty wins)
 temperature = 0.7                     # sampling temperature (0.0-2.0)
 top_p = 0.95                          # nucleus sampling parameter
 max_completion_tokens = 8192          # max tokens per response
 context_window = 128000               # context window size (for auto-compact)
 ```
 
-Credential resolution: `api_key` > `env_key` > signed-in session token > `XAI_API_KEY`.
+Credential resolution:
 
-Override built-in models by using their name as the section key:
+1. Model `api_key` / `env_key` (any provider)
+2. **xAI provider only:** session token (`xvora login`), then global `XAI_API_KEY`
+
+Non-xAI models never fall through to xAI OAuth or `XAI_API_KEY`. Full guide: [Providers & custom models](11-custom-models.md).
+
+Override built-in xAI models by using their name as the section key:
 
 ```toml
 [model.xvora]

@@ -64,11 +64,50 @@ impl ModelState {
         self.available.is_empty()
     }
 
-    /// Display name for the current model.
+    /// Provider id from ACP meta (`provider`), defaulting to `"custom"`.
+    pub fn provider_of(info: &acp::ModelInfo) -> &str {
+        info.meta
+            .as_ref()
+            .and_then(|m| m.get("provider"))
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("custom")
+    }
+
+    /// True when the catalog spans more than one provider id.
+    pub fn is_multi_provider(&self) -> bool {
+        let mut seen = std::collections::BTreeSet::new();
+        for info in self.available.values() {
+            seen.insert(Self::provider_of(info));
+            if seen.len() > 1 {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Label for pickers/settings: `openai · GPT-4o` when multi-provider.
+    pub fn display_label_for(&self, info: &acp::ModelInfo) -> String {
+        if self.is_multi_provider() {
+            format!("{} · {}", Self::provider_of(info), info.name)
+        } else {
+            info.name.clone()
+        }
+    }
+
+    /// `(display_label, ModelId)` pairs for settings / dashboard model lists.
+    pub fn available_display_pairs(&self) -> Vec<(String, acp::ModelId)> {
+        self.available
+            .iter()
+            .map(|(id, info)| (self.display_label_for(info), id.clone()))
+            .collect()
+    }
+
+    /// Display name for the current model (includes provider prefix when multi).
     pub fn current_model_name(&self) -> Option<String> {
         let current = self.current.as_ref()?;
         if let Some(model_info) = self.available.get(current) {
-            Some(model_info.name.clone())
+            Some(self.display_label_for(model_info))
         } else {
             Some(current.0.to_string())
         }

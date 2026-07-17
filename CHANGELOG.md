@@ -27,6 +27,7 @@ All notable user-facing changes to **xVora** are documented here and in
 - System prompt identity is xVora by KaiyoDev (not Grok / xAI).
 - Settings Language picker (en / vi / auto) with full Vietnamese UI.
 - BYOK-first: no forced xAI OAuth splash; optional login only.
+- Multi-provider model catalog: xAI is one provider; /model shows `provider · name` when mixed.
 - Welcome logo from brand mark (braille + orange tint).
 - Per-version user changelog with auto Whats-new toast on upgrade.
 

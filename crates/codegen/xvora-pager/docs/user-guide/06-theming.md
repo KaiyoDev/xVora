@@ -6,7 +6,7 @@ Xvora draws all TUI colors from a central theme. You can switch themes while Xvo
 
 ## Available Themes
 
-Grok includes five built-in themes, plus an `auto` option that follows your system appearance:
+xVora includes five built-in themes, plus an `auto` option that follows your system appearance:
 
 | Theme | Config Names | Description | Truecolor Required |
 |-------|-------------|-------------|--------------------|
@@ -28,7 +28,7 @@ Theme names are case-insensitive. The `auto` option (alias `system`) is document
 
 ### In the TUI
 
-Run the `/theme` slash command (alias `/t`) to open the theme picker. As you move through the list with the arrow keys, Grok previews each theme in real time. Press Enter to apply and save your choice, or press Escape to revert.
+Run the `/theme` slash command (alias `/t`) to open the theme picker. As you move through the list with the arrow keys, xVora previews each theme in real time. Press Enter to apply and save your choice, or press Escape to revert.
 
 To switch without the picker, pass a name directly:
 
@@ -51,7 +51,7 @@ theme = "tokyonight"
 
 ## Auto Theme (System Appearance)
 
-Set `theme = "auto"` to have Grok follow your operating system's light/dark appearance and switch themes automatically:
+Set `theme = "auto"` to have xVora follow your operating system's light/dark appearance and switch themes automatically:
 
 ```toml
 [ui]
@@ -78,7 +78,7 @@ auto_light_theme = "xvoraday"
 | **Windows** | Reads the system personalization registry |
 | **SSH / headless** | Falls back to an OSC 11 terminal background query at startup |
 
-Once running, Grok polls for appearance changes every 5 seconds. Toggling your OS between light and dark mode takes effect within seconds without restarting.
+Once running, xVora polls for appearance changes every 5 seconds. Toggling your OS between light and dark mode takes effect within seconds without restarting.
 
 ### Via the Settings Pane
 
@@ -88,7 +88,7 @@ Run `/settings` (alias `/config`) and open the **Appearance** category to set th
 
 ## Color Support Detection
 
-On startup, Grok detects your terminal's color capability level:
+On startup, xVora detects your terminal's color capability level:
 
 | Level | Description | Detection |
 |-------|-------------|-----------|
@@ -96,13 +96,13 @@ On startup, Grok detects your terminal's color capability level:
 | **256-color** | Indexed palette. RGB values are mapped to the nearest palette entry. | Standard xterm-256color |
 | **16-color** | ANSI names only. Colors are mapped to the closest ANSI color. | Basic terminal support |
 
-When you set `NO_COLOR`, Grok emits no color and renders in monochrome.
+When you set `NO_COLOR`, xVora emits no color and renders in monochrome.
 
 Run `/terminal-setup` to see the detected level (`color` row) and which themes the picker offers on this terminal (`themes` row). When truecolor is missing, the issues section explains how to enable it (or that Terminal.app cannot).
 
 ### Automatic Quantization
 
-Every theme is defined using full RGB values. At startup, Grok quantizes all colors to match the detected capability level. This means:
+Every theme is defined using full RGB values. At startup, xVora quantizes all colors to match the detected capability level. This means:
 
 - On **truecolor** terminals, colors pass through unchanged.
 - On **256-color** terminals, each RGB value is mapped to the nearest indexed palette entry.
@@ -118,7 +118,7 @@ Colors generated at runtime (syntax highlighting, background blending) are also 
 
 ## Cursor Color
 
-Grok sets your terminal cursor to the current theme's `accent_user` color using the OSC 12 escape sequence, to indicate an active Grok session. The cursor color is:
+xVora sets your terminal cursor to the current theme's `accent_user` color using the OSC 12 escape sequence, to indicate an active xVora session. The cursor color is:
 
 - Applied on startup and on theme switch.
 - Reset to the terminal's default on exit via OSC 112.
@@ -143,13 +143,13 @@ Use compact mode on small screens to maximize content area.
 
 ## Syntax Highlighting
 
-Grok bundles three `.tmTheme` files for code-block syntax highlighting and selects one based on the active theme:
+xVora bundles three `.tmTheme` files for code-block syntax highlighting and selects one based on the active theme:
 
 - `xvora-night.tmTheme` -- XvoraNight, RosePineMoon, and OscuraMidnight
 - `xvora-day.tmTheme` -- XvoraDay
 - `tokyo-night.tmTheme` -- TokyoNight
 
-Grok selects the matching file automatically when you switch themes. The `.tmTheme` files are built into the binary, so you cannot replace them with your own.
+xVora selects the matching file automatically when you switch themes. The `.tmTheme` files are built into the binary, so you cannot replace them with your own.
 
 ---
 

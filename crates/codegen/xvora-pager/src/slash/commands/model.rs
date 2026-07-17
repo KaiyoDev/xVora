@@ -148,16 +148,6 @@ fn detect_effort_phase(models: &ModelState, args_query: &str) -> Option<acp::Mod
     None
 }
 
-/// Provider id from ACP model meta (set by shell `to_acp_model_info`).
-fn model_provider(info: &acp::ModelInfo) -> &str {
-    info.meta
-        .as_ref()
-        .and_then(|m| m.get("provider"))
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .unwrap_or("custom")
-}
-
 /// One row per logical model. Reasoning models get a trailing space in
 /// `insert_text` so the prompt widget chains into the effort sub-menu.
 ///
@@ -166,25 +156,14 @@ fn model_provider(info: &acp::ModelInfo) -> &str {
 /// among OpenAI / Ollama / custom — not the product default identity.
 fn build_model_items(models: &ModelState) -> Vec<ArgItem> {
     let current_id = models.current.as_ref();
-    let multi_provider = {
-        let mut seen = std::collections::BTreeSet::new();
-        for info in models.available.values() {
-            seen.insert(model_provider(info));
-        }
-        seen.len() > 1
-    };
+    let multi_provider = models.is_multi_provider();
 
     let mut items: Vec<ArgItem> = Vec::with_capacity(models.available.len());
     for (id, info) in &models.available {
         let is_current = current_id == Some(id);
         let supports = supports_reasoning_effort(info);
-        let provider = model_provider(info);
-
-        let base_name = if multi_provider {
-            format!("{provider} · {}", info.name)
-        } else {
-            info.name.clone()
-        };
+        let provider = ModelState::provider_of(info);
+        let base_name = models.display_label_for(info);
 
         let display = if is_current {
             format!("{base_name} (current)")

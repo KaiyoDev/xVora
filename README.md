@@ -92,7 +92,9 @@ Prefer BYOK first? Write `~/.xvora/config.toml` (below) **before** first launch 
 
 ---
 
-## BYOK / custom models
+## BYOK / custom models (multi-provider)
+
+xAI is **one provider** among others. Each `[model.*]` can set `provider` (or it is inferred from `base_url`). Non-xAI models never receive an xAI OAuth token — use per-model keys.
 
 ```toml
 # ~/.xvora/config.toml
@@ -107,6 +109,7 @@ api_key = "sk-..."                 # or: env_key = "OPENAI_API_KEY"
 api_backend = "chat_completions"   # chat_completions | responses | messages
 context_window = 128000
 name = "GPT-4o"
+provider = "openai"                # optional; inferred from base_url
 ```
 
 Local (e.g. Ollama):
@@ -119,9 +122,10 @@ default = "ollama"
 model = "llama3"
 base_url = "http://127.0.0.1:11434/v1"
 context_window = 128000
+provider = "ollama"
 ```
 
-If you set a custom model with credentials or a non-first-party `base_url`, xVora **skips subscription paywalls**.
+Pure BYOK setups skip subscription paywalls and forced xAI login. In the TUI, multi-provider catalogs show rows as `provider · Name` (`/model`, Ctrl+M).
 
 Guide: [`crates/codegen/xvora-pager/docs/user-guide/11-custom-models.md`](crates/codegen/xvora-pager/docs/user-guide/11-custom-models.md)
 
