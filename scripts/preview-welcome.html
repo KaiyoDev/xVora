@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>xVora — Welcome / Release Notes preview</title>
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --panel: #222222;
+      --border: #3a3a3a;
+      --text: #e8e8e8;
+      --muted: #8a8a8a;
+      --orange: #f06a28;
+      --orange-hi: #ffb070;
+      --green: #3dd68c;
+      --blue: #6ea8fe;
+      --mono: "Cascadia Mono", "JetBrains Mono", "Consolas", "Courier New", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.45;
+      padding: 24px;
+    }
+    h1 { font-size: 14px; font-weight: 600; color: var(--muted); margin: 0 0 16px; }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin-bottom: 20px;
+    }
+    .toolbar button, .toolbar select {
+      font: inherit; background: #2a2a2a; color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+    }
+    .toolbar button:hover { border-color: var(--orange); }
+    .toolbar button.active { background: #3a2818; border-color: var(--orange); color: var(--orange-hi); }
+    .hint { color: var(--muted); font-size: 12px; margin-left: 8px; }
+    .stage {
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 70vh; padding: 40px 16px;
+      background: #111; border-radius: 12px; border: 1px solid #2a2a2a;
+    }
+    /* Welcome card */
+    .welcome-card {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 20px 28px;
+      max-width: 720px;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px 32px;
+      background: var(--panel);
+    }
+    .logo {
+      font-size: 15px;
+      line-height: 1.15;
+      color: var(--orange);
+      white-space: pre;
+      letter-spacing: 0;
+      user-select: all;
+      text-shadow: 0 0 12px rgba(240, 106, 40, 0.25);
+    }
+    .logo.hi { color: var(--orange-hi); }
+    .content { min-width: 0; }
+    .title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .title { font-weight: 700; font-size: 16px; }
+    .title .xv { color: #fff; }
+    .title .beta { color: var(--muted); font-weight: 500; }
+    .ver { color: var(--muted); font-size: 13px; }
+    .section-label { color: var(--muted); margin: 14px 0 8px; font-size: 13px; }
+    .bullets { margin: 0; padding: 0 0 0 1.1em; color: #c8c8c8; }
+    .bullets li { margin: 4px 0; }
+    .menu { margin-top: 18px; display: grid; gap: 6px; }
+    .menu-row {
+      display: flex; justify-content: space-between; gap: 24px;
+      color: #ddd;
+    }
+    .menu-row .key { color: var(--muted); font-size: 12px; }
+    /* Release notes modal */
+    .modal-wrap {
+      width: min(720px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      max-height: 80vh;
+    }
+    .modal-wrap.show { display: flex; }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .modal-body {
+      padding: 20px 24px 32px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .modal-body .h1 { color: var(--green); font-weight: 700; margin: 0 0 12px; font-size: 15px; }
+    .modal-body .h2 { color: var(--blue); font-weight: 600; margin: 16px 0 8px; font-size: 14px; }
+    .modal-body ul { margin: 0; padding-left: 1.2em; color: #ccc; }
+    .modal-body li { margin: 4px 0; }
+    .footer {
+      margin-top: 16px; text-align: center; color: var(--muted); font-size: 12px;
+    }
+    #welcome { width: 100%; display: flex; justify-content: center; }
+    #welcome.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>xVora UI preview — không cần cargo build</h1>
+  <div class="toolbar">
+    <button type="button" id="btn-welcome" class="active">Welcome</button>
+    <button type="button" id="btn-notes">Release Notes</button>
+    <label>
+      Logo size
+      <select id="logo-size">
+        <option value="5">logo05 (nhỏ)</option>
+        <option value="7" selected>logo07 (mặc định)</option>
+        <option value="10">logo10</option>
+        <option value="12">logo12</option>
+      </select>
+    </label>
+    <button type="button" id="btn-reload">Reload từ files</button>
+    <span class="hint">Mở file này trong browser · F5 sau khi sửa logo*.txt / changelogs</span>
+  </div>
+
+  <div class="stage">
+    <div id="welcome">
+      <div class="welcome-card">
+        <pre class="logo" id="logo"></pre>
+        <div class="content">
+          <div class="title-row">
+            <span class="title"><span class="xv">xVora</span> <span class="beta">Beta</span></span>
+            <span class="ver" id="ver">0.2.0</span>
+          </div>
+          <div class="section-label">Nhật ký thay đổi</div>
+          <ul class="bullets" id="bullets"></ul>
+          <div class="menu">
+            <div class="menu-row"><span>Worktree mới</span><span class="key">ctrl+w</span></div>
+            <div class="menu-row"><span>Tiếp tục phiên</span><span class="key">ctrl+s</span></div>
+            <div class="menu-row"><span>Nhật ký thay đổi</span><span class="key"></span></div>
+            <div class="menu-row"><span>Thoát</span><span class="key">ctrl+q</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-wrap" id="modal">
+      <div class="modal-header">
+        <span>— Release Notes —</span>
+        <span>[x]</span>
+      </div>
+      <div class="modal-body" id="notes-body"></div>
+      <div class="footer">↑/↓ scroll &nbsp;|&nbsp; Esc back</div>
+    </div>
+  </div>
+
+  <!-- Fallback embedded (used when opened as file:// without fetch) -->
+  <script type="application/json" id="embed-logos">{}</script>
+  <script>
+    // Embedded snapshots — updated by scripts/preview-welcome.ps1 or hand-edit.
+    // When served via `npx serve` / Live Server, fetch() overrides these.
+    const EMBED = {
+      logos: {
+        "5": `PLACEHOLDER_LOGO05`,
+        "7": `PLACEHOLDER_LOGO07`,
+        "10": `PLACEHOLDER_LOGO10`,
+        "12": `PLACEHOLDER_LOGO12`,
+      },
+      md: `PLACEHOLDER_MD`,
+      ver: "0.2.0",
+    };
+
+    async function tryFetch() {
+      const base = new URL(".", location.href);
+      async function get(rel) {
+        try {
+          const r = await fetch(new URL(rel, base));
+          if (!r.ok) return null;
+          return await r.text();
+        } catch { return null; }
+      }
+      const sizes = ["5","7","10","12"];
+      for (const s of sizes) {
+        const t = await get(`../crates/codegen/xvora-pager/assets/logo/logo${s.padStart(2,"0")}.txt`);
+        if (t) EMBED.logos[s] = t.replace(/\r\n/g, "\n").replace(/\n$/, "");
+      }
+      const md = await get("../changelogs/CURRENT.external.md");
+      if (md) EMBED.md = md.replace(/\r\n/g, "\n");
+      const man = await get("../changelogs/manifest.json");
+      if (man) {
+        try { EMBED.ver = JSON.parse(man).current_version || EMBED.ver; } catch {}
+      }
+    }
+
+    function bulletsFromMd(md) {
+      return md.split("\n")
+        .map(l => l.trim())
+        .filter(l => l.startsWith("- "))
+        .map(l => l.slice(2))
+        .slice(0, 5);
+    }
+
+    function renderNotes(md) {
+      const el = document.getElementById("notes-body");
+      el.innerHTML = "";
+      for (const line of md.split("\n")) {
+        if (line.startsWith("# ")) {
+          const d = document.createElement("div");
+          d.className = "h1";
+          d.textContent = line.slice(2);
+          el.appendChild(d);
+        } else if (line.startsWith("## ")) {
+          const d = document.createElement("div");
+          d.className = "h2";
+          d.textContent = line.slice(3);
+          el.appendChild(d);
+        } else if (line.startsWith("- ")) {
+          let ul = el.lastElementChild;
+          if (!ul || ul.tagName !== "UL") {
+            ul = document.createElement("ul");
+            el.appendChild(ul);
+          }
+          const li = document.createElement("li");
+          li.textContent = line.slice(2);
+          ul.appendChild(li);
+        }
+      }
+    }
+
+    function paint() {
+      const size = document.getElementById("logo-size").value;
+      document.getElementById("logo").textContent = EMBED.logos[size] || EMBED.logos["7"] || "(no logo)";
+      document.getElementById("ver").textContent = EMBED.ver;
+      const ul = document.getElementById("bullets");
+      ul.innerHTML = "";
+      for (const b of bulletsFromMd(EMBED.md)) {
+        const li = document.createElement("li");
+        li.textContent = b;
+        ul.appendChild(li);
+      }
+      renderNotes(EMBED.md);
+    }
+
+    function showWelcome() {
+      document.getElementById("welcome").classList.remove("hidden");
+      document.getElementById("modal").classList.remove("show");
+      document.getElementById("btn-welcome").classList.add("active");
+      document.getElementById("btn-notes").classList.remove("active");
+    }
+    function showNotes() {
+      document.getElementById("welcome").classList.add("hidden");
+      document.getElementById("modal").classList.add("show");
+      document.getElementById("btn-welcome").classList.remove("active");
+      document.getElementById("btn-notes").classList.add("active");
+    }
+
+    document.getElementById("btn-welcome").onclick = showWelcome;
+    document.getElementById("btn-notes").onclick = showNotes;
+    document.getElementById("logo-size").onchange = paint;
+    document.getElementById("btn-reload").onclick = async () => {
+      await tryFetch();
+      paint();
+    };
+
+    (async () => {
+      await tryFetch();
+      paint();
+    })();
+  </script>
+</body>
+</html>

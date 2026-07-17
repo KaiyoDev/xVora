@@ -13,3 +13,6 @@ __pycache__/
 /dist/
 /MiMo-Code/
 /grok-build/
+
+# Generated UI preview (see scripts/preview-welcome.ps1)
+/scripts/preview-welcome.out.html
