@@ -1,0 +1,15 @@
+{
+    "product":  "xVora",
+    "repo":  "https://github.com/KaiyoDev/xVora",
+    "changelog_base":  "https://raw.githubusercontent.com/KaiyoDev/xVora/main/changelogs",
+    "current_version":  "0.2.0",
+    "versions":  [
+                     {
+                         "version":  "0.2.0",
+                         "date":  "2026-07-17",
+                         "json":  "0.2.0.external.json",
+                         "md":  "0.2.0.external.md",
+                         "summary":  "System prompt identity is xVora by KaiyoDev (not Grok / xAI)."
+                     }
+                 ]
+}

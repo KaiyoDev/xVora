@@ -16,13 +16,19 @@
 use std::path::PathBuf;
 
 /// Changelog base URL for OSS. Override with `XVORA_CHANGELOG_BASE`.
-/// Empty remote failures are fine — welcome uses i18n defaults.
+/// Empty remote failures are fine — welcome falls back to embedded / i18n.
 fn changelog_base() -> String {
     std::env::var("XVORA_CHANGELOG_BASE").unwrap_or_else(|_| {
         "https://raw.githubusercontent.com/KaiyoDev/xVora/main/changelogs".to_string()
     })
 }
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Baked-in notes for the build's version (`changelogs/CURRENT.external.json`).
+/// Synced by `scripts/changelog.ps1 sync` so offline / pre-push users still
+/// see real bullets (never dummy CDN layout-test text).
+const EMBEDDED_JSON: &str = include_str!("../../../../../changelogs/CURRENT.external.json");
+const EMBEDDED_MD: &str = include_str!("../../../../../changelogs/CURRENT.external.md");
 
 /// A single structured changelog entry from the published JSON changelog.
 ///
@@ -33,7 +39,7 @@ const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 /// All fields use `#[serde(default)]` so a single malformed entry doesn't
 /// kill the entire array parse. Entries with an empty description are
 /// filtered out by `bullets_from_entries`.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ChangelogEntry {
     /// Category label (e.g. "features", "fixes", "breaking", "performance").
     #[serde(default)]
@@ -126,10 +132,13 @@ impl ChangelogManager {
     /// [`fetch`], so behaviour is unchanged.
     fn fetch_with(&self, offline: bool, base: &str) -> Changelog {
         if offline {
-            return Changelog {
-                markdown: read_cache(&self.md_cache),
-                entries: self.read_json_cache(),
-            };
+            return sanitize_changelog(Changelog {
+                markdown: read_real_markdown(&self.md_cache).or_else(embedded_markdown),
+                entries: self
+                    .read_real_json_cache()
+                    .or_else(embedded_entries)
+                    .filter(|e| !e.is_empty()),
+            });
         }
 
         let version = xvora_version::VERSION;
@@ -145,17 +154,20 @@ impl ChangelogManager {
             entries = json_handle.join().ok().flatten();
         });
 
-        // If CDN is unreachable (CI sandboxes, airplane mode), fall back to
-        // any on-disk seed under `$XVORA_HOME` even when offline mode was not
-        // explicitly requested — keeps PTY/integration tests deterministic.
-        if markdown.is_none() {
-            markdown = read_cache(&self.md_cache);
+        // Fallbacks: disk cache → embedded CURRENT (repo changelogs/).
+        // Dummy layout-test payloads (old x.ai CDN / poisoned ~/.xvora cache)
+        // are rejected so Release Notes never show them.
+        if markdown.is_none() || markdown.as_deref().is_some_and(is_dummy_changelog_markdown) {
+            markdown = read_real_markdown(&self.md_cache).or_else(embedded_markdown);
         }
-        if entries.is_none() {
-            entries = self.read_json_cache();
+        if entries.is_none() || entries.as_ref().is_some_and(|e| real_entries(e).is_empty()) {
+            entries = self
+                .read_real_json_cache()
+                .or_else(embedded_entries)
+                .filter(|e| !e.is_empty());
         }
 
-        Changelog { markdown, entries }
+        sanitize_changelog(Changelog { markdown, entries })
     }
 
     /// Fetch and parse JSON changelog, caching only after successful parse.
@@ -168,10 +180,15 @@ impl ChangelogManager {
         {
             match serde_json::from_str::<Vec<ChangelogEntry>>(&raw) {
                 Ok(entries) => {
+                    let real = real_entries(&entries);
+                    if real.is_empty() {
+                        // Don't poison disk with CDN dummy layout-test rows.
+                        return None;
+                    }
                     if let Err(e) = std::fs::write(&self.json_cache, &raw) {
                         tracing::debug!(error = %e, "JSON changelog cache write failed");
                     }
-                    return Some(entries);
+                    return Some(real);
                 }
                 Err(e) => {
                     tracing::debug!(error = %e, "failed to parse JSON changelog from CDN");
@@ -179,13 +196,20 @@ impl ChangelogManager {
             }
         }
 
-        self.read_json_cache()
+        self.read_real_json_cache()
     }
 
-    fn read_json_cache(&self) -> Option<Vec<ChangelogEntry>> {
+    fn read_real_json_cache(&self) -> Option<Vec<ChangelogEntry>> {
         let cached = read_cache(&self.json_cache)?;
-        match serde_json::from_str(&cached) {
-            Ok(entries) => Some(entries),
+        match serde_json::from_str::<Vec<ChangelogEntry>>(&cached) {
+            Ok(entries) => {
+                let real = real_entries(&entries);
+                if real.is_empty() {
+                    None
+                } else {
+                    Some(real)
+                }
+            }
             Err(e) => {
                 tracing::debug!(error = %e, "failed to parse cached JSON changelog");
                 None
@@ -194,17 +218,18 @@ impl ChangelogManager {
     }
 
     /// Shared fetch-and-cache: try remote (3 s timeout), cache on success,
-    /// fall back to disk cache on failure.
+    /// fall back to disk cache on failure. Rejects dummy markdown.
     fn fetch_and_cache(&self, url: &str, cache_path: &std::path::Path) -> Option<String> {
         if let Ok(content) = fetch_blocking(url)
             && !content.trim().is_empty()
+            && !is_dummy_changelog_markdown(&content)
         {
             if let Err(e) = std::fs::write(cache_path, &content) {
                 tracing::debug!(error = %e, path = %cache_path.display(), "cache write failed");
             }
             return Some(content);
         }
-        read_cache(cache_path)
+        read_real_markdown(cache_path)
     }
 }
 
@@ -218,6 +243,159 @@ fn read_cache(path: &std::path::Path) -> Option<String> {
     std::fs::read_to_string(path)
         .ok()
         .filter(|c| !c.trim().is_empty())
+}
+
+fn read_real_markdown(path: &std::path::Path) -> Option<String> {
+    let s = read_cache(path)?;
+    if is_dummy_changelog_markdown(&s) {
+        None
+    } else {
+        Some(s)
+    }
+}
+
+fn real_entries(entries: &[ChangelogEntry]) -> Vec<ChangelogEntry> {
+    entries
+        .iter()
+        .filter(|e| !e.description.is_empty())
+        .filter(|e| !is_dummy_changelog_description(&e.description))
+        .cloned()
+        .collect()
+}
+
+/// Drop dummy payloads and ensure Release Notes markdown exists when we have
+/// structured entries (synthesizes markdown from JSON if needed).
+fn sanitize_changelog(mut c: Changelog) -> Changelog {
+    if let Some(ref md) = c.markdown
+        && is_dummy_changelog_markdown(md)
+    {
+        c.markdown = None;
+    }
+    if let Some(ref entries) = c.entries {
+        let real = real_entries(entries);
+        c.entries = if real.is_empty() { None } else { Some(real) };
+    }
+    if c.entries.is_none() {
+        c.entries = embedded_entries();
+    }
+    if c.markdown.is_none() {
+        if let Some(ref entries) = c.entries {
+            c.markdown = Some(markdown_from_entries(xvora_version::VERSION, entries));
+        } else {
+            c.markdown = embedded_markdown();
+        }
+    }
+    c
+}
+
+/// Build Release Notes markdown from structured entries (welcome / modal).
+pub fn markdown_from_entries(version: &str, entries: &[ChangelogEntry]) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("# {version}\n\n"));
+    let order = [
+        ("breaking", "Breaking"),
+        ("features", "Features"),
+        ("fixes", "Bug Fixes"),
+        ("performance", "Performance"),
+        ("docs", "Docs"),
+        ("chore", "Chore"),
+    ];
+    for (key, title) in order {
+        let rows: Vec<&ChangelogEntry> = entries
+            .iter()
+            .filter(|e| {
+                if key == "breaking" {
+                    e.breaking_change
+                } else {
+                    !e.breaking_change && e.category.eq_ignore_ascii_case(key)
+                }
+            })
+            .collect();
+        if rows.is_empty() {
+            continue;
+        }
+        out.push_str(&format!("## {title}\n\n"));
+        for e in rows {
+            out.push_str(&format!("- {}\n", e.description));
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn embedded_entries() -> Option<Vec<ChangelogEntry>> {
+    match serde_json::from_str::<Vec<ChangelogEntry>>(EMBEDDED_JSON) {
+        Ok(entries) => {
+            let real = real_entries(&entries);
+            if real.is_empty() {
+                None
+            } else {
+                Some(real)
+            }
+        }
+        Err(e) => {
+            tracing::debug!(error = %e, "embedded changelog JSON parse failed");
+            None
+        }
+    }
+}
+
+fn embedded_markdown() -> Option<String> {
+    let s = EMBEDDED_MD.trim();
+    if s.is_empty() || is_dummy_changelog_markdown(s) {
+        None
+    } else {
+        Some(EMBEDDED_MD.to_string())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// What's-new: notify once per installed version
+// ---------------------------------------------------------------------------
+
+/// Filename under `$XVORA_HOME` recording the last version for which the user
+/// already saw the What's-new toast / welcome bullets.
+pub const LAST_SEEN_VERSION_FILE: &str = "last_seen_version";
+
+/// Read the last version the user was shown What's-new for.
+pub fn read_last_seen_version(home: &std::path::Path) -> Option<String> {
+    let path = home.join(LAST_SEEN_VERSION_FILE);
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// Persist the version after What's-new has been surfaced.
+pub fn write_last_seen_version(home: &std::path::Path, version: &str) {
+    let path = home.join(LAST_SEEN_VERSION_FILE);
+    if let Err(e) = std::fs::write(&path, version.trim()) {
+        tracing::debug!(
+            error = %e,
+            path = %path.display(),
+            "failed to write last_seen_version"
+        );
+    }
+}
+
+/// Whether this launch should surface What's-new (version changed or first run).
+pub fn should_notify_whats_new(home: &std::path::Path, installed: &str) -> bool {
+    match read_last_seen_version(home) {
+        None => true,
+        Some(prev) => prev.trim() != installed.trim(),
+    }
+}
+
+/// Build a short toast for a new version (used by the pager on startup).
+pub fn whats_new_toast(version: &str, bullets: &[String]) -> String {
+    if bullets.is_empty() {
+        format!("\u{2728} What's new in xVora {version}")
+    } else {
+        format!(
+            "\u{2728} What's new in xVora {version}: {}",
+            bullets.first().map(String::as_str).unwrap_or("")
+        )
+    }
 }
 
 /// Strip `**bold**` markers and backticks from a description string.
@@ -244,6 +422,17 @@ pub fn bullets_from_entries(entries: &[ChangelogEntry], max: usize) -> Vec<Strin
 /// CDN placeholders for unreleased / test builds (e.g. `0.2.0-dev`).
 fn is_dummy_changelog_description(description: &str) -> bool {
     let d = description.to_ascii_lowercase();
+    d.contains("dummy changelog")
+        || d.contains("dummy feature")
+        || d.contains("dummy bug")
+        || d.contains("for testing purposes")
+        || d.contains("for layout testing")
+        || d.contains("verify the welcome screen")
+}
+
+/// True if markdown is the old x.ai layout-test / dummy release notes body.
+fn is_dummy_changelog_markdown(md: &str) -> bool {
+    let d = md.to_ascii_lowercase();
     d.contains("dummy changelog")
         || d.contains("dummy feature")
         || d.contains("dummy bug")
@@ -318,6 +507,23 @@ mod tests {
             Some("# fallback md\n"),
             "CDN miss must fall back to the seeded CHANGELOG.md"
         );
+    }
+
+    #[test]
+    fn embedded_current_json_parses_and_is_non_empty() {
+        let entries = embedded_entries().expect("CURRENT.external.json must embed");
+        assert!(!entries.is_empty());
+        assert!(entries.iter().all(|e| !e.description.is_empty()));
+    }
+
+    #[test]
+    fn whats_new_notifies_once_per_version() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path();
+        assert!(should_notify_whats_new(home, "0.2.0-dev"));
+        write_last_seen_version(home, "0.2.0-dev");
+        assert!(!should_notify_whats_new(home, "0.2.0-dev"));
+        assert!(should_notify_whats_new(home, "0.2.1"));
     }
 
     #[test]

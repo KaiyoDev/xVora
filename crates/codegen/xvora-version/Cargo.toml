@@ -1,7 +1,7 @@
 [package]
 license = "Apache-2.0"
 name = "xvora-version"
-version = "0.2.0-dev"
+version = "0.2.0"
 edition.workspace = true
 description = "Lockstepped Xvora CLI version."
 

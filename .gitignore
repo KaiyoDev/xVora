@@ -11,3 +11,5 @@ __pycache__/
 
 # Local CI/dev binary drops (too large for git; use Actions artifact xvora-win-x64)
 /dist/
+/MiMo-Code/
+/grok-build/

@@ -1,0 +1,52 @@
+[
+    {
+        "category":  "features",
+        "description":  "System prompt identity is xVora by KaiyoDev (not Grok / xAI).",
+        "breaking_change":  false
+    },
+    {
+        "category":  "docs",
+        "description":  "User changelog channel (changelogs/) with Whats-new toast on version change.",
+        "breaking_change":  false
+    },
+    {
+        "category":  "features",
+        "description":  "Settings Language picker (en / vi / auto) with full Vietnamese UI.",
+        "breaking_change":  false
+    },
+    {
+        "category":  "features",
+        "description":  "BYOK-first: no forced xAI OAuth splash; optional login only.",
+        "breaking_change":  false
+    },
+    {
+        "category":  "features",
+        "description":  "Welcome logo from brand mark (braille + orange tint).",
+        "breaking_change":  false
+    },
+    {
+        "category":  "fixes",
+        "description":  "Language setting persists to [ui].language (no longer rolls back to auto).",
+        "breaking_change":  false
+    },
+    {
+        "category":  "fixes",
+        "description":  "Eager auth never auto-starts accounts.x.ai device OAuth.",
+        "breaking_change":  false
+    },
+    {
+        "category":  "fixes",
+        "description":  "Quit / relaunch hints say xvora --resume (not grok).",
+        "breaking_change":  false
+    },
+    {
+        "category":  "fixes",
+        "description":  "Updates and install point at KaiyoDev/xVora GitHub, not x.ai/cli or grok-build CDN.",
+        "breaking_change":  false
+    },
+    {
+        "category":  "features",
+        "description":  "Per-version user changelog with auto Whats-new toast on upgrade.",
+        "breaking_change":  false
+    }
+]

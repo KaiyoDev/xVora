@@ -483,14 +483,23 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
         TaskResult::ChangelogFetched { markdown, entries } => {
             app.changelog_markdown = markdown;
             let mut bullets =
-                xvora_shell::util::changelog::bullets_from_entries(&entries, 3);
-            // CDN for unreleased `0.2.0-dev` serves dummy layout-test entries;
-            // those are filtered. When nothing real remains, show product
-            // bullets so the welcome screen is not empty/ugly.
+                xvora_shell::util::changelog::bullets_from_entries(&entries, 5);
+            // Dummy CDN layout-test entries are filtered; embedded CURRENT +
+            // GitHub raw should win. Last-resort product bullets if still empty.
             if bullets.is_empty() {
                 bullets = crate::i18n::default_welcome_changelog_bullets();
             }
-            app.changelog_bullets = bullets;
+            app.changelog_bullets = bullets.clone();
+
+            // Notify once per installed version (What's-new toast).
+            let version = xvora_version::VERSION;
+            let home = xvora_shell::util::xvora_home::xvora_home();
+            if xvora_shell::util::changelog::should_notify_whats_new(&home, version) {
+                let toast =
+                    xvora_shell::util::changelog::whats_new_toast(version, &bullets);
+                app.show_toast(&toast);
+                xvora_shell::util::changelog::write_last_seen_version(&home, version);
+            }
             vec![]
         }
         TaskResult::ClipboardAttachmentProbed {
