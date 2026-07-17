@@ -3096,9 +3096,14 @@ fn handle_welcome_input(ev: &Event, ctx: &mut WelcomeInputCtx<'_>) -> InputOutco
                 dispatch_access_gate_menu_action,
             );
         }
+        // Enter starts a new session only when no menu row is focused.
+        // Previously this always fired on Enter and stole Quit / Changelog /
+        // Resume when the user arrow-selected a menu item then pressed Enter.
         if matches!(ctx.auth_state, AuthState::Done)
             && key!(Enter).matches(key)
             && key.modifiers.is_empty()
+            && ctx.menu_index.is_none()
+            && !*ctx.prompt_focused
         {
             return InputOutcome::Action(Action::NewSession);
         }
@@ -3113,6 +3118,26 @@ fn handle_welcome_input(ev: &Event, ctx: &mut WelcomeInputCtx<'_>) -> InputOutco
             }
             if key!('s', CONTROL).matches(key) {
                 return InputOutcome::Action(Action::FetchSessionList);
+            }
+            // Match the menu shortcut label (`ctrl+q` / `ctrl+d` in VS Code family).
+            // Global When::Always also binds these; handle here so welcome
+            // never swallows the key as Unchanged without quitting.
+            if key!('q', CONTROL).matches(key)
+                || (crate::terminal::terminal_context()
+                    .brand
+                    .is_vscode_family()
+                    && key!('d', CONTROL).matches(key))
+            {
+                return InputOutcome::Action(Action::Quit);
+            }
+            if key!('l', CONTROL).matches(key)
+                && ctx.show_changelog_action
+                && let Some(md) = ctx.changelog_markdown.as_deref()
+            {
+                return InputOutcome::Action(Action::ShowReleaseNotes {
+                    title: "Release Notes".to_string(),
+                    content: md.trim().to_string(),
+                });
             }
             if ctx.has_pending_update && key!('u', CONTROL).matches(key) {
                 return InputOutcome::Action(Action::QuitForUpdate);
@@ -6865,6 +6890,51 @@ pub(crate) mod tests {
             dispatch_menu_action(2, false, false, None),
             InputOutcome::Action(Action::Quit)
         ));
+    }
+
+    /// Regression: Enter with a focused menu row must dispatch that row
+    /// (e.g. Quit), not always start a new session.
+    #[test]
+    fn welcome_enter_on_selected_quit_quits() {
+        let mut app = test_app();
+        app.auth_state = AuthState::Done;
+        app.welcome_prompt_focused = false;
+        // No import, with changelog → Quit is index 3.
+        app.welcome_show_changelog_action = true;
+        app.welcome_menu_index = Some(3);
+        app.changelog_markdown = Some("# notes".into());
+        let outcome = app.handle_input(&key_event(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(
+            matches!(outcome, InputOutcome::Action(Action::Quit)),
+            "Enter on selected Quit must quit, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn welcome_enter_without_menu_starts_session() {
+        let mut app = test_app();
+        app.auth_state = AuthState::Done;
+        app.welcome_prompt_focused = false;
+        app.welcome_menu_index = None;
+        let outcome = app.handle_input(&key_event(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(
+            matches!(outcome, InputOutcome::Action(Action::NewSession)),
+            "Enter with no menu selection starts a session, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn welcome_ctrl_q_quits() {
+        let mut app = test_app();
+        app.auth_state = AuthState::Done;
+        let outcome = app.handle_input(&key_event(KeyCode::Char('q'), KeyModifiers::CONTROL));
+        assert!(
+            matches!(
+                outcome,
+                InputOutcome::Action(Action::Quit) | InputOutcome::Changed
+            ),
+            "Ctrl+Q must quit or arm confirmation, got {outcome:?}"
+        );
     }
     #[test]
     fn menu_action_changelog_sits_above_quit() {
