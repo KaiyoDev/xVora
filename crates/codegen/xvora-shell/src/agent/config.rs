@@ -4471,38 +4471,95 @@ pub(crate) fn first_own_credential(
         .map(str::to_owned)
         .or_else(|| env_key.and_then(EnvKeys::resolve_value))
 }
+/// Effective catalog provider id for a model (`xai`, `openai`, …).
+///
+/// Prefers the stored `info.provider`, else re-infers from URLs/slug so
+/// credential fallthrough stays correct even if ensure was skipped.
+pub fn model_provider_id(model: &ModelEntry) -> String {
+    model
+        .info
+        .provider
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_else(|| {
+            infer_model_provider(
+                None,
+                &model.info.base_url,
+                model.api_base_url.as_deref(),
+                &model.info.model,
+            )
+        })
+}
+
+/// True when this catalog entry is an xAI-provider model (OAuth / `XAI_API_KEY`
+/// fallthrough applies). Other providers require their own BYOK credentials.
+pub fn is_xai_provider_model(model: &ModelEntry) -> bool {
+    model_provider_id(model) == PROVIDER_XAI
+}
+
 /// Resolve credentials for a model.
-/// Priority: model api_key/env_key > session token > XAI_API_KEY.
+///
+/// Priority:
+/// 1. Model `api_key` / `env_key` (BYOK — any provider)
+/// 2. **xAI provider only:** session token (OAuth), then `XAI_API_KEY`
+/// 3. Non-xAI without own credentials → no key (do not send xAI JWT to OpenAI/Ollama)
 ///
 /// When `env_key` lists multiple names, the first set non-empty value is used.
 pub fn resolve_credentials(model: &ModelEntry, session_key: Option<&str>) -> ResolvedCredentials {
     let info = model.info();
+    let provider = model_provider_id(model);
     let (api_key, base_url, auth_type) = if let Some(key) = model.own_credential() {
         (
             Some(key),
             info.base_url.clone(),
             chat_state::AuthType::ApiKey,
         )
-    } else if let Some(key) = session_key {
-        (
-            Some(key.to_owned()),
-            info.base_url.clone(),
-            chat_state::AuthType::SessionToken,
-        )
-    } else if let Ok(key) = crate::agent::auth_method::read_xai_api_key_env() {
-        let url = model
-            .api_base_url
-            .clone()
-            .unwrap_or_else(|| info.base_url.clone());
-        (Some(key), url, chat_state::AuthType::ApiKey)
+    } else if provider == PROVIDER_XAI {
+        // xAI provider: OAuth session then global XAI_API_KEY.
+        if let Some(key) = session_key {
+            (
+                Some(key.to_owned()),
+                info.base_url.clone(),
+                chat_state::AuthType::SessionToken,
+            )
+        } else if let Ok(key) = crate::agent::auth_method::read_xai_api_key_env() {
+            let url = model
+                .api_base_url
+                .clone()
+                .unwrap_or_else(|| info.base_url.clone());
+            (Some(key), url, chat_state::AuthType::ApiKey)
+        } else {
+            if let Some(ref env_keys) = model.env_key
+                && !env_keys.is_empty()
+            {
+                tracing::warn!(
+                    model = % info.model, env_key = % env_keys,
+                    "model has env_key configured but none of the environment variables are set — \
+                     requests will have no API key",
+                );
+            }
+            (
+                None,
+                info.base_url.clone(),
+                chat_state::AuthType::ApiKey,
+            )
+        }
     } else {
+        // Non-xAI provider: never fall through to xAI session / XAI_API_KEY.
         if let Some(ref env_keys) = model.env_key
             && !env_keys.is_empty()
         {
             tracing::warn!(
-                model = % info.model, env_key = % env_keys,
-                "model has env_key configured but none of the environment variables are set — \
-                 requests will have no API key",
+                model = % info.model, provider = % provider, env_key = % env_keys,
+                "non-xAI model has env_key configured but none of the environment variables are set — \
+                 requests will have no API key (xAI session credentials are not used)",
+            );
+        } else {
+            tracing::debug!(
+                model = % info.model, provider = % provider,
+                "non-xAI model has no BYOK credentials; skipping xAI session fallthrough"
             );
         }
         (
@@ -4513,7 +4570,7 @@ pub fn resolve_credentials(model: &ModelEntry, session_key: Option<&str>) -> Res
     };
     let auth_scheme = info.auth_scheme;
     tracing::debug!(
-        model = % info.model, auth_type = ? auth_type, "resolved credentials"
+        model = % info.model, provider = % provider, auth_type = ? auth_type, "resolved credentials"
     );
     ResolvedCredentials {
         api_key,
@@ -5844,7 +5901,8 @@ reasoning_effort = "low"
         let alias = "XVORA_TEST_EMPTY_ENV_LC_ALIAS";
         let _primary = EnvGuard::set(primary, "");
         let _alias = EnvGuard::set(alias, "");
-        let mut model = test_model_entry("m", "https://inference.example/v1", None, None, None);
+        // First-party xAI URL → session fallthrough allowed.
+        let mut model = test_model_entry("m", "https://api.x.ai/v1", None, None, None);
         model.env_key = Some(EnvKeys::new([primary, alias]));
         assert!(!model.has_own_credentials());
         let creds = resolve_credentials(&model, Some("session-jwt"));
@@ -5864,7 +5922,7 @@ reasoning_effort = "low"
         let _alias = EnvGuard::set(alias, "");
         let _global = EnvGuard::set(XAI_API_KEY_ENV_VAR, sentinel);
         let _legacy = EnvGuard::unset(LEGACY_XAI_API_KEY_ENV_VAR);
-        let mut model = test_model_entry("m", "https://inference.example/v1", None, None, None);
+        let mut model = test_model_entry("m", "https://api.x.ai/v1", None, None, None);
         model.env_key = Some(EnvKeys::new([primary, alias]));
         assert!(!model.has_own_credentials());
         let creds = resolve_credentials(&model, None);
@@ -5874,7 +5932,7 @@ reasoning_effort = "low"
     #[test]
     fn resolve_credentials_empty_api_key_falls_through_to_session() {
         use chat_state::AuthType;
-        let model = test_model_entry("m", "https://inference.example/v1", Some(""), None, None);
+        let model = test_model_entry("m", "https://api.x.ai/v1", Some(""), None, None);
         assert!(!model.has_own_credentials());
         let creds = resolve_credentials(&model, Some("session-jwt"));
         assert_eq!(creds.auth_type, AuthType::SessionToken);
@@ -5904,12 +5962,37 @@ reasoning_effort = "low"
     #[test]
     fn resolve_credentials_sets_auth_type() {
         use chat_state::AuthType;
-        let model = test_model_entry("m", "https://example.com/v1", None, None, None);
+        // xAI endpoint: session token is valid fallthrough.
+        let model = test_model_entry("m", "https://api.x.ai/v1", None, None, None);
         let creds = resolve_credentials(&model, Some("tok"));
         assert_eq!(creds.auth_type, AuthType::SessionToken);
         let byok = test_model_entry("m", "https://example.com/v1", Some("key"), None, None);
         let creds = resolve_credentials(&byok, Some("tok"));
         assert_eq!(creds.auth_type, AuthType::ApiKey);
+    }
+
+    #[test]
+    #[serial]
+    fn resolve_credentials_non_xai_ignores_session_and_xai_env() {
+        use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
+        use chat_state::AuthType;
+        use xvora_test_support::EnvGuard;
+        let _global = EnvGuard::set(XAI_API_KEY_ENV_VAR, "xai-should-not-leak");
+        let _legacy = EnvGuard::unset(LEGACY_XAI_API_KEY_ENV_VAR);
+        let openai = test_model_entry(
+            "gpt-4o",
+            "https://api.openai.com/v1",
+            None,
+            None,
+            None,
+        );
+        assert_eq!(model_provider_id(&openai), PROVIDER_OPENAI);
+        let creds = resolve_credentials(&openai, Some("xai-session-jwt"));
+        assert_eq!(creds.auth_type, AuthType::ApiKey);
+        assert_eq!(
+            creds.api_key, None,
+            "must not send xAI OAuth/API key to a non-xAI provider"
+        );
     }
     /// Regression: BYOK env-var auth must stay ApiKey even when signed in,
     /// otherwise the bearer resolver overwrites the BYOK key with a session JWT.

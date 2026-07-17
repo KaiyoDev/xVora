@@ -67,6 +67,9 @@ where
     if disable_api_key_auth {
         return false;
     }
+    // Any BYOK keeps the no-login path (pager reads auth_methods.first()).
+    // xAI session/API-key fallthrough onto non-xAI models is gated separately
+    // in `config::resolve_credentials` via provider id.
     has_xai_api_key_env() || models.into_iter().any(ModelEntry::has_own_credentials)
 }
 
