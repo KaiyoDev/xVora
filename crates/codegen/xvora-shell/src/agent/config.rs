@@ -42,12 +42,13 @@ pub const DEFAULT_AGENT_TYPE: &str = "xvora-plan";
 pub fn default_agent_type() -> String {
     DEFAULT_AGENT_TYPE.to_owned()
 }
-/// Default base URL for the cli chat proxy.
-pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = "https://cli-chat-proxy.grok.com/v1";
-/// Default base URL for the public xAI API.
-pub const XAI_API_BASE_URL_DEFAULT: &str = "https://api.x.ai/v1";
-/// Default base URL for the asset server (profile images, etc.).
-pub const ASSET_SERVER_URL_DEFAULT: &str = "https://assets.grok.com";
+/// Default cli-chat-proxy for the **xAI provider** (not product identity).
+/// See [`crate::env::xai_provider`].
+pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = crate::env::PROD_CLI_CHAT_PROXY_BASE_URL;
+/// Default public inference API for the **xAI provider**.
+pub const XAI_API_BASE_URL_DEFAULT: &str = crate::env::PROD_XAI_API_BASE_URL;
+/// Default asset server for the **xAI provider** (profile images, etc.).
+pub const ASSET_SERVER_URL_DEFAULT: &str = crate::env::PROD_ASSET_SERVER_URL;
 /// One or more environment variable names that may hold a model API key.
 ///
 /// Serde `untagged`: accepts a string or an array in TOML/JSON.
@@ -138,15 +139,20 @@ impl std::fmt::Display for EnvKeys {
     }
 }
 /// Configuration for API endpoints.
+///
+/// Unset first-party fields fall back to [`crate::env::xai_provider`] production
+/// defaults — those are **xAI provider** hosts, not a requirement for BYOK
+/// OpenAI/Ollama/custom models (which use per-model `base_url` + keys).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct EndpointsConfig {
-    /// cli chat proxy base URL. `None` = unset (resolvers apply the default);
-    /// `Some` = explicitly configured. Tracking explicitness (vs comparing to the
-    /// default value) lets an org pin the proxy to the default on purpose.
+    /// cli chat proxy base URL. `None` = unset (resolvers apply the xAI
+    /// provider default); `Some` = explicitly configured. Tracking
+    /// explicitness (vs comparing to the default value) lets an org pin the
+    /// proxy to the default on purpose.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cli_chat_proxy_base_url: Option<String>,
-    /// Base URL for the public xAI API.
+    /// Base URL for the public **xAI provider** API (`api.x.ai`).
     pub xai_api_base_url: String,
     /// Optional extra access-header value (applied only with the optional
     /// non-production feature, and only for matching first-party hosts).
@@ -301,11 +307,18 @@ impl EndpointsConfig {
     }
     /// The cli-chat-proxy base URL through which all auxiliary services (and
     /// OAuth/session inference) resolve: explicit `cli_chat_proxy_base_url`, else
-    /// the public default. NEVER falls back to `xai_api_base_url` — that is the
-    /// inference endpoint (API-key auth) only.
+    /// the **xAI provider** default. NEVER falls back to `xai_api_base_url` —
+    /// that is the inference endpoint (API-key auth) only.
     pub fn proxy_url(&self) -> String {
         blank_as_unset(&self.cli_chat_proxy_base_url)
             .unwrap_or_else(|| CLI_CHAT_PROXY_BASE_URL_DEFAULT.to_owned())
+    }
+
+    /// Explicit proxy only (config/env). `None` means “use xAI provider default
+    /// if first-party services are needed” — pure BYOK non-xAI paths should
+    /// prefer per-model `base_url` and not assume this host.
+    pub fn configured_proxy_url(&self) -> Option<String> {
+        blank_as_unset(&self.cli_chat_proxy_base_url)
     }
     pub fn resolve_inference_base_url(&self) -> String {
         self.models_base_url
@@ -3166,14 +3179,16 @@ fn is_non_first_party_base_url(base_url: &str) -> bool {
     !is_first_party_xai_url(&url)
 }
 
-/// True when `url` (already lowercased or not) points at first-party xAI /
-/// grok infrastructure.
+/// True when `url` is an **xAI provider** host for catalog inference.
+///
+/// Combines the strict host-parse check ([`crate::util::is_first_party_xai_url`])
+/// with grok.com / cli-chat-proxy aliases used by the xAI provider defaults.
 fn is_first_party_xai_url(url: &str) -> bool {
+    if crate::util::is_first_party_xai_url(url) {
+        return true;
+    }
     let url = url.trim().to_ascii_lowercase();
-    url.contains("api.x.ai")
-        || url.contains("cli-chat-proxy")
-        || url.contains("grok.com")
-        || url.contains("x.ai/")
+    url.contains("cli-chat-proxy") || url.contains("grok.com")
 }
 
 /// Well-known provider ids for the multi-provider catalog.
@@ -5969,6 +5984,24 @@ reasoning_effort = "low"
         let byok = test_model_entry("m", "https://example.com/v1", Some("key"), None, None);
         let creds = resolve_credentials(&byok, Some("tok"));
         assert_eq!(creds.auth_type, AuthType::ApiKey);
+    }
+
+    #[test]
+    fn endpoint_defaults_are_xai_provider_not_product_identity() {
+        assert_eq!(
+            CLI_CHAT_PROXY_BASE_URL_DEFAULT,
+            crate::env::xai_provider::CLI_CHAT_PROXY_BASE_URL
+        );
+        assert_eq!(
+            XAI_API_BASE_URL_DEFAULT,
+            crate::env::xai_provider::API_BASE_URL
+        );
+        let endpoints = EndpointsConfig::default();
+        assert_eq!(endpoints.xai_api_base_url, XAI_API_BASE_URL_DEFAULT);
+        if std::env::var("XVORA_CLI_CHAT_PROXY_BASE_URL").is_err() {
+            assert!(endpoints.configured_proxy_url().is_none());
+            assert_eq!(endpoints.proxy_url(), CLI_CHAT_PROXY_BASE_URL_DEFAULT);
+        }
     }
 
     #[test]

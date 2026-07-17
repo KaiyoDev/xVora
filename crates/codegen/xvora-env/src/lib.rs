@@ -8,9 +8,19 @@
 //! Backend environment presets for the Xvora CLI crate family: endpoint URL
 //! defaults, environment selection, and env-var test support.
 //!
-//! Public builds expose production endpoints. Values resolve as a `XVORA_*`
-//! env-var override when set, else the compiled production default.
-/// The endpoint set for one backend environment.
+//! ## Multi-provider note
+//!
+//! Product defaults for **first-party xAI** live under [`xai_provider`].
+//! Other providers (OpenAI, Ollama, custom) use per-model `base_url` / keys —
+//! they do not inherit these URLs as "the product host".
+
+/// xAI provider production endpoints (not product identity).
+pub mod xai_provider;
+
+/// The endpoint set for one backend environment (legacy shape).
+///
+/// Values are currently the **xAI provider** production set. Prefer
+/// [`xai_provider::PRODUCTION`] when writing new code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct XvoraEndpoints {
     pub cli_chat_proxy_base_url: &'static str,
@@ -19,18 +29,28 @@ pub struct XvoraEndpoints {
     pub gateway_ws_url: &'static str,
     pub ws_origin: &'static str,
 }
+
 const PRODUCTION_ENDPOINTS: XvoraEndpoints = XvoraEndpoints {
-    cli_chat_proxy_base_url: "https://cli-chat-proxy.grok.com/v1",
-    asset_server_url: "https://assets.grok.com",
-    relay_ws_url: "wss://code.grok.com/ws/code-agent",
-    gateway_ws_url: "wss://grok.com/ws/gw/",
-    ws_origin: "https://grok.com",
+    cli_chat_proxy_base_url: xai_provider::CLI_CHAT_PROXY_BASE_URL,
+    asset_server_url: xai_provider::ASSET_SERVER_URL,
+    relay_ws_url: xai_provider::RELAY_WS_URL,
+    gateway_ws_url: xai_provider::GATEWAY_WS_URL,
+    ws_origin: xai_provider::WS_ORIGIN,
 };
-pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = PRODUCTION_ENDPOINTS.cli_chat_proxy_base_url;
-pub const PROD_ASSET_SERVER_URL: &str = PRODUCTION_ENDPOINTS.asset_server_url;
-pub const PROD_RELAY_WS_URL: &str = PRODUCTION_ENDPOINTS.relay_ws_url;
-pub const PROD_GATEWAY_WS_URL: &str = PRODUCTION_ENDPOINTS.gateway_ws_url;
-pub const PROD_WS_ORIGIN: &str = PRODUCTION_ENDPOINTS.ws_origin;
+
+/// Alias: xAI provider cli-chat-proxy (legacy name kept for callers).
+pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = xai_provider::CLI_CHAT_PROXY_BASE_URL;
+/// Alias: xAI provider asset server.
+pub const PROD_ASSET_SERVER_URL: &str = xai_provider::ASSET_SERVER_URL;
+/// Alias: xAI provider relay WebSocket.
+pub const PROD_RELAY_WS_URL: &str = xai_provider::RELAY_WS_URL;
+/// Alias: xAI provider cloud gateway WebSocket.
+pub const PROD_GATEWAY_WS_URL: &str = xai_provider::GATEWAY_WS_URL;
+/// Alias: xAI provider WS origin.
+pub const PROD_WS_ORIGIN: &str = xai_provider::WS_ORIGIN;
+/// Alias: xAI provider public API base (`https://api.x.ai/v1`).
+pub const PROD_XAI_API_BASE_URL: &str = xai_provider::API_BASE_URL;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum XvoraEnvironment {
     #[default]
@@ -54,7 +74,7 @@ impl XvoraEnvironment {
             XvoraEnvironment::Production => "XVORA_PRODUCTION",
         }
     }
-    /// Compiled endpoint set for this environment (production by default).
+    /// Compiled endpoint set for this environment (xAI provider production).
     pub fn endpoints(&self) -> XvoraEndpoints {
         match self {
             XvoraEnvironment::Production => PRODUCTION_ENDPOINTS,
@@ -77,9 +97,8 @@ impl XvoraEnvironment {
     pub fn asset_server_url(&self) -> String {
         self.resolve("_ASSET_SERVER_URL", self.endpoints().asset_server_url)
     }
-    /// The relay WebSocket URL (Web Frontend at `grok.com/code` driving a
-    /// local agent). Not the cloud-sandbox gateway ([`Self::gateway_ws_url`]);
-    /// the two speak different protocols.
+    /// The relay WebSocket URL (web UI driving a local agent). Not the
+    /// cloud-sandbox gateway ([`Self::gateway_ws_url`]); different protocols.
     pub fn relay_ws_url(&self) -> String {
         self.resolve("_WS_URL", self.endpoints().relay_ws_url)
     }
@@ -147,9 +166,11 @@ impl Drop for EnvVarGuard {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     /// The env-var prefixes are an operator interface; do not rename.
     #[test]
     fn test_env_prefix() {
@@ -158,6 +179,7 @@ mod tests {
             "XVORA_PRODUCTION"
         );
     }
+
     #[test]
     fn env_var_guard_set_value_updates_then_restores_on_drop() {
         const KEY: &str = "XVORA_ENV_VAR_GUARD_SET_VALUE_PROBE";
@@ -178,6 +200,7 @@ mod tests {
             "Drop must restore the pre-guard snapshot (was {before:?})"
         );
     }
+
     /// Guards against conflating the relay and gateway endpoints (a relay
     /// loop mistakenly connecting to `wss://grok.com/ws/gw/`).
     #[test]
@@ -187,11 +210,26 @@ mod tests {
             XvoraEnvironment::Production.gateway_ws_url(),
         );
     }
+
     #[test]
     fn test_from_flags() {
         assert_eq!(
             XvoraEnvironment::from_flags(false, false),
             XvoraEnvironment::Production
+        );
+    }
+
+    #[test]
+    fn prod_aliases_match_xai_provider() {
+        assert_eq!(
+            PROD_CLI_CHAT_PROXY_BASE_URL,
+            xai_provider::CLI_CHAT_PROXY_BASE_URL
+        );
+        assert_eq!(PROD_XAI_API_BASE_URL, xai_provider::API_BASE_URL);
+        assert_eq!(PROD_ASSET_SERVER_URL, xai_provider::ASSET_SERVER_URL);
+        assert_eq!(
+            XvoraEnvironment::Production.endpoints().cli_chat_proxy_base_url,
+            xai_provider::PRODUCTION.cli_chat_proxy_base_url
         );
     }
 }

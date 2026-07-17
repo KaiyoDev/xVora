@@ -14,8 +14,8 @@
 #[cfg(test)]
 pub use xvora_env::EnvVarGuard;
 pub use xvora_env::{
-    XvoraEnvironment, PROD_ASSET_SERVER_URL, PROD_CLI_CHAT_PROXY_BASE_URL, PROD_GATEWAY_WS_URL,
-    PROD_RELAY_WS_URL, PROD_WS_ORIGIN,
+    xai_provider, XvoraEnvironment, PROD_ASSET_SERVER_URL, PROD_CLI_CHAT_PROXY_BASE_URL,
+    PROD_GATEWAY_WS_URL, PROD_RELAY_WS_URL, PROD_WS_ORIGIN, PROD_XAI_API_BASE_URL,
 };
 /// Env var that opts a process into gateway-bridge mode. When set to
 /// a parseable URL, `session/new` / `session/load` spawns a per-session
