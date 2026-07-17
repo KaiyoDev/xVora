@@ -76,9 +76,9 @@ impl SettingCategory {
 /// One choice in an `Enum` setting.
 #[derive(Debug, Clone, Copy)]
 pub struct EnumChoice {
-    /// Canonical persisted value (e.g. `"groknight"`).
+    /// Canonical persisted value (e.g. `"xvoranight"`).
     pub canonical: &'static str,
-    /// Display label shown in the chooser (e.g. `"Grok Night"`).
+    /// Display label shown in the chooser (e.g. `"xVora Night"`).
     pub display: &'static str,
     /// Sub-text shown in the chooser sheet (e.g. `"Dark + magenta accent"`).
     pub description: &'static str,
@@ -517,6 +517,9 @@ pub fn current_value_for(
         "contextual_hints.word_select" => Some(SettingValue::Bool(
             ui.contextual_hints.word_select.unwrap_or(true),
         )),
+        "contextual_hints.ssh_wrap" => Some(SettingValue::Bool(
+            ui.contextual_hints.ssh_wrap.unwrap_or(true),
+        )),
         "keep_text_selection" => Some(SettingValue::Enum(
             crate::appearance::cache::load_keep_text_selection().as_canonical(),
         )),
@@ -590,21 +593,21 @@ pub fn current_value_for(
             ui.theme
                 .as_deref()
                 .and_then(crate::theme::canonical_name)
-                .unwrap_or("groknight"),
+                .unwrap_or("xvoranight"),
         )),
         "auto_dark_theme" => Some(SettingValue::Enum(
             ui.auto_dark_theme
                 .as_deref()
                 .and_then(crate::theme::canonical_name)
                 .filter(|s| *s != "auto")
-                .unwrap_or("groknight"),
+                .unwrap_or("xvoranight"),
         )),
         "auto_light_theme" => Some(SettingValue::Enum(
             ui.auto_light_theme
                 .as_deref()
                 .and_then(crate::theme::canonical_name)
                 .filter(|s| *s != "auto")
-                .unwrap_or("grokday"),
+                .unwrap_or("xvoraday"),
         )),
         // render_mermaid: SHELL-owned (persisted to `[ui].render_mermaid`).
         // Read from the process-wide cache mirror, which reflects the live value
@@ -771,6 +774,13 @@ mod tests {
                         "contextual_hints.word_select default drifts from UiConfig::default()"
                     );
                 }
+                ("contextual_hints.ssh_wrap", SettingKind::Bool { default }) => {
+                    assert_eq!(
+                        *default,
+                        ui.contextual_hints.ssh_wrap.unwrap_or(true),
+                        "contextual_hints.ssh_wrap default drifts from UiConfig::default()"
+                    );
+                }
                 ("show_timestamps", SettingKind::Bool { default }) => {
                     assert_eq!(
                         *default,
@@ -813,7 +823,7 @@ mod tests {
                         .theme
                         .as_deref()
                         .and_then(crate::theme::canonical_name)
-                        .unwrap_or("groknight");
+                        .unwrap_or("xvoranight");
                     assert_eq!(
                         *default, expected,
                         "theme default drifts from UiConfig::default()",
@@ -829,7 +839,7 @@ mod tests {
                         .as_deref()
                         .and_then(crate::theme::canonical_name)
                         .filter(|s| *s != "auto")
-                        .unwrap_or("groknight");
+                        .unwrap_or("xvoranight");
                     assert_eq!(
                         *default, expected,
                         "auto_dark_theme default drifts from UiConfig::default()",
@@ -845,7 +855,7 @@ mod tests {
                         .as_deref()
                         .and_then(crate::theme::canonical_name)
                         .filter(|s| *s != "auto")
-                        .unwrap_or("grokday");
+                        .unwrap_or("xvoraday");
                     assert_eq!(
                         *default, expected,
                         "auto_light_theme default drifts from UiConfig::default()",
@@ -1362,7 +1372,7 @@ mod tests {
         let value = current_value_for("auto_dark_theme", &ui, &pager).expect("must resolve");
         assert_eq!(
             value,
-            SettingValue::Enum("groknight"),
+            SettingValue::Enum("xvoranight"),
             "corrupted `auto_dark_theme = \"auto\"` must fall back to canonical default",
         );
     }
@@ -1377,7 +1387,7 @@ mod tests {
         let value = current_value_for("auto_light_theme", &ui, &pager).expect("must resolve");
         assert_eq!(
             value,
-            SettingValue::Enum("grokday"),
+            SettingValue::Enum("xvoraday"),
             "corrupted `auto_light_theme = \"auto\"` must fall back to canonical default",
         );
     }
@@ -1391,7 +1401,7 @@ mod tests {
         };
         let pager = PagerLocalSnapshot::default();
         let value = current_value_for("auto_dark_theme", &ui, &pager).expect("must resolve");
-        assert_eq!(value, SettingValue::Enum("groknight"));
+        assert_eq!(value, SettingValue::Enum("xvoranight"));
     }
 
     /// Keywords must be lowercase and non-empty.
@@ -1533,6 +1543,7 @@ mod tests {
                 "contextual_hints.send_now",
                 "contextual_hints.small_screen",
                 "contextual_hints.word_select",
+                "contextual_hints.ssh_wrap",
             ],
         );
         for &key in *children {

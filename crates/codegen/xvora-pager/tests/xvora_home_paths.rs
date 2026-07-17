@@ -20,7 +20,7 @@ fn xvora_home_override_path_helpers() {
         "$XVORA_HOME"
     );
     assert_eq!(
-        xvora_pager::util::display_user_grok_path("config.toml"),
+        xvora_pager::util::display_user_xvora_path("config.toml"),
         "$XVORA_HOME/config.toml"
     );
 

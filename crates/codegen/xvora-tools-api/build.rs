@@ -29,6 +29,6 @@ fn main() {
             ".xai.grok.tools.v1.ToolConfigEntry.description_override",
             "#[serde(default)]",
         )
-        .compile_protos(&["proto/grok-tools.proto"], &["proto/"])
+        .compile_protos(&["proto/xvora-tools.proto"], &["proto/"])
         .unwrap();
 }

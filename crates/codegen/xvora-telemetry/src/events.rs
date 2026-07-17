@@ -64,6 +64,8 @@ pub enum ContextualTipKind {
     SmallScreen,
     /// Double-click fold/nav path → tip to enable Word select in settings.
     WordSelect,
+    /// SSH session without local `xvora wrap` — tip to wrap for clipboard + restore.
+    SshWrap,
 }
 
 #[derive(Serialize, Clone, Copy)]

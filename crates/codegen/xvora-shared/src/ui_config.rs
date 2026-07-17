@@ -192,6 +192,9 @@ pub struct ContextualHints {
     /// is still fold/nav (`flash` / `hold`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub word_select: Option<bool>,
+    /// SSH wrap session-load tip (recommend `xvora wrap ssh` for remote sessions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssh_wrap: Option<bool>,
 }
 
 impl ContextualHints {
@@ -204,6 +207,7 @@ impl ContextualHints {
             && self.send_now.is_none()
             && self.small_screen.is_none()
             && self.word_select.is_none()
+            && self.ssh_wrap.is_none()
     }
 }
 

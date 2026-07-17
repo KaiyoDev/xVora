@@ -7433,9 +7433,9 @@ mod tests {
     #[test]
     fn picking_enum_esc_dispatches_preview_revert_for_each_key() {
         let cases: &[(&str, &str)] = &[
-            ("theme", "groknight"),
-            ("auto_dark_theme", "groknight"),
-            ("auto_light_theme", "grokday"),
+            ("theme", "xvoranight"),
+            ("auto_dark_theme", "xvoranight"),
+            ("auto_light_theme", "xvoraday"),
         ];
         for &(key, original) in cases {
             let mut s = make_state();
@@ -7484,18 +7484,18 @@ mod tests {
         s.mode = SettingsModalMode::PickingEnum {
             key: "theme",
             choices_idx: 0,
-            original_value: SettingValue::Enum("groknight"),
+            original_value: SettingValue::Enum("xvoranight"),
             supports_preview: true,
         };
         let outcome = handle_settings_key(&mut s, &KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
         match outcome {
             SettingsKeyOutcome::Action(Action::PreviewTheme(name)) => {
                 assert_eq!(
-                    name, "groknight",
+                    name, "xvoranight",
                     "Esc revert must dispatch the original canonical"
                 );
             }
-            other => panic!("expected Action::PreviewTheme(\"groknight\") on Esc, got {other:?}"),
+            other => panic!("expected Action::PreviewTheme(\"xvoranight\") on Esc, got {other:?}"),
         }
         assert!(matches!(s.mode, SettingsModalMode::Browse));
     }
@@ -10846,8 +10846,8 @@ mod tests {
             "width=40 must render SHORT path (contains `change a setting`): {row_short:?}",
         );
         assert!(
-            !row_short.contains("grokday"),
-            "width=40 must NOT render LONG path (no `grokday`): {row_short:?}",
+            !row_short.contains("xvoraday"),
+            "width=40 must NOT render LONG path (no `xvoraday`): {row_short:?}",
         );
         assert!(
             tip_start_short.abs_diff(trailing_short) <= 1,
@@ -11199,17 +11199,17 @@ mod tests {
         // For preview-supporting enums (theme), the breadcrumb-
         // click revert dispatches `Action::PreviewTheme(original)`.
         // The original canonical for the default theme is
-        // `"groknight"`. Tightened from the previous `Action(_) |
+        // `"xvoranight"`. Tightened from the previous `Action(_) |
         // Changed` to lock in the revert contract.
         match outcome {
             SettingsKeyOutcome::Action(Action::PreviewTheme(orig)) => {
                 assert_eq!(
-                    orig, "groknight",
+                    orig, "xvoranight",
                     "breadcrumb-click revert must carry the original canonical",
                 );
             }
             other => panic!(
-                "expected Action(PreviewTheme(\"groknight\")) — the keyboard \
+                "expected Action(PreviewTheme(\"xvoranight\")) — the keyboard \
                  Esc-equivalent revert — got {other:?}",
             ),
         }
@@ -11253,7 +11253,7 @@ mod tests {
             }
             other => panic!("expected PickingEnum, got {other:?}"),
         };
-        // Pick a different index. The default theme is `groknight`
+        // Pick a different index. The default theme is `xvoranight`
         // (index 1 per the registry); advance to index 0 to ensure
         // we're navigating to a different value.
         let target_idx = if advanced_idx == 0 { 1 } else { 0 };
@@ -11313,11 +11313,11 @@ mod tests {
                     key, "theme",
                     "OpenResetConfirm key must be the active picker setting",
                 );
-                // Default theme is `groknight`; entering the picker
-                // captures `original_value = current value = groknight`,
+                // Default theme is `xvoranight`; entering the picker
+                // captures `original_value = current value = xvoranight`,
                 // so the revert dispatches with that canonical.
                 assert_eq!(
-                    orig, "groknight",
+                    orig, "xvoranight",
                     "PreviewTheme revert must carry the original canonical",
                 );
             }
@@ -11783,9 +11783,9 @@ mod tests {
     /// regardless of how much the bg tokens differ in luma.
     ///
     /// The previous name `_title_bg_is_darker_than_content_bg` was
-    /// misleading: on dark themes (GrokNight, TokyoNight, RosePine
+    /// misleading: on dark themes (XvoraNight, TokyoNight, RosePine
     /// Moon) `bg_visual` is actually *lighter* than `bg_highlight`;
-    /// only on the GrokDay light theme is title darker. The
+    /// only on the XvoraDay light theme is title darker. The
     /// contract that the rendering code actually relies on is "title
     /// uses the heavier / more-saturated `bg_visual` token, content
     /// uses `bg_highlight`, plus an UNDERLINED title modifier for
@@ -11841,14 +11841,14 @@ mod tests {
         // raw theme directly so this assertion survives `NO_COLOR`
         // / 256-color quantization.
         let raw_theme = match crate::theme::Theme::current_kind() {
-            crate::theme::ThemeKind::GrokNight => crate::theme::Theme::groknight(),
+            crate::theme::ThemeKind::XvoraNight => crate::theme::Theme::xvoranight(),
             crate::theme::ThemeKind::TokyoNight => crate::theme::Theme::tokyonight(),
-            crate::theme::ThemeKind::GrokDay => crate::theme::Theme::grokday(),
+            crate::theme::ThemeKind::XvoraDay => crate::theme::Theme::xvoraday(),
             crate::theme::ThemeKind::RosePineMoon => crate::theme::Theme::rosepine_moon(),
             // Resolved via `Theme::current()` rather than a constructor
             // because `theme::oscura` is a private module.
             crate::theme::ThemeKind::OscuraMidnight => crate::theme::Theme::current(),
-            crate::theme::ThemeKind::Auto => crate::theme::Theme::groknight(),
+            crate::theme::ThemeKind::Auto => crate::theme::Theme::xvoranight(),
         };
         assert_ne!(
             raw_theme.bg_visual, raw_theme.bg_highlight,

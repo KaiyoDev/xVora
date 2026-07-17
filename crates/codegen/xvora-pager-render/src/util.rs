@@ -24,7 +24,7 @@ pub fn display_xvora_home_prefix() -> String {
 }
 
 /// User-facing path under [`xvora_home()`], e.g. ``~/.xvora/config.toml``.
-pub fn display_user_grok_path(relative: impl AsRef<Path>) -> String {
+pub fn display_user_xvora_path(relative: impl AsRef<Path>) -> String {
     let rel = relative.as_ref();
     let prefix = display_xvora_home_prefix();
     if rel.as_os_str().is_empty() {
@@ -404,8 +404,8 @@ mod tests {
     }
 
     #[test]
-    fn display_user_grok_path_joins_relative() {
-        let path = display_user_grok_path("config.toml");
+    fn display_user_xvora_path_joins_relative() {
+        let path = display_user_xvora_path("config.toml");
         assert!(path.ends_with("/config.toml") || path.ends_with("\\config.toml"));
         assert!(path.contains(".xvora") || path.contains("$XVORA_HOME"));
     }

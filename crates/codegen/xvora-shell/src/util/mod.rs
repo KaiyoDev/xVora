@@ -1,5 +1,5 @@
 pub mod config;
-pub mod grok_auth_credentials;
+pub mod xvora_auth_credentials;
 pub mod hooks;
 
 // The foundation utilities live in `xvora-shell-base` (upstream of this

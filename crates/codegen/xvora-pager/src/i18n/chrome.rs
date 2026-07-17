@@ -5,8 +5,8 @@ pub fn t(key: &str) -> &'static str {
     match (locale(), key) {
         (Locale::Vi, "settings.title") => "Cài đặt",
         (Locale::En, "settings.title") => "Settings",
-        (Locale::Vi, "settings.tip.long") => "Mẹo · Hỏi xVora: \"đổi theme sang grokday\" hoặc \"compact mode làm gì?\"",
-        (Locale::En, "settings.tip.long") => "Tip · Ask xVora: \"change theme to grokday\" or \"what does compact mode do?\"",
+        (Locale::Vi, "settings.tip.long") => "Mẹo · Hỏi xVora: \"đổi theme sang xvoraday\" hoặc \"compact mode làm gì?\"",
+        (Locale::En, "settings.tip.long") => "Tip · Ask xVora: \"change theme to xvoraday\" or \"what does compact mode do?\"",
         (Locale::Vi, "settings.tip.short") => "Mẹo · Hỏi xVora để đổi một cài đặt",
         (Locale::En, "settings.tip.short") => "Tip · Ask xVora to change a setting",
         (Locale::Vi, "settings.value.on") => "bật",

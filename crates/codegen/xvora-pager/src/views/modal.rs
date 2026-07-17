@@ -1076,7 +1076,7 @@ pub fn render_doc_picker_overlay(
     };
     let (picker_area, tip_area) = split_content_for_tip_footer(mca.content);
     if let Some(tip_rect) = tip_area {
-        let docs_path = crate::util::display_user_grok_path(DOCS_USER_GUIDE_REL);
+        let docs_path = crate::util::display_user_xvora_path(DOCS_USER_GUIDE_REL);
         let tip_line = fit_docs_ask_grok_tip(&docs_path, tip_rect.width as usize);
         render_centered_tip_footer(buf, tip_rect, theme, &tip_line);
     }
@@ -1355,7 +1355,7 @@ mod doc_picker_tip_tests {
     use unicode_width::UnicodeWidthStr;
     #[test]
     fn fit_docs_tip_prefers_path_and_never_overflows() {
-        let path = crate::util::display_user_grok_path(DOCS_USER_GUIDE_REL);
+        let path = crate::util::display_user_xvora_path(DOCS_USER_GUIDE_REL);
         let long =
             format!("Tip · Ask xVora about the docs ({path}) — e.g. \"how do I set up MCP?\"");
         let short = format!("Tip · Ask xVora about the docs · {path}");

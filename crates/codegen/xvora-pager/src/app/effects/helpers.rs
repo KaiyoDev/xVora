@@ -839,6 +839,14 @@ pub(crate) async fn persist_setting(
                 .await
                 .map_err(|e| e.to_string())
         }
+        "contextual_hints.ssh_wrap" => {
+            let SettingValue::Bool(b) = value else {
+                return Err(kind_mismatch("contextual_hints.ssh_wrap", "Bool", &value));
+            };
+            xvora_shell::util::config::set_contextual_hint_ssh_wrap(b)
+                .await
+                .map_err(|e| e.to_string())
+        }
         "theme" => {
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("theme", "Enum", &value));

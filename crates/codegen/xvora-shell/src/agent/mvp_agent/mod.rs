@@ -62,7 +62,7 @@ use xvora_sampling_types::{
     supports_reasoning_effort_meta,
 };
 use crate::agent::update_chunk_merge;
-use crate::auth::{AuthManager, AuthUrlInfo};
+use crate::auth::AuthManager;
 use crate::config::StorageMode;
 use crate::extensions::notification::{SessionNotification, SessionUpdate};
 use xvora_telemetry::id::{agent_id, agent_instance_id};
@@ -654,10 +654,9 @@ pub struct MvpAgent {
     /// grok.com chat-product catalog (`/rest/modes`) for chat sessions; distinct
     /// from `models_manager` (the build `/v1/models` catalog).
     pub(crate) chat_modes: crate::agent::chat_modes::ChatModesManager,
-    /// Forwards pasted codes from `handle_auth_submit_code` to the auth flow.
-    pub(crate) auth_code_tx: RefCell<Option<tokio::sync::mpsc::Sender<String>>>,
-    /// Receives the auth URL from the auth flow; read by `handle_auth_get_url`.
-    pub(crate) auth_url_rx: RefCell<Option<tokio::sync::oneshot::Receiver<AuthUrlInfo>>>,
+    /// Single-flight interactive login (device-code / loopback): at most one
+    /// attempt runs at a time; channels live on the active attempt.
+    pub(crate) interactive_auth: crate::auth::single_flight::AuthSingleFlight,
     /// Client type. LEADER-SAFE(init-once): set once during `initialize` from
     /// `_meta.clientIdentifier` (injected by the IPC server in leader mode).
     ///
@@ -1125,6 +1124,10 @@ struct AuthRequestMeta {
     /// user abandons the browser flow, the current session continues.
     #[serde(default)]
     force_interactive: bool,
+    /// Pager auth `request_seq` for this attempt. Scopes `x.ai/auth/cancel`
+    /// so a delayed cancel cannot tear down a successor login.
+    #[serde(default)]
+    request_seq: Option<u64>,
 }
 impl AuthRequestMeta {
     /// `--oauth` → force loopback; otherwise default (loopback).

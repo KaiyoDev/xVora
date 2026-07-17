@@ -64,12 +64,12 @@ const THEME_CHOICES: &[EnumChoice] = &[
         description: "Follow system dark/light appearance.",
     },
     EnumChoice {
-        canonical: "groknight",
+        canonical: "xvoranight",
         display: "xVora Night",
         description: "Neutral dark with magenta accent.",
     },
     EnumChoice {
-        canonical: "grokday",
+        canonical: "xvoraday",
         display: "xVora Day",
         description: "Light theme for bright environments.",
     },
@@ -494,12 +494,12 @@ const VOICE_STT_LANGUAGE_CHOICES: &[EnumChoice] = &[
 /// the user can pair any theme with any system-appearance bucket.
 const CONCRETE_THEME_CHOICES: &[EnumChoice] = &[
     EnumChoice {
-        canonical: "groknight",
+        canonical: "xvoranight",
         display: "xVora Night",
         description: "Neutral dark with magenta accent.",
     },
     EnumChoice {
-        canonical: "grokday",
+        canonical: "xvoraday",
         display: "xVora Day",
         description: "Light theme for bright environments.",
     },
@@ -532,6 +532,7 @@ const CONTEXTUAL_HINTS_CHILDREN: &[&str] = &[
     "contextual_hints.send_now",
     "contextual_hints.small_screen",
     "contextual_hints.word_select",
+    "contextual_hints.ssh_wrap",
 ];
 
 /// Build the catalog. Called once at process start via
@@ -711,8 +712,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
                 "light",
             ],
             kind: SettingKind::Enum {
-                // `Option<String>` — `None` resolved to "groknight".
-                default: "groknight",
+                // `Option<String>` — `None` resolved to "xvoranight".
+                default: "xvoranight",
                 choices: THEME_CHOICES,
                 supports_preview: true,
             },
@@ -727,8 +728,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             description: "Theme to use when the system is in dark mode (only with theme=auto).",
             keywords: &["auto", "dark", "theme", "system", "appearance", "night"],
             kind: SettingKind::Enum {
-                // `Option<String>` — `None` falls back to "groknight".
-                default: "groknight",
+                // `Option<String>` — `None` falls back to "xvoranight".
+                default: "xvoranight",
                 choices: CONCRETE_THEME_CHOICES,
                 supports_preview: true,
             },
@@ -743,8 +744,8 @@ pub fn default_settings() -> Vec<SettingMeta> {
             description: "Theme to use when the system is in light mode (only with theme=auto).",
             keywords: &["auto", "light", "theme", "system", "appearance", "day"],
             kind: SettingKind::Enum {
-                // `Option<String>` — `None` falls back to "grokday".
-                default: "grokday",
+                // `Option<String>` — `None` falls back to "xvoraday".
+                default: "xvoraday",
                 choices: CONCRETE_THEME_CHOICES,
                 supports_preview: true,
             },
@@ -1510,6 +1511,20 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Bool {
                 default: ui_default.contextual_hints.word_select.unwrap_or(true),
+            },
+            restart_required: false,
+            hidden_in_minimal: false,
+        },
+        SettingMeta {
+            key: "contextual_hints.ssh_wrap",
+            category: SettingCategory::Advanced,
+            owner: SettingOwner::Shell,
+            label: "SSH wrap",
+            description: "When running over SSH without a wrap sink, recommend \
+                          `xvora wrap ssh` for local clipboard and terminal restore.",
+            keywords: &["ssh", "wrap", "remote", "clipboard", "restore", "hint"],
+            kind: SettingKind::Bool {
+                default: ui_default.contextual_hints.ssh_wrap.unwrap_or(true),
             },
             restart_required: false,
             hidden_in_minimal: false,

@@ -1,5 +1,5 @@
 use crate::auth::AuthManager;
-use crate::util::grok_auth_credentials::GrokAuthCredentials;
+use crate::util::xvora_auth_credentials::XvoraAuthCredentials;
 use reqwest::RequestBuilder;
 use std::sync::Arc;
 use xvora_auth::{
@@ -15,7 +15,7 @@ fn api_key_id_for(auth: Option<&crate::auth::GrokAuth>) -> Option<String> {
 /// delegates to `AuthManager::unauthorized_recovery`.
 pub struct ShellAuthCredentialProvider {
     auth_manager: Arc<AuthManager>,
-    static_credentials: GrokAuthCredentials,
+    static_credentials: XvoraAuthCredentials,
 }
 impl ShellAuthCredentialProvider {
     pub(crate) fn new(
@@ -23,7 +23,7 @@ impl ShellAuthCredentialProvider {
         deployment_key: Option<String>,
         alpha_test_key: Option<String>,
     ) -> Self {
-        let mut static_credentials = GrokAuthCredentials::new(None);
+        let mut static_credentials = XvoraAuthCredentials::new(None);
         static_credentials.deployment_key = deployment_key;
         static_credentials.alpha_test_key = alpha_test_key;
         Self {
@@ -145,7 +145,7 @@ pub fn build_storage_client_for_proxy(
         .with_client_mode(crate::http::process_client_mode())
         .with_attribution(bridge)
     } else {
-        let mut creds = GrokAuthCredentials::new(user_token);
+        let mut creds = XvoraAuthCredentials::new(user_token);
         creds.deployment_key = deployment_key;
         creds.alpha_test_key = alpha_test_key;
         let wire_bearer = creds
@@ -257,7 +257,7 @@ impl std::fmt::Debug for OtelAuthCredentialProvider {
 impl HttpAuth for OtelAuthCredentialProvider {
     fn apply(&self, builder: RequestBuilder, base_url: &str) -> RequestBuilder {
         let snapshot = self.snapshot_inner();
-        let mut creds = GrokAuthCredentials::new(None);
+        let mut creds = XvoraAuthCredentials::new(None);
         if self.deployment_key.load().is_some() {
             creds.deployment_key = snapshot.token;
         } else {
@@ -821,7 +821,7 @@ mod tests {
         );
     }
     /// A configured `deployment_key` always wins over the AuthManager-resolved
-    /// user token, matching the precedence in `GrokAuthCredentials::apply`.
+    /// user token, matching the precedence in `XvoraAuthCredentials::apply`.
     /// The snapshot must report the deployment key (not the user token) so
     /// the 401-attribution prefix matches the wire bytes.
     #[test]

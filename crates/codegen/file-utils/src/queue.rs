@@ -109,7 +109,7 @@ impl ResolvedStorageConfig {
     }
     /// Bearer this resolved config puts on the wire — `snapshot()` mirrors
     /// `HttpAuth::apply` for provider-backed configs; the static fallback
-    /// mirrors `GrokAuthCredentials::apply` precedence (deployment key wins).
+    /// mirrors `XvoraAuthCredentials::apply` precedence (deployment key wins).
     fn wire_bearer(&self) -> Option<String> {
         if let Some(ref creds) = self.credentials {
             return creds.snapshot().token;

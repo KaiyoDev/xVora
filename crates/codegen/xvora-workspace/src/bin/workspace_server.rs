@@ -21,7 +21,7 @@ fn server_id_startup_error(id: &str) -> Option<String> {
         .map(|e| format!("{INVALID_SERVER_ID_MARKER} {id:?}: {e}"))
 }
 #[derive(Parser)]
-#[command(name = "xai-workspace-server")]
+#[command(name = "xvora-workspace-server")]
 #[command(about = "Standalone workspace ToolServer for the server connection")]
 struct Args {
     /// Print the capability manifest as JSON to stdout and exit 0. Legacy
@@ -446,9 +446,9 @@ mod tests {
     use super::*;
     #[test]
     fn capabilities_flag_parses_and_defaults_off() {
-        let args = Args::try_parse_from(["xai-workspace-server"]).unwrap();
+        let args = Args::try_parse_from(["xvora-workspace-server"]).unwrap();
         assert!(!args.capabilities);
-        let args = Args::try_parse_from(["xai-workspace-server", "--capabilities"]).unwrap();
+        let args = Args::try_parse_from(["xvora-workspace-server", "--capabilities"]).unwrap();
         assert!(args.capabilities);
     }
     #[test]
@@ -464,7 +464,7 @@ mod tests {
             #[arg(long)]
             daemonize: bool,
         }
-        let err = LegacyArgs::try_parse_from(["xai-workspace-server", "--capabilities"])
+        let err = LegacyArgs::try_parse_from(["xvora-workspace-server", "--capabilities"])
             .expect_err("a legacy binary must reject the flag");
         assert_eq!(err.kind(), clap::error::ErrorKind::UnknownArgument);
         assert_ne!(
@@ -475,7 +475,7 @@ mod tests {
     }
     #[test]
     fn daemonize_defaults_are_inert() {
-        let args = Args::try_parse_from(["xai-workspace-server"]).unwrap();
+        let args = Args::try_parse_from(["xvora-workspace-server"]).unwrap();
         assert!(!args.daemonize);
         assert_eq!(args.log_file, PathBuf::from(daemonize::DEFAULT_LOG_PATH));
         assert_eq!(
@@ -501,7 +501,7 @@ mod tests {
     }
     #[test]
     fn argv_rejection_exit_code_is_distinct_from_server_id_exit_code() {
-        let err = Args::try_parse_from(["xai-workspace-server", "--flag-from-the-future"])
+        let err = Args::try_parse_from(["xvora-workspace-server", "--flag-from-the-future"])
             .err()
             .expect("unknown argv must be rejected");
         assert_eq!(err.exit_code(), 2, "clap argv rejection exits 2");
@@ -511,7 +511,7 @@ mod tests {
     }
     #[test]
     fn preview_defaults_are_inert() {
-        let args = Args::try_parse_from(["xai-workspace-server"]).unwrap();
+        let args = Args::try_parse_from(["xvora-workspace-server"]).unwrap();
         assert!(!args.preview.preview_enabled);
         let cfg = args.preview.into_preview_args(PathBuf::from("/workspace"));
         assert!(!cfg.enabled);
@@ -523,7 +523,7 @@ mod tests {
     #[test]
     fn preview_flags_parse_and_lower_to_supervisor_config() {
         let args = Args::try_parse_from([
-            "xai-workspace-server",
+            "xvora-workspace-server",
             "--preview-enabled",
             "--preview-port",
             "6014",
@@ -576,7 +576,7 @@ mod tests {
     #[test]
     fn preview_visibility_rejects_invalid_value() {
         let err = Args::try_parse_from([
-            "xai-workspace-server",
+            "xvora-workspace-server",
             "--preview-enabled",
             "--preview-visibility",
             "nobody",
@@ -588,7 +588,7 @@ mod tests {
     #[test]
     fn preview_visibility_owner_parses_and_lowers() {
         let args = Args::try_parse_from([
-            "xai-workspace-server",
+            "xvora-workspace-server",
             "--preview-enabled",
             "--preview-visibility",
             "owner",

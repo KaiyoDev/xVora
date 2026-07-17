@@ -9,9 +9,17 @@ pub fn display(canonical: &str, fallback: &'static str) -> &'static str {
         (Locale::En, "en") => "English",
         (Locale::Vi, "vi") => "Tiếng Việt",
         (Locale::En, "vi") => "Tiếng Việt",
+        (Locale::Vi, "xvoranight") => "xVora Night",
+
         (Locale::Vi, "groknight") => "xVora Night",
+        (Locale::En, "xvoranight") => "xVora Night",
+
         (Locale::En, "groknight") => "xVora Night",
+        (Locale::Vi, "xvoraday") => "xVora Day",
+
         (Locale::Vi, "grokday") => "xVora Day",
+        (Locale::En, "xvoraday") => "xVora Day",
+
         (Locale::En, "grokday") => "xVora Day",
         (Locale::Vi, "tokyonight") => "Tokyo Night",
         (Locale::En, "tokyonight") => "Tokyo Night",
@@ -69,9 +77,17 @@ pub fn description(canonical: &str, fallback: &'static str) -> &'static str {
         return description_by_en_fallback(fallback);
     }
     match (locale(), canonical) {
+        (Locale::Vi, "xvoranight") => "Tối trung tính, accent magenta.",
+
         (Locale::Vi, "groknight") => "Tối trung tính, accent magenta.",
+        (Locale::En, "xvoranight") => "Neutral dark with magenta accent.",
+
         (Locale::En, "groknight") => "Neutral dark with magenta accent.",
+        (Locale::Vi, "xvoraday") => "Theme sáng cho môi trường nhiều ánh sáng.",
+
         (Locale::Vi, "grokday") => "Theme sáng cho môi trường nhiều ánh sáng.",
+        (Locale::En, "xvoraday") => "Light theme for bright environments.",
+
         (Locale::En, "grokday") => "Light theme for bright environments.",
         (Locale::Vi, "tokyonight") => "Tối xanh dương; cần truecolor.",
         (Locale::En, "tokyonight") => "Dark + blue-tinted; needs truecolor.",

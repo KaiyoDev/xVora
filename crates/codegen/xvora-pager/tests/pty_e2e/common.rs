@@ -1,4 +1,4 @@
-//! Shared constants and helpers for PTY e2e tests.
+﻿//! Shared constants and helpers for PTY e2e tests.
 //!
 //! Individual test modules import via `use super::common::*`.
 
@@ -35,9 +35,9 @@ pub(crate) const PROMPT: &str = "go";
 /// unambiguous sentinel word that we can `wait_for_text` on.
 pub(crate) const MOCK_RESPONSE_SENTINEL: &str = "MOCKRESPONSE";
 
-// ── Undo-tip e2e helpers ────────────────────────────────────────────────
+// â”€â”€ Undo-tip e2e helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Suffix of the undo-tip banner, now "Input cleared · ctrl+z to undo" on all
+/// Suffix of the undo-tip banner, now "Input cleared Â· ctrl+z to undo" on all
 /// platforms (terminals don't forward Cmd+Z to a raw-mode TUI). Asserting the
 /// suffix keeps the check chord-agnostic regardless.
 pub(crate) const UNDO_TIP_SENTINEL: &str = "to undo";
@@ -47,10 +47,10 @@ pub(crate) const UNDO_TIP_SENTINEL: &str = "to undo";
 pub(crate) const SUBSTANTIAL_DRAFT: &[u8] = b"aaaaaaaaaaaaaaaaaaaaaaaaa";
 
 /// Type a substantial draft, wait for it to render in the promoted agent
-/// prompt, then wipe it with Ctrl+U (0x15, kill-to-BOL) — a substantial,
+/// prompt, then wipe it with Ctrl+U (0x15, kill-to-BOL) â€” a substantial,
 /// recoverable wipe that triggers the undo tip. Typing and the kill are
 /// injected separately (with a settle in between) to avoid racing the async
-/// welcome→session promotion; the same shape the scripted scenarios use.
+/// welcomeâ†’session promotion; the same shape the scripted scenarios use.
 pub(crate) fn wipe_substantial_draft(harness: &mut PtyHarness) {
     harness
         .inject_keys(SUBSTANTIAL_DRAFT)
@@ -97,7 +97,7 @@ pub(crate) fn osc8_snippets(raw: &str) -> String {
 pub(crate) fn long_response(sentinel: &str, lines: usize) -> String {
     let mut s = String::with_capacity(lines * 64);
     s.push_str(sentinel);
-    s.push_str(" — scroll payload follows.\n\n");
+    s.push_str(" â€” scroll payload follows.\n\n");
     for i in 0..lines {
         s.push_str(&format!(
             "Line {i}: the quick brown fox jumps over the lazy dog and keeps on going.\n"
@@ -110,11 +110,11 @@ pub(crate) fn long_response(sentinel: &str, lines: usize) -> String {
 /// on the first row so it is the first line to scroll into native scrollback.
 ///
 /// Unlike [`long_response`], each source line is wrapped in a fenced code block
-/// so markdown does **not** reflow the lines into one soft-wrapped paragraph —
+/// so markdown does **not** reflow the lines into one soft-wrapped paragraph â€”
 /// each `line N` becomes exactly one rendered row. This is what makes the block
 /// genuinely taller than the screen (a 60-*line* prose paragraph reflows to only
 /// ~30 rows at typical widths and fits on screen, so it would *not* overflow into
-/// scrollback — the content-anchored live region correctly keeps it visible).
+/// scrollback â€” the content-anchored live region correctly keeps it visible).
 ///
 /// Use this for the commit-to-scrollback contract tests, which need the block's
 /// own head to scroll above the pinned viewport into the terminal's native
@@ -123,7 +123,7 @@ pub(crate) fn tall_response(sentinel: &str, rows: usize) -> String {
     let mut s = String::with_capacity(rows * 24);
     s.push_str("```\n");
     s.push_str(sentinel);
-    s.push_str(" — scroll payload follows.\n");
+    s.push_str(" â€” scroll payload follows.\n");
     for i in 0..rows {
         s.push_str(&format!("line {i} payload\n"));
     }
@@ -131,12 +131,12 @@ pub(crate) fn tall_response(sentinel: &str, rows: usize) -> String {
     s
 }
 
-// ── Fake session-auth (OAuth) seeding ───────────────────────────────────
+// â”€â”€ Fake session-auth (OAuth) seeding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // `seed_fake_oauth` / `oauth_env_for_pager` live in
 // `xvora_pager_pty_harness::flows` (re-exported above).
 
 /// Spawn a pager with fake session (OAuth) auth and a 1s announcements poll,
-/// then drive it into a live session (welcome → prompt → mock response).
+/// then drive it into a live session (welcome â†’ prompt â†’ mock response).
 /// Session auth matters: the settings poll requires `auth_manager.auth()`, and
 /// the harness's default `XAI_API_KEY` (ApiKey/BYOK mode, no auth.json entry)
 /// would never fetch `/v1/settings`. Spawns WITHOUT `XVORA_ANNOUNCEMENTS_OVERRIDE`
@@ -183,11 +183,11 @@ pub(crate) fn spawn_polling_session_with_env(
     harness
 }
 
-// ── Agent type mismatch e2e tests ──────────────────────────────────────
+// â”€â”€ Agent type mismatch e2e tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Start the mock server with two models that have different agent types,
 /// and return a `ContentController` configured for agent-type-mismatch
-/// testing. The default model is `"default-model"` (no agent type → uses
+/// testing. The default model is `"default-model"` (no agent type â†’ uses
 /// `xvora` harness).
 pub(crate) async fn start_dual_agent_type_content() -> ContentController {
     ContentController::start_with_models(vec![
@@ -198,7 +198,7 @@ pub(crate) async fn start_dual_agent_type_content() -> ContentController {
     .expect("start content with dual agent types")
 }
 
-// ── Folder-trust welcome sub-state e2e ──────────────────────────────────
+// â”€â”€ Folder-trust welcome sub-state e2e â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Title line of the folder-trust question (see `render_welcome_trust`).
 pub(crate) const TRUST_QUESTION_SENTINEL: &str = "Do you trust the contents of this directory";
@@ -214,7 +214,7 @@ pub(crate) fn git_repo_with_mcp_json() -> tempfile::TempDir {
 }
 
 /// Env for a folder-trust run: the mock-server env plus a simulated release stamp
-/// (`XVORA_TEST_VERSION`) and an explicit `XVORA_FOLDER_TRUST` — `1` when `feature_on`,
+/// (`XVORA_TEST_VERSION`) and an explicit `XVORA_FOLDER_TRUST` â€” `1` when `feature_on`,
 /// else `0` (an explicit opt-out that overrides the now-on default). HOME/XVORA_HOME
 /// point at the isolated temp home, so the trust store starts empty.
 pub(crate) fn trust_env(content: &ContentController, feature_on: bool) -> Vec<(String, String)> {
@@ -241,7 +241,7 @@ pub(crate) fn folder_is_trusted(content: &ContentController, repo: &std::path::P
     store.is_trusted(&xvora_workspace::trust::workspace_key(repo))
 }
 
-// ── Leader mode e2e ─────────────────────────────────────────────────────
+// â”€â”€ Leader mode e2e â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // The leader cluster cases (and their LEADER_TIMEOUT/STREAM_TIMEOUT/
 // submit_turn/inference_request_count helpers) moved to the dedicated
 // `tests/leader_pty_e2e` target; only the helpers non-leader tests still
@@ -256,7 +256,7 @@ pub(crate) fn turn_sentinel(n: u8) -> String {
 // `wait_for_labels_absent` lives in `xvora_pager_pty_harness::flows`
 // (re-exported above).
 
-// ── MCP menu loading e2e tests ──────────────────────────────────────────
+// â”€â”€ MCP menu loading e2e tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Seeded server name; it only renders once the MCP list fetch resolves.
 pub(crate) const MCP_TEST_SERVER: &str = "ptytestmcp";
@@ -319,7 +319,7 @@ pub(crate) async fn drive_mcp_menu_load(content: &ContentController, cwd: &std::
     harness.quit().expect("clean quit");
 }
 
-// ── Queue + interjection e2e tests ──────────────────────────────────────
+// â”€â”€ Queue + interjection e2e tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Ctrl+Enter / Ctrl+; as CSI-u, parsed without kitty protocol negotiation.
 pub(crate) const CTRL_ENTER: &[u8] = b"\x1b[13;5u";
@@ -356,29 +356,29 @@ pub(crate) fn all_user_messages(content: &ContentController) -> Vec<String> {
 }
 
 /// Visible screen lines showing `text` INSIDE the bordered composer (the
-/// prompt-box row carries a `│` border; committed scrollback lines don't).
+/// prompt-box row carries a `â”‚` border; committed scrollback lines don't).
 /// Keep needles short enough not to wrap at [`DEFAULT_COLS`].
 pub(crate) fn composer_holds(harness: &PtyHarness, text: &str) -> bool {
     harness
         .screen_contents()
         .lines()
-        .any(|l| l.contains('│') && l.contains(text))
+        .any(|l| l.contains('â”‚') && l.contains(text))
 }
 
 /// Count of visible screen lines showing `text` OUTSIDE the bordered
-/// composer — committed scrollback copies. The exactly-once ledger for the
+/// composer â€” committed scrollback copies. The exactly-once ledger for the
 /// cancel/rewind duplicate-render regressions.
 pub(crate) fn block_lines_containing(harness: &PtyHarness, text: &str) -> usize {
     harness
         .screen_contents()
         .lines()
-        .filter(|l| l.contains(text) && !l.contains('│'))
+        .filter(|l| l.contains(text) && !l.contains('â”‚'))
         .count()
 }
 
 /// 19b. **VS Code family: Ctrl+L (form feed)** is the send-now chord, same
 /// semantics as the default Ctrl+Enter binding. Harness strips `TERM_PROGRAM`
-/// then applies env — pass `vscode` so defaults bind the chord to Ctrl+L.
+/// then applies env â€” pass `vscode` so defaults bind the chord to Ctrl+L.
 pub(crate) const CTRL_L: &[u8] = b"\x0c";
 
 /// Ctrl+O (C0 0x0F). On Apple Terminal this is the InterjectPrompt / send-now
@@ -386,7 +386,7 @@ pub(crate) const CTRL_L: &[u8] = b"\x0c";
 /// interject would no-op.
 pub(crate) const CTRL_O: &[u8] = b"\x0f";
 
-/// Suffix of the mid-turn send-now tip: `Queued · Enter to send now` (or the
+/// Suffix of the mid-turn send-now tip: `Queued Â· Enter to send now` (or the
 /// interject chord in multiline). Chord-agnostic like [`UNDO_TIP_SENTINEL`].
 pub(crate) const SEND_NOW_TIP_SENTINEL: &str = "to send now";
 
@@ -396,7 +396,7 @@ pub(crate) const SEND_NOW_TIP_SENTINEL: &str = "to send now";
 // careful environment variable setup to avoid static caching issues with
 // XVORA_HOME.
 
-// ── Mouse reporting toggle (opt-in scrollback Ctrl+R) ───────────────────
+// â”€â”€ Mouse reporting toggle (opt-in scrollback Ctrl+R) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Sticky banner shown while mouse reporting is off (must match pager copy).
 pub(crate) const MOUSE_OFF_STICKY: &str =
@@ -419,7 +419,7 @@ pub(crate) fn seed_ui_config(content: &ContentController, ui_body: &str) {
 pub(crate) fn seed_mouse_reporting_toggle_config(content: &ContentController, enabled: bool) {
     let xvora_home = content.home().join(".xvora");
     std::fs::create_dir_all(&xvora_home).expect("create .grok");
-    // Minimal opt-in only — matches load_config's `{XVORA_HOME|HOME}/.xvora/config.toml`.
+    // Minimal opt-in only â€” matches load_config's `{XVORA_HOME|HOME}/.xvora/config.toml`.
     let config = if enabled {
         "[ui]\nmouse_reporting_toggle = true\n"
     } else {
@@ -509,7 +509,7 @@ pub(crate) async fn drive_to_scrollback_with_turn(
     let _ = harness.wait_for_text("Space:prompt", Duration::from_secs(5));
 }
 
-// ── Tool header selection (path/command operand only) ───────────────────
+// â”€â”€ Tool header selection (path/command operand only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Unique filename marker so the Read header is unambiguous on screen.
 pub(crate) const READ_HDR_FILE: &str = "read_hdr_sel_target.txt";
@@ -643,7 +643,7 @@ pub(crate) fn chat_completions_tool_call_events_with_id(
     ]
 }
 
-/// Responses API SSE stream that emits a single assistant text message —
+/// Responses API SSE stream that emits a single assistant text message â€”
 /// the FIFO counterpart of `set_response` for tests scripting DISTINCT text
 /// replies per turn (e.g. one per auto-wake).
 pub(crate) fn responses_api_message_events(text: &str) -> Vec<SseEvent> {
@@ -798,7 +798,7 @@ pub(crate) fn mouse_drag_line(row: u16, from_col: u16, to_col: u16) -> String {
 }
 
 /// SGR mouse press + drag from (row,from_col) to (row,to_col) inclusive with no
-/// final release — reproduces a lost `Up(Left)` so the drag stays latched. Real
+/// final release â€” reproduces a lost `Up(Left)` so the drag stays latched. Real
 /// terminals drop the release this way when the mouseup lands off the terminal
 /// element (or is coalesced/dropped over Remote-SSH): xtermjs/xterm.js#4781
 /// ("It works if mouseup occurs outside the terminal element"), microsoft/vscode#192518.
@@ -839,7 +839,7 @@ pub(crate) fn enqueue_tool_turn(
 }
 
 /// Responses API SSE stream whose `response.completed` output carries one
-/// `function_call` item per entry of `calls` — a single model turn invoking
+/// `function_call` item per entry of `calls` â€” a single model turn invoking
 /// parallel tool calls. Each entry is `(call_id, name, arguments)`; ids must
 /// be distinct or history bookkeeping aliases the calls.
 pub(crate) fn responses_api_parallel_tool_call_events(
@@ -914,7 +914,7 @@ pub(crate) fn responses_api_parallel_tool_call_events(
 }
 
 /// Chat Completions twin of [`responses_api_parallel_tool_call_events`]: one
-/// chunk whose `delta.tool_calls` carries every call (index 0, 1, …), then a
+/// chunk whose `delta.tool_calls` carries every call (index 0, 1, â€¦), then a
 /// `finish_reason: "tool_calls"` chunk.
 pub(crate) fn chat_completions_parallel_tool_call_events(
     calls: &[(&str, &str, String)],
@@ -1010,23 +1010,23 @@ pub(crate) fn seed_read_file_tool_call(content: &ContentController, abs_path: &P
     content.set_response(READ_HDR_SENTINEL);
 }
 
-// ── Minimal (scrollback-native) mode e2e helpers ────────────────────────
+// â”€â”€ Minimal (scrollback-native) mode e2e helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Args that launch the pager in the experimental scrollback-native minimal
-/// mode, standalone — minimal is single-session (K14: no leader/multi-client),
+/// mode, standalone â€” minimal is single-session (K14: no leader/multi-client),
 /// so `--no-leader` keeps the test off the shared-daemon path.
 pub(crate) const MINIMAL_ARGS: &[&str] = &["--minimal", "--no-leader"];
 
 /// Idle status-line text minimal renders at the prompt (see
 /// `crate::minimal::live::render_status`). Distinct from the running status
-/// (`working…`), so it doubles as a "ready / turn finished" sentinel.
-pub(crate) const MINIMAL_IDLE_SENTINEL: &str = "minimal · /help";
+/// (`workingâ€¦`), so it doubles as a "ready / turn finished" sentinel.
+pub(crate) const MINIMAL_IDLE_SENTINEL: &str = "minimal Â· /help";
 
 /// Idle status after a slash `/minimal` re-exec (switch-back cue present).
-/// Distinct from [`MINIMAL_IDLE_SENTINEL`] — cold `--minimal` starts omit the
+/// Distinct from [`MINIMAL_IDLE_SENTINEL`] â€” cold `--minimal` starts omit the
 /// reverse-command segment.
 pub(crate) const MINIMAL_SWITCH_BACK_IDLE_SENTINEL: &str =
-    "minimal · /fullscreen to go back · /help";
+    "minimal Â· /fullscreen to go back Â· /help";
 
 /// Spawn the pager in minimal mode against `content` at the default size.
 pub(crate) fn spawn_minimal(content: &ContentController) -> PtyHarness {
@@ -1038,7 +1038,7 @@ pub(crate) fn spawn_minimal(content: &ContentController) -> PtyHarness {
 /// pinned live region).
 ///
 /// Response forwarding is enabled so the inline viewport's startup
-/// cursor-position query is answered — without it, `--minimal` silently
+/// cursor-position query is answered â€” without it, `--minimal` silently
 /// downgrades to full-screen inline (the probe times out) and these tests would
 /// assert against the wrong render path.
 pub(crate) fn spawn_minimal_sized(content: &ContentController, rows: u16, cols: u16) -> PtyHarness {
@@ -1072,8 +1072,8 @@ pub(crate) fn spawn_minimal_in_dir(
 }
 
 /// Block until minimal has cold-started into its agent session and is idle at
-/// the prompt (the `minimal · /help` status line is showing). Minimal has no
-/// welcome screen, so this — not [`WELCOME_SCREEN_SENTINEL`] — is the readiness
+/// the prompt (the `minimal Â· /help` status line is showing). Minimal has no
+/// welcome screen, so this â€” not [`WELCOME_SCREEN_SENTINEL`] â€” is the readiness
 /// gate.
 pub(crate) fn wait_minimal_ready(harness: &mut PtyHarness) {
     harness
@@ -1090,17 +1090,17 @@ pub(crate) fn wait_minimal_ready(harness: &mut PtyHarness) {
 /// into it), so quit is Ctrl+Q pressed twice (it requires confirmation). Falls
 /// back to the harness kill path if the chord doesn't take.
 pub(crate) fn quit_minimal(harness: &mut PtyHarness) {
-    let _ = harness.inject_keys(b"\x11"); // Ctrl+Q — arms the confirm
+    let _ = harness.inject_keys(b"\x11"); // Ctrl+Q â€” arms the confirm
     harness.update(Duration::from_millis(80));
-    let _ = harness.inject_keys(b"\x11"); // Ctrl+Q — confirms
+    let _ = harness.inject_keys(b"\x11"); // Ctrl+Q â€” confirms
     if harness.wait_exit_code(Duration::from_secs(5)).is_none() {
         let _ = harness.quit(); // kill fallback
     }
 }
 
-// ── grok wrap e2e ───────────────────────────────────────────────────────
+// â”€â”€ xvora wrap e2e â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// `grok wrap` run budget. Same contention math as the requirements-version
+/// `xvora wrap` run budget. Same contention math as the requirements-version
 /// test: the child's cold exec of the huge debug binary can land its first
 /// write well past 30s under the parallel pty_e2e suite.
 #[cfg(unix)]
@@ -1109,10 +1109,10 @@ pub(crate) const WRAP_TIMEOUT: Duration = Duration::from_secs(120);
 #[cfg(unix)]
 const WRAP_DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Run `grok wrap <wrap_args...>` to completion inside a PTY with an isolated
+/// Run `xvora wrap <wrap_args...>` to completion inside a PTY with an isolated
 /// `XVORA_HOME`, returning the exit code (`None` if it never exited within
 /// [`WRAP_TIMEOUT`]) and everything the wrap PTY emitted. `extra_env` is where
-/// tests pin `SHELL`; wrap needs no mock content — it dispatches in `main`
+/// tests pin `SHELL`; wrap needs no mock content â€” it dispatches in `main`
 /// before auth/network/sandbox.
 #[cfg(unix)]
 pub(crate) fn run_wrap(wrap_args: &[&str], extra_env: &[(&str, &str)]) -> (Option<u32>, String) {
@@ -1126,7 +1126,7 @@ pub(crate) fn run_wrap(wrap_args: &[&str], extra_env: &[(&str, &str)]) -> (Optio
     env.extend_from_slice(extra_env);
 
     let mut harness =
-        PtyHarness::new(&binary, DEFAULT_ROWS, DEFAULT_COLS, &args, &env).expect("spawn grok wrap");
+        PtyHarness::new(&binary, DEFAULT_ROWS, DEFAULT_COLS, &args, &env).expect("spawn xvora wrap");
 
     let code = harness
         .wait_for_exit_and_drain(WRAP_TIMEOUT, WRAP_DRAIN_TIMEOUT)
@@ -1141,7 +1141,7 @@ pub(crate) fn run_wrap(wrap_args: &[&str], extra_env: &[(&str, &str)]) -> (Optio
 
 /// Write an executable fake `$SHELL` that prints each argv element on its own
 /// `ARG:`-prefixed line and exits 0, so tests can assert the exact argv
-/// `grok wrap` hands to the user's shell without depending on any real
+/// `xvora wrap` hands to the user's shell without depending on any real
 /// shell's rc files or alias state. Keep the returned tempdir alive for the
 /// duration of the run.
 #[cfg(unix)]
@@ -1161,7 +1161,7 @@ pub(crate) fn fake_argv_echo_shell() -> (tempfile::TempDir, String) {
     (dir, path_str)
 }
 
-// ── Shared polling / failure-dump / cast helpers ────────────────────────
+// â”€â”€ Shared polling / failure-dump / cast helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Poll `probe` every 100ms until it yields `Some` or `timeout` elapses.
 #[cfg(unix)]
@@ -1211,7 +1211,7 @@ pub(crate) fn dump_non_system_messages(bodies: &[serde_json::Value]) -> String {
 }
 
 /// Extract the runtime task id from a serialized request body containing the
-/// background-start tool result's `<task-id>…</task-id>` envelope.
+/// background-start tool result's `<task-id>â€¦</task-id>` envelope.
 #[cfg(unix)]
 pub(crate) fn extract_task_id(body: &str) -> Option<String> {
     let start = body.find("<task-id>")? + "<task-id>".len();
@@ -1222,7 +1222,7 @@ pub(crate) fn extract_task_id(body: &str) -> Option<String> {
 }
 
 /// Dump an asciinema cast of `harness` into `$XVORA_PTY_CAST_DIR/<file_name>`
-/// when the env var is set. Failures are logged, never fatal — the cast is a
+/// when the env var is set. Failures are logged, never fatal â€” the cast is a
 /// diagnostic artifact, not part of the assertion surface.
 #[cfg(unix)]
 pub(crate) fn write_cast_if_requested(harness: &PtyHarness, file_name: &str) {
@@ -1239,7 +1239,7 @@ pub(crate) fn write_cast_if_requested(harness: &PtyHarness, file_name: &str) {
     }
 }
 
-// ── Clipboard paste e2e tests ───────────────────────────────────────────
+// â”€â”€ Clipboard paste e2e tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Serialized `content` of every user message across recorded requests, in
 /// order. Like [`all_user_messages`] but multimodal-tolerant: array-form

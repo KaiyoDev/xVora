@@ -1,4 +1,4 @@
-//! GrokNight theme — neutral gray base with TokyoNight accent colors.
+//! XvoraNight theme — neutral gray base with TokyoNight accent colors.
 //!
 //! The canonical palette is defined in RGB (`Color::Rgb`). At startup the
 //! theme is run through [`Theme::quantized`] which downgrades every color
@@ -13,7 +13,7 @@ const fn rgb(r: u8, g: u8, b: u8) -> Color {
     Color::Rgb(r, g, b)
 }
 
-// GrokNight palette — neutral gray base + TokyoNight accent colors.
+// XvoraNight palette — neutral gray base + TokyoNight accent colors.
 //
 // Backgrounds and text use a custom grayscale ramp anchored at:
 //   • bg  = #141414 (20)
@@ -60,11 +60,11 @@ mod palette {
 use palette::*;
 
 impl Theme {
-    /// GrokNight theme — neutral gray base with TokyoNight accents.
+    /// XvoraNight theme — neutral gray base with TokyoNight accents.
     ///
     /// Colors are defined in RGB. Call [`Theme::quantized`] to downgrade
     /// them to the terminal's supported color level before rendering.
-    pub const fn groknight() -> Self {
+    pub const fn xvoranight() -> Self {
         Self {
             bg_base: BG_STORM,
             bg_light: BG_HIGHLIGHT,
@@ -157,8 +157,8 @@ mod tests {
 
     #[test]
     #[ignore = "known broken: expected accent values drift from runtime theme"]
-    fn test_groknight_theme() {
-        let theme = Theme::groknight();
+    fn test_xvoranight_theme() {
+        let theme = Theme::xvoranight();
         assert!(matches!(theme.bg_base, Color::Rgb(20, 20, 20)));
         assert!(matches!(theme.accent_user, Color::Rgb(225, 225, 225)));
         assert!(matches!(theme.text_primary, Color::Rgb(225, 225, 225)));

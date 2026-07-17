@@ -1264,7 +1264,7 @@ impl MvpAgent {
             .unwrap_or_else(|| xvora_version::VERSION.to_string());
         let alpha_test_key = cfg.endpoints.alpha_test_key.clone();
         let mut headers = indexmap::IndexMap::new();
-        headers.insert("user-agent".to_string(), format!("xai-xvora/{version}"));
+        headers.insert("user-agent".to_string(), format!("xvora/{version}"));
         inject_proxy_headers(
             &mut headers,
             cfg.client_version.as_deref(),
@@ -1314,7 +1314,7 @@ impl MvpAgent {
             .unwrap_or_else(|| xvora_version::VERSION.to_string());
         let alpha_test_key = cfg.endpoints.alpha_test_key.clone();
         let mut headers = indexmap::IndexMap::new();
-        headers.insert("user-agent".to_string(), format!("xai-xvora/{version}"));
+        headers.insert("user-agent".to_string(), format!("xvora/{version}"));
         inject_proxy_headers(
             &mut headers,
             cfg.client_version.as_deref(),
@@ -1504,8 +1504,7 @@ impl MvpAgent {
             auth_method_id: crate::agent::auth_method::new_shared_auth_method_id(None),
             sampling_config: RefCell::new(sampling_config),
             auth_manager,
-            auth_code_tx: RefCell::new(None),
-            auth_url_rx: RefCell::new(None),
+            interactive_auth: Default::default(),
             client_type: RefCell::new(ClientType::default()),
             code_nav_enabled: std::cell::Cell::new(false),
             interactive_trust_client: std::cell::Cell::new(false),

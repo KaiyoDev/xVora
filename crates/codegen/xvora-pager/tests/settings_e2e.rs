@@ -73,6 +73,7 @@ const ALL_SETTINGS_EXERCISED: &[&str] = &[
     "contextual_hints.send_now",
     "contextual_hints.small_screen",
     "contextual_hints.word_select",
+    "contextual_hints.ssh_wrap",
 ];
 
 #[test]
@@ -1602,6 +1603,7 @@ fn registry_kind_membership_through_pr_14() {
             "contextual_hints.send_now",
             "contextual_hints.small_screen",
             "contextual_hints.word_select",
+            "contextual_hints.ssh_wrap",
         ]
         .into_iter()
         .collect::<std::collections::BTreeSet<_>>()
@@ -1737,9 +1739,9 @@ fn defaults_round_trip_through_registry() {
             "remember_tool_approvals" => SettingValue::Bool(false),
             "toolset.ask_user_question.timeout_enabled" => SettingValue::Bool(true),
             "keep_text_selection" => SettingValue::Enum("flash"),
-            "theme" => SettingValue::Enum("groknight"),
-            "auto_dark_theme" => SettingValue::Enum("groknight"),
-            "auto_light_theme" => SettingValue::Enum("grokday"),
+            "theme" => SettingValue::Enum("xvoranight"),
+            "auto_dark_theme" => SettingValue::Enum("xvoranight"),
+            "auto_light_theme" => SettingValue::Enum("xvoraday"),
             "render_mermaid" => SettingValue::Enum("auto"),
             "multiline_mode" => SettingValue::Bool(false),
             "permission_mode" => SettingValue::Enum("ask"),
@@ -1771,6 +1773,7 @@ fn defaults_round_trip_through_registry() {
             "contextual_hints.send_now" => SettingValue::Bool(true),
             "contextual_hints.small_screen" => SettingValue::Bool(true),
             "contextual_hints.word_select" => SettingValue::Bool(true),
+            "contextual_hints.ssh_wrap" => SettingValue::Bool(true),
             other => panic!("test must list expected default for `{other}`"),
         }
     };
@@ -2536,7 +2539,7 @@ fn pr4_mouse_click_in_theme_picker_is_no_op() {
     s.mode = SettingsModalMode::PickingEnum {
         key: "theme",
         choices_idx: 0,
-        original_value: SettingValue::Enum("groknight"),
+        original_value: SettingValue::Enum("xvoranight"),
         supports_preview: true,
     };
     synth_rects(&mut s);
@@ -3623,7 +3626,7 @@ fn docs_footer_renders_for_browse_and_picker() {
              {all_text}"
         );
         assert!(
-            all_text.contains("change theme to grokday"),
+            all_text.contains("change theme to xvoraday"),
             "[{fixture_label}] docs footer must include the example phrasing"
         );
     }

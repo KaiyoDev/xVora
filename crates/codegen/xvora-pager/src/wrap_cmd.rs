@@ -1,15 +1,15 @@
-//! `xvora wrap` — run any command in a local PTY that forwards its clipboard.
+﻿//! `xvora wrap` â€” run any command in a local PTY that forwards its clipboard.
 //!
-//! Generalizes the `grok ssh` wrapper: spawns an arbitrary command inside a
+//! Generalizes the `xvora ssh` wrapper: spawns an arbitrary command inside a
 //! local pseudo-terminal, intercepts OSC 52 clipboard escape sequences from
 //! its output, and writes their payload to the local system clipboard. Useful
 //! for containerized or remote shells (`docker exec`, `kubectl exec`, ...)
-//! whose clipboard cannot otherwise reach the user — especially in terminals
+//! whose clipboard cannot otherwise reach the user â€” especially in terminals
 //! that do not handle OSC 52 themselves (for example Apple Terminal).
 //!
 //! Resolvable programs spawn directly. On Unix, commands a direct spawn cannot
-//! run — a single shell-quoted string (`xvora wrap "mycli ssh host"`) or a shell
-//! alias — are handed to `$SHELL -i -c` instead, so the user's own shell does
+//! run â€” a single shell-quoted string (`xvora wrap "mycli ssh host"`) or a shell
+//! alias â€” are handed to `$SHELL -i -c` instead, so the user's own shell does
 //! the word-splitting and alias expansion. The exec fallback (a non-TTY
 //! session, or PTY setup failure) keeps the same route but drops `-i` to
 //! avoid job-control noise without our PTY.
@@ -35,7 +35,7 @@ pub fn run(args: &WrapArgs) -> Result<()> {
     // Unix: derive both spawn plans up front from one env snapshot so the PTY
     // attempt and its fallback route consistently. The wrapped run uses
     // `$SHELL -i` when routing through the shell (rc files load, aliases
-    // expand — safe because it runs inside our PTY); the exec fallback drops
+    // expand â€” safe because it runs inside our PTY); the exec fallback drops
     // `-i` because an interactive shell without our PTY risks job-control
     // noise.
     #[cfg(unix)]
@@ -121,7 +121,7 @@ fn derive_spawn(
     // A bare program name that PATH cannot resolve is usually a shell alias
     // (`alias mycli=remote`); only a shell can expand it. Explicit paths
     // (containing `/`) spawn directly so their errors stay precise, as do
-    // empty and whitespace-containing first words — neither can be an alias
+    // empty and whitespace-containing first words â€” neither can be an alias
     // name, and an empty one (`xvora wrap "$PROG" ...` with `$PROG` unset)
     // must keep failing fast instead of silently running the tail.
     if !command[0].is_empty()
@@ -157,7 +157,7 @@ fn join_command_line(command: &[String]) -> String {
 #[cfg(unix)]
 fn quote_word(word: &str) -> String {
     // Single quotes are literal in POSIX shells except `'` itself, which must
-    // close the quote, escape, and reopen: `'` → `'\''`.
+    // close the quote, escape, and reopen: `'` â†’ `'\''`.
     format!("'{}'", word.replace('\'', "'\\''"))
 }
 
@@ -183,16 +183,16 @@ fn resolve_shell(shell: Option<&str>) -> String {
 
 /// Returns true when the command should be wrapped in a local PTY.
 ///
-/// Unlike `grok ssh`, `xvora wrap` does not gate on the terminal brand: the user
+/// Unlike `xvora ssh`, `xvora wrap` does not gate on the terminal brand: the user
 /// has explicitly asked to forward the clipboard, and interception works
 /// regardless of whether the outer terminal supports OSC 52 (the payload is
 /// written to the local clipboard directly).
 ///
-/// It requires a platform `portable-pty` can drive — Unix (`openpty`) or
-/// Windows (ConPTY) — and an interactive (TTY) session. Wrapping a
+/// It requires a platform `portable-pty` can drive â€” Unix (`openpty`) or
+/// Windows (ConPTY) â€” and an interactive (TTY) session. Wrapping a
 /// non-interactive pipe would make the child think it has a terminal and has no
-/// clipboard destination anyway. On Windows the OSC 52 → clipboard bridge works
-/// the same; only the live outer→inner resize is not forwarded (see
+/// clipboard destination anyway. On Windows the OSC 52 â†’ clipboard bridge works
+/// the same; only the live outerâ†’inner resize is not forwarded (see
 /// [`crate::pty_wrap::run_wrapped_command`]).
 fn should_wrap() -> bool {
     // PTY wrapping requires native pseudo-terminal APIs (Unix openpty / Windows

@@ -520,7 +520,8 @@ pub enum Action {
     SetContextualHintSendNow(bool),
     SetContextualHintSmallScreen(bool),
     SetContextualHintWordSelect(bool),
-    /// Commit the active theme (canonical name, e.g. `"groknight"`, `"auto"`).
+    SetContextualHintSshWrap(bool),
+    /// Commit the active theme (canonical name, e.g. `"xvoranight"`, `"auto"`).
     SetTheme(String),
     /// Commit UI language (`en` | `vi` | `auto`). Applies immediately via i18n.
     SetLanguage(String),

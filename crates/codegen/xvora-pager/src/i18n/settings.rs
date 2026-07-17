@@ -214,9 +214,17 @@ pub fn enum_display(canonical: &str, fallback: &'static str) -> &'static str {
     match (locale(), canonical) {
         (Locale::Vi, "auto") => "Tự động",
         (Locale::En, "auto") => "Auto",
+        (Locale::Vi, "xvoranight") => "xVora Night",
+
         (Locale::Vi, "groknight") => "xVora Night",
+        (Locale::En, "xvoranight") => "xVora Night",
+
         (Locale::En, "groknight") => "xVora Night",
+        (Locale::Vi, "xvoraday") => "xVora Day",
+
         (Locale::Vi, "grokday") => "xVora Day",
+        (Locale::En, "xvoraday") => "xVora Day",
+
         (Locale::En, "grokday") => "xVora Day",
         (Locale::Vi, "tokyonight") => "Tokyo Night",
         (Locale::En, "tokyonight") => "Tokyo Night",
@@ -279,8 +287,8 @@ pub fn chrome(key: &str) -> &'static str {
     match (locale(), key) {
         (Locale::Vi, "settings.title") => "Cài đặt",
         (Locale::En, "settings.title") => "Settings",
-        (Locale::Vi, "settings.tip.long") => "Mẹo · Hỏi xVora: \"đổi theme sang grokday\" hoặc \"compact mode làm gì?\"",
-        (Locale::En, "settings.tip.long") => "Tip · Ask xVora: \"change theme to grokday\" or \"what does compact mode do?\"",
+        (Locale::Vi, "settings.tip.long") => "Mẹo · Hỏi xVora: \"đổi theme sang xvoraday\" hoặc \"compact mode làm gì?\"",
+        (Locale::En, "settings.tip.long") => "Tip · Ask xVora: \"change theme to xvoraday\" or \"what does compact mode do?\"",
         (Locale::Vi, "settings.tip.short") => "Mẹo · Hỏi xVora để đổi một cài đặt",
         (Locale::En, "settings.tip.short") => "Tip · Ask xVora to change a setting",
         (Locale::Vi, "settings.value.on") => "bật",

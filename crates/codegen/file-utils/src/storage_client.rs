@@ -347,7 +347,7 @@ fn is_retryable_status(status: u16) -> bool {
 /// is available (bins, tests, bare `TraceExportConfig` with no auth wrap).
 ///
 /// SAFETY: only hit by bins/tests/no-AuthManager paths; the refresh-aware
-/// path uses the obfuscated shell impl (`GrokAuthCredentials::apply` via
+/// path uses the obfuscated shell impl (`XvoraAuthCredentials::apply` via
 /// `ShellAuthCredentialProvider`). A future reader should not innocently
 /// make the static provider the production default -- the obfuscated
 /// routing + obfstr-protected literals only live in the shell impl.

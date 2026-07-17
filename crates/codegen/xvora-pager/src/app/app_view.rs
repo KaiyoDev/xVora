@@ -915,6 +915,9 @@ pub struct AppView {
     /// first evaluation at a stable agent-view draw (regardless of outcome),
     /// so later resizes can never re-trigger the tip within this run.
     pub small_screen_tip_evaluated: bool,
+    /// One-shot gate for the SSH `xvora wrap` tip: set after the first
+    /// evaluation at a stable agent-view draw (regardless of outcome).
+    pub ssh_wrap_tip_evaluated: bool,
     /// Focus-scoped, opportunistically-polled clipboard-image tip state: poll
     /// throttle, changeCount delta-detection, fire cooldown, and changeCount
     /// dedup (macOS-only at the probe layer).
@@ -1275,6 +1278,7 @@ impl AppView {
             tip_seen_counts: Default::default(),
             last_known_terminal_rows: 0,
             small_screen_tip_evaluated: false,
+            ssh_wrap_tip_evaluated: false,
             clipboard_focus_tip: Default::default(),
             new_session_worktree_mode: WorktreeMode::Never,
             fork_worktree_mode: WorktreeMode::Ask,
@@ -3771,6 +3775,7 @@ impl AppView {
             }
         }
         self.maybe_trigger_small_screen_tip();
+        self.maybe_trigger_ssh_wrap_tip();
         let compact = self.appearance.prompt.compact;
         let (header_pad_left, header_pad_right, header_pad_top) = {
             let layout_cfg = &self.appearance.scrollback.layout;
@@ -4455,6 +4460,55 @@ impl AppView {
         self.small_screen_tip_evaluated = true;
         super::dispatch::show_small_screen_tip(self);
     }
+
+    /// One-shot SSH wrap tip at the first stable agent-view draw. The welcome
+    /// screen has no ephemeral-tip row, so the first stable agent-view draw
+    /// is the earliest surface that can paint a session-load tip. Reads the
+    /// live environment (cached statics) and delegates to the injectable
+    /// inner so tests never depend on the host's SSH shape.
+    pub(crate) fn maybe_trigger_ssh_wrap_tip(&mut self) {
+        if self.ssh_wrap_tip_evaluated {
+            return;
+        }
+        static ENV_RECOMMENDS_WRAP: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let env_recommends_wrap = *ENV_RECOMMENDS_WRAP.get_or_init(|| {
+            let ctx = crate::terminal::terminal_context();
+            crate::diagnostics::ssh_wrap_hint(
+                ctx.is_ssh,
+                crate::clipboard::osc52_sink_active(),
+                ctx.is_official_vscode_remote,
+            )
+            .is_some()
+        });
+        self.maybe_trigger_ssh_wrap_tip_inner(env_recommends_wrap);
+    }
+
+    /// Inner trigger with the environment verdict injected
+    /// (`diagnostics::ssh_wrap_hint` on the live path).
+    pub(crate) fn maybe_trigger_ssh_wrap_tip_inner(&mut self, env_recommends_wrap: bool) {
+        if self.ssh_wrap_tip_evaluated {
+            return;
+        }
+        let ActiveView::Agent(id) = self.active_view else {
+            return;
+        };
+        let Some(agent) = self.agents.get(&id) else {
+            return;
+        };
+        if agent.terminal_size_stale || agent.last_terminal_size == (0, 0) {
+            return;
+        }
+        if !env_recommends_wrap {
+            self.ssh_wrap_tip_evaluated = true;
+            return;
+        }
+        if !agent.ephemeral_tip_can_render() || agent.ephemeral_tip.is_active() {
+            return;
+        }
+        self.ssh_wrap_tip_evaluated = true;
+        super::dispatch::show_ssh_wrap_tip(self);
+    }
+
     /// Whether the clipboard-image tip may poll right now — the single in-window
     /// gate. Outside it the poll touches the pasteboard ZERO times: contextual
     /// hints on, the probe supported (macOS), past the fire cooldown, the
@@ -5140,6 +5194,7 @@ pub(crate) mod tests {
             tip_seen_counts: Default::default(),
             last_known_terminal_rows: 0,
             small_screen_tip_evaluated: false,
+            ssh_wrap_tip_evaluated: false,
             clipboard_focus_tip: Default::default(),
             new_session_worktree_mode: WorktreeMode::Never,
             fork_worktree_mode: WorktreeMode::Ask,

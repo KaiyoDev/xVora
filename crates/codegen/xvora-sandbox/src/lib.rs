@@ -29,6 +29,7 @@
 pub mod child_net;
 mod deny;
 mod logging;
+pub mod network_policy;
 mod paths;
 mod profiles;
 mod types;

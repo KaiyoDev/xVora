@@ -424,7 +424,7 @@ pub(super) fn handle_memory_note_saved(
                     .scrollback
                     .push_block(crate::scrollback::block::RenderBlock::system(format!(
                         "Memory saved to {}",
-                        crate::util::display_user_grok_path("memory/MEMORY.md")
+                        crate::util::display_user_xvora_path("memory/MEMORY.md")
                     )));
             }
             Err(error) => {

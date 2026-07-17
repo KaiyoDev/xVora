@@ -52,7 +52,7 @@ pub trait AuthCredentialProvider: HttpAuth + Send + Sync + 'static {
 
     /// Whether `X-XAI-Token-Auth` should be sent with the bearer token.
     /// `false` for deployment keys (bare Bearer), `true` for user/OAuth tokens.
-    /// See `GrokAuthCredentials::apply()` for the wire format contract.
+    /// See `XvoraAuthCredentials::apply()` for the wire format contract.
     fn needs_token_auth_header(&self) -> bool {
         true
     }

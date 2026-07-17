@@ -51,6 +51,10 @@ pub enum WarningCategory {
     /// Below truecolor: truecolor themes hidden. `/terminal-setup` only.
     LimitedColorSupport,
     SandboxProfileConflict,
+    /// The session runs over SSH without `xvora wrap` on the local end, so
+    /// clipboard forwarding and terminal-mode restore on dropped connections
+    /// are not guaranteed. Informational recommendation, not a breakage.
+    SshWithoutWrap,
 }
 
 /// A structured startup warning carrying category, human-readable description,
@@ -354,6 +358,39 @@ fn sandbox_profile_conflict_warning_from(conflicts: Vec<String>) -> Option<Termi
         config_path: None,
         note: None,
     })
+}
+
+/// Recommend wrapping SSH with `xvora wrap` when the session is over plain SSH
+/// without an OSC 52 sink already active (i.e. not already wrapped).
+///
+/// This detector describes environment shape only; the
+/// `[ui.contextual_hints].ssh_wrap` policy gate is applied by the ephemeral
+/// tip's trigger (`AppView::maybe_trigger_ssh_wrap_tip`), while
+/// `/terminal-setup` deliberately lists the recommendation unconditionally.
+/// All inputs are injected so tests never touch ambient env.
+pub fn ssh_wrap_hint(
+    is_ssh: bool,
+    osc52_sink_active: bool,
+    is_official_vscode_remote: bool,
+) -> Option<TerminalWarning> {
+    if !is_ssh || osc52_sink_active || is_official_vscode_remote {
+        return None;
+    }
+    let mut warning = TerminalWarning::new(
+        WarningCategory::SshWithoutWrap,
+        "Running over SSH without `xvora wrap` -- clipboard copies depend on the \
+         terminal's escape-sequence support, and a dropped connection can leave \
+         your local terminal in a bad state",
+        Some("xvora wrap ssh <host>"),
+        None,
+    );
+    warning.note = Some(
+        "Run it on your local machine in place of plain `ssh` -- it forwards \
+         clipboard copies to your local system and restores terminal modes if \
+         the connection drops."
+            .to_string(),
+    );
+    Some(warning)
 }
 
 /// Assemble the welcome-screen startup warning list.
@@ -2134,7 +2171,7 @@ mod tests {
                 line.starts_with(&format!("  themes       {n}/{total}: ")),
                 "level {level:?}: {line}"
             );
-            assert!(line.contains("groknight") && line.contains("grokday"));
+            assert!(line.contains("xvoranight") && line.contains("xvoraday"));
             assert!(!line.contains("tokyonight"));
         }
     }

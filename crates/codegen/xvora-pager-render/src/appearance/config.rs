@@ -1715,7 +1715,7 @@ fn parse_hex_color(hex: &str) -> Result<Color, String> {
 }
 
 fn lookup_named_color(name: &str) -> Result<Color, String> {
-    // Named colors use the GrokNight RGB palette. They are quantized via
+    // Named colors use the XvoraNight RGB palette. They are quantized via
     // `parse_color_string` → `quantize()` to match the terminal's capabilities.
     let color = match name.to_uppercase().as_str() {
         // Background colors
@@ -1787,7 +1787,7 @@ impl RawAppearanceConfig {
         let toml_str = toml_edit::ser::to_string_pretty(&config).expect("serialize default");
         let mut doc: DocumentMut = toml_str.parse().expect("parse toml");
 
-        let pager_path = crate::util::display_user_grok_path("pager.toml");
+        let pager_path = crate::util::display_user_xvora_path("pager.toml");
         let header = format!(
             "\
 # Grok Pager Appearance Configuration ({pager_path})

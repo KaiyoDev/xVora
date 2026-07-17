@@ -2466,7 +2466,7 @@ fn skill_source_str(skill: &SkillInfo) -> String {
         match cs {
             xvora_tools::types::config_source::ConfigSource::User { path } => {
                 if crate::util::is_under_user_xvora_home(path) {
-                    crate::util::display_user_grok_path("skills")
+                    crate::util::display_user_xvora_path("skills")
                 } else if path.display().to_string().contains("/.claude/") {
                     "~/.claude/skills".into()
                 } else {

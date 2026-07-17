@@ -2,7 +2,7 @@
 //!
 //! `ToolConfigEntry` is serialized into session-bind metadata and backend
 //! JSONB config storage. These tests pin the exact JSON shape so a
-//! field rename/retype in `grok-tools.proto` cannot silently break those
+//! field rename/retype in `xvora-tools.proto` cannot silently break those
 //! wire contracts (the producer and consumer live in separate services).
 
 use xvora_tools_api::ToolConfigEntry;

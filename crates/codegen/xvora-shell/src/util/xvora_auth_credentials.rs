@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// User token (xAI users) sends `Bearer` + `X-XAI-Token-Auth: xvora-cli`.
 /// Deployment key takes precedence when both are present.
 #[derive(Clone)]
-pub struct GrokAuthCredentials {
+pub struct XvoraAuthCredentials {
     pub user_token: Option<String>,
     pub deployment_key: Option<String>,
     pub alpha_test_key: Option<String>,
@@ -20,9 +20,9 @@ pub struct GrokAuthCredentials {
     /// refresh chain; `resolve()` reads the in-memory cache.
     auth_manager: Option<Arc<crate::auth::AuthManager>>,
 }
-impl std::fmt::Debug for GrokAuthCredentials {
+impl std::fmt::Debug for XvoraAuthCredentials {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GrokAuthCredentials")
+        f.debug_struct("XvoraAuthCredentials")
             .field(
                 "user_token",
                 &self.user_token.as_ref().map(|_| "<redacted>"),
@@ -42,7 +42,7 @@ impl std::fmt::Debug for GrokAuthCredentials {
             .finish()
     }
 }
-impl GrokAuthCredentials {
+impl XvoraAuthCredentials {
     /// Static credentials from a snapshot token. No refresh capability.
     pub fn new(user_token: Option<String>) -> Self {
         Self {
@@ -82,7 +82,7 @@ impl GrokAuthCredentials {
     /// Without this, the `resolve_async()` error fallback returns
     /// credentials with no token, causing requests to be sent without
     /// an Authorization header.
-    pub fn resolve(&self) -> GrokAuthCredentials {
+    pub fn resolve(&self) -> XvoraAuthCredentials {
         if let Some(ref am) = self.auth_manager
             && let Some(auth) = am.current_or_expired()
         {
@@ -97,7 +97,7 @@ impl GrokAuthCredentials {
     /// (memory -> disk -> active OIDC refresh). Falls back to sync
     /// `resolve()` on error so transient refresh failures don't drop
     /// the bearer.
-    pub async fn resolve_async(&self) -> GrokAuthCredentials {
+    pub async fn resolve_async(&self) -> XvoraAuthCredentials {
         let Some(ref am) = self.auth_manager else {
             return self.clone();
         };
@@ -133,9 +133,9 @@ impl GrokAuthCredentials {
         builder
     }
 }
-impl xvora_auth::HttpAuth for GrokAuthCredentials {
+impl xvora_auth::HttpAuth for XvoraAuthCredentials {
     fn apply(&self, builder: RequestBuilder, base_url: &str) -> RequestBuilder {
-        GrokAuthCredentials::apply(self, builder, base_url)
+        XvoraAuthCredentials::apply(self, builder, base_url)
     }
 }
 #[cfg(test)]
@@ -162,14 +162,14 @@ mod tests {
     #[test]
     fn resolve_returns_token_when_not_expired() {
         let (mgr, _dir) = make_manager_with_token(Utc::now() + Duration::hours(1));
-        let creds = GrokAuthCredentials::new(None).with_auth_manager(mgr);
+        let creds = XvoraAuthCredentials::new(None).with_auth_manager(mgr);
         let resolved = creds.resolve();
         assert_eq!(resolved.user_token.as_deref(), Some("test-bearer-token"));
     }
     #[test]
     fn resolve_returns_token_during_early_invalidation_window() {
         let (mgr, _dir) = make_manager_with_token(Utc::now() + Duration::minutes(3));
-        let creds = GrokAuthCredentials::new(None).with_auth_manager(mgr.clone());
+        let creds = XvoraAuthCredentials::new(None).with_auth_manager(mgr.clone());
         assert!(mgr.current().is_none());
         assert!(mgr.current_or_expired().is_some());
         assert_eq!(
@@ -179,14 +179,14 @@ mod tests {
     }
     #[test]
     fn resolve_returns_static_token_when_no_auth_manager() {
-        let creds = GrokAuthCredentials::new(Some("static-token".into()));
+        let creds = XvoraAuthCredentials::new(Some("static-token".into()));
         assert_eq!(creds.resolve().user_token.as_deref(), Some("static-token"));
     }
     #[test]
     fn resolve_returns_none_when_no_token_at_all() {
         let dir = tempfile::tempdir().unwrap();
         let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-        let creds = GrokAuthCredentials::new(None).with_auth_manager(mgr);
+        let creds = XvoraAuthCredentials::new(None).with_auth_manager(mgr);
         assert!(creds.resolve().user_token.is_none());
     }
 }

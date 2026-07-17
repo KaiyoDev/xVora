@@ -56,7 +56,7 @@ async fn add_bundle_fetch_headers(
         Some(am) => am.auth().await.ok(),
         None => None,
     };
-    let mut credentials = crate::util::grok_auth_credentials::GrokAuthCredentials::new(
+    let mut credentials = crate::util::xvora_auth_credentials::XvoraAuthCredentials::new(
         resolved_auth.as_ref().map(|auth| auth.key.clone()),
     );
     credentials.deployment_key = deployment_key.map(str::to_owned);
@@ -832,6 +832,9 @@ pub fn parse_remote_model_value(
         base_url,
         name,
         description: get_string(obj, "description"),
+        provider: get_string(obj, "provider")
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.trim().to_ascii_lowercase()),
         max_completion_tokens: get_u64(obj, "maxCompletionTokens")
             .or_else(|| get_u64(obj, "max_completion_tokens"))
             .and_then(|v| u32::try_from(v).ok()),

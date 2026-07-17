@@ -7,7 +7,7 @@ use anyhow::{Result, bail};
 use clap::{Subcommand, ValueEnum};
 use xvora_shell::util::config::{McpServerConfig, McpServerTransportConfig};
 
-use crate::util::display_user_grok_path;
+use crate::util::display_user_xvora_path;
 
 const ADD_AFTER_HELP: &str = "\
 Examples:
@@ -465,7 +465,7 @@ fn scope_target(scope: McpScope) -> PathBuf {
 /// Display form of a scope's config file path.
 fn scope_display(scope: McpScope, path: &Path) -> String {
     match scope {
-        McpScope::User => display_user_grok_path("config.toml"),
+        McpScope::User => display_user_xvora_path("config.toml"),
         McpScope::Project => path.display().to_string(),
     }
 }
@@ -549,7 +549,7 @@ async fn run_remove(name: &str, requested_scope: Option<McpScope>) -> Result<()>
         }
         Err(RemoveError::Ambiguous { project_path }) => {
             eprintln!("MCP server '{name}' exists in multiple scopes:");
-            eprintln!("  user: {}", display_user_grok_path("config.toml"));
+            eprintln!("  user: {}", display_user_xvora_path("config.toml"));
             eprintln!("  project: {}", project_path.display());
             eprintln!("Specify which one to remove, e.g.: xvora mcp remove {name} --scope project");
             std::process::exit(1);

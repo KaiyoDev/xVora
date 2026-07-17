@@ -3158,20 +3158,93 @@ pub fn has_byok_or_custom_credentials(cfg: &Config) -> bool {
 
 /// A model `base_url` that is not a first-party xAI / grok proxy counts as a
 /// user-owned endpoint (Ollama, OpenRouter, corporate proxy, …).
-#[cfg(test)]
 fn is_non_first_party_base_url(base_url: &str) -> bool {
     let url = base_url.trim().to_ascii_lowercase();
     if url.is_empty() {
         return false;
     }
-    if url.contains("api.x.ai")
+    !is_first_party_xai_url(&url)
+}
+
+/// True when `url` (already lowercased or not) points at first-party xAI /
+/// grok infrastructure.
+fn is_first_party_xai_url(url: &str) -> bool {
+    let url = url.trim().to_ascii_lowercase();
+    url.contains("api.x.ai")
         || url.contains("cli-chat-proxy")
         || url.contains("grok.com")
         || url.contains("x.ai/")
-    {
-        return false;
+}
+
+/// Well-known provider ids for the multi-provider catalog.
+pub const PROVIDER_XAI: &str = "xai";
+pub const PROVIDER_OPENAI: &str = "openai";
+pub const PROVIDER_ANTHROPIC: &str = "anthropic";
+pub const PROVIDER_OPENROUTER: &str = "openrouter";
+pub const PROVIDER_OLLAMA: &str = "ollama";
+pub const PROVIDER_CUSTOM: &str = "custom";
+
+/// Infer a provider id from optional explicit config, endpoint URLs, and model slug.
+///
+/// Precedence: non-empty `explicit` > URL heuristics (`api_base_url` then
+/// `base_url`) > slug prefix (`grok-*` → xai) > [`PROVIDER_CUSTOM`].
+pub fn infer_model_provider(
+    explicit: Option<&str>,
+    base_url: &str,
+    api_base_url: Option<&str>,
+    model_slug: &str,
+) -> String {
+    if let Some(p) = explicit.map(str::trim).filter(|s| !s.is_empty()) {
+        return p.to_ascii_lowercase();
     }
-    true
+    for url in [api_base_url.unwrap_or(""), base_url] {
+        let u = url.trim().to_ascii_lowercase();
+        if u.is_empty() {
+            continue;
+        }
+        if is_first_party_xai_url(&u) {
+            return PROVIDER_XAI.to_owned();
+        }
+        if u.contains("api.openai.com") || u.contains("openai.com") {
+            return PROVIDER_OPENAI.to_owned();
+        }
+        if u.contains("anthropic.com") {
+            return PROVIDER_ANTHROPIC.to_owned();
+        }
+        if u.contains("openrouter.ai") {
+            return PROVIDER_OPENROUTER.to_owned();
+        }
+        if u.contains("localhost")
+            || u.contains("127.0.0.1")
+            || u.contains("0.0.0.0")
+            || u.contains("ollama")
+        {
+            return PROVIDER_OLLAMA.to_owned();
+        }
+    }
+    let slug = model_slug.trim().to_ascii_lowercase();
+    if slug.starts_with("grok") {
+        return PROVIDER_XAI.to_owned();
+    }
+    PROVIDER_CUSTOM.to_owned()
+}
+
+/// Fill `info.provider` when missing/empty (after catalog merge).
+fn ensure_model_provider(entry: &mut ModelEntry) {
+    let needs = entry
+        .info
+        .provider
+        .as_ref()
+        .map(|s| s.trim().is_empty())
+        .unwrap_or(true);
+    if needs {
+        entry.info.provider = Some(infer_model_provider(
+            None,
+            &entry.info.base_url,
+            entry.api_base_url.as_deref(),
+            &entry.info.model,
+        ));
+    }
 }
 
 /// Assemble the final model map. Priority (highest wins):
@@ -3278,6 +3351,9 @@ pub fn resolve_model_list(
                 }
             }
         }
+    }
+    for entry in resolved.values_mut() {
+        ensure_model_provider(entry);
     }
     if let Some(ref global_agent_type) = cfg.models.agent_type {
         tracing::warn!(
@@ -3392,6 +3468,9 @@ struct DefaultModelJson {
     model: String,
     name: Option<String>,
     description: Option<String>,
+    /// Optional provider id (`xai`, `openai`, …). Inferred when absent.
+    #[serde(default)]
+    provider: Option<String>,
     context_window: Option<NonZeroU64>,
     temperature: Option<f32>,
     top_p: Option<f32>,
@@ -3443,6 +3522,14 @@ fn default_models(endpoints: &EndpointsConfig) -> IndexMap<String, ModelEntryCon
             let context_window = m
                 .context_window
                 .unwrap_or_else(|| NonZeroU64::new(200_000).expect("200000 is non-zero"));
+            let provider = m.provider.filter(|s| !s.trim().is_empty()).or_else(|| {
+                Some(infer_model_provider(
+                    None,
+                    &endpoints.resolve_inference_base_url(),
+                    Some(endpoints.xai_api_base_url.as_str()),
+                    &m.model,
+                ))
+            });
             let config = ModelEntryConfig {
                 id: m.id,
                 model: m.model,
@@ -3450,6 +3537,7 @@ fn default_models(endpoints: &EndpointsConfig) -> IndexMap<String, ModelEntryCon
                 api_base_url: Some(endpoints.xai_api_base_url.clone()),
                 name: m.name,
                 description: m.description,
+                provider,
                 context_window,
                 auto_compact_threshold_percent: None,
                 system_prompt_label: None,
@@ -3496,6 +3584,10 @@ pub struct ModelEntryConfig {
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Provider id this model belongs to (`xai`, `openai`, `ollama`, `custom`, …).
+    /// When absent, inferred from URLs / model slug at catalog resolve time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_completion_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3622,6 +3714,8 @@ pub struct ConfigModelOverride {
     pub base_url: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
+    /// Explicit provider id from `[model.*] provider = "..."`.
+    pub provider: Option<String>,
     pub api_key: Option<String>,
     /// Env var name(s) for the provider key — string or array in config.toml.
     pub env_key: Option<EnvKeys>,
@@ -3680,6 +3774,11 @@ impl ConfigModelOverride {
         }
         if self.description.is_some() {
             entry.info.description.clone_from(&self.description);
+        }
+        if let Some(ref v) = self.provider {
+            if !v.trim().is_empty() {
+                entry.info.provider = Some(v.trim().to_ascii_lowercase());
+            }
         }
         if self.max_completion_tokens.is_some() {
             entry.info.max_completion_tokens = self.max_completion_tokens;
@@ -3764,6 +3863,17 @@ impl ConfigModelOverride {
         {
             entry.info.supported_in_api = true;
         }
+        // Re-infer when endpoints/slug changed and caller did not set provider.
+        if self.provider.as_ref().map(|s| s.trim().is_empty()).unwrap_or(true)
+            && (self.base_url.is_some() || self.api_base_url.is_some() || self.model.is_some())
+        {
+            entry.info.provider = Some(infer_model_provider(
+                None,
+                &entry.info.base_url,
+                entry.api_base_url.as_deref(),
+                &entry.info.model,
+            ));
+        }
         entry
     }
 }
@@ -3783,6 +3893,10 @@ pub struct ModelInfo {
     /// to users in either consumer.
     pub name: Option<String>,
     pub description: Option<String>,
+    /// Provider id (`xai`, `openai`, `ollama`, `custom`, …). Filled at catalog
+    /// resolve when missing. xAI is one provider among many — not product core.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
     pub max_completion_tokens: Option<u32>,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
@@ -3848,6 +3962,7 @@ impl ModelInfo {
             base_url: String::new(),
             name: None,
             description: None,
+            provider: None,
             max_completion_tokens: None,
             temperature: None,
             top_p: None,
@@ -3883,6 +3998,7 @@ impl ModelInfo {
             base_url: entry.base_url.clone(),
             name: entry.name.clone(),
             description: entry.description.clone(),
+            provider: entry.provider.clone(),
             max_completion_tokens: entry.max_completion_tokens,
             temperature: entry.temperature,
             top_p: entry.top_p,
@@ -4567,6 +4683,7 @@ pub fn resolve_aux_model_sampling_config(
                 base_url: endpoints.resolve_inference_base_url(),
                 name: None,
                 description: None,
+                provider: None,
                 max_completion_tokens: None,
                 temperature: None,
                 top_p: None,
@@ -4789,6 +4906,7 @@ fn resolve_hidden_default_web_search_sampling_config(
             base_url: endpoints.resolve_inference_base_url(),
             name: None,
             description: None,
+            provider: None,
             max_completion_tokens: None,
             temperature: None,
             top_p: None,
@@ -5445,6 +5563,7 @@ reasoning_effort = "low"
                 base_url: base_url.to_string(),
                 name: None,
                 description: None,
+                provider: None,
                 max_completion_tokens: None,
                 temperature: None,
                 top_p: None,
@@ -6463,6 +6582,7 @@ reasoning_effort = "low"
             base_url: "https://test.api/v1".to_string(),
             name: None,
             description: None,
+            provider: None,
             max_completion_tokens: None,
             temperature: None,
             top_p: None,
@@ -6622,6 +6742,7 @@ reasoning_effort = "low"
             base_url: "https://test.api/v1".to_string(),
             name: None,
             description: None,
+            provider: None,
             max_completion_tokens: None,
             temperature: None,
             top_p: None,
@@ -7073,6 +7194,7 @@ reasoning_effort = "low"
             base_url: "https://test.api/v1".to_string(),
             name: None,
             description: None,
+            provider: None,
             max_completion_tokens: None,
             temperature: None,
             top_p: None,
@@ -10640,6 +10762,7 @@ default = "grok-4.5"
                 base_url: "https://test.example.com/v1".to_owned(),
                 name: Some(slug.to_owned()),
                 description: None,
+                provider: None,
                 max_completion_tokens: None,
                 temperature: None,
                 top_p: None,
@@ -11061,6 +11184,81 @@ default = "grok-4.5"
         let resolved = resolve_model_list(&cfg, Some(IndexMap::new()));
         assert!(resolved.is_empty());
     }
+
+    #[test]
+    fn infer_model_provider_url_and_slug_heuristics() {
+        assert_eq!(
+            infer_model_provider(Some("OpenAI"), "", None, "anything"),
+            "openai"
+        );
+        assert_eq!(
+            infer_model_provider(None, "https://api.x.ai/v1", None, "custom-slug"),
+            PROVIDER_XAI
+        );
+        assert_eq!(
+            infer_model_provider(None, "https://cli-chat-proxy.grok.com/v1", None, "xvora"),
+            PROVIDER_XAI
+        );
+        assert_eq!(
+            infer_model_provider(None, "https://api.openai.com/v1", None, "gpt-4o"),
+            PROVIDER_OPENAI
+        );
+        assert_eq!(
+            infer_model_provider(None, "http://127.0.0.1:11434/v1", None, "llama3"),
+            PROVIDER_OLLAMA
+        );
+        assert_eq!(
+            infer_model_provider(None, "", None, "grok-4.20"),
+            PROVIDER_XAI
+        );
+        assert_eq!(
+            infer_model_provider(None, "https://corp.example/v1", None, "internal-llm"),
+            PROVIDER_CUSTOM
+        );
+    }
+
+    #[test]
+    fn resolve_model_list_assigns_provider_xai_to_bundled_defaults() {
+        let cfg = Config::default();
+        let resolved = resolve_model_list(&cfg, None);
+        let entry = resolved.get("xvora").expect("bundled xvora model");
+        assert_eq!(
+            entry.info.provider.as_deref(),
+            Some(PROVIDER_XAI),
+            "built-in first-party models belong to the xai provider"
+        );
+    }
+
+    #[test]
+    fn resolve_model_list_honors_explicit_provider_and_infers_openai() {
+        let raw: toml::Value = toml::from_str(
+            r#"
+            [model.gpt]
+            model = "gpt-4o"
+            base_url = "https://api.openai.com/v1"
+            context_window = 128000
+            api_backend = "chat_completions"
+
+            [model.forced]
+            model = "llama3"
+            base_url = "http://127.0.0.1:11434/v1"
+            context_window = 8192
+            provider = "my-lab"
+            "#,
+        )
+        .unwrap();
+        let cfg = Config::new_from_toml_cfg(&raw).expect("config should parse");
+        let resolved = resolve_model_list(&cfg, None);
+        assert_eq!(
+            resolved.get("gpt").unwrap().info.provider.as_deref(),
+            Some(PROVIDER_OPENAI)
+        );
+        assert_eq!(
+            resolved.get("forced").unwrap().info.provider.as_deref(),
+            Some("my-lab")
+        );
+    }
+
     /// Regression: enterprise managed config aliases xvora to their own
     /// endpoint with env_key. The bundled xvora has supported_in_api=false.
     /// The config overlay must be visible to API-key users (env_key = BYOK).

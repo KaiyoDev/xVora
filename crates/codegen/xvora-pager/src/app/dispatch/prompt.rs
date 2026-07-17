@@ -152,6 +152,31 @@ pub(in crate::app) fn show_small_screen_tip(app: &mut AppView) {
     }
 }
 
+/// Show the SSH wrap tip on a drawable agent (session-load recommendation).
+///
+/// Called directly from the draw-path trigger — not routed as an `Action`,
+/// so it returns `()` and "no effects from draw" holds structurally.
+pub(in crate::app) fn show_ssh_wrap_tip(app: &mut AppView) {
+    if !app.contextual_hints.ssh_wrap {
+        return;
+    }
+    let ActiveView::Agent(id) = app.active_view else {
+        return;
+    };
+    let Some(agent) = app.agents.get_mut(&id) else {
+        return;
+    };
+    if agent.show_ephemeral_tip(
+        crate::tips::ssh_wrap::ssh_wrap_tip(),
+        &mut app.tip_seen_counts,
+    ) {
+        log_event(xvora_telemetry::events::ContextualTip {
+            tip: xvora_telemetry::events::ContextualTipKind::SshWrap,
+            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        });
+    }
+}
+
 pub(super) fn dispatch_show_plan_nudge(app: &mut AppView) -> Vec<Effect> {
     if !app.contextual_hints.plan_mode {
         return vec![];

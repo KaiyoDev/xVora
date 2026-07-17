@@ -51,7 +51,7 @@ pub async fn run(args: TraceArgs, agent_config: &AgentConfig) -> Result<()> {
         if !args.json {
             eprintln!(
                 "Trace uploads disabled. Set [telemetry] trace_upload = true in {}",
-                crate::util::display_user_grok_path("config.toml")
+                crate::util::display_user_xvora_path("config.toml")
             );
             eprintln!("Falling back to local export.");
         }
@@ -331,7 +331,7 @@ pub(crate) fn find_session_dir(session_id: &str) -> Result<PathBuf> {
     xvora_shell::session::persistence::find_session_dir_by_id(session_id).with_context(|| {
         format!(
             "Session '{session_id}' not found under {}",
-            crate::util::display_user_grok_path("sessions")
+            crate::util::display_user_xvora_path("sessions")
         )
     })
 }
@@ -429,7 +429,7 @@ async fn run_upload(
             anyhow::bail!(
                 "No upload credentials. Run `grok login` or set a deployment key. \
                  See {} for upload overrides.",
-                crate::util::display_user_grok_path("docs/user-guide")
+                crate::util::display_user_xvora_path("docs/user-guide")
             );
         }
     };

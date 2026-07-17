@@ -1,8 +1,8 @@
 //! Syntax highlighting initialization.
 //!
 //! Provides lazily-initialized `Syntect` instances for code highlighting.
-//! Dark themes (GrokNight, TokyoNight) share `grok-night.tmTheme`;
-//! GrokDay uses `grok-day.tmTheme` with deepened colors for light backgrounds.
+//! Dark themes (XvoraNight, TokyoNight) share `xvora-night.tmTheme`;
+//! XvoraDay uses `xvora-day.tmTheme` with deepened colors for light backgrounds.
 
 use std::sync::OnceLock;
 
@@ -10,9 +10,9 @@ pub use xvora_markdown::Syntect;
 
 use crate::theme::ThemeKind;
 
-static SYNTECT_GROKNIGHT: OnceLock<Syntect> = OnceLock::new();
+static SYNTECT_XVORANIGHT: OnceLock<Syntect> = OnceLock::new();
 static SYNTECT_TOKYONIGHT: OnceLock<Syntect> = OnceLock::new();
-static SYNTECT_GROKDAY: OnceLock<Syntect> = OnceLock::new();
+static SYNTECT_XVORADAY: OnceLock<Syntect> = OnceLock::new();
 
 /// Convert syntect style to ratatui foreground-only style, quantized for terminal color support.
 pub fn syntect_to_ratatui_fg(style: syntect::highlighting::Style) -> ratatui::style::Style {
@@ -66,14 +66,14 @@ pub fn highlight_line(
 /// Returns the syntect instance matching the active theme.
 pub fn get_syntect() -> &'static Syntect {
     match crate::theme::Theme::current_kind() {
-        ThemeKind::GrokNight
+        ThemeKind::XvoraNight
         | ThemeKind::RosePineMoon
         | ThemeKind::OscuraMidnight
-        | ThemeKind::Auto => SYNTECT_GROKNIGHT
-            .get_or_init(|| Syntect::new(include_bytes!("../assets/grok-night.tmTheme"))),
+        | ThemeKind::Auto => SYNTECT_XVORANIGHT
+            .get_or_init(|| Syntect::new(include_bytes!("../assets/xvora-night.tmTheme"))),
         ThemeKind::TokyoNight => SYNTECT_TOKYONIGHT
             .get_or_init(|| Syntect::new(include_bytes!("../assets/tokyo-night.tmTheme"))),
-        ThemeKind::GrokDay => SYNTECT_GROKDAY
-            .get_or_init(|| Syntect::new(include_bytes!("../assets/grok-day.tmTheme"))),
+        ThemeKind::XvoraDay => SYNTECT_XVORADAY
+            .get_or_init(|| Syntect::new(include_bytes!("../assets/xvora-day.tmTheme"))),
     }
 }

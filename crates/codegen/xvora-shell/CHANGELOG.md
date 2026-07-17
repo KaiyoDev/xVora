@@ -3578,7 +3578,7 @@
 
 ## Features
 
-- **GrokNight default theme** with **runtime color quantization** ensures correct rendering across truecolor, 256-color, and 16-color terminals.
+- **XvoraNight default theme** with **runtime color quantization** ensures correct rendering across truecolor, 256-color, and 16-color terminals.
 - **ACP endpoints for hooks/plugins listing** enable pager modals to display loaded hooks and discovered plugins.
 - **ACP action endpoints** for hooks/plugins management support trust, install, reload, and update operations via pager.
 - **Legacy relay auth flow** via `grok login --legacy` restores pre-OIDC accounts.x.ai token exchange.
