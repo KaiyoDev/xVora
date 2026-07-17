@@ -148,19 +148,48 @@ fn detect_effort_phase(models: &ModelState, args_query: &str) -> Option<acp::Mod
     None
 }
 
+/// Provider id from ACP model meta (set by shell `to_acp_model_info`).
+fn model_provider(info: &acp::ModelInfo) -> &str {
+    info.meta
+        .as_ref()
+        .and_then(|m| m.get("provider"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("custom")
+}
+
 /// One row per logical model. Reasoning models get a trailing space in
 /// `insert_text` so the prompt widget chains into the effort sub-menu.
+///
+/// When the catalog spans multiple providers, rows are already ordered by
+/// provider (shell) and the display labels the provider so xAI is one group
+/// among OpenAI / Ollama / custom — not the product default identity.
 fn build_model_items(models: &ModelState) -> Vec<ArgItem> {
     let current_id = models.current.as_ref();
+    let multi_provider = {
+        let mut seen = std::collections::BTreeSet::new();
+        for info in models.available.values() {
+            seen.insert(model_provider(info));
+        }
+        seen.len() > 1
+    };
+
     let mut items: Vec<ArgItem> = Vec::with_capacity(models.available.len());
     for (id, info) in &models.available {
         let is_current = current_id == Some(id);
         let supports = supports_reasoning_effort(info);
+        let provider = model_provider(info);
 
-        let display = if is_current {
-            format!("{} (current)", info.name)
+        let base_name = if multi_provider {
+            format!("{provider} · {}", info.name)
         } else {
             info.name.clone()
+        };
+
+        let display = if is_current {
+            format!("{base_name} (current)")
+        } else {
+            base_name
         };
 
         // Trailing space on reasoning models: signals "more input
@@ -172,11 +201,24 @@ fn build_model_items(models: &ModelState) -> Vec<ArgItem> {
             info.name.clone()
         };
 
+        // Match on name, id, and provider so `/model xai` filters the group.
+        let mut match_text = format!("{} {} {provider}", info.name, id.0);
+        if multi_provider {
+            match_text = format!("{match_text} {provider} · {}", info.name);
+        }
+
+        let description = match info.description.as_deref() {
+            Some(d) if !d.is_empty() && multi_provider => format!("[{provider}] {d}"),
+            Some(d) if !d.is_empty() => d.to_string(),
+            _ if multi_provider => format!("provider: {provider}"),
+            _ => String::new(),
+        };
+
         items.push(ArgItem {
             display,
-            match_text: info.name.clone(),
+            match_text,
             insert_text,
-            description: info.description.clone().unwrap_or_default(),
+            description,
         });
     }
     items

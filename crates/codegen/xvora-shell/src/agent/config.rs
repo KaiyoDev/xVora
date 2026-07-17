@@ -4986,15 +4986,31 @@ pub fn resolve_web_search_sampling_config(
     }
     resolved.map(crate::tools::config::web_search_sampling_config)
 }
+/// Meta key for catalog provider id (`xai`, `openai`, …) on ACP model info.
+pub const PROVIDER_META_KEY: &str = "provider";
+
 pub fn to_acp_model_info(
     models: &IndexMap<String, ModelEntry>,
 ) -> IndexMap<acp::ModelId, acp::ModelInfo> {
-    models
+    let mut rows: Vec<(acp::ModelId, acp::ModelInfo, String, String)> = models
         .iter()
         .map(|(key, model)| {
             let info = model.info();
             let model_id = acp::ModelId::new(Arc::from(key.clone()));
             let total_context_tokens = info.context_window.get();
+            let provider = info
+                .provider
+                .clone()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| {
+                    infer_model_provider(
+                        None,
+                        &info.base_url,
+                        model.api_base_url.as_deref(),
+                        &info.model,
+                    )
+                });
+            let display_name = info.name.clone().unwrap_or_else(|| info.model.clone());
             let meta = {
                 let mut map = serde_json::Map::new();
                 map.insert(
@@ -5004,6 +5020,10 @@ pub fn to_acp_model_info(
                 map.insert(
                     "agentType".to_string(),
                     serde_json::Value::String(info.agent_type.clone()),
+                );
+                map.insert(
+                    PROVIDER_META_KEY.to_string(),
+                    serde_json::Value::String(provider.clone()),
                 );
                 if info.supports_reasoning_effort {
                     map.insert(
@@ -5023,19 +5043,22 @@ pub fn to_acp_model_info(
                         reasoning_efforts_meta_value(&info.reasoning_efforts),
                     );
                 }
-                if map.is_empty() { None } else { Some(map) }
+                Some(map)
             };
             (
                 model_id.clone(),
-                acp::ModelInfo::new(
-                    model_id,
-                    info.name.clone().unwrap_or_else(|| info.model.clone()),
-                )
-                .description(info.description.clone())
-                .meta(meta),
+                acp::ModelInfo::new(model_id, display_name.clone())
+                    .description(info.description.clone())
+                    .meta(meta),
+                provider,
+                display_name,
             )
         })
-        .collect()
+        .collect();
+    // Group by provider, then display name — multi-provider catalogs read as
+    // sections in the picker / `/model` list without changing ACP wire types.
+    rows.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.3.cmp(&b.3)).then_with(|| a.0.0.cmp(&b.0.0)));
+    rows.into_iter().map(|(id, info, _, _)| (id, info)).collect()
 }
 /// Error code for model switch rejection due to agent type mismatch.
 pub const MODEL_SWITCH_INCOMPATIBLE_AGENT: &str = "MODEL_SWITCH_INCOMPATIBLE_AGENT";
@@ -6787,6 +6810,44 @@ reasoning_effort = "low"
         let meta = acp_model.meta.as_ref().expect("meta should be present");
         assert_eq!(meta["agentType"], "codex");
         assert_eq!(meta["totalContextTokens"], 256_000);
+    }
+
+    #[test]
+    fn acp_model_meta_includes_provider_and_sorts_by_provider() {
+        let mut models = IndexMap::new();
+        let mut openai = test_model_entry(
+            "gpt-4o",
+            "https://api.openai.com/v1",
+            Some("sk"),
+            None,
+            None,
+        );
+        openai.info.name = Some("GPT-4o".into());
+        openai.info.provider = Some(PROVIDER_OPENAI.into());
+        let mut xai = test_model_entry("xvora", "https://api.x.ai/v1", None, None, None);
+        xai.info.name = Some("Xvora".into());
+        xai.info.provider = Some(PROVIDER_XAI.into());
+        // Insert xai first; sort is by provider id then name → openai before xai.
+        models.insert("xvora".into(), xai);
+        models.insert("gpt".into(), openai);
+        let acp_models = to_acp_model_info(&models);
+        let keys: Vec<&str> = acp_models.keys().map(|k| k.0.as_ref()).collect();
+        assert_eq!(keys, vec!["gpt", "xvora"]);
+        let by_key = |k: &str| {
+            acp_models
+                .iter()
+                .find(|(id, _)| id.0.as_ref() == k)
+                .map(|(_, info)| info)
+                .expect("model present")
+        };
+        assert_eq!(
+            by_key("xvora").meta.as_ref().unwrap()[PROVIDER_META_KEY],
+            PROVIDER_XAI
+        );
+        assert_eq!(
+            by_key("gpt").meta.as_ref().unwrap()[PROVIDER_META_KEY],
+            PROVIDER_OPENAI
+        );
     }
     #[test]
     fn acp_model_meta_always_includes_agent_type() {
