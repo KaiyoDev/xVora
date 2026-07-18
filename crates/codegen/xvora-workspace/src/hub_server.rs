@@ -10,24 +10,22 @@ use crate::rpc_envelope::{RpcEnvelope, envelope_err};
 use crate::workspace_ops::WorkspaceOp;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use computer_hub_sdk::ToolServerHandler;
 use prometheus::{HistogramVec, IntCounterVec, register_histogram_vec, register_int_counter_vec};
 use serde_json::Value;
-use computer_hub_sdk::ToolServerHandler;
-use xvora_tools::computer::types::TaskKind;
-use xvora_tools::implementations::xvora::scheduler::interval::interval_to_human;
-use xvora_tools::implementations::xvora::scheduler::types::{
-    SchedulerCommand, SchedulerHandle,
-};
-use xvora_tools::registry::types::FinalizedToolset;
-use xvora_tools::types::resources::Terminal;
-use xvora_workspace_types::rpc::workspace::{
-    BackgroundTaskSnapshotWire, ScheduledTaskSnapshotWire, TasksSnapshotResponse,
-};
 use tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
 use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,
 };
 use tool_types::ToolDescription;
+use xvora_tools::computer::types::TaskKind;
+use xvora_tools::implementations::xvora::scheduler::interval::interval_to_human;
+use xvora_tools::implementations::xvora::scheduler::types::{SchedulerCommand, SchedulerHandle};
+use xvora_tools::registry::types::FinalizedToolset;
+use xvora_tools::types::resources::Terminal;
+use xvora_workspace_types::rpc::workspace::{
+    BackgroundTaskSnapshotWire, ScheduledTaskSnapshotWire, TasksSnapshotResponse,
+};
 /// Deprecation monitor for the self-attested `caller_session_id` param:
 /// `kind="param_mismatch"` — the param disagreed with the server-bound envelope
 /// session (envelope trusted); `kind="envelope_absent"` — no envelope
@@ -1125,8 +1123,8 @@ mod tests {
     use super::*;
     use crate::capability::CapabilityMode;
     use crate::handle::tests::{background_capable_cfg, make_handle, start_background_sleep};
-    use xvora_tools::implementations::xvora::scheduler::types::ScheduledTask;
     use tool_protocol::turn_hook;
+    use xvora_tools::implementations::xvora::scheduler::types::ScheduledTask;
     /// Helper: consume the first item from a ToolStream.
     async fn next_item(
         stream: &mut ToolStream<TypedToolOutput>,

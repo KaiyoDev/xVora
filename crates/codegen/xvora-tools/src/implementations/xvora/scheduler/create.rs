@@ -112,10 +112,7 @@ impl tool_runtime::Tool for SchedulerCreateTool {
         tool_protocol::ToolId::new(SCHEDULER_CREATE_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "scheduler_create",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -178,10 +175,7 @@ impl tool_runtime::Tool for SchedulerCreateTool {
         let created = reply_rx
             .await
             .map_err(|_| {
-                tool_runtime::ToolError::custom(
-                    "process_manager",
-                    "Scheduler actor dropped reply",
-                )
+                tool_runtime::ToolError::custom("process_manager", "Scheduler actor dropped reply")
             })?
             .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
 

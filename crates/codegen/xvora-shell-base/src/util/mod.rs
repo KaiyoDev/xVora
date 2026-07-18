@@ -1,9 +1,9 @@
 pub mod changelog;
 pub mod event_id;
-pub mod xvora_home;
 pub mod secure_file;
 pub mod tips;
 pub mod uname;
+pub mod xvora_home;
 pub use xvora_shared::clipboard;
 pub use xvora_shared::stderr::{stderr_lock, with_locked_stderr};
 /// Generate a pseudo-random f64 in [0.0, 1.0).

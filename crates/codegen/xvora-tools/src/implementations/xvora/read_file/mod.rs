@@ -567,10 +567,7 @@ impl tool_runtime::Tool for ReadFileTool {
     fn id(&self) -> tool_protocol::ToolId {
         tool_protocol::ToolId::new("read_file").expect("valid tool id")
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "read_file",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -716,12 +713,9 @@ mod tests {
             format: None,
         };
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         let expected = format!(
             "Failed to read file: {}",
             tmp.path().join("nonexistent.txt").display()
@@ -769,12 +763,9 @@ mod tests {
             format: None,
         };
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         let expected_path = dunce::canonicalize(tmp.path().join("subdir"))
             .unwrap_or_else(|_| tmp.path().join("subdir"));
         let expected = format!("Failed to read file: {}", expected_path.display());
@@ -1249,12 +1240,9 @@ mod tests {
             format: None,
         };
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             ReadFileOutput::FileContent(content) => {
                 assert!(content.raw_output.contains("build output data"));

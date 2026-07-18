@@ -341,9 +341,7 @@ async fn snapshot_ors_ledger_incomplete_even_when_reply_complete() {
 /// Scripted coordinator stub: answers each `Outstanding` query with the next
 /// queued reply, repeating the last one; other events are ignored.
 fn scripted_outstanding_responder(
-    replies: Vec<
-        xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply,
-    >,
+    replies: Vec<xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply>,
 ) -> tokio::sync::mpsc::UnboundedSender<
     xvora_tools::implementations::xvora::task::types::SubagentEvent,
 > {

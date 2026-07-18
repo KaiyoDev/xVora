@@ -1346,10 +1346,7 @@ impl tool_runtime::Tool for McpErasedTool {
             .unwrap_or_else(|_| tool_protocol::ToolId::new("mcp_tool").expect("valid"))
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(&self.tool.name, &self.tool.description)
     }
 
@@ -3785,8 +3782,7 @@ impl McpClient {
         &self,
         mcp_state: Arc<Mutex<McpState>>,
     ) -> Result<Vec<McpToolRegistration>, McpError> {
-        let _ensure_init_timer =
-            xvora_telemetry::instrumentation::timer("mcp_ensure_initialized");
+        let _ensure_init_timer = xvora_telemetry::instrumentation::timer("mcp_ensure_initialized");
         let mcp_service = self.ensure_initialized().await?;
 
         let mut all_tools = Vec::new();
@@ -4082,24 +4078,24 @@ pub async fn start_mcp_server(
             }
             xvora_tools::util::detach_command(&mut cmd);
 
-            let (transport, stderr_handle) =
-                SafeTokioChildProcess::spawn(cmd, name.clone(), event_writer.clone()).map_err(
-                    |e| {
-                        tracing::error!("Failed to spawn MCP server '{}': {}", name, e);
-                        xvora_telemetry::session_ctx::log_event(
-                            xvora_telemetry::events::McpServerFailed {
-                                server_name: name.clone(),
-                                error_type: xvora_telemetry::events::McpErrorType::SpawnFailed,
-                                duration_ms: spawn_start.elapsed().as_millis() as u64,
-                                timeout_sec: startup_timeout,
-                            },
-                        );
-                        McpError::SpawnFailed {
-                            server: name.clone(),
-                            source: e,
-                        }
-                    },
-                )?;
+            let (transport, stderr_handle) = SafeTokioChildProcess::spawn(
+                cmd,
+                name.clone(),
+                event_writer.clone(),
+            )
+            .map_err(|e| {
+                tracing::error!("Failed to spawn MCP server '{}': {}", name, e);
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::McpServerFailed {
+                    server_name: name.clone(),
+                    error_type: xvora_telemetry::events::McpErrorType::SpawnFailed,
+                    duration_ms: spawn_start.elapsed().as_millis() as u64,
+                    timeout_sec: startup_timeout,
+                });
+                McpError::SpawnFailed {
+                    server: name.clone(),
+                    source: e,
+                }
+            })?;
 
             tracing::debug!("MCP server '{}' spawned: PID={:?}", name, transport.id());
 
@@ -4159,12 +4155,10 @@ pub async fn start_mcp_server(
                             timeout_secs = OAUTH_DISCOVERY_TIMEOUT.as_secs(),
                             "OAuth discovery timed out"
                         );
-                        event_writer.emit(
-                            file_utils::events::Event::McpOAuthDiscoveryTimeout {
-                                server_name: name.clone(),
-                                url: url.clone(),
-                            },
-                        );
+                        event_writer.emit(file_utils::events::Event::McpOAuthDiscoveryTimeout {
+                            server_name: name.clone(),
+                            url: url.clone(),
+                        });
                         HttpOauthPrep::on_probe_failure(mode)
                     }
                 }

@@ -46,9 +46,7 @@ fn inset_left(area: Rect, inset: u16) -> Rect {
 ///
 /// Shared with [`super::overlay::sync_viewport`] so viewport sizing measures the
 /// prompt's height exactly as the live region will draw it.
-pub(super) fn prompt_style(
-    appearance: &xvora_pager::appearance::AppearanceConfig,
-) -> PromptStyle {
+pub(super) fn prompt_style(appearance: &xvora_pager::appearance::AppearanceConfig) -> PromptStyle {
     PromptStyle {
         focused: true,
         show_prefix: appearance.prompt.show_prefix,
@@ -427,9 +425,7 @@ fn minimal_watchers(agent: &xvora_pager::app::agent_view::AgentView) -> turn_sta
             .session
             .bg_tasks
             .values()
-            .filter(|t| {
-                t.is_monitor && t.status == xvora_pager::app::agent::BgTaskStatus::Running
-            })
+            .filter(|t| t.is_monitor && t.status == xvora_pager::app::agent::BgTaskStatus::Running)
             .count(),
         loops: agent.session.scheduled_tasks.len(),
         subagents: agent

@@ -279,10 +279,7 @@ impl tool_runtime::Tool for CodexListDirTool {
         tool_protocol::ToolId::new("list_dir").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "list_dir",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -508,9 +505,7 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             ListDirOutput::Content(content) => {
                 assert!(
@@ -538,9 +533,7 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "offset must be a 1-indexed entry number");
@@ -562,9 +555,7 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert!(
@@ -588,9 +579,7 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "dir_path must be an absolute path");
@@ -612,9 +601,7 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "limit must be greater than zero");
@@ -636,9 +623,7 @@ mod tests {
             depth: 0,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "depth must be greater than zero");
@@ -664,9 +649,7 @@ mod tests {
             depth: 2,
         };
 
-        let output = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        let output = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match output {
             ListDirOutput::Content(content) => {
                 assert!(

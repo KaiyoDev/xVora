@@ -59,13 +59,9 @@ pub async fn run(args: SessionsArgs, agent_config: &AgentConfig) -> Result<()> {
 
     match args.command {
         SessionsCommand::List { limit } => {
-            let sessions = xvora_shell::session::merge::fetch_merged(
-                Some(&client),
-                cwd.to_str(),
-                None,
-                limit,
-            )
-            .await;
+            let sessions =
+                xvora_shell::session::merge::fetch_merged(Some(&client), cwd.to_str(), None, limit)
+                    .await;
             print_sessions_grouped(&sessions);
         }
         SessionsCommand::Search { query, limit } => {

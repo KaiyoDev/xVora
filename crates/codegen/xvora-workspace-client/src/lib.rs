@@ -15,11 +15,12 @@
 //! No deadline is imposed by default ([`WorkspaceClient::with_deadline`]
 //! opts in), preserving `WorkspaceOps::rpc_raw` semantics where callers
 //! own their timeouts.
+use computer_hub_sdk::harness::ToolHarness;
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use computer_hub_sdk::harness::ToolHarness;
+use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 use xvora_workspace_types::rpc::agents_md::{AgentConfigFile, DiscoverAgentsMdReq};
 use xvora_workspace_types::rpc::code_nav::{
     CodeFindDefinitionsReq, CodeFindReferencesReq, CodeGotoDefinitionReq, CodeGotoReferencesReq,
@@ -60,7 +61,6 @@ use xvora_workspace_types::rpc::worktree::{
     WorktreeGcReq, WorktreeListReq, WorktreeShowReq,
 };
 use xvora_workspace_types::rpc::{RpcEnvelope, RpcError, WORKSPACE_RPC_TOOL_ID, WorkspaceRpc};
-use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 #[derive(Debug, thiserror::Error)]
 pub enum WorkspaceClientError {
     /// A previous call observed a fatal transport error and no
@@ -189,8 +189,8 @@ impl WorkspaceClient {
         if !self.is_connected() {
             return Err(WorkspaceClientError::NotConnected);
         }
-        let tool_id = tool_protocol::ToolId::new(WORKSPACE_RPC_TOOL_ID)
-            .expect("constant tool id is valid");
+        let tool_id =
+            tool_protocol::ToolId::new(WORKSPACE_RPC_TOOL_ID).expect("constant tool id is valid");
         let args = serde_json::json!({ "method" : method, "params" : params });
         tracing::debug!(method, "WorkspaceClient::rpc");
         let fut = async {
@@ -554,13 +554,13 @@ impl WorkspaceClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use computer_hub_sdk::harness::LocalRegistry;
     use schemars::JsonSchema;
     use serde::Deserialize;
-    use computer_hub_sdk::harness::LocalRegistry;
-    use xvora_workspace_types::rpc::skills::SkillScope;
     use tool_protocol::{SessionId, ToolId};
     use tool_runtime::{Tool, ToolError};
     use tool_types::ToolDescription;
+    use xvora_workspace_types::rpc::skills::SkillScope;
     #[derive(Debug, Deserialize, JsonSchema)]
     struct RpcArgs {
         method: String,

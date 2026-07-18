@@ -253,18 +253,14 @@ impl SessionActor {
         // turn, which this skill did not start. `SkillDispatched` still
         // carries `plugin_source`, so dispatch counts stay complete.
         for sk in &parsed {
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::SlashCommandUsed {
-                    command: sk.name.clone(),
-                    args_provided: !sk.args.is_empty(),
-                },
-            );
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::SkillDispatched {
-                    skill_name: sk.name.clone(),
-                    plugin_source: sk.plugin_name.clone(),
-                },
-            );
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SlashCommandUsed {
+                command: sk.name.clone(),
+                args_provided: !sk.args.is_empty(),
+            });
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillDispatched {
+                skill_name: sk.name.clone(),
+                plugin_source: sk.plugin_name.clone(),
+            });
         }
         slash_commands::build_skill_information_for_refs(
             &parsed,

@@ -218,9 +218,7 @@ async fn inner_dispatch_returns_not_found_when_tool_absent() {
         .await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::NotFound =>
-        {
+        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
             assert!(
                 e.detail.contains("ghost"),
                 "detail should mention tool id: {}",
@@ -254,8 +252,8 @@ async fn inner_dispatch_uses_bound_session_not_context_session() {
         .await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::NotFound => {}
+        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
+        }
         other => panic!("session-A registration must not be visible from session-B, got {other:?}"),
     }
 }
@@ -278,9 +276,7 @@ async fn inner_dispatch_after_resolver_drop_returns_computer_hub_dropped() {
         .await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::Custom =>
-        {
+        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::Custom => {
             assert!(
                 e.detail.contains("computer_hub_dropped")
                     || e.details

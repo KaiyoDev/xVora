@@ -2053,9 +2053,7 @@ fn submit_question_answers_cancel_clears_local_modal_and_restores_prompt() {
     // exercising the prompt.restore + cleanup_question_state contract
     // that lives in `submit_question_answers` itself.
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::xvora::ask_user_question::{
-        Question, QuestionOption,
-    };
+    use xvora_tools::implementations::xvora::ask_user_question::{Question, QuestionOption};
 
     let mut app = fork_test_app();
     let id = AgentId(0);

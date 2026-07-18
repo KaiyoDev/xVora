@@ -1,7 +1,7 @@
 //! Handler for x.ai/git/worktree/* extension methods.
 
-use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent_client_protocol as acp;
 
 use crate::agent::mvp_agent::MvpAgent;
 use crate::session::ExtMethodResult;
@@ -403,10 +403,7 @@ pub async fn handle(
         }
         "x.ai/git/worktree/db/stats" => {
             let result = ops
-                .dispatch(
-                    &xvora_workspace::workspace_ops::WorktreeDbStatsReq {},
-                    None,
-                )
+                .dispatch(&xvora_workspace::workspace_ops::WorktreeDbStatsReq {}, None)
                 .await
                 .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             to_response(Ok(result))
@@ -423,10 +420,7 @@ pub async fn handle(
         }
         "x.ai/git/worktree/db/path" => {
             let result = ops
-                .dispatch(
-                    &xvora_workspace::workspace_ops::WorktreeDbPathReq {},
-                    None,
-                )
+                .dispatch(&xvora_workspace::workspace_ops::WorktreeDbPathReq {}, None)
                 .await
                 .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             to_response(Ok(result))

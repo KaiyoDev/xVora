@@ -723,12 +723,11 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
         } => {
             if let Some(ref mut modal) = agent.extensions_modal {
                 use crate::views::extensions_modal::TabDataState;
-                modal.hooks_data =
-                    TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
-                        hooks,
-                        project_trusted,
-                        load_errors,
-                    });
+                modal.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
+                    hooks,
+                    project_trusted,
+                    load_errors,
+                });
                 true
             } else {
                 false
@@ -1248,17 +1247,15 @@ pub(super) fn apply_retry_state(
             session.set_retry_activity(None);
             session.rate_limited = *rate_limited;
             if *rate_limited {
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::RateLimitHit {
-                        model_id: session
-                            .models
-                            .current
-                            .as_ref()
-                            .map(|m| m.0.to_string())
-                            .unwrap_or_default(),
-                        attempts: *attempts,
-                    },
-                );
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::RateLimitHit {
+                    model_id: session
+                        .models
+                        .current
+                        .as_ref()
+                        .map(|m| m.0.to_string())
+                        .unwrap_or_default(),
+                    attempts: *attempts,
+                });
             }
             is_credit_limit = super::super::dispatch::is_credit_limit_error(None, reason);
             let is_free_usage =

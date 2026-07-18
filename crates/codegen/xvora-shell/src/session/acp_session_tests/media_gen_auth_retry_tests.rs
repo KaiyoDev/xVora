@@ -1,5 +1,5 @@
 use super::*;
-use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
+use crate::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use xvora_tools::types::output::{ToolOutput, ToolRunResult};
 
@@ -72,9 +72,7 @@ fn ok_result(text: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
 }
 
 fn err(msg: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
-    Err(tool_runtime::ToolError::invalid_arguments(
-        msg.to_owned(),
-    ))
+    Err(tool_runtime::ToolError::invalid_arguments(msg.to_owned()))
 }
 
 /// Production-shaped HTTP failure (image_gen / video_gen emit this on

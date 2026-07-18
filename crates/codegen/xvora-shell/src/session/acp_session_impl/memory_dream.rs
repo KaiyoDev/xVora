@@ -44,9 +44,7 @@ impl SessionActor {
         &self,
         bridge: &xvora_tools::bridge::ToolBridge,
     ) -> Result<(), String> {
-        use xvora_tools::implementations::memory::{
-            MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME,
-        };
+        use xvora_tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
 
         bridge
             .register_mcp_tools(
@@ -731,13 +729,8 @@ impl SessionActor {
                     .conversation_stream_responses(request)
                     .await
                     .map_err(|e| format!("rewrite stream failed: {e}"))?;
-                let events = xvora_sampler::stream_responses(
-                    raw,
-                    meta,
-                    request_id,
-                    idle_timeout,
-                    doom_loop,
-                );
+                let events =
+                    xvora_sampler::stream_responses(raw, meta, request_id, idle_timeout, doom_loop);
                 xvora_sampler::collect_response(events).await
             }
             crate::sampling::ApiBackend::Messages => {

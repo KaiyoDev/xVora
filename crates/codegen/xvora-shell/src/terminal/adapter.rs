@@ -13,8 +13,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent_client_protocol as acp;
 use xvora_tools::computer::types::{
     BackgroundHandle, ComputerError, KillOutcome, TaskSnapshot, TerminalBackend,
     TerminalRunRequest, TerminalRunResult,

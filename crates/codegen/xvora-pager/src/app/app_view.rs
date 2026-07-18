@@ -16,13 +16,13 @@ use crate::render::draw::CursorState;
 use crate::scrollback::render::ScratchBuffer;
 use crate::views::prompt_widget::PromptWidget;
 use crate::views::welcome::WelcomePromptFocus;
+use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use crossterm::event::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind};
 use indexmap::IndexMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use acp_lib::AcpAgentTx;
 /// State for the "New Worktree" popup dialog on the welcome screen.
 #[derive(Debug, Default)]
 pub struct NewWorktreeDialogState {
@@ -165,8 +165,7 @@ impl WorktreeMode {
     }
     /// Same as [`Self::resolve_from_hints`], for merged effective config (`toml::Value`).
     pub fn resolve_from_hints_value(hints: Option<&toml::Value>) -> (Self, Self) {
-        let (new_session, fork) =
-            xvora_shell::util::config::WorktreeHintMode::resolve_pair(hints);
+        let (new_session, fork) = xvora_shell::util::config::WorktreeHintMode::resolve_pair(hints);
         (new_session.into(), fork.into())
     }
     fn resolve_from_hint_strings(get_str: impl Fn(&str) -> Option<Self>) -> (Self, Self) {
@@ -2719,8 +2718,7 @@ struct WelcomeInputCtx<'a> {
     is_zdr_blocked: bool,
     sp_entries: &'a mut Option<Vec<SessionPickerEntry>>,
     sp_state: &'a mut crate::views::picker::PickerState,
-    sp_content_results:
-        &'a Option<Vec<xvora_shell::extensions::session_search::SearchSessionHit>>,
+    sp_content_results: &'a Option<Vec<xvora_shell::extensions::session_search::SearchSessionHit>>,
     sp_content_loading: bool,
     /// The query `sp_entries` were server-fetched with (see
     /// [`crate::views::session_picker::effective_filter_query`]).
@@ -3127,9 +3125,7 @@ fn handle_welcome_input(ev: &Event, ctx: &mut WelcomeInputCtx<'_>) -> InputOutco
             // Global When::Always also binds these; handle here so welcome
             // never swallows the key as Unchanged without quitting.
             if key!('q', CONTROL).matches(key)
-                || (crate::terminal::terminal_context()
-                    .brand
-                    .is_vscode_family()
+                || (crate::terminal::terminal_context().brand.is_vscode_family()
                     && key!('d', CONTROL).matches(key))
             {
                 return InputOutcome::Action(Action::Quit);
@@ -3999,8 +3995,7 @@ impl AppView {
                             self.access_gate_shown_logged = true;
                             xvora_telemetry::session_ctx::log_event(
                                 xvora_telemetry::events::SuperGrokUpsellShown {
-                                    source:
-                                        xvora_telemetry::events::SuperGrokUpsell::WelcomeScreen,
+                                    source: xvora_telemetry::events::SuperGrokUpsell::WelcomeScreen,
                                     auth_method: self
                                         .login_method_id
                                         .as_ref()
@@ -9788,9 +9783,7 @@ pub(crate) mod tests {
         n_questions: usize,
     ) {
         use crate::views::question_view::QuestionViewState;
-        use xvora_tools::implementations::xvora::ask_user_question::{
-            Question, QuestionOption,
-        };
+        use xvora_tools::implementations::xvora::ask_user_question::{Question, QuestionOption};
         let questions: Vec<Question> = (0..n_questions)
             .map(|i| Question {
                 question: format!("Q{i}?"),

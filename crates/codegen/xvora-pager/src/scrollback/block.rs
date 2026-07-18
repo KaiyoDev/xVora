@@ -1189,10 +1189,7 @@ impl RenderBlock {
     /// (pre-wrap line index, display-cell column range). The caller is
     /// responsible for mapping through word-wrapping and entry layout to
     /// reach screen coordinates.
-    pub fn with_hyperlinks<R>(
-        &self,
-        f: impl FnOnce(&[xvora_markdown::HyperlinkTarget]) -> R,
-    ) -> R {
+    pub fn with_hyperlinks<R>(&self, f: impl FnOnce(&[xvora_markdown::HyperlinkTarget]) -> R) -> R {
         match self {
             RenderBlock::AgentMessage(b) => b.content().with_hyperlinks(f),
             RenderBlock::Thinking(b) => b.content().with_hyperlinks(f),

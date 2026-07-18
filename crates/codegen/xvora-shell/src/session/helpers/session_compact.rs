@@ -7,12 +7,12 @@ use crate::sampling::{
 };
 use agent_client_protocol as acp;
 use async_openai::types::responses::ResponseStreamEvent;
-use futures_util::StreamExt;
-use reqwest::StatusCode;
 pub use chat_state::compaction_utils::{
     AUTO_CONTINUE_PROMPT, extract_last_real_user_query, extract_last_user_query,
     extract_messages_since_last_user, extract_real_user_queries, is_synthetic_extracted_query,
 };
+use futures_util::StreamExt;
+use reqwest::StatusCode;
 use xvora_sampler::SamplerConfig as SamplingConfig;
 /// Short, self-narrating compaction prompt used by the short-prompt harness only.
 /// Frames the call as "summarize for a successor assistant who only sees
@@ -445,8 +445,7 @@ pub(crate) async fn generate_session_compact(
                             }
                             if let Some(fr) = choice.finish_reason {
                                 let sr = xvora_sampling_types::StopReason::from(fr);
-                                truncated =
-                                    matches!(sr, xvora_sampling_types::StopReason::Length);
+                                truncated = matches!(sr, xvora_sampling_types::StopReason::Length);
                                 stop_reason = Some(sr.as_str().to_string());
                             }
                         }
@@ -928,10 +927,10 @@ mod compacted_history_shape_tests {
         BackgroundTaskSummary, CompactionInputs, CompactionStateContext, RunningSubagentSummary,
         SubagentToolNames, to_system_reminder_sync,
     };
-    use std::collections::BTreeSet;
     use chat_state::compaction_utils::{
         CompactedHistoryInput, build_compacted_history as build_compacted_history_shared,
     };
+    use std::collections::BTreeSet;
     /// Thin wrapper around the shared `build_compacted_history` from
     /// `chat-state`, rendering the system-reminder synchronously (no
     /// memory backend) to match the old test-local helper signature.

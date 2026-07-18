@@ -420,8 +420,13 @@ impl SettingsModalState {
                         .into_iter()
                         .map(|c| OwnedEnumChoice {
                             canonical: c.canonical.to_string(),
-                            display: crate::i18n::settings::enum_display(c.canonical, c.display).to_string(),
-                            description: crate::i18n::enums::description(c.canonical, c.description).to_string(),
+                            display: crate::i18n::settings::enum_display(c.canonical, c.display)
+                                .to_string(),
+                            description: crate::i18n::enums::description(
+                                c.canonical,
+                                c.description,
+                            )
+                            .to_string(),
                         })
                         .collect(),
                 ),
@@ -1350,7 +1355,7 @@ fn render_rows(buf: &mut Buffer, area: Rect, state: &mut SettingsModalState, the
     // Empty filter — show "No matches for <query>".
     if total_visible == 0 {
         if !state.query.is_empty() {
-            let prefix = crate::i18n::settings::chrome("settings.no_matches"); 
+            let prefix = crate::i18n::settings::chrome("settings.no_matches");
             let suffix_quote_w = 2u16; // surrounding "" chars
             let available_for_query = (area.width as usize)
                 .saturating_sub(prefix.width())
@@ -1735,7 +1740,12 @@ fn compute_filtered_row_heights(state: &SettingsModalState, area_width: u16) -> 
                     SettingValue::Int(i) => i.to_string(),
                 };
                 let show_restart_pill = meta.restart_required && is_expanded;
-                let layout = row_layout(area_width, meta.label_i18n(), &value_display, show_restart_pill);
+                let layout = row_layout(
+                    area_width,
+                    meta.label_i18n(),
+                    &value_display,
+                    show_restart_pill,
+                );
                 let mut h: u16 = match layout {
                     RowLayout::OneLine => 1,
                     RowLayout::TwoLine | RowLayout::TwoLineWithLabelTruncation => 2,
@@ -1872,8 +1882,10 @@ fn render_picking_enum(buf: &mut Buffer, area: Rect, state: &SettingsModalState,
                 .into_iter()
                 .map(|c| OwnedEnumChoice {
                     canonical: c.canonical.to_string(),
-                    display: crate::i18n::settings::enum_display(c.canonical, c.display).to_string(),
-                    description: crate::i18n::enums::description(c.canonical, c.description).to_string(),
+                    display: crate::i18n::settings::enum_display(c.canonical, c.display)
+                        .to_string(),
+                    description: crate::i18n::enums::description(c.canonical, c.description)
+                        .to_string(),
                 })
                 .collect()
         }
@@ -1888,7 +1900,14 @@ fn render_picking_enum(buf: &mut Buffer, area: Rect, state: &SettingsModalState,
     }
 
     // Choosers need title + gap (2) before the description renders.
-    let header_rows = render_sub_pane_header(buf, area, theme, meta.label_i18n(), meta.description_i18n(), 2);
+    let header_rows = render_sub_pane_header(
+        buf,
+        area,
+        theme,
+        meta.label_i18n(),
+        meta.description_i18n(),
+        2,
+    );
     if area.height <= header_rows {
         return;
     }
@@ -2258,11 +2277,12 @@ fn render_picking_group(
             .max(label_x);
         if value_x > label_x {
             let label_room = (value_x - label_x).saturating_sub(1) as usize;
-            let label_text: std::borrow::Cow<'_, str> = if child_meta.label_i18n().width() <= label_room {
-                std::borrow::Cow::Borrowed(child_meta.label_i18n())
-            } else {
-                std::borrow::Cow::Owned(truncate_str(child_meta.label_i18n(), label_room))
-            };
+            let label_text: std::borrow::Cow<'_, str> =
+                if child_meta.label_i18n().width() <= label_room {
+                    std::borrow::Cow::Borrowed(child_meta.label_i18n())
+                } else {
+                    std::borrow::Cow::Owned(truncate_str(child_meta.label_i18n(), label_room))
+                };
             let label_w = (label_text.width() as u16).min((value_x - label_x).saturating_sub(1));
             buf.set_span(
                 label_x,
@@ -2508,7 +2528,14 @@ fn render_editing_value(
     };
 
     // Editors reserve title + gap + the input row (3) before the description.
-    let header_rows = render_sub_pane_header(buf, area, theme, meta.label_i18n(), meta.description_i18n(), 3);
+    let header_rows = render_sub_pane_header(
+        buf,
+        area,
+        theme,
+        meta.label_i18n(),
+        meta.description_i18n(),
+        3,
+    );
     if area.height <= header_rows {
         return;
     }
@@ -3569,11 +3596,12 @@ fn render_setting_row_no_value(
         .add_modifier(Modifier::BOLD);
 
     let label_max_w = max_label_w;
-    let label_truncated: std::borrow::Cow<'_, str> = if meta.label_i18n().width() <= label_max_w as usize {
-        std::borrow::Cow::Borrowed(meta.label_i18n())
-    } else {
-        std::borrow::Cow::Owned(truncate_str(meta.label_i18n(), label_max_w as usize))
-    };
+    let label_truncated: std::borrow::Cow<'_, str> =
+        if meta.label_i18n().width() <= label_max_w as usize {
+            std::borrow::Cow::Borrowed(meta.label_i18n())
+        } else {
+            std::borrow::Cow::Owned(truncate_str(meta.label_i18n(), label_max_w as usize))
+        };
     let text = format!(" !   {label_truncated} (no read mapping)");
     let w = text.width() as u16;
     buf.set_span(

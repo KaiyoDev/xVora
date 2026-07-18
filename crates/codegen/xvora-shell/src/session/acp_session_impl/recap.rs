@@ -33,10 +33,9 @@ impl SessionActor {
         // `ContentBlock::Thinking` without a top-level `thinking` config. The
         // Anthropic Messages API rejects requests that include thinking blocks in
         // messages but omit the `thinking` parameter.
-        let mut items: Vec<ConversationItem> =
-            chat_state::compaction_utils::strip_reasoning_blocks(
-                self.chat_state_handle.get_conversation().await,
-            );
+        let mut items: Vec<ConversationItem> = chat_state::compaction_utils::strip_reasoning_blocks(
+            self.chat_state_handle.get_conversation().await,
+        );
 
         // /btw fires mid-turn, so the snapshot may end with an assistant
         // message whose tool_calls have no matching ToolResult yet. The
@@ -534,13 +533,8 @@ impl SessionActor {
                     .conversation_stream_responses(request)
                     .await
                     .ok()?;
-                let events = xvora_sampler::stream_responses(
-                    raw,
-                    meta,
-                    request_id,
-                    idle_timeout,
-                    doom_loop,
-                );
+                let events =
+                    xvora_sampler::stream_responses(raw, meta, request_id, idle_timeout, doom_loop);
                 xvora_sampler::collect_response(events).await
             }
             crate::sampling::ApiBackend::Messages => {

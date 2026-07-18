@@ -20,11 +20,11 @@ use crate::session::goal_planner::{
 };
 use crate::session::goal_role_tools::RoleToolNames;
 use crate::session::goal_tracker::GoalClassifierVerdict;
+use file_utils::events::EventWriter;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use file_utils::events::EventWriter;
 
 // Constants
 
@@ -2446,9 +2446,7 @@ mod tests {
 
     #[tokio::test]
     async fn channel_spawner_request_is_harness_internal() {
-        use xvora_tools::implementations::xvora::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use xvora_tools::implementations::xvora::task::types::{SubagentEvent, SubagentResult};
 
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {
@@ -2496,9 +2494,7 @@ mod tests {
     /// SAME model — i.e. skeptic-0 keeps `pool[0]` on the cold fallback.
     #[tokio::test]
     async fn channel_spawner_applies_per_index_model_to_request() {
-        use xvora_tools::implementations::xvora::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use xvora_tools::implementations::xvora::task::types::{SubagentEvent, SubagentResult};
 
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {
@@ -2567,9 +2563,7 @@ mod tests {
     /// `None` — the historic default-spawn behavior.
     #[tokio::test]
     async fn channel_spawner_inherit_index_leaves_model_none() {
-        use xvora_tools::implementations::xvora::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use xvora_tools::implementations::xvora::task::types::{SubagentEvent, SubagentResult};
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {
             event_tx: tx,
@@ -5822,9 +5816,7 @@ mod tests {
     #[tokio::test]
     async fn cold_fallback_after_resume_failure_carries_pool0_model_on_request() {
         use std::sync::Mutex as StdMutex;
-        use xvora_tools::implementations::xvora::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use xvora_tools::implementations::xvora::task::types::{SubagentEvent, SubagentResult};
 
         // (model, resume_from) per spawn, in spawn order.
         type SpawnCapture = Arc<StdMutex<Vec<(Option<String>, Option<String>)>>>;
@@ -6216,9 +6208,7 @@ mod tests {
 
     #[tokio::test]
     async fn channel_spawner_blocks_until_subagent_result() {
-        use xvora_tools::implementations::xvora::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use xvora_tools::implementations::xvora::task::types::{SubagentEvent, SubagentResult};
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel();
         let release = Arc::new(Notify::new());

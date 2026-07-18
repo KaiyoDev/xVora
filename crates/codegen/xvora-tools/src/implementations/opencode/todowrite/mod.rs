@@ -306,10 +306,7 @@ impl tool_runtime::Tool for TodoWriteTool {
         tool_protocol::ToolId::new("todowrite").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "todowrite",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

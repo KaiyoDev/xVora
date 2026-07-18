@@ -845,10 +845,7 @@ impl AuthManager {
 
     /// Persist to disk and cache without spawning the background `/user` task
     /// (already merged inline, or a stale fetch must not race a fresh write).
-    pub(crate) async fn save_without_enrichment(
-        &self,
-        auth: XaiAuth,
-    ) -> std::io::Result<XaiAuth> {
+    pub(crate) async fn save_without_enrichment(&self, auth: XaiAuth) -> std::io::Result<XaiAuth> {
         let started = std::time::Instant::now();
         let map = match read_auth_json_or_empty_recovering_corrupt(&self.path) {
             Ok(map) => map,
@@ -1160,11 +1157,7 @@ impl AuthManager {
             DiskAuthState::FileMissing
             | DiskAuthState::EntryMissing
             | DiskAuthState::Unreadable => {
-                xvora_telemetry::unified_log::warn(
-                    "auth disk state: entry lost",
-                    None,
-                    Some(ctx),
-                );
+                xvora_telemetry::unified_log::warn("auth disk state: entry lost", None, Some(ctx));
             }
         }
     }

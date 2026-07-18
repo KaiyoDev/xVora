@@ -20,7 +20,7 @@ pub use crate::link_opener;
 pub mod edit_highlight_worker;
 /// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
 pub mod mermaid_worker;
-pub use prompt_queue as prompt_queue;
+pub use prompt_queue;
 mod acp_handler;
 mod csi_filter;
 mod dispatch;
@@ -436,19 +436,17 @@ pub async fn run(
     let startup_start = std::time::Instant::now();
     let raw_config = xvora_shell::config::load_effective_config()
         .map_err(|e| anyhow::anyhow!("Failed to load config: {e}"))?;
-    let grok_com_config =
-        match xvora_shell::agent::config::Config::new_from_toml_cfg(&raw_config) {
-            Ok(c) => c.grok_com_config,
-            Err(e) => {
-                tracing::warn!(
-                    error = % e, "failed to parse config for auth refresh, using defaults"
-                );
-                xvora_shell::auth::GrokComConfig::default()
-            }
-        };
+    let grok_com_config = match xvora_shell::agent::config::Config::new_from_toml_cfg(&raw_config) {
+        Ok(c) => c.grok_com_config,
+        Err(e) => {
+            tracing::warn!(
+                error = % e, "failed to parse config for auth refresh, using defaults"
+            );
+            xvora_shell::auth::GrokComConfig::default()
+        }
+    };
     let refreshed_auth = xvora_shell::auth::try_ensure_fresh_auth(&grok_com_config).await;
-    let early_prefetch =
-        xvora_shell::agent::models::start_early_prefetch_with_auth(refreshed_auth);
+    let early_prefetch = xvora_shell::agent::models::start_early_prefetch_with_auth(refreshed_auth);
     xvora_shell::agent::mvp_agent::warm_async_http_client();
     tokio::task::spawn_blocking(|| {});
     if let Ok(cwd) = std::env::current_dir() {
@@ -1038,9 +1036,7 @@ fn init_terminal(
             })?;
         }
         if mode.is_fullscreen() {
-            xvora_shell::util::with_locked_stderr(|stderr| {
-                execute!(stderr, EnterAlternateScreen)
-            })?;
+            xvora_shell::util::with_locked_stderr(|stderr| execute!(stderr, EnterAlternateScreen))?;
         }
         #[cfg(windows)]
         if want_minimal {
@@ -1702,8 +1698,8 @@ mod tests {
     }
     #[test]
     fn cli_session_id_with_resume_and_fork_ok() {
-        let args =
-            try_parse_pager(&["xvora-pager", "-s", "a", "--resume", "b", "--fork-session"]).unwrap();
+        let args = try_parse_pager(&["xvora-pager", "-s", "a", "--resume", "b", "--fork-session"])
+            .unwrap();
         assert!(args.session_startup_intent().is_ok());
     }
     #[test]

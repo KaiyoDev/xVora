@@ -10,9 +10,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
+use acp_lib::LineBufferedRead;
 use agent_client_protocol::{self as acp, Agent as _};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-use acp_lib::LineBufferedRead;
 
 use crate::env::grok_binary;
 use crate::mock_server::MockInferenceServer;
@@ -140,7 +140,10 @@ impl LeaderStdioClient {
             // sibling `.lock` (leader.sock -> leader.lock), and the spawned
             // leader subprocess inherits/forwards this env var, so every
             // (re-)elected leader binds the same sandboxed path.
-            .env("XVORA_LEADER_SOCKET", home.join(".xvora").join("leader.sock"))
+            .env(
+                "XVORA_LEADER_SOCKET",
+                home.join(".xvora").join("leader.sock"),
+            )
             .env("XVORA_CLI_CHAT_PROXY_BASE_URL", server.url())
             .env("XVORA_XAI_API_BASE_URL", server.url())
             .env("XAI_API_KEY", "test-key-for-ci")

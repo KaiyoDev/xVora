@@ -13,8 +13,8 @@ use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
 use crate::client_identity::{HEADLESS_CLIENT_TYPE, PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
-use agent_client_protocol as acp;
 use acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
+use agent_client_protocol as acp;
 use xvora_shell::agent::auth_method::AuthMethodKind;
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::sampling::types::ReasoningEffort;
@@ -995,7 +995,7 @@ mod tests {
     /// [`select_eager_auth_method`].
     #[test]
     fn startup_auth_xai_api_key_not_first_still_does_not_force_login() {
-        use xvora_shell::agent::auth_method::{XVORA_COM_METHOD_ID, XAI_API_KEY_METHOD_ID};
+        use xvora_shell::agent::auth_method::{XAI_API_KEY_METHOD_ID, XVORA_COM_METHOD_ID};
 
         let methods = vec![
             make_auth_method(XVORA_COM_METHOD_ID, "Grok", None),

@@ -123,10 +123,7 @@ impl tool_runtime::Tool for ReadTool {
         tool_protocol::ToolId::new("read").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "read",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -215,8 +212,7 @@ impl tool_runtime::Tool for ReadTool {
         // Check for images via magic-byte detection. Route through
         // compression — raw bytes (truncated or non-endpoint formats)
         // must never reach the conversation.
-        if let Ok(meta) =
-            crate::implementations::xvora::read_file::bytes_to_metadata(&file_bytes)
+        if let Ok(meta) = crate::implementations::xvora::read_file::bytes_to_metadata(&file_bytes)
             && meta.is_image()
         {
             return Ok(crate::implementations::read_file::image::image_read_output(

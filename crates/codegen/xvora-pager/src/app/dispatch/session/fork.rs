@@ -117,9 +117,7 @@ pub(super) fn worktree_persist_options()
 /// instead -- the modal-collision protocol.
 fn open_fork_question(app: &mut AppView, directive: Option<String>) -> Vec<Effect> {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::xvora::ask_user_question::{
-        Question, QuestionOption,
-    };
+    use xvora_tools::implementations::xvora::ask_user_question::{Question, QuestionOption};
     let ActiveView::Agent(id) = app.active_view else {
         return vec![];
     };

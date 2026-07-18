@@ -64,10 +64,7 @@ impl tool_runtime::Tool for SchedulerDeleteTool {
         tool_protocol::ToolId::new("scheduler_delete").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "scheduler_delete",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

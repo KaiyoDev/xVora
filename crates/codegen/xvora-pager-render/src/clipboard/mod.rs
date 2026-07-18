@@ -502,12 +502,10 @@ pub fn log_paste_key_empty_host_clipboard(surface: &str) {
     if !xvora_telemetry::client::is_enabled() {
         return;
     }
-    xvora_telemetry::session_ctx::log_event(
-        xvora_telemetry::events::PasteKeyEmptyHostClipboard {
-            terminal,
-            surface: surface.to_owned(),
-        },
-    );
+    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PasteKeyEmptyHostClipboard {
+        terminal,
+        surface: surface.to_owned(),
+    });
 }
 
 fn lone_http_url_trimmed(t: &str) -> bool {

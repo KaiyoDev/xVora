@@ -419,10 +419,7 @@ async fn run(args: Args, cwd: PathBuf) -> anyhow::Result<()> {
     let tracker = ws_handle.activity_tracker().clone();
     let grace_budget = xvora_workspace::handle::termination_grace_from_env();
     ws_handle
-        .two_phase_drain(
-            grace_budget,
-            xvora_workspace::handle::DrainReason::Sigterm,
-        )
+        .two_phase_drain(grace_budget, xvora_workspace::handle::DrainReason::Sigterm)
         .await;
     tracker.set_shutting_down();
     tracing::info!("Shutting down...");

@@ -590,11 +590,17 @@ fn make_ask_user_question_args(
         session_id: "test-session".into(),
         tool_call_id: tool_call_id.into(),
         mode: xvora_tools::implementations::xvora::ask_user_question::AskUserQuestionMode::Default,
-        questions: vec![
-            Question { question : "ACP-driven question".into(), options :
-            vec![QuestionOption { label : "ok".into(), description : "ok".into(), preview
-            : None, id : None, }], multi_select : Some(false), id : None, }
-        ],
+        questions: vec![Question {
+            question: "ACP-driven question".into(),
+            options: vec![QuestionOption {
+                label: "ok".into(),
+                description: "ok".into(),
+                preview: None,
+                id: None,
+            }],
+            multi_select: Some(false),
+            id: None,
+        }],
     };
     let (tx, rx) = tokio::sync::oneshot::channel();
     let ext = acp::ExtRequest::new(
@@ -833,8 +839,7 @@ fn enqueue_permission_with_enable_always_approve(
     });
     response_rx
 }
-const POLICY_WARNING: &str =
-    xvora_workspace::permission::resolution::YOLO_PIN_REASON_REQUIREMENTS;
+const POLICY_WARNING: &str = xvora_workspace::permission::resolution::YOLO_PIN_REASON_REQUIREMENTS;
 fn agent_toast(app: &AppView) -> Option<String> {
     app.agents[&AgentId(0)]
         .toast

@@ -465,9 +465,12 @@ pub fn grok_com_auth_method(
         None
     };
     acp::AuthMethod::Agent(
-        acp::AuthMethodAgent::new(acp::AuthMethodId::new(XVORA_COM_METHOD_ID), name.to_string())
-            .description(Some(format!("Sign in with {name}")))
-            .meta(meta),
+        acp::AuthMethodAgent::new(
+            acp::AuthMethodId::new(XVORA_COM_METHOD_ID),
+            name.to_string(),
+        )
+        .description(Some(format!("Sign in with {name}")))
+        .meta(meta),
     )
 }
 
@@ -946,7 +949,7 @@ mod tests {
     #[test]
     #[serial]
     fn grok_login_legacy_token_does_not_require_login() {
-        use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
+        use crate::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
 
         // Ensure clean slate for "no other auth available".
         let _g1 = EnvGuard::unset("XVORA_AUTH_PATH");

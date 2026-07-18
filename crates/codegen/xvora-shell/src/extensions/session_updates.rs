@@ -325,10 +325,7 @@ fn send_streamed_chunks<T: AsRef<str>>(
 }
 
 /// Inline sync I/O (`spawn_blocking` is slow on `current_thread` + `LocalSet`).
-pub async fn handle(
-    args: &acp::ExtRequest,
-    gateway: &acp_lib::AcpAgentGatewaySender,
-) -> ExtResult {
+pub async fn handle(args: &acp::ExtRequest, gateway: &acp_lib::AcpAgentGatewaySender) -> ExtResult {
     let _timer = crate::instrumentation_timer!("session.ext.bulk_updates");
 
     let request: Request = serde_json::from_str(args.params.get())

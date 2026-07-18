@@ -11,19 +11,17 @@ pub use wait_tasks::WaitTasksTool;
 
 use crate::DEFAULT_TOOL_OUTPUT_BYTES;
 use crate::implementations::BashTool;
+use crate::implementations::opencode::OpenCodeBashTool;
+use crate::implementations::task_output::tool::snapshot_to_result;
 use crate::implementations::xvora::task::TaskTool;
 use crate::implementations::xvora::task::backend::SubagentBackendResource;
 use crate::implementations::xvora::task::types::{SubagentSnapshot, SubagentSnapshotStatus};
 use crate::implementations::xvora_concise::BashConciseTool;
-use crate::implementations::opencode::OpenCodeBashTool;
-use crate::implementations::task_output::tool::snapshot_to_result;
 use crate::types::requirements::{Expr, ToolParamsRequirement, ToolRequirement};
 use crate::types::resources::{SharedResources, Terminal, TruncationCfg};
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::{ToolKind, ToolNamespace};
-use tool_types::{
-    MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput,
-};
+use tool_types::{MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput};
 
 /// Default wait budget when a caller is already in wait mode but omitted
 /// `timeout_ms` (legacy `wait_tasks` / internal `capped_wait_timeout`). On
@@ -750,10 +748,7 @@ impl tool_runtime::Tool for TaskOutputTool {
         tool_protocol::ToolId::new("get_task_output").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "get_task_output",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -955,10 +950,7 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = TaskOutputTool;
-        assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
-            "get_task_output"
-        );
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "get_task_output");
         // The static fallback is the shared builder's default xvora
         // rendering (monitor + task + bash + read present): concrete names, no
         // leftover template markers.
@@ -1521,9 +1513,8 @@ mod tests {
         let tool = TaskOutputTool;
 
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
 
         let result = tool_runtime::Tool::run(
             &tool,

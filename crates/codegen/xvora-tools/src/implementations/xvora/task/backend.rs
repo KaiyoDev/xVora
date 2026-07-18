@@ -99,11 +99,7 @@ impl std::fmt::Debug for SubagentBackendResource {
     }
 }
 
-register_resource!(
-    "xvora",
-    "SubagentBackendResource",
-    SubagentBackendResource
-);
+register_resource!("xvora", "SubagentBackendResource", SubagentBackendResource);
 
 /// In-process channel-based backend for the local host shell.
 ///

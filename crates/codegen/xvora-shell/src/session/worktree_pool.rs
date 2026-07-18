@@ -36,9 +36,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use fast_worktree::{WorktreeBuilder, WorktreeSync};
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
-use fast_worktree::{WorktreeBuilder, WorktreeSync};
 
 const WORKTREE_POOL_LOG: &str = "xai_worktree_pool";
 use crate::util::config::PoolConfig;
@@ -1704,10 +1704,9 @@ fn schedule_cleanup(path: PathBuf) {
                 path = %path.display(),
                 "SCHEDULE_CLEANUP_FAST: rm -rf + deregister"
             );
-            let result = tokio::task::spawn_blocking(move || {
-                fast_worktree::remove_worktree(&path_clone)
-            })
-            .await;
+            let result =
+                tokio::task::spawn_blocking(move || fast_worktree::remove_worktree(&path_clone))
+                    .await;
             let cleanup_ms = cleanup_start.elapsed().as_millis() as u64;
             tracing::info!(
                 target: WORKTREE_POOL_LOG,

@@ -182,9 +182,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     //   which would incorrectly lift an existing gate).
     let byok_unrestricted = xvora_shell::config::load_effective_config()
         .ok()
-        .and_then(|root| {
-            xvora_shell::agent::config::Config::new_from_toml_cfg(&root).ok()
-        })
+        .and_then(|root| xvora_shell::agent::config::Config::new_from_toml_cfg(&root).ok())
         .is_some_and(|c| xvora_shell::agent::config::is_byok_or_custom_local(&c));
     if byok_unrestricted {
         let effs = app.lift_gate();

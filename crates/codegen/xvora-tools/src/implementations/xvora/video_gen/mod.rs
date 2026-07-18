@@ -471,9 +471,7 @@ impl VideoGenClient {
         }
 
         response.bytes().await.map(|b| b.to_vec()).map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
-                "Failed to read video bytes: {e}"
-            ))
+            tool_runtime::ToolError::invalid_arguments(format!("Failed to read video bytes: {e}"))
         })
     }
 
@@ -995,10 +993,7 @@ impl tool_runtime::Tool for ImageToVideoTool {
         tool_protocol::ToolId::new(IMAGE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             IMAGE_TO_VIDEO_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -1091,10 +1086,7 @@ impl tool_runtime::Tool for ReferenceToVideoTool {
         tool_protocol::ToolId::new(REFERENCE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             REFERENCE_TO_VIDEO_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::description_template(self),

@@ -323,10 +323,7 @@ impl tool_runtime::Tool for AskUserQuestionTool {
         tool_protocol::ToolId::new("ask_user_question").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "ask_user_question",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -509,12 +506,10 @@ impl tool_runtime::Tool for AskUserQuestionTool {
             Ok(UserQuestionResponse::Cancelled) => Ok(AskUserQuestionOutput::UserAnswered {
                 message: format::CANCEL_TEXT.to_string(),
             }),
-            Err(UserQuestionError::TransportError(msg)) => {
-                Err(tool_runtime::ToolError::execution(
-                    tool_protocol::ToolId::new("ask_user_question").expect("valid"),
-                    format!("Failed to reach the client for user question: {msg}"),
-                ))
-            }
+            Err(UserQuestionError::TransportError(msg)) => Err(tool_runtime::ToolError::execution(
+                tool_protocol::ToolId::new("ask_user_question").expect("valid"),
+                format!("Failed to reach the client for user question: {msg}"),
+            )),
             Err(UserQuestionError::MalformedResponse(msg)) => {
                 Err(tool_runtime::ToolError::execution(
                     tool_protocol::ToolId::new("ask_user_question").expect("valid"),
@@ -581,10 +576,7 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = AskUserQuestionTool;
-        assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
-            "ask_user_question"
-        );
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "ask_user_question");
         let desc = crate::types::tool_metadata::ToolMetadata::description_template(&tool);
         assert!(desc.contains("Ask the user"));
         assert!(desc.contains("Other"));
@@ -760,10 +752,9 @@ mod tests {
             use_id_keyed_format: false,
         };
 
-        let err =
-            tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
-                .await
-                .unwrap_err();
+        let err = tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
+            .await
+            .unwrap_err();
 
         let msg = err.to_string();
         assert!(msg.contains("Duplicate question text"), "got: {msg}");
@@ -785,8 +776,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-1"), input)
-                    .await
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-1"), input).await
             }
         });
 
@@ -828,8 +818,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-4"), input)
-                    .await
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-4"), input).await
             }
         });
 
@@ -867,12 +856,8 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                tool_runtime::Tool::run(
-                    &tool,
-                    test_ctx_with_call_id(shared, "tc-timeout"),
-                    input,
-                )
-                .await
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-timeout"), input)
+                    .await
             }
         });
 
@@ -907,8 +892,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-ok"), input)
-                    .await
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-ok"), input).await
             }
         });
 
@@ -1026,12 +1010,8 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                tool_runtime::Tool::run(
-                    &tool,
-                    test_ctx_with_call_id(shared, "tc-forever"),
-                    input,
-                )
-                .await
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-forever"), input)
+                    .await
             }
         });
 
@@ -1073,8 +1053,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-5"), input)
-                    .await
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-5"), input).await
             }
         });
 
@@ -1099,8 +1078,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-6"), input)
-                    .await
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-6"), input).await
             }
         });
 

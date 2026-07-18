@@ -1195,17 +1195,19 @@ pub(super) mod paste_key_tests {
     /// Build a `QuestionViewState` already in `InputMode` focus.
     pub(in crate::app::agent_view) fn make_question_view_state_in_input_mode()
     -> crate::views::question_view::QuestionViewState {
-        let question =
-            xvora_tools::implementations::xvora::ask_user_question::Question {
-                question: "Pick one?".to_string(),
-                options: vec![
-                xvora_tools::implementations::xvora::ask_user_question::QuestionOption
-                { label : "A".to_string(), description : "Option A".to_string(), preview
-                : None, id : None, },
+        let question = xvora_tools::implementations::xvora::ask_user_question::Question {
+            question: "Pick one?".to_string(),
+            options: vec![
+                xvora_tools::implementations::xvora::ask_user_question::QuestionOption {
+                    label: "A".to_string(),
+                    description: "Option A".to_string(),
+                    preview: None,
+                    id: None,
+                },
             ],
-                multi_select: Some(false),
-                id: None,
-            };
+            multi_select: Some(false),
+            id: None,
+        };
         let mut state = crate::views::question_view::QuestionViewState::new(
             "tc-1".into(),
             vec![question],

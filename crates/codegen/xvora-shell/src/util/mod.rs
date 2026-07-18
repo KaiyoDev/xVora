@@ -1,6 +1,6 @@
 pub mod config;
-pub mod xvora_auth_credentials;
 pub mod hooks;
+pub mod xvora_auth_credentials;
 
 // The foundation utilities live in `xvora-shell-base` (upstream of this
 // crate so they build in parallel). Re-exported at the original paths so

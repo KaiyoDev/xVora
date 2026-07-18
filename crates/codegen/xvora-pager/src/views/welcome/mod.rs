@@ -1749,10 +1749,7 @@ fn render_welcome_done(
                 crate::i18n::t(crate::i18n::Msg::WelcomeImportClaude),
             ));
         }
-        items.push((
-            key_w,
-            crate::i18n::t(crate::i18n::Msg::WelcomeNewWorktree),
-        ));
+        items.push((key_w, crate::i18n::t(crate::i18n::Msg::WelcomeNewWorktree)));
         items.push((
             key_s,
             crate::i18n::t(crate::i18n::Msg::WelcomeResumeSession),

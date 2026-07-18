@@ -91,10 +91,7 @@ impl tool_runtime::Tool for ExitPlanModeTool {
         tool_protocol::ToolId::new("exit_plan_mode").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "exit_plan_mode",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

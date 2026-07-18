@@ -482,8 +482,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
         }
         TaskResult::ChangelogFetched { markdown, entries } => {
             app.changelog_markdown = markdown;
-            let mut bullets =
-                xvora_shell::util::changelog::bullets_from_entries(&entries, 5);
+            let mut bullets = xvora_shell::util::changelog::bullets_from_entries(&entries, 5);
             // Dummy CDN layout-test entries are filtered; embedded CURRENT +
             // GitHub raw should win. Last-resort product bullets if still empty.
             if bullets.is_empty() {
@@ -495,8 +494,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
             let version = xvora_version::VERSION;
             let home = xvora_shell::util::xvora_home::xvora_home();
             if xvora_shell::util::changelog::should_notify_whats_new(&home, version) {
-                let toast =
-                    xvora_shell::util::changelog::whats_new_toast(version, &bullets);
+                let toast = xvora_shell::util::changelog::whats_new_toast(version, &bullets);
                 app.show_toast(&toast);
                 xvora_shell::util::changelog::write_last_seen_version(&home, version);
             }

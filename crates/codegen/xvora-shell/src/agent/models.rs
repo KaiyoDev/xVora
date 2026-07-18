@@ -10,7 +10,7 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use indexmap::IndexMap;
 
 use crate::agent::config::{self, ModelEntry, resolve_credentials, sampling_config_for_model};
-use crate::auth::{AuthManager, XaiAuth, GrokComConfig};
+use crate::auth::{AuthManager, GrokComConfig, XaiAuth};
 use crate::remote::{FetchModelsResult, fetch_models_blocking};
 use crate::sampling::SamplerConfig as SamplingConfig;
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -3451,10 +3451,7 @@ mod tests {
     #[test]
     fn resolve_default_model_prefers_id_over_model_slug() {
         let mut catalog: IndexMap<String, ModelEntry> = IndexMap::new();
-        catalog.insert(
-            "auto-xvora".to_string(),
-            make_model_entry("xvora"),
-        );
+        catalog.insert("auto-xvora".to_string(), make_model_entry("xvora"));
         catalog.insert("xvora".to_string(), make_model_entry("xvora"));
 
         let mut cfg = config::Config::default();
@@ -3467,11 +3464,7 @@ mod tests {
     /// No id field — falls back to slug as key.
     #[test]
     fn build_prefetched_map_none_id_falls_back_to_slug() {
-        let entries = vec![make_entry_config_with_id(
-            None,
-            "xvora",
-            Some("Xvora"),
-        )];
+        let entries = vec![make_entry_config_with_id(None, "xvora", Some("Xvora"))];
         let map = build_prefetched_map(entries, None);
 
         assert_eq!(map.len(), 1);
@@ -3483,10 +3476,7 @@ mod tests {
     #[test]
     fn resolve_catalog_key_maps_routing_slug_to_config_key() {
         let mut models = IndexMap::new();
-        models.insert(
-            "enterprise-xvora".to_string(),
-            make_model_entry("grok-4.5"),
-        );
+        models.insert("enterprise-xvora".to_string(), make_model_entry("grok-4.5"));
         models.insert("grok-4.3".to_string(), make_model_entry("grok-4.3"));
 
         let persisted = acp::ModelId::new("grok-4.5");
@@ -3507,10 +3497,7 @@ mod tests {
     #[test]
     fn resolve_catalog_key_last_slug_match_wins() {
         let mut models = IndexMap::new();
-        models.insert(
-            "default-xvora".to_string(),
-            make_model_entry("grok-4.5"),
-        );
+        models.insert("default-xvora".to_string(), make_model_entry("grok-4.5"));
         models.insert("user-xvora".to_string(), make_model_entry("grok-4.5"));
 
         let persisted = acp::ModelId::new("grok-4.5");
@@ -3521,10 +3508,7 @@ mod tests {
     #[test]
     fn selectable_catalog_key_for_persisted_none_when_resolved_not_available() {
         let mut models = IndexMap::new();
-        models.insert(
-            "enterprise-xvora".to_string(),
-            make_model_entry("grok-4.5"),
-        );
+        models.insert("enterprise-xvora".to_string(), make_model_entry("grok-4.5"));
 
         let available: IndexMap<_, _> = IndexMap::new();
         let persisted = acp::ModelId::new("grok-4.5");
@@ -3535,10 +3519,7 @@ mod tests {
     fn selectable_prefers_available_identity_over_non_selectable_exact_key() {
         let mut models = IndexMap::new();
         models.insert("xvora".to_string(), make_model_entry("xvora"));
-        models.insert(
-            "enterprise-xvora".to_string(),
-            make_model_entry("xvora"),
-        );
+        models.insert("enterprise-xvora".to_string(), make_model_entry("xvora"));
         models.insert("grok-4.3".to_string(), make_model_entry("grok-4.3"));
 
         let available = test_available_keys(&["enterprise-xvora", "grok-4.3"]);
@@ -3559,10 +3540,7 @@ mod tests {
     #[test]
     fn selectable_matches_routing_slug_when_no_exact_key() {
         let mut models = IndexMap::new();
-        models.insert(
-            "enterprise-xvora".to_string(),
-            make_model_entry("xvora"),
-        );
+        models.insert("enterprise-xvora".to_string(), make_model_entry("xvora"));
         models.insert("grok-4.3".to_string(), make_model_entry("grok-4.3"));
 
         let available = test_available_keys(&["enterprise-xvora", "grok-4.3"]);

@@ -28,10 +28,10 @@ use crate::auth::AuthManager;
 use crate::auth::credential_provider::{
     ShellAuthCredentialProvider, StorageClientAttributionBridge,
 };
-use std::sync::Arc;
 use file_utils::gcs::StorageConfig;
 use file_utils::storage_client::Auth401AttributionCallback;
 use file_utils::{TraceExportConfig, UploadMethod};
+use std::sync::Arc;
 use xvora_auth::AuthCredentialProvider;
 /// Owned wrapper that pairs a `TraceExportConfig` with an optional live
 /// `AuthManager`. See module docs for why this exists; in short, it's the

@@ -17,15 +17,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use acp_lib::{
+    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
+    LineBufferedRead,
+};
 use agent_client_protocol as acp;
 use tempfile::TempDir;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tokio_util::sync::CancellationToken;
-use acp_lib::{
-    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
-    LineBufferedRead,
-};
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::agent::mvp_agent::MvpAgent;
 use xvora_shell::leader::{

@@ -7,12 +7,12 @@ use dashmap::DashMap;
 
 use async_trait::async_trait;
 
-use futures::StreamExt;
-use serde::{Deserialize, Serialize};
 use computer_hub_core::{
     CompoundResolver, ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport,
     ToolHandle, ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome,
 };
+use futures::StreamExt;
+use serde::{Deserialize, Serialize};
 use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind, UserId,
@@ -321,9 +321,7 @@ async fn resolve_and_dispatch_misses_yield_terminal_not_found() {
         .await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::NotFound =>
-        {
+        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
             assert!(
                 e.detail.contains("missing"),
                 "detail should mention tool id: {}",

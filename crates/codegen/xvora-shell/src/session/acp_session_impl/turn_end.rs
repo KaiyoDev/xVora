@@ -123,8 +123,7 @@ impl SessionActor {
     pub(super) async fn outstanding_reply_for_prompt(
         &self,
         prompt_id: &str,
-    ) -> Option<xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply>
-    {
+    ) -> Option<xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply> {
         let Some(tx) = &self.tool_context.subagent_event_tx else {
             return Some(Default::default());
         };
@@ -147,9 +146,7 @@ impl SessionActor {
     /// Report-level incomplete (error-path attach, tests). Same OR as
     /// [`super::turn::UsageDrainOutcome::report_incomplete`].
     pub(super) fn usage_incomplete_from_reply(
-        reply: Option<
-            &xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply,
-        >,
+        reply: Option<&xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply>,
     ) -> bool {
         super::turn::UsageDrainOutcome::from_outstanding_reply(reply).report_incomplete()
     }

@@ -24,12 +24,12 @@ use crate::session::two_pass::{
     note_for_two_pass_pass2, split_conversation_for_two_pass,
 };
 use agent_client_protocol as acp;
-use std::sync::Arc;
 use chat_state::compaction_utils::{
     CompactedHistoryInput, CompactionAttempt, build_compacted_history, is_degenerate_summary,
     prepare_conversation_for_verbatim_summarization, sanitize_compacted_history,
     validate_compacted_history,
 };
+use std::sync::Arc;
 use xvora_sampling_types::{ApiBackend, ConversationItem};
 /// Default percentage points below the auto-compact threshold at which prefire
 /// (background pass-1) starts, giving pass-1 runway to finish before the limit.
@@ -884,9 +884,7 @@ impl SessionActor {
                 summary_strips_reasoning,
             )
         } else {
-            chat_state::compaction_utils::prepare_conversation_for_summarization(
-                full_conversation,
-            )
+            chat_state::compaction_utils::prepare_conversation_for_summarization(full_conversation)
         };
         if conv_len == 0 {
             tracing::error!(
@@ -944,12 +942,11 @@ impl SessionActor {
             .into_iter()
             .map(xvora_sampling_types::ToolSpec::from)
             .collect();
-        let compaction_hosted_tools: Vec<xvora_sampling_types::HostedTool> =
-            if use_backend_search {
-                self.agent.borrow().hosted_tools().to_vec()
-            } else {
-                Vec::new()
-            };
+        let compaction_hosted_tools: Vec<xvora_sampling_types::HostedTool> = if use_backend_search {
+            self.agent.borrow().hosted_tools().to_vec()
+        } else {
+            Vec::new()
+        };
         tracing::info!(
             num_tools = compaction_tools.len(),
             tool_tokens = compaction_tool_tokens,
@@ -981,8 +978,7 @@ impl SessionActor {
         };
         let use_short_prompt = false;
         let started_at = chrono::Utc::now().to_rfc3339();
-        let estimated_input_tokens =
-            chat_state::estimate_conversation_tokens(&simplified_messages);
+        let estimated_input_tokens = chat_state::estimate_conversation_tokens(&simplified_messages);
         let auto_trigger = matches!(trigger, xvora_telemetry::events::CompactionTrigger::Auto);
         let wall_clock_budget_secs = self
             .agent
@@ -1952,11 +1948,7 @@ impl SessionActor {
         .await;
         let compact_start = std::time::Instant::now();
         let result = self
-            .run_compact_inner(
-                None,
-                None,
-                xvora_telemetry::events::CompactionTrigger::Auto,
-            )
+            .run_compact_inner(None, None, xvora_telemetry::events::CompactionTrigger::Auto)
             .await;
         let elapsed_ms = compact_start.elapsed().as_millis() as i64;
         match result {

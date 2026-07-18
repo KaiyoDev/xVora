@@ -12,8 +12,6 @@
 
 pub mod cache;
 pub mod color_support;
-mod xvoraday;
-mod xvoranight;
 pub mod md_style;
 pub mod osc11;
 mod oscura;
@@ -21,6 +19,8 @@ mod rosepine;
 pub mod system_appearance;
 mod terminal_default;
 pub mod tokyonight;
+mod xvoraday;
+mod xvoranight;
 
 pub use color_support::quantize;
 pub use tokyonight::{Theme, pulse_brightness, wave_brightness};
@@ -105,9 +105,13 @@ impl ThemeKind {
         let lower = name.to_lowercase();
         match lower.as_str() {
             "auto" | "system" => Some(Self::Auto),
-            "xvoranight" | "xvora-night" | "groknight" | "grok-night" | "dark" => Some(Self::XvoraNight),
+            "xvoranight" | "xvora-night" | "groknight" | "grok-night" | "dark" => {
+                Some(Self::XvoraNight)
+            }
             "tokyonight" | "tokyo-night" | "tokyo" => Some(Self::TokyoNight),
-            "xvoraday" | "xvora-day" | "grokday" | "grok-day" | "light" | "day" => Some(Self::XvoraDay),
+            "xvoraday" | "xvora-day" | "grokday" | "grok-day" | "light" | "day" => {
+                Some(Self::XvoraDay)
+            }
             "rosepine" | "rose-pine" | "rosepine-moon" | "rose-pine-moon" => {
                 Some(Self::RosePineMoon)
             }

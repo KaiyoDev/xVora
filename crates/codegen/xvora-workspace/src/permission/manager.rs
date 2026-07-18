@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use chrono::Utc;
 use tokio::sync::{mpsc, oneshot};
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::permission::bash_command_splitting::{
     all_commands_from_script, is_setup_command, unwrap_wrappers,
@@ -18,9 +18,7 @@ use crate::permission::types::{
     AccessKind, ClientType, Decision, EditPolicy, PermissionCommand, PermissionEvent, PromptPolicy,
 };
 use xvora_paths::AbsPathBuf;
-use xvora_tools::implementations::xvora::web_fetch::{
-    DomainMatcher, domain::normalize_domain,
-};
+use xvora_tools::implementations::xvora::web_fetch::{DomainMatcher, domain::normalize_domain};
 
 /// Canonical `decision_reason` triggers for the uploaded artifact. Single source
 /// so the emit sites can't drift or misspell (the field doc lists these values).

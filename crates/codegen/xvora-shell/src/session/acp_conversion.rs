@@ -12,11 +12,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use agent_client_protocol as acp;
+use tool_types::{KillTaskOutput, TaskOutputOutput};
 use xvora_tools::types::output::{
     ApplyPatchOutput, CodexGrepFilesOutput, ListDirOutput, MCPOutputDetails, ReadFileOutput,
     SearchReplaceEditContextInformation, SearchReplaceEditDetail, SearchReplaceOutput, ToolOutput,
 };
-use tool_types::{KillTaskOutput, TaskOutputOutput};
 
 /// Rewrites real worktree paths to display paths in serialized output.
 ///
@@ -600,12 +600,12 @@ pub fn acp_tool_update(
         }
         ToolOutput::ExitPlanMode(exit) => {
             let message = match exit {
-                xvora_tools::types::output::ExitPlanModeOutput::PlanReady {
-                    message, ..
-                } => message.clone(),
-                xvora_tools::types::output::ExitPlanModeOutput::EmptyPlan {
-                    message, ..
-                } => message.clone(),
+                xvora_tools::types::output::ExitPlanModeOutput::PlanReady { message, .. } => {
+                    message.clone()
+                }
+                xvora_tools::types::output::ExitPlanModeOutput::EmptyPlan { message, .. } => {
+                    message.clone()
+                }
             };
             Some(acp::ToolCallUpdate::new(
                 acp::ToolCallId::new(Arc::from(tool_call_id)),
@@ -782,9 +782,7 @@ mod tests {
     #[test]
     fn test_turn_end_plan_cleanup_preserves_semantics_and_priority() {
         use crate::tools::todo::plan_entry_from_todo_item;
-        use xvora_tools::implementations::xvora::todo::{
-            TodoItem, TodoPriority, TodoStatus,
-        };
+        use xvora_tools::implementations::xvora::todo::{TodoItem, TodoPriority, TodoStatus};
 
         // Simulate a mixed todo list at turn end.
         let items = [
@@ -852,16 +850,12 @@ mod tests {
     fn test_acp_plan_update_todo() {
         let output = ToolOutput::Todo(TodoWriteOutput::TodosUpdated(TodoWriteSuccess {
             summary_for_prompt: "tasks".to_string(),
-            todos: vec![
-                xvora_tools::implementations::xvora::todo::TodoItem {
-                    content: "Task 1".to_string(),
-                    priority:
-                        xvora_tools::implementations::xvora::todo::TodoPriority::Medium,
-                    status:
-                        xvora_tools::implementations::xvora::todo::TodoStatus::Completed,
-                    meta: None,
-                },
-            ],
+            todos: vec![xvora_tools::implementations::xvora::todo::TodoItem {
+                content: "Task 1".to_string(),
+                priority: xvora_tools::implementations::xvora::todo::TodoPriority::Medium,
+                status: xvora_tools::implementations::xvora::todo::TodoStatus::Completed,
+                meta: None,
+            }],
             state: xvora_tools::implementations::xvora::todo::TodoState::default(),
         }));
         let plan = acp_plan_update(&output).unwrap();
@@ -1175,7 +1169,8 @@ mod tests {
         )
         .unwrap();
         // Session directory paths use urlencoding::encode(&cwd)
-        let encoded_overlay = urlencoding::encode("/root/.xvora/worktrees/project/ab-123-a-overlay");
+        let encoded_overlay =
+            urlencoding::encode("/root/.xvora/worktrees/project/ab-123-a-overlay");
         let input = format!(
             "output-file: /root/.xvora/sessions/{}/session-id/terminal/call.log",
             encoded_overlay

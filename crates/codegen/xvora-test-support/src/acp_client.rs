@@ -10,10 +10,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
+use acp_lib::LineBufferedRead;
 use agent_client_protocol::{self as acp, Agent as _};
 use tempfile::TempDir;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-use acp_lib::LineBufferedRead;
 
 use crate::env::{grok_binary, test_env_cmd_tokio};
 use crate::headless::stderr_tail;

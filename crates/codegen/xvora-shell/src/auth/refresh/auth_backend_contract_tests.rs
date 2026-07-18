@@ -5,7 +5,7 @@
 use super::*;
 use crate::auth::error::RefreshTokenFailedReason;
 use crate::auth::recovery::RecoverySource;
-use crate::auth::{XaiAuth, GrokComConfig};
+use crate::auth::{GrokComConfig, XaiAuth};
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};

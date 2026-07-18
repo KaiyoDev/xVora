@@ -31,14 +31,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use agent_client_protocol::{self as acp, Agent as _};
-use serde_json::{Value, json};
-use tempfile::TempDir;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
+use agent_client_protocol::{self as acp, Agent as _};
+use serde_json::{Value, json};
+use tempfile::TempDir;
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::agent::mvp_agent::MvpAgent;
 use xvora_test_support::{MockInferenceServer, ScriptedResponse, SseEvent};
@@ -76,12 +76,10 @@ impl ScanCounter {
 fn install_global_scan_counter() -> ScanCounter {
     // XVORA_E2E_LOG=<filter> tees shell logs to stderr for local debugging.
     let filter = std::env::var("XVORA_E2E_LOG").ok();
-    ScanCounter(
-        test_utils::tracing_capture::install_prefix_counter_global(
-            &[REFRESH_SCAN_LOG_PREFIX, REFRESH_SKIP_LOG_PREFIX],
-            filter.as_deref(),
-        ),
-    )
+    ScanCounter(test_utils::tracing_capture::install_prefix_counter_global(
+        &[REFRESH_SCAN_LOG_PREFIX, REFRESH_SKIP_LOG_PREFIX],
+        filter.as_deref(),
+    ))
 }
 
 // ── repo fixture ──────────────────────────────────────────────────────────

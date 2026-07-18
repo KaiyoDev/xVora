@@ -387,10 +387,7 @@ impl tool_runtime::Tool for ImageGenTool {
         tool_protocol::ToolId::new("image_gen").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "image_gen",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

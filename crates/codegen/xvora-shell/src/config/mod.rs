@@ -1267,11 +1267,10 @@ pub fn apply_sandbox(
         .and_then(|v| v.get("sandbox")?.get("auto_allow_bash")?.as_bool());
     let resolved = config.resolve_profile(cli_profile, profile_req);
     xvora_sandbox::set_auto_allow_bash(config.resolve_auto_allow_bash(auto_allow_req).value);
-    let sandbox_profile: xvora_sandbox::ProfileName =
-        resolved.value.parse().unwrap_or_else(|e| {
-            eprintln!("warning: {e}, defaulting to no sandbox");
-            xvora_sandbox::ProfileName::Off
-        });
+    let sandbox_profile: xvora_sandbox::ProfileName = resolved.value.parse().unwrap_or_else(|e| {
+        eprintln!("warning: {e}, defaulting to no sandbox");
+        xvora_sandbox::ProfileName::Off
+    });
     xvora_sandbox::set_configured_profile(&resolved.value);
     let workspace = cwd
         .and_then(|p| dunce::canonicalize(p).ok())

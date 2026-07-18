@@ -624,10 +624,7 @@ fn push(
 /// without reaching into private dispatcher internals. Uses
 /// [`crate::session::mcp_dispatcher::SERVER_STATUS_METHOD`] so pushes
 /// share the dispatcher's wire method name.
-pub fn forward_status(
-    gateway: &acp_lib::AcpAgentGatewaySender,
-    payload: &McpServerStatusPayload,
-) {
+pub fn forward_status(gateway: &acp_lib::AcpAgentGatewaySender, payload: &McpServerStatusPayload) {
     let raw = match serde_json::value::to_raw_value(payload) {
         Ok(r) => r,
         Err(e) => {

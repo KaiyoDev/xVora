@@ -3,8 +3,8 @@
 //! Wraps an `mpsc::UnboundedSender<PersistenceMsg>` and translates
 //! `ChatPersistence` trait calls into the appropriate `PersistenceMsg` variants.
 
-use tokio::sync::mpsc;
 use chat_state::ChatPersistence;
+use tokio::sync::mpsc;
 use xvora_sampling_types::ConversationItem;
 
 use super::persistence::PersistenceMsg;

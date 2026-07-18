@@ -288,8 +288,7 @@ fn resolve_ask_user_question_timeout_secs_from_tiers(
         .or(managed)
         .or(remote)
         .unwrap_or(
-            xvora_tools::implementations::xvora::ask_user_question::RESPONSE_TIMEOUT
-                .as_secs(),
+            xvora_tools::implementations::xvora::ask_user_question::RESPONSE_TIMEOUT.as_secs(),
         )
 }
 
@@ -440,8 +439,7 @@ mod ask_user_question_timeout_tests {
 
     #[test]
     fn timeout_secs_tier_precedence() {
-        let d = xvora_tools::implementations::xvora::ask_user_question::RESPONSE_TIMEOUT
-            .as_secs();
+        let d = xvora_tools::implementations::xvora::ask_user_question::RESPONSE_TIMEOUT.as_secs();
         let r = resolve_ask_user_question_timeout_secs_from_tiers;
         assert_eq!(r(None, None, None, None, None), d);
         assert_eq!(r(Some(1), Some(2), Some(3), Some(4), Some(5)), 1); // requirements highest
@@ -454,8 +452,7 @@ mod ask_user_question_timeout_tests {
     #[test]
     fn timeout_secs_rejects_non_positive_layers() {
         let _g = guard();
-        let d = xvora_tools::implementations::xvora::ask_user_question::RESPONSE_TIMEOUT
-            .as_secs();
+        let d = xvora_tools::implementations::xvora::ask_user_question::RESPONSE_TIMEOUT.as_secs();
         // user 0 and managed negative are dropped; remote fills the gap.
         let zero = toml_ask("timeout_secs = 0");
         let negative = toml_ask("timeout_secs = -5");

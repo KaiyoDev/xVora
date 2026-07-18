@@ -1617,9 +1617,7 @@ mod question_no_freeform_tests {
     };
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
-    use xvora_tools::implementations::xvora::ask_user_question::{
-        Question, QuestionOption,
-    };
+    use xvora_tools::implementations::xvora::ask_user_question::{Question, QuestionOption};
     /// Fixed options, single-select — shaped like the free-usage upsell.
     fn upsell_question() -> Question {
         let opt = |label: &str, desc: &str| QuestionOption {

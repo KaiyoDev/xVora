@@ -61,10 +61,7 @@ impl tool_runtime::Tool for SchedulerListTool {
         tool_protocol::ToolId::new("scheduler_list").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "scheduler_list",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

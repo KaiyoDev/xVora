@@ -46,8 +46,8 @@ pub use managed_cache::{
 };
 pub use paths::{
     claude_managed_settings_path, claude_managed_settings_probe_path, decode_cwd_from_dirname,
-    default_xvora_home, encode_cwd_dirname, ensure_sessions_cwd_dir, xvora_application, xvora_home,
-    sessions_cwd_dir, system_config_dir, user_xvora_home,
+    default_xvora_home, encode_cwd_dirname, ensure_sessions_cwd_dir, sessions_cwd_dir,
+    system_config_dir, user_xvora_home, xvora_application, xvora_home,
 };
 pub use validation::{
     RequirementsError, RequirementsLayer, RequirementsSource, fail_closed_flag_from_str,

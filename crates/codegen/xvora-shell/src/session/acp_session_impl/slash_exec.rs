@@ -25,13 +25,11 @@ impl SessionActor {
                 let actual = self.permissions.is_yolo_mode();
                 if let Some(actual) = yolo_toggle_report(was, actual) {
                     self.emit_event(crate::session::events::Event::YoloToggled { enabled: actual });
-                    xvora_telemetry::session_ctx::log_event(
-                        xvora_telemetry::events::YoloToggled {
-                            enabled: actual,
-                            previous_state: was,
-                            trigger: xvora_telemetry::events::YoloTrigger::SlashCommand,
-                        },
-                    );
+                    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::YoloToggled {
+                        enabled: actual,
+                        previous_state: was,
+                        trigger: xvora_telemetry::events::YoloTrigger::SlashCommand,
+                    });
                     tracing::info_span!(
                         "session.permission_mode_changed",
                         from_mode = crate::session::telemetry::permission_mode_label(was),
@@ -476,13 +474,10 @@ impl SessionActor {
 
                     if !trust {
                         let install_source =
-                            xvora_agent::plugins::git_install::parse_install_source(
-                                &source, cwd,
-                            );
+                            xvora_agent::plugins::git_install::parse_install_source(&source, cwd);
                         let source_desc = match &install_source {
                             xvora_agent::plugins::git_install::InstallSource::Git {
-                                url,
-                                ..
+                                url, ..
                             } => {
                                 format!("remote git repo: {url}")
                             }

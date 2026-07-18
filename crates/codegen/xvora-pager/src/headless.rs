@@ -12,8 +12,8 @@ use anyhow::Result;
 use clap::ValueEnum;
 use tokio_util::sync::CancellationToken;
 
-use agent_client_protocol as acp;
 use acp_lib::{AcpAgentTx, AcpClientMessageBox, acp_send};
+use agent_client_protocol as acp;
 use xvora_shell::agent::auth_method::AuthMethodKind;
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::extensions::task::{CancelSubagentRequest, KillTaskRequest};
@@ -1059,14 +1059,13 @@ pub async fn run_single_turn(
     // Debug: track headless sessions in active_sessions.json when env var is set.
     let track_active = std::env::var("XVORA_TRACK_HEADLESS").is_ok();
     if track_active {
-        let _ = xvora_shell::active_sessions::register(
-            xvora_shell::active_sessions::ActiveSession {
+        let _ =
+            xvora_shell::active_sessions::register(xvora_shell::active_sessions::ActiveSession {
                 session_id: session_id.clone(),
                 pid: std::process::id(),
                 cwd: cwd.display().to_string(),
                 opened_at: chrono::Utc::now(),
-            },
-        );
+            });
     }
 
     if let Err(e) = apply_headless_model_and_effort(

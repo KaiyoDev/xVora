@@ -141,7 +141,7 @@ impl xvora_auth::HttpAuth for XvoraAuthCredentials {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
+    use crate::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
     use chrono::{Duration, Utc};
     use std::sync::Arc;
     fn make_manager_with_token(

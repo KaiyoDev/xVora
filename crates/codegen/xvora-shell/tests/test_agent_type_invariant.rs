@@ -177,29 +177,29 @@ async fn test_session_resume_preserves_harness() {
 #[ignore]
 async fn test_model_without_agent_type_defaults_to_xvora() {
     with_local_set(|| async {
-            let server = MockInferenceServer::start_with_models(
-                    vec![MockModelEntry::new("no-agent-type-model"),],
-                )
-                .await
-                .expect("start mock server");
-            let workdir = git_workdir();
-            let client = GrokStdioClient::spawn(&server, workdir.path()).await;
-            client.initialize_with_timeout().await;
-            let session_id = client
-                .create_session_with_model_timeout(workdir.path(), "no-agent-type-model")
-                .await;
-            let result = client.prompt_with_timeout(&session_id, "say hello").await;
-            assert!(result.is_ok(), "prompt failed: {:?}", result.err());
-            let sys_prompt = server
-                .last_system_prompt()
-                .expect("should have at least one inference request");
-            assert!(
-                sys_prompt.contains("Grok") || sys_prompt.contains("grok"),
-                "model without agent_type should default to xvora harness\nsystem prompt preview: {}",
-                & sys_prompt[..sys_prompt.len().min(500)]
-            );
-        })
-        .await;
+        let server = MockInferenceServer::start_with_models(vec![MockModelEntry::new(
+            "no-agent-type-model",
+        )])
+        .await
+        .expect("start mock server");
+        let workdir = git_workdir();
+        let client = GrokStdioClient::spawn(&server, workdir.path()).await;
+        client.initialize_with_timeout().await;
+        let session_id = client
+            .create_session_with_model_timeout(workdir.path(), "no-agent-type-model")
+            .await;
+        let result = client.prompt_with_timeout(&session_id, "say hello").await;
+        assert!(result.is_ok(), "prompt failed: {:?}", result.err());
+        let sys_prompt = server
+            .last_system_prompt()
+            .expect("should have at least one inference request");
+        assert!(
+            sys_prompt.contains("Grok") || sys_prompt.contains("grok"),
+            "model without agent_type should default to xvora harness\nsystem prompt preview: {}",
+            &sys_prompt[..sys_prompt.len().min(500)]
+        );
+    })
+    .await;
 }
 /// The `XVORA_AGENT` escape hatch should override the model's agent_type.
 /// Setting `XVORA_AGENT=xvora` with an alternate-agent model should use

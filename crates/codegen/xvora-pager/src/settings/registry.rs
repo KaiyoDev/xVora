@@ -384,15 +384,19 @@ impl PagerLocalSnapshot {
             return None;
         }
         // Exact display label (includes multi-provider prefix).
-        if let Some(id) = self.available_models.iter().find_map(|(name, id)| {
-            name.eq_ignore_ascii_case(q).then(|| id.clone())
-        }) {
+        if let Some(id) = self
+            .available_models
+            .iter()
+            .find_map(|(name, id)| name.eq_ignore_ascii_case(q).then(|| id.clone()))
+        {
             return Some(id);
         }
         // Model id string.
-        if let Some(id) = self.available_models.iter().find_map(|(_, id)| {
-            id.0.eq_ignore_ascii_case(q).then(|| id.clone())
-        }) {
+        if let Some(id) = self
+            .available_models
+            .iter()
+            .find_map(|(_, id)| id.0.eq_ignore_ascii_case(q).then(|| id.clone()))
+        {
             return Some(id);
         }
         // Bare display name without `provider · ` prefix.
@@ -1339,10 +1343,8 @@ mod tests {
         }
         assert!(saw_auto, "settings must offer System (auto)");
 
-        let crate_codes: HashSet<&str> = xvora_voice::STT_LANGUAGES
-            .iter()
-            .map(|l| l.code)
-            .collect();
+        let crate_codes: HashSet<&str> =
+            xvora_voice::STT_LANGUAGES.iter().map(|l| l.code).collect();
         assert_eq!(
             setting_codes, crate_codes,
             "settings concrete languages must match xvora_voice::STT_LANGUAGES exactly"

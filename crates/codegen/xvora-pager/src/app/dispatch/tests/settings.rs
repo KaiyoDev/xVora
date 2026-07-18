@@ -2944,7 +2944,10 @@ fn set_auto_dark_theme_does_not_apply_when_system_is_light() {
             crate::theme::ThemeKind::XvoraDay,
             "auto_dark_theme commit must NOT change live display when system=Light",
         );
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("xvoranight"),);
+        assert_eq!(
+            app.current_ui.auto_dark_theme.as_deref(),
+            Some("xvoranight"),
+        );
     });
 }
 /// Symmetric to the dark test: `set_auto_light_theme` applies only
@@ -3126,7 +3129,10 @@ fn rollback_auto_dark_theme_reverts_current_ui() {
             }),
             &mut app,
         );
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("xvoranight"),);
+        assert_eq!(
+            app.current_ui.auto_dark_theme.as_deref(),
+            Some("xvoranight"),
+        );
     });
 }
 #[test]

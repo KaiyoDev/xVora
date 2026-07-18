@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
-use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender;
+use agent_client_protocol as acp;
 use xvora_paths::AbsPathBuf;
 use xvora_workspace::permission::{AccessKind, ClientType, spawn_permission_manager};
 

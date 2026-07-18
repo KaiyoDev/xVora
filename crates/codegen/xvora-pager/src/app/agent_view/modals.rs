@@ -1365,10 +1365,7 @@ impl AgentView {
                 if let Some(ref mut state) = self.extensions_modal {
                     state.modal_message = None;
                     state.last_plugins_action = Some(plugins_action.clone());
-                    if matches!(
-                        plugins_action,
-                        hooks_plugins_types::PluginsAction::Reload
-                    ) {
+                    if matches!(plugins_action, hooks_plugins_types::PluginsAction::Reload) {
                         // Reload rebuilds the entire plugin registry -- show
                         // tab-level "Loading..." instead of a single-entry badge.
                         state.pending_action = Some("Reloading...".into());
@@ -2279,11 +2276,7 @@ mod extensions_action_target_tests {
         assert_eq!(enabled, None);
     }
 
-    fn hook_info(
-        name: &str,
-        source_dir: &str,
-        disabled: bool,
-    ) -> hooks_plugins_types::HookInfo {
+    fn hook_info(name: &str, source_dir: &str, disabled: bool) -> hooks_plugins_types::HookInfo {
         hooks_plugins_types::HookInfo {
             name: name.into(),
             event: hooks_plugins_types::HookEvent::PreToolUse,

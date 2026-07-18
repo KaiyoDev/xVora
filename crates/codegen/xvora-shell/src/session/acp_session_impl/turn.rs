@@ -60,9 +60,7 @@ impl UsageDrainOutcome {
     /// Same policy as freeze's terminal outcome: FG live → fail-closed;
     /// sticky and background → report only.
     pub(super) fn from_outstanding_reply(
-        reply: Option<
-            &xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply,
-        >,
+        reply: Option<&xvora_tools::implementations::xvora::task::types::SubagentOutstandingReply>,
     ) -> Self {
         match reply {
             None => Self {
@@ -427,13 +425,11 @@ impl SessionActor {
             redirect_kind,
         });
         self.observability_bridge
-            .emit(
-                tool_protocol::session_event::SessionEvent::TurnStarted {
-                    turn_number,
-                    model_id: model_id.clone(),
-                    yolo_mode,
-                },
-            )
+            .emit(tool_protocol::session_event::SessionEvent::TurnStarted {
+                turn_number,
+                model_id: model_id.clone(),
+                yolo_mode,
+            })
             .await;
         self.send_before_turn_event(tool_protocol::turn_hook::BeforeTurnPayload {
             turn_number: self.chat_state_handle.get_prompt_index().await as u64,
@@ -832,16 +828,14 @@ impl SessionActor {
                     cancellation_context: None,
                 })
                 .await;
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::TurnCompleted {
-                        outcome: xvora_telemetry::events::Outcome::Completed,
-                        duration_ms: turn_duration_ms,
-                        tool_call_count: turn_tool_count,
-                        model_id: turn_model_id,
-                        cancellation_category: None,
-                        error_category: None,
-                    },
-                );
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::TurnCompleted {
+                    outcome: xvora_telemetry::events::Outcome::Completed,
+                    duration_ms: turn_duration_ms,
+                    tool_call_count: turn_tool_count,
+                    model_id: turn_model_id,
+                    cancellation_category: None,
+                    error_category: None,
+                });
             }
             Ok(TurnOutcome::Cancelled { category, context }) => {
                 self.emit_turn_ended(
@@ -863,16 +857,14 @@ impl SessionActor {
                     cancellation_context: context.clone(),
                 })
                 .await;
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::TurnCompleted {
-                        outcome: xvora_telemetry::events::Outcome::Cancelled,
-                        duration_ms: turn_duration_ms,
-                        tool_call_count: turn_tool_count,
-                        model_id: turn_model_id,
-                        cancellation_category: category.map(|c| format!("{c:?}")),
-                        error_category: None,
-                    },
-                );
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::TurnCompleted {
+                    outcome: xvora_telemetry::events::Outcome::Cancelled,
+                    duration_ms: turn_duration_ms,
+                    tool_call_count: turn_tool_count,
+                    model_id: turn_model_id,
+                    cancellation_category: category.map(|c| format!("{c:?}")),
+                    error_category: None,
+                });
             }
             Ok(TurnOutcome::MaxTurnsReached { limit }) => {
                 tracing::info!(limit, "turn ended: max_turns reached");
@@ -896,16 +888,14 @@ impl SessionActor {
                     )),
                 })
                 .await;
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::TurnCompleted {
-                        outcome: xvora_telemetry::events::Outcome::Cancelled,
-                        duration_ms: turn_duration_ms,
-                        tool_call_count: turn_tool_count,
-                        model_id: turn_model_id,
-                        cancellation_category: Some("max_turns_reached".to_string()),
-                        error_category: None,
-                    },
-                );
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::TurnCompleted {
+                    outcome: xvora_telemetry::events::Outcome::Cancelled,
+                    duration_ms: turn_duration_ms,
+                    tool_call_count: turn_tool_count,
+                    model_id: turn_model_id,
+                    cancellation_category: Some("max_turns_reached".to_string()),
+                    error_category: None,
+                });
             }
             Err(err) => {
                 self.emit_turn_ended(crate::session::events::TurnOutcomeLabel::Error, None, None);
@@ -929,16 +919,14 @@ impl SessionActor {
                         duration_ms: Some(turn_duration_ms),
                     },
                 );
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::TurnCompleted {
-                        outcome: xvora_telemetry::events::Outcome::Error,
-                        duration_ms: turn_duration_ms,
-                        tool_call_count: turn_tool_count,
-                        model_id: turn_model_id,
-                        cancellation_category: None,
-                        error_category: Some(error_category),
-                    },
-                );
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::TurnCompleted {
+                    outcome: xvora_telemetry::events::Outcome::Error,
+                    duration_ms: turn_duration_ms,
+                    tool_call_count: turn_tool_count,
+                    model_id: turn_model_id,
+                    cancellation_category: None,
+                    error_category: Some(error_category),
+                });
                 self.dispatch_hook(
                     xvora_hooks::event::HookEventName::StopFailure,
                     xvora_hooks::event::HookPayload::StopFailure {
@@ -1897,11 +1885,9 @@ impl SessionActor {
                 phase: crate::session::events::Phase::WaitingForModel,
             });
             self.observability_bridge
-                .emit(
-                    tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: tool_protocol::session_event::SessionPhase::Sampling,
-                    },
-                )
+                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
+                    phase: tool_protocol::session_event::SessionPhase::Sampling,
+                })
                 .await;
             xvora_telemetry::unified_log::info(
                 "shell.turn.inference_start",
@@ -2062,8 +2048,7 @@ impl SessionActor {
             let fallback_text = response.fallback_text();
             let stop_reason = response.stop_reason;
             let response_is_empty = response.is_empty();
-            let turn_refused =
-                stop_reason == Some(xvora_sampling_types::StopReason::ContentFilter);
+            let turn_refused = stop_reason == Some(xvora_sampling_types::StopReason::ContentFilter);
             let refusal_explanation = response.stop_message.clone();
             let final_answer_text = json_schema.is_some().then(|| response.assistant_text());
             for item in response.items {
@@ -2251,11 +2236,9 @@ impl SessionActor {
                 phase: crate::session::events::Phase::ToolExecution,
             });
             self.observability_bridge
-                .emit(
-                    tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: tool_protocol::session_event::SessionPhase::ToolExecution,
-                    },
-                )
+                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
+                    phase: tool_protocol::session_event::SessionPhase::ToolExecution,
+                })
                 .await;
             let execute_tool_calls_result = self.execute_tool_calls(tool_call_responses).await;
             match execute_tool_calls_result {

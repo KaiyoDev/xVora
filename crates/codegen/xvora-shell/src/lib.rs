@@ -5,8 +5,8 @@
     unreachable_code,
     dead_code
 )]
-pub(crate) use xvora_telemetry::unified_log;
 pub use tracing_macros::{teprintln, timed, tprintln};
+pub(crate) use xvora_telemetry::unified_log;
 pub mod active_sessions;
 pub mod agent;
 pub mod auth;

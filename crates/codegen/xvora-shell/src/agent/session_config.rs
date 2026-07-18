@@ -124,10 +124,7 @@ mod tests {
 
     #[test]
     fn options_have_one_selected_model_and_a_mode_per_effort() {
-        let models = [
-            model("xvora", "Xvora"),
-            model("grok-4.5", "Grok 4.5"),
-        ];
+        let models = [model("xvora", "Xvora"), model("grok-4.5", "Grok 4.5")];
         let current = acp::ModelId::from("xvora");
         let opts = build_session_config_options(
             &models,

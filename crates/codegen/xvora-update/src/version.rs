@@ -602,7 +602,7 @@ mod tests {
             // mask alpha → stable updates.
             ("grok-0.1.220-alpha.4-linux-x86_64", Some("0.1.220-alpha.4")),
             ("grok-0.1.220-alpha.4", Some("0.1.220-alpha.4")), // npm layout
-            ("xvora-pager-0.1.5-darwin-arm64", None),           // "pager" is not a version
+            ("xvora-pager-0.1.5-darwin-arm64", None),          // "pager" is not a version
             ("grok-garbage-darwin-arm64", None),               // unparseable version
             ("grok-0.2.46", Some("0.2.46")),                   // no platform suffix
             ("other-0.2.46-darwin-arm64", None),               // wrong prefix

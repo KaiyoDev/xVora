@@ -172,8 +172,7 @@ pub(crate) fn replay_inherited_updates(
 ) {
     let home = effective_xvora_home();
     let updates =
-        match xvora_shell::session::storage::load_updates_for_replay_at(child_session_id, &home)
-        {
+        match xvora_shell::session::storage::load_updates_for_replay_at(child_session_id, &home) {
             Ok(Some(u)) => u,
             Ok(None) => return,
             Err(e) => {

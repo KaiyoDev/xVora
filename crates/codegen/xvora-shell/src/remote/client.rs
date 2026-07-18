@@ -1,5 +1,5 @@
 //! HTTP client for backend CRUD operations.
-use crate::auth::{XaiAuth, GrokComConfig};
+use crate::auth::{GrokComConfig, XaiAuth};
 use crate::session::export::{ExportedMessage, ExportedMetadata, ExportedSession};
 use indexmap::IndexMap;
 use prod_mc_cli_chat_proxy_types::SubagentBundle;
@@ -151,14 +151,13 @@ async fn fetch_bundle_inner(
     let archive_url = format!("{}/bundle/archive", cli_chat_proxy_base_url);
     let raw_client = crate::http::shared_client();
     let client: reqwest_middleware::ClientWithMiddleware = if let Some(am) = auth_manager {
-        let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> =
-            std::sync::Arc::new(
-                crate::auth::credential_provider::ShellAuthCredentialProvider::new(
-                    am.clone(),
-                    deployment_key.map(str::to_owned),
-                    alpha_test_key.map(str::to_owned),
-                ),
-            );
+        let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> = std::sync::Arc::new(
+            crate::auth::credential_provider::ShellAuthCredentialProvider::new(
+                am.clone(),
+                deployment_key.map(str::to_owned),
+                alpha_test_key.map(str::to_owned),
+            ),
+        );
         crate::http::with_auth_retry(raw_client, provider)
     } else {
         reqwest_middleware::ClientBuilder::new(raw_client).build()
@@ -432,9 +431,8 @@ impl BackendClient {
         builder: reqwest::RequestBuilder,
     ) -> Result<reqwest::Response, BackendError> {
         let headers = self.auth_header_map().await?;
-        let builder = file_utils::trace_context::inject_trace_context_into_request(
-            builder.headers(headers),
-        );
+        let builder =
+            file_utils::trace_context::inject_trace_context_into_request(builder.headers(headers));
         let request = builder.build()?;
         self.client.execute(request).await.map_err(|e| match e {
             reqwest_middleware::Error::Reqwest(e) => BackendError::Network(e),

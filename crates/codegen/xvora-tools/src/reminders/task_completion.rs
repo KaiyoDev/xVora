@@ -99,11 +99,7 @@ impl ReportedTaskCompletions {
         self.reported.insert(id.to_owned())
     }
 }
-crate::register_resource!(
-    "xvora",
-    "ReportedTaskCompletions",
-    ReportedTaskCompletions
-);
+crate::register_resource!("xvora", "ReportedTaskCompletions", ReportedTaskCompletions);
 /// Format a model-facing message from a [`TaskSnapshot`].
 ///
 /// `task_output_name` controls the pointer-vs-inline rendering of the output
@@ -270,9 +266,7 @@ pub fn format_monitor_events(
                 None => ("event", event.event_text.as_str()),
             };
             let label =
-                crate::implementations::xvora::monitor::event::sanitize_monitor_description(
-                    label,
-                );
+                crate::implementations::xvora::monitor::event::sanitize_monitor_description(label);
             Some(format!(
                 "<monitor-event task_id=\"{}\">\n[{}] {}\n</monitor-event>",
                 event.task_id, label, inner,
@@ -305,9 +299,10 @@ pub fn format_monitor_events(
                     .map(|(desc, _)| desc)
                     .filter(|d| !d.is_empty())
                     .unwrap_or("event");
-                let description = crate::implementations::xvora::monitor::event::sanitize_monitor_description(
-                    description,
-                );
+                let description =
+                    crate::implementations::xvora::monitor::event::sanitize_monitor_description(
+                        description,
+                    );
                 let _ = write!(
                     buf,
                     "\n\n<monitor description=\"{description}\" task_id=\"{task_id}\">"
@@ -652,13 +647,14 @@ impl Reminder for TaskCompletionReminder {
             let goal_loop_active = res
                 .get::<crate::implementations::xvora::task::types::GoalLoopActive>()
                 .is_some_and(|g| g.0);
-            let surface_reminders = !goal_loop_active
-                && res
-                    .get::<crate::types::resources::Params<
-                        crate::implementations::xvora::bash::BashParams,
-                    >>()
-                    .map(|p| p.0.surface_bg_completion_reminders)
-                    .unwrap_or(true);
+            let surface_reminders =
+                !goal_loop_active
+                    && res
+                        .get::<crate::types::resources::Params<
+                            crate::implementations::xvora::bash::BashParams,
+                        >>()
+                        .map(|p| p.0.surface_bg_completion_reminders)
+                        .unwrap_or(true);
             let renderer = res.get::<crate::types::template_renderer::TemplateRenderer>();
             let task_output_name: Option<String> = renderer.and_then(|r| {
                 r.tool_for_kind(crate::types::tool::ToolKind::BackgroundTaskAction)
@@ -1500,7 +1496,9 @@ mod tests {
         });
         res.insert(Terminal(backend));
         res.register_state::<ReportedTaskCompletions>();
-        res.insert(crate::implementations::xvora::task::types::GoalLoopActive(true));
+        res.insert(crate::implementations::xvora::task::types::GoalLoopActive(
+            true,
+        ));
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         res.insert(SubagentEventSender(tx));
         tokio::spawn(async move {
@@ -1521,7 +1519,9 @@ mod tests {
         shared
             .lock()
             .await
-            .insert(crate::implementations::xvora::task::types::GoalLoopActive(false));
+            .insert(crate::implementations::xvora::task::types::GoalLoopActive(
+                false,
+            ));
         let second = reminder.collect_reminders(shared, &output).await;
         assert!(
             second.is_empty(),

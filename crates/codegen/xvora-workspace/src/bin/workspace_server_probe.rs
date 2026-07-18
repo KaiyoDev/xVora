@@ -18,13 +18,13 @@
 
 use base64::Engine;
 use clap::Parser;
-use serde_json::{Value, json};
-use url::Url;
-use uuid::Uuid;
 use computer_hub_sdk::pool::HubConnectionPool;
 use computer_hub_sdk::{AuthCredential, ToolHarnessBuilder};
+use serde_json::{Value, json};
 use tool_protocol::{SessionId, ToolId};
 use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
+use url::Url;
+use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(name = "workspace-server-probe")]
@@ -180,10 +180,7 @@ async fn connect_and_bind(
 }
 
 /// Invoke real tools on the bound workspace-server and assert results.
-async fn run_checks(
-    harness: &computer_hub_sdk::ToolHarness,
-    _args: &Args,
-) -> anyhow::Result<()> {
+async fn run_checks(harness: &computer_hub_sdk::ToolHarness, _args: &Args) -> anyhow::Result<()> {
     // 1) run_terminal_command must echo our nonce back.
     let nonce = format!("probe-nonce-{}", Uuid::new_v4());
     let marker = format!("/tmp/{nonce}.txt");

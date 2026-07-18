@@ -223,10 +223,7 @@ impl tool_runtime::Tool for UpdateGoalTool {
         tool_protocol::ToolId::new(UPDATE_GOAL_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             UPDATE_GOAL_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -368,16 +365,14 @@ pub fn render_ack_into_output(
                  — goal auto-paused. Review {details_path}; the user must resume."
             ),
         )),
-        UpdateGoalAck::ClassifierBlocked { details_path } => {
-            Err(tool_runtime::ToolError::custom(
-                "goal_classifier_blocked",
-                format!(
-                    "Goal verification found no model-fixable path (objective/plan contradiction or \
+        UpdateGoalAck::ClassifierBlocked { details_path } => Err(tool_runtime::ToolError::custom(
+            "goal_classifier_blocked",
+            format!(
+                "Goal verification found no model-fixable path (objective/plan contradiction or \
                  evidence that cannot be captured here) — goal paused for your decision. \
                  See {details_path}"
-                ),
-            ))
-        }
+            ),
+        )),
         UpdateGoalAck::ClassifierConcurrentInFlight {
             details_path,
             attempt,
@@ -408,10 +403,9 @@ pub fn render_ack_into_output(
                  again until you see it."
             ),
         }),
-        UpdateGoalAck::Rejected { reason, detail } => Err(tool_runtime::ToolError::custom(
-            reason.error_code(),
-            detail,
-        )),
+        UpdateGoalAck::Rejected { reason, detail } => {
+            Err(tool_runtime::ToolError::custom(reason.error_code(), detail))
+        }
     }
 }
 

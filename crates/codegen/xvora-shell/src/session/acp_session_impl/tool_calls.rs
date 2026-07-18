@@ -568,8 +568,7 @@ impl SessionActor {
                         )
                         .await;
                     deferred_followups.extend(err_followups);
-                    if self
-                        .hook_event_active(xvora_hooks::event::HookEventName::PostToolUseFailure)
+                    if self.hook_event_active(xvora_hooks::event::HookEventName::PostToolUseFailure)
                     {
                         let raw_input: serde_json::Value =
                             serde_json::from_str(&prepared.raw_arguments)
@@ -677,15 +676,13 @@ impl SessionActor {
             } else {
                 (None, None)
             };
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::ToolCallCompleted {
-                    tool_name: prepared.tool_name.clone(),
-                    outcome: tool_outcome,
-                    duration_ms,
-                    file_path: ext_file_path,
-                    parameters: ext_parameters,
-                },
-            );
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::ToolCallCompleted {
+                tool_name: prepared.tool_name.clone(),
+                outcome: tool_outcome,
+                duration_ms,
+                file_path: ext_file_path,
+                parameters: ext_parameters,
+            });
             tracing::info_span!(
                 "tool.execution", tool_name = % prepared.tool_name, tool_use_id = %
                 prepared.call_id, tool_input_size_bytes = prepared.raw_arguments.len() as
@@ -1036,15 +1033,13 @@ impl SessionActor {
             } else {
                 xvora_telemetry::enums::PermissionMode::Ask
             };
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::PermissionPrompted {
-                    tool_name: call.function.name.clone(),
-                    access_kind: telemetry_access_kind,
-                    permission_mode: perm_mode,
-                    subagent_session_id: subagent_session_id.clone(),
-                    subagent_type: None,
-                },
-            );
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PermissionPrompted {
+                tool_name: call.function.name.clone(),
+                access_kind: telemetry_access_kind,
+                permission_mode: perm_mode,
+                subagent_session_id: subagent_session_id.clone(),
+                subagent_type: None,
+            });
             let perm_start = self.events.permission_requested(&call.function.name);
             debug_assert!(
                 !self.session_info.id.0.is_empty(),
@@ -1094,9 +1089,7 @@ impl SessionActor {
                     Decision::Reject(_) | Decision::PolicyDeny(_) => {
                         file_utils::events::types::PermissionDecision::Deny
                     }
-                    Decision::Cancelled => {
-                        file_utils::events::types::PermissionDecision::Cancelled
-                    }
+                    Decision::Cancelled => file_utils::events::types::PermissionDecision::Cancelled,
                     Decision::FollowupMessage(_) => {
                         file_utils::events::types::PermissionDecision::Followup
                     }
@@ -1112,14 +1105,12 @@ impl SessionActor {
                     xvora_telemetry::events::PermissionOutcome::Deny,
                     Some(reason.to_string()),
                 ),
-                Decision::Cancelled => (
-                    xvora_telemetry::events::PermissionOutcome::Cancelled,
-                    None,
-                ),
-                Decision::FollowupMessage(_) => (
-                    xvora_telemetry::events::PermissionOutcome::Followup,
-                    None,
-                ),
+                Decision::Cancelled => {
+                    (xvora_telemetry::events::PermissionOutcome::Cancelled, None)
+                }
+                Decision::FollowupMessage(_) => {
+                    (xvora_telemetry::events::PermissionOutcome::Followup, None)
+                }
             };
             tracing::info_span!(
                 "tool.decision", tool_name = % call.function.name, tool_use_id = % call
@@ -1593,12 +1584,9 @@ impl SessionActor {
             ToolInput::ReadFile(read_file) => (
                 format!("Read `{}`", read_file.path.clone()),
                 acp::ToolKind::Read,
-                vec![
-                    acp::ToolCallLocation::new(read_file.path).line(
-                        xvora_tools::normalization::norm_offset_i64(read_file.offset)
-                            .map(|l| l as u32),
-                    ),
-                ],
+                vec![acp::ToolCallLocation::new(read_file.path).line(
+                    xvora_tools::normalization::norm_offset_i64(read_file.offset).map(|l| l as u32),
+                )],
                 Vec::new(),
             ),
             ToolInput::TodoWrite(_) => (
@@ -1676,12 +1664,10 @@ impl SessionActor {
                 vec![],
             ),
             ToolInput::Skill(skill) => {
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::SkillDispatched {
-                        skill_name: skill.skill.clone(),
-                        plugin_source: None,
-                    },
-                );
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillDispatched {
+                    skill_name: skill.skill.clone(),
+                    plugin_source: None,
+                });
                 tracing::info_span!(
                     "skill.activated", skill_name = % skill.skill, invocation_trigger =
                     "skill_tool",
@@ -1964,9 +1950,7 @@ impl SessionActor {
                 }
                 if ops.pr_merged {
                     self.signals_handle().record_pr_merged();
-                    xvora_telemetry::session_ctx::log_event(
-                        xvora_telemetry::events::PrMerged {},
-                    );
+                    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PrMerged {});
                 }
             }
             xvora_tools::types::output::ToolOutput::MCP(m)
@@ -2902,8 +2886,8 @@ mod wait_interrupt_tests {
         BlockingWaitGuard, interrupted_wait_tool_result, is_interruptible_wait_tool,
         wait_for_pending_interjection,
     };
-    use xvora_tools::types::output::ToolOutput;
     use tool_types::TaskOutputOutput;
+    use xvora_tools::types::output::ToolOutput;
     /// The interruptible-wait select arms: a pending interjection aborts an
     /// in-flight wait, and `biased` prefers an already-completed wait result
     /// over the abort. (Unit-level: the full dispatch loop has no test seam.)

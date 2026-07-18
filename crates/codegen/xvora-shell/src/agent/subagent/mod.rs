@@ -26,7 +26,9 @@ use crate::upload::trace::{
     upload_subagent_metadata, upload_turn_result,
 };
 use crate::upload::turn::{PromptTraceContext, complete_prompt_trace};
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
+use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -34,10 +36,8 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Notify, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_tools::implementations::xvora::task::types::*;
 use xvora_workspace::file_system::AsyncFileSystem;
-use hunk_tracker::HunkTrackerHandle;
 mod coordinator_lifecycle;
 mod coordinator_query;
 mod handle_request;
@@ -349,8 +349,7 @@ pub(crate) struct SubagentSpawnContext {
     /// skills / rules / AGENTS.md discovery honors the same vendor toggles.
     pub parent_compat: xvora_tools::types::compat::CompatConfig,
     /// Shared set of IDs delivered via auto-wake synthetic prompts.
-    pub auto_wake_delivered:
-        Option<xvora_tools::reminders::task_completion::AutoWakeDeliveredIds>,
+    pub auto_wake_delivered: Option<xvora_tools::reminders::task_completion::AutoWakeDeliveredIds>,
     /// Channel for requesting trace uploads for synthetic auto-wake turns.
     pub synthetic_trace_tx:
         Option<tokio::sync::mpsc::UnboundedSender<crate::upload::turn::SyntheticTurnTraceRequest>>,
@@ -1864,8 +1863,7 @@ fn resolve_subagent_permission_mode(
 /// Main repo root for a subagent's source: the durable repo a completion snapshot is transferred into and the repo a resume rehydrates from — both arms MUST resolve this identically.
 fn resolve_subagent_source_repo(ctx: &SubagentSpawnContext) -> std::path::PathBuf {
     let source_cwd = parent_source_cwd(ctx);
-    xvora_workspace::session::git::find_main_repo_root_from_path(&source_cwd)
-        .unwrap_or(source_cwd)
+    xvora_workspace::session::git::find_main_repo_root_from_path(&source_cwd).unwrap_or(source_cwd)
 }
 enum SubagentWaitOutcome {
     Cancelled,

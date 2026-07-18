@@ -145,19 +145,13 @@ fn ensure_plan_mode_tools(tool_config: &mut xvora_tools::registry::types::ToolSe
     let missing_ask = !existing.contains("Xvora:ask_user_question");
     drop(existing);
     if missing_enter {
-        tool_config
-            .tools
-            .push((&xvora::EnterPlanModeTool).into());
+        tool_config.tools.push((&xvora::EnterPlanModeTool).into());
     }
     if missing_exit {
-        tool_config
-            .tools
-            .push((&xvora::ExitPlanModeTool).into());
+        tool_config.tools.push((&xvora::ExitPlanModeTool).into());
     }
     if missing_ask {
-        tool_config
-            .tools
-            .push((&xvora::AskUserQuestionTool).into());
+        tool_config.tools.push((&xvora::AskUserQuestionTool).into());
     }
 }
 /// Merge a shell-resolved params map into every matching tool's
@@ -563,10 +557,7 @@ impl AgentBuilder {
     /// Set the resolved vendor-compat config. Threaded into both startup
     /// discovery (`list_skills_with_plugins` / `read_agents_config_with_paths`)
     /// and the dynamic-discovery seeds (`SkillManager` / `AgentsMdTracker`).
-    pub fn with_compat_config(
-        mut self,
-        compat: xvora_tools::types::compat::CompatConfig,
-    ) -> Self {
+    pub fn with_compat_config(mut self, compat: xvora_tools::types::compat::CompatConfig) -> Self {
         self.compat = compat;
         self
     }
@@ -729,9 +720,9 @@ impl AgentBuilder {
                 tool_config
                     .tools
                     .push((&xvora_tools::implementations::xvora::ImageToVideoTool).into());
-                tool_config.tools.push(
-                    (&xvora_tools::implementations::xvora::ReferenceToVideoTool).into(),
-                );
+                tool_config
+                    .tools
+                    .push((&xvora_tools::implementations::xvora::ReferenceToVideoTool).into());
             }
             let has_write_tool = tool_config
                 .tools
@@ -836,19 +827,12 @@ impl AgentBuilder {
         if let Some(ref bash_params) = self.bash_params_json {
             merge_tool_params(
                 &mut tool_config,
-                &[
-                    "Xvora:run_terminal_cmd",
-                    "XvoraConcise:run_terminal_cmd",
-                ],
+                &["Xvora:run_terminal_cmd", "XvoraConcise:run_terminal_cmd"],
                 bash_params,
             );
         }
         if let Some(ref ask_params) = self.ask_user_question_params_json {
-            merge_tool_params(
-                &mut tool_config,
-                &["Xvora:ask_user_question"],
-                ask_params,
-            );
+            merge_tool_params(&mut tool_config, &["Xvora:ask_user_question"], ask_params);
         }
         if !definition.disallowed_tools.is_empty() {
             let before: std::collections::HashSet<String> =
@@ -2153,8 +2137,8 @@ mod tests {
     #[tokio::test]
     async fn requested_enabled_web_tools_survive_allowlist() {
         use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::implementations::xvora::web_fetch::WebFetchConfig;
         use xvora_tools::implementations::web_search::WebSearchConfig;
+        use xvora_tools::implementations::xvora::web_fetch::WebFetchConfig;
         use xvora_tools::notification::ToolNotificationHandle;
         let mut definition = crate::config::AgentDefinition::default_xvora();
         definition.tools = vec![

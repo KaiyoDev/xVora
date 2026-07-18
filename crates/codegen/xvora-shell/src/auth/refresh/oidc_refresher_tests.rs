@@ -3,7 +3,7 @@
 //! wired in via `#[path = "oidc_refresher_tests.rs"] mod tests;`.
 
 use super::*;
-use crate::auth::{XaiAuth, GrokComConfig};
+use crate::auth::{GrokComConfig, XaiAuth};
 use chrono::{Duration, Utc};
 
 // ── OIDC refresh E2E with mock IdP ─────────────────────────────────

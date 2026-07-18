@@ -203,9 +203,7 @@ pub(super) fn open_credit_limit_upsell(
 
     // ── Default: Q&A question modal with two options ────────────────
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::xvora::ask_user_question::{
-        Question, QuestionOption,
-    };
+    use xvora_tools::implementations::xvora::ask_user_question::{Question, QuestionOption};
 
     if agent.question_view.is_some() {
         return;
@@ -291,9 +289,7 @@ fn open_supergrok_upsell(
     auth_method: Option<String>,
 ) -> bool {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::xvora::ask_user_question::{
-        Question, QuestionOption,
-    };
+    use xvora_tools::implementations::xvora::ask_user_question::{Question, QuestionOption};
 
     // Never displace an already-open question modal. Callers that consume
     // input on open must check this `false` and keep the input instead.

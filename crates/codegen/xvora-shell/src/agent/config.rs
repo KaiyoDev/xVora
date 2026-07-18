@@ -3879,7 +3879,11 @@ impl ConfigModelOverride {
             entry.info.supported_in_api = true;
         }
         // Re-infer when endpoints/slug changed and caller did not set provider.
-        if self.provider.as_ref().map(|s| s.trim().is_empty()).unwrap_or(true)
+        if self
+            .provider
+            .as_ref()
+            .map(|s| s.trim().is_empty())
+            .unwrap_or(true)
             && (self.base_url.is_some() || self.api_base_url.is_some() || self.model.is_some())
         {
             entry.info.provider = Some(infer_model_provider(
@@ -4540,8 +4544,8 @@ pub fn resolve_credentials(model: &ModelEntry, session_key: Option<&str>) -> Res
             info.base_url.clone(),
             chat_state::AuthType::ApiKey,
         )
-    } else if let Some(key) = session_key
-        .filter(|_| allows_xai_credential_fallthrough(model, &info.base_url))
+    } else if let Some(key) =
+        session_key.filter(|_| allows_xai_credential_fallthrough(model, &info.base_url))
     {
         (
             Some(key.to_owned()),
@@ -4579,11 +4583,7 @@ pub fn resolve_credentials(model: &ModelEntry, session_key: Option<&str>) -> Res
                  requests will have no API key",
             );
         }
-        (
-            None,
-            info.base_url.clone(),
-            chat_state::AuthType::ApiKey,
-        )
+        (None, info.base_url.clone(), chat_state::AuthType::ApiKey)
     };
     let auth_scheme = info.auth_scheme;
     tracing::debug!(
@@ -5131,8 +5131,14 @@ pub fn to_acp_model_info(
         .collect();
     // Group by provider, then display name — multi-provider catalogs read as
     // sections in the picker / `/model` list without changing ACP wire types.
-    rows.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.3.cmp(&b.3)).then_with(|| a.0.0.cmp(&b.0.0)));
-    rows.into_iter().map(|(id, info, _, _)| (id, info)).collect()
+    rows.sort_by(|a, b| {
+        a.2.cmp(&b.2)
+            .then_with(|| a.3.cmp(&b.3))
+            .then_with(|| a.0.0.cmp(&b.0.0))
+    });
+    rows.into_iter()
+        .map(|(id, info, _, _)| (id, info))
+        .collect()
 }
 /// Error code for model switch rejection due to agent type mismatch.
 pub const MODEL_SWITCH_INCOMPATIBLE_AGENT: &str = "MODEL_SWITCH_INCOMPATIBLE_AGENT";
@@ -5583,13 +5589,7 @@ reasoning_effort = "low"
             ),
         );
         let resolved = resolve_aux_model_sampling_config(
-            "xvora",
-            &catalog,
-            &endpoints,
-            None,
-            false,
-            None,
-            None,
+            "xvora", &catalog, &endpoints, None, false, None, None,
         )
         .expect("override entry has an API key, so resolution succeeds");
         assert_eq!(resolved.model, "v9m-rl-learnability-tp8");
@@ -6014,13 +6014,7 @@ reasoning_effort = "low"
         use xvora_test_support::EnvGuard;
         let _global = EnvGuard::set(XAI_API_KEY_ENV_VAR, "xai-should-not-leak");
         let _legacy = EnvGuard::unset(LEGACY_XAI_API_KEY_ENV_VAR);
-        let openai = test_model_entry(
-            "gpt-4o",
-            "https://api.openai.com/v1",
-            None,
-            None,
-            None,
-        );
+        let openai = test_model_entry("gpt-4o", "https://api.openai.com/v1", None, None, None);
         assert_eq!(model_provider_id(&openai), PROVIDER_OPENAI);
         let creds = resolve_credentials(&openai, Some("xai-session-jwt"));
         assert_eq!(creds.auth_type, AuthType::ApiKey);
@@ -6039,13 +6033,7 @@ reasoning_effort = "low"
         let _global = EnvGuard::set(XAI_API_KEY_ENV_VAR, "xai-should-not-leak");
         let _legacy = EnvGuard::unset(LEGACY_XAI_API_KEY_ENV_VAR);
         // Mis-tagged: provider=xai but base_url is OpenAI.
-        let mut bad = test_model_entry(
-            "spoof",
-            "https://api.openai.com/v1",
-            None,
-            None,
-            None,
-        );
+        let mut bad = test_model_entry("spoof", "https://api.openai.com/v1", None, None, None);
         bad.info.provider = Some(PROVIDER_XAI.into());
         let creds = resolve_credentials(&bad, Some("xai-session-jwt"));
         assert_eq!(creds.auth_type, AuthType::ApiKey);
@@ -9463,10 +9451,7 @@ agent_type = "cursor"
         let use_current = cfg.resolve_goal_use_current_model_only().value;
         assert!(!use_current);
         let planner = cfg.resolve_goal_planner_model(use_current);
-        assert_eq!(
-            planner.value,
-            GoalRoleModelChoice::Explicit(xvora.clone())
-        );
+        assert_eq!(planner.value, GoalRoleModelChoice::Explicit(xvora.clone()));
         assert_eq!(planner.source, ConfigSource::Config);
         assert_eq!(
             cfg.resolve_goal_strategist_model(use_current).value,
@@ -10853,9 +10838,7 @@ default = "grok-4.5"
         entry.info.context_window = NonZeroU64::new(default_cw).unwrap();
         prefetched.insert("grok-4.5".to_owned(), entry);
         let resolved = resolve_model_list(&cfg, Some(prefetched));
-        let by_key = resolved
-            .get("xvora")
-            .expect("xvora key must exist");
+        let by_key = resolved.get("xvora").expect("xvora key must exist");
         assert_eq!(by_key.info.context_window.get(), 500_000);
         assert_eq!(by_key.info.model, "grok-4.5");
         let by_latest = resolved.get("grok-4.5").expect("grok-4.5 key must exist");

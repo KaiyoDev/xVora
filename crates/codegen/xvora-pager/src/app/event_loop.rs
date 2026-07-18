@@ -16,8 +16,8 @@ use crate::client_identity::{PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
 use crate::theme::system_appearance::{self, SystemAppearanceWatcher};
 use crate::theme::{Theme, ThemeKind, cache as theme_cache};
 
-use agent_client_protocol as acp;
 use acp_lib::acp_send;
+use agent_client_protocol as acp;
 
 use super::actions::{Action, Effect, TaskResult};
 use super::app_view::{
@@ -159,10 +159,7 @@ fn reconnect_restore_outcome(
 /// becomes `TrustState::Pending` (show the question); everything else becomes
 /// `TrustState::Done`. The feature-off fast path (kill-switch / opt-out /
 /// local build) short-circuits before any I/O.
-fn seed_trust_state(
-    app: &mut AppView,
-    remote: Option<&xvora_shell::util::config::RemoteSettings>,
-) {
+fn seed_trust_state(app: &mut AppView, remote: Option<&xvora_shell::util::config::RemoteSettings>) {
     use std::io::IsTerminal;
     use xvora_workspace::folder_trust::{
         TrustOutcome, decide, decide_inputs_with_interactive, feature_enabled,
@@ -714,9 +711,10 @@ pub(crate) async fn run(
         }
     } else {
         // No cached session — check if the API key is the active credential.
-        app.is_api_key_auth = app.auth_methods.iter().any(|m| {
-            m.id().0.as_ref() == xvora_shell::agent::auth_method::XAI_API_KEY_METHOD_ID
-        });
+        app.is_api_key_auth = app
+            .auth_methods
+            .iter()
+            .any(|m| m.id().0.as_ref() == xvora_shell::agent::auth_method::XAI_API_KEY_METHOD_ID);
         // No AuthMeta on this path — hide `/usage` for API keys.
         if app.is_api_key_auth {
             app.usage_visible = false;
@@ -739,9 +737,7 @@ pub(crate) async fn run(
     // endpoints, which never take the subscription paywall.
     let byok_unrestricted = xvora_shell::config::load_effective_config()
         .ok()
-        .and_then(|root| {
-            xvora_shell::agent::config::Config::new_from_toml_cfg(&root).ok()
-        })
+        .and_then(|root| xvora_shell::agent::config::Config::new_from_toml_cfg(&root).ok())
         .is_some_and(|c| xvora_shell::agent::config::is_byok_or_custom_local(&c));
     if byok_unrestricted {
         app.gate = None;
@@ -780,12 +776,11 @@ pub(crate) async fn run(
         effective_config.as_ref().ok_or(()),
         remote_settings.as_ref(),
     );
-    app.foreign_session_compat =
-        xvora_workspace::foreign_sessions::EnabledForeignSessionSources {
-            claude: compat.claude.sessions,
-            codex: compat.codex.sessions,
-            cursor: compat.cursor.sessions,
-        };
+    app.foreign_session_compat = xvora_workspace::foreign_sessions::EnabledForeignSessionSources {
+        claude: compat.claude.sessions,
+        codex: compat.codex.sessions,
+        cursor: compat.cursor.sessions,
+    };
 
     // Load notification config from [ui.notifications] in config.toml.
     if let Some(ref raw) = effective_config {

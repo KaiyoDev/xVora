@@ -235,10 +235,7 @@ mod tests {
 
     #[test]
     fn empty_entries_returns_none() {
-        assert_eq!(
-            first_unknown_tool_id(&[], &allowed(&["Xvora:grep"])),
-            None
-        );
+        assert_eq!(first_unknown_tool_id(&[], &allowed(&["Xvora:grep"])), None);
     }
 
     #[test]

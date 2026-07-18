@@ -6,7 +6,7 @@ use std::time::Duration as StdDuration;
 use super::AuthManager;
 use super::lock::try_lock_auth_file_async;
 use crate::auth::manager::AUTH_LOCK_TIMEOUT;
-use crate::auth::model::{XaiAuth, UserInfo, lookup_auth};
+use crate::auth::model::{UserInfo, XaiAuth, lookup_auth};
 use crate::auth::storage::{read_auth_json, write_auth_json};
 
 /// `/user` fetch budget, shared by the inline (login) and background paths.

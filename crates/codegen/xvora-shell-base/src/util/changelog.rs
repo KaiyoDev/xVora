@@ -204,11 +204,7 @@ impl ChangelogManager {
         match serde_json::from_str::<Vec<ChangelogEntry>>(&cached) {
             Ok(entries) => {
                 let real = real_entries(&entries);
-                if real.is_empty() {
-                    None
-                } else {
-                    Some(real)
-                }
+                if real.is_empty() { None } else { Some(real) }
             }
             Err(e) => {
                 tracing::debug!(error = %e, "failed to parse cached JSON changelog");
@@ -327,11 +323,7 @@ fn embedded_entries() -> Option<Vec<ChangelogEntry>> {
     match serde_json::from_str::<Vec<ChangelogEntry>>(EMBEDDED_JSON) {
         Ok(entries) => {
             let real = real_entries(&entries);
-            if real.is_empty() {
-                None
-            } else {
-                Some(real)
-            }
+            if real.is_empty() { None } else { Some(real) }
         }
         Err(e) => {
             tracing::debug!(error = %e, "embedded changelog JSON parse failed");
@@ -536,8 +528,8 @@ mod tests {
             },
             ChangelogEntry {
                 category: "features".into(),
-                description: "Another dummy feature to verify the welcome screen renders correctly."
-                    .into(),
+                description:
+                    "Another dummy feature to verify the welcome screen renders correctly.".into(),
                 breaking_change: false,
             },
             ChangelogEntry {

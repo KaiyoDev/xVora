@@ -177,14 +177,13 @@ impl SessionRegistryClient {
     /// Attach an `AuthManager` so the request signing and 401
     /// recovery go through the consolidated auth path.
     pub fn with_auth(mut self, auth_manager: std::sync::Arc<crate::auth::AuthManager>) -> Self {
-        let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> =
-            std::sync::Arc::new(
-                crate::auth::credential_provider::ShellAuthCredentialProvider::new(
-                    auth_manager.clone(),
-                    self.credentials.deployment_key.clone(),
-                    self.credentials.alpha_test_key.clone(),
-                ),
-            );
+        let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> = std::sync::Arc::new(
+            crate::auth::credential_provider::ShellAuthCredentialProvider::new(
+                auth_manager.clone(),
+                self.credentials.deployment_key.clone(),
+                self.credentials.alpha_test_key.clone(),
+            ),
+        );
         self.credentials = self.credentials.with_auth_manager(auth_manager);
         self.client = crate::http::with_auth_retry(self.raw_client.clone(), provider);
         self
@@ -550,7 +549,7 @@ mod tests {
     /// Verify per-request auth resolve picks up rotated tokens.
     #[tokio::test]
     async fn session_registry_client_uses_active_auth_for_each_request() {
-        use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
+        use crate::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
         use axum::{Router, response::IntoResponse, routing::post};
         use chrono::{Duration, Utc};
         use std::net::SocketAddr;

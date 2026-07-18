@@ -8,14 +8,14 @@
 //!
 //! Note: Could be renamed to `SessionConfig` or flattened onto `SessionActor` in a future PR.
 use crate::terminal::AsyncTerminalRunner;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
+use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;
 use std::sync::Arc;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_paths::AbsPathBuf;
 use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
 use xvora_workspace::session::file_state::FileStateHandle;
-use hunk_tracker::HunkTrackerHandle;
 /// RAII marker: the turn is blocked inside an interruptible wait. Increments
 /// [`ToolContext::blocking_wait_depth`] for its lifetime; `Drop` decrements
 /// (a cancelled turn can't leak the count).
@@ -79,8 +79,7 @@ pub struct ToolContext {
         Option<xvora_tools::implementations::xvora::task::types::MonitorEventBuffer>,
     /// Shared set of IDs delivered via auto-wake synthetic prompts.
     /// Used by `TaskCompletionReminder` to suppress duplicate reminders.
-    pub auto_wake_delivered:
-        Option<xvora_tools::reminders::task_completion::AutoWakeDeliveredIds>,
+    pub auto_wake_delivered: Option<xvora_tools::reminders::task_completion::AutoWakeDeliveredIds>,
     /// Channel for requesting trace uploads for synthetic auto-wake turns.
     pub(crate) synthetic_trace_tx:
         Option<tokio::sync::mpsc::UnboundedSender<crate::upload::turn::SyntheticTurnTraceRequest>>,
@@ -207,11 +206,11 @@ impl ToolContext {
 #[cfg(test)]
 mod tests {
     use crate::{terminal::AsyncTerminalRunner, tools::ToolContext};
+    use hunk_tracker::HunkTrackerHandle;
     use std::collections::HashMap;
     use std::sync::Arc;
     use xvora_paths::AbsPathBuf;
     use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
-    use hunk_tracker::HunkTrackerHandle;
     impl ToolContext {
         pub fn new_local_context(
             cwd: AbsPathBuf,

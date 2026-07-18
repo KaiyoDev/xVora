@@ -22,12 +22,12 @@ use crate::file_system::ContentSearchRequest;
 use crate::handle::WorkspaceHandle;
 use crate::worktree::{ApplyWorktreeRequest, CreateWorktreeRequest, RemoveWorktreeRequest};
 use async_trait::async_trait;
+use computer_hub_sdk::ToolHarness;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use computer_hub_sdk::ToolHarness;
 use xvora_tools::types::output::ToolRunResult;
 use xvora_workspace_client::{WorkspaceClient, is_transport_fatal};
 pub use xvora_workspace_types::rpc::WorkspaceRpc;
@@ -148,9 +148,7 @@ fn file_content_status_to_wire(
         S::Full => FileContentStatusWire::Full,
     }
 }
-fn file_content_view_to_wire(
-    view: hunk_tracker::types::FileContentView,
-) -> FileContentViewWire {
+fn file_content_view_to_wire(view: hunk_tracker::types::FileContentView) -> FileContentViewWire {
     FileContentViewWire {
         status: file_content_status_to_wire(view.status),
         byte_len: view.byte_len,
@@ -765,10 +763,7 @@ impl WorkspaceOp for HunkGetFileSummariesReq {
             std::collections::HashMap::new();
         for h in &all_hunks {
             let path_str = h.path.to_string_lossy().to_string();
-            let is_agent = matches!(
-                h.source,
-                hunk_tracker::types::HunkSource::AgentEdit { .. }
-            );
+            let is_agent = matches!(h.source, hunk_tracker::types::HunkSource::AgentEdit { .. });
             let entry = file_map.entry(path_str).or_insert((0, false));
             entry.0 += 1;
             if is_agent {
@@ -1081,9 +1076,7 @@ fn query_result_to_response(
         Err(_) => CodeNavResponse { locations: vec![] },
     }
 }
-fn symbol_locations_to_response(
-    locations: Vec<codebase_graph::SymbolLocation>,
-) -> CodeNavResponse {
+fn symbol_locations_to_response(locations: Vec<codebase_graph::SymbolLocation>) -> CodeNavResponse {
     CodeNavResponse {
         locations: locations
             .into_iter()
@@ -1598,9 +1591,8 @@ mod tests {
             unreachable!("for_test builds a local handle");
         };
         let sid = "sess-teardown";
-        let toolset = std::sync::Arc::new(
-            xvora_tools::registry::types::FinalizedToolset::empty_for_test(),
-        );
+        let toolset =
+            std::sync::Arc::new(xvora_tools::registry::types::FinalizedToolset::empty_for_test());
         let weak = std::sync::Arc::downgrade(&toolset);
         ops.bind_local_session(
             sid,
@@ -1720,9 +1712,9 @@ mod tests {
     /// A `SessionSummary` (with a turn carrying a hunk) mirrors identically.
     #[test]
     fn session_summary_to_wire_serializes_identically() {
-        use std::sync::Arc;
         use hunk_tracker::SessionSummary;
         use hunk_tracker::types::{Hunk, HunkSource, TurnSummary};
+        use std::sync::Arc;
         let hunk = Hunk::file_created(
             std::path::PathBuf::from("/repo/a.rs"),
             "x\n".to_string(),

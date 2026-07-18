@@ -8,10 +8,10 @@
 //! lose data.
 
 use serde_json::Value;
-use tracing::warn;
 use tool_protocol::{
     SessionId, ToolId, ToolNotificationFrame, ToolServerStatusPayload, ToolsChanged,
 };
+use tracing::warn;
 
 /// A typed server notification event parsed from a raw JSON-RPC notification frame.
 #[derive(Debug, Clone, PartialEq)]
@@ -80,7 +80,9 @@ impl HubNotification {
                             .tool_id
                             .as_ref()
                             .is_some_and(|id| id.as_str() == "__tool_server_status")
-                            && let tool_protocol::notification_wire::WireToolNotification::Custom(ref c) = frame.notification
+                            && let tool_protocol::notification_wire::WireToolNotification::Custom(
+                                ref c,
+                            ) = frame.notification
                             && c.kind == "status_changed"
                         {
                             match serde_json::from_value::<ToolServerStatusPayload>(

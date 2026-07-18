@@ -401,15 +401,8 @@ mod tests {
 
     #[test]
     fn ensure_query_param_keeps_other_query_pairs() {
-        let out = ensure_query_param(
-            "https://grok.com/supergrok?heavy=1",
-            "referrer",
-            "xvora",
-        );
-        assert_eq!(
-            out,
-            "https://grok.com/supergrok?heavy=1&referrer=xvora"
-        );
+        let out = ensure_query_param("https://grok.com/supergrok?heavy=1", "referrer", "xvora");
+        assert_eq!(out, "https://grok.com/supergrok?heavy=1&referrer=xvora");
     }
 
     #[test]

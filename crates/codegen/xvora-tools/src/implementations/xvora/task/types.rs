@@ -807,11 +807,7 @@ register_resource!("xvora", "SessionIdResource", SessionIdResource);
 #[derive(Debug, Clone)]
 pub struct CurrentPromptIdResource(pub String);
 
-register_resource!(
-    "xvora",
-    "CurrentPromptIdResource",
-    CurrentPromptIdResource
-);
+register_resource!("xvora", "CurrentPromptIdResource", CurrentPromptIdResource);
 
 /// True while a `/goal` loop is active. Set by xvora-shell at turn start.
 /// When true, `TaskCompletionReminder` suppresses bg-task completion
@@ -931,11 +927,7 @@ mod tests {
         let ids: Vec<&str> = config.tools.iter().map(|tc| tc.id.as_str()).collect();
         assert_eq!(
             ids,
-            vec![
-                "Xvora:read_file",
-                "Xvora:list_dir",
-                "Xvora:grep",
-            ]
+            vec!["Xvora:read_file", "Xvora:list_dir", "Xvora:grep",]
         );
     }
 

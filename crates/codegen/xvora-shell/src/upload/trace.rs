@@ -3,12 +3,12 @@ use super::turn::{PromptTraceContext, UploadWait};
 use crate::sampling::types::ToolDefinition;
 use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
 use base64::Engine as _;
+use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
 use serde::Serialize;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use url::Url;
-use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
 use xvora_workspace::permission::PermissionEvent;
 /// Upload request payload to cloud storage in the background (best-effort, non-blocking).
 ///
@@ -44,13 +44,9 @@ pub(crate) fn spawn_trace_upload<T: Serialize + Send + 'static>(
         } else {
             format!("{prefix}/{filename}")
         };
-        let ok = file_utils::gcs::upload_bytes(
-            &gcs_config,
-            &object_path,
-            &bytes,
-            "application/json",
-        )
-        .await;
+        let ok =
+            file_utils::gcs::upload_bytes(&gcs_config, &object_path, &bytes, "application/json")
+                .await;
         if let Err(ref e) = ok {
             tracing::debug!(
                 ? e, object_path = % object_path, "Failed to upload request trace"
@@ -1388,10 +1384,7 @@ pub(crate) async fn upload_trace_artifact_blocking(
                 tracing::info!("Artifact upload confirmed by GCS");
                 Some(Ok(()))
             }
-            Err(e)
-                if e.downcast_ref::<file_utils::queue::QueueClosed>()
-                    .is_some() =>
-            {
+            Err(e) if e.downcast_ref::<file_utils::queue::QueueClosed>().is_some() => {
                 tracing::debug!(
                     artifact = artifact_name,
                     "upload queue closed; attempting direct upload"
@@ -1750,7 +1743,7 @@ mod tests {
     }
     #[test]
     fn dynamic_resolver_refreshes_proxy_token() {
-        use crate::auth::{XaiAuth, GrokComConfig};
+        use crate::auth::{GrokComConfig, XaiAuth};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
@@ -1819,7 +1812,7 @@ mod tests {
     }
     #[test]
     fn dynamic_resolver_rereads_disk_on_expired_token() {
-        use crate::auth::{XaiAuth, GrokComConfig};
+        use crate::auth::{GrokComConfig, XaiAuth};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
@@ -1881,7 +1874,7 @@ mod tests {
     /// This verifies the error path doesn't panic.
     #[tokio::test]
     async fn resolve_async_falls_back_when_no_refresher() {
-        use crate::auth::{XaiAuth, GrokComConfig};
+        use crate::auth::{GrokComConfig, XaiAuth};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
@@ -1927,7 +1920,7 @@ mod tests {
     /// token is expired and a valid one exists on disk (written by another flow).
     #[tokio::test]
     async fn resolve_async_picks_up_disk_refreshed_token() {
-        use crate::auth::{XaiAuth, GrokComConfig};
+        use crate::auth::{GrokComConfig, XaiAuth};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
@@ -1978,7 +1971,7 @@ mod tests {
     /// `base_config` snapshot.
     #[tokio::test]
     async fn resolve_async_drives_refresh_chain_when_token_expired() {
-        use crate::auth::{XaiAuth, GrokComConfig};
+        use crate::auth::{GrokComConfig, XaiAuth};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         use std::collections::BTreeMap;
@@ -2046,7 +2039,7 @@ mod tests {
     /// without calling the refresher again.
     #[tokio::test]
     async fn proactive_refresh_makes_trace_resolve_a_cache_hit() {
-        use crate::auth::{XaiAuth, GrokComConfig};
+        use crate::auth::{GrokComConfig, XaiAuth};
         use crate::session::repo_changes::UploadMethod;
         use chrono::{Duration, Utc};
         let dir = tempfile::tempdir().unwrap();

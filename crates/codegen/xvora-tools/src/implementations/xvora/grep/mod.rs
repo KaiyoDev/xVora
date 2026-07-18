@@ -264,10 +264,7 @@ impl tool_runtime::Tool for GrepTool {
         tool_protocol::ToolId::new("grep").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "grep",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -1707,10 +1704,9 @@ mod tests {
             (resources, input)
         };
         let run = |resources: Resources, input| async {
-            let out =
-                tool_runtime::Tool::run(&GrepTool, test_ctx(resources.into_shared()), input)
-                    .await
-                    .unwrap();
+            let out = tool_runtime::Tool::run(&GrepTool, test_ctx(resources.into_shared()), input)
+                .await
+                .unwrap();
             String::from_utf8_lossy(&out.stdout).into_owned()
         };
 
@@ -1939,10 +1935,9 @@ mod tests {
         let mut input = make_grep_input("findme_");
         input.head_limit = Some(5);
 
-        let output =
-            tool_runtime::Tool::run(&GrepTool, test_ctx(resources.into_shared()), input)
-                .await
-                .unwrap();
+        let output = tool_runtime::Tool::run(&GrepTool, test_ctx(resources.into_shared()), input)
+            .await
+            .unwrap();
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(output.exit_code, 0);
@@ -1977,10 +1972,9 @@ mod tests {
         let mut input = make_grep_input("findme_");
         input.head_limit = Some(6);
 
-        let output =
-            tool_runtime::Tool::run(&GrepTool, test_ctx(resources.into_shared()), input)
-                .await
-                .unwrap();
+        let output = tool_runtime::Tool::run(&GrepTool, test_ctx(resources.into_shared()), input)
+            .await
+            .unwrap();
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert_eq!(output.exit_code, 0);
@@ -2442,8 +2436,7 @@ mod tests {
         ctx.extensions.insert(resources.into_shared());
 
         let tool = GrepTool;
-        let mut stream =
-            tool_runtime::Tool::execute(&tool, ctx, make_grep_input("findme")).await;
+        let mut stream = tool_runtime::Tool::execute(&tool, ctx, make_grep_input("findme")).await;
 
         let mut progress = 0usize;
         let mut terminal: Option<Result<GrepSearchOutput, tool_runtime::ToolError>> = None;

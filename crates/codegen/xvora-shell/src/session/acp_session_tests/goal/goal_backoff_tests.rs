@@ -1212,9 +1212,7 @@ async fn cancelled_turn_without_infra_error_does_not_auto_pause_goal() {
                 total_tokens: 0,
                 turn_snapshot: None,
                 completion_kind: crate::session::commands::PromptCompletionKind::Cancelled {
-                    category: Some(
-                        file_utils::events::types::CancellationCategory::MidTurnAbort,
-                    ),
+                    category: Some(file_utils::events::types::CancellationCategory::MidTurnAbort),
                     context: None,
                 },
                 structured_output: None,
@@ -2413,8 +2411,7 @@ async fn drain_goal_updates_blocked_reason_takes_precedence_over_completed() {
 // classifier sampler invoked); the full Achieved/NotAchieved/cap
 // E2E suite using `MockSpawner` lives separately.
 
-fn make_completed_cmd()
--> xvora_tools::implementations::xvora::update_goal::UpdateGoalEnvelope {
+fn make_completed_cmd() -> xvora_tools::implementations::xvora::update_goal::UpdateGoalEnvelope {
     let input = xvora_tools::implementations::xvora::update_goal::UpdateGoalInput {
         completed: Some(true),
         message: None,

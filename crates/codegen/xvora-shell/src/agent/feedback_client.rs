@@ -327,7 +327,8 @@ pub struct FeedbackClient {
 impl FeedbackClient {
     pub fn new(base_url: impl Into<String>, user_token: Option<String>) -> Self {
         let http = crate::http::shared_client();
-        let credentials = crate::util::xvora_auth_credentials::XvoraAuthCredentials::new(user_token);
+        let credentials =
+            crate::util::xvora_auth_credentials::XvoraAuthCredentials::new(user_token);
         let client = Self::build_middleware_client(&http, &credentials);
         Self {
             http,
@@ -361,7 +362,8 @@ impl FeedbackClient {
         base_url: impl Into<String>,
         user_token: Option<String>,
     ) -> Self {
-        let credentials = crate::util::xvora_auth_credentials::XvoraAuthCredentials::new(user_token);
+        let credentials =
+            crate::util::xvora_auth_credentials::XvoraAuthCredentials::new(user_token);
         let client = Self::build_middleware_client(&http, &credentials);
         Self {
             http,
@@ -1120,7 +1122,7 @@ mod forbidden_tests {
 #[cfg(test)]
 mod auth_refresh_tests {
     use super::*;
-    use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
+    use crate::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
     use axum::{Router, routing::get};
     use chrono::{Duration, Utc};
     use std::net::SocketAddr;

@@ -394,10 +394,10 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
         session_env: Arc<HashMap<String, String>>,
         backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
     ) -> xvora_tools::registry::types::SessionContext {
+        use xvora_tools::implementations::web_search::WebSearchConfig;
         use xvora_tools::implementations::xvora::deploy_app::AppBuilderDeployerConfig;
         use xvora_tools::implementations::xvora::image_gen::ImageGenConfig;
         use xvora_tools::implementations::xvora::video_gen::VideoGenConfig;
-        use xvora_tools::implementations::web_search::WebSearchConfig;
         let fs = Arc::new(xvora_tools::computer::local::LocalFs)
             as Arc<dyn xvora_tools::computer::types::AsyncFileSystem>;
         let notification_handle = xvora_tools::notification::ToolNotificationHandle::noop();
@@ -508,8 +508,7 @@ fn build_proxy_headers(base_url: &str) -> indexmap::IndexMap<String, String> {
 }
 /// Build web fetch config. Enabled with default params unless
 /// `XVORA_DISABLE_WEB_FETCH=1` is set.
-fn build_web_fetch_config() -> xvora_tools::implementations::xvora::web_fetch::WebFetchConfig
-{
+fn build_web_fetch_config() -> xvora_tools::implementations::xvora::web_fetch::WebFetchConfig {
     use xvora_tools::implementations::xvora::web_fetch::{WebFetchConfig, WebFetchParams};
     if std::env::var("XVORA_DISABLE_WEB_FETCH").is_ok_and(|v| v == "1" || v == "true") {
         return WebFetchConfig::Disabled;
@@ -670,10 +669,7 @@ mod tests {
     async fn resolve_session_toolset_mcp_merge_dedup_by_id_baseline_wins() {
         let factory = factory_for_test();
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc(
-                "Xvora:read_file",
-                Some(ToolKind::Read),
-            )],
+            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
             behavior_preset: None,
         };
         let mut mcp_dup = test_support::tc("Xvora:read_file", Some(ToolKind::Read));
@@ -796,10 +792,7 @@ mod tests {
     #[test]
     fn resolve_session_toolset_mcp_edit_dropped_under_readonly() {
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc(
-                "Xvora:read_file",
-                Some(ToolKind::Read),
-            )],
+            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
             behavior_preset: None,
         };
         let mcp_edit = test_support::tc("mcp.editor", Some(ToolKind::Edit));
@@ -901,10 +894,7 @@ mod tests {
     #[test]
     fn hub_tool_dropped_under_readonly_because_kind_none() {
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc(
-                "Xvora:read_file",
-                Some(ToolKind::Read),
-            )],
+            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
             behavior_preset: None,
         };
         let hub = vec![test_support::tc("hub:remote_exec", None)];
@@ -955,10 +945,7 @@ mod tests {
     #[test]
     fn hub_tool_name_collision_with_baseline_skipped() {
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc(
-                "Xvora:read_file",
-                Some(ToolKind::Read),
-            )],
+            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
             behavior_preset: None,
         };
         let mut hub_tool = test_support::tc("hub:read_file_v2", None);

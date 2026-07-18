@@ -1,6 +1,6 @@
 use super::support::*;
 use super::*;
-use crate::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
+use crate::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc;

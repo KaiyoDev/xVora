@@ -15,8 +15,8 @@
 // tests compile; dependency crates build with `cfg(test)` off.
 pub use xvora_env::EnvVarGuard;
 pub use xvora_env::{
-    xai_provider, XvoraEnvironment, PROD_ASSET_SERVER_URL, PROD_CLI_CHAT_PROXY_BASE_URL,
-    PROD_GATEWAY_WS_URL, PROD_RELAY_WS_URL, PROD_WS_ORIGIN, PROD_XAI_API_BASE_URL,
+    PROD_ASSET_SERVER_URL, PROD_CLI_CHAT_PROXY_BASE_URL, PROD_GATEWAY_WS_URL, PROD_RELAY_WS_URL,
+    PROD_WS_ORIGIN, PROD_XAI_API_BASE_URL, XvoraEnvironment, xai_provider,
 };
 /// Env var that opts a process into gateway-bridge mode. When set to
 /// a parseable URL, `session/new` / `session/load` spawns a per-session

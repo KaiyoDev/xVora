@@ -68,11 +68,7 @@ pub fn find_protoc() -> anyhow::Result<Option<PathBuf>> {
                     if let Ok(entries) = fs::read_dir(&tools) {
                         let mut candidates: Vec<PathBuf> = entries
                             .filter_map(|e| e.ok())
-                            .filter(|e| {
-                                e.file_name()
-                                    .to_string_lossy()
-                                    .starts_with("protoc-")
-                            })
+                            .filter(|e| e.file_name().to_string_lossy().starts_with("protoc-"))
                             .map(|e| e.path().join("bin").join("protoc.exe"))
                             .filter(|p| p.is_file())
                             .collect();

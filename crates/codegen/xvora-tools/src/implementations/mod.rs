@@ -1,9 +1,6 @@
 pub mod codex;
 pub mod cursor_rules_on_read;
 pub mod editor_infra;
-pub mod xvora;
-pub mod xvora_concise;
-pub mod xvora_hashline;
 pub mod lsp;
 pub mod memory;
 pub mod opencode;
@@ -13,12 +10,9 @@ pub mod skills;
 pub mod task_output;
 pub mod use_tool;
 pub mod web_search;
-pub use xvora::bash::{BashError, BashToolInput};
-pub use xvora::{
-    AskUserQuestionTool, BashTool, EnterPlanModeTool, ExitPlanModeTool, GrepTool, KillTaskTool,
-    ListDirTool, ReadFileTool, SearchReplaceTool, TaskOutputTool, TaskTool, TodoWriteTool,
-    WaitTasksTool, WebFetchTool, WebSearchTool,
-};
+pub mod xvora;
+pub mod xvora_concise;
+pub mod xvora_hashline;
 pub use memory::{MemoryGetImpl, MemorySearchImpl};
 pub use opencode::{
     OpenCodeBashTool, OpenCodeEditTool, OpenCodeGlobTool, OpenCodeGrepTool, OpenCodeReadTool,
@@ -27,3 +21,9 @@ pub use opencode::{
 pub use search_tool::SearchTool;
 pub use use_tool::{UseTool, UseToolInput};
 pub use web_search::WebSearchConfig;
+pub use xvora::bash::{BashError, BashToolInput};
+pub use xvora::{
+    AskUserQuestionTool, BashTool, EnterPlanModeTool, ExitPlanModeTool, GrepTool, KillTaskTool,
+    ListDirTool, ReadFileTool, SearchReplaceTool, TaskOutputTool, TaskTool, TodoWriteTool,
+    WaitTasksTool, WebFetchTool, WebSearchTool,
+};

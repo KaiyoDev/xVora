@@ -457,10 +457,7 @@ impl tool_runtime::Tool for ListDirTool {
     fn id(&self) -> tool_protocol::ToolId {
         tool_protocol::ToolId::new("list_dir").expect("valid tool id")
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "list_dir",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -1148,9 +1145,8 @@ mod tests {
         resources.insert(Cwd(tmp.path().to_path_buf()));
         let tool = ListDirTool;
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
         let output = tool_runtime::Tool::run(
             &tool,
             ctx,
@@ -1179,9 +1175,8 @@ mod tests {
         resources.insert(Cwd(tmp.path().to_path_buf()));
         let tool = ListDirTool;
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
         let output = tool_runtime::Tool::run(
             &tool,
             ctx,

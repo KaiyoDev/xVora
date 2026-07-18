@@ -129,10 +129,7 @@ pub fn parse_lang_tag(raw: &str) -> Option<Locale> {
         return None;
     }
     // `vi`, `vi_VN`, `vi-VN.UTF-8`, …
-    let primary = s
-        .split(['_', '-', '.', '@'])
-        .next()
-        .unwrap_or("");
+    let primary = s.split(['_', '-', '.', '@']).next().unwrap_or("");
     match primary {
         "vi" => Some(Locale::Vi),
         "en" => Some(Locale::En),

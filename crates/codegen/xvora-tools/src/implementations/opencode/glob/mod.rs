@@ -126,10 +126,7 @@ impl tool_runtime::Tool for GlobTool {
         tool_protocol::ToolId::new("glob").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "glob",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

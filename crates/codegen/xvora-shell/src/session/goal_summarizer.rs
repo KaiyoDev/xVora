@@ -18,9 +18,9 @@ use crate::session::goal_planner::{
     spawn_with_fail_open_retry,
 };
 use crate::session::goal_role_tools::RoleToolNames;
+use file_utils::events::EventWriter;
 use std::path::Path;
 use std::sync::Arc;
-use file_utils::events::EventWriter;
 
 // Constants
 
@@ -155,10 +155,10 @@ impl ChannelSpawner {
         model: Option<String>,
         harness_agent_type: Option<String>,
     ) -> Result<String, SpawnError> {
+        use tool_types::SubagentCapabilityMode;
         use xvora_tools::implementations::xvora::task::types::{
             SubagentEvent, SubagentRequest, SubagentRuntimeOverrides,
         };
-        use tool_types::SubagentCapabilityMode;
         let (result_tx, result_rx) = tokio::sync::oneshot::channel();
         let request = SubagentRequest {
             id: id.to_string(),
@@ -630,10 +630,8 @@ mod tests {
 
     #[tokio::test]
     async fn channel_spawner_request_is_harness_internal_and_read_only() {
-        use xvora_tools::implementations::xvora::task::types::{
-            SubagentEvent, SubagentResult,
-        };
         use tool_types::SubagentCapabilityMode;
+        use xvora_tools::implementations::xvora::task::types::{SubagentEvent, SubagentResult};
 
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {

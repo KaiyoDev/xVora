@@ -268,9 +268,7 @@ pub fn build_entries(
         // handled inline; surface it here for discoverability.
         if vim_mode && cat == Category::ConversationNav {
             let mut item = HintItem::new(crate::key!('/'), "search");
-            item.description = Some(
-                crate::i18n::chrome::t("shortcuts.pseudo.search").into(),
-            );
+            item.description = Some(crate::i18n::chrome::t("shortcuts.pseudo.search").into());
             let dimmed = !active_contexts.contains(&When::ScrollbackFocused);
             entries.push(ShortcutsHelpEntry::Hint {
                 item,
@@ -284,9 +282,7 @@ pub fn build_entries(
         // swallow it. Lit on the agent prompt and the dashboard (both paste).
         if cat == Category::Input {
             let mut item = HintItem::new(crate::key!('v', CONTROL), "paste");
-            item.description = Some(
-                crate::i18n::chrome::t("shortcuts.pseudo.paste").into(),
-            );
+            item.description = Some(crate::i18n::chrome::t("shortcuts.pseudo.paste").into());
             #[cfg(target_os = "windows")]
             item.keys.push(crate::key!('v', ALT));
             let dimmed = !active_contexts.contains(&When::PromptFocused)

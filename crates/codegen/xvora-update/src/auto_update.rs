@@ -65,10 +65,7 @@ pub fn print_update_status(status: &UpdateStatus, json: bool) -> anyhow::Result<
     }
 
     if let Some(error) = status.error.as_deref() {
-        println!(
-            "xvora - v{} [{}]",
-            status.current_version, status.channel
-        );
+        println!("xvora - v{} [{}]", status.current_version, status.channel);
         println!("Update check failed: {error}");
         return Ok(());
     }
@@ -3268,10 +3265,7 @@ mod tests {
             hint.contains("KaiyoDev/xVora"),
             "OSS reinstall should point at GitHub Releases: {hint}"
         );
-        assert!(
-            hint.contains("releases"),
-            "should mention releases: {hint}"
-        );
+        assert!(hint.contains("releases"), "should mention releases: {hint}");
     }
 
     #[test]

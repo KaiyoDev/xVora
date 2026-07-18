@@ -1222,8 +1222,8 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_with_upload_queue_drains() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
-        use std::sync::Arc;
         use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use std::sync::Arc;
 
         // Create a mock resolver for the queue
         struct MockResolver;
@@ -1361,7 +1361,7 @@ mod tests {
     async fn test_is_auth_permanently_failed_reads_auth_manager() {
         use crate::agent::feedback_client::FeedbackClient;
         use crate::auth::error::RefreshTokenFailedReason;
-        use crate::auth::{AuthManager, XaiAuth, GrokComConfig};
+        use crate::auth::{AuthManager, GrokComConfig, XaiAuth};
         use std::sync::Arc;
 
         let dir = tempfile::tempdir().unwrap();

@@ -35,20 +35,20 @@ use crate::diag_server::DiagHandle;
 use crate::error::{WorkspaceError, WorkspaceResult};
 use crate::handle::WorkspaceHandle;
 use async_trait::async_trait;
-use serde_json::Value;
-use std::sync::Arc;
-use tokio::task::JoinHandle;
-use url::Url;
 use computer_hub_sdk::{
     AuthProvider, ClientError, HubConnectionPool, ToolServer, ToolServerBuilder, ToolServerHandler,
 };
-use xvora_tools::registry::types::ToolConfig;
+use serde_json::Value;
+use std::sync::Arc;
+use tokio::task::JoinHandle;
 use tool_protocol::ToolId;
 use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, ToolStreamItem, TypedToolOutput,
     terminal_only,
 };
 use tool_types::ToolDescription;
+use url::Url;
+use xvora_tools::registry::types::ToolConfig;
 /// Configuration for connecting to a server instance.
 ///
 /// Passed via [`WorkspaceConfig::hub_config`](crate::config::WorkspaceConfig::hub_config).
@@ -1050,9 +1050,7 @@ mod tests {
         }
     }
     fn bg_started_notif(task_id: &str) -> ToolNotification {
-        use xvora_tools::notification::types::{
-            BashExecutionBackgrounded, BashNotificationBase,
-        };
+        use xvora_tools::notification::types::{BashExecutionBackgrounded, BashNotificationBase};
         ToolNotification::BashExecutionBackgrounded(BashExecutionBackgrounded {
             base: BashNotificationBase {
                 tool_call_id: task_id.to_owned(),

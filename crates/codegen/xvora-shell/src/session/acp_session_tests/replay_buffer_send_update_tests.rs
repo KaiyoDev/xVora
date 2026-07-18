@@ -824,11 +824,10 @@ async fn observe_only_confident_completion_stays_warn_only() {
     local
         .run_until(async {
             let mut fixture = make_replay_send_update_fixture().await;
-            fixture.actor.doom_loop_recovery =
-                Some(xvora_sampling_types::DoomLoopRecoveryPolicy {
-                    max_threshold: 8,
-                    max_retries: 0,
-                });
+            fixture.actor.doom_loop_recovery = Some(xvora_sampling_types::DoomLoopRecoveryPolicy {
+                max_threshold: 8,
+                max_retries: 0,
+            });
             let actor = Arc::new(fixture.actor);
             *actor
                 .current_prompt_id

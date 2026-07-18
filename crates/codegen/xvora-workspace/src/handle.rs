@@ -1,13 +1,13 @@
 //! [`WorkspaceHandle`] -- public handle to a workspace instance.
 use fastrace::future::FutureExt as _;
 use fastrace::local::LocalSpan;
+use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use prometheus::{
     Histogram, HistogramVec, IntCounter, IntCounterVec, register_histogram, register_histogram_vec,
     register_int_counter, register_int_counter_vec,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
-use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use tool_protocol::ToolServerStatusPayload;
 use tool_protocol::turn_hook::TurnHookOutcome;
 /// Default SIGTERM drain budget (ms); override via
@@ -557,9 +557,8 @@ impl WorkspaceHandle {
                 Some(adapter)
             }
         };
-        let session_event_writers: Arc<
-            dashmap::DashMap<String, file_utils::events::EventWriter>,
-        > = Arc::new(dashmap::DashMap::new());
+        let session_event_writers: Arc<dashmap::DashMap<String, file_utils::events::EventWriter>> =
+            Arc::new(dashmap::DashMap::new());
         let activity_tracker = Arc::new(
             crate::activity::ActivityTracker::with_prune_window(
                 config.status_config.session_idle_prune,
@@ -2484,8 +2483,8 @@ impl WorkspaceHandle {
         };
         use computer_hub_mcp_adapter::McpBridge;
         use computer_hub_sdk::ToolServerHandler as _;
-        use xvora_mcp::servers::MCP_TOOL_NAME_DELIMITER;
         use tool_protocol::SessionId;
+        use xvora_mcp::servers::MCP_TOOL_NAME_DELIMITER;
         let tool_server = {
             let hub_guard = self.shared.hub_handle.lock().await;
             let hub = hub_guard
@@ -2511,27 +2510,26 @@ impl WorkspaceHandle {
         let session_id_owned = session_id.to_owned();
         let event_writer = self.shared.session_event_writer(session_id);
         let rt_handle = tokio::runtime::Handle::current();
-        let mcp_results: Vec<
-            Result<xvora_mcp::servers::McpClient, xvora_mcp::servers::McpError>,
-        > = tokio::task::spawn_blocking(move || {
-            use std::collections::HashMap;
-            use xvora_mcp::oauth_config::McpOAuthConfigMap;
-            use xvora_mcp::servers::{McpClientTimeoutOverrides, McpMetaConfigMap};
-            let overrides_map: HashMap<String, McpClientTimeoutOverrides> = HashMap::new();
-            let meta_config_map = McpMetaConfigMap::new();
-            let oauth_config_map = McpOAuthConfigMap::new();
-            rt_handle.block_on(xvora_mcp::servers::start_mcp_servers(
-                configs,
-                Some(&session_id_owned),
-                &overrides_map,
-                &meta_config_map,
-                &oauth_config_map,
-                &event_writer,
-                xvora_mcp::servers::OauthInteractivity::Interactive,
-            ))
-        })
-        .await
-        .map_err(|e| WorkspaceError::JoinError(e.to_string()))?;
+        let mcp_results: Vec<Result<xvora_mcp::servers::McpClient, xvora_mcp::servers::McpError>> =
+            tokio::task::spawn_blocking(move || {
+                use std::collections::HashMap;
+                use xvora_mcp::oauth_config::McpOAuthConfigMap;
+                use xvora_mcp::servers::{McpClientTimeoutOverrides, McpMetaConfigMap};
+                let overrides_map: HashMap<String, McpClientTimeoutOverrides> = HashMap::new();
+                let meta_config_map = McpMetaConfigMap::new();
+                let oauth_config_map = McpOAuthConfigMap::new();
+                rt_handle.block_on(xvora_mcp::servers::start_mcp_servers(
+                    configs,
+                    Some(&session_id_owned),
+                    &overrides_map,
+                    &meta_config_map,
+                    &oauth_config_map,
+                    &event_writer,
+                    xvora_mcp::servers::OauthInteractivity::Interactive,
+                ))
+            })
+            .await
+            .map_err(|e| WorkspaceError::JoinError(e.to_string()))?;
         let mcp_state = session.mcp_state.clone();
         let mut started = Vec::new();
         let mut failed = Vec::new();
@@ -2575,8 +2573,7 @@ impl WorkspaceHandle {
                                         server = % server_name, tool = % qualified_name, error = %
                                         e, "failed to register MCP tool on hub"
                                     );
-                                } else if let Ok(tid) =
-                                    tool_protocol::ToolId::new(&qualified_name)
+                                } else if let Ok(tid) = tool_protocol::ToolId::new(&qualified_name)
                                 {
                                     registered_tool_ids.push(tid);
                                 }
@@ -2625,12 +2622,12 @@ impl WorkspaceHandle {
             "session MCP servers initialized"
         );
         if !started.is_empty() {
-            let _ =
-                self.shared
-                    .events
-                    .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
-                        session_id: session_id.to_owned(),
-                    });
+            let _ = self
+                .shared
+                .events
+                .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
+                    session_id: session_id.to_owned(),
+                });
         }
         Ok(McpStartResult { started, failed })
     }
@@ -3232,10 +3229,8 @@ impl WorkspaceHandle {
                         let payload =
                             serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
                         let frame = tool_protocol::ToolNotificationFrame::custom(
-                            tool_protocol::ToolId::new(
-                                crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID,
-                            )
-                            .expect("constant tool id"),
+                            tool_protocol::ToolId::new(crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID)
+                                .expect("constant tool id"),
                             "workspace_event",
                             payload,
                         );
@@ -4163,10 +4158,7 @@ impl tool_runtime::ToolDyn for SessionToolHandle {
     fn id(&self) -> tool_protocol::ToolId {
         self.tool_id.clone()
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         self.desc.clone()
     }
     async fn execute(
@@ -4465,8 +4457,7 @@ pub(crate) mod tests {
             &self,
             _ctx: tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<xvora_tools::types::output::ToolOutput, tool_runtime::ToolError>
-        {
+        ) -> Result<xvora_tools::types::output::ToolOutput, tool_runtime::ToolError> {
             let output = BASH_CCO_STUB_STDOUT.as_bytes();
             Ok(xvora_tools::types::output::ToolOutput::Bash(
                 xvora_tools::types::output::BashOutput {
@@ -5333,10 +5324,10 @@ pub(crate) mod tests {
         let backend = session.terminal_backend().clone();
         let out_dir = tempfile::tempdir().expect("temp dir");
         let bg = start_background_sleep(&session, out_dir.path(), "snapshot-bg").await;
-        handle.shared.mcp_tools_snapshot.store(Arc::new(vec![tc(
-            "Xvora:read_file",
-            Some(ToolKind::Read),
-        )]));
+        handle
+            .shared
+            .mcp_tools_snapshot
+            .store(Arc::new(vec![tc("Xvora:read_file", Some(ToolKind::Read))]));
         let rebuilt = handle
             .shared
             .re_resolve_all_sessions("mcp_snapshot_changed", true)
@@ -5403,10 +5394,10 @@ pub(crate) mod tests {
             !local.toolset_terminal_is_session_owned().await,
             "precondition: the installed toolset's Terminal must be external"
         );
-        handle.shared.mcp_tools_snapshot.store(Arc::new(vec![tc(
-            "Xvora:read_file",
-            Some(ToolKind::Read),
-        )]));
+        handle
+            .shared
+            .mcp_tools_snapshot
+            .store(Arc::new(vec![tc("Xvora:read_file", Some(ToolKind::Read))]));
         handle
             .shared
             .re_resolve_all_sessions("mcp_snapshot_changed", true)
@@ -6573,9 +6564,8 @@ pub(crate) mod tests {
             confine_fs_to_workspace_root: false,
         };
         let home = tempfile::tempdir().expect("workspace home tempdir");
-        let auth: computer_hub_sdk::SharedAuthProvider = Arc::new(
-            computer_hub_sdk::auth::AuthCredential::bearer("test-token"),
-        );
+        let auth: computer_hub_sdk::SharedAuthProvider =
+            Arc::new(computer_hub_sdk::auth::AuthCredential::bearer("test-token"));
         let proxy = Arc::new(crate::upload::ProxyStorageConfig::new(
             auth,
             "http://127.0.0.1:1/v1".to_string(),
@@ -6649,10 +6639,7 @@ pub(crate) mod tests {
             .emit_environment_artifact("sess-env", std::path::Path::new("/work"), None)
             .await;
         assert!(
-            matches!(
-                outcome,
-                Some(file_utils::queue::EnqueueOutcome::Enqueued)
-            ),
+            matches!(outcome, Some(file_utils::queue::EnqueueOutcome::Enqueued)),
             "expected Enqueued, got {outcome:?}"
         );
         assert_eq!(
@@ -7497,9 +7484,8 @@ pub(crate) mod tests {
         let service_auth: computer_hub_sdk::SharedAuthProvider = Arc::new(
             computer_hub_sdk::auth::AuthCredential::bearer("xai-service-token"),
         );
-        let hub_auth: computer_hub_sdk::SharedAuthProvider = Arc::new(
-            computer_hub_sdk::auth::AuthCredential::bearer("hub-token"),
-        );
+        let hub_auth: computer_hub_sdk::SharedAuthProvider =
+            Arc::new(computer_hub_sdk::auth::AuthCredential::bearer("hub-token"));
         let hub_cfg = crate::hub::HubConfig {
             url: url::Url::parse("ws://127.0.0.1:9/ws").unwrap(),
             auth: hub_auth.clone(),
@@ -7938,9 +7924,7 @@ pub(crate) mod tests {
     }
     /// Build the resolver exactly the way `connect_hub` does: session catalog
     /// handlers + the workspace RPC handler.
-    fn bind_resolver_fixture(
-        handle: &WorkspaceHandle,
-    ) -> computer_hub_sdk::SessionHandlerResolver {
+    fn bind_resolver_fixture(handle: &WorkspaceHandle) -> computer_hub_sdk::SessionHandlerResolver {
         let catalog_toolset = handle.session("main").expect("main session").toolset();
         let mut catalog = build_session_routed_handlers(&catalog_toolset, handle);
         let rpc_handler: Arc<dyn computer_hub_sdk::ToolServerHandler> =
@@ -8035,12 +8019,9 @@ pub(crate) mod tests {
     async fn lax_bind_without_metadata_uses_default_catalog_end_to_end() {
         let handle = make_handle();
         let resolver = bind_resolver_fixture(&handle);
-        let resolved = resolver(
-            tool_protocol::SessionId::new("bind-e2e-lax").unwrap(),
-            None,
-        )
-        .await
-        .expect("bind must succeed");
+        let resolved = resolver(tool_protocol::SessionId::new("bind-e2e-lax").unwrap(), None)
+            .await
+            .expect("bind must succeed");
         let names = handler_names(&resolved);
         assert!(
             names.iter().any(|n| n == "read_file") && names.iter().any(|n| n == "grep"),

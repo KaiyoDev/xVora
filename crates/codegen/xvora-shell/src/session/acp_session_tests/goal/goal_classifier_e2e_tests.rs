@@ -415,9 +415,7 @@ fn seed_channel_with_acks(
     actor: &SessionActor,
     cmds: Vec<UpdateGoalInput>,
 ) -> Vec<
-    tokio::sync::oneshot::Receiver<
-        xvora_tools::implementations::xvora::update_goal::UpdateGoalAck,
-    >,
+    tokio::sync::oneshot::Receiver<xvora_tools::implementations::xvora::update_goal::UpdateGoalAck>,
 > {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     *actor.goal_update_rx.borrow_mut() = Some(rx);
@@ -2264,18 +2262,14 @@ async fn update_goal_tool_returns_immediately_for_blocked_reason() {
     local
         .run_until(async {
             let (actor, _tmp) = make_actor(None, true).await;
-            let mut rxs = seed_channel_with_acks(
-                &actor,
-                vec![make_blocked("transient")],
-            );
+            let mut rxs = seed_channel_with_acks(&actor, vec![make_blocked("transient")]);
             let ack_rx = rxs.pop().expect("one ack");
             actor.drain_goal_updates(0, DrainPurpose::TurnEnd).await;
             let ack = ack_rx.await.expect("ack delivered");
-            assert!(
-                matches!(ack,
-                xvora_tools::implementations::xvora::update_goal::UpdateGoalAck::Accepted
-                { .. },)
-            );
+            assert!(matches!(
+                ack,
+                xvora_tools::implementations::xvora::update_goal::UpdateGoalAck::Accepted { .. },
+            ));
         })
         .await;
 }
@@ -2541,9 +2535,7 @@ async fn pending_queue_overflow_acks_all_as_deferred_and_caps_at_pending_queue_c
 }
 #[test]
 fn render_ack_classifier_achieved_is_success() {
-    use xvora_tools::implementations::xvora::update_goal::{
-        UpdateGoalAck, render_ack_into_output,
-    };
+    use xvora_tools::implementations::xvora::update_goal::{UpdateGoalAck, render_ack_into_output};
     let out = render_ack_into_output(UpdateGoalAck::ClassifierAchieved {
         details_path: "/tmp/details.md".to_string(),
     })
@@ -2554,9 +2546,7 @@ fn render_ack_classifier_achieved_is_success() {
 }
 #[test]
 fn render_ack_classifier_fail_open_achieved_clarifies_no_verdict() {
-    use xvora_tools::implementations::xvora::update_goal::{
-        UpdateGoalAck, render_ack_into_output,
-    };
+    use xvora_tools::implementations::xvora::update_goal::{UpdateGoalAck, render_ack_into_output};
     let out =
         render_ack_into_output(UpdateGoalAck::ClassifierFailOpenAchieved { reason: "timeout" })
             .expect("FailOpen must be Ok (treated as achieved)");
@@ -2567,9 +2557,7 @@ fn render_ack_classifier_fail_open_achieved_clarifies_no_verdict() {
 }
 #[test]
 fn render_ack_not_achieved_is_tool_error_with_correct_code() {
-    use xvora_tools::implementations::xvora::update_goal::{
-        UpdateGoalAck, render_ack_into_output,
-    };
+    use xvora_tools::implementations::xvora::update_goal::{UpdateGoalAck, render_ack_into_output};
     let err = render_ack_into_output(UpdateGoalAck::ClassifierNotAchieved {
         details_path: "/tmp/details.md".to_string(),
         attempt: 2,
@@ -2580,9 +2568,7 @@ fn render_ack_not_achieved_is_tool_error_with_correct_code() {
 }
 #[test]
 fn render_ack_cap_reached_is_tool_error_with_cap_code() {
-    use xvora_tools::implementations::xvora::update_goal::{
-        UpdateGoalAck, render_ack_into_output,
-    };
+    use xvora_tools::implementations::xvora::update_goal::{UpdateGoalAck, render_ack_into_output};
     let err = render_ack_into_output(UpdateGoalAck::ClassifierCapReached {
         details_path: "/tmp/details.md".to_string(),
         attempt: 3,
@@ -2603,9 +2589,7 @@ fn tool_error_code(err: &tool_runtime::ToolError) -> &str {
 }
 #[test]
 fn render_ack_rejected_uses_reason_error_code() {
-    use xvora_tools::implementations::xvora::update_goal::{
-        UpdateGoalAck, render_ack_into_output,
-    };
+    use xvora_tools::implementations::xvora::update_goal::{UpdateGoalAck, render_ack_into_output};
     for (reason, want_code) in all_reject_reasons() {
         let err = render_ack_into_output(UpdateGoalAck::Rejected {
             reason: *reason,
@@ -2908,10 +2892,9 @@ async fn resolve_role_override_toolset_incapable_fails_open() {
                     can_read: true,
                     ..Default::default()
                 };
-            summary.tool_names.insert(
-                xvora_tools::types::tool::ToolKind::Read,
-                "read_file".into(),
-            );
+            summary
+                .tool_names
+                .insert(xvora_tools::types::tool::ToolKind::Read, "read_file".into());
             let (ov, log) = run_resolve(
                 &role_pair("good-model", "general-purpose"),
                 RoleCapability::Skeptic,

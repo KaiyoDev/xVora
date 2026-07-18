@@ -348,9 +348,7 @@ async fn json_rpc_error_response_decodes_into_tool_error() {
         .await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::NotFound =>
-        {
+        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
             assert!(
                 e.detail.contains("foo"),
                 "detail should mention tool id: {}",
@@ -570,9 +568,7 @@ async fn malformed_envelope_with_tool_call_id_surfaces_decode_error() {
     let mut stream = proxy.execute(ctx, serde_json::json!(null)).await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::Custom =>
-        {
+        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::Custom => {
             let code = e
                 .details
                 .as_ref()

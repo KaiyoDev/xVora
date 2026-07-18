@@ -395,7 +395,10 @@ pub fn merge_persona_lists(bundle: &BundleState, cwd: &Path) -> Vec<PersonaDetai
         }
     }
     let dirs = [
-        (ConfigFileScope::Project, cwd.join(".xvora").join("personas")),
+        (
+            ConfigFileScope::Project,
+            cwd.join(".xvora").join("personas"),
+        ),
         (ConfigFileScope::User, xvora_home.join("personas")),
     ];
     for (scope, dir) in dirs {

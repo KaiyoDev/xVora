@@ -1,6 +1,6 @@
 //! Action bar / shortcuts i18n (label + description by ActionId).
-use crate::actions::ActionId;
 use super::{Locale, locale};
+use crate::actions::ActionId;
 
 pub fn label(id: ActionId) -> &'static str {
     match locale() {
@@ -335,4 +335,3 @@ fn desc_vi(id: ActionId) -> &'static str {
         _ => desc_en(id),
     }
 }
-

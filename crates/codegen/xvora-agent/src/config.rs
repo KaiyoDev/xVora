@@ -8,12 +8,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use strum::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 use xvora_tools::implementations::codex;
-use xvora_tools::implementations::xvora;
-use xvora_tools::implementations::xvora_concise;
 use xvora_tools::implementations::memory;
 use xvora_tools::implementations::opencode;
 use xvora_tools::implementations::search_tool;
 use xvora_tools::implementations::use_tool;
+use xvora_tools::implementations::xvora;
+use xvora_tools::implementations::xvora_concise;
 use xvora_tools::registry::types::{ToolConfig, ToolServerConfig};
 /// Process-global registry of externally-provided toolset presets.
 ///
@@ -1397,10 +1397,7 @@ impl AgentDefinition {
     ) {
         const FILE_TOOL_SLOTS: &[[&str; 2]] = &[
             ["Xvora:read_file", "XvoraHashline:hashline_read"],
-            [
-                "Xvora:search_replace",
-                "XvoraHashline:hashline_edit",
-            ],
+            ["Xvora:search_replace", "XvoraHashline:hashline_edit"],
             ["Xvora:grep", "XvoraHashline:hashline_grep"],
         ];
         for tool in self.tool_config.tools.iter_mut() {
@@ -1525,9 +1522,7 @@ impl AgentDefinition {
     pub fn general_purpose() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: tool_types::GENERAL_PURPOSE_SUBAGENT
-                .description
-                .to_string(),
+            description: tool_types::GENERAL_PURPOSE_SUBAGENT.description.to_string(),
             prompt_body: Some(subagent_prompts::GENERAL_PURPOSE_PROMPT.to_string()),
             ..Self::base(BuiltinAgentName::GeneralPurpose, "")
         }

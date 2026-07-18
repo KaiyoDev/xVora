@@ -61,9 +61,7 @@ async fn rebuild_reinjects_goal_update_handle() {
             let (persist_tx, _persist_rx) = tokio::sync::mpsc::unbounded_channel();
             let actor = create_test_actor(0, 256_000, 85, gw_tx, persist_tx).await;
             actor
-                .handle_rebuild_agent_for_definition(
-                    xvora_agent::AgentDefinition::default_xvora(),
-                )
+                .handle_rebuild_agent_for_definition(xvora_agent::AgentDefinition::default_xvora())
                 .await
                 .expect("zero-turn rebuild should succeed");
             let bridge = actor.agent.borrow().tool_bridge().clone();

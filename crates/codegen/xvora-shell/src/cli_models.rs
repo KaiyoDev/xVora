@@ -1,8 +1,8 @@
 //! Data APIs for `xvora models`. Clients own display.
 
+use acp_lib::{AcpAgentTx, acp_send};
 use agent_client_protocol as acp;
 use anyhow::Result;
-use acp_lib::{AcpAgentTx, acp_send};
 
 use crate::agent::config::Config as AgentConfig;
 

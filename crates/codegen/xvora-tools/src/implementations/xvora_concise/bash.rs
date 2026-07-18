@@ -2,9 +2,7 @@
 
 use strip_ansi_escapes::strip_str;
 
-use crate::implementations::xvora::bash::{
-    BashTool, BashToolInput, BashToolOutput, KillReason,
-};
+use crate::implementations::xvora::bash::{BashTool, BashToolInput, BashToolOutput, KillReason};
 use crate::types::output::BashOutput;
 use crate::types::requirements::{Expr, ToolParamsRequirement, ToolRequirement};
 use crate::types::tool::{ToolKind, ToolNamespace};
@@ -122,10 +120,7 @@ impl tool_runtime::Tool for BashConciseTool {
         tool_protocol::ToolId::new("run_terminal_cmd").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "run_terminal_cmd",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -265,8 +260,7 @@ mod tests {
         // to_prompt_format() is a passthrough — it must NOT add another header.
         let mut bash = make_bash(0, "hello world\n");
         // Pre-bake DEFAULT (what BashTool::run() does)
-        bash.output_for_prompt =
-            crate::implementations::xvora::bash::format_default_prompt(&bash);
+        bash.output_for_prompt = crate::implementations::xvora::bash::format_default_prompt(&bash);
         assert!(bash.output_for_prompt.starts_with("exit: 0"));
 
         // Concise post-processing (what BashConciseTool::run() does)

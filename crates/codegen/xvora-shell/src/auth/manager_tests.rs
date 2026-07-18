@@ -4036,9 +4036,7 @@ async fn manual_auth_emits_only_for_user_facing_source() {
         .unwrap_err();
     assert!(matches!(err, AuthError::ServerRejectedNoRecovery));
     // Assert the emitted payload, not just that something fired.
-    use xvora_telemetry::events::{
-        AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface,
-    };
+    use xvora_telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
     assert_eq!(
         turn.manual_auth_last_emit(),
         Some(ManualAuth {

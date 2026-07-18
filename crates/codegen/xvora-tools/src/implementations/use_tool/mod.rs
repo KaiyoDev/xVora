@@ -293,10 +293,7 @@ impl tool_runtime::Tool for UseTool {
         tool_protocol::ToolId::new("use_tool").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "use_tool",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -428,9 +425,10 @@ mod tests {
                 tool_id.as_str(),
                 "server__tool" | "linear__save_issue" | "linear__list_issues"
             ) {
-                return tool_runtime::terminal_only(Err(
-                    tool_runtime::ToolError::not_found(tool_id, "Tool not found"),
-                ));
+                return tool_runtime::terminal_only(Err(tool_runtime::ToolError::not_found(
+                    tool_id,
+                    "Tool not found",
+                )));
             }
             *self.captured_args.lock().unwrap() = Some(args);
             let value = serde_json::to_value(ToolOutput::Text("ok".into())).unwrap();
@@ -618,10 +616,8 @@ mod tests {
             call_id: &str,
             arguments: serde_json::Value,
             _caller: &str,
-        ) -> Result<
-            crate::types::resources::ManagedGatewayToolCallResponse,
-            tool_runtime::ToolError,
-        > {
+        ) -> Result<crate::types::resources::ManagedGatewayToolCallResponse, tool_runtime::ToolError>
+        {
             if let Some(expected) = self.expected_call_id {
                 assert_eq!(call_id, expected);
             }

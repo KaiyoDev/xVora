@@ -193,8 +193,8 @@ async fn handle_update(
     source_url_or_path: &str,
     plugin_relative_path: &str,
 ) -> hooks_plugins_types::ActionOutcome {
-    use xvora_plugin_marketplace::installer;
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use xvora_plugin_marketplace::installer;
 
     let sources = load_filtered_marketplace_sources();
 
@@ -345,8 +345,8 @@ async fn handle_install(
     source_url_or_path: &str,
     plugin_relative_path: &str,
 ) -> hooks_plugins_types::ActionOutcome {
-    use xvora_plugin_marketplace::installer;
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use xvora_plugin_marketplace::installer;
 
     let sources = load_filtered_marketplace_sources();
 
@@ -477,8 +477,7 @@ async fn handle_install(
         };
 
         let plugin_path =
-            match xvora_plugin_marketplace::MarketplaceRelativePath::parse(plugin_relative_path)
-            {
+            match xvora_plugin_marketplace::MarketplaceRelativePath::parse(plugin_relative_path) {
                 Ok(path) => path,
                 Err(e) => {
                     return ActionOutcome {
@@ -570,8 +569,8 @@ async fn handle_uninstall(
     source_url_or_path: &str,
     plugin_relative_path: &str,
 ) -> hooks_plugins_types::ActionOutcome {
-    use xvora_plugin_marketplace::installer;
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use xvora_plugin_marketplace::installer;
 
     let mut registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
 

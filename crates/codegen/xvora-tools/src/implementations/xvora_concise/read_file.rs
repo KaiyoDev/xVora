@@ -46,10 +46,7 @@ impl tool_runtime::Tool for ReadFileConciseTool {
         tool_protocol::ToolId::new("read_file").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "read_file",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

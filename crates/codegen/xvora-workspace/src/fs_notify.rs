@@ -11,8 +11,8 @@
 
 use std::path::{Path, PathBuf};
 
-use xvora_fsnotify::{FsEvent, FsEventKind};
 use hunk_tracker::HunkTrackerHandle;
+use xvora_fsnotify::{FsEvent, FsEventKind};
 
 /// True if `path` lies under a hidden component below `cwd`.
 ///
@@ -160,10 +160,7 @@ pub(crate) fn spawn_fs_event_forwarder(
 
 const GIT_DIFF_REBUILD_THRESHOLD: usize = 500;
 
-fn parse_diff_name_status_line(
-    line: &str,
-    repo_root: &Path,
-) -> Option<codebase_graph::FileEvent> {
+fn parse_diff_name_status_line(line: &str, repo_root: &Path) -> Option<codebase_graph::FileEvent> {
     let mut parts = line.splitn(3, '\t');
     let status = parts.next()?.trim();
     let path = parts.next()?;
@@ -178,9 +175,7 @@ fn parse_diff_name_status_line(
                 repo_root.join(new_path),
             ))
         }
-        _ => Some(codebase_graph::FileEvent::modified(
-            repo_root.join(path),
-        )),
+        _ => Some(codebase_graph::FileEvent::modified(repo_root.join(path))),
     }
 }
 
@@ -344,8 +339,8 @@ mod tests {
 
     #[test]
     fn parse_diff_name_status_all_variants() {
-        use std::path::Path;
         use codebase_graph::FileEventKind;
+        use std::path::Path;
         let root = Path::new("/repo");
 
         let ev = parse_diff_name_status_line("M\tsrc/main.rs", root).unwrap();

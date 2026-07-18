@@ -4,7 +4,7 @@
 //! connection to the grok.com relay server with automatic reconnection.
 //! It is used by both `run_headless` and `run_leader` modes to avoid code duplication.
 use super::proxy;
-use crate::auth::{XaiAuth, GrokComConfig};
+use crate::auth::{GrokComConfig, XaiAuth};
 use crate::{teprintln, tprintln};
 use futures_util::{SinkExt as _, StreamExt as _};
 use std::sync::Arc;

@@ -2,9 +2,7 @@
 
 use std::sync::Arc;
 
-use tool_runtime::{
-    SearchSnapshot, ServerSummary, ToolIndex, ToolSearchIndex, ToolSearchResult,
-};
+use tool_runtime::{SearchSnapshot, ServerSummary, ToolIndex, ToolSearchIndex, ToolSearchResult};
 
 struct StubIndex {
     summaries: Vec<ServerSummary>,

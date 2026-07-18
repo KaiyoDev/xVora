@@ -1,8 +1,7 @@
 use crate::{
     computer::types::{AsyncFileSystem, TerminalBackend},
     implementations::{
-        codex, xvora, xvora_concise, xvora_hashline, opencode,
-        skills::types::SkillInfo,
+        codex, opencode, skills::types::SkillInfo, xvora, xvora_concise, xvora_hashline,
     },
     notification::ToolNotificationHandle,
     persistence::ResourcesPersistence,
@@ -182,9 +181,7 @@ impl ToolConfig {
             .unwrap_or_else(|| default_id.to_owned())
     }
 }
-impl<T: crate::types::tool_metadata::ToolMetadata + tool_runtime::Tool> From<&T>
-    for ToolConfig
-{
+impl<T: crate::types::tool_metadata::ToolMetadata + tool_runtime::Tool> From<&T> for ToolConfig {
     fn from(tool: &T) -> Self {
         Self {
             id: format!(
@@ -389,9 +386,8 @@ struct ToolEntry {
     /// Registers `Params<T::Params>` for serialization in Resources.
     /// Noop when `T::Params = ()`.
     register_params: Box<dyn Fn(&mut Resources) + Send + Sync>,
-    parse_input: Box<
-        dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync,
-    >,
+    parse_input:
+        Box<dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync>,
     /// Registers this tool into a `LocalRegistry` using the concrete type.
     /// Captured at `register::<T>()` time when T is known.
     register_in_local: Box<dyn Fn(&computer_hub_sdk::LocalRegistry) + Send + Sync>,
@@ -429,9 +425,8 @@ struct FinalizedTool {
     /// Client-facing param → canonical param, for reverse-remapping at dispatch.
     reverse_params: HashMap<String, String>,
     /// useful for parsing input to specific type
-    parse_input: Arc<
-        dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync,
-    >,
+    parse_input:
+        Arc<dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync>,
     /// Resolved behavior contract version for this tool (e.g. `"current"`,
     /// `"legacy-0.4.10"`). `None` for unmanaged tools and dynamically
     /// registered (MCP) tools.
@@ -535,13 +530,7 @@ impl ToolRegistryBuilder {
     /// [`register_tool_pack`] can contribute tool registrations.
     pub fn register<T>(&mut self)
     where
-        T: tool_runtime::Tool
-            + ToolMetadata
-            + std::fmt::Debug
-            + Default
-            + Send
-            + Sync
-            + 'static,
+        T: tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Default + Send + Sync + 'static,
         T::Args: serde::de::DeserializeOwned + schemars::JsonSchema + Into<ToolInput>,
         T::Output: serde::Serialize + serde::de::DeserializeOwned + Into<ToolOutput>,
     {
@@ -557,13 +546,7 @@ impl ToolRegistryBuilder {
     /// [`register_tool_pack`] can contribute tool registrations.
     pub fn register_with_params<T, P>(&mut self)
     where
-        T: tool_runtime::Tool
-            + ToolMetadata
-            + std::fmt::Debug
-            + Default
-            + Send
-            + Sync
-            + 'static,
+        T: tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Default + Send + Sync + 'static,
         T::Args: serde::de::DeserializeOwned + schemars::JsonSchema + Into<ToolInput>,
         T::Output: serde::Serialize + serde::de::DeserializeOwned + Into<ToolOutput>,
         P: crate::types::resources::ResourceType
@@ -720,10 +703,7 @@ impl ToolRegistryBuilder {
                 xvora_concise::SearchReplaceConciseTool,
                 xvora::search_replace::SearchReplaceParams,
             >();
-        b.register_with_params::<
-                xvora_concise::BashConciseTool,
-                xvora::bash::BashParams,
-            >();
+        b.register_with_params::<xvora_concise::BashConciseTool, xvora::bash::BashParams>();
         b.register_with_params::<
                 xvora_hashline::HashlineReadTool,
                 xvora_hashline::config::HashlineSchemeParams,
@@ -854,11 +834,8 @@ impl ToolRegistryBuilder {
             return errors;
         }
         {
-            let standard_file_ids: &[&str] = &[
-                "Xvora:read_file",
-                "Xvora:search_replace",
-                "Xvora:grep",
-            ];
+            let standard_file_ids: &[&str] =
+                &["Xvora:read_file", "Xvora:search_replace", "Xvora:grep"];
             let hashline_file_ids: &[&str] = &[
                 "XvoraHashline:hashline_read",
                 "XvoraHashline:hashline_edit",
@@ -1060,8 +1037,7 @@ impl ToolRegistryBuilder {
                 crate::implementations::cursor_rules_on_read::CursorRulesOnReadTracker,
             >();
         resources
-            .register_state::<crate::implementations::xvora::scheduler::types::SchedulerState>(
-            );
+            .register_state::<crate::implementations::xvora::scheduler::types::SchedulerState>();
         for entry in self.tools.values() {
             (entry.register_params)(&mut resources);
         }
@@ -1167,20 +1143,19 @@ impl ToolRegistryBuilder {
         }
         let renderer_arc = Arc::new(renderer.clone());
         resources.insert(renderer);
-        let (scheduler_cmd_rx, scheduler_cancel_token) =
-            if let Some(parent_handle) = ctx.parent_scheduler_handle {
-                resources.insert(parent_handle);
-                (None, None)
-            } else {
-                let (scheduler_cmd_tx, scheduler_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
-                let cancel_token = tokio_util::sync::CancellationToken::new();
-                resources.insert(
-                    crate::implementations::xvora::scheduler::types::SchedulerHandle(
-                        scheduler_cmd_tx,
-                    ),
-                );
-                (Some(scheduler_cmd_rx), Some(cancel_token))
-            };
+        let (scheduler_cmd_rx, scheduler_cancel_token) = if let Some(parent_handle) =
+            ctx.parent_scheduler_handle
+        {
+            resources.insert(parent_handle);
+            (None, None)
+        } else {
+            let (scheduler_cmd_tx, scheduler_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+            let cancel_token = tokio_util::sync::CancellationToken::new();
+            resources.insert(
+                crate::implementations::xvora::scheduler::types::SchedulerHandle(scheduler_cmd_tx),
+            );
+            (Some(scheduler_cmd_rx), Some(cancel_token))
+        };
         let shared_resources = resources.into_shared();
         if let (Some(cmd_rx), Some(cancel_token)) = (scheduler_cmd_rx, &scheduler_cancel_token) {
             let actor = crate::implementations::xvora::scheduler::actor::SchedulerActor {
@@ -2005,13 +1980,10 @@ mod tests {
             state_path: tmp.path().join("state.json"),
             memory_backend: None,
             web_search_config: crate::implementations::web_search::WebSearchConfig::default(),
-            web_fetch_config:
-                crate::implementations::xvora::web_fetch::WebFetchConfig::default(),
+            web_fetch_config: crate::implementations::xvora::web_fetch::WebFetchConfig::default(),
             lsp: None,
-            image_gen_config:
-                crate::implementations::xvora::image_gen::ImageGenConfig::default(),
-            video_gen_config:
-                crate::implementations::xvora::video_gen::VideoGenConfig::default(),
+            image_gen_config: crate::implementations::xvora::image_gen::ImageGenConfig::default(),
+            video_gen_config: crate::implementations::xvora::video_gen::VideoGenConfig::default(),
             app_builder_deployer_config:
                 crate::implementations::xvora::deploy_app::AppBuilderDeployerConfig::default(),
             api_key_provider: None,
@@ -3283,8 +3255,7 @@ mod tests {
         assert!(
             errors
                 .iter()
-                .any(|e| e.tool == "Xvora:task"
-                    && e.message.contains("Xvora:get_task_output")),
+                .any(|e| e.tool == "Xvora:task" && e.message.contains("Xvora:get_task_output")),
             "task tool should be rejected without get_task_output: {errors:?}",
         );
     }
@@ -3914,21 +3885,15 @@ mod tests {
     fn hashline_tools_registered_in_builder() {
         let builder = ToolRegistryBuilder::new();
         assert!(
-            builder
-                .tools
-                .contains_key("XvoraHashline:hashline_read"),
+            builder.tools.contains_key("XvoraHashline:hashline_read"),
             "hashline_read should be registered"
         );
         assert!(
-            builder
-                .tools
-                .contains_key("XvoraHashline:hashline_edit"),
+            builder.tools.contains_key("XvoraHashline:hashline_edit"),
             "hashline_edit should be registered"
         );
         assert!(
-            builder
-                .tools
-                .contains_key("XvoraHashline:hashline_grep"),
+            builder.tools.contains_key("XvoraHashline:hashline_grep"),
             "hashline_grep should be registered"
         );
     }
@@ -4406,10 +4371,9 @@ mod tests {
     }
     #[tokio::test]
     async fn prepare_dispatch_stamps_workspace_viewer_ctx_when_present() {
-        let (toolset, _tmp) =
-            toolset_with_viewer_ctx(Some(tool_runtime::WorkspaceViewerContext {
-                stream_tool_progress: true,
-            }));
+        let (toolset, _tmp) = toolset_with_viewer_ctx(Some(tool_runtime::WorkspaceViewerContext {
+            stream_tool_progress: true,
+        }));
         let parts = toolset
             .prepare_dispatch(
                 "read_file",

@@ -78,9 +78,7 @@ async fn cleanup_worktree_on_failure(source_cwd: &str, worktree_path: &str) {
         }
     } else {
         let wt_path = wt.to_path_buf();
-        match tokio::task::spawn_blocking(move || fast_worktree::remove_worktree(&wt_path))
-            .await
-        {
+        match tokio::task::spawn_blocking(move || fast_worktree::remove_worktree(&wt_path)).await {
             Ok(Ok(_)) => {}
             Ok(Err(e)) => {
                 tracing::warn!(
@@ -329,9 +327,7 @@ async fn resume_local_session_in_worktree(
                 is_jj,
                 registry_client.is_some(),
             ) {
-                xvora_workspace::session::git::warn_registry_disabled_restore(
-                    resolved_session_id,
-                );
+                xvora_workspace::session::git::warn_registry_disabled_restore(resolved_session_id);
             }
             let info = crate::session::info::Info {
                 id: agent_client_protocol::SessionId::new(resolved_session_id.to_owned()),
@@ -459,9 +455,7 @@ pub async fn rehydrate_session_in_worktree(
         let session_id = req.session_id.clone();
         let btrfs_delegate = btrfs_delegate_from_env();
         tokio::task::spawn_blocking(move || {
-            use fast_worktree::{
-                CreationMode, IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder,
-            };
+            use fast_worktree::{CreationMode, IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder};
             let mut builder = WorktreeBuilder::new(&source, &dest)
                 .working_tree_mode(WorkingTreeMode::CleanAll)
                 .ignored_files_mode(IgnoredFilesMode::Skip)

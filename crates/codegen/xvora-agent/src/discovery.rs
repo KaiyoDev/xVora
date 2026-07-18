@@ -933,9 +933,13 @@ mod tests {
             "Bundled only",
         );
 
-        let def =
-            by_name_in_cwd_with_home("bundled-only", &cwd, Some(&home), Some(&home.join(".xvora")))
-                .unwrap();
+        let def = by_name_in_cwd_with_home(
+            "bundled-only",
+            &cwd,
+            Some(&home),
+            Some(&home.join(".xvora")),
+        )
+        .unwrap();
         assert_eq!(def.scope, AgentScope::Bundled);
         assert_eq!(def.description, "Bundled only");
     }
@@ -972,8 +976,9 @@ mod tests {
 
         write_agent_file(&bundled_dir, "explore.md", "explore", "Bundled explore");
 
-        let def = by_name_in_cwd_with_home("explore", &cwd, Some(&home), Some(&home.join(".xvora")))
-            .unwrap();
+        let def =
+            by_name_in_cwd_with_home("explore", &cwd, Some(&home), Some(&home.join(".xvora")))
+                .unwrap();
         assert_eq!(def.scope, AgentScope::BuiltIn);
         assert_ne!(def.description, "Bundled explore");
     }
@@ -1005,12 +1010,7 @@ mod tests {
         fs::create_dir_all(&agents_dir).unwrap();
 
         // Create a project-level "xvora" that shadows the built-in
-        write_agent_file(
-            &agents_dir,
-            "xvora.md",
-            "xvora",
-            "Custom xvora",
-        );
+        write_agent_file(&agents_dir, "xvora.md", "xvora", "Custom xvora");
 
         let def = by_name_in_cwd("xvora", tmp.path());
         assert!(def.is_some());

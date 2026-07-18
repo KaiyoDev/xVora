@@ -230,10 +230,7 @@ impl tool_runtime::Tool for SearchTool {
         tool_protocol::ToolId::new("search_tool").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "search_tool",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -391,8 +388,7 @@ mod tests {
                     is_ready: true,
                 },
             })));
-        let mut ctx =
-            tool_runtime::ToolCallContext::new(tool_protocol::ToolCallId::new_v7());
+        let mut ctx = tool_runtime::ToolCallContext::new(tool_protocol::ToolCallId::new_v7());
         ctx.extensions.insert(resources);
 
         let output = SearchTool

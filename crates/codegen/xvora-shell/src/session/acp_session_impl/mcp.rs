@@ -1486,12 +1486,13 @@ impl SessionActor {
                                             server_name,
                                             e
                                         );
-                                        event_writer
-                                            .emit(file_utils::events::Event::McpToolRegistrationFailed {
+                                        event_writer.emit(
+                                            file_utils::events::Event::McpToolRegistrationFailed {
                                                 server_name: server_name.clone(),
                                                 tool_name: qualified_name.clone(),
                                                 error: e.to_string(),
-                                            });
+                                            },
+                                        );
                                     } else {
                                         tracing::debug!(
                                             "Registered MCP tool '{}' from server '{}'",

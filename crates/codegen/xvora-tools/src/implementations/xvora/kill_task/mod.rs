@@ -120,8 +120,7 @@ impl crate::types::tool_metadata::ToolMetadata for KillTaskTool {
             id: tool_runtime::Tool::id(&TaskTool).to_string(),
             if_params: None,
         });
-        let mut arms =
-            crate::implementations::xvora::task_output::background_bash_requires_exprs();
+        let mut arms = crate::implementations::xvora::task_output::background_bash_requires_exprs();
         arms.push(task_tool);
         Expr::Or(arms)
     }
@@ -158,10 +157,7 @@ impl tool_runtime::Tool for KillTaskTool {
         tool_protocol::ToolId::new("kill_task").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "kill_task",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -258,9 +254,7 @@ mod tests {
         BackgroundHandle, KillOutcome as KO, TaskSnapshot, TerminalBackend, TerminalRunRequest,
         TerminalRunResult,
     };
-    use crate::implementations::xvora::task::backend::{
-        ChannelBackend, SubagentBackendResource,
-    };
+    use crate::implementations::xvora::task::backend::{ChannelBackend, SubagentBackendResource};
     use crate::implementations::xvora::task::types::{
         SubagentCancelRequest, SubagentCancelTarget, SubagentEvent,
     };

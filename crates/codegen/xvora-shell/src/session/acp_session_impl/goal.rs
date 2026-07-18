@@ -117,9 +117,7 @@ impl SessionActor {
         purpose: DrainPurpose,
         extra: Vec<xvora_tools::implementations::xvora::update_goal::UpdateGoalEnvelope>,
     ) {
-        use xvora_tools::implementations::xvora::update_goal::{
-            RejectReason, UpdateGoalAck,
-        };
+        use xvora_tools::implementations::xvora::update_goal::{RejectReason, UpdateGoalAck};
         // The `update_goal` tool and its `GoalUpdateHandle` are always
         // registered (see `spawn_session_actor`), so a model can call
         // `update_goal` in a session that never entered goal mode — e.g. any
@@ -1391,9 +1389,7 @@ impl SessionActor {
     ) -> crate::session::goal_planner::RoleSpawnOverride {
         use crate::session::events::{Event, GoalRoleModelFailOpenReason as Reason};
         use crate::session::goal_planner::RoleSpawnOverride;
-        use xvora_tools::implementations::xvora::task::backend::{
-            ChannelBackend, SubagentBackend,
-        };
+        use xvora_tools::implementations::xvora::task::backend::{ChannelBackend, SubagentBackend};
         use xvora_tools::implementations::xvora::task::types::SubagentDescribeOutcome;
 
         let fail_open = |reason: Reason| {

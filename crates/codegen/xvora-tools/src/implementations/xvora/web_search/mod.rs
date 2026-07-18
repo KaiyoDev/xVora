@@ -54,10 +54,7 @@ impl tool_runtime::Tool for WebSearchTool {
         tool_protocol::ToolId::new("web_search").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "web_search",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

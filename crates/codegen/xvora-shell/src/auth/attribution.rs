@@ -323,11 +323,7 @@ pub(crate) fn record_auth_401(
     // on OIDC refresh failure (auth/refresh.rs::spawn_diagnostic_upload),
     // so by itself it does not give visibility into the steady-state
     // 401 population. Sink 2 below provides that.
-    xvora_telemetry::unified_log::warn(
-        "auth 401 attribution",
-        session_id,
-        Some(payload.clone()),
-    );
+    xvora_telemetry::unified_log::warn("auth 401 attribution", session_id, Some(payload.clone()));
 
     // Sink 2 -- discrete OTel span exported via OTLP
     // (util/otel_layer.rs). Auth 401 attribution schema fields below
@@ -449,7 +445,7 @@ mod tests {
 
     use chrono::{Duration, Utc};
 
-    use crate::auth::{AuthManager, XaiAuth, GrokComConfig};
+    use crate::auth::{AuthManager, GrokComConfig, XaiAuth};
 
     use super::*;
 

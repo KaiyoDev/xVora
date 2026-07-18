@@ -6,8 +6,8 @@ use crate::permission::{
     bash_command_splitting::{BashCommandHighlights, primary_command_from_script},
     types::{AccessKind, ClientType},
 };
-use agent_client_protocol::{self as acp, Client as _};
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent_client_protocol::{self as acp, Client as _};
 use file_utils::events::{Event, EventWriter, PermissionDecision};
 use xvora_tools::implementations::xvora::web_fetch::domain_from_url;
 

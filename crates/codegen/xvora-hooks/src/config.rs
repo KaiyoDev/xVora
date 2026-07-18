@@ -685,7 +685,10 @@ mod tests {
         let json =
             r#"{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"x.sh"}]}]}}"#;
         let (specs, _) = parse_hook_file(json, Path::new("/home/user/.xvora/hooks/safety.json"));
-        assert_eq!(specs[0].source_dir, PathBuf::from("/home/user/.xvora/hooks"));
+        assert_eq!(
+            specs[0].source_dir,
+            PathBuf::from("/home/user/.xvora/hooks")
+        );
     }
 
     #[test]

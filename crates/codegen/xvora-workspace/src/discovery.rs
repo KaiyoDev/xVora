@@ -82,9 +82,8 @@ pub async fn discover_agents_md(root_cwd: &Path) -> Vec<Value> {
             if file.file_path.contains("/.xvora/rules/")
                 || file.file_path.contains("/.claude/rules/")
             {
-                file.content = xvora_tools::implementations::skills::skill::extract_skill_body(
-                    &file.content,
-                );
+                file.content =
+                    xvora_tools::implementations::skills::skill::extract_skill_body(&file.content);
             }
             file
         })
@@ -425,7 +424,11 @@ mod tests {
     #[test]
     fn discover_plugins_finds_manifest_plugin() {
         let tmp = tempfile::tempdir().unwrap();
-        let plugins_dir = tmp.path().join(".xvora").join("plugins").join("test-plugin");
+        let plugins_dir = tmp
+            .path()
+            .join(".xvora")
+            .join("plugins")
+            .join("test-plugin");
         fs::create_dir_all(&plugins_dir).unwrap();
         fs::write(
             plugins_dir.join("plugin.json"),

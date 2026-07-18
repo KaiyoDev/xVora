@@ -149,10 +149,9 @@ pub fn test_ctx(resources: SharedResources) -> tool_runtime::ToolCallContext {
     let mut ctx = tool_runtime::ToolCallContext::default();
     ctx.extensions.insert(resources);
     // Default streaming gate ON so existing tests exercise the stream path.
-    ctx.extensions
-        .insert(tool_runtime::WorkspaceViewerContext {
-            stream_tool_progress: true,
-        });
+    ctx.extensions.insert(tool_runtime::WorkspaceViewerContext {
+        stream_tool_progress: true,
+    });
     ctx
 }
 
@@ -167,10 +166,9 @@ pub fn test_ctx_with_call_id(
         .unwrap_or_else(|_| tool_protocol::ToolCallId::new_v7());
     let mut ctx = tool_runtime::ToolCallContext::new(id);
     ctx.extensions.insert(resources);
-    ctx.extensions
-        .insert(tool_runtime::WorkspaceViewerContext {
-            stream_tool_progress: true,
-        });
+    ctx.extensions.insert(tool_runtime::WorkspaceViewerContext {
+        stream_tool_progress: true,
+    });
     ctx
 }
 

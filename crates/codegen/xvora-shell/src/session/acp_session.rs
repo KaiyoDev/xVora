@@ -52,6 +52,7 @@ use crate::session::user_message::extract_user_query;
 use crate::session::user_message::{construct_user_message, construct_user_message_minimal};
 use crate::terminal::{DEFAULT_TIMEOUT, TerminalRunRequest};
 use crate::tools::ToolContext;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use agent_client_protocol::ContentBlock;
 use parking_lot::Mutex;
@@ -64,7 +65,6 @@ use std::sync::OnceLock;
 use tokio::sync::{Mutex as TokioMutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
 use tokio_retry::strategy::ExponentialBackoff;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_agent::AgentDefinition;
 use xvora_agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
 use xvora_agent::prompt::skills::SkillsConfig;
@@ -685,8 +685,7 @@ pub(crate) struct SessionActor {
     pub(crate) origin_client: Option<crate::http::OriginClientInfo>,
     /// Feedback manager for signal tracking and feedback request heuristics
     pub(crate) feedback_manager: Arc<FeedbackManager>,
-    pub(crate) upload_queue:
-        std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
+    pub(crate) upload_queue: std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
     /// Cancellation token for the feedback sync loop (None if no feedback client)
     pub(crate) sync_loop_cancel: Option<tokio_util::sync::CancellationToken>,
     /// The fully-built Agent: owns the ToolBridge, system prompt, policies,
@@ -915,8 +914,7 @@ pub(crate) struct SessionActor {
     /// `None` when no plugin registry was supplied at spawn time.
     /// Wrapped in `RefCell` for mid-session reload from `&self` methods.
     /// Safe: session actor is single-threaded (LocalSet), no concurrent access.
-    pub(crate) hook_registry:
-        std::cell::RefCell<Option<Arc<xvora_hooks::discovery::HookRegistry>>>,
+    pub(crate) hook_registry: std::cell::RefCell<Option<Arc<xvora_hooks::discovery::HookRegistry>>>,
     /// Client hooks from `session/new` `_meta["x.ai/hooks"]`; gated in
     /// [`crate::session::acp_session::hooks`]. `RefCell` so `load_session` reconnect can
     /// replace the set on the live actor (see `SessionCommand::SetClientHooks`).
@@ -1119,10 +1117,7 @@ impl SessionActor {
     }
     /// Send a before-turn hook via the local workspace channel.
     /// Fire-and-forget — failures are logged but do not interrupt the turn.
-    async fn send_before_turn_event(
-        &self,
-        payload: tool_protocol::turn_hook::BeforeTurnPayload,
-    ) {
+    async fn send_before_turn_event(&self, payload: tool_protocol::turn_hook::BeforeTurnPayload) {
         self.workspace_ops
             .on_before_turn(&self.session_id_string(), &payload)
             .await;
@@ -1159,9 +1154,7 @@ impl SessionActor {
         &self,
         tool_names: &[String],
     ) -> slash_commands::CommandAvailability {
-        use xvora_tools::implementations::memory::{
-            MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME,
-        };
+        use xvora_tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
         let memory_read_registered = tool_names
             .iter()
             .any(|n| n == MEMORY_SEARCH_TOOL_NAME || n == MEMORY_GET_TOOL_NAME);
@@ -1170,9 +1163,9 @@ impl SessionActor {
             feedback: self.feedback_manager.is_enabled(),
             memory: self.memory.is_enabled() && memory_read_registered,
             memory_configured: self.memory.backend_params.is_some(),
-            scheduler: tool_names.iter().any(|n| {
-                n == xvora_tools::implementations::xvora::SCHEDULER_CREATE_TOOL_NAME
-            }),
+            scheduler: tool_names
+                .iter()
+                .any(|n| n == xvora_tools::implementations::xvora::SCHEDULER_CREATE_TOOL_NAME),
             hooks: self.hook_registry.borrow().is_some(),
             plugins: self.plugin_registry.borrow().is_some(),
             goal,
@@ -1644,10 +1637,8 @@ mod tool_meta_stamp_tests {
             .run_until(async {
                 let mut fixture = make_replay_send_update_fixture().await;
                 fixture.actor.agent = std::cell::RefCell::new(
-                    test_agent_with_tools(vec![ToolConfig::from_id(
-                        "Xvora:read_file".to_string(),
-                    )])
-                    .await,
+                    test_agent_with_tools(vec![ToolConfig::from_id("Xvora:read_file".to_string())])
+                        .await,
                 );
                 let prepared = fixture
                     .actor
@@ -1688,10 +1679,8 @@ mod tool_meta_stamp_tests {
             .run_until(async {
                 let mut fixture = make_replay_send_update_fixture().await;
                 fixture.actor.agent = std::cell::RefCell::new(
-                    test_agent_with_tools(vec![ToolConfig::from_id(
-                        "Xvora:read_file".to_string(),
-                    )])
-                    .await,
+                    test_agent_with_tools(vec![ToolConfig::from_id("Xvora:read_file".to_string())])
+                        .await,
                 );
                 let (perm_tx, mut perm_rx) = mpsc::unbounded_channel();
                 fixture.actor.permissions = PermissionHandle::Actor {

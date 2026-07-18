@@ -7,11 +7,11 @@ use crate::acp::model_state::ModelState;
 use crate::acp::tracker::{AcpUpdateTracker, TurnActivity};
 use crate::scrollback::EntryId;
 use crate::scrollback::state::ScrollbackState;
+use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime};
-use acp_lib::AcpAgentTx;
 use xvora_shell::extensions::notification::GoalClassifierVerdict;
 use xvora_shell::sampling::types::ReasoningEffort;
 /// Unique local identifier for an agent.

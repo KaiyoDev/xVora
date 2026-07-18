@@ -10,17 +10,17 @@ use crate::config::{MemoryConfig, SessionContextFactory};
 use crate::file_system::{AsyncFsWrapper, LocalFs};
 use crate::hub::{HubConfig, HubHandle};
 use crate::session::file_state::FileStateTracker;
+use computer_hub_mcp_adapter::McpBridgeHandle;
+use hunk_tracker::HunkTrackerHandle;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use computer_hub_mcp_adapter::McpBridgeHandle;
+use tool_protocol::ToolId;
+use tool_runtime::WorkspaceViewerContext;
 use xvora_mcp::servers::McpState;
 use xvora_tools::notification::types::{ToolNotification, ToolNotificationHandle};
 use xvora_tools::registry::types::{FinalizedToolset, ToolConfig, ToolServerConfig};
-use hunk_tracker::HunkTrackerHandle;
-use tool_protocol::ToolId;
-use tool_runtime::WorkspaceViewerContext;
 /// Minimal result types for git error reporting (duplicated from shell session/result).
 pub mod result {
     use serde::Serialize;
@@ -541,10 +541,8 @@ pub struct WorkspaceShared {
     /// Stored by `on_before_turn`; evicted on every turn-end path. The `After`
     /// turn-hook handler awaits the handle for its ack's `artifact_count`; the
     /// fire-and-forget path just drops it (detach, not abort).
-    pub(crate) inflight_enqueues: dashmap::DashMap<
-        (String, u64),
-        tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>,
-    >,
+    pub(crate) inflight_enqueues:
+        dashmap::DashMap<(String, u64), tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>>,
     /// Artifact-producer tasks, awaited by the drain and counted by the
     /// status publisher — see
     /// [`WorkspaceHandle::spawn_producer`](crate::handle::WorkspaceHandle).
@@ -584,10 +582,7 @@ impl WorkspaceShared {
     /// WITHOUT touching the cache or the filesystem, so the flag-off path stays
     /// byte-for-byte identical to the legacy behaviour. The returned handle is
     /// `Clone + Send + Sync`; callers emit through it directly.
-    pub(crate) fn session_event_writer(
-        &self,
-        session_id: &str,
-    ) -> file_utils::events::EventWriter {
+    pub(crate) fn session_event_writer(&self, session_id: &str) -> file_utils::events::EventWriter {
         get_or_open_session_writer(
             self.events_enabled,
             &self.session_event_writers,
@@ -836,11 +831,11 @@ impl WorkspaceShared {
                         &sid,
                         SwapAction::Applied,
                     );
-                    let _ =
-                        self.events
-                            .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
-                                session_id: sid,
-                            });
+                    let _ = self
+                        .events
+                        .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
+                            session_id: sid,
+                        });
                     rebuilt += 1;
                 }
                 Err(e) => {

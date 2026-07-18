@@ -168,7 +168,7 @@ pub(crate) fn build_refresher(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::{AuthMode, XaiAuth, GrokComConfig};
+    use crate::auth::{AuthMode, GrokComConfig, XaiAuth};
     use chrono::{Duration, Utc};
 
     /// auth_token_ttl makes is_token_expired use create_time + ttl for

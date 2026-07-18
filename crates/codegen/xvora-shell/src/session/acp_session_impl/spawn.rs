@@ -255,11 +255,10 @@ pub(crate) async fn spawn_session_actor(
                     config.rules = merged;
                 }
                 None => {
-                    permission_config = Some(
-                        xvora_workspace::permission::types::PermissionConfig::new(
+                    permission_config =
+                        Some(xvora_workspace::permission::types::PermissionConfig::new(
                             cli_permission_rules,
-                        ),
-                    );
+                        ));
                 }
             }
         }
@@ -281,9 +280,7 @@ pub(crate) async fn spawn_session_actor(
                 })
                 .map(|t| {
                     std::sync::Arc::new(t)
-                        as std::sync::Arc<
-                            dyn xvora_workspace::permission::PermissionHookTransport,
-                        >
+                        as std::sync::Arc<dyn xvora_workspace::permission::PermissionHookTransport>
                 });
             if transport.is_none() {
                 tracing::debug!(
@@ -894,13 +891,10 @@ pub(crate) async fn spawn_session_actor(
             e
         })?;
     let resolved_task_output =
-        xvora_tools::reminders::task_completion::resolve_task_output_tool_name(
-            agent.tool_bridge(),
-        )
-        .await;
-    let resolved_read =
-        xvora_tools::reminders::task_completion::resolve_read_tool_name(agent.tool_bridge())
+        xvora_tools::reminders::task_completion::resolve_task_output_tool_name(agent.tool_bridge())
             .await;
+    let resolved_read =
+        xvora_tools::reminders::task_completion::resolve_read_tool_name(agent.tool_bridge()).await;
     let _ = task_output_tool_name.set(resolved_task_output.clone());
     let _ = read_tool_name.set(resolved_read);
     tool_context.task_output_tool_name = resolved_task_output.unwrap_or_else(|| {
@@ -1799,9 +1793,8 @@ pub(crate) async fn spawn_session_on_thread(
     ),
     acp::Error,
 > {
-    let (init_tx, init_rx) = tokio::sync::oneshot::channel::<
-        Result<SessionInitResult, xvora_agent::AgentBuildError>,
-    >();
+    let (init_tx, init_rx) =
+        tokio::sync::oneshot::channel::<Result<SessionInitResult, xvora_agent::AgentBuildError>>();
     let sid = session_info.id.0.to_string();
     let thread_name = format!("ses-{}", &sid[..sid.len().min(8)]);
     const SESSION_THREAD_STACK_SIZE: usize = 8 * 1024 * 1024;

@@ -341,7 +341,8 @@ pub fn resolve_xvora_home() -> Result<PathBuf> {
     if let Ok(v) = std::env::var("XVORA_HOME") {
         return Ok(PathBuf::from(v));
     }
-    let home = PathBuf::from(std::env::var("HOME").context("neither $XVORA_HOME nor $HOME is set")?);
+    let home =
+        PathBuf::from(std::env::var("HOME").context("neither $XVORA_HOME nor $HOME is set")?);
     // Canonicalize the home dir so worktree paths share the same physical .grok
     // tree as trust/hooks even when it is symlinked. The dunce canonicalization
     // must stay in sync with xvora_config::default_xvora_home();
@@ -376,7 +377,9 @@ pub(crate) struct XvoraHomeFixture {
 #[cfg(test)]
 impl XvoraHomeFixture {
     pub(crate) fn new() -> Self {
-        let lock = XVORA_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let lock = XVORA_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::TempDir::new().unwrap();
         let home = tmp.path().join("xvora-home");
         std::fs::create_dir_all(&home).unwrap();

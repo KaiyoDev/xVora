@@ -227,7 +227,9 @@ mod tests {
         assert_eq!(PROD_XAI_API_BASE_URL, xai_provider::API_BASE_URL);
         assert_eq!(PROD_ASSET_SERVER_URL, xai_provider::ASSET_SERVER_URL);
         assert_eq!(
-            XvoraEnvironment::Production.endpoints().cli_chat_proxy_base_url,
+            XvoraEnvironment::Production
+                .endpoints()
+                .cli_chat_proxy_base_url,
             xai_provider::PRODUCTION.cli_chat_proxy_base_url
         );
     }

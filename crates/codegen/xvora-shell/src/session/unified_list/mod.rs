@@ -697,8 +697,7 @@ mod tests {
     fn conversations_lane_active_truth_table() {
         use crate::agent::chat_modes::XVORA_CHAT_MODE_ENV;
         let _chat_off = xvora_test_support::EnvGuard::unset(XVORA_CHAT_MODE_ENV);
-        let _desktop_off =
-            xvora_test_support::EnvGuard::unset("XVORA_SESSION_LIST_CONVERSATIONS");
+        let _desktop_off = xvora_test_support::EnvGuard::unset("XVORA_SESSION_LIST_CONVERSATIONS");
         assert!(
             !conversations_lane_active(),
             "no env ⇒ lane off (Build-mode default)"

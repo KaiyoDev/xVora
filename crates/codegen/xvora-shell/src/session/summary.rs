@@ -10,9 +10,9 @@ use crate::sampling::Client as OaiCompatClient;
 use crate::session::helpers::session_summary::generate_session_summary;
 use crate::session::info::Info;
 use crate::session::persistence::PersistenceMsg;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 /// Internal state for the summary generation lifecycle.
 enum State {

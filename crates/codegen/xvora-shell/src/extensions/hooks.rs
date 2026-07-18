@@ -6,10 +6,10 @@
 use std::collections::HashMap;
 
 use agent_client_protocol as acp;
+use hooks_plugins_types::{HookEvent, HookHandlerType, HookInfo};
 use serde::Deserialize;
 use xvora_hooks::event::{HookEventEnvelope, HookEventName};
 use xvora_hooks::matcher::HookMatcher;
-use hooks_plugins_types::{HookEvent, HookHandlerType, HookInfo};
 
 use crate::agent::MvpAgent;
 

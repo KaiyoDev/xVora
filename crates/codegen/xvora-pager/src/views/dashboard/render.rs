@@ -338,10 +338,7 @@ pub fn render_dashboard(
         let voice_interim = state.voice_interim.clone();
         let multiline = state.multiline_mode;
         let selected = state.selected.clone();
-        let question_pending = state
-            .peek
-            .as_ref()
-            .is_some_and(|p| p.question.is_some());
+        let question_pending = state.peek.as_ref().is_some_and(|p| p.question.is_some());
         let has_scrollback = selected
             .as_ref()
             .is_some_and(|row| super::state::scrollback_available_for_row(row, agents));

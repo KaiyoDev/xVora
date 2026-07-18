@@ -16,8 +16,8 @@ use crate::session::signals::SessionSignals;
 use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};
 use crate::tools::todo::TodoState;
 use crate::util::xvora_home::xvora_home;
-use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent_client_protocol as acp;
 use xvora_sampling_types::ReasoningEffort;
 
 use crate::session::info::Info;
@@ -2815,13 +2815,7 @@ mod agent_name_persistence_tests {
 
     #[test]
     fn summary_round_trips_various_agent_names() {
-        for name in [
-            "cursor",
-            "xvora",
-            "xvora-plan",
-            "codex",
-            "browser-use",
-        ] {
+        for name in ["cursor", "xvora", "xvora-plan", "codex", "browser-use"] {
             let mut summary = Summary::new(
                 &Info {
                     id: acp::SessionId::new("test"),

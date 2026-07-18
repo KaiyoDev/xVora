@@ -23,7 +23,9 @@ pub use self::share::{ShareSessionRequest, ShareSessionResponse};
 pub use prod_mc_cli_chat_proxy_types::feedback_types::{
     ClientType, FeedbackTerminalInfo, RatingType,
 };
-pub use xvora_fsnotify::{FsConfig, FsEvent, FsEventKind, FsEventSource, FsNotifyError, GitMetaKind};
+pub use xvora_fsnotify::{
+    FsConfig, FsEvent, FsEventKind, FsEventSource, FsNotifyError, GitMetaKind,
+};
 /// `false` twin: this template is not compiled into this build, so no
 /// template matches. Keeps ungated call sites compiling in both
 /// configurations.

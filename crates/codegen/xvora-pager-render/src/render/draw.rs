@@ -45,10 +45,10 @@ use crossterm::terminal::{BeginSynchronizedUpdate, EndSynchronizedUpdate};
 use crossterm::{QueueableCommand, cursor};
 use ratatui::Frame;
 use ratatui::backend::CrosstermBackend;
+use ratatui_inline::LinkSpan;
 use std::io::Write;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
-use ratatui_inline::LinkSpan;
 /// Terminal type for the pager. Defined here (beside [`TermWriter`]) so the
 /// `render` module does not depend on `app`. Re-exported from `app` as
 /// `crate::app::PagerTerminal` for existing call sites.

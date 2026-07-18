@@ -84,10 +84,7 @@ impl tool_runtime::Tool for TaskTool {
         tool_protocol::ToolId::new("task").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "task",
             crate::types::tool_metadata::ToolMetadata::description_template(self),
@@ -429,9 +426,7 @@ impl tool_runtime::Tool for TaskTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementations::xvora::task::backend::{
-        ChannelBackend, SubagentBackendResource,
-    };
+    use crate::implementations::xvora::task::backend::{ChannelBackend, SubagentBackendResource};
     use crate::types::resources::Resources;
     use crate::types::tool_metadata::test_ctx;
     use std::sync::Arc;

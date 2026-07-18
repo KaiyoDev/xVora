@@ -6,7 +6,7 @@ use tokio::io::AsyncBufReadExt as _;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::auth::config::LEGACY_AUTH_SCOPE;
-use crate::auth::{AuthManager, XaiAuth, GrokComConfig, parse_output};
+use crate::auth::{AuthManager, GrokComConfig, XaiAuth, parse_output};
 use crate::util::xvora_home;
 
 pub type StderrCallback = Box<dyn Fn(&str)>;
@@ -884,7 +884,10 @@ pub async fn run_cli_login(
             anyhow::bail!("Sign-in is not available for this deployment. Set XAI_API_KEY instead.");
         }
         let xvora_home = xvora_home::xvora_home();
-        let auth_manager = Arc::new(AuthManager::new(&xvora_home, config.grok_com_config.clone()));
+        let auth_manager = Arc::new(AuthManager::new(
+            &xvora_home,
+            config.grok_com_config.clone(),
+        ));
         // Route through the shared inner flow (not `run_device_code_login`
         // directly) so the external auth provider and devbox auto-migration run
         // before the interactive device login. `force_interactive` skips the
@@ -985,9 +988,7 @@ pub fn perform_logout(
         // Clearing identity before the flush closes the window in which a
         // concurrent emission between flush and identity-reset would still
         // stamp the prior user's ids onto a customer-collector record.
-        xvora_telemetry::external::set_identity(
-            xvora_telemetry::external::IdentityAttrs::default(),
-        );
+        xvora_telemetry::external::set_identity(xvora_telemetry::external::IdentityAttrs::default());
         xvora_telemetry::external::flush();
         if let Some(scope) = scope {
             auth_manager.remove_scope(scope)?;

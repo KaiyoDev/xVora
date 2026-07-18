@@ -55,10 +55,7 @@ impl tool_runtime::Tool for SearchReplaceConciseTool {
         tool_protocol::ToolId::new("search_replace").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "search_replace",
             crate::types::tool_metadata::ToolMetadata::description_template(self),

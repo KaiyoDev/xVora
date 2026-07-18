@@ -1081,9 +1081,7 @@ fn parse_slash_prefix(prompt_blocks: &[acp::ContentBlock]) -> Option<(&str, &str
 /// default: the model derives the cadence from the request and asks when none
 /// is given.
 fn build_loop_prompt_blocks(args: &str) -> Vec<acp::ContentBlock> {
-    use xvora_tools::implementations::xvora::{
-        loop_schedule_instruction, loop_usage_message,
-    };
+    use xvora_tools::implementations::xvora::{loop_schedule_instruction, loop_usage_message};
 
     let text = if args.trim().is_empty() {
         loop_usage_message().to_string()
@@ -1687,9 +1685,7 @@ mod tests {
     #[test]
     fn loop_prompt_matches_pager_wording() {
         // The shell and pager must stay textually identical so they don't drift.
-        use xvora_tools::implementations::xvora::{
-            loop_schedule_instruction, loop_usage_message,
-        };
+        use xvora_tools::implementations::xvora::{loop_schedule_instruction, loop_usage_message};
         assert_eq!(loop_text(""), loop_usage_message());
         assert_eq!(
             loop_text("2h run tests"),

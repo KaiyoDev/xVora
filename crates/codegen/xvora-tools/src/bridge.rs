@@ -547,9 +547,7 @@ impl ToolBridge {
         &self,
         task_id: &str,
     ) -> Result<bool, tool_runtime::ToolError> {
-        use crate::implementations::xvora::scheduler::types::{
-            SchedulerCommand, SchedulerHandle,
-        };
+        use crate::implementations::xvora::scheduler::types::{SchedulerCommand, SchedulerHandle};
         let sender = {
             let res = self.registry.resources.lock().await;
             res.get::<SchedulerHandle>()

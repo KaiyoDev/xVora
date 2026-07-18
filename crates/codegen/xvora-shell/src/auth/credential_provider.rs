@@ -400,8 +400,8 @@ pub fn build_default_otel_layer_config() -> xvora_telemetry::otel_layer::OtelLay
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::XaiAuth;
     use crate::auth::GrokComConfig;
+    use crate::auth::XaiAuth;
     use crate::auth::manager::AuthManager;
     use chrono::{Duration as ChronoDuration, Utc};
     use std::sync::Mutex;

@@ -10,13 +10,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
+use hunk_tracker::HunkTrackerHandle;
 use tokio::sync::mpsc;
 use tokio::time::sleep_until;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_fsnotify::{FsEvent, FsEventKind};
 use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
-use hunk_tracker::HunkTrackerHandle;
 
 use crate::session::acp_session::SessionActor;
 use crate::session::persistence::PersistenceMsg;
@@ -152,10 +152,7 @@ fn fs_event_to_delta(
 
 const GIT_DIFF_REBUILD_THRESHOLD: usize = 500;
 
-fn parse_diff_name_status_line(
-    line: &str,
-    repo_root: &Path,
-) -> Option<codebase_graph::FileEvent> {
+fn parse_diff_name_status_line(line: &str, repo_root: &Path) -> Option<codebase_graph::FileEvent> {
     let mut parts = line.splitn(3, '\t');
     let status = parts.next()?.trim();
     let path = parts.next()?;
@@ -170,9 +167,7 @@ fn parse_diff_name_status_line(
                 repo_root.join(new_path),
             ))
         }
-        _ => Some(codebase_graph::FileEvent::modified(
-            repo_root.join(path),
-        )),
+        _ => Some(codebase_graph::FileEvent::modified(repo_root.join(path))),
     }
 }
 
@@ -560,8 +555,7 @@ impl FsWatchPlan {
         });
 
         let hunk = (caps.hunk_tracking && deps.hunk_tracking_enabled).then(|| {
-            let git_root =
-                xvora_workspace::session::git::find_git_root_from_path(&deps.cwd).ok();
+            let git_root = xvora_workspace::session::git::find_git_root_from_path(&deps.cwd).ok();
             HunkTracking {
                 handle: deps.hunk_tracker,
                 cwd: deps.cwd.clone(),

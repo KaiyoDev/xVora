@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use chrono::{Duration as ChronoDuration, Utc};
-use xvora_shell::auth::{AuthManager, AuthMode, XaiAuth, GrokComConfig};
+use xvora_shell::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
 use xvora_shell::heap_profile::{
     self, HeapProfileHooks, HeapProfileMonitor, HeapProfileUploadHandles,
     JemallocHeapProfileConfig, JemallocStats, build_upload_handles, is_valid_session_id,

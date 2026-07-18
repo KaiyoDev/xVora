@@ -87,7 +87,8 @@ pub fn peek_live_tail_desired_content(
 /// chrome, and clamp live-tail body via [`MAX_LIVE_TAIL_ROWS`].
 pub fn max_peek_content_rows(area: Rect) -> u16 {
     let half = area.height / 2;
-    half.saturating_sub(2).min(MAX_LIVE_TAIL_ROWS.saturating_add(4))
+    half.saturating_sub(2)
+        .min(MAX_LIVE_TAIL_ROWS.saturating_add(4))
 }
 
 /// Outer horizontal padding for the dispatch box (cols on each side).

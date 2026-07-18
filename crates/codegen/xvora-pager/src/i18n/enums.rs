@@ -96,17 +96,29 @@ pub fn description(canonical: &str, fallback: &'static str) -> &'static str {
         (Locale::Vi, "oscura-midnight") => "Tối sâu accent ấm; cần truecolor.",
         (Locale::En, "oscura-midnight") => "Deep dark with warm accents; needs truecolor.",
         (Locale::Vi, "default") => "Dùng hành vi quyền mặc định của agent (hiện tương đương Hỏi).",
-        (Locale::En, "default") => "Use the agent's default permission behavior (currently equivalent to Ask).",
+        (Locale::En, "default") => {
+            "Use the agent's default permission behavior (currently equivalent to Ask)."
+        }
         (Locale::Vi, "ask") => "Hỏi quyền trước mỗi thao tác tool.",
         (Locale::En, "ask") => "Prompt for permission before tool actions.",
         (Locale::Vi, "always-approve") => "Tự duyệt mọi tool. Bỏ qua mọi hộp hỏi quyền.",
-        (Locale::En, "always-approve") => "Auto-approve every tool action. Skips ALL permission prompts.",
-        (Locale::Vi, "opt-in") => "Cho phép SpaceXAI lưu và dùng dữ liệu phiên coding để huấn luyện và cải thiện sản phẩm.",
-        (Locale::En, "opt-in") => "Allow SpaceXAI to retain and use coding session data for training and product improvement.",
+        (Locale::En, "always-approve") => {
+            "Auto-approve every tool action. Skips ALL permission prompts."
+        }
+        (Locale::Vi, "opt-in") => {
+            "Cho phép SpaceXAI lưu và dùng dữ liệu phiên coding để huấn luyện và cải thiện sản phẩm."
+        }
+        (Locale::En, "opt-in") => {
+            "Allow SpaceXAI to retain and use coding session data for training and product improvement."
+        }
         (Locale::Vi, "opt-out") => "Không lưu dữ liệu phiên coding. Code không dùng để huấn luyện.",
-        (Locale::En, "opt-out") => "Do not retain coding session data. Code requests will not be used for training.",
+        (Locale::En, "opt-out") => {
+            "Do not retain coding session data. Code requests will not be used for training."
+        }
         (Locale::Vi, "fullscreen") => "Mở xVora ở TUI toàn màn hình chuẩn. Mặc định khi chưa đặt.",
-        (Locale::En, "fullscreen") => "Open xVora in the standard fullscreen TUI. Default when unset.",
+        (Locale::En, "fullscreen") => {
+            "Open xVora in the standard fullscreen TUI. Default when unset."
+        }
         (Locale::Vi, "minimal") => "Mở xVora ở chế độ tối giản (scrollback-native).",
         (Locale::En, "minimal") => "Open xVora in scrollback-native (minimal) mode.",
         (Locale::Vi, "agent-only") => "Chỉ theo dõi file agent sửa (mặc định).",
@@ -116,21 +128,43 @@ pub fn description(canonical: &str, fallback: &'static str) -> &'static str {
         (Locale::Vi, "wheel") => "Luôn coi cuộn là bánh xe (số dòng cố định mỗi tick).",
         (Locale::En, "wheel") => "Always treat scrolling as wheel notches (fixed lines per tick).",
         (Locale::Vi, "trackpad") => "Luôn coi cuộn là trackpad (tích lũy phân số).",
-        (Locale::En, "trackpad") => "Always treat scrolling as a trackpad (fractional accumulation).",
+        (Locale::En, "trackpad") => {
+            "Always treat scrolling as a trackpad (fractional accumulation)."
+        }
         (Locale::Vi, "auto-detect") => "Tự nhận wheel vs trackpad theo timing gesture. Mặc định.",
-        (Locale::En, "auto-detect") => "Detect wheel vs trackpad per gesture from event timing. Default.",
+        (Locale::En, "auto-detect") => {
+            "Detect wheel vs trackpad per gesture from event timing. Default."
+        }
         (Locale::Vi, "flash") => "Nháy ngắn khi nhả chuột, rồi xóa. Double-click thu/mở. Mặc định.",
-        (Locale::En, "flash") => "Brief highlight on mouse-up, then clear. Double-click toggles fold. Default.",
+        (Locale::En, "flash") => {
+            "Brief highlight on mouse-up, then clear. Double-click toggles fold. Default."
+        }
         (Locale::Vi, "hold") => "Giữ vùng chọn đến Esc, click, hoặc cuộn. Double-click thu/mở.",
-        (Locale::En, "hold") => "Keep the selection visible until Esc, click, or scroll. Double-click toggles fold.",
-        (Locale::Vi, "word") => "Double-click chọn & copy từ, triple-click cả dòng; giữ đến khi bỏ.",
-        (Locale::En, "word") => "Double-click selects & copies a word, triple-click a line; selection stays until dismissed.",
-        (Locale::Vi, "toggle") => "Ctrl+Space / F8 bắt đầu dictation; nhấn lại (hoặc Esc/Enter) để dừng.",
-        (Locale::En, "toggle") => "Ctrl+Space / F8 starts dictation; press again (or Esc/Enter) to stop.",
-        (Locale::Vi, "hold-to-talk") => "Giữ Ctrl+Space / F8 để ghi, thả để dừng. Cần terminal Kitty-protocol.",
-        (Locale::En, "hold-to-talk") => "Hold Ctrl+Space / F8 to record, release to stop. Needs a Kitty-protocol terminal.",
+        (Locale::En, "hold") => {
+            "Keep the selection visible until Esc, click, or scroll. Double-click toggles fold."
+        }
+        (Locale::Vi, "word") => {
+            "Double-click chọn & copy từ, triple-click cả dòng; giữ đến khi bỏ."
+        }
+        (Locale::En, "word") => {
+            "Double-click selects & copies a word, triple-click a line; selection stays until dismissed."
+        }
+        (Locale::Vi, "toggle") => {
+            "Ctrl+Space / F8 bắt đầu dictation; nhấn lại (hoặc Esc/Enter) để dừng."
+        }
+        (Locale::En, "toggle") => {
+            "Ctrl+Space / F8 starts dictation; press again (or Esc/Enter) to stop."
+        }
+        (Locale::Vi, "hold-to-talk") => {
+            "Giữ Ctrl+Space / F8 để ghi, thả để dừng. Cần terminal Kitty-protocol."
+        }
+        (Locale::En, "hold-to-talk") => {
+            "Hold Ctrl+Space / F8 to record, release to stop. Needs a Kitty-protocol terminal."
+        }
         (Locale::Vi, "system") => "Dùng locale hệ thống nếu STT hỗ trợ; không thì tiếng Anh.",
-        (Locale::En, "system") => "Use the system locale when it is a supported STT language; otherwise English.",
+        (Locale::En, "system") => {
+            "Use the system locale when it is a supported STT language; otherwise English."
+        }
         _ => fallback,
     }
 }
@@ -146,7 +180,9 @@ fn description_by_en_fallback(fallback: &'static str) -> &'static str {
     if fallback.contains("LLM classifier") || fallback.contains("classifier approves") {
         return "LLM duyệt tool an toàn; hành động nguy hiểm vẫn có thể hỏi hoặc từ chối.";
     }
-    if fallback.contains("clickable") || fallback.contains("Mermaid") || fallback.contains("mermaid")
+    if fallback.contains("clickable")
+        || fallback.contains("Mermaid")
+        || fallback.contains("mermaid")
     {
         if fallback.contains("raw") {
             return "Luôn hiện mã nguồn Mermaid dạng code block.";
@@ -167,4 +203,3 @@ fn description_by_en_fallback(fallback: &'static str) -> &'static str {
     }
     fallback
 }
-
