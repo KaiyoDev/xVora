@@ -64,25 +64,25 @@ pub fn find_protoc() -> anyhow::Result<Option<PathBuf>> {
             if cfg!(windows) {
                 // tools/protoc-<ver>/bin/protoc.exe
                 let tools = dir.join("tools");
-                if tools.is_dir() {
-                    if let Ok(entries) = fs::read_dir(&tools) {
-                        let mut candidates: Vec<PathBuf> = entries
-                            .filter_map(|e| e.ok())
-                            .filter(|e| e.file_name().to_string_lossy().starts_with("protoc-"))
-                            .map(|e| e.path().join("bin").join("protoc.exe"))
-                            .filter(|p| p.is_file())
-                            .collect();
-                        // Prefer higher version directory names last sort.
-                        candidates.sort();
-                        if let Some(protoc) = candidates.pop() {
-                            match check_protoc_good(&protoc) {
-                                Ok(()) => return Ok(Some(protoc)),
-                                Err(e) => {
-                                    eprintln!(
-                                        "tools protoc at `{}` failed: {e:#}; trying PATH",
-                                        protoc.display()
-                                    );
-                                }
+                if tools.is_dir()
+                    && let Ok(entries) = fs::read_dir(&tools)
+                {
+                    let mut candidates: Vec<PathBuf> = entries
+                        .filter_map(|e| e.ok())
+                        .filter(|e| e.file_name().to_string_lossy().starts_with("protoc-"))
+                        .map(|e| e.path().join("bin").join("protoc.exe"))
+                        .filter(|p| p.is_file())
+                        .collect();
+                    // Prefer higher version directory names last sort.
+                    candidates.sort();
+                    if let Some(protoc) = candidates.pop() {
+                        match check_protoc_good(&protoc) {
+                            Ok(()) => return Ok(Some(protoc)),
+                            Err(e) => {
+                                eprintln!(
+                                    "tools protoc at `{}` failed: {e:#}; trying PATH",
+                                    protoc.display()
+                                );
                             }
                         }
                     }
