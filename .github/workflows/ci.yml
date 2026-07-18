@@ -121,8 +121,17 @@ jobs:
         shell: pwsh
         env:
           PROTOC: ${{ env.PROTOC }}
-        # Hard-fail (no continue-on-error) — catches API/lint drift before release link.
-        run: cargo clippy -p xvora-pager-bin -- -D warnings
+        # Hard-fail on rustc warnings + clippy correctness/suspicious/perf.
+        # Style pedantry (collapsible_if, possible_missing_else, needless_return, …)
+        # is allowed for now — the tree predates clippy 1.92 and would need a
+        # dedicated cleanup PR rather than blocking every ship build.
+        run: >
+          cargo clippy -p xvora-pager-bin --
+          -D warnings
+          -A clippy::all
+          -D clippy::correctness
+          -D clippy::suspicious
+          -D clippy::perf
 
       # ── ship binary ──────────────────────────────────────────────────
       - name: cargo build --release -p xvora-pager-bin
