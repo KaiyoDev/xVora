@@ -16,3 +16,5 @@ __pycache__/
 
 # Generated UI preview (see scripts/preview-welcome.ps1)
 /scripts/preview-welcome.out.html
+# Local Windows protoc (downloaded for builds)
+tools/protoc-*/

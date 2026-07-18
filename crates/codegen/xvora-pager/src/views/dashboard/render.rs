@@ -9,7 +9,8 @@ use ratatui::text::Span;
 use super::layout::{MIN_DASHBOARD_WIDTH, compute_layout};
 use super::row::{DashboardRow, RowBadge, build_rows_with_roster};
 use super::state::{
-    DashboardState, Filter, Focusable, Grouping, LocationPickerState, RowState, SectionKey,
+    DashboardRowId, DashboardState, Filter, Focusable, Grouping, LocationPickerState, RowState,
+    SectionKey,
 };
 use crate::app::agent::AgentId;
 use crate::app::agent_view::AgentView;
@@ -235,29 +236,51 @@ pub fn render_dashboard(
     // keep the row list usable.
     let mut layout = compute_layout(area, state.peek.is_some());
     if let Some(panel) = state.peek.as_ref() {
-        // Size the peek box to its content. When a permission / ask
-        // question is pending the box holds the question (1) + its
-        // options and the `❯ reply` row is hidden; otherwise it holds
-        // status (1) + wrapped response (≤ MAX_RESPONSE_ROWS) + a blank
-        // breathing row (1) + the reply (which GROWS with multi-line
-        // drafts, ≤ MAX_REPLY_ROWS). The box width is independent of its
-        // height, so the wrap widths are read from the first layout pass:
-        // the response uses `dispatch.width − 4` (2 border + 2 inset);
-        // the reply text loses a further 2 for the `❯ ` prefix (− 6).
+        // Size the peek box to its content. Question mode: question + options.
+        // Live-tail (when scrollback is available): densified current-turn body.
+        // Fallback: status + snapshot response + blank + reply.
         let content_rows = if panel.question.is_some() {
             1 + panel.options.len().min(9) as u16
         } else {
-            let inner_w = layout.dispatch.width.saturating_sub(4) as usize;
-            let resp =
-                super::peek::response_row_count(panel, inner_w, super::peek::MAX_RESPONSE_ROWS);
             let reply_text_w = layout.dispatch.width.saturating_sub(6);
             let reply_rows = super::peek::reply_row_count(
                 &state.peek_reply,
                 reply_text_w,
                 super::peek::MAX_REPLY_ROWS,
             );
-            // status(1) + response(resp) + blank(1) + reply(reply_rows)
-            resp as u16 + 2 + reply_rows
+            let middle_w = layout.dispatch.width.saturating_sub(4);
+            let max_content = super::layout::max_peek_content_rows(area);
+            if let Some(sel) = state.selected.as_ref() {
+                if let Some((body_measured, pin_user)) =
+                    super::state::scrollback_for_row(sel, agents).map(|sb| {
+                        (
+                            super::peek_tail::densified_body_line_count(sb, middle_w),
+                            super::peek_tail::scrollback_has_last_user(sb),
+                        )
+                    })
+                {
+                    super::layout::peek_live_tail_desired_content(
+                        max_content,
+                        reply_rows,
+                        body_measured,
+                        pin_user,
+                    )
+                    .content_rows
+                } else {
+                    let inner_w = middle_w as usize;
+                    let resp = super::peek::response_row_count(
+                        panel,
+                        inner_w,
+                        super::peek::MAX_RESPONSE_ROWS,
+                    );
+                    resp as u16 + 2 + reply_rows
+                }
+            } else {
+                let inner_w = middle_w as usize;
+                let resp =
+                    super::peek::response_row_count(panel, inner_w, super::peek::MAX_RESPONSE_ROWS);
+                resp as u16 + 2 + reply_rows
+            }
         };
         layout = super::layout::compute_layout_with_dispatch(area, true, content_rows);
     } else if area.height > 8 && !state.dispatch.text().is_empty() {
@@ -314,13 +337,48 @@ pub fn render_dashboard(
         let voice_listening = state.voice_listening;
         let voice_interim = state.voice_interim.clone();
         let multiline = state.multiline_mode;
+        let selected = state.selected.clone();
+        let question_pending = state
+            .peek
+            .as_ref()
+            .is_some_and(|p| p.question.is_some());
+        let has_scrollback = selected
+            .as_ref()
+            .is_some_and(|row| super::state::scrollback_available_for_row(row, agents));
+        let empty_hint = match selected.as_ref() {
+            Some(DashboardRowId::Subagent {
+                parent,
+                child_session_id,
+            }) => {
+                let parent_ok = agents
+                    .get(parent)
+                    .is_some_and(|p| p.subagent_sessions.contains_key(child_session_id));
+                let loaded = agents
+                    .get(parent)
+                    .is_some_and(|p| p.subagent_views.contains_key(child_session_id));
+                if parent_ok && !loaded {
+                    Some("Subagent not loaded")
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        let live_tail = if !question_pending && has_scrollback {
+            selected
+                .as_ref()
+                .and_then(|row| super::state::scrollback_for_row(row, agents))
+                .map(|scrollback| super::peek::PeekLiveTailArgs { scrollback })
+        } else {
+            None
+        };
         let DashboardState {
             peek, peek_reply, ..
         } = state;
         let render = peek
             .as_ref()
             .map(|panel| {
-                super::peek::render_peek_panel(
+                super::peek::render_peek_panel_with_tail(
                     buf,
                     layout.dispatch,
                     panel,
@@ -330,6 +388,8 @@ pub fn render_dashboard(
                     voice_interim.as_deref(),
                     multiline,
                     Some(layout.list).filter(|r| r.area() > 0),
+                    live_tail,
+                    empty_hint,
                 )
             })
             .unwrap_or_default();

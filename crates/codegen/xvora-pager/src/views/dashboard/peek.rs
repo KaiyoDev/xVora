@@ -14,6 +14,27 @@ use crate::app::agent_view::AgentView;
 use crate::render::line_utils::truncate_str;
 use crate::theme::Theme;
 
+/// Args for painting a dense bottom-pinned live tail in the peek middle.
+pub struct PeekLiveTailArgs<'a> {
+    pub scrollback: &'a crate::scrollback::state::ScrollbackState,
+}
+
+/// Exclusive bottom y of the live-tail middle band (above the reply).
+///
+/// Reserves a 1-row breathing blank above the reply only when middle still
+/// has ≥2 rows after that blank so pin + body can share.
+fn live_tail_middle_bottom(middle_top: u16, reply_top_y: u16) -> u16 {
+    let with_blank = reply_top_y.saturating_sub(1);
+    let h_with_blank = with_blank.saturating_sub(middle_top);
+    if h_with_blank > 1 {
+        with_blank
+    } else if reply_top_y > middle_top {
+        reply_top_y
+    } else {
+        with_blank
+    }
+}
+
 /// Maximum number of wrapped response rows the peek panel shows. The
 /// layout sizes the peek box to `status + this-many-response-rows +
 /// blank + reply`, and the renderer caps the response at the same value
@@ -569,6 +590,7 @@ fn paint_peek_config_badge(
 /// Returns the reply caret position (so the caller can park the
 /// terminal cursor) plus the reply input's screen rect (recorded for
 /// mouse routing — click-to-focus and drag selection).
+/// Render the peek panel (tests / callers without live scrollback).
 #[allow(clippy::too_many_arguments)]
 pub fn render_peek_panel(
     buf: &mut Buffer,
@@ -580,6 +602,36 @@ pub fn render_peek_panel(
     voice_interim: Option<&str>,
     multiline: bool,
     overlay_area: Option<Rect>,
+) -> PeekRenderResult {
+    render_peek_panel_with_tail(
+        buf,
+        area,
+        panel,
+        reply,
+        theme,
+        voice_listening,
+        voice_interim,
+        multiline,
+        overlay_area,
+        None,
+        None,
+    )
+}
+
+/// Render the peek panel with optional dense live-tail scrollback paint.
+#[allow(clippy::too_many_arguments)]
+pub fn render_peek_panel_with_tail(
+    buf: &mut Buffer,
+    area: Rect,
+    panel: &PeekPanelState,
+    reply: &mut crate::views::prompt_widget::PromptWidget,
+    theme: &Theme,
+    voice_listening: bool,
+    voice_interim: Option<&str>,
+    multiline: bool,
+    overlay_area: Option<Rect>,
+    live_tail: Option<PeekLiveTailArgs<'_>>,
+    empty_hint: Option<&str>,
 ) -> PeekRenderResult {
     use crate::views::prompt_widget::PromptStyle;
     use ratatui::widgets::{Block, BorderType, Borders, Widget};
@@ -779,10 +831,9 @@ pub fn render_peek_panel(
         } else {
             inner.width as usize
         };
-        // While the agent is working the "Working" status reads as
-        // secondary (a touch brighter than the dim chrome) and the previous
-        // response is hidden entirely (below), so the panel signals "still
-        // running" without dwelling on a now-stale answer.
+        // While Working, the status label is secondary. Live-tail keeps
+        // painting the middle regardless; legacy snapshot paint hides
+        // the previous response while working (stale answer).
         let working = panel.response_type == "Working";
         let label_fg = if working {
             theme.text_secondary
@@ -806,48 +857,74 @@ pub fn render_peek_panel(
             );
         }
 
-        // The most recent agent response on the rows between the status
-        // and the reply input. Long lines WRAP (word-wrapped to the inner
-        // width) instead of being truncated. The box is sized (by the
-        // layout) to status + response + one blank breathing row + reply,
-        // so capping the response at `MAX_RESPONSE_ROWS` leaves that row
-        // above the reply blank. A `…` continuation marker is appended to
-        // the last visible row only when there's more content than fits.
-        // Suppress the previous response while working — it's stale and the
-        // "Working" status already conveys the state (the box is sized without
-        // these rows, see `response_row_count`).
-        let middle = (reply_top_y.saturating_sub(inner.y + 1)) as usize;
-        let capacity = middle.min(MAX_RESPONSE_ROWS);
-        if capacity > 0 && !working {
-            // Flatten the response lines into wrapped visual rows, taking
-            // one more than `capacity` so we can detect overflow without
-            // wrapping an arbitrarily long response in full.
-            let mut rows: Vec<String> = Vec::new();
-            'outer: for line in &panel.last_agent_lines {
-                for vis in wrap_to_width(line, inner.width as usize) {
-                    rows.push(vis);
-                    if rows.len() > capacity {
-                        break 'outer;
+        let middle_top = inner.y + 1;
+        let middle_bottom = live_tail_middle_bottom(middle_top, reply_top_y);
+        let middle_h = middle_bottom.saturating_sub(middle_top);
+        let middle_area = Rect {
+            x: inner.x,
+            y: middle_top,
+            width: inner.width,
+            height: middle_h,
+        };
+
+        if let Some(PeekLiveTailArgs { scrollback }) = live_tail {
+            if middle_h > 0 {
+                if scrollback.is_empty() {
+                    if let Some(hint) = empty_hint.or(Some("No activity yet")) {
+                        let trunc = truncate_str(hint, inner.width as usize);
+                        buf.set_string(
+                            inner.x,
+                            middle_top,
+                            trunc,
+                            Style::default().fg(theme.gray_dim).bg(theme.bg_base),
+                        );
                     }
+                } else {
+                    super::peek_tail::paint_peek_live_tail(scrollback, middle_area, buf);
                 }
             }
-            let overflow = rows.len() > capacity || panel.last_response_truncated;
-            let n = capacity.min(rows.len());
-            for (i, row) in rows.iter().take(n).enumerate() {
-                let y = inner.y + 1 + i as u16;
-                let is_last_shown = i + 1 == n;
-                let text = if is_last_shown && overflow {
-                    // Reserve 2 cols for " …" so the marker stays visible.
-                    let body = truncate_str(row, (inner.width as usize).saturating_sub(2));
-                    format!("{body} \u{2026}")
-                } else {
-                    row.clone()
-                };
+        } else {
+            // Legacy snapshot: most recent agent response rows (wrapped).
+            // Suppress while working — status already conveys the state.
+            let middle = middle_h as usize;
+            let capacity = middle.min(MAX_RESPONSE_ROWS);
+            if capacity > 0 && !working {
+                let mut rows: Vec<String> = Vec::new();
+                'outer: for line in &panel.last_agent_lines {
+                    for vis in wrap_to_width(line, inner.width as usize) {
+                        rows.push(vis);
+                        if rows.len() > capacity {
+                            break 'outer;
+                        }
+                    }
+                }
+                let overflow = rows.len() > capacity || panel.last_response_truncated;
+                let n = capacity.min(rows.len());
+                for (i, row) in rows.iter().take(n).enumerate() {
+                    let y = middle_top + i as u16;
+                    let is_last_shown = i + 1 == n;
+                    let text = if is_last_shown && overflow {
+                        let body = truncate_str(row, (inner.width as usize).saturating_sub(2));
+                        format!("{body} \u{2026}")
+                    } else {
+                        row.clone()
+                    };
+                    buf.set_string(
+                        inner.x,
+                        y,
+                        text,
+                        Style::default().fg(theme.text_primary).bg(theme.bg_base),
+                    );
+                }
+            } else if let Some(hint) = empty_hint
+                && middle_h > 0
+            {
+                let trunc = truncate_str(hint, inner.width as usize);
                 buf.set_string(
                     inner.x,
-                    y,
-                    text,
-                    Style::default().fg(theme.text_primary).bg(theme.bg_base),
+                    middle_top,
+                    trunc,
+                    Style::default().fg(theme.gray_dim).bg(theme.bg_base),
                 );
             }
         }

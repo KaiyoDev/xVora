@@ -12,6 +12,84 @@ pub const MIN_DASHBOARD_WIDTH: u16 = 40;
 /// row list still has room to breathe.
 pub const MIN_PEEK_HEIGHT: u16 = 12;
 
+/// Secondary cap on live-tail body rows inside an allocated peek box.
+pub const MAX_LIVE_TAIL_ROWS: u16 = 28;
+
+/// Live-tail height budget for a no-question peek (status + optional blank + reply).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeekLiveTailBudget {
+    pub live_tail: u16,
+    pub blank_row: bool,
+    pub content_rows: u16,
+}
+
+/// Shrink-to-content desired inner rows for a live-tail peek.
+///
+/// Recipe (matches dense paint): `status + [pin?] + body + [blank?] + reply`.
+/// - `body_measured`: densified **current-turn** lines (after last user).
+/// - `pin_user`: last user exists → budget one pin row (paint charges it too).
+/// Empty body reserves 1 row for the empty/hint line. Never exceeds
+/// `max_content`; body is also capped by [`MAX_LIVE_TAIL_ROWS`].
+pub fn peek_live_tail_desired_content(
+    max_content: u16,
+    reply_rows: u16,
+    body_measured: u16,
+    pin_user: bool,
+) -> PeekLiveTailBudget {
+    let reply_rows = reply_rows.max(1);
+    let pin = u16::from(pin_user);
+    let fixed = 1u16 + reply_rows + pin; // status + reply + optional pin
+
+    if max_content < fixed {
+        return PeekLiveTailBudget {
+            live_tail: 0,
+            blank_row: false,
+            content_rows: max_content,
+        };
+    }
+
+    let room_no_blank = max_content.saturating_sub(fixed).min(MAX_LIVE_TAIL_ROWS);
+    if room_no_blank == 0 {
+        return PeekLiveTailBudget {
+            live_tail: 0,
+            blank_row: false,
+            content_rows: fixed,
+        };
+    }
+
+    let room_with_blank = max_content
+        .saturating_sub(fixed + 1)
+        .min(MAX_LIVE_TAIL_ROWS);
+    let blank = room_with_blank > 0;
+    let body_cap = if blank {
+        room_with_blank
+    } else {
+        room_no_blank
+    };
+
+    let body = if body_measured == 0 {
+        1u16.min(body_cap)
+    } else {
+        body_measured.min(body_cap)
+    };
+    let blank = blank && body > 0;
+    let content_rows = fixed + u16::from(blank) + body;
+    PeekLiveTailBudget {
+        live_tail: body,
+        blank_row: blank,
+        content_rows: content_rows.min(max_content),
+    }
+}
+
+/// Max inner content rows available for peek given the terminal height.
+///
+/// Conservative estimate: leave at least half the screen for the list /
+/// chrome, and clamp live-tail body via [`MAX_LIVE_TAIL_ROWS`].
+pub fn max_peek_content_rows(area: Rect) -> u16 {
+    let half = area.height / 2;
+    half.saturating_sub(2).min(MAX_LIVE_TAIL_ROWS.saturating_add(4))
+}
+
 /// Outer horizontal padding for the dispatch box (cols on each side).
 ///
 /// Matches `LayoutConfig::outer_hpad_left/right = 2` from the agent

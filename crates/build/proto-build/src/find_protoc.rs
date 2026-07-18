@@ -1,5 +1,6 @@
 use anyhow::{Context, bail};
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -48,31 +49,65 @@ pub fn find_protoc() -> anyhow::Result<Option<PathBuf>> {
         }
     }
 
-    // 2. Walk up directories looking for bin/protoc (dotslash wrapper).
+    // 2. Walk up directories looking for a usable protoc.
     //
-    // Skip on Windows: repo `bin/protoc` is a DotSlash launcher (shebang /
-    // JSON), not a PE binary — CreateProcess fails with os error 193
-    // ("not a valid Win32 application"). Prefer PATH / $PROTOC instead.
-    if !cfg!(windows) {
+    // Unix: prefer `bin/protoc` (DotSlash launcher for local dev).
+    // Windows: skip DotSlash `bin/protoc` (shebang/JSON, not a PE binary —
+    // CreateProcess fails with os error 193). Instead look for a hermetic
+    // install under `tools/protoc-*/bin/protoc.exe` (see CONTRIBUTING /
+    // download of protoc-*-win64.zip).
+    {
         let cwd = env::current_dir()?;
         let mut dir = cwd.clone();
         let mut dir_rel = PathBuf::new();
         loop {
-            // Return relative path to make build more deterministic.
-            let protoc = dir_rel.join("bin/protoc");
-            if protoc.try_exists()? {
-                match check_protoc_good(&protoc) {
-                    Ok(()) => return Ok(Some(protoc)),
-                    Err(e) => {
-                        // bin/protoc exists but can't execute — likely the
-                        // dotslash wrapper without dotslash installed.
-                        // Fall through to PATH-based lookup below.
-                        eprintln!(
-                            "bin/protoc found at `{}` but failed to execute: {e:#}; \
-                             trying protoc from PATH as fallback",
-                            protoc.display()
-                        );
-                        break;
+            if cfg!(windows) {
+                // tools/protoc-<ver>/bin/protoc.exe
+                let tools = dir.join("tools");
+                if tools.is_dir() {
+                    if let Ok(entries) = fs::read_dir(&tools) {
+                        let mut candidates: Vec<PathBuf> = entries
+                            .filter_map(|e| e.ok())
+                            .filter(|e| {
+                                e.file_name()
+                                    .to_string_lossy()
+                                    .starts_with("protoc-")
+                            })
+                            .map(|e| e.path().join("bin").join("protoc.exe"))
+                            .filter(|p| p.is_file())
+                            .collect();
+                        // Prefer higher version directory names last sort.
+                        candidates.sort();
+                        if let Some(protoc) = candidates.pop() {
+                            match check_protoc_good(&protoc) {
+                                Ok(()) => return Ok(Some(protoc)),
+                                Err(e) => {
+                                    eprintln!(
+                                        "tools protoc at `{}` failed: {e:#}; trying PATH",
+                                        protoc.display()
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Return relative path to make build more deterministic.
+                let protoc = dir_rel.join("bin/protoc");
+                if protoc.try_exists()? {
+                    match check_protoc_good(&protoc) {
+                        Ok(()) => return Ok(Some(protoc)),
+                        Err(e) => {
+                            // bin/protoc exists but can't execute — likely the
+                            // dotslash wrapper without dotslash installed.
+                            // Fall through to PATH-based lookup below.
+                            eprintln!(
+                                "bin/protoc found at `{}` but failed to execute: {e:#}; \
+                                 trying protoc from PATH as fallback",
+                                protoc.display()
+                            );
+                            break;
+                        }
                     }
                 }
             }
@@ -91,9 +126,12 @@ pub fn find_protoc() -> anyhow::Result<Option<PathBuf>> {
     // 4. Not found anywhere.
     if is_github_actions() {
         return Err(anyhow::anyhow!(
-            "`protoc` not found (checked $PROTOC env, bin/protoc, and PATH)"
+            "`protoc` not found (checked $PROTOC env, tools/protoc-*/bin/protoc.exe, bin/protoc, and PATH)"
         ));
     }
-    eprintln!("`protoc` not found; likely it is missing in docker image");
+    eprintln!(
+        "`protoc` not found; on Windows download protoc win64 zip into tools/protoc-<ver>/ \
+         (e.g. tools/protoc-29.3/bin/protoc.exe) or set $PROTOC"
+    );
     Ok(None)
 }

@@ -49,6 +49,61 @@ impl DashboardRowId {
     }
 }
 
+/// Shared scrollback for a dashboard row (top-level or loaded subagent).
+///
+/// Immutable: safe for paint/measure paths that only read densified lines.
+pub(crate) fn scrollback_for_row<'a>(
+    row: &DashboardRowId,
+    agents: &'a indexmap::IndexMap<AgentId, crate::app::agent_view::AgentView>,
+) -> Option<&'a crate::scrollback::state::ScrollbackState> {
+    match row {
+        DashboardRowId::TopLevel(id) => agents.get(id).map(|a| &a.scrollback),
+        DashboardRowId::Subagent {
+            parent,
+            child_session_id,
+        } => agents
+            .get(parent)
+            .and_then(|p| p.subagent_views.get(child_session_id))
+            .map(|c| &c.scrollback),
+        DashboardRowId::Roster { .. } => None,
+    }
+}
+
+/// Mutable scrollback for a dashboard row (top-level or loaded subagent).
+pub(crate) fn scrollback_mut_for_row<'a>(
+    row: &DashboardRowId,
+    agents: &'a mut indexmap::IndexMap<AgentId, crate::app::agent_view::AgentView>,
+) -> Option<&'a mut crate::scrollback::state::ScrollbackState> {
+    match row {
+        DashboardRowId::TopLevel(id) => agents.get_mut(id).map(|a| &mut a.scrollback),
+        DashboardRowId::Subagent {
+            parent,
+            child_session_id,
+        } => agents
+            .get_mut(parent)
+            .and_then(|p| p.subagent_views.get_mut(child_session_id))
+            .map(|c| &mut c.scrollback),
+        DashboardRowId::Roster { .. } => None,
+    }
+}
+
+/// Whether a row has an attachable local agent view (scrollback available).
+pub(crate) fn scrollback_available_for_row(
+    row: &DashboardRowId,
+    agents: &indexmap::IndexMap<AgentId, crate::app::agent_view::AgentView>,
+) -> bool {
+    match row {
+        DashboardRowId::TopLevel(id) => agents.contains_key(id),
+        DashboardRowId::Subagent {
+            parent,
+            child_session_id,
+        } => agents
+            .get(parent)
+            .is_some_and(|p| p.subagent_views.contains_key(child_session_id)),
+        DashboardRowId::Roster { .. } => false,
+    }
+}
+
 /// A dispatch-input send (spawn a new session) stashed while a clipboard
 /// attachment probe is off-thread.
 ///

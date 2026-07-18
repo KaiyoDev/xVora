@@ -1776,6 +1776,7 @@ fn parse_mcp_add_fields(name: &str, url_or_cmd: &str) -> Option<ButtonAction> {
             transport,
             enabled: true,
             oauth: None,
+            setup: None,
             startup_timeout_sec: None,
             tool_timeout_sec: None,
             tool_timeouts: None,
