@@ -126,7 +126,7 @@ impl HunkTrackerActor {
             // is 0 bytes because it tries to slice the trailing hash from an
             // empty mmap (integer underflow in the slice range).
             let index_path = repo.git_dir().join("index");
-            if index_path.metadata().map_or(true, |m| m.len() == 0) {
+            if index_path.metadata().is_none_or(|m| m.len() == 0) {
                 tracing::debug!("index file is empty or missing, skipping git status");
                 return GitResult {
                     dirty_files: HashSet::new(),
