@@ -53,6 +53,10 @@ fn logo_hidden() -> bool {
     }
 }
 
+/// Braille "blank" cell (U+2800). Used as structural empty dots in the art and
+/// for right-padding so every row shares the same visual width.
+const BRAILLE_BLANK: char = '\u{2800}';
+
 fn non_empty_lines(logo: &str) -> impl Iterator<Item = &str> {
     logo.lines().filter(|l| !l.is_empty())
 }
@@ -66,6 +70,33 @@ fn visual_width(logo: &str) -> u16 {
         .map(unicode_width::UnicodeWidthStr::width)
         .max()
         .unwrap_or(24) as u16
+}
+
+/// Pad every non-empty row to the same display width with braille blanks.
+///
+/// The generator `rstrip`s trailing U+2800, so rows have unequal lengths.
+/// `Alignment::Center` then shifts each row independently and the X mark
+/// looks shattered. Uniform width keeps the shape intact when centered.
+fn padded_logo_lines(logo: &str) -> Vec<String> {
+    let lines: Vec<&str> = non_empty_lines(logo).collect();
+    let max_w = lines
+        .iter()
+        .map(|l| unicode_width::UnicodeWidthStr::width(*l))
+        .max()
+        .unwrap_or(0);
+    lines
+        .into_iter()
+        .map(|line| {
+            let w = unicode_width::UnicodeWidthStr::width(line);
+            let mut s = line.to_owned();
+            // Braille cells are width-1; pad with U+2800 (not ASCII space) so
+            // width math and column count stay consistent with the art.
+            for _ in 0..(max_w.saturating_sub(w)) {
+                s.push(BRAILLE_BLANK);
+            }
+            s
+        })
+        .collect()
 }
 
 /// Animation phase in seconds since the first render. Wall-clock based so the
@@ -121,7 +152,7 @@ fn shine_opacity(diag: f32, secs: f32) -> f32 {
 }
 
 fn render_into(area: Rect, buf: &mut Buffer, _theme: &Theme, logo: &str) {
-    let lines: Vec<&str> = non_empty_lines(logo).collect();
+    let lines = padded_logo_lines(logo);
     let rows = lines.len().max(1) as f32;
     let cols = lines
         .iter()
@@ -136,32 +167,44 @@ fn render_into(area: Rect, buf: &mut Buffer, _theme: &Theme, logo: &str) {
     // Adjacent glyphs that land on the same blended color share one Span.
     let base = Color::Rgb(0xF0, 0x6A, 0x28); // warm orange from xVora mark
     let hilite = Color::Rgb(0xFF, 0xB0, 0x70);
+    // Style key: None = blank braille (no fg — some fonts paint U+2800 as a
+    // solid cell if given a foreground, which "shatters" the X silhouette).
     let logo_lines: Vec<Line> = lines
         .iter()
         .enumerate()
         .map(|(row, line)| {
             let mut spans: Vec<Span> = Vec::new();
             let mut run = String::new();
-            let mut run_color: Option<Color> = None;
+            let mut run_style: Option<Option<Color>> = None;
             for (col, ch) in line.chars().enumerate() {
-                // Sweep along the bottom-left → top-right diagonal: the
-                // coordinate grows as col increases and row decreases.
-                let diag = (col as f32 + (rows - 1.0 - row as f32)) / (cols + rows);
-                let color = blend_color(base, hilite, shine_opacity(diag, secs)).unwrap_or(base);
-                if run_color != Some(color) {
-                    if let Some(prev) = run_color {
-                        spans.push(Span::styled(
-                            std::mem::take(&mut run),
-                            Style::default().fg(prev),
-                        ));
+                let style_key = if ch == BRAILLE_BLANK {
+                    None
+                } else {
+                    // Sweep along the bottom-left → top-right diagonal.
+                    let diag = (col as f32 + (rows - 1.0 - row as f32)) / (cols + rows);
+                    Some(blend_color(base, hilite, shine_opacity(diag, secs)).unwrap_or(base))
+                };
+                if run_style != Some(style_key) {
+                    if let Some(prev) = run_style {
+                        let style = match prev {
+                            Some(c) => Style::default().fg(c),
+                            None => Style::default(),
+                        };
+                        spans.push(Span::styled(std::mem::take(&mut run), style));
                     }
-                    run_color = Some(color);
+                    run_style = Some(style_key);
                 }
                 run.push(ch);
             }
-            if let Some(prev) = run_color {
-                spans.push(Span::styled(run, Style::default().fg(prev)));
+            if let Some(prev) = run_style {
+                let style = match prev {
+                    Some(c) => Style::default().fg(c),
+                    None => Style::default(),
+                };
+                spans.push(Span::styled(run, style));
             }
+            // All rows share the same width after padding, so per-line Center
+            // keeps the X geometry coherent.
             Line::from(spans).alignment(Alignment::Center)
         })
         .collect();
@@ -326,5 +369,23 @@ mod tests {
         // glyph falls back to at most the gentle pulse — never full bright.
         let op = shine_opacity(0.5, 6.0); // secs % 4.0 = 2.0 → past SWEEP_FRAC, in the rest phase
         assert!(op < 0.2, "resting opacity {op} should stay dim");
+    }
+
+    #[test]
+    fn padded_logo_lines_are_uniform_width() {
+        for raw in [LOGO, LOGO_SMALL] {
+            let padded = padded_logo_lines(raw);
+            assert!(!padded.is_empty());
+            let w = unicode_width::UnicodeWidthStr::width(padded[0].as_str());
+            for (i, line) in padded.iter().enumerate() {
+                assert_eq!(
+                    unicode_width::UnicodeWidthStr::width(line.as_str()),
+                    w,
+                    "row {i} width mismatch after pad"
+                );
+            }
+            // Pad must not shrink content: max original width equals padded width.
+            assert_eq!(w, visual_width(raw) as usize);
+        }
     }
 }

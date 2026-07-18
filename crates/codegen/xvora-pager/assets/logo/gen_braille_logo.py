@@ -71,6 +71,11 @@ def to_braille(binary: Image.Image) -> list[str]:
     # Drop purely blank interior rows (keep structure readable).
     # Keep at least one blank if sandwiched? No — drop empty.
     lines = [l for l in lines if any(c != "\u2800" for c in l)]
+    # Pad every row to the same width with U+2800. The TUI centers each row;
+    # unequal lengths shatter the X. Runtime also pads as a belt-and-suspenders.
+    if lines:
+        max_w = max(len(l) for l in lines)
+        lines = [l + ("\u2800" * (max_w - len(l))) for l in lines]
     return lines
 
 
