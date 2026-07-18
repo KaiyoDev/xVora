@@ -7835,9 +7835,12 @@ reasoning_effort = "low"
             sampling.base_url, "https://custom.api/v1",
             "model's own base_url must be used"
         );
+        // Session/OAuth fallthrough only attaches to first-party xAI hosts
+        // (api.x.ai, cli-chat-proxy, grok.com). A custom non-xAI base_url must
+        // not receive the JWT even when api_base_url is first-party.
         let model_no_key = test_model_entry(
             "test",
-            "https://proxy.api/v1",
+            "https://cli-chat-proxy.grok.com/v1",
             None,
             None,
             Some("https://api.x.ai/v1"),
@@ -7849,7 +7852,7 @@ reasoning_effort = "low"
             "session token should beat env key when model has no own credentials"
         );
         assert_eq!(
-            sampling.base_url, "https://proxy.api/v1",
+            sampling.base_url, "https://cli-chat-proxy.grok.com/v1",
             "session auth should use base_url, not api_base_url"
         );
         let sampling = resolve_sampling(&model_no_key, None);
