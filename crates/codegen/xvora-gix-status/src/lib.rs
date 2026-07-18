@@ -138,7 +138,7 @@ fn status_finds_suffix(
 
     let repo = gix::discover(repo_path).map_err(|e| format!("discover: {e:?}"))?;
     let index_path = repo.git_dir().join("index");
-    if index_path.metadata().is_none_or(|m| m.len() == 0) {
+    if index_path.metadata().map_or(true, |m| m.len() == 0) {
         return Err("missing or empty index".into());
     }
     let status = repo

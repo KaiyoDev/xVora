@@ -202,7 +202,7 @@ pub(crate) fn update_index_stats(
     // Guard against empty index files — gix-index panics when the file
     // is 0 bytes because it tries to slice the trailing hash from an
     // empty mmap (integer underflow in the slice range).
-    if index_path.metadata().is_none_or(|m| m.len() == 0) {
+    if index_path.metadata().map_or(true, |m| m.len() == 0) {
         tracing::debug!(
             path = %worktree_path.display(),
             "index file is empty, skipping update"
