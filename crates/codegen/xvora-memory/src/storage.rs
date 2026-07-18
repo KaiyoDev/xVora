@@ -74,7 +74,9 @@ impl MemoryStorage {
     }
 
     /// Create a `MemoryStorage` with explicit paths (for testing).
-    #[cfg(test)]
+    ///
+    /// Always available so dependent crates' tests (e.g. xvora-shell) can use it —
+    /// `cfg(test)` on this crate is off when built as a dependency.
     pub fn with_paths(global_dir: PathBuf, workspace_dir: PathBuf) -> Self {
         Self {
             global_dir,

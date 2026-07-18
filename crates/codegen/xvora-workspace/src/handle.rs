@@ -4300,7 +4300,8 @@ impl WorkspaceHandle {
         )
     }
 }
-#[cfg(test)]
+// Available outside this crate's own `cfg(test)` so xvora-shell tests can call
+// `WorkspaceOps::for_test` → `WorkspaceHandle::for_test`.
 impl WorkspaceHandle {
     fn test_config(
         root_cwd: std::path::PathBuf,

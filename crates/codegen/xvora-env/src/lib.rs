@@ -116,21 +116,21 @@ impl std::fmt::Display for XvoraEnvironment {
     }
 }
 /// Serializes env-var mutation across tests; `std::env` is process-global.
-#[cfg(test)]
+///
+/// Always available (not `cfg(test)` only) so dependent crates' test
+/// targets can use it — `cfg(test)` on a dependency is off when that
+/// dependency is built as a library for a parent package's tests.
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-#[cfg(test)]
 fn env_lock() -> std::sync::MutexGuard<'static, ()> {
     ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner())
 }
 /// RAII env-var override for tests: constructors snapshot the prior value
 /// under [`ENV_LOCK`], `Drop` restores it, panics included.
-#[cfg(test)]
 pub struct EnvVarGuard {
     key: &'static str,
     prev: Option<String>,
     _lock: std::sync::MutexGuard<'static, ()>,
 }
-#[cfg(test)]
 impl EnvVarGuard {
     pub fn set(key: &'static str, value: &str) -> Self {
         let lock = env_lock();
@@ -157,7 +157,6 @@ impl EnvVarGuard {
         unsafe { std::env::set_var(self.key, value) };
     }
 }
-#[cfg(test)]
 impl Drop for EnvVarGuard {
     fn drop(&mut self) {
         match self.prev.take() {

@@ -523,7 +523,8 @@ fn build_web_fetch_config() -> xvora_tools::implementations::xvora::web_fetch::W
 fn default_web_search_model() -> String {
     std::env::var("XVORA_WEB_SEARCH_MODEL").unwrap_or_else(|_| "grok-4.20-multi-agent".to_string())
 }
-#[cfg(test)]
+// Not `cfg(test)` only: `WorkspaceHandle::for_test` (used by xvora-shell tests)
+// lives outside this crate's test cfg.
 pub mod test_support {
     use crate::config::SessionContextFactory;
     use std::collections::HashMap;

@@ -204,7 +204,7 @@ impl CpuProfileManager {
         Self::default()
     }
 
-    #[cfg(test)]
+    /// Test helper: force "unsupported" profiling (visible to parent crate tests).
     pub fn force_unsupported_for_test(&mut self) {
         self.force_unsupported = true;
     }
@@ -517,8 +517,8 @@ fn now_timestamp() -> String {
 }
 
 // Module-level (not inside `mod tests`) so downstream crates' test targets
-// can reach it in test-only builds.
-#[cfg(test)]
+// can reach it. Must NOT be `cfg(test)` only — that flag is off when this
+// crate is built as a dependency of xvora-shell's tests.
 impl CpuProfileManager {
     pub fn start_with_engine_for_test(
         &mut self,

@@ -11,7 +11,8 @@
 //!   per-session gateway bridge actor and routes prompts through
 //!   it. Unset → falls back to [`XvoraEnvironment::gateway_ws_url`] for
 //!   sessions created in gateway mode; otherwise local-mode (unchanged).
-#[cfg(test)]
+// Not `cfg(test)`: parent crates (e.g. xvora-shell) need this when *their*
+// tests compile; dependency crates build with `cfg(test)` off.
 pub use xvora_env::EnvVarGuard;
 pub use xvora_env::{
     xai_provider, XvoraEnvironment, PROD_ASSET_SERVER_URL, PROD_CLI_CHAT_PROXY_BASE_URL,

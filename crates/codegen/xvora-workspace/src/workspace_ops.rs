@@ -1514,7 +1514,7 @@ impl WorkspaceOps {
         }
     }
 }
-#[cfg(test)]
+// Available outside this crate's own `cfg(test)` so xvora-shell tests can call it.
 impl WorkspaceOps {
     /// Test variant backed by a temp dir.
     ///
