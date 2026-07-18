@@ -116,10 +116,10 @@ impl EnvKeys {
         mut getenv: impl FnMut(&str) -> Option<String>,
     ) -> Option<String> {
         for name in self.names() {
-            if let Some(value) = getenv(name) {
-                if !value.trim().is_empty() {
-                    return Some(value);
-                }
+            if let Some(value) = getenv(name)
+                && !value.trim().is_empty()
+            {
+                return Some(value);
             }
         }
         None
@@ -3790,10 +3790,10 @@ impl ConfigModelOverride {
         if self.description.is_some() {
             entry.info.description.clone_from(&self.description);
         }
-        if let Some(ref v) = self.provider {
-            if !v.trim().is_empty() {
-                entry.info.provider = Some(v.trim().to_ascii_lowercase());
-            }
+        if let Some(ref v) = self.provider
+            && !v.trim().is_empty()
+        {
+            entry.info.provider = Some(v.trim().to_ascii_lowercase());
         }
         if self.max_completion_tokens.is_some() {
             entry.info.max_completion_tokens = self.max_completion_tokens;

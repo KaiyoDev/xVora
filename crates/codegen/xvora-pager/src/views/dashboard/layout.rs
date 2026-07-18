@@ -28,6 +28,7 @@ pub struct PeekLiveTailBudget {
 /// Recipe (matches dense paint): `status + [pin?] + body + [blank?] + reply`.
 /// - `body_measured`: densified **current-turn** lines (after last user).
 /// - `pin_user`: last user exists → budget one pin row (paint charges it too).
+///
 /// Empty body reserves 1 row for the empty/hint line. Never exceeds
 /// `max_content`; body is also capped by [`MAX_LIVE_TAIL_ROWS`].
 pub fn peek_live_tail_desired_content(

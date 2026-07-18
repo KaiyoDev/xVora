@@ -184,10 +184,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
         .ok()
         .and_then(|root| xvora_shell::agent::config::Config::new_from_toml_cfg(&root).ok())
         .is_some_and(|c| xvora_shell::agent::config::is_byok_or_custom_local(&c));
-    if byok_unrestricted {
-        let effs = app.lift_gate();
-        app.pending_effects.extend(effs);
-    } else if update.allow_access == Some(true) {
+    if byok_unrestricted || update.allow_access == Some(true) {
         let effs = app.lift_gate();
         app.pending_effects.extend(effs);
     } else if let Some(msg) = update.gate_message.as_ref()

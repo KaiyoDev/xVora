@@ -47,10 +47,10 @@ fn pick_logo_for(window_height: u16, hidden: bool) -> Option<&'static str> {
 /// hid the logo even when launched from Windows Terminal / Cursor / cmd
 /// without `WT_SESSION` exported to the child process.
 fn logo_hidden() -> bool {
-    match std::env::var("XVORA_FORCE_LEGACY_CONSOLE").ok().as_deref() {
-        Some("1" | "true") => true,
-        _ => false,
-    }
+    matches!(
+        std::env::var("XVORA_FORCE_LEGACY_CONSOLE").ok().as_deref(),
+        Some("1" | "true")
+    )
 }
 
 /// Braille "blank" cell (U+2800). Used as structural empty dots in the art and

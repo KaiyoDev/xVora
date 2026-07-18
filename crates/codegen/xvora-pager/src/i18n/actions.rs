@@ -92,7 +92,6 @@ fn label_en(id: ActionId) -> &'static str {
         ActionId::ExitSession => "exit",
         ActionId::NextModel => "model",
         ActionId::DumpInputLog => "debug",
-        _ => "",
     }
 }
 
@@ -172,7 +171,6 @@ fn label_vi(id: ActionId) -> &'static str {
         ActionId::ExitSession => "thoát phiên",
         ActionId::NextModel => "mô hình",
         ActionId::DumpInputLog => "debug",
-        _ => label_en(id),
     }
 }
 
@@ -252,7 +250,6 @@ fn desc_en(id: ActionId) -> &'static str {
         ActionId::ExitSession => "Exit session",
         ActionId::NextModel => "Next model",
         ActionId::DumpInputLog => "Dump input log",
-        _ => "",
     }
 }
 
@@ -332,6 +329,5 @@ fn desc_vi(id: ActionId) -> &'static str {
         ActionId::ExitSession => "Thoát phiên",
         ActionId::NextModel => "Mô hình tiếp",
         ActionId::DumpInputLog => "Dump input log",
-        _ => desc_en(id),
     }
 }
