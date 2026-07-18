@@ -1,6 +1,13 @@
-# CI + Windows release binary (for weak local machines).
-# concurrency.cancel-in-progress: only the newest run for a ref stays alive.
-# cleanup job: delete older completed runs of this workflow (keep latest only).
+# CI for xVora (KaiyoDev/xVora)
+#
+# Priority gates (all hard-fail):
+#   1. fmt          — ubuntu, fast feedback
+#   2. unit subset  — windows: env + shell provider/auth tests
+#   3. check/clippy — windows: type/API on ship package
+#   4. release bin  — windows: xvora.exe artifact (xvora-win-x64)
+#
+# No GitHub Release yet — download from Actions artifacts.
+# concurrency: only the newest run per ref stays alive.
 
 name: CI
 
@@ -8,9 +15,14 @@ on:
   push:
     branches: [main]
   pull_request:
+    # Skip full CI when the PR only touches docs (saves ~1–3h Windows minutes).
+    paths-ignore:
+      - "**.md"
+      - "changelogs/**"
+      - "LICENSE*"
+      - ".gitignore"
   workflow_dispatch:
 
-# One active run per branch/PR; new commits cancel the previous run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,10 +34,32 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # Pin matches rust-toolchain.toml
+  RUST_TOOLCHAIN: "1.92.0"
 
 jobs:
+  # ── 1. Format (cheap, early) ───────────────────────────────────────────
+  lint:
+    name: fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+  # ── 2–4. Windows: tests + check/clippy + release binary ────────────────
   build:
-    name: check + build (windows)
+    name: test + check + build (windows)
+    needs: [lint]
     runs-on: windows-latest
     timeout-minutes: 180
     steps:
@@ -50,36 +84,48 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.92.0"
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
           targets: x86_64-pc-windows-msvc
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          # v3: release build uses /DEBUG:NONE (LNK4319 PDB limit fix).
-          shared-key: xvora-pager-bin-windows-v3
+          # bump when release RUSTFLAGS / key packages change
+          shared-key: xvora-pager-bin-windows-v4
           cache-on-failure: true
 
-      - name: cargo fmt (check)
+      # ── unit subset (auth / multi-provider / env) ─────────────────────
+      - name: cargo test -p xvora-env --lib
         shell: pwsh
-        run: cargo fmt --all -- --check
-        continue-on-error: true
+        env:
+          PROTOC: ${{ env.PROTOC }}
+        run: cargo test -p xvora-env --lib
 
-      - name: cargo check (xvora-pager-bin)
+      - name: cargo test -p xvora-shell (config / provider / credentials)
+        shell: pwsh
+        env:
+          PROTOC: ${{ env.PROTOC }}
+        # Full shell suite is 5k+ tests — gate the multi-provider + credentials module.
+        # Filter is a single substring (cargo accepts one TESTNAME before --).
+        run: cargo test -p xvora-shell --lib agent::config::tests
+
+      # ── type/API gate on ship package ────────────────────────────────
+      - name: cargo check -p xvora-pager-bin
         shell: pwsh
         env:
           PROTOC: ${{ env.PROTOC }}
         run: cargo check -p xvora-pager-bin
 
-      - name: cargo clippy (xvora-pager-bin)
+      - name: cargo clippy -p xvora-pager-bin
         shell: pwsh
         env:
           PROTOC: ${{ env.PROTOC }}
+        # Hard-fail (no continue-on-error) — catches API/lint drift before release link.
         run: cargo clippy -p xvora-pager-bin -- -D warnings
-        continue-on-error: true
 
-      - name: cargo build --release (xvora-pager-bin)
+      # ── ship binary ──────────────────────────────────────────────────
+      - name: cargo build --release -p xvora-pager-bin
         shell: pwsh
         env:
           PROTOC: ${{ env.PROTOC }}
