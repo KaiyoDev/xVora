@@ -748,7 +748,16 @@ impl ToolOutput {
             },
             ToolOutput::Bash(bash_output) => bash_output.output_for_prompt.clone(),
             ToolOutput::GrepSearch(grep_search_output) => {
-                String::from_utf8_lossy(&grep_search_output.stdout).into_owned()
+                // Prefer stdout (match body / formatted errors). Fall back to
+                // stderr when stdout is empty so spawn/rg failures still reach
+                // the model (historically only stderr was filled → blank card).
+                if !grep_search_output.stdout.is_empty() {
+                    String::from_utf8_lossy(&grep_search_output.stdout).into_owned()
+                } else if !grep_search_output.stderr.is_empty() {
+                    String::from_utf8_lossy(&grep_search_output.stderr).into_owned()
+                } else {
+                    String::new()
+                }
             }
             ToolOutput::Todo(todo_output) => match todo_output {
                 TodoWriteOutput::TodosUpdated(success) => success.summary_for_prompt.to_owned(),

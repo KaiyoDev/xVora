@@ -109,6 +109,8 @@ test-utils = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "rustls-tls"] }
 flate2 = { workspace = true }
 tar = { workspace = true }
+# Windows ripgrep ships as .zip (not .tar.gz); deflate-only is enough.
+zip = { version = "3", default-features = false, features = ["deflate-flate2"] }
 
 [lints]
 workspace = true

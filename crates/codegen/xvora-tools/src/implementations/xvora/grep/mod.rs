@@ -830,9 +830,28 @@ async fn prepare_grep(
     let mut child = match cmd.spawn() {
         Ok(c) => c,
         Err(e) => {
+            // Put the message on **stdout** — tool results for the model/UI
+            // only surface `GrepSearchOutput.stdout` (stderr alone looks like
+            // an empty tool response). On Windows release builds without a
+            // bundled rg, "program not found" was previously silent.
+            let rg = rg_path();
+            let mut msg = format!(
+                "Error calling tool: failed to spawn ripgrep at `{}`: {e}",
+                rg.display()
+            );
+            if e.kind() == std::io::ErrorKind::NotFound {
+                msg.push_str(
+                    "\n\nripgrep (`rg`) was not found. Install it and ensure it is on PATH, \
+                     or set RG_BIN_PATH to the full path of `rg`/`rg.exe`.\n\
+                     Windows: `winget install BurntSushi.ripgrep.MSVC` or \
+                     `scoop install ripgrep`.\n\
+                     macOS: `brew install ripgrep`.  Linux: package `ripgrep`.",
+                );
+            }
+            let bytes = msg.into_bytes();
             return Ok(GrepStep::Early(GrepSearchOutput {
-                stdout: Vec::new(),
-                stderr: format!("Error calling tool: {}", e).into_bytes(),
+                stdout: bytes.clone(),
+                stderr: bytes,
                 exit_code: -1,
                 match_count: 0,
                 file_matches: Vec::new(),
@@ -1503,6 +1522,43 @@ mod tests {
         assert!(msg.contains("timed out after 20 seconds"), "msg: {msg}");
         assert!(msg.contains("did not complete in time"), "msg: {msg}");
         assert!(msg.contains("more specific path or pattern"), "msg: {msg}");
+    }
+
+    #[test]
+    fn grep_spawn_failure_message_is_on_stdout_for_model() {
+        // Mirrors prepare_grep Early arm when `rg` is missing: the model only
+        // sees stdout via ToolOutput, so the error must not live only in stderr.
+        let msg = "Error calling tool: failed to spawn ripgrep at `rg.exe`: \
+                   The system cannot find the file specified. (os error 2)\n\n\
+                   ripgrep (`rg`) was not found.";
+        let out = GrepSearchOutput {
+            stdout: msg.as_bytes().to_vec(),
+            stderr: msg.as_bytes().to_vec(),
+            exit_code: -1,
+            match_count: 0,
+            file_matches: Vec::new(),
+        };
+        let for_model =
+            crate::types::output::ToolOutput::GrepSearch(out).to_prompt_format();
+        assert!(
+            for_model.contains("failed to spawn ripgrep"),
+            "model saw empty/blank: {for_model:?}"
+        );
+        assert!(for_model.contains("ripgrep (`rg`) was not found"));
+        // stderr-only legacy path must still surface via ToolOutput fallback
+        let stderr_only = GrepSearchOutput {
+            stdout: Vec::new(),
+            stderr: b"Error calling tool: os error 2".to_vec(),
+            exit_code: -1,
+            match_count: 0,
+            file_matches: Vec::new(),
+        };
+        let fallback =
+            crate::types::output::ToolOutput::GrepSearch(stderr_only).to_prompt_format();
+        assert!(
+            fallback.contains("os error 2"),
+            "stderr-only must not be blank for model: {fallback:?}"
+        );
     }
 
     #[test]

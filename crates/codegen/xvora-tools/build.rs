@@ -79,17 +79,6 @@ fn bundle_rg() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    // Skip auto-bundling on Windows: ripgrep ships .zip on Windows (not
-    // .tar.gz) and we have no zip-extraction path. Returning here BEFORE
-    // emitting `cargo:rustc-cfg=bundle_rg` keeps include_bytes! macros gated
-    // on cfg(bundle_rg) compiled-out, so the runtime falls back to `rg` on
-    // PATH. Users install ripgrep separately (winget / scoop). An explicit
-    // XVORA_TOOLS_BUNDLE_RG_PATH still bundles regardless of target.
-    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    if target_os == "windows" && path_override.is_none() {
-        return Ok(());
-    }
-
     // Expose cfg so the crate can include the bundled bytes.
     println!("cargo:rustc-cfg=bundle_rg");
     println!("cargo:rustc-env=XVORA_TOOLS_RG_VER={}", RG_VER);
@@ -109,18 +98,27 @@ fn bundle_rg() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Determine supported ripgrep asset triple for auto-download.
+    // Unix: .tar.gz with binary `rg`. Windows: .zip with `rg.exe`.
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
-    let asset_triple = match (target_os.as_str(), target_arch.as_str()) {
-        ("macos", "aarch64") => "aarch64-apple-darwin",
-        ("macos", "x86_64") => "x86_64-apple-darwin",
-        ("linux", "x86_64") => "x86_64-unknown-linux-musl",
-        ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
+    let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+    let (asset_triple, is_zip) = match (target_os.as_str(), target_arch.as_str(), target_env.as_str())
+    {
+        ("macos", "aarch64", _) => ("aarch64-apple-darwin", false),
+        ("macos", "x86_64", _) => ("x86_64-apple-darwin", false),
+        ("linux", "x86_64", _) => ("x86_64-unknown-linux-musl", false),
+        ("linux", "aarch64", _) => ("aarch64-unknown-linux-gnu", false),
+        ("windows", "x86_64", "gnu") => ("x86_64-pc-windows-gnu", true),
+        ("windows", "x86_64", _) => ("x86_64-pc-windows-msvc", true),
+        ("windows", "aarch64", _) => ("aarch64-pc-windows-msvc", true),
         _ => {
             return Err(format!(
-                "Unsupported target for ripgrep bundling: {os}-{arch}. Set XVORA_TOOLS_BUNDLE_RG_PATH to a local rg binary for offline or unsupported builds.",
+                "Unsupported target for ripgrep bundling: {os}-{arch}-{env}. Set XVORA_TOOLS_BUNDLE_RG_PATH to a local rg binary for offline or unsupported builds.",
                 os = target_os,
-                arch = target_arch
-            ).into());
+                arch = target_arch,
+                env = target_env
+            )
+            .into());
         }
     };
 
@@ -128,10 +126,12 @@ fn bundle_rg() -> Result<(), Box<dyn std::error::Error>> {
     let dest = gen_dir.join(format!("rg-{}-{}.bin", RG_VER, asset_triple));
     let _ = fs::remove_file(&dest);
 
+    let ext = if is_zip { "zip" } else { "tar.gz" };
     let url = format!(
-        "https://github.com/BurntSushi/ripgrep/releases/download/{v}/ripgrep-{v}-{t}.tar.gz",
+        "https://github.com/BurntSushi/ripgrep/releases/download/{v}/ripgrep-{v}-{t}.{ext}",
         v = RG_VER,
-        t = asset_triple
+        t = asset_triple,
+        ext = ext
     );
 
     let bytes: Vec<u8> = {
@@ -151,31 +151,58 @@ fn bundle_rg() -> Result<(), Box<dyn std::error::Error>> {
         resp.bytes()?.to_vec()
     };
 
-    let gz = flate2::read::GzDecoder::new(&bytes[..]);
-    let mut ar = tar::Archive::new(gz);
-    let mut found = false;
-    for entry in ar.entries()? {
-        let mut e = entry?;
-        let p = e.path()?;
-        if p.file_name().is_some_and(|n| n == "rg") {
-            let data: Vec<u8> = {
-                let mut v = Vec::new();
-                io::copy(&mut e, &mut v)?;
-                v
-            };
-            fs::write(&dest, &data)?;
-            found = true;
-            break;
-        }
-    }
+    let found = if is_zip {
+        extract_rg_from_zip(&bytes, &dest)?
+    } else {
+        extract_rg_from_tar_gz(&bytes, &dest)?
+    };
 
     if !found {
         return Err(format!(
-            "Could not find 'rg' in ripgrep archive {}. Set XVORA_TOOLS_BUNDLE_RG_PATH for offline builds.",
+            "Could not find 'rg'/'rg.exe' in ripgrep archive {}. Set XVORA_TOOLS_BUNDLE_RG_PATH for offline builds.",
             url
         )
         .into());
     }
 
     Ok(())
+}
+
+fn extract_rg_from_tar_gz(
+    bytes: &[u8],
+    dest: &std::path::Path,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let gz = flate2::read::GzDecoder::new(bytes);
+    let mut ar = tar::Archive::new(gz);
+    for entry in ar.entries()? {
+        let mut e = entry?;
+        let p = e.path()?;
+        if p.file_name().is_some_and(|n| n == "rg") {
+            let mut data = Vec::new();
+            io::copy(&mut e, &mut data)?;
+            fs::write(dest, &data)?;
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn extract_rg_from_zip(
+    bytes: &[u8],
+    dest: &std::path::Path,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let cursor = io::Cursor::new(bytes);
+    let mut archive = zip::ZipArchive::new(cursor)?;
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let name = file.name().replace('\\', "/");
+        let base = name.rsplit('/').next().unwrap_or(name.as_str());
+        if base.eq_ignore_ascii_case("rg.exe") || base == "rg" {
+            let mut data = Vec::new();
+            io::copy(&mut file, &mut data)?;
+            fs::write(dest, &data)?;
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
