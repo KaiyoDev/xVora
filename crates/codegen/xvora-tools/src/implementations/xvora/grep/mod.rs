@@ -1538,8 +1538,7 @@ mod tests {
             match_count: 0,
             file_matches: Vec::new(),
         };
-        let for_model =
-            crate::types::output::ToolOutput::GrepSearch(out).to_prompt_format();
+        let for_model = crate::types::output::ToolOutput::GrepSearch(out).to_prompt_format();
         assert!(
             for_model.contains("failed to spawn ripgrep"),
             "model saw empty/blank: {for_model:?}"
@@ -1553,8 +1552,7 @@ mod tests {
             match_count: 0,
             file_matches: Vec::new(),
         };
-        let fallback =
-            crate::types::output::ToolOutput::GrepSearch(stderr_only).to_prompt_format();
+        let fallback = crate::types::output::ToolOutput::GrepSearch(stderr_only).to_prompt_format();
         assert!(
             fallback.contains("os error 2"),
             "stderr-only must not be blank for model: {fallback:?}"

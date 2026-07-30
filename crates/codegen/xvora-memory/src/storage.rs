@@ -22,7 +22,7 @@ pub enum MemoryScope {
 ///
 /// Memory files are human-readable/editable Markdown stored under
 /// `~/.xvora/memory/`. Workspace-scoped files live under a directory
-/// named `{project-slug}-{hash8}`, e.g. `~/.xvora/memory/xai-a3f7b2c9/`.
+/// named `{project-slug}-{hash8}`, e.g. `~/.xvora/memory/xvora-a3f7b2c9/`.
 #[derive(Debug, Clone)]
 pub struct MemoryStorage {
     /// `~/.xvora/memory/`
@@ -766,9 +766,9 @@ mod tests {
 
     #[test]
     fn test_compute_workspace_hash_human_readable() {
-        let name = compute_workspace_hash(Path::new("/users/me/work/xai"));
+        let name = compute_workspace_hash(Path::new("/users/me/work/xvora"));
         assert!(
-            name.starts_with("xai-"),
+            name.starts_with("xvora-"),
             "should start with project name slug, got: {name}"
         );
         // Format: {slug}-{8 hex chars}

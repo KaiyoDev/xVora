@@ -1,4 +1,4 @@
-﻿//! MCP server configuration value types, extracted from xai-xvora-shell
+﻿//! MCP server configuration value types, extracted from xvora-shell
 //! (config dependency inversion).
 
 use agent_client_protocol as acp;

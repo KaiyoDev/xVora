@@ -10,7 +10,7 @@ use xvora_agent::prompt::skills::SkillsConfig;
 use xvora_tools::types::compat::{CompatConfig, CompatConfigToml};
 
 pub use xvora_mcp::oauth_config::{McpOAuthConfig, McpOAuthConfigMap};
-// MCP server config value types extracted to `xai-xvora-config-types` (config
+// MCP server config value types extracted to `xvora-config-types` (config
 // dependency inversion); re-exported so `crate::util::config::*` paths keep working.
 pub use xvora_config_types::{
     McpJsonOAuthBlock, McpPreferenceSource, McpPreferencesFile, McpServerConfig,
@@ -871,7 +871,7 @@ fn parse_mcp_servers_from_toml(root: &TomlValue) -> IndexMap<String, McpServerCo
 
 // ── .mcp.json support ────────────────────────────────────────────────
 
-// `.mcp.json` discovery moved to `xai-xvora-workspace` (client-side, shared with
+// `.mcp.json` discovery moved to `xvora-workspace` (client-side, shared with
 // the folder-trust gate); re-exported so `crate::util::config::*` paths keep working.
 pub use xvora_workspace::project_config::{
     MCP_JSON_FILENAME, find_mcp_json_files, mcp_json_candidate_paths,

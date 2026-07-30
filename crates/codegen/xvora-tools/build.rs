@@ -102,8 +102,11 @@ fn bundle_rg() -> Result<(), Box<dyn std::error::Error>> {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
-    let (asset_triple, is_zip) = match (target_os.as_str(), target_arch.as_str(), target_env.as_str())
-    {
+    let (asset_triple, is_zip) = match (
+        target_os.as_str(),
+        target_arch.as_str(),
+        target_env.as_str(),
+    ) {
         ("macos", "aarch64", _) => ("aarch64-apple-darwin", false),
         ("macos", "x86_64", _) => ("x86_64-apple-darwin", false),
         ("linux", "x86_64", _) => ("x86_64-unknown-linux-musl", false),

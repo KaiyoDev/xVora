@@ -21,7 +21,7 @@ impl OtelTestEnv {
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
             .build();
-        let tracer = provider.tracer("xai-tracing-test");
+        let tracer = provider.tracer("xvora-tracing-test");
         let otel_layer = tracing_opentelemetry::layer()
             .with_tracer(tracer)
             .with_context_activation(false)

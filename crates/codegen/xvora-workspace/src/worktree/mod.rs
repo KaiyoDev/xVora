@@ -34,7 +34,7 @@ pub use xvora_workspace_types::rpc::worktree::{
     RemoveWorktreeRequest, RemoveWorktreeResponse, WorktreeCopyMode, WorktreeType,
 };
 
-const WORKTREE_LOG: &str = "xai_worktree";
+const WORKTREE_LOG: &str = "xvora_worktree";
 
 /// Map a [`WorktreeType`] to the fast-worktree crate's `CreationMode`.
 pub(crate) fn to_creation_mode(t: WorktreeType) -> fast_worktree::CreationMode {

@@ -99,7 +99,7 @@ fn debug_cmd(
 
 /// Poll up to 50×100ms for the per-session firehose at `path` to become non-empty
 /// (its worker flushes asynchronously while the agent process stays alive), then
-/// assert it carries first-party (`xai_grok`) content. Panics with the captured
+/// assert it carries first-party (`xvora`) content. Panics with the captured
 /// stderr tail if it never fills. Shared by the live-agent tests.
 async fn read_session_firehose_when_ready(path: &Path, client: &GrokStdioClient) -> String {
     let mut content = None;
@@ -121,7 +121,7 @@ async fn read_session_firehose_when_ready(path: &Path, client: &GrokStdioClient)
     // The firehose filter routes first-party crate logs here; assert that rather
     // than a bare non-empty check.
     assert!(
-        content.contains("xai_grok"),
+        content.contains("xvora"),
         "session firehose {path:?} should contain first-party logs, got {} bytes",
         content.len()
     );

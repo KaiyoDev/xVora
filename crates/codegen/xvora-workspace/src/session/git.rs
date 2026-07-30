@@ -1689,7 +1689,7 @@ pub async fn stash(git_root: &Path, include_untracked: bool) -> Result<()> {
 /// Tracing target used by all `--restore-code` log lines that are NOT
 /// scoped to a specific worktree subsystem. Operators filter on this to
 /// find restore-code-related warnings.
-pub const RESTORE_CODE_LOG: &str = "xai_restore_code";
+pub const RESTORE_CODE_LOG: &str = "xvora_restore_code";
 /// Emit the "session registry disabled" warning shared by both the
 /// worktree and non-worktree `--restore-code` paths. Centralised so a
 /// future refactor cannot silently downgrade one site to `debug!`.
