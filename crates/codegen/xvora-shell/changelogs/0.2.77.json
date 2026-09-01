@@ -1,7 +1,7 @@
 [
   {
     "category": "features",
-    "description": "**Pasting images** from the local clipboard now works when running commands through `xvora wrap`.",
+    "description": "**Pasting images** from the local clipboard now works when running commands through `grok wrap`.",
     "breaking_change": false
   },
   {

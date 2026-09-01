@@ -12,13 +12,13 @@ use std::time::{Duration, Instant};
 use dashmap::DashMap;
 use tokio::sync::OnceCell;
 use tokio::task::JoinHandle;
-use tool_protocol::ConnectionKind;
 use url::Url;
+use xvora_tool_protocol::ConnectionKind;
 
 use crate::auth::AuthProvider;
 use crate::connection::{
     ConnKey, ConnectCallback, ConnectionConfig, ConnectionTuning, DisconnectCallback,
-    HubConnection, ReconnectCallback,
+    HubConnection, ReconnectCallback, TerminalCloseCallback,
 };
 use crate::error::ClientError;
 
@@ -130,7 +130,7 @@ impl HubConnectionPool {
         kind: ConnectionKind,
         on_reconnect: Option<Arc<ReconnectCallback>>,
         on_disconnect: Option<Arc<DisconnectCallback>>,
-        server_id: Option<tool_protocol::ServerId>,
+        server_id: Option<xvora_tool_protocol::ServerId>,
         alpha_test_key: Option<String>,
         allow_insecure_ws: bool,
     ) -> Result<Arc<HubConnection>, ClientError> {
@@ -141,6 +141,7 @@ impl HubConnectionPool {
             on_reconnect,
             on_disconnect,
             None, // on_connect (unused by the simple wrapper)
+            None, // on_terminal_close (unused by the simple wrapper)
             server_id,
             None,
             None,
@@ -171,7 +172,8 @@ impl HubConnectionPool {
         on_reconnect: Option<Arc<ReconnectCallback>>,
         on_disconnect: Option<Arc<DisconnectCallback>>,
         on_connect: Option<Arc<ConnectCallback>>,
-        server_id: Option<tool_protocol::ServerId>,
+        on_terminal_close: Option<Arc<TerminalCloseCallback>>,
+        server_id: Option<xvora_tool_protocol::ServerId>,
         server_description: Option<String>,
         server_metadata: Option<serde_json::Value>,
         alpha_test_key: Option<String>,
@@ -206,6 +208,7 @@ impl HubConnectionPool {
             kind,
             on_reconnect,
             on_disconnect,
+            on_terminal_close,
             on_connect,
             server_id,
             server_description,

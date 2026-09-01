@@ -5,7 +5,7 @@ edition.workspace = true
 license = "Apache-2.0"
 authors = ["xAI"]
 
-# `ratatui-inline` is reached only through the pager's re-exported
+# `xvora-ratatui-inline` is reached only through the pager's re-exported
 # `PagerTerminal` type (its `insert_before` / viewport methods), so this crate
 # never names the crate in code — only in intra-doc links. cargo-shear can't see
 # doc links, so keep it ignored rather than dropping the dep (which would break
@@ -33,6 +33,12 @@ tracing = { workspace = true }
 # `[package.metadata.cargo-shear]` note above.
 ratatui-inline = { workspace = true }
 
+# `DiffLine` hunk fixtures for the committed-edit render tests. A normal (not
+# dev) dependency because gazelle lists `src/commit_tests.rs` in the library
+# `srcs` and so attributes its imports to the library target; a
+# `[dev-dependencies]` entry here would fail `just gazelle --check`.
+xvora-pager-diff = { path = "../xvora-pager-diff" }
+
 # Misc used by the commit/live/full-view paths.
 chrono = { workspace = true }
 similar = { workspace = true }
@@ -44,6 +50,6 @@ token-estimation = { workspace = true }
 # The unit tests reuse the pager's test-only view-model constructors
 # (`test_agent_view`, yolo/auto setters), gated behind its test-only
 # helpers.
-xvora-pager = { path = "../xvora-pager", features = [] }
+xvora-pager = { path = "../xvora-pager", features = ["test-support"] }
 
 [features]

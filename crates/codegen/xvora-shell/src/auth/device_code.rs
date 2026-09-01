@@ -1,11 +1,10 @@
-//! RFC 8628 Device Authorization Grant -- CLI side.
+//! RFC 8628 Device Authorization Grant, CLI side.
 //!
 //! Two-phase API:
-//!   1. `request_device_code()` -- POST to server, get code + URL
-//!   2. `complete_device_code_login()` -- poll until approved, persist credentials
+//!   1. `request_device_code()`: POST to server, get code and URL
+//!   2. `complete_device_code_login()`: poll until approved, persist credentials
 //!
-//! Callers control what happens between the two phases (print to stderr,
-//! show in TUI, display in IDE sidebar, etc.).
+//! Callers control what happens between the two phases (print to stderr, show in TUI, display in IDE sidebar, etc.).
 
 use std::sync::Arc;
 
@@ -14,41 +13,35 @@ use serde::Deserialize;
 use thiserror::Error;
 
 use crate::auth::oidc::with_alpha_test_key;
-use crate::auth::{AuthChannels, AuthManager, AuthMode, AuthUrlInfo, AuthUrlMode, XaiAuth};
+use crate::auth::{AuthChannels, AuthManager, AuthMode, AuthUrlInfo, AuthUrlMode, GrokAuth};
 
 const DEVICE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_code";
 const DEFAULT_DEVICE_POLL_INTERVAL_SECS: i32 = 5;
 const DEVICE_SLOW_DOWN_INCREMENT_SECS: u64 = 5;
 const MIN_DEVICE_CODE_EXPIRY_FALLBACK_SECS: i64 = 10 * 60;
 
+/// Only the 404 "no device endpoint" case is typed, because the login flow matches on it to fall back to loopback.
+/// Every other device-code failure stays a plain `anyhow` error.
+/// Wrapping one in a `#[error(transparent)]` variant hides the `reqwest::Error` the login funnel classifies.
+/// Transparent forwards `source()` past the error it wraps.
 #[derive(Debug, Error)]
-pub enum DeviceCodeError {
+pub(crate) enum DeviceCodeError {
     #[error(
         "Device-code login is not available for this deployment. \
-         Try `xvora login` or set XAI_API_KEY instead."
+         Try `grok login` or set XAI_API_KEY instead."
     )]
     NotEnabled,
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
-}
-
-impl From<reqwest::Error> for DeviceCodeError {
-    fn from(e: reqwest::Error) -> Self {
-        Self::Other(e.into())
-    }
 }
 
 // --- Public types ---
 
-/// Low-cardinality client-surface hint sent to the OAuth2 provider as the
-/// `x-grok-client-surface` header so device-flow metrics can separate logins a
-/// human can actually finish (`Ui`, `Cli`) from headless automation
-/// (`Headless`) that mints a device code but can never reach the browser
-/// consent page — the traffic that otherwise pollutes the device-flow
-/// conversion denominator.
+/// Low-cardinality hint sent to the OAuth2 provider as the `x-grok-client-surface` header.
+/// It lets device-flow metrics separate logins a human can actually finish (`Ui`, `Cli`) from headless automation (`Headless`).
+/// Headless automation mints a device code but can never reach the browser consent page.
+/// That traffic otherwise pollutes the device-flow conversion denominator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ClientSurface {
-    /// An interactive front-end (TUI / IDE) renders the URL + code to a human.
+pub(crate) enum ClientSurface {
+    /// An interactive front-end (TUI/IDE) renders the URL and code to a human.
     Ui,
     /// CLI attached to an interactive terminal (stderr is a TTY).
     Cli,
@@ -66,9 +59,8 @@ impl ClientSurface {
     }
 }
 
-/// Classify the CLI (non-TUI) surface: a TTY on stderr means a human is
-/// watching the printed URL + code; otherwise we're headless (CI/container/
-/// script) and no one will complete the flow.
+/// Classify the CLI (non-TUI) surface: a TTY on stderr means a human is watching the printed URL and code.
+/// Otherwise we're headless (CI/container/script) and no one will complete the flow.
 fn detect_cli_surface() -> ClientSurface {
     use std::io::IsTerminal as _;
     if std::io::stderr().is_terminal() {
@@ -79,10 +71,9 @@ fn detect_cli_surface() -> ClientSurface {
 }
 
 /// Result of requesting a device code from the server.
-/// Callers display `verification_uri` + `user_code` to the user,
-/// then pass this struct to `complete_device_code_login`.
+/// Callers display `verification_uri` and `user_code` to the user, then pass this struct to `complete_device_code_login`.
 #[derive(Debug, Clone)]
-pub struct DeviceCode {
+pub(crate) struct DeviceCode {
     pub verification_uri: String,
     pub verification_uri_complete: Option<String>,
     pub user_code: String,
@@ -127,17 +118,16 @@ struct IdTokenClaims {
 
 // --- Phase 1: Request device code ---
 
-/// Request a device code + user code from the OAuth2 provider.
+/// Request a device code and user code from the OAuth2 provider.
 ///
-/// This is a single HTTP POST. The caller is responsible for displaying
-/// `DeviceCode::verification_uri` and `DeviceCode::user_code` to the user
-/// before calling `complete_device_code_login`.
-pub async fn request_device_code(
+/// This is a single HTTP POST.
+/// The caller displays `DeviceCode::verification_uri` and `DeviceCode::user_code` to the user before calling `complete_device_code_login`.
+pub(crate) async fn request_device_code(
     issuer: &str,
     client_id: &str,
     scopes: &[String],
     surface: ClientSurface,
-) -> Result<DeviceCode, DeviceCodeError> {
+) -> anyhow::Result<DeviceCode> {
     let client = crate::http::shared_client();
     let url = format!("{}/oauth2/device/code", issuer.trim_end_matches('/'));
     let scope_str = scopes.join(" ");
@@ -147,13 +137,12 @@ pub async fn request_device_code(
             .post(&url)
             // Lets oauth2-provider segment device-flow success by client version.
             .header("x-grok-client-version", xvora_version::VERSION)
-            // Lets oauth2-provider separate human-completable logins from
-            // headless automation in the device-flow funnel metrics.
+            // Lets oauth2-provider separate human-completable logins from headless automation in the device-flow funnel metrics
             .header("x-grok-client-surface", surface.as_str())
             .form(&[
                 ("client_id", client_id),
                 ("scope", scope_str.as_str()),
-                ("referrer", "xvora"),
+                ("referrer", "grok-build"),
             ]),
         &url,
     )
@@ -164,9 +153,9 @@ pub async fn request_device_code(
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         if status.as_u16() == 404 {
-            return Err(DeviceCodeError::NotEnabled);
+            anyhow::bail!(DeviceCodeError::NotEnabled);
         }
-        return Err(anyhow::anyhow!("Device code request failed (HTTP {status}): {body}").into());
+        anyhow::bail!("Device code request failed (HTTP {status}): {body}");
     }
 
     let server_resp: DeviceCodeResponse = resp.json().await?;
@@ -177,10 +166,7 @@ pub async fn request_device_code(
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-')
     {
-        return Err(anyhow::anyhow!(
-            "Server returned invalid user_code format (expected [A-Z0-9-])"
-        )
-        .into());
+        anyhow::bail!("Server returned invalid user_code format (expected [A-Z0-9-])");
     }
 
     validate_verification_uri(&server_resp.verification_uri)?;
@@ -202,20 +188,19 @@ pub async fn request_device_code(
 
 // --- Phase 2: Poll until approved ---
 
-/// Poll the token endpoint until the user approves (or denies / expires).
+/// Poll the token endpoint until the user approves (or denies, or the code expires).
 ///
-/// On success, persists credentials to `~/.xvora/auth.json` and returns
-/// the authenticated `XaiAuth`.
+/// On success, persists credentials to `~/.grok/auth.json` and returns
+/// the authenticated `GrokAuth`.
 ///
-/// Callers should have already displayed `device_code.verification_uri`
-/// and `device_code.user_code` to the user before calling this.
-pub async fn complete_device_code_login(
+/// Callers should have already displayed `device_code.verification_uri` and `device_code.user_code` to the user before calling this.
+pub(crate) async fn complete_device_code_login(
     issuer: &str,
     client_id: &str,
     device_code: DeviceCode,
     auth_manager: &Arc<AuthManager>,
     surface: ClientSurface,
-) -> anyhow::Result<(XaiAuth, bool)> {
+) -> anyhow::Result<(GrokAuth, bool)> {
     let client = crate::http::shared_client();
     let token_url = format!("{}/oauth2/token", issuer.trim_end_matches('/'));
     let mut poll_interval = std::time::Duration::from_secs(device_code.interval.max(1) as u64);
@@ -227,8 +212,7 @@ pub async fn complete_device_code_login(
         );
 
     loop {
-        // Sleep first: an immediate poll on a fresh code only returns
-        // authorization_pending (and risks slow_down).
+        // Sleep first: an immediate poll on a fresh code only returns authorization_pending (and risks slow_down)
         tokio::time::sleep(poll_interval).await;
 
         if tokio::time::Instant::now() > deadline {
@@ -260,7 +244,7 @@ pub async fn complete_device_code_login(
         let detail = err.error_description.as_deref().unwrap_or(&err.error);
         match err.error.as_str() {
             "authorization_pending" => {
-                // User hasn't acted yet -- keep polling.
+                // User hasn't acted yet; keep polling
                 continue;
             }
             "slow_down" => {
@@ -289,25 +273,21 @@ pub async fn complete_device_code_login(
 
 /// Device-code login shared by the TUI and CLI.
 ///
-/// With `channels` (TUI) the verification URL goes to `url_tx` and the browser
-/// opens automatically; on failure the copyable URL is the fallback. Without
-/// `channels` (CLI) the URL + code are printed to stderr via `prompt_and_poll`.
+/// With `channels` (TUI) the verification URL goes to `url_tx` and the browser opens automatically; on failure the copyable URL is the fallback.
+/// Without `channels` (CLI) the URL and code are printed to stderr via `prompt_and_poll`.
 /// `code_rx` is unused here. The caller reports success (`✓ Signed in`).
 ///
-/// Takes `channels` by `&mut`, consuming it only after the device code is
-/// obtained, so callers can reuse it for a loopback fallback on `NotEnabled`.
-pub async fn run_device_code_login_channels(
+/// Takes `channels` by `&mut`, consuming it only after the device code is obtained, so callers can reuse it for a loopback fallback on `NotEnabled`.
+pub(crate) async fn run_device_code_login_channels(
     issuer: &str,
     client_id: &str,
     scopes: &[String],
     auth_manager: &Arc<AuthManager>,
     channels: &mut Option<AuthChannels>,
-) -> anyhow::Result<(XaiAuth, bool)> {
-    // A front-end (TUI/IDE) listening on `url_tx` renders the URL to a human, so
-    // it's `Ui`. Without one we're on the CLI: a TTY means a human can act
-    // (`Cli`), no TTY means headless automation (`Headless`) that will never
-    // complete. Computed before `take()` so the `request_device_code` call
-    // already carries the surface.
+) -> anyhow::Result<(GrokAuth, bool)> {
+    // A front-end (TUI/IDE) listening on `url_tx` renders the URL to a human, so it's `Ui`
+    // Without one we're on the CLI: a TTY means a human can act (`Cli`), no TTY means headless automation (`Headless`) that will never complete
+    // Computed before `take()` so the `request_device_code` call already carries the surface
     let surface = if channels.is_some() {
         ClientSurface::Ui
     } else {
@@ -317,14 +297,13 @@ pub async fn run_device_code_login_channels(
     let device_code = request_device_code(issuer, client_id, scopes, surface).await?;
 
     let Some(channels) = channels.take() else {
-        // CLI: print the URL + code to stderr.
+        // CLI: print the URL and code to stderr
         return prompt_and_poll(issuer, client_id, device_code, auth_manager, surface).await;
     };
 
-    // TUI: push the URL through the channel BEFORE opening the browser, so
-    // `x.ai/auth/get_url` isn't blocked on a slow/hanging browser launch
-    // (e.g. SSH/headless). When the issuer omits `verification_uri_complete`,
-    // embed the code so the welcome screen can still show it (anti-phishing).
+    // TUI: push the URL through the channel BEFORE opening the browser
+    // That way `x.ai/auth/get_url` isn't blocked on a slow or hanging browser launch (e.g. SSH/headless).
+    // When the issuer omits `verification_uri_complete`, embed the code so the welcome screen can still show it (anti-phishing)
     let display_uri = match device_code.verification_uri_complete.as_deref() {
         Some(uri) => uri.to_owned(),
         None => {
@@ -356,7 +335,7 @@ async fn prompt_and_poll(
     device_code: DeviceCode,
     auth_manager: &Arc<AuthManager>,
     surface: ClientSurface,
-) -> anyhow::Result<(XaiAuth, bool)> {
+) -> anyhow::Result<(GrokAuth, bool)> {
     let display_uri = device_code
         .verification_uri_complete
         .as_deref()
@@ -373,8 +352,7 @@ async fn prompt_and_poll(
         eprintln!();
     }
 
-    // Show the code to confirm it matches the browser (anti-phishing): a complete
-    // URL pre-fills it (just confirm), otherwise the user types it.
+    // Show the code to confirm it matches the browser (anti-phishing): a complete URL pre-fills it (just confirm), otherwise the user types it
     if device_code.verification_uri_complete.is_some() {
         eprintln!("Confirm this code in your browser:");
     } else {
@@ -390,15 +368,13 @@ async fn prompt_and_poll(
     eprintln!();
     eprintln!("Waiting for authorization...");
 
-    // The caller prints the `✓ Signed in` confirmation (it also owns the
-    // external-provider / devbox early-return paths that never reach here).
+    // The caller prints the `✓ Signed in` confirmation (it also owns the external-provider and devbox early-return paths that never reach here)
     complete_device_code_login(issuer, client_id, device_code, auth_manager, surface).await
 }
 
-/// Open `url` in the browser off-thread: `webbrowser::open` is synchronous and
-/// would stall the single-threaded TUI loop. Returns `true` on success so the
-/// caller can decide how to notify the user (eprintln on CLI, nothing on TUI
-/// where the URL is already rendered in the widget).
+/// Open `url` in the browser off-thread: `webbrowser::open` is synchronous and would stall the single-threaded TUI loop.
+/// Returns `true` on success so the caller can decide how to notify the user.
+/// The CLI eprintlns; the TUI does nothing since the URL is already rendered in the widget.
 async fn open_browser_detached(url: &str) -> bool {
     let url = url.to_owned();
     match tokio::task::spawn_blocking(move || webbrowser::open(&url)).await {
@@ -416,14 +392,14 @@ async fn open_browser_detached(url: &str) -> bool {
 
 // --- Internal helpers ---
 
-/// No id_token signature verification -- token arrives over a direct HTTPS
-/// channel (no browser redirect), and is only used for display info (email).
+/// No id_token signature verification: the token arrives over a direct HTTPS channel (no browser redirect).
+/// It is only used for display info (email).
 async fn build_auth(
     tokens: &TokenOk,
     issuer: &str,
     client_id: &str,
     auth_manager: &Arc<AuthManager>,
-) -> anyhow::Result<XaiAuth> {
+) -> anyhow::Result<GrokAuth> {
     let (user_id, email) = if let Some(ref id_token) = tokens.id_token {
         decode_jwt_claims(id_token)
     } else {
@@ -463,7 +439,7 @@ async fn build_auth(
         };
 
     let now = Utc::now();
-    let mut auth = XaiAuth {
+    let mut auth = GrokAuth {
         key: tokens.access_token.clone(),
         auth_mode: AuthMode::Oidc,
         create_time: now,
@@ -482,7 +458,7 @@ async fn build_auth(
         team_role: None,
         user_blocked_reason: None,
         team_blocked_reasons: vec![],
-        coding_data_retention_opt_out: false,
+        coding_data_retention_opt_out: crate::auth::default_coding_data_retention_opt_out(),
         has_grok_code_access: None,
         refresh_token: tokens.refresh_token.clone(),
         expires_at: tokens.expires_in.map(|s| now + Duration::seconds(s)),
@@ -548,12 +524,12 @@ pub(crate) mod tests {
         );
     }
 
-    fn auth_manager_with_xvora_home(
-        xvora_home: &std::path::Path,
+    fn auth_manager_with_grok_home(
+        grok_home: &std::path::Path,
         proxy_base_url: &str,
     ) -> Arc<AuthManager> {
         Arc::new(
-            AuthManager::new(xvora_home, GrokComConfig::default())
+            AuthManager::new(grok_home, GrokComConfig::default())
                 .with_proxy_base_url(proxy_base_url),
         )
     }
@@ -561,9 +537,9 @@ pub(crate) mod tests {
     #[test]
     fn build_auth_persists_credentials_without_proxy_fetch() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let xvora_home = temp_dir.path().join(".xvora");
-        std::fs::create_dir_all(&xvora_home).unwrap();
-        let auth_manager = auth_manager_with_xvora_home(&xvora_home, "http://127.0.0.1:9");
+        let grok_home = temp_dir.path().join(".grok");
+        std::fs::create_dir_all(&grok_home).unwrap();
+        let auth_manager = auth_manager_with_grok_home(&grok_home, "http://127.0.0.1:9");
         let tokens = super::TokenOk {
             access_token: "access-token".to_string(),
             refresh_token: Some("refresh-token".to_string()),
@@ -594,8 +570,7 @@ pub(crate) mod tests {
         assert!(auth_manager.current().is_some());
     }
 
-    /// jsonwebtoken needs a process-level CryptoProvider; tests that encode
-    /// JWTs can't rely on another test having installed it first.
+    /// jsonwebtoken needs a process-level CryptoProvider; tests that encode JWTs can't rely on another test having installed it first.
     fn ensure_crypto_provider() {
         let _ = jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER.install_default();
     }
@@ -604,9 +579,9 @@ pub(crate) mod tests {
     fn build_auth_seeds_team_metadata_from_access_token() {
         ensure_crypto_provider();
         let temp_dir = tempfile::tempdir().unwrap();
-        let xvora_home = temp_dir.path().join(".xvora");
-        std::fs::create_dir_all(&xvora_home).unwrap();
-        let auth_manager = auth_manager_with_xvora_home(&xvora_home, "http://127.0.0.1:9");
+        let grok_home = temp_dir.path().join(".grok");
+        std::fs::create_dir_all(&grok_home).unwrap();
+        let auth_manager = auth_manager_with_grok_home(&grok_home, "http://127.0.0.1:9");
         let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
         let claims = serde_json::json!({
             "sub": "user-42",
@@ -651,8 +626,7 @@ pub(crate) mod tests {
         assert_eq!(None, auth.email);
     }
 
-    /// Team access token carrying `principal_id` (signature irrelevant — only
-    /// the principal claims are peeked).
+    /// Team access token carrying `principal_id` (signature irrelevant; only the principal claims are peeked).
     fn team_access_token(principal_id: &str) -> super::TokenOk {
         let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
         let claims = serde_json::json!({
@@ -675,15 +649,14 @@ pub(crate) mod tests {
         }
     }
 
-    /// `build_auth` with `token_principal` must fail with `expected_err` and
-    /// persist nothing.
+    /// `build_auth` with `token_principal` must fail with `expected_err` and persist nothing.
     fn assert_build_auth_rejected(cfg: GrokComConfig, token_principal: &str, expected_err: &str) {
         ensure_crypto_provider();
         let temp_dir = tempfile::tempdir().unwrap();
-        let xvora_home = temp_dir.path().join(".xvora");
-        std::fs::create_dir_all(&xvora_home).unwrap();
+        let grok_home = temp_dir.path().join(".grok");
+        std::fs::create_dir_all(&grok_home).unwrap();
         let auth_manager =
-            Arc::new(AuthManager::new(&xvora_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
+            Arc::new(AuthManager::new(&grok_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
 
         let err = tokio::runtime::Runtime::new()
             .unwrap()
@@ -701,14 +674,13 @@ pub(crate) mod tests {
             "rejected login must not persist credentials",
         );
         assert!(
-            !xvora_home.join("auth.json").exists(),
+            !grok_home.join("auth.json").exists(),
             "rejected login must not write auth.json",
         );
     }
 
-    /// The legacy `oauth2.principal_id` only pre-selects a team; it must not
-    /// enforce a pin (only `force_login_team_uuid` does), so a different team's
-    /// token is accepted.
+    /// The legacy `oauth2.principal_id` only pre-selects a team; it must not enforce a pin (only `force_login_team_uuid` does).
+    /// A different team's token is therefore accepted.
     #[test]
     fn build_auth_does_not_enforce_legacy_oauth2_principal_id() {
         ensure_crypto_provider();
@@ -724,10 +696,10 @@ pub(crate) mod tests {
             ..GrokComConfig::default()
         };
         let temp_dir = tempfile::tempdir().unwrap();
-        let xvora_home = temp_dir.path().join(".xvora");
-        std::fs::create_dir_all(&xvora_home).unwrap();
+        let grok_home = temp_dir.path().join(".grok");
+        std::fs::create_dir_all(&grok_home).unwrap();
         let auth_manager =
-            Arc::new(AuthManager::new(&xvora_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
+            Arc::new(AuthManager::new(&grok_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
 
         let auth = tokio::runtime::Runtime::new()
             .unwrap()
@@ -745,7 +717,7 @@ pub(crate) mod tests {
         );
     }
 
-    /// Persistence-seam enforcement via a `force_login_team_uuid` list.
+    /// `build_auth` enforces a `force_login_team_uuid` list before persisting.
     #[test]
     fn build_auth_rejects_token_outside_force_login_team_list() {
         let cfg = GrokComConfig {
@@ -765,8 +737,8 @@ pub(crate) mod tests {
 
     // ── complete_device_code_login poll loop ────────────────────────────────
 
-    /// Spawn a mock `/oauth2/token` server that serves `responses` in order,
-    /// repeating the last entry. Returns the issuer base URL.
+    /// Spawn a mock `/oauth2/token` server that serves `responses` in order, repeating the last entry.
+    /// Returns the issuer base URL.
     async fn spawn_token_server(
         responses: Vec<(u16, serde_json::Value)>,
     ) -> (String, tokio::task::JoinHandle<()>) {
@@ -809,15 +781,14 @@ pub(crate) mod tests {
         }
     }
 
-    // Real time (not `start_paused`: the shared client's 30s connect_timeout
-    // fires under auto-advance). Deadline-expiry isn't tested — the deadline is
-    // floored at 10 min (MIN_DEVICE_CODE_EXPIRY_FALLBACK_SECS).
+    // Real time (not `start_paused`: the shared client's 30s connect_timeout fires under auto-advance)
+    // Deadline-expiry isn't tested; the deadline is floored at 10 min (MIN_DEVICE_CODE_EXPIRY_FALLBACK_SECS)
     async fn run_poll(
         responses: Vec<(u16, serde_json::Value)>,
-    ) -> anyhow::Result<(super::XaiAuth, bool)> {
+    ) -> anyhow::Result<(super::GrokAuth, bool)> {
         let (issuer, server) = spawn_token_server(responses).await;
         let temp_dir = tempfile::tempdir().unwrap();
-        let auth_manager = auth_manager_with_xvora_home(temp_dir.path(), "http://127.0.0.1:9");
+        let auth_manager = auth_manager_with_grok_home(temp_dir.path(), "http://127.0.0.1:9");
         let device_code = device_code_for_test(1, 900);
         let result = super::complete_device_code_login(
             &issuer,

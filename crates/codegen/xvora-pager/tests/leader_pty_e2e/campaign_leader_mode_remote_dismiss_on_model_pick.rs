@@ -4,17 +4,14 @@ use super::common::*;
 
 /// **Leader mode: a `/model` pick in the TUI dismisses a remote campaign.**
 ///
-/// The dismiss chokepoint (`persist_user_choice`) runs in the **TUI process**,
-/// but in leader mode no in-process agent ever seeds the TUI's remote campaign
-/// cache — only `app::run`'s own seed makes a remote campaign visible to
-/// `resolve_dismissable_campaigns`. Without that seed this test times out in
-/// the dismiss phase: the pick persists but no dismissal is recorded, and the
-/// leader re-nudges every new session over the user's explicit choice.
+/// `persist_user_choice`, the one place a dismissal is recorded, runs in the TUI process.
+/// In leader mode no in-process agent ever seeds the TUI's remote campaign cache.
+/// Only `app::run`'s own seed makes a remote campaign visible to `resolve_dismissable_campaigns`.
+/// Without that seed this test times out in the dismiss phase: the pick persists but no dismissal is recorded.
+/// The leader then re-nudges every new session over the user's explicit choice.
 ///
-/// The TUI's settings prefetch is deliberately 2s-capped, so on a loaded
-/// runner a spawn can miss the fetch (unseeded cache — the documented
-/// transient leader-mode divergence). The test retries with fresh TUI spawns
-/// (same leader) until a pick lands the dismissal, then proves it sticks.
+/// The TUI's settings prefetch is deliberately capped at 2s, so on a loaded runner a spawn can miss the fetch and start with an unseeded cache.
+/// The test retries with fresh TUI spawns (same leader) until a pick lands the dismissal, then proves it sticks.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "PTY e2e; run with cargo test -p xvora-pager --test leader_pty_e2e -- --ignored --test-threads=1"]
 async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
@@ -29,8 +26,7 @@ async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
     .await
     .expect("start content with two models");
 
-    // Serve the campaign from the settings endpoint (restating `allow_access`,
-    // which the preset otherwise provides).
+    // Serve the campaign from the settings endpoint (restating `allow_access`, which the preset otherwise provides)
     content.server().set_settings(json!({
         "allow_access": true,
         "campaigns": [
@@ -38,60 +34,62 @@ async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
         ]
     }));
 
-    // Seed config.toml with the user's own default model; a fixed leader
-    // socket under the shared XVORA_HOME so every spawn elects/attaches to the
-    // same leader (mirrors `LeaderCluster`).
-    let xvora_home = content.home().join(".xvora");
-    std::fs::create_dir_all(&xvora_home).expect("create XVORA_HOME");
+    // Seed config.toml with the user's own default model
+    // Pin the leader socket under the shared GROK_HOME so every spawn elects or attaches to the same leader (mirrors `LeaderCluster`)
+    let grok_home = content.home().join(".grok");
+    std::fs::create_dir_all(&grok_home).expect("create GROK_HOME");
     std::fs::write(
-        xvora_home.join("config.toml"),
+        grok_home.join("config.toml"),
         format!("[models]\ndefault = \"{CONFIG_MODEL}\"\n"),
     )
     .expect("write config.toml");
-    let socket = xvora_home.join("leader-e2e.sock");
+    let socket = grok_home.join("leader-e2e.sock");
     let socket = socket.to_str().expect("socket path is utf-8").to_owned();
 
-    // Session (OAuth) auth, not the harness's default XAI_API_KEY: the
-    // settings fetch requires `auth_manager.auth()` — in ApiKey/BYOK mode the
-    // pager never requests `/v1/settings`, so a remote campaign would be
-    // structurally unreachable (see `spawn_polling_session`'s doc).
+    // Use session (OAuth) auth instead of the harness's default XAI_API_KEY
+    // The settings fetch requires `auth_manager.auth()`: in ApiKey/BYOK mode the pager never requests `/v1/settings`
+    // Without that request a remote campaign can never reach the pager (see `spawn_polling_session`'s doc)
     seed_fake_oauth(&content, "pty-campaign-leader");
     let binary = pager_binary().expect("resolve pager binary");
-    let env = oauth_env_for_pager(&content);
     let spawn = || -> PtyHarness {
-        let env_refs: Vec<(&str, &str)> =
-            env.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        PtyHarness::new(
+        PtyHarness::spawn_with_content_env_ops(
             &binary,
             DEFAULT_ROWS,
             DEFAULT_COLS,
+            &content,
             &["--leader", "--leader-socket", &socket],
-            &env_refs,
+            &oauth_credential_ops(),
         )
         .expect("spawn leader-mode pager")
     };
-    let state_path = xvora_home.join("campaigns_state.json");
+    let state_path = grok_home.join("campaigns_state.json");
     let dismissed = |state_path: &std::path::Path| {
         std::fs::read_to_string(state_path)
             .map(|s| s.contains(CAMPAIGN_ID))
             .unwrap_or(false)
     };
 
-    // ── Phase 1+2: nudge on a new session; a pick records the dismissal in
-    // the TUI process. Retries fresh TUI spawns (same leader) so a missed
-    // 2s prefetch window on a loaded runner can't wedge the test.
+    // ── Phases 1 and 2: nudge on a new session; a pick records the dismissal in the TUI process
+    // Retries fresh TUI spawns (same leader) so a missed 2s prefetch window on a loaded runner can't hang the test
     let mut recorded = false;
     'attempts: for attempt in 0..3 {
         let mut h = spawn();
-        h.wait_for_text(WELCOME_SCREEN_SENTINEL, LEADER_TIMEOUT)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "leader-mode welcome never rendered (attempt {attempt})\nscreen:\n{}",
-                    h.screen_contents()
-                )
-            });
+        // A cold start (leader election plus booting an unoptimized binary) can miss the welcome paint within LEADER_TIMEOUT on a loaded runner
+        // The leader outlives this client, so a fresh spawn attaches to the already-running leader and paints promptly
+        // Retry as for a missed campaign, and panic only once all attempts are exhausted
+        if h.wait_for_text(WELCOME_SCREEN_SENTINEL, LEADER_TIMEOUT)
+            .is_err()
+        {
+            let screen = h.screen_contents();
+            h.quit().expect("clean quit");
+            assert!(
+                attempt < 2,
+                "leader-mode welcome never rendered after 3 attempts\nscreen:\n{screen}"
+            );
+            continue;
+        }
         if !wait_for_model_via_new_sessions(&mut h, CAMPAIGN_MODEL, Duration::from_secs(60)) {
-            // Campaign never applied on this spawn; try a fresh TUI.
+            // The campaign never applied on this spawn; try a fresh TUI
             h.quit().expect("clean quit");
             continue;
         }
@@ -106,9 +104,8 @@ async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
                 break 'attempts;
             }
         }
-        // The regression under test: pick persisted but dismissal missing.
-        // With the app::run seed present this only happens when the prefetch
-        // missed on this spawn; retry once more before declaring failure.
+        // The regression under test: the pick persisted but the dismissal is missing
+        // With the app::run seed present this only happens when the prefetch missed on this spawn; retry once more before declaring failure
         h.quit().expect("clean quit");
     }
     assert!(
@@ -116,15 +113,13 @@ async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
         "leader-mode TUI must record the remote campaign dismissal in {state_path:?}"
     );
 
-    // ── Phase 3: the dismissal is durable and the pick is persisted. The
-    // user's choice must be in config.toml (campaign value never laundered
-    // in), and the dismissed id on disk is what every future resolution —
-    // leader or not — filters on (`dismissed_id_is_dropped_from_override`
-    // pins the filter; the sibling remote-settings e2e pins the full
-    // no-re-nudge reboot in-process). A fresh same-leader-socket client is
-    // deliberately not asserted on-screen here: reattach paint timing is the
-    // one flaky piece and adds no coverage over the disk + sibling asserts.
-    let config = std::fs::read_to_string(xvora_home.join("config.toml")).expect("read config.toml");
+    // ── Phase 3: the dismissal is durable and the pick is persisted
+    // The user's choice must be in config.toml, and the campaign value must never be written there
+    // Every future resolution, leader or not, filters on the dismissed id on disk
+    // `dismissed_id_is_dropped_from_override` pins that filter; the sibling remote-settings e2e proves in-process that a reboot does not re-nudge
+    // A fresh client on the same leader socket is deliberately not asserted on-screen here
+    // Reattach paint timing is the one flaky piece, and it adds no coverage over the on-disk and sibling asserts
+    let config = std::fs::read_to_string(grok_home.join("config.toml")).expect("read config.toml");
     assert!(
         config.contains(&format!("default = \"{CONFIG_MODEL}\"")),
         "the user's pick must be persisted to config.toml:\n{config}"

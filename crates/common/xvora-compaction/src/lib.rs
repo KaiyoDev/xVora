@@ -7,7 +7,7 @@
 //!
 //! The crate depends on **neither** a conversation-type crate nor
 //! `xvora-sampling-types`. It is decoupled from both Grok chat and
-//! xvora hosts through a small set of trait seams:
+//! grok-build hosts through a small set of trait seams:
 //!
 //! - [`CompactionItem`] / [`CompactionRole`] / [`CompactionItemBuilder`] —
 //!   abstracts a single turn and its reconstruction.
@@ -21,7 +21,7 @@
 //!
 //! Compaction styles live in their own modules:
 //!
-//! - [`code_compaction`] — xvora's whole-session **full-replace**
+//! - [`code_compaction`] — grok-build's whole-session **full-replace**
 //!   subsystem (prompt/summary/failure/config, assemble, orchestration).
 //! - [`intra_compaction`] — Grok chat's tail-keep, per-step pass.
 //! - [`inter_compaction`] — Grok chat's chunked, between-turn pass.
@@ -35,7 +35,7 @@
 //! selection — shared by the intra `Steps` and `History` targets, so it stays
 //! neutral at the crate root rather than under `steps`), and [`reminder`]
 //! (active-agent-state `<system-reminder>` formatting shared by Grok chat and
-//! xvora; hosts still own snapshotting and host-only sections).
+//! grok-build; hosts still own snapshotting and host-only sections).
 
 pub mod code_compaction;
 pub mod history;
@@ -57,15 +57,14 @@ pub mod token;
 /// 3. this constant
 pub use intra_compaction::DEFAULT_COMPACTION_MODEL_NAME;
 
-// xvora's full-replace subsystem now lives under `code_compaction`;
+// grok-build's full-replace subsystem now lives under `code_compaction`;
 // re-exported at the crate root so consumers keep a stable public API.
 pub use code_compaction::{
-    CompactedHistoryParts, DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT, FailureKind,
-    FullReplaceAttemptOutcome, FullReplaceConfig, FullReplaceContext, FullReplaceError,
-    FullReplaceObserver, FullReplaceOutput, FullReplaceSummary, MIN_SUMMARY_SEED_CHARS,
-    SELF_SUMMARIZATION_PROMPT, SummaryPromptKind, apply_full_replace_compaction,
-    assemble_compacted_history, build_summary_prompt, build_summary_prompt_kind,
-    classify_http_status, classify_stream_event_error, format_compact_summary,
+    CompactedHistoryParts, DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT, FullReplaceAttemptOutcome,
+    FullReplaceConfig, FullReplaceContext, FullReplaceError, FullReplaceObserver,
+    FullReplaceOutput, FullReplaceSummary, MIN_SUMMARY_SEED_CHARS, SELF_SUMMARIZATION_PROMPT,
+    SummaryPromptKind, apply_full_replace_compaction, assemble_compacted_history,
+    build_summary_prompt, build_summary_prompt_kind, format_compact_summary,
     format_compact_summary_content, is_context_length_error, is_degenerate_summary,
     sample_full_replace_summary, wrap_user_query,
 };

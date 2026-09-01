@@ -3,7 +3,7 @@
 //! This is a faithful port of `codex-rs/core/src/tools/handlers/grep_files.rs`.
 //! It returns **file paths only** (`--files-with-matches`), sorted by
 //! modification time. See the plan document for the full diff vs the
-//! xvora `GrepTool`.
+//! grok-build `GrepTool`.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::time::timeout;
 
-use crate::implementations::xvora::grep::ripgrep::rg_path;
+use crate::implementations::grok_build::grep::ripgrep::rg_path;
 use crate::types::output::CodexGrepFilesOutput;
 use crate::types::requirements::Expr;
 #[allow(unused_imports)]
@@ -27,8 +27,7 @@ const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
 // ─── Description ────────────────────────────────────────────────────
 
-const DESCRIPTION: &str =
-    "Finds files whose contents match the pattern and lists them by modification time.";
+const DESCRIPTION: &str = "Finds files whose contents match the ${{ params.search.pattern }} and lists them by modification time.";
 
 // ─── Input ──────────────────────────────────────────────────────────
 
@@ -59,8 +58,8 @@ pub struct CodexGrepFilesInput {
 
 /// Codex-namespace grep_files tool — file-path-only regex search.
 ///
-/// Shares `ToolKind::Search` with the xvora `GrepTool`. These tools are
-/// namespace-exclusive — consumers enable either `Xvora` or `Codex` search,
+/// Shares `ToolKind::Search` with the grok-build `GrepTool`. These tools are
+/// namespace-exclusive — consumers enable either `GrokBuild` or `Codex` search,
 /// never both simultaneously. This follows the same pattern as
 /// `CodexListDirTool`/`ListDirTool` (`ToolKind::ListDir`) and
 /// `CodexReadFileTool`/`ReadFileImpl` (`ToolKind::Read`).
@@ -79,7 +78,7 @@ async fn run_rg_search(
     limit: usize,
     cwd: &Path,
 ) -> Result<Vec<String>, String> {
-    let rg_exec = rg_path();
+    let rg_exec = rg_path().map_err(|e| e.to_string())?;
     let mut command = Command::new(rg_exec);
     command
         .current_dir(cwd)
@@ -94,8 +93,7 @@ async fn run_rg_search(
     }
 
     command.arg("--").arg(search_path);
-    crate::util::detach_command(&mut command);
-    command.stdin(std::process::Stdio::null());
+    crate::util::detach_search_command(&mut command);
 
     let output = timeout(COMMAND_TIMEOUT, command.output())
         .await
@@ -156,25 +154,28 @@ impl crate::types::tool_metadata::ToolMetadata for CodexGrepFilesTool {
     }
 }
 
-impl tool_runtime::Tool for CodexGrepFilesTool {
+impl xvora_tool_runtime::Tool for CodexGrepFilesTool {
     type Args = CodexGrepFilesInput;
     type Output = CodexGrepFilesOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("grep_files").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("grep_files").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "grep_files",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -182,9 +183,9 @@ impl tool_runtime::Tool for CodexGrepFilesTool {
     #[tracing::instrument(name = "tool.codex_grep_files", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: CodexGrepFilesInput,
-    ) -> Result<CodexGrepFilesOutput, tool_runtime::ToolError> {
+    ) -> Result<CodexGrepFilesOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -258,15 +259,19 @@ mod tests {
     use tempfile::TempDir;
 
     /// Build a runtime `ToolCallContext` with the given resources.
-    fn test_ctx(cwd: &Path) -> tool_runtime::ToolCallContext {
+    fn test_ctx(cwd: &Path) -> xvora_tool_runtime::ToolCallContext {
         let mut resources = Resources::new();
         resources.insert(Cwd(cwd.to_path_buf()));
-        let mut ctx = tool_runtime::ToolCallContext::default();
+        let mut ctx = xvora_tool_runtime::ToolCallContext::default();
         ctx.extensions.insert(resources.into_shared());
         ctx
     }
     fn rg_available() -> bool {
-        StdCommand::new("rg")
+        // Probe the resolver the tool uses (hermetic under Bazel), not PATH.
+        let Ok(rg) = rg_path() else {
+            return false;
+        };
+        StdCommand::new(rg)
             .arg("--version")
             .output()
             .map(|output| output.status.success())
@@ -391,7 +396,7 @@ mod tests {
             limit: 100,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
             .await
             .unwrap();
         match result {
@@ -414,7 +419,7 @@ mod tests {
             limit: 0,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
             .await
             .unwrap();
         match result {
@@ -442,7 +447,7 @@ mod tests {
             limit: 100,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
             .await
             .unwrap();
         match result {
@@ -472,7 +477,7 @@ mod tests {
             limit: 100,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
             .await
             .unwrap();
         match result {
@@ -501,7 +506,7 @@ mod tests {
             limit: 100,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
             .await
             .unwrap();
         match result {
@@ -532,7 +537,7 @@ mod tests {
             limit: 5000, // exceeds MAX_LIMIT (2000)
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(tmp.path()), input)
             .await
             .unwrap();
         match result {

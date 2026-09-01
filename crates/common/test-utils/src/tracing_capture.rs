@@ -2,7 +2,7 @@
 //! known prefix.
 //!
 //! Producers should export the exact log-line prefixes as `pub const`s next
-//! to the `tracing::debug!` call sites (e.g. `hunk_tracker`'s
+//! to the `tracing::debug!` call sites (e.g. `xvora_hunk_tracker`'s
 //! `REFRESH_SCAN_LOG_PREFIX`) so tests never duplicate the strings.
 
 use std::sync::Arc;

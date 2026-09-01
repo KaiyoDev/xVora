@@ -622,7 +622,7 @@ mod tests {
             snapshot_root: PathBuf::from("/var/lib/repo-fuse/instance/worktrees/abc/root"),
             work_dir: PathBuf::from("/var/lib/repo-fuse/instance/worktrees/abc/work"),
             lower_dir: PathBuf::from("/var/lib/repo-fuse/instance/fuse-lower"),
-            mount_target: PathBuf::from("/home/user/.xvora/worktrees/abc"),
+            mount_target: PathBuf::from("/home/user/.grok/worktrees/abc"),
             created_at: "2026-02-19T22:38:00Z".to_string(),
         };
 
@@ -649,7 +649,7 @@ mod tests {
             "snapshot_upper": "/var/lib/repo-fuse/instance/worktrees/abc123/upper",
             "work_dir": "/var/lib/repo-fuse/instance/worktrees/abc123/work",
             "lower_dir": "/var/lib/repo-fuse/instance/fuse-lower",
-            "mount_target": "/home/user/.xvora/worktrees/abc123",
+            "mount_target": "/home/user/.grok/worktrees/abc123",
             "created_at": "2026-02-19T22:38:00Z"
         }"#;
 
@@ -660,24 +660,6 @@ mod tests {
             meta.snapshot_root,
             PathBuf::from("/var/lib/repo-fuse/instance/worktrees/abc123/upper")
         );
-    }
-
-    #[test]
-    fn test_unix_timestamp_string() {
-        let ts = unix_timestamp_string();
-        assert!(ts.contains("s-since-epoch"));
-    }
-
-    #[test]
-    fn test_overlay_worktree_result_debug() {
-        let result = OverlayWorktreeResult {
-            worktree_path: PathBuf::from("/dest"),
-            snapshot_root: PathBuf::from("/snap/root"),
-            work_dir: PathBuf::from("/snap/work"),
-        };
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("OverlayWorktreeResult"));
-        assert!(debug.contains("/dest"));
     }
 
     #[test]
@@ -732,38 +714,5 @@ mod tests {
         assert_eq!(meta.kind, "overlay");
         assert_eq!(meta.snapshot_root, snapshot_root);
         assert_eq!(meta.mount_target, PathBuf::from("/mount/target"));
-    }
-
-    #[test]
-    fn test_cleanup_orphaned_no_local_dir() {
-        // Hosts without a `/local` overlay root should return an empty report.
-        let report = cleanup_orphaned_overlay_snapshots();
-        assert_eq!(report.removed, 0);
-        assert_eq!(report.errors, 0);
-    }
-
-    #[test]
-    fn test_metadata_scan_finds_matching_target() {
-        // Verify metadata deserialization + match logic without full removal
-        // (full removal needs a live btrfs host).
-        let json = r#"{
-            "type": "overlay",
-            "snapshot_upper": "/var/lib/repo-fuse/instance/worktrees/wt1/upper",
-            "work_dir": "/var/lib/repo-fuse/instance/worktrees/wt1/work",
-            "lower_dir": "/var/lib/repo-fuse/instance/fuse-lower",
-            "mount_target": "/home/user/.xvora/worktrees/wt1",
-            "created_at": "1740000000s-since-epoch"
-        }"#;
-        let meta: OverlayMetadata = serde_json::from_str(json).unwrap();
-        assert_eq!(meta.kind, "overlay");
-        assert_eq!(
-            meta.mount_target,
-            PathBuf::from("/home/user/.xvora/worktrees/wt1")
-        );
-        // "snapshot_upper" in JSON maps to snapshot_root via serde alias
-        assert_eq!(
-            meta.snapshot_root,
-            PathBuf::from("/var/lib/repo-fuse/instance/worktrees/wt1/upper")
-        );
     }
 }

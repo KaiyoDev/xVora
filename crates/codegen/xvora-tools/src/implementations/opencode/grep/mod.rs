@@ -10,7 +10,7 @@ use std::process::Stdio;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
-use crate::implementations::xvora::grep::ripgrep::rg_path;
+use crate::implementations::grok_build::grep::ripgrep::rg_path;
 use crate::types::output::{GrepFileMatch, GrepLineMatch, GrepSearchOutput};
 use crate::types::requirements::{Expr, ToolRequirement};
 #[allow(unused_imports)]
@@ -34,10 +34,10 @@ Usage:
 - Prefer ${{ tools.by_kind.search }} for exact symbol/string searches. Whenever possible, use this instead of terminal grep/rg. This tool is faster and respects .gitignore
 - Supports full regex syntax, e.g. `log.*Error`, `function\s+\w+`. Ensure you escape special chars to get exact matches, e.g. `functionCall\(`
 - Avoid overly broad glob patterns (e.g., '--glob *') as they bypass .gitignore rules and may be slow
-- The pattern field is a raw regex string: do NOT wrap it in quotes or add trailing quote characters unnecessarily
-- Only use 'include' when certain of the file type needed. Note: import paths may not match source file types (.js vs .ts)
+- The ${{ params.search.pattern }} field is a raw regex string: do NOT wrap it in quotes or add trailing quote characters unnecessarily
+- Only use '${{ params.search.include }}' when certain of the file type needed. Note: import paths may not match source file types (.js vs .ts)
 - Results are capped for responsiveness; truncated results show "at least" counts.
-- Filter files by pattern with the include parameter (e.g. "*.js", "*.{ts,tsx}")
+- Filter files by pattern with the ${{ params.search.include }} parameter (e.g. "*.js", "*.{ts,tsx}")
 - Returns file paths and line numbers with at least one match sorted by modification time
 - Use this tool when you need to find files containing specific patterns"#;
 
@@ -110,25 +110,28 @@ impl crate::types::tool_metadata::ToolMetadata for GrepTool {
     }
 }
 
-impl tool_runtime::Tool for GrepTool {
+impl xvora_tool_runtime::Tool for GrepTool {
     type Args = GrepInput;
     type Output = GrepSearchOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("grep").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("grep").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "grep",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -136,9 +139,9 @@ impl tool_runtime::Tool for GrepTool {
     #[tracing::instrument(name = "tool.opencode.grep", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: GrepInput,
-    ) -> Result<GrepSearchOutput, tool_runtime::ToolError> {
+    ) -> Result<GrepSearchOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -158,7 +161,7 @@ impl tool_runtime::Tool for GrepTool {
         };
 
         // Build rg command.
-        let rg_exec = rg_path();
+        let rg_exec = rg_path()?;
         let mut cmd = Command::new(rg_exec);
         cmd.args([
             "-n",
@@ -178,10 +181,10 @@ impl tool_runtime::Tool for GrepTool {
 
         cmd.arg(search_path.to_string_lossy().as_ref());
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-        crate::util::detach_command(&mut cmd);
-        cmd.stdin(Stdio::null());
+        crate::util::detach_search_command(&mut cmd);
 
         // Spawn.
+        #[allow(clippy::disallowed_methods)] // search helper, waited on below
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
@@ -276,7 +279,7 @@ impl tool_runtime::Tool for GrepTool {
         }
 
         // Sort by mtime (most recent first).
-        matches.sort_by(|a, b| b.mtime_ms.cmp(&a.mtime_ms));
+        matches.sort_by_key(|b| std::cmp::Reverse(b.mtime_ms));
 
         let total_matches = matches.len();
         let truncated = total_matches > RESULT_LIMIT;
@@ -388,7 +391,7 @@ mod tests {
     fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = GrepTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "grep");
+        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "grep");
         assert_eq!(tool.kind(), ToolKind::Search);
         assert!(
             matches!(tool.tool_namespace(), ToolNamespace::OpenCode),
@@ -430,7 +433,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -464,7 +467,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -503,7 +506,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -550,7 +553,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -585,7 +588,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         // Pass an absolute path to the subdirectory.
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -620,7 +623,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         // Pass a relative path — should resolve against Cwd.
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -655,7 +658,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -687,7 +690,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -723,7 +726,7 @@ mod tests {
         let tool = GrepTool;
         let resources = Resources::new(); // No Cwd inserted.
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -754,7 +757,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -786,7 +789,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -826,7 +829,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -869,7 +872,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -896,7 +899,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -927,7 +930,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -958,7 +961,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {
@@ -994,7 +997,7 @@ mod tests {
         let tool = GrepTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GrepInput {

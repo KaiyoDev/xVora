@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::auth::AuthManager;
 
-const XVORA_WEB_URL: &str = "https://grok.com";
+const GROK_WEB_URL: &str = "https://grok.com";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,11 +63,11 @@ pub struct WorkspacesClient {
 impl WorkspacesClient {
     pub fn new(auth: Arc<AuthManager>) -> Self {
         let base_url = first_nonempty_env(&[
-            "XVORA_WORKSPACES_BASE_URL",
-            "XVORA_CONVERSATIONS_BASE_URL",
-            "XVORA_CODE_WEB_URL",
+            "GROK_WORKSPACES_BASE_URL",
+            "GROK_CONVERSATIONS_BASE_URL",
+            "GROK_CODE_WEB_URL",
         ])
-        .unwrap_or_else(|| XVORA_WEB_URL.to_string());
+        .unwrap_or_else(|| GROK_WEB_URL.to_string());
         Self {
             http: crate::http::shared_client(),
             base_url,
@@ -75,7 +75,7 @@ impl WorkspacesClient {
         }
     }
 
-    pub async fn list_workspaces(&self, q: &WsQuery) -> Result<ListWorkspacesPage, WsError> {
+    pub(crate) async fn list_workspaces(&self, q: &WsQuery) -> Result<ListWorkspacesPage, WsError> {
         let auth = self.auth.auth().await.map_err(|_| WsError::NoOauth)?;
         if !auth.is_xai_auth() {
             return Err(WsError::NoOauth);
@@ -116,7 +116,7 @@ impl WorkspacesClient {
         if let Some(email) = &auth.email {
             builder = builder.header("x-email", email);
         }
-        let builder = file_utils::trace_context::inject_trace_context_into_request(builder);
+        let builder = xvora_file_utils::trace_context::inject_trace_context_into_request(builder);
 
         let response = builder.send().await?;
         let status = response.status();

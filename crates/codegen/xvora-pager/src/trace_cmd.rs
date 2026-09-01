@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::session::repo_changes::UploadMethod;
-use xvora_shell::util::xvora_home::xvora_home;
+use xvora_shell::util::grok_home::grok_home;
 
 #[derive(Debug, clap::Args, Clone)]
 pub struct TraceArgs {
@@ -12,7 +12,7 @@ pub struct TraceArgs {
     /// Save locally only, skip remote upload
     #[arg(long)]
     pub local: bool,
-    /// Output path (default: $XVORA_HOME/trace-exports/<session-id>.tar.gz)
+    /// Output path (default: $GROK_HOME/trace-exports/<session-id>.tar.gz)
     #[arg(short, long)]
     pub output: Option<PathBuf>,
     /// Emit machine-readable JSON output
@@ -51,7 +51,7 @@ pub async fn run(args: TraceArgs, agent_config: &AgentConfig) -> Result<()> {
         if !args.json {
             eprintln!(
                 "Trace uploads disabled. Set [telemetry] trace_upload = true in {}",
-                crate::util::display_user_xvora_path("config.toml")
+                crate::util::display_user_grok_path(xvora_config::USER_CONFIG_FILENAME)
             );
             eprintln!("Falling back to local export.");
         }
@@ -99,6 +99,19 @@ pub fn build_session_tar(
 
         file_count += add_directory_to_tar(&mut archive, session_dir, session_id)?;
 
+        let memtrace = crate::memory_trace::collect_for_export(
+            &crate::memory_trace::default_dir(),
+            crate::memory_trace::ExportLimits::default(),
+        );
+        for trace in &memtrace {
+            append_bytes(
+                &mut archive,
+                &format!("{session_id}/memtrace/{}", trace.name),
+                &trace.data,
+            );
+        }
+        file_count += memtrace.len() as u32;
+
         let trace_config = build_trace_config_snapshot(agent_config);
         let config_bytes = serde_json::to_vec_pretty(&trace_config)?;
         append_bytes(
@@ -110,10 +123,11 @@ pub fn build_session_tar(
 
         let metadata = ExportMetadata {
             session_id: session_id.to_owned(),
-            grok_version: env!("VERSION_WITH_COMMIT").to_owned(),
+            grok_version: xvora_version::full_version().to_owned(),
             os: std::env::consts::OS.to_owned(),
             arch: std::env::consts::ARCH.to_owned(),
             exported_at: chrono::Utc::now().to_rfc3339(),
+            memtrace_files: memtrace.len(),
         };
         let meta_bytes = serde_json::to_vec_pretty(&metadata)?;
         append_bytes(
@@ -146,9 +160,10 @@ struct ExportMetadata {
     os: String,
     arch: String,
     exported_at: String,
+    memtrace_files: usize,
 }
 
-/// No URLs, paths, or bucket names -- only booleans and config source indicators.
+/// No URLs, paths, or bucket names, only booleans and config source indicators.
 #[derive(serde::Serialize)]
 struct TraceConfigSnapshot {
     trace_upload_enabled: bool,
@@ -331,13 +346,13 @@ pub(crate) fn find_session_dir(session_id: &str) -> Result<PathBuf> {
     xvora_shell::session::persistence::find_session_dir_by_id(session_id).with_context(|| {
         format!(
             "Session '{session_id}' not found under {}",
-            crate::util::display_user_xvora_path("sessions")
+            crate::util::display_user_grok_path("sessions")
         )
     })
 }
 
 pub fn trace_exports_dir() -> PathBuf {
-    xvora_home().join("trace-exports")
+    grok_home().join("trace-exports")
 }
 
 /// Creates parent directory if needed.
@@ -429,7 +444,7 @@ async fn run_upload(
             anyhow::bail!(
                 "No upload credentials. Run `grok login` or set a deployment key. \
                  See {} for upload overrides.",
-                crate::util::display_user_xvora_path("docs/user-guide")
+                crate::util::display_user_grok_path("docs/user-guide")
             );
         }
     };
@@ -440,8 +455,7 @@ async fn run_upload(
     let archive = build_session_tar(&session_dir, session_id, agent_config)?;
     let archive_size = archive.len();
 
-    // Proxy-mode uploads don't need a bucket (the proxy owns the
-    // destination); direct GCS uploads do.
+    // Proxy-mode uploads don't need a bucket (the proxy owns the destination); direct GCS uploads do
     let bucket_url = agent_config
         .endpoints
         .resolve_trace_bucket_url()
@@ -453,8 +467,8 @@ async fn run_upload(
         )
     {
         anyhow::bail!(
-            "No trace upload bucket configured. Set `XVORA_TELEMETRY_GCS_BUCKET`, \
-             `XVORA_TRACE_UPLOAD_BUCKET`, or `endpoints.trace_upload_bucket` in \
+            "No trace upload bucket configured. Set `GROK_TELEMETRY_GCS_BUCKET`, \
+             `GROK_TRACE_UPLOAD_BUCKET`, or `endpoints.trace_upload_bucket` in \
              config for direct GCS uploads."
         );
     }
@@ -535,7 +549,7 @@ pub struct UploadAttempt<'a> {
 }
 
 impl UploadAttempt<'_> {
-    /// Saves local bundle + debug log, prints diagnostics.
+    /// Saves local bundle and debug log, prints diagnostics.
     pub fn handle_failure(&self, error: &anyhow::Error) -> anyhow::Error {
         let export_dir = trace_exports_dir();
         std::fs::create_dir_all(&export_dir).ok();
@@ -577,7 +591,7 @@ impl UploadAttempt<'_> {
         let _ = writeln!(log, "Trace upload debug log");
         let _ = writeln!(log, "======================");
         let _ = writeln!(log, "Timestamp:    {}", chrono::Utc::now().to_rfc3339());
-        let _ = writeln!(log, "Grok version: {}", env!("VERSION_WITH_COMMIT"));
+        let _ = writeln!(log, "Grok version: {}", xvora_version::full_version());
         let _ = writeln!(
             log,
             "OS:           {} {}",
@@ -623,7 +637,7 @@ async fn upload_with_retries(
     (|| async {
         tokio::time::timeout(
             UPLOAD_TIMEOUT,
-            file_utils::gcs::upload_bytes(config, object_path, archive, "application/gzip"),
+            xvora_file_utils::gcs::upload_bytes(config, object_path, archive, "application/gzip"),
         )
         .await
         .map_err(|_| anyhow::anyhow!("Upload timed out after {}s", UPLOAD_TIMEOUT.as_secs()))?

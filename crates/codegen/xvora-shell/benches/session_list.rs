@@ -1,18 +1,17 @@
 //! Repeated warm-process benchmark for shell session listing.
 //!
-//! The shell-core case measures `build_unified_list` after request parsing
-//! through local row construction. It excludes response serialization, ACP
-//! transport, and pager parsing, filtering, and rendering. Storage cases are
-//! diagnostics.
+//! The shell-core case measures `build_unified_list` from just after request parsing through local row construction.
+//! It excludes response serialization, ACP transport, and pager parsing, filtering, and rendering.
+//! Storage cases are diagnostics.
 //!
-//! The fixture has 3,000 encoded workspaces and 9,864 summaries. Its 32
-//! same-repo CWDs are the main checkout, 15 DB/filesystem overlaps, one dead
-//! DB-only worktree, and 15 filesystem-only worktrees, all with current labels
-//! and interleaved activity. Another 2,968 unrelated CWDs provide scale.
+//! The fixture has 3,000 encoded workspaces and 9,864 summaries.
+//! Its 32 same-repo CWDs are the main checkout, 15 DB/filesystem overlaps, one dead DB-only worktree, and 15 filesystem-only worktrees.
+//! All have current labels and interleaved activity.
+//! Another 2,968 unrelated CWDs provide scale.
 //!
-//! Setup and exact assertions are outside timing. Samples reuse the tree and
-//! process, so filesystem and JSON work uses a warm OS page cache. Fixed
-//! year-2100 timestamps pass the pager cutoff, though pager stages are excluded.
+//! Setup and exact assertions are outside timing.
+//! Samples reuse the tree and process, so filesystem and JSON work uses a warm OS page cache.
+//! Fixed year-2100 timestamps pass the pager cutoff, though pager stages are excluded.
 //!
 //! Run: `cargo bench -p xvora-shell --bench session_list`
 //! Allow roughly 4-8 minutes after compilation for the configured samples.
@@ -28,16 +27,16 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use criterion::{
     BenchmarkId, Criterion, SamplingMode, Throughput, criterion_group, criterion_main,
 };
-use fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 use filetime::{FileTime, set_file_mtime};
 use tempfile::TempDir;
+use xvora_fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 use xvora_shell::session::info::Info;
 use xvora_shell::session::persistence::Summary;
 use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
 use xvora_shell::session::unified_list::{ListReq, UnifiedListResult, build_unified_list};
 
 const WORKSPACE_COUNT: usize = 3_000;
-// Bump whenever workload semantics change, even if aggregate counts do not.
+// Bump whenever the shape of the workload changes, even if aggregate counts do not
 const FIXTURE_SCHEMA_VERSION: usize = 1;
 const MAIN_CHECKOUT_COUNT: usize = 1;
 const LINKED_WORKTREE_COUNT: usize = 30;
@@ -107,7 +106,7 @@ impl Fixture {
             } else {
                 benchmark_unrelated_cwd(workspace_index - SAME_REPO_CANDIDATE_COUNT)
             };
-            let encoded = xvora_shell::util::xvora_home::encode_cwd_dirname(&cwd);
+            let encoded = xvora_shell::util::grok_home::encode_cwd_dirname(&cwd);
             let cwd_dir = sessions_root.join(encoded);
             fs::create_dir(&cwd_dir).expect("create encoded cwd directory");
             let session_count = if same_repo {
@@ -294,7 +293,7 @@ fn create_same_repo_cwds(home: &Path) -> SameRepoTopology {
     let repo = git2::Repository::init(&repo_dir).expect("initialize main git repository");
     repo.remote(
         "origin",
-        "https://github.com/KaiyoDev/session-list-benchmark.git",
+        "https://github.com/xvora-org/session-list-benchmark.git",
     )
     .expect("create benchmark git remote");
 
@@ -488,6 +487,10 @@ fn write_summary(
             id: acp::SessionId::new(session_id),
             cwd: cwd.to_owned(),
         },
+        cwd_generation: 0,
+        previous_cwd: None,
+        pending_cwd_switch_reminder: None,
+        cwd_switch_bookkeeping_generation: 0,
         session_summary: format!("Deterministic benchmark session {ordinal}"),
         created_at: active_at - ChronoDuration::minutes(5),
         updated_at: active_at,
@@ -507,11 +510,11 @@ fn write_summary(
         hidden: None,
         source_workspace_dir: None,
         git_root_dir: Some(cwd.to_owned()),
-        git_remotes: vec!["git@github.com:KaiyoDev/benchmark.git".to_owned()],
+        git_remotes: vec!["git@github.com:xvora-org/benchmark.git".to_owned()],
         head_commit: Some(format!("{ordinal:040x}")),
         head_branch: Some("main".to_owned()),
         request_id: None,
-        xvora_home: None,
+        grok_home: None,
         last_active_at: Some(active_at),
         generated_title: Some(format!("Benchmark session {ordinal}")),
         title_is_manual: false,
@@ -519,6 +522,9 @@ fn write_summary(
         agent_name: Some("benchmark-agent".to_owned()),
         sandbox_profile: Some("workspace".to_owned()),
         reasoning_effort: None,
+        last_turn_summary: None,
+        last_turn_summary_prompt_id: None,
+        last_recap: None,
     };
     let summary_path = session_dir.join("summary.json");
     let bytes = serde_json::to_vec_pretty(&summary).expect("serialize summary");
@@ -555,9 +561,9 @@ fn bench_session_list(c: &mut Criterion) {
     let home = TempDir::new().expect("create fixture root");
     // SAFETY: no runtime or benchmark worker activity exists during setup.
     unsafe {
-        std::env::set_var("XVORA_HOME", home.path());
+        std::env::set_var("GROK_HOME", home.path());
     }
-    assert_eq!(xvora_shell::util::xvora_home::xvora_home(), home.path());
+    assert_eq!(xvora_shell::util::grok_home::grok_home(), home.path());
     let fixture = Fixture::new(home);
 
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -607,6 +613,23 @@ fn bench_session_list(c: &mut Criterion) {
                             .list_sessions(Some(black_box(&fixture.picker_cwd))),
                     )
                     .expect("list cwd sessions"),
+            )
+        })
+    });
+
+    // The `/session-info` title path: one summary loaded by (cwd, id).
+    storage.measurement_time(Duration::from_secs(5));
+    storage.throughput(Throughput::Elements(1));
+    storage.bench_function(BenchmarkId::new("single_summary_load", &fixture_id), |b| {
+        let info = Info {
+            id: acp::SessionId::new("bench-session-0000-00"),
+            cwd: fixture.picker_cwd.clone(),
+        };
+        b.iter_with_large_drop(|| {
+            black_box(
+                runtime
+                    .block_on(fixture.adapter.load_summary(black_box(&info)))
+                    .expect("load single summary"),
             )
         })
     });

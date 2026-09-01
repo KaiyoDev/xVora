@@ -2,7 +2,7 @@
 //!
 //! WAL keeps its wal-index in an mmap'd `-shm` file and relies on coherent
 //! shared memory plus reliable POSIX locks — guarantees network filesystems
-//! do not provide. When `$HOME` (and thus `~/.xvora`) is NFS-mounted on
+//! do not provide. When `$HOME` (and thus `~/.grok`) is NFS-mounted on
 //! several machines at once, a peer host truncating/rebuilding the `-shm`
 //! during WAL recovery or close rips the backing out from under our mapping
 //! and the next wal-index read dies with SIGBUS. On such mounts we use a
@@ -17,6 +17,10 @@ use std::path::{Path, PathBuf};
 /// Wait for peers' locks instead of failing instantly; matches what every
 /// consumer historically set.
 const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(5000);
+
+/// One budget for riding out `SQLITE_BUSY`. Inner retries share the caller's
+/// deadline, so two timers cannot stack into twice the advertised wait.
+pub const BUSY_RETRY_BUDGET: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Journal mode chosen for a SQLite database based on where it lives.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,10 +38,10 @@ impl JournalMode {
     /// Pick the journal mode for a database at `db_path`.
     ///
     /// Classifies the parent directory (the DB file itself may not exist
-    /// yet), so callers must create it first. `XVORA_SQLITE_JOURNAL_MODE`
+    /// yet), so callers must create it first. `GROK_SQLITE_JOURNAL_MODE`
     /// (`wal`|`truncate`) overrides detection as a field kill-switch.
     pub fn for_db_path(db_path: &Path) -> Self {
-        let env = std::env::var("XVORA_SQLITE_JOURNAL_MODE").ok();
+        let env = std::env::var("GROK_SQLITE_JOURNAL_MODE").ok();
         match mode_from_env(env.as_deref()) {
             EnvOverride::Mode(mode) => {
                 // Loud so field flips of the kill-switch are greppable in logs.
@@ -45,7 +49,7 @@ impl JournalMode {
                     db = %db_path.display(),
                     mode = mode.as_str(),
                     source = "env",
-                    "sqlite journal mode forced by XVORA_SQLITE_JOURNAL_MODE"
+                    "sqlite journal mode forced by GROK_SQLITE_JOURNAL_MODE"
                 );
                 return mode;
             }
@@ -53,7 +57,7 @@ impl JournalMode {
                 // A typo in the emergency kill-switch must be loud, not silently ignored.
                 tracing::warn!(
                     value = env.as_deref().unwrap_or_default(),
-                    "invalid XVORA_SQLITE_JOURNAL_MODE (accepted: wal, truncate); using detection"
+                    "invalid GROK_SQLITE_JOURNAL_MODE (accepted: wal, truncate); using detection"
                 );
             }
             EnvOverride::Unset => {}
@@ -130,12 +134,9 @@ impl JournalMode {
 
     /// Open (or create) a read-write connection with this journal mode
     /// applied, at [`Self::effective_db_path`] (per-host on network mounts).
-    /// Sets a 5s `busy_timeout` before the journal pragma (see
-    /// [`Self::apply`] for the conversion-lock semantics).
     pub fn open(self, db_path: &Path) -> rusqlite::Result<rusqlite::Connection> {
         let conn = rusqlite::Connection::open(self.effective_db_path(db_path))?;
-        conn.busy_timeout(BUSY_TIMEOUT)?;
-        self.apply(&conn)?;
+        self.apply_with_retry(&conn)?;
         Ok(conn)
     }
 
@@ -157,6 +158,14 @@ impl JournalMode {
     /// `query_only` is then set so SQL writes are rejected on this arm too —
     /// both arms honor the name.
     pub fn open_readonly(self, db_path: &Path) -> rusqlite::Result<rusqlite::Connection> {
+        self.open_readonly_until(db_path, std::time::Instant::now() + BUSY_RETRY_BUDGET)
+    }
+
+    pub fn open_readonly_until(
+        self,
+        db_path: &Path,
+        deadline: std::time::Instant,
+    ) -> rusqlite::Result<rusqlite::Connection> {
         use rusqlite::OpenFlags;
         let flags = match self {
             Self::Wal => OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -168,7 +177,7 @@ impl JournalMode {
         // exclusive window), and the conversion below requires a busy handler.
         conn.busy_timeout(BUSY_TIMEOUT)?;
         if let Self::Truncate = self {
-            self.apply(&conn)?;
+            self.apply_with_retry_until(&conn, deadline)?;
             // Make the name true: reject SQL writes (statement-level) while
             // the fd stays writable for lock/rollback purposes.
             conn.pragma_update(None, "query_only", true)?;
@@ -183,9 +192,8 @@ impl JournalMode {
     /// acquisition only PARTIALLY honors the busy handler — some lock paths
     /// wait out `busy_timeout`, others (e.g. a peer connection holding a WAL
     /// read-mark) fail fast with `SQLITE_BUSY`. Callers must set
-    /// `busy_timeout` first ([`Self::open`] does), and sites that swallow
-    /// open errors need a bounded retry on busy as well (see
-    /// `set_journal_mode` in `fast-worktree`).
+    /// `busy_timeout` first, or use [`Self::apply_with_retry`] (as
+    /// [`Self::open`] does), which also rides out the fail-fast paths.
     pub fn apply(self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
         match self {
             Self::Wal => conn.pragma_update(None, "journal_mode", "WAL"),
@@ -201,9 +209,64 @@ impl JournalMode {
             }
         }
     }
+
+    /// [`Self::apply`] with a busy retry bounded by [`BUSY_RETRY_BUDGET`] and
+    /// a 1s per-attempt lock wait. Leaves `busy_timeout` at the 5s default.
+    pub fn apply_with_retry(self, conn: &rusqlite::Connection) -> rusqlite::Result<()> {
+        self.apply_with_retry_until(conn, std::time::Instant::now() + BUSY_RETRY_BUDGET)
+    }
+
+    pub fn apply_with_retry_until(
+        self,
+        conn: &rusqlite::Connection,
+        deadline: std::time::Instant,
+    ) -> rusqlite::Result<()> {
+        let result = self.apply_with_retry_inner(conn, deadline);
+        let restore = conn.busy_timeout(BUSY_TIMEOUT);
+        if result.is_err() { result } else { restore }
+    }
+
+    fn apply_with_retry_inner(
+        self,
+        conn: &rusqlite::Connection,
+        deadline: std::time::Instant,
+    ) -> rusqlite::Result<()> {
+        use rusqlite::ErrorCode;
+        use std::time::{Duration, Instant};
+        const RETRY_PAUSE: Duration = Duration::from_millis(20);
+        let start = Instant::now();
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            conn.busy_timeout(remaining.clamp(RETRY_PAUSE, Duration::from_millis(1000)))?;
+            match self.apply(conn) {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    let is_busy = matches!(
+                        &e,
+                        rusqlite::Error::SqliteFailure(f, _)
+                            if matches!(f.code, ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked)
+                    );
+                    if !is_busy || Instant::now() + RETRY_PAUSE >= deadline {
+                        let elapsed_ms = start.elapsed().as_millis();
+                        let message = format!(
+                            "failed to set journal mode {} after {elapsed_ms}ms: {e}",
+                            self.as_str()
+                        );
+                        return Err(match e {
+                            rusqlite::Error::SqliteFailure(f, _) => {
+                                rusqlite::Error::SqliteFailure(f, Some(message))
+                            }
+                            other => other,
+                        });
+                    }
+                    std::thread::sleep(RETRY_PAUSE);
+                }
+            }
+        }
+    }
 }
 
-/// Parse result of the `XVORA_SQLITE_JOURNAL_MODE` kill-switch.
+/// Parse result of the `GROK_SQLITE_JOURNAL_MODE` kill-switch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EnvOverride {
     Unset,
@@ -212,7 +275,7 @@ enum EnvOverride {
     Mode(JournalMode),
 }
 
-/// `XVORA_SQLITE_JOURNAL_MODE` override parsing (pure for testability).
+/// `GROK_SQLITE_JOURNAL_MODE` override parsing (pure for testability).
 fn mode_from_env(value: Option<&str>) -> EnvOverride {
     // Set-but-empty counts as unset: a deliberate blank, not a typo.
     match value {
@@ -582,7 +645,7 @@ mod tests {
     #[test]
     fn for_db_path_defaults_to_wal_on_local_fs() {
         // Ambient override would invalidate the assertion; skip if set.
-        if std::env::var("XVORA_SQLITE_JOURNAL_MODE").is_ok() {
+        if std::env::var("GROK_SQLITE_JOURNAL_MODE").is_ok() {
             return;
         }
         let tmp = TempDir::new().unwrap();

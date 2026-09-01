@@ -1,7 +1,4 @@
-//! Logo component — renders the braille art logo.
-//!
-//! Hidden entirely on legacy Windows consoles: the U+2800 braille block is
-//! not covered by the ConHost raster fonts and would render as tofu.
+//! The logo is hidden entirely on legacy Windows consoles: the ConHost raster fonts do not cover the U+2800 braille block, so it renders as tofu.
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
@@ -16,16 +13,15 @@ const LOGO: &str = include_str!("../../../assets/logo/logo07.txt");
 const LOGO_SMALL: &str = include_str!("../../../assets/logo/logo05.txt");
 
 /// Height at or above which the small logo is shown (below it, no logo).
-/// Sized for logo05 (~5 lines) so typical Windows terminals still show art.
-const SMALL_LOGO_MIN_HEIGHT: u16 = 14;
-/// Height at or above which the full logo is shown (logo07 ~7 lines).
-const FULL_LOGO_MIN_HEIGHT: u16 = 18;
+const SMALL_LOGO_MIN_HEIGHT: u16 = 22;
+/// Height at or above which the full logo is shown.
+const FULL_LOGO_MIN_HEIGHT: u16 = 26;
 
 fn pick_logo(window_height: u16) -> Option<&'static str> {
     pick_logo_for(window_height, logo_hidden())
 }
 
-/// Pure tier selection so tests can drive the legacy-console flag directly.
+/// Takes the legacy-console flag as a parameter so tests can drive it directly.
 fn pick_logo_for(window_height: u16, hidden: bool) -> Option<&'static str> {
     if hidden || window_height < SMALL_LOGO_MIN_HEIGHT {
         None
@@ -36,26 +32,10 @@ fn pick_logo_for(window_height: u16, hidden: bool) -> Option<&'static str> {
     }
 }
 
-/// Whether to suppress the braille logo entirely.
-///
-/// Default: **show** the logo from `assets/logo/*.txt`. Modern Windows
-/// Terminal / ConPTY / WT render U+2800 fine. Bare ConHost raster fonts can
-/// show tofu — those users can set `XVORA_FORCE_LEGACY_CONSOLE=1` to hide
-/// the logo (same override as the ASCII glyph fallbacks).
-///
-/// Previously we default-denied on any non-branded Windows console, which
-/// hid the logo even when launched from Windows Terminal / Cursor / cmd
-/// without `WT_SESSION` exported to the child process.
+/// The braille art has no ASCII stand-in; see the module doc.
 fn logo_hidden() -> bool {
-    matches!(
-        std::env::var("XVORA_FORCE_LEGACY_CONSOLE").ok().as_deref(),
-        Some("1" | "true")
-    )
+    crate::glyphs::is_legacy_windows_console()
 }
-
-/// Braille "blank" cell (U+2800). Used as structural empty dots in the art and
-/// for right-padding so every row shares the same visual width.
-const BRAILLE_BLANK: char = '\u{2800}';
 
 fn non_empty_lines(logo: &str) -> impl Iterator<Item = &str> {
     logo.lines().filter(|l| !l.is_empty())
@@ -72,35 +52,8 @@ fn visual_width(logo: &str) -> u16 {
         .unwrap_or(24) as u16
 }
 
-/// Pad every non-empty row to the same display width with braille blanks.
-///
-/// The generator `rstrip`s trailing U+2800, so rows have unequal lengths.
-/// `Alignment::Center` then shifts each row independently and the X mark
-/// looks shattered. Uniform width keeps the shape intact when centered.
-fn padded_logo_lines(logo: &str) -> Vec<String> {
-    let lines: Vec<&str> = non_empty_lines(logo).collect();
-    let max_w = lines
-        .iter()
-        .map(|l| unicode_width::UnicodeWidthStr::width(*l))
-        .max()
-        .unwrap_or(0);
-    lines
-        .into_iter()
-        .map(|line| {
-            let w = unicode_width::UnicodeWidthStr::width(line);
-            let mut s = line.to_owned();
-            // Braille cells are width-1; pad with U+2800 (not ASCII space) so
-            // width math and column count stay consistent with the art.
-            for _ in 0..(max_w.saturating_sub(w)) {
-                s.push(BRAILLE_BLANK);
-            }
-            s
-        })
-        .collect()
-}
-
-/// Animation phase in seconds since the first render. Wall-clock based so the
-/// shimmer speed is independent of the frame rate.
+/// Animation phase in seconds since the first render.
+/// The phase is wall-clock based so the shimmer speed is independent of the frame rate.
 fn anim_phase_secs() -> f32 {
     use std::sync::OnceLock;
     use std::time::Instant;
@@ -108,15 +61,13 @@ fn anim_phase_secs() -> f32 {
     START.get_or_init(Instant::now).elapsed().as_secs_f32()
 }
 
-/// Shimmer redraw cadence in frames per second. The sweep is slow, so a few fps
-/// looks smooth while sparing the long-lived welcome screen from full-rate
-/// repaints.
+/// Shimmer redraw cadence in frames per second.
+/// The sweep is slow, so a few fps looks smooth while sparing the long-lived welcome screen from full-rate repaints.
 const SHIMMER_FPS: f32 = 12.0;
 
-/// Quantized shimmer frame for the current wall-clock phase. The welcome screen
-/// redraws only when this advances, throttling the animation to ~`SHIMMER_FPS`
-/// rather than the full event-loop tick rate. Pinned to 0 when the logo is
-/// hidden.
+/// Quantized shimmer frame for the current wall-clock phase.
+/// The welcome screen redraws only when this advances, throttling the animation to ~`SHIMMER_FPS` rather than the full event-loop tick rate.
+/// The frame is pinned to 0 when the logo is hidden.
 pub fn shimmer_frame() -> u64 {
     if logo_hidden() {
         return 0;
@@ -124,14 +75,12 @@ pub fn shimmer_frame() -> u64 {
     (anim_phase_secs() * SHIMMER_FPS) as u64
 }
 
-/// Per-glyph shine opacity in `[0, 1]` at normalized diagonal position `diag`
-/// (0 = bottom-left .. 1 = top-right) and animation time `secs`. A raised-cosine
-/// band sweeps bottom-left → top-right and parks off-screen between sweeps; a
-/// gentle global pulse breathes underneath it. 0 keeps the resting gray, 1 is
-/// full bright.
+/// Per-glyph shine opacity in `[0, 1]` at normalized diagonal position `diag` (0 is bottom-left, 1 is top-right) and animation time `secs`.
+/// A raised-cosine band sweeps from bottom-left to top-right and parks off-screen between sweeps; a gentle global pulse breathes underneath it.
+/// 0 keeps the resting gray, 1 is full bright.
 fn shine_opacity(diag: f32, secs: f32) -> f32 {
-    const BAND: f32 = 0.38; // half-width of the shine band — wider = more gradual falloff
-    const CYCLE: f32 = 4.0; // seconds per sweep + rest
+    const BAND: f32 = 0.38; // half-width of the shine band; wider means a more gradual falloff
+    const CYCLE: f32 = 4.0; // seconds for one sweep plus its rest
     const SWEEP_FRAC: f32 = 0.32; // portion of the cycle spent sweeping (~1.3s glint, rest idles)
     const SHINE: f32 = 0.33; // peak shine strength
     const PULSE: f32 = 0.06; // global breathing amount
@@ -151,8 +100,8 @@ fn shine_opacity(diag: f32, secs: f32) -> f32 {
     (pulse + SHINE * shine).clamp(0.0, 1.0)
 }
 
-fn render_into(area: Rect, buf: &mut Buffer, _theme: &Theme, logo: &str) {
-    let lines = padded_logo_lines(logo);
+fn render_into(area: Rect, buf: &mut Buffer, theme: &Theme, logo: &str) {
+    let lines: Vec<&str> = non_empty_lines(logo).collect();
     let rows = lines.len().max(1) as f32;
     let cols = lines
         .iter()
@@ -162,49 +111,35 @@ fn render_into(area: Rect, buf: &mut Buffer, _theme: &Theme, logo: &str) {
         .max(1) as f32;
     let secs = anim_phase_secs();
 
-    // Brand orange (assets/logo.png mark) as resting color; shimmer toward
-    // brighter peach so the X-mark matches the KaiyoDev brand board.
-    // Adjacent glyphs that land on the same blended color share one Span.
-    let base = Color::Rgb(0xF0, 0x6A, 0x28); // warm orange from xVora mark
-    let hilite = Color::Rgb(0xFF, 0xB0, 0x70);
-    // Style key: None = blank braille (no fg — some fonts paint U+2800 as a
-    // solid cell if given a foreground, which "shatters" the X silhouette).
+    // Blend each glyph from the resting gray toward the bright text color by its shine opacity, so a sheen sweeps across the braille art
+    // Adjacent glyphs that land on the same blended color share one Span to hold down the per-frame allocation
+    let base = theme.gray;
+    let hilite = theme.text_primary;
     let logo_lines: Vec<Line> = lines
         .iter()
         .enumerate()
         .map(|(row, line)| {
             let mut spans: Vec<Span> = Vec::new();
             let mut run = String::new();
-            let mut run_style: Option<Option<Color>> = None;
+            let mut run_color: Option<Color> = None;
             for (col, ch) in line.chars().enumerate() {
-                let style_key = if ch == BRAILLE_BLANK {
-                    None
-                } else {
-                    // Sweep along the bottom-left → top-right diagonal.
-                    let diag = (col as f32 + (rows - 1.0 - row as f32)) / (cols + rows);
-                    Some(blend_color(base, hilite, shine_opacity(diag, secs)).unwrap_or(base))
-                };
-                if run_style != Some(style_key) {
-                    if let Some(prev) = run_style {
-                        let style = match prev {
-                            Some(c) => Style::default().fg(c),
-                            None => Style::default(),
-                        };
-                        spans.push(Span::styled(std::mem::take(&mut run), style));
+                // Sweep along the diagonal from bottom-left to top-right: the coordinate grows as col increases and row decreases
+                let diag = (col as f32 + (rows - 1.0 - row as f32)) / (cols + rows);
+                let color = blend_color(base, hilite, shine_opacity(diag, secs)).unwrap_or(base);
+                if run_color != Some(color) {
+                    if let Some(prev) = run_color {
+                        spans.push(Span::styled(
+                            std::mem::take(&mut run),
+                            Style::default().fg(prev),
+                        ));
                     }
-                    run_style = Some(style_key);
+                    run_color = Some(color);
                 }
                 run.push(ch);
             }
-            if let Some(prev) = run_style {
-                let style = match prev {
-                    Some(c) => Style::default().fg(c),
-                    None => Style::default(),
-                };
-                spans.push(Span::styled(run, style));
+            if let Some(prev) = run_color {
+                spans.push(Span::styled(run, Style::default().fg(prev)));
             }
-            // All rows share the same width after padding, so per-line Center
-            // keeps the X geometry coherent.
             Line::from(spans).alignment(Alignment::Center)
         })
         .collect();
@@ -225,10 +160,9 @@ pub fn render_logo(area: Rect, buf: &mut Buffer, theme: &Theme, window_height: u
     }
 }
 
-/// The hero box always shows the full logo: it is laid out beside the menu, so
-/// it fits whenever the box does. These report and render that logo directly,
-/// independent of the height-based [`pick_logo`] tiers used by the stacked
-/// layout. When [`logo_hidden`], they report 0 and render nothing.
+/// The hero box always shows the full logo: it is laid out beside the menu, so it fits whenever the box does.
+/// These report and render that logo directly, independent of the height-based [`pick_logo`] tiers used by the stacked layout.
+/// When [`logo_hidden`], they report 0 and render nothing.
 pub fn full_logo_line_count() -> u16 {
     full_logo_line_count_for(logo_hidden())
 }
@@ -251,8 +185,7 @@ pub fn render_full_logo(area: Rect, buf: &mut Buffer, theme: &Theme) {
     }
 }
 
-/// Line count of the small logo used in minimal's committed welcome card
-/// (0 on a legacy Windows console, where the braille art is suppressed).
+/// Line count of the small logo used in minimal's committed welcome card (0 on a legacy Windows console, where the braille art is suppressed).
 pub fn compact_logo_line_count() -> u16 {
     if logo_hidden() {
         0
@@ -261,8 +194,8 @@ pub fn compact_logo_line_count() -> u16 {
     }
 }
 
-/// Render the small braille logo (centered) into `area` for minimal's welcome
-/// card. No-op when the logo is hidden.
+/// Render the small braille logo (centered) into `area` for minimal's welcome card.
+/// No-op when the logo is hidden.
 pub fn render_compact_logo(area: Rect, buf: &mut Buffer, theme: &Theme) {
     if !logo_hidden() {
         render_into(area, buf, theme, LOGO_SMALL);
@@ -287,8 +220,7 @@ mod tests {
         assert_eq!(pick_logo_for(FULL_LOGO_MIN_HEIGHT, false), Some(LOGO));
     }
 
-    // The braille art has no legacy-safe stand-in, so every height tier must
-    // collapse to no logo when the legacy-console flag is set.
+    // The braille art has no legacy-safe stand-in, so every height tier must collapse to no logo when the legacy-console flag is set
     #[test]
     fn logo_hidden_on_legacy_console_at_every_height() {
         for h in [0, SMALL_LOGO_MIN_HEIGHT, FULL_LOGO_MIN_HEIGHT, u16::MAX] {
@@ -298,8 +230,7 @@ mod tests {
 
     #[test]
     fn hero_box_always_uses_full_logo() {
-        // The box renders the full logo regardless of height (it's laid out
-        // beside the menu), and it's the large variant — never the small one.
+        // The box renders the full logo regardless of height (it's laid out beside the menu), and it's the large variant, never the small one
         assert_eq!(full_logo_line_count_for(false), count_lines(LOGO));
         assert_eq!(full_logo_visual_width_for(false), visual_width(LOGO));
         assert!(full_logo_line_count_for(false) > count_lines(LOGO_SMALL));
@@ -314,9 +245,7 @@ mod tests {
 
     #[test]
     fn compact_logo_line_count_matches_small_logo_when_visible() {
-        // The minimal welcome card budgets exactly the small logo's rows. When
-        // the logo isn't hidden, the count equals the small art's line count and
-        // is strictly shorter than the full logo.
+        // The minimal welcome card budgets exactly the small logo's rows
         if !logo_hidden() {
             assert_eq!(compact_logo_line_count(), count_lines(LOGO_SMALL));
             assert!(compact_logo_line_count() < count_lines(LOGO));
@@ -344,8 +273,7 @@ mod tests {
 
     #[test]
     fn shine_band_sweeps_across() {
-        // The brightest point along the diagonal advances left → right as the
-        // sweep progresses through its active phase.
+        // The brightest point along the diagonal advances from left to right as the sweep progresses through its active phase
         let brightest = |secs: f32| -> f32 {
             (0..=100)
                 .map(|i| i as f32 / 100.0)
@@ -365,27 +293,8 @@ mod tests {
 
     #[test]
     fn shine_rests_dim_between_sweeps() {
-        // During the rest phase the band is parked off-screen, so an interior
-        // glyph falls back to at most the gentle pulse — never full bright.
-        let op = shine_opacity(0.5, 6.0); // secs % 4.0 = 2.0 → past SWEEP_FRAC, in the rest phase
+        // During the rest phase the band is parked off-screen, so an interior glyph falls back to at most the gentle pulse, never full bright
+        let op = shine_opacity(0.5, 6.0); // secs % 4.0 = 2.0, past SWEEP_FRAC, in the rest phase
         assert!(op < 0.2, "resting opacity {op} should stay dim");
-    }
-
-    #[test]
-    fn padded_logo_lines_are_uniform_width() {
-        for raw in [LOGO, LOGO_SMALL] {
-            let padded = padded_logo_lines(raw);
-            assert!(!padded.is_empty());
-            let w = unicode_width::UnicodeWidthStr::width(padded[0].as_str());
-            for (i, line) in padded.iter().enumerate() {
-                assert_eq!(
-                    unicode_width::UnicodeWidthStr::width(line.as_str()),
-                    w,
-                    "row {i} width mismatch after pad"
-                );
-            }
-            // Pad must not shrink content: max original width equals padded width.
-            assert_eq!(w, visual_width(raw) as usize);
-        }
     }
 }

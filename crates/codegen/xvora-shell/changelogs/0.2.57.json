@@ -26,7 +26,7 @@
   },
   {
     "category": "features",
-    "description": "**`xvora plugin install <name>`** now resolves plugins from registered marketplaces instead of only local paths.",
+    "description": "**`grok plugin install <name>`** now resolves plugins from registered marketplaces instead of only local paths.",
     "breaking_change": false
   },
   {

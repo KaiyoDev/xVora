@@ -25,7 +25,7 @@ tempfile = { workspace = true }
 mermaid-to-svg = { workspace = true }
 
 # Subprocess process-group reaping (killpg) for the sync subprocess path, since
-# tty-utils' ProcessGroup only wraps tokio children.
+# xvora-tty-utils' ProcessGroup only wraps tokio children.
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 

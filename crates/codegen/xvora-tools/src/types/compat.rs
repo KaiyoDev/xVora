@@ -1,7 +1,7 @@
 //! Vendor compatibility configuration for third-party agent surfaces
 //! (skills, rules, agents, MCPs, hooks, sessions).
 //!
-//! Historically the agent hard-coded the dir lists `[".xvora", ".agents",
+//! Historically the agent hard-coded the dir lists `[".grok", ".agents",
 //! ".claude", ".cursor"]` (and `RULES_DIRS` / `AGENT_FILENAMES`) across ~6
 //! call sites in three crates. This module now owns the canonical cell registry
 //! used by runtime resolution and diagnostics (env var → config TOML → remote
@@ -127,109 +127,109 @@ pub const COMPAT_CELLS: [CompatCell; 18] = [
     CompatCell::new(
         CompatVendor::Cursor,
         CompatSurface::Skills,
-        "XVORA_CURSOR_SKILLS_ENABLED",
+        "GROK_CURSOR_SKILLS_ENABLED",
         Some(CompatRemoteKey::CursorSkills),
     ),
     CompatCell::new(
         CompatVendor::Cursor,
         CompatSurface::Rules,
-        "XVORA_CURSOR_RULES_ENABLED",
+        "GROK_CURSOR_RULES_ENABLED",
         Some(CompatRemoteKey::CursorRules),
     ),
     CompatCell::new(
         CompatVendor::Cursor,
         CompatSurface::Agents,
-        "XVORA_CURSOR_AGENTS_ENABLED",
+        "GROK_CURSOR_AGENTS_ENABLED",
         Some(CompatRemoteKey::CursorAgents),
     ),
     CompatCell::new(
         CompatVendor::Cursor,
         CompatSurface::Mcps,
-        "XVORA_CURSOR_MCPS_ENABLED",
+        "GROK_CURSOR_MCPS_ENABLED",
         Some(CompatRemoteKey::CursorMcps),
     ),
     CompatCell::new(
         CompatVendor::Cursor,
         CompatSurface::Hooks,
-        "XVORA_CURSOR_HOOKS_ENABLED",
+        "GROK_CURSOR_HOOKS_ENABLED",
         Some(CompatRemoteKey::CursorHooks),
     ),
     CompatCell::new(
         CompatVendor::Cursor,
         CompatSurface::Sessions,
-        "XVORA_CURSOR_SESSIONS_ENABLED",
+        "GROK_CURSOR_SESSIONS_ENABLED",
         Some(CompatRemoteKey::CursorSessions),
     ),
     CompatCell::new(
         CompatVendor::Claude,
         CompatSurface::Skills,
-        "XVORA_CLAUDE_SKILLS_ENABLED",
+        "GROK_CLAUDE_SKILLS_ENABLED",
         Some(CompatRemoteKey::ClaudeSkills),
     ),
     CompatCell::new(
         CompatVendor::Claude,
         CompatSurface::Rules,
-        "XVORA_CLAUDE_RULES_ENABLED",
+        "GROK_CLAUDE_RULES_ENABLED",
         Some(CompatRemoteKey::ClaudeRules),
     ),
     CompatCell::new(
         CompatVendor::Claude,
         CompatSurface::Agents,
-        "XVORA_CLAUDE_AGENTS_ENABLED",
+        "GROK_CLAUDE_AGENTS_ENABLED",
         Some(CompatRemoteKey::ClaudeAgents),
     ),
     CompatCell::new(
         CompatVendor::Claude,
         CompatSurface::Mcps,
-        "XVORA_CLAUDE_MCPS_ENABLED",
+        "GROK_CLAUDE_MCPS_ENABLED",
         Some(CompatRemoteKey::ClaudeMcps),
     ),
     CompatCell::new(
         CompatVendor::Claude,
         CompatSurface::Hooks,
-        "XVORA_CLAUDE_HOOKS_ENABLED",
+        "GROK_CLAUDE_HOOKS_ENABLED",
         Some(CompatRemoteKey::ClaudeHooks),
     ),
     CompatCell::new(
         CompatVendor::Claude,
         CompatSurface::Sessions,
-        "XVORA_CLAUDE_SESSIONS_ENABLED",
+        "GROK_CLAUDE_SESSIONS_ENABLED",
         Some(CompatRemoteKey::ClaudeSessions),
     ),
     CompatCell::new(
         CompatVendor::Codex,
         CompatSurface::Skills,
-        "XVORA_CODEX_SKILLS_ENABLED",
+        "GROK_CODEX_SKILLS_ENABLED",
         None,
     ),
     CompatCell::new(
         CompatVendor::Codex,
         CompatSurface::Rules,
-        "XVORA_CODEX_RULES_ENABLED",
+        "GROK_CODEX_RULES_ENABLED",
         None,
     ),
     CompatCell::new(
         CompatVendor::Codex,
         CompatSurface::Agents,
-        "XVORA_CODEX_AGENTS_ENABLED",
+        "GROK_CODEX_AGENTS_ENABLED",
         None,
     ),
     CompatCell::new(
         CompatVendor::Codex,
         CompatSurface::Mcps,
-        "XVORA_CODEX_MCPS_ENABLED",
+        "GROK_CODEX_MCPS_ENABLED",
         None,
     ),
     CompatCell::new(
         CompatVendor::Codex,
         CompatSurface::Hooks,
-        "XVORA_CODEX_HOOKS_ENABLED",
+        "GROK_CODEX_HOOKS_ENABLED",
         None,
     ),
     CompatCell::new(
         CompatVendor::Codex,
         CompatSurface::Sessions,
-        "XVORA_CODEX_SESSIONS_ENABLED",
+        "GROK_CODEX_SESSIONS_ENABLED",
         Some(CompatRemoteKey::CodexSessions),
     ),
 ];
@@ -358,14 +358,14 @@ impl CompatConfig {
     }
 
     /// Config directories that may contain `skills/` subdirectories, in
-    /// priority order. `.xvora` and `.agents` are always included; `.claude`
+    /// priority order. `.grok` and `.agents` are always included; `.claude`
     /// and `.cursor` are gated on their respective `skills` cell.
     ///
-    /// Replaces the hard-coded `[".xvora", ".agents", ".claude", ".cursor"]`
+    /// Replaces the hard-coded `[".grok", ".agents", ".claude", ".cursor"]`
     /// in `collect_skill_config_dirs`. When all cells are on, the returned
     /// list is identical to the historical constant.
     pub fn skill_config_dirs(&self) -> Vec<&'static str> {
-        let mut dirs = vec![".xvora", ".agents"];
+        let mut dirs = vec![".grok", ".agents"];
         if self.claude.skills {
             dirs.push(".claude");
         }
@@ -375,14 +375,14 @@ impl CompatConfig {
         dirs
     }
 
-    /// Subdirectories scanned for `*.md` rules files. `.xvora/rules` is always
+    /// Subdirectories scanned for `*.md` rules files. `.grok/rules` is always
     /// included; `.claude/rules` and `.cursor/rules` are gated on their
     /// respective `rules` cell.
     ///
     /// Replaces the hard-coded `RULES_DIRS` constant. When all cells are on,
     /// the returned list is identical.
     pub fn rules_dirs(&self) -> Vec<&'static str> {
-        let mut dirs = vec![".xvora/rules"];
+        let mut dirs = vec![".grok/rules"];
         if self.claude.rules {
             dirs.push(".claude/rules");
         }
@@ -511,10 +511,10 @@ mod tests {
 
     #[test]
     fn skill_config_dirs_all_on_matches_legacy_constant() {
-        // Historical constant was `[".xvora", ".agents", ".claude", ".cursor"]`.
+        // Historical constant was `[".grok", ".agents", ".claude", ".cursor"]`.
         assert_eq!(
             CompatConfig::default().skill_config_dirs(),
-            vec![".xvora", ".agents", ".claude", ".cursor"]
+            vec![".grok", ".agents", ".claude", ".cursor"]
         );
     }
 
@@ -522,23 +522,23 @@ mod tests {
     fn skill_config_dirs_gates_each_vendor() {
         let mut c = CompatConfig::default();
         c.cursor.skills = false;
-        assert_eq!(c.skill_config_dirs(), vec![".xvora", ".agents", ".claude"]);
+        assert_eq!(c.skill_config_dirs(), vec![".grok", ".agents", ".claude"]);
 
         c.claude.skills = false;
-        assert_eq!(c.skill_config_dirs(), vec![".xvora", ".agents"]);
+        assert_eq!(c.skill_config_dirs(), vec![".grok", ".agents"]);
 
         // Only the `cursor` cell on (`claude` off): `cursor` still appended last.
         let mut c2 = CompatConfig::default();
         c2.claude.skills = false;
-        assert_eq!(c2.skill_config_dirs(), vec![".xvora", ".agents", ".cursor"]);
+        assert_eq!(c2.skill_config_dirs(), vec![".grok", ".agents", ".cursor"]);
     }
 
     #[test]
     fn rules_dirs_all_on_matches_legacy_constant() {
-        // Historical `RULES_DIRS` was `[".xvora/rules", ".claude/rules", ".cursor/rules"]`.
+        // Historical `RULES_DIRS` was `[".grok/rules", ".claude/rules", ".cursor/rules"]`.
         assert_eq!(
             CompatConfig::default().rules_dirs(),
-            vec![".xvora/rules", ".claude/rules", ".cursor/rules"]
+            vec![".grok/rules", ".claude/rules", ".cursor/rules"]
         );
     }
 
@@ -546,9 +546,9 @@ mod tests {
     fn rules_dirs_gates_each_vendor() {
         let mut c = CompatConfig::default();
         c.cursor.rules = false;
-        assert_eq!(c.rules_dirs(), vec![".xvora/rules", ".claude/rules"]);
+        assert_eq!(c.rules_dirs(), vec![".grok/rules", ".claude/rules"]);
         c.claude.rules = false;
-        assert_eq!(c.rules_dirs(), vec![".xvora/rules"]);
+        assert_eq!(c.rules_dirs(), vec![".grok/rules"]);
     }
 
     #[test]

@@ -2,16 +2,15 @@
 //!
 //! Discovers plugins from multiple sources in priority order:
 //! 1. CLI `--plugin-dir` paths (scope: `CliOverride`)
-//! 2. `.xvora/plugins/*/` (scope: `Project`, walked from cwd to worktree root)
+//! 2. `.grok/plugins/*/` (scope: `Project`, walked from cwd to worktree root)
 //! 3. `.claude/plugins/*/` (scope: `Project`, compat)
-//! 4. `~/.xvora/plugins/*/` (scope: `User`)
+//! 4. `~/.grok/plugins/*/` (scope: `User`)
 //! 5. `~/.claude/plugins/*/` (scope: `User`, compat)
-//!    `~/.xvora/installed-plugins/*/` (scope: `User`, marketplace installs)
+//!    `~/.grok/installed-plugins/*/` (scope: `User`, marketplace installs)
 //!    Installed plugins from `~/.claude/plugins/installed_plugins.json` (scope: `User`)
 //! 6. Paths from `[plugins].paths` in config (scope: `ConfigPath`)
 //!
-//! Deduplicates by canonical path and resolves name conflicts via
-//! the canonical source precedence.
+//! Deduplicates by canonical path and resolves name conflicts via the canonical source precedence.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -28,9 +27,9 @@ use super::trust::TrustStore;
 pub enum PluginScope {
     /// `--plugin-dir` (highest priority, always trusted)
     CliOverride = 0,
-    /// `.xvora/plugins/` or `.claude/plugins/` in project (requires trust)
+    /// `.grok/plugins/` or `.claude/plugins/` in project (requires trust)
     Project = 1,
-    /// `~/.xvora/plugins/` or `~/.claude/plugins/` (always trusted)
+    /// `~/.grok/plugins/` or `~/.claude/plugins/` (always trusted)
     User = 2,
     /// `[plugins].paths` in config (trust depends on location)
     ConfigPath = 3,
@@ -61,23 +60,21 @@ impl std::fmt::Display for PluginScope {
 
 /// The concrete discovery source a plugin came from.
 ///
-/// Finer-grained than [`PluginScope`]: recorded at scan time so consumers
-/// (e.g. the pager's plugins list) don't have to re-derive provenance from
-/// paths. Not part of [`PluginId`], which stays scope-based.
+/// Finer-grained than [`PluginScope`]: recorded at scan time so consumers (e.g. the pager's plugins list) don't have to re-derive it from paths.
+/// Not part of [`PluginId`], which stays scope-based.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PluginOrigin {
     /// CLI `--plugin-dir`.
     CliOverride,
-    /// Project `.xvora/plugins/`.
+    /// Project `.grok/plugins/`.
     ProjectGrok,
     /// Project `.claude/plugins/`.
     ProjectClaude,
-    /// `$XVORA_HOME/plugins/`.
+    /// `$GROK_HOME/plugins/`.
     UserGrok,
     /// `~/.claude/plugins/`.
     UserClaude,
-    /// A compat marketplace clone (project `extraKnownMarketplaces`
-    /// or user `known_marketplaces.json`).
+    /// A compat marketplace clone (project `extraKnownMarketplaces` or user `known_marketplaces.json`).
     ClaudeMarketplace {
         /// Marketplace name from the settings/registry entry.
         marketplace: String,
@@ -87,7 +84,7 @@ pub enum PluginOrigin {
         /// Marketplace name from the `name@marketplace` JSON key, when present.
         marketplace: Option<String>,
     },
-    /// Grok's install registry (`~/.xvora/installed-plugins`).
+    /// Grok's install registry (`~/.grok/installed-plugins`).
     MarketplaceInstall {
         /// Marketplace source display name (None for direct git/local installs).
         source_name: Option<String>,
@@ -183,8 +180,8 @@ pub struct DiscoveryConfig {
 impl DiscoveryConfig {
     /// Ensure every discovered plugin appears in either `enabled` or `disabled`.
     ///
-    /// Plugins from auto-enabled scopes (`CliOverride`, `ConfigPath`) are added
-    /// to `enabled`. All others (`User`, `Project`) are added to `disabled`.
+    /// Plugins from auto-enabled scopes (`CliOverride`, `ConfigPath`) are added to `enabled`.
+    /// All others (`User`, `Project`) are added to `disabled`.
     /// Plugins already present in either list are left untouched.
     pub fn populate_plugin_lists(&mut self, discovered: &[DiscoveredPlugin]) {
         for dp in discovered {
@@ -208,14 +205,13 @@ impl DiscoveryConfig {
 
 // ── Discovery entry point ─────────────────────────────────────────────
 
-/// User plugin directories in priority order: `$XVORA_HOME/plugins` then
-/// `~/.claude/plugins`.
+/// User plugin directories in priority order: `$GROK_HOME/plugins` then `~/.claude/plugins`.
 ///
 /// Unlike agent discovery, plugins are intentionally NOT discovered from a
-/// legacy `~/.xvora/plugins`: plugin trust, persisted plugin-data, and install
-/// paths all resolve under `xvora_home()`, so a plugin scanned from the legacy
-/// tree would appear untrusted and lose its persisted state. Keeping plugins on
-/// `xvora_home()` only avoids that half-initialized state.
+/// legacy `~/.grok/plugins`: plugin trust, persisted plugin-data, and install
+/// paths all resolve under `grok_home()`, so a plugin scanned from the legacy
+/// tree would appear untrusted and lose its persisted state.
+/// Keeping plugins on `grok_home()` only avoids that half-initialized state.
 fn user_plugin_dirs(home: Option<&Path>, grok: Option<&Path>) -> Vec<(PathBuf, PluginOrigin)> {
     let mut dirs = Vec::new();
     if let Some(g) = grok {
@@ -227,7 +223,7 @@ fn user_plugin_dirs(home: Option<&Path>, grok: Option<&Path>) -> Vec<(PathBuf, P
     dirs
 }
 
-/// Origin for a project plugins parent dir: `.claude/plugins` vs `.xvora/plugins`.
+/// Origin for a project plugins parent dir: `.claude/plugins` vs `.grok/plugins`.
 fn project_plugins_dir_origin(plugins_dir: &Path) -> PluginOrigin {
     let is_claude = plugins_dir
         .parent()
@@ -240,14 +236,11 @@ fn project_plugins_dir_origin(plugins_dir: &Path) -> PluginOrigin {
     }
 }
 
-/// Project-scoped plugin parent dirs (`.xvora/plugins`, `.claude/plugins`) that
-/// exist along the `cwd`→git-worktree-root walk (inclusive), or just `cwd`'s own
-/// when `cwd` is not inside a git repo, paired with the resolved git worktree
-/// root (when any). This is the exact set [`discover_plugins`] scans for
-/// `PluginScope::Project`; the folder-trust gate reuses the same chain via
-/// [`project_plugin_dirs_in`] so detection and discovery can never drift. The
-/// returned root lets `discover_plugins` reuse it for the marketplace
-/// `resolve(root)` branch instead of resolving the repo a second time.
+/// Project plugin parent dirs (`.grok/plugins`, `.claude/plugins`) existing along the walk from `cwd` to the git worktree root, plus that root.
+/// Outside a git repo only `cwd` itself is checked.
+/// This is the exact set [`discover_plugins`] scans for `PluginScope::Project`.
+/// The folder-trust gate reuses the same chain via [`project_plugin_dirs_in`] so detection and discovery can never drift.
+/// The returned root lets `discover_plugins` reuse it for the marketplace `resolve(root)` branch instead of resolving the repo a second time.
 pub fn project_plugin_dirs(cwd: Option<&Path>) -> (Vec<PathBuf>, Option<PathBuf>) {
     let Some(cwd) = cwd else {
         return (Vec::new(), None);
@@ -256,21 +249,15 @@ pub fn project_plugin_dirs(cwd: Option<&Path>) -> (Vec<PathBuf>, Option<PathBuf>
     (project_plugin_dirs_in(&chain.dirs), chain.git_root)
 }
 
-/// Existing project plugin parent dirs (`.xvora/plugins`, `.claude/plugins`)
-/// under each dir of a precomputed cwd→git-root chain
-/// ([`crate::repo::RepoDirChain`]). The folder-trust gate reuses its one shared
-/// chain here so detection and discovery can never drift.
+/// Existing project plugin parent dirs (`.grok/plugins`, `.claude/plugins`) under each dir of a precomputed [`crate::repo::RepoDirChain`].
+/// The folder-trust gate reuses its one shared chain here so detection and discovery can never drift.
 pub fn project_plugin_dirs_in(chain_dirs: &[PathBuf]) -> Vec<PathBuf> {
-    crate::repo::existing_subdirs_along(chain_dirs, &[".xvora/plugins", ".claude/plugins"])
+    crate::repo::existing_subdirs_along(chain_dirs, &[".grok/plugins", ".claude/plugins"])
 }
 
-/// Discover all plugins from the filesystem.
-///
 /// `cwd` is used to find the git worktree root for project-scope plugins.
-/// `project_trusted` is the folder-trust verdict for `cwd`; it gates
-/// `Project`-scope plugins (CLI/User/ConfigPath scopes are unaffected).
-/// Returns plugins deduplicated by canonical path, with name conflicts
-/// resolved by scope precedence.
+/// `project_trusted` is the folder-trust verdict for `cwd`; it gates `Project`-scope plugins (CLI/User/ConfigPath scopes are unaffected).
+/// Returns plugins deduplicated by canonical path, with name conflicts resolved by scope precedence.
 pub fn discover_plugins(
     cwd: Option<&Path>,
     config: &DiscoveryConfig,
@@ -298,9 +285,8 @@ pub fn discover_plugins(
         }
     }
 
-    // 2-3. Project plugins (.xvora/plugins/, .claude/plugins/) — scan the SAME
-    // dirs the folder-trust gate detects, via the shared `project_plugin_dirs`
-    // walk (cwd→git root), so discovery and gating can never drift.
+    // 2-3. Project plugins (.grok/plugins/, .claude/plugins/).
+    // Scan the same dirs the folder-trust gate detects, via the shared `project_plugin_dirs` walk, so discovery and gating can never drift
     if let Some(cwd) = cwd {
         let (project_dirs, git_root) = project_plugin_dirs(Some(cwd));
         for plugins_dir in project_dirs {
@@ -317,7 +303,7 @@ pub fn discover_plugins(
         }
 
         // 3b. Marketplace plugins (extraKnownMarketplaces in .claude/settings.json).
-        // Reuse the git root resolved above (one walk, no second discover).
+        // Reuse the git root resolved above instead of walking the repo again
         if let Some(ref root) = git_root {
             for marketplace in &super::marketplace::resolve(root) {
                 for dir in &marketplace.plugin_dirs {
@@ -337,11 +323,10 @@ pub fn discover_plugins(
         }
     }
 
-    // 4-5. User plugins: $XVORA_HOME/plugins, legacy ~/.xvora/plugins, ~/.claude/plugins.
-    // Gate the grok plugins dir on user_xvora_home() so a project's .xvora/plugins
-    // is never scanned as user-global when no home resolves.
-    let grok = xvora_config::user_xvora_home();
-    let plugin_dirs = user_plugin_dirs(dirs::home_dir().as_deref(), grok.as_deref());
+    // 4-5. User plugins: $GROK_HOME/plugins, legacy ~/.grok/plugins, ~/.claude/plugins.
+    // Gate the grok plugins dir on user_grok_home() so a project's .grok/plugins is never scanned as user-global when no home resolves
+    let grok = xvora_config::user_grok_home();
+    let plugin_dirs = user_plugin_dirs(xvora_dirs::home_dir().as_deref(), grok.as_deref());
     for (plugins_dir, origin) in plugin_dirs {
         if plugins_dir.is_dir() {
             scan_plugin_dir(
@@ -358,7 +343,6 @@ pub fn discover_plugins(
 
     // 5a. Known marketplaces (~/.claude/plugins/known_marketplaces.json).
     // Marketplace repos are cloned locally and registered here.
-    // Tracks marketplace installs in installed_plugins.json with explicit
     // Each marketplace has a plugins/ (and optionally external_plugins/) subdirectory.
     for marketplace in &super::marketplace::resolve_known_marketplaces() {
         for dir in &marketplace.plugin_dirs {
@@ -379,8 +363,7 @@ pub fn discover_plugins(
     // 5b. Installed plugins (from install registry's managed directory)
     {
         // Installed plugins are always User scope (auto-trusted).
-        // The user explicitly installed them via marketplace or CLI,
-        // so they should be trusted regardless of install_dir location.
+        // The user explicitly installed them via marketplace or CLI, so they should be trusted regardless of install_dir location
         let registry = super::install_registry::InstallRegistry::load();
         collect_installed_plugins(
             &registry,
@@ -393,11 +376,9 @@ pub fn discover_plugins(
     }
 
     // 5c. Installed plugins (~/.claude/plugins/installed_plugins.json).
-    // installPath entries (nested under cache/<marketplace>/<plugin>/<version>/).
-    // scope wins. Within same scope, first-found (alphabetical by canonical
-    // with explicit installPath entries (nested under cache/<marketplace>/<plugin>/<version>/).
+    // Entries carry explicit installPath dirs (nested under cache/<marketplace>/<plugin>/<version>/)
     // The plugin name is extracted from the JSON key ("name@marketplace").
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = xvora_dirs::home_dir() {
         let installed_json = home
             .join(".claude")
             .join("plugins")
@@ -443,9 +424,7 @@ pub fn discover_plugins(
         }
     }
 
-    // Resolve name conflicts: within the same plugin_name, highest-priority
-    // scope wins. Within same scope, first-found (alphabetical by canonical
-    // path) wins.
+    // Within the same plugin_name, the highest-priority scope wins; within same scope, first-found (alphabetical by canonical path) wins
     resolve_name_conflicts(&mut candidates);
 
     for p in &candidates {
@@ -487,7 +466,7 @@ pub fn discover_plugins(
 
 // ── Internal helpers ──────────────────────────────────────────────────
 
-/// Scan a plugins parent directory (e.g. `~/.xvora/plugins/`) and collect
+/// Scan a plugins parent directory (e.g. `~/.grok/plugins/`) and collect
 /// each subdirectory as a plugin candidate.
 fn scan_plugin_dir(
     plugins_dir: &Path,
@@ -631,8 +610,7 @@ fn collect_plugin(
     let manifest = match load_manifest(plugin_root) {
         Ok(ManifestLoadResult::Found(m)) => *m,
         Ok(ManifestLoadResult::NotFound) => {
-            // Convention-based: derive name from directory, check for
-            // skills/ or agents/ or .mcp.json or hooks/hooks.json
+            // Convention-based: derive name from directory, check for skills/ or agents/ or .mcp.json or hooks/hooks.json
             let Some(name) = name_from_dirname(plugin_root) else {
                 tracing::debug!(
                     path = %plugin_root.display(),
@@ -684,19 +662,18 @@ fn collect_plugin(
         }
     };
 
-    // Determine trust status. Exhaustive match so a new PluginScope variant is a
-    // compile error rather than a silent default.
+    // Determine trust status
+    // Exhaustive match so a new PluginScope variant is a compile error rather than a silent default
     let trusted = match scope {
         PluginScope::CliOverride | PluginScope::User => true,
         PluginScope::ConfigPath => {
             TrustStore::is_config_path_auto_trusted(plugin_root)
                 || trust_store.is_trusted(plugin_root)
         }
-        // Project trust now comes from folder-trust (passed by the caller).
+        // Project trust comes from folder-trust (passed by the caller)
         PluginScope::Project => project_trusted,
     };
 
-    // Build PluginId
     let id = PluginId::new(scope, &canonical, &manifest.name);
 
     // Resolve component paths
@@ -725,10 +702,8 @@ fn collect_plugin(
     });
 }
 
-/// Resolve plugin_name conflicts across scopes.
-///
-/// Within each name group, keep only the highest-priority candidate
-/// (lowest scope ordinal). Log warnings for dropped duplicates.
+/// Within each name group, keep only the highest-priority candidate (lowest scope ordinal).
+/// Log warnings for dropped duplicates.
 fn resolve_name_conflicts(candidates: &mut Vec<DiscoveredPlugin>) {
     let mut name_map: HashMap<String, usize> = HashMap::new();
     let mut to_remove: Vec<usize> = Vec::new();
@@ -740,7 +715,7 @@ fn resolve_name_conflicts(candidates: &mut Vec<DiscoveredPlugin>) {
         match name_map.get(&name) {
             Some(&existing_idx) => {
                 let existing = &candidates[existing_idx];
-                // Lower scope ordinal = higher priority
+                // A lower scope ordinal means higher priority
                 if (candidate.scope as u8) < (existing.scope as u8) {
                     // New candidate wins
                     tracing::warn!(
@@ -811,12 +786,12 @@ struct ClaudeInstalledEntry {
     project_path: Option<PathBuf>,
 }
 
-/// Whether a compat install entry should surface for this session `cwd`.
+/// Whether a compat install entry is visible for this session's `cwd`.
 ///
-/// The `local` and `project` scopes are project-tied (as is any entry with
-/// a non-empty `projectPath`): only visible when `cwd` is under `project_path`
-/// (path-component prefix). Missing/empty project path or cwd cannot prove
-/// in-project, so they stay hidden. User/unscoped with no path always surface.
+/// The `local` and `project` scopes are project-tied, as is any entry with a non-empty `projectPath`.
+/// Those entries are only visible when `cwd` is under `project_path` (path-component prefix).
+/// A missing or empty project path or cwd cannot prove the session is in the project, so those entries stay hidden.
+/// User-scoped and unscoped entries with no project path are always visible.
 fn claude_install_visible(
     scope: Option<&str>,
     project_path: Option<&Path>,
@@ -840,12 +815,10 @@ fn claude_install_visible(
 
 /// Read plugin names and install paths from compat `installed_plugins.json`.
 ///
-/// Keys are `"plugin-name@marketplace"` — the plugin name is extracted from
-/// before `@`, the marketplace name from after it (when present).
-/// Returns `(name, marketplace, path)` tuples. Empty vec on any error.
+/// Keys are `"plugin-name@marketplace"`: the plugin name comes from before the `@`, the marketplace name from after it (when present).
+/// Returns `(name, marketplace, path)` tuples, or an empty vec on any error.
 ///
-/// Project-tied entries are filtered by `cwd` vs `projectPath` (see
-/// [`claude_install_visible`]).
+/// Project-tied entries are filtered by `cwd` vs `projectPath` (see [`claude_install_visible`]).
 fn read_claude_installed_plugins(
     json_path: &Path,
     cwd: Option<&Path>,
@@ -918,11 +891,11 @@ mod tests {
             home.join(".claude").join("plugins"),
             PluginOrigin::UserClaude
         )));
-        // Plugins are not discovered from the legacy ~/.xvora tree.
+        // Plugins are not discovered from the legacy ~/.grok tree.
         assert!(
             !dirs
                 .iter()
-                .any(|(p, _)| p == &home.join(".xvora").join("plugins"))
+                .any(|(p, _)| p == &home.join(".grok").join("plugins"))
         );
     }
 
@@ -959,7 +932,7 @@ mod tests {
     #[test]
     fn project_plugins_dir_origin_distinguishes_grok_and_claude() {
         assert_eq!(
-            project_plugins_dir_origin(Path::new("/repo/.xvora/plugins")),
+            project_plugins_dir_origin(Path::new("/repo/.grok/plugins")),
             PluginOrigin::ProjectGrok
         );
         assert_eq!(
@@ -972,8 +945,8 @@ mod tests {
     fn discover_user_plugins() {
         let tmp = tempfile::tempdir().unwrap();
 
-        // Create ~/.xvora/plugins/ structure
-        let grok_plugins = tmp.path().join(".xvora").join("plugins");
+        // Create ~/.grok/plugins/ structure
+        let grok_plugins = tmp.path().join(".grok").join("plugins");
         std::fs::create_dir_all(&grok_plugins).unwrap();
         make_manifest_plugin(&grok_plugins, "user-tool");
 
@@ -1399,7 +1372,7 @@ mod tests {
     fn plugin_id_format() {
         let id = PluginId::new(
             PluginScope::User,
-            Path::new("/home/user/.xvora/plugins/my-plugin"),
+            Path::new("/home/user/.grok/plugins/my-plugin"),
             "my-plugin",
         );
         assert!(id.0.starts_with("user/"));
@@ -1408,7 +1381,7 @@ mod tests {
         let parts: Vec<&str> = id.0.split('/').collect();
         assert_eq!(parts.len(), 3);
         assert_eq!(parts[0], "user");
-        assert_eq!(parts[1].len(), 8); // 8 hex chars
+        assert_eq!(parts[1].len(), 8);
         assert_eq!(parts[2], "my-plugin");
     }
 
@@ -1445,7 +1418,7 @@ mod tests {
             &mut candidates,
         );
 
-        // No manifest + no skills/agents/mcp/hooks = skipped
+        // No manifest and no skills/agents/mcp/hooks means the dir is skipped
         assert!(candidates.is_empty());
     }
 
@@ -1497,8 +1470,7 @@ mod tests {
 
     #[test]
     fn non_project_scopes_unaffected_by_project_trusted() {
-        // project_trusted = false gates Project scope only: CLI/User stay
-        // auto-trusted and ConfigPath keeps using its own trust store.
+        // project_trusted = false gates Project scope only: CLI/User stay auto-trusted and ConfigPath keeps using its own trust store
         let tmp = tempfile::tempdir().unwrap();
         let cli_dir = make_manifest_plugin(tmp.path(), "cli-tool");
         let user_dir = make_manifest_plugin(tmp.path(), "user-tool");
@@ -1542,12 +1514,11 @@ mod tests {
 
     #[test]
     fn discover_real_project_plugin_gated_on_project_trusted() {
-        // End-to-end through discover_plugins: a repo-local `.xvora/plugins/<x>/`
-        // plugin with an MCP component is trusted iff the folder-trust verdict
-        // (project_trusted) allows it. Found by name so any user-scoped plugins
-        // on the test host are irrelevant.
+        // Drives discover_plugins end to end with a repo-local `.grok/plugins/<x>/` plugin that has an MCP component
+        // The plugin is trusted iff the folder-trust verdict (project_trusted) allows it
+        // The plugin is found by name so any user-scoped plugins on the test host are irrelevant
         let tmp = tempfile::tempdir().unwrap();
-        let plugin_dir = tmp.path().join(".xvora").join("plugins").join("proj-mcp");
+        let plugin_dir = tmp.path().join(".grok").join("plugins").join("proj-mcp");
         std::fs::create_dir_all(&plugin_dir).unwrap();
         std::fs::write(plugin_dir.join("plugin.json"), r#"{"name": "proj-mcp"}"#).unwrap();
         std::fs::write(plugin_dir.join(".mcp.json"), r#"{"mcpServers":{}}"#).unwrap();
@@ -1576,8 +1547,7 @@ mod tests {
 
     #[test]
     fn discover_project_claude_plugin_records_claude_origin() {
-        // Unique name: discover_plugins also scans the dev machine's real
-        // user dirs, and this test finds its plugin by name.
+        // Unique name: discover_plugins also scans the dev machine's real user dirs, and this test finds its plugin by name
         let name = format!("proj-claude-tool-{}", std::process::id());
         let tmp = tempfile::tempdir().unwrap();
         let plugin_dir = tmp.path().join(".claude").join("plugins").join(&name);

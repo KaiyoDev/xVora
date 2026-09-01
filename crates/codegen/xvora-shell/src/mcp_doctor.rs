@@ -1,14 +1,11 @@
-//! `grok mcp doctor` -- runtime health check for MCP servers.
+//! `grok mcp doctor`: runtime health check for MCP servers.
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 
 use serde::Serialize;
 use xvora_tools::types::config_source::ConfigSource;
 
-use crate::auth::GrokComConfig;
-use crate::session::managed_mcp;
 use crate::session::mcp_servers;
 
 // ── Report types ────────────────────────────────────────────────
@@ -102,10 +99,9 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
             .unwrap_or_default();
     plugins_cfg.merge_claude_enabled_plugins(Some(cwd));
     let mut plugin_config = plugins_cfg.to_discovery_config();
-    // Route through the live folder-trust gate (matches actual hook/MCP/LSP
-    // gating) so the doctor report shows an untrusted folder's project plugin
-    // MCP as blocked; no session resolve has run for a one-shot doctor. Resolve
-    // and record the verdict, then gate plugins on it.
+    // Route through the live folder-trust gate, the same gate that covers hooks, MCP, and LSP
+    // The doctor report then shows an untrusted folder's project-plugin MCP servers as blocked
+    // No session resolve has run for a one-shot doctor, so resolve and record the verdict here, then gate plugins on it
     let project_trusted = crate::agent::folder_trust::resolve_and_record(cwd, None, false);
     let discovered_plugins = xvora_agent::plugins::discover_plugins(
         Some(cwd),
@@ -147,18 +143,18 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
 
     let mut sources = Vec::new();
 
-    let xvora_home = xvora_tools::util::xvora_home::xvora_home();
-    let user_config = xvora_home.join("config.toml");
+    let grok_home = xvora_tools::util::grok_home::grok_home();
+    let user_config = grok_home.join("config.toml");
     if user_config.is_file() {
         sources.push(ConfigSourceStatus {
-            path: "~/.xvora/config.toml".to_string(),
+            path: "~/.grok/config.toml".to_string(),
             status: ConfigSourceState::Found {
                 server_count: config_count,
             },
         });
     } else {
         sources.push(ConfigSourceStatus {
-            path: "~/.xvora/config.toml".to_string(),
+            path: "~/.grok/config.toml".to_string(),
             status: ConfigSourceState::NotFound,
         });
     }
@@ -189,7 +185,7 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
                 reason: "claude_compat imported = true".to_string(),
             },
         });
-    } else if let Some(home) = dirs::home_dir() {
+    } else if let Some(home) = xvora_dirs::home_dir() {
         let claude_path = home.join(".claude.json");
         if claude_path.is_file() {
             sources.push(ConfigSourceStatus {
@@ -238,85 +234,6 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
     (sources, servers)
 }
 
-// ── Managed (grok.com) server discovery ─────────────────────────
-
-const MANAGED_SOURCE_LABEL: &str = "grok.com";
-
-fn managed_skipped(reason: impl Into<String>) -> (ConfigSourceStatus, Vec<DiscoveredServer>) {
-    (
-        ConfigSourceStatus {
-            path: MANAGED_SOURCE_LABEL.to_string(),
-            status: ConfigSourceState::Skipped {
-                reason: reason.into(),
-            },
-        },
-        vec![],
-    )
-}
-
-fn managed_found(
-    count: usize,
-    servers: Vec<DiscoveredServer>,
-) -> (ConfigSourceStatus, Vec<DiscoveredServer>) {
-    (
-        ConfigSourceStatus {
-            path: MANAGED_SOURCE_LABEL.to_string(),
-            status: ConfigSourceState::Found {
-                server_count: count,
-            },
-        },
-        servers,
-    )
-}
-
-/// Discover managed `grok_com_*` servers if the user has xAI auth on disk.
-async fn try_discover_managed_servers() -> (ConfigSourceStatus, Vec<DiscoveredServer>) {
-    let xvora_home = xvora_tools::util::xvora_home::xvora_home();
-    let grok_com_config = GrokComConfig::default();
-    let auth_manager = Arc::new(crate::auth::AuthManager::new(&xvora_home, grok_com_config));
-
-    let Some(snapshot) = auth_manager.current_or_expired() else {
-        return managed_skipped("not logged in");
-    };
-    if !snapshot.is_managed_mcp_eligible() {
-        return managed_skipped(format!("{:?} auth (not xAI OIDC)", snapshot.auth_mode));
-    }
-
-    let token = match auth_manager.get_valid_token().await {
-        Ok(key) => key,
-        Err(_) => return managed_skipped("auth expired — Run `xvora login`"),
-    };
-
-    let proxy_url = crate::agent::config::EndpointsConfig::from_effective_config().proxy_url();
-
-    let configs = match managed_mcp::fetch_managed_configs(&proxy_url, &token).await {
-        Ok(configs) => configs,
-        Err(e) => return managed_skipped(format!("fetch failed: {e}")),
-    };
-    if configs.is_empty() {
-        return managed_found(0, vec![]);
-    }
-
-    let mut servers: Vec<agent_client_protocol::McpServer> = vec![];
-    managed_mcp::auto_inject_managed_servers_with_disabled(
-        &mut servers,
-        &configs,
-        &Default::default(),
-    );
-    managed_mcp::inject_managed_headers(&mut servers, &configs);
-
-    let source = ConfigSource::Managed { path: None };
-    let discovered: Vec<DiscoveredServer> = servers
-        .into_iter()
-        .map(|server| DiscoveredServer {
-            server,
-            source: source.clone(),
-        })
-        .collect();
-
-    managed_found(discovered.len(), discovered)
-}
-
 // ── Check functions ─────────────────────────────────────────────
 
 fn resolve_command(command: &str) -> Option<String> {
@@ -362,18 +279,10 @@ async fn check_server_start(
     cwd: &Path,
 ) -> Result<(mcp_servers::McpClient, Check), Check> {
     let start = std::time::Instant::now();
-    let noop = file_utils::events::EventWriter::noop();
-    match mcp_servers::start_mcp_server(
-        acp_server,
-        None,
-        Some(cwd),
-        None,
-        None,
-        &noop,
-        mcp_servers::OauthInteractivity::Interactive,
-    )
-    .await
-    {
+    let noop = xvora_session_events::EventWriter::noop();
+    let ctx = mcp_servers::McpSpawnCtx::standalone(&noop)
+        .with_oauth_discovery(mcp_servers::McpOauthDiscovery::Network);
+    match mcp_servers::start_mcp_server(acp_server, Some(cwd), None, None, &ctx).await {
         Ok(client) => {
             let elapsed = start.elapsed();
             Ok((
@@ -496,7 +405,7 @@ async fn check_server(
                     checks.push(check_tools_list(&service).await);
                 }
             }
-            // Client drops here, killing child process via kill_on_drop.
+            // Client drops here, killing the child process via kill_on_drop
         }
     }
 
@@ -514,11 +423,7 @@ async fn check_server(
 // ── Entry point ─────────────────────────────────────────────────
 
 pub async fn run_doctor(cwd: &Path, name_filter: Option<&str>) -> DoctorReport {
-    let (mut sources, mut discovered) = discover_servers(cwd);
-
-    let (managed_source, managed_servers) = try_discover_managed_servers().await;
-    sources.push(managed_source);
-    discovered.extend(managed_servers);
+    let (mut sources, discovered) = discover_servers(cwd);
 
     let allowlist = &xvora_workspace::permission::resolution::managed_settings().mcp_allowlist;
     if allowlist.is_restricted() {
@@ -551,17 +456,15 @@ pub async fn run_doctor(cwd: &Path, name_filter: Option<&str>) -> DoctorReport {
 
     let disabled_names = crate::util::config::disabled_mcp_server_names(cwd);
 
-    // Folder-trust gate: `grok mcp doctor` actually STARTS each server
-    // (`check_server_start`), so in an untrusted clone it would spawn the repo's
-    // project-scoped servers. Resolve the doctor cwd once (no prompt), then skip
-    // (do not start) any project-scoped server when untrusted. Reuses the same
-    // name primitive as the session/agent-pool gates.
+    // Folder-trust gate: `grok mcp doctor` actually STARTS each server (`check_server_start`)
+    // In an untrusted clone that would spawn the repo's project-scoped servers
+    // Resolve the doctor cwd once (no prompt), then skip (do not start) any project-scoped server when untrusted
+    // Uses the same name lookup (`project_scoped_mcp_names`) as the session/agent-pool gates
     //
-    // `remote = None` is intentional: standalone `grok mcp doctor` has no loaded
-    // `RemoteSettings`, so a remote-only org `folder_trust_enabled = false`
-    // opt-out isn't seen here — gating conservatively (treating the feature as
-    // enabled) is the deliberate fail-secure direction. Local env/user/managed
-    // config disable is still honored by `feature_enabled`.
+    // `remote = None` is intentional: standalone `grok mcp doctor` has no loaded `RemoteSettings`
+    // A remote-only org opt-out (`folder_trust_enabled = false`) isn't seen here
+    // Gating conservatively (treating the feature as enabled) is the deliberate fail-secure choice
+    // Local env/user/managed config disable is still honored by `feature_enabled`
     crate::agent::folder_trust::resolve_and_record(cwd, None, false);
     let untrusted_project: std::collections::HashSet<String> =
         if crate::agent::folder_trust::project_scope_allowed(cwd) {

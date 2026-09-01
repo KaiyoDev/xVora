@@ -10,7 +10,7 @@ use std::process::Stdio;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
-use crate::implementations::xvora::grep::ripgrep::rg_path;
+use crate::implementations::grok_build::grep::ripgrep::rg_path;
 use crate::types::output::ToolOutput;
 #[allow(unused_imports)]
 use crate::types::resources::{
@@ -28,12 +28,14 @@ const MAX_STDOUT_BYTES: usize = 5_000_000;
 
 // ─── Description ────────────────────────────────────────────────────
 
-const DESCRIPTION: &str = r#"Lists files and directories in a given path.
+const DESCRIPTION: &str = r#"Fast file pattern matching tool that works with any codebase size.
 
-Other details:
-    - The result does not display dot-files and dot-directories.
-    - Respects .gitignore patterns (files/directories ignored by git are not shown).
-    - Large directories are summarized with file counts and extension breakdowns instead of listing all files."#;
+- Supports glob patterns like "**/*.js" or "src/**/*.ts" via the required ${{ params.list.pattern }} parameter
+- Optionally set ${{ params.list.path }} to pick the directory to search in (defaults to the current working directory)
+- Returns matching file paths sorted by modification time (most recent first), capped at 100 results
+- Hidden (dot) files are included; .gitignore patterns are respected for paths the pattern does not explicitly match
+- Use this tool when you need to find files by name patterns
+- You can call multiple tools in a single response. It is always better to speculatively perform multiple searches as a batch that are potentially useful."#;
 
 // ─── Input ──────────────────────────────────────────────────────────
 
@@ -90,7 +92,7 @@ pub struct GlobOutput {
     pub cwd_for_display: String,
 }
 
-impl tool_runtime::ToolOutput for GlobOutput {}
+impl xvora_tool_runtime::ToolOutput for GlobOutput {}
 
 impl From<GlobOutput> for ToolOutput {
     fn from(output: GlobOutput) -> Self {
@@ -118,25 +120,28 @@ impl crate::types::tool_metadata::ToolMetadata for GlobTool {
     }
 }
 
-impl tool_runtime::Tool for GlobTool {
+impl xvora_tool_runtime::Tool for GlobTool {
     type Args = GlobInput;
     type Output = GlobOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("glob").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("glob").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "glob",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -144,9 +149,9 @@ impl tool_runtime::Tool for GlobTool {
     #[tracing::instrument(name = "tool.glob", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: GlobInput,
-    ) -> Result<GlobOutput, tool_runtime::ToolError> {
+    ) -> Result<GlobOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -166,7 +171,7 @@ impl tool_runtime::Tool for GlobTool {
 
         // ── Build ripgrep command ───────────────────────────────
         //   rg --files --glob='!.git/*' --hidden --glob=<pattern> <search_dir>
-        let rg_exec = rg_path();
+        let rg_exec = rg_path()?;
         let mut cmd = Command::new(rg_exec);
         cmd.arg("--files")
             .arg("--glob=!.git/*")
@@ -175,10 +180,13 @@ impl tool_runtime::Tool for GlobTool {
             .arg(&input.pattern)
             .arg(&search_dir)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        crate::util::detach_command(&mut cmd);
-        cmd.stdin(Stdio::null());
+            // stderr is never read; a pipe would block rg once warnings fill it.
+            // Cached descriptor, not `Stdio::null()`: an unlinked `/dev/null`
+            // must not fail the spawn.
+            .stderr(xvora_tty_utils::null_stdio());
+        crate::util::detach_search_command(&mut cmd);
 
+        #[allow(clippy::disallowed_methods)] // search helper, waited on below
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
@@ -221,15 +229,12 @@ impl tool_runtime::Tool for GlobTool {
             }
         }
 
-        // Consume stderr to avoid deadlocks.
-        if let Some(stderr_pipe) = child.stderr.take() {
-            let _ = stderr_pipe
-                .take(1_000_000)
-                .read_to_end(&mut Vec::new())
-                .await;
+        if truncated_by_bytes {
+            // Bounded reap: a D-state rg must not stall this future forever.
+            crate::util::reap_killed_search_child(&mut child).await;
+        } else {
+            let _ = child.wait().await;
         }
-
-        let _ = child.wait().await;
 
         // ── Parse file paths from stdout ────────────────────────
         let stdout = String::from_utf8_lossy(&stdout_buf);
@@ -276,7 +281,7 @@ impl tool_runtime::Tool for GlobTool {
         }
 
         // ── Sort by mtime descending (most recent first) ────────
-        entries.sort_by(|a, b| b.mtime_ms.cmp(&a.mtime_ms));
+        entries.sort_by_key(|b| std::cmp::Reverse(b.mtime_ms));
 
         // ── Format output ───────────────────────────────────────
         let count = entries.len();
@@ -333,6 +338,29 @@ mod tests {
         resources
     }
 
+    #[test]
+    fn description_template_tracks_renamed_pattern_and_path() {
+        use crate::types::template_renderer::TemplateRenderer;
+        use crate::types::tool_metadata::ToolMetadata;
+        use std::collections::HashMap;
+
+        let tools = HashMap::from([(ToolKind::List, "glob".to_string())]);
+        let params = HashMap::from([(
+            ToolKind::List,
+            HashMap::from([
+                ("pattern".to_string(), "file_pattern".to_string()),
+                ("path".to_string(), "search_dir".to_string()),
+            ]),
+        )]);
+        let rendered = TemplateRenderer::new(tools, params)
+            .render(ToolMetadata::description_template(&GlobTool))
+            .unwrap();
+        assert!(
+            rendered.contains("file_pattern") && rendered.contains("search_dir"),
+            "renamed pattern/path params must appear:\n{rendered}"
+        );
+    }
+
     #[tokio::test]
     async fn glob_finds_matching_files() {
         let tmp = TempDir::new().unwrap();
@@ -343,7 +371,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -368,7 +396,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -384,6 +412,45 @@ mod tests {
         assert!(output.tool_output_for_prompt.contains("No files found"));
     }
 
+    /// One unreadable subdir must not lose sibling results or report
+    /// truncation (rg's warnings go to a null stderr, not a droppable pipe).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn glob_survives_unreadable_subdir() {
+        use std::os::unix::fs::PermissionsExt;
+        if nix::unistd::geteuid().is_root() {
+            return; // chmod 0o000 doesn't bar root
+        }
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("a.ts"), "x").unwrap();
+        std::fs::write(tmp.path().join("b.ts"), "y").unwrap();
+        let locked = tmp.path().join("locked");
+        std::fs::create_dir(&locked).unwrap();
+        std::fs::write(locked.join("c.ts"), "z").unwrap();
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        let tool = GlobTool;
+        let resources = test_resources(tmp.path());
+        let output = xvora_tool_runtime::Tool::run(
+            &tool,
+            test_ctx(resources.into_shared()),
+            GlobInput {
+                pattern: "*.ts".to_string(),
+                path: None,
+            },
+        )
+        .await;
+
+        // Restore before asserting so TempDir cleanup works even on failure.
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let output = output.unwrap();
+        assert_eq!(output.count, 2, "visible files must all be returned");
+        assert!(!output.truncated);
+        assert!(output.tool_output_for_prompt.contains("a.ts"));
+        assert!(output.tool_output_for_prompt.contains("b.ts"));
+    }
+
     #[tokio::test]
     async fn glob_with_subdirectory_path() {
         let tmp = TempDir::new().unwrap();
@@ -395,7 +462,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -424,7 +491,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -458,7 +525,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -478,7 +545,7 @@ mod tests {
     fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = GlobTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "glob");
+        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "glob");
         assert!(matches!(tool.kind(), ToolKind::List));
         assert!(matches!(tool.tool_namespace(), ToolNamespace::OpenCode));
     }
@@ -514,7 +581,7 @@ mod tests {
         // cwd is the tmp root, but we pass the absolute path to the sub dir
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -537,7 +604,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -561,7 +628,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -581,7 +648,7 @@ mod tests {
         let tool = GlobTool;
         let resources = Resources::new(); // No Cwd inserted
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -610,7 +677,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -639,7 +706,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -672,7 +739,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
 
         // Initialize a git repo so ripgrep respects .gitignore.
-        test_utils::git::ensure_hermetic_git_on_path();
+        xvora_test_utils::git::ensure_hermetic_git_on_path();
         let status = std::process::Command::new("git")
             .args(["init"])
             .current_dir(tmp.path())
@@ -699,7 +766,7 @@ mod tests {
         // Pattern **/*.txt would match both files if .gitignore were not in
         // effect. Because ripgrep processes the ignore stack *before* applying
         // the glob whitelist for directory ignores, ignored_dir/ is pruned.
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -730,7 +797,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {

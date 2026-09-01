@@ -42,4 +42,4 @@ pub use tool::{
     ToolStreamItem, ToolVariant, TypedToolOutput, terminal_only, with_progress,
 };
 
-pub use tool_protocol::{StreamingSpec, ToolCallId, ToolCapabilities, ToolId, ToolScope};
+pub use xvora_tool_protocol::{StreamingSpec, ToolCallId, ToolCapabilities, ToolId, ToolScope};

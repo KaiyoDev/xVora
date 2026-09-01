@@ -16,7 +16,7 @@ impl crate::types::tool_metadata::ToolMetadata for MemorySearchImpl {
     }
 
     fn tool_namespace(&self) -> ToolNamespace {
-        ToolNamespace::Xvora
+        ToolNamespace::GrokBuild
     }
 
     fn description_template(&self) -> &str {
@@ -27,38 +27,43 @@ impl crate::types::tool_metadata::ToolMetadata for MemorySearchImpl {
          - You need project conventions, coding patterns, or user preferences\n\
          - The user mentions something discussed or decided in a previous session\n\
          - Starting work in an unfamiliar part of the codebase\n\
-         - After compaction when prior context may have been lost"
+         - After compaction when prior context may have been lost\n\n\
+         Memory is historical context, not automatically the current plan. Verify recalled facts \
+         against live sources before relying on them."
     }
 }
 
-impl tool_runtime::Tool for MemorySearchImpl {
+impl xvora_tool_runtime::Tool for MemorySearchImpl {
     type Args = MemorySearchInput;
     type Output = ToolOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("memory_search").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("memory_search").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "memory_search",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
 
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: MemorySearchInput,
-    ) -> Result<ToolOutput, tool_runtime::ToolError> {
+    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
         let Some(memory) = resources
@@ -82,8 +87,8 @@ impl tool_runtime::Tool for MemorySearchImpl {
             .search(&input.query, max_results, min_score)
             .await
             .map_err(|e| {
-                tool_runtime::ToolError::execution(
-                    tool_protocol::ToolId::new("memory_search").expect("valid"),
+                xvora_tool_runtime::ToolError::execution(
+                    xvora_tool_protocol::ToolId::new("memory_search").expect("valid"),
                     format!("memory search failed: {e}"),
                 )
             })?;

@@ -1,41 +1,40 @@
 //! PTY e2e: permission Auto mode is distinct on the real pager screen.
 //!
-//! Uses `xvora-pager-pty-harness` (`PtyHarness`) + Shift+Tab (CSI Z,
-//! compatible with `ptyctl` key injection) to cycle Normal → Plan → Auto
-//! and assert the mode banner / status shows Auto without conflating
-//! Always-Approve.
+//! Uses `xvora-pager-pty-harness` (`PtyHarness`) and Shift+Tab (CSI Z, compatible with `ptyctl` key injection) to cycle Normal to Plan to Auto.
+//! The mode banner or status line must show Auto as its own mode, distinct from Always-Approve.
 //!
-//! Auth: seeds `HOME/.xvora/auth.json` from `XVORA_AUTH_JSON` (path) or the
-//! developer's `~/.xvora/auth.json` so the pager skips device-login when
+//! Auth: seeds `HOME/.grok/auth.json` from `GROK_AUTH_JSON` (path) or the
+//! developer's `~/.grok/auth.json` so the pager skips device-login when
 //! credentials exist. Without auth the test records an environmental
 //! failure (login screen) and still asserts the harness API surface.
 //!
 //! Run with:
 //! `cargo test -p xvora-pager --test pty_auto_mode -- --ignored --nocapture`
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use xvora_pager_pty_harness::{PtyHarness, pager_binary};
+use xvora_test_support::TestSandbox;
 
 const ROWS: u16 = 40;
 const COLS: u16 = 120;
 const WELCOME_TIMEOUT: Duration = Duration::from_secs(25);
 const WELCOME_SCREEN_SENTINEL: &str = "Quit";
 
-/// Back-tab / Shift+Tab (CSI Z) — pager binds this to CycleMode.
+/// Back-tab (Shift+Tab, CSI Z); the pager binds it to CycleMode.
 const SHIFT_TAB: &[u8] = b"\x1b[Z";
 
-/// Prefer explicit path, else the user's real `~/.xvora/auth.json`.
+/// Prefer explicit path, else the user's real `~/.grok/auth.json`.
 fn auth_json_source() -> Option<PathBuf> {
-    if let Ok(p) = std::env::var("XVORA_AUTH_JSON") {
+    if let Ok(p) = std::env::var("GROK_AUTH_JSON") {
         let pb = PathBuf::from(p);
         if pb.is_file() {
             return Some(pb);
         }
     }
     dirs_next_home()
-        .map(|h| h.join(".xvora/auth.json"))
+        .map(|h| h.join(".grok/auth.json"))
         .filter(|p| p.is_file())
 }
 
@@ -45,12 +44,15 @@ fn dirs_next_home() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-/// Sandbox HOME + optional auth.json seed (no secrets logged), with the
-/// auto-permission-mode feature gate pinned explicitly via `gate_on` so each
-/// test is self-contained and deterministic regardless of the runner's shell.
-fn prepare_sandbox(home: &Path, gate_on: bool) -> Vec<(String, String)> {
-    let grok = home.join(".xvora");
-    let _ = std::fs::create_dir_all(&grok);
+/// Build the sandbox env: HOME plus an optional auth.json seed (no secrets logged).
+/// `gate_on` pins the auto-permission-mode feature gate so each test is deterministic regardless of the runner's shell.
+fn prepare_sandbox(sandbox: &mut TestSandbox, gate_on: bool) -> Vec<(String, String)> {
+    // Remove rather than empty the fake API key so seeded OIDC remains authoritative.
+    sandbox.remove_env("XAI_API_KEY");
+
+    let home = sandbox.home();
+    let grok = sandbox.grok_home();
+    let _ = std::fs::create_dir_all(grok);
     if let Some(src) = auth_json_source() {
         let dest = grok.join("auth.json");
         if let Err(e) = std::fs::copy(&src, &dest) {
@@ -63,13 +65,11 @@ fn prepare_sandbox(home: &Path, gate_on: bool) -> Vec<(String, String)> {
             );
         }
     } else {
-        eprintln!("pty_auto_mode: no ~/.xvora/auth.json — may hit device login");
+        eprintln!("pty_auto_mode: no ~/.grok/auth.json — may hit device login");
     }
 
     let home_s = home.display().to_string();
     let mut env = vec![
-        ("HOME".into(), home_s.clone()),
-        ("XVORA_HOME".into(), grok.display().to_string()),
         ("XDG_CONFIG_HOME".into(), format!("{home_s}/.config")),
         ("XDG_DATA_HOME".into(), format!("{home_s}/.local/share")),
         ("XDG_CACHE_HOME".into(), format!("{home_s}/.cache")),
@@ -78,16 +78,13 @@ fn prepare_sandbox(home: &Path, gate_on: bool) -> Vec<(String, String)> {
         ("NO_COLOR".into(), "0".into()),
         ("TERM_PROGRAM".into(), "".into()),
         ("TMUX".into(), "".into()),
-        // Do not set XAI_API_KEY — prefer OIDC entry in auth.json (pty_e2e pattern).
     ];
-    // Pin the feature gate explicitly so the cycle is deterministic regardless
-    // of the developer's shell. `XVORA_AUTO_PERMISSION_MODE` is the highest gate
-    // layer below requirements; "1"/"0" parse to on/off (xvora_config::
-    // env_bool), and portable-pty merges this over the inherited environment —
-    // so an exported value can't flip the result (Auto is present in the ring
-    // with the gate on, skipped with it off).
+    // Pin the feature gate explicitly so the cycle is deterministic regardless of the developer's shell
+    // `GROK_AUTO_PERMISSION_MODE` is the highest gate layer below requirements; "1" and "0" parse to on and off (`xvora_config::env_bool`)
+    // portable-pty merges this over the inherited environment, so a value exported in the shell can't flip the result
+    // Auto is in the ring with the gate on and skipped with it off
     env.push((
-        "XVORA_AUTO_PERMISSION_MODE".into(),
+        "GROK_AUTO_PERMISSION_MODE".into(),
         if gate_on { "1" } else { "0" }.into(),
     ));
     env
@@ -99,15 +96,13 @@ fn is_login_screen(screen: &str) -> bool {
         || screen.contains("finish signing in")
 }
 
-/// Whether the caller expects seeded auth (CI / a deliberate e2e run). When set,
-/// hitting the login screen is a real failure (broken auth seeding), not an
-/// environmental skip — so the test hard-fails instead of passing vacuously.
+/// Whether the caller expects seeded auth (CI, or a deliberate e2e run).
+/// When set, hitting the login screen means auth seeding broke, so the test fails instead of passing vacuously.
 fn require_auth() -> bool {
-    std::env::var("XVORA_PTY_REQUIRE_AUTH").is_ok_and(|v| v == "1" || v == "true")
+    std::env::var("GROK_PTY_REQUIRE_AUTH").is_ok_and(|v| v == "1" || v == "true")
 }
 
-/// Cycle into Auto on the welcome / pre-session path and assert screen text
-/// shows Auto (mode banner) while not stuck on Always-Approve alone.
+/// Cycle into Auto on the welcome (pre-session) screen and assert the screen shows Auto (mode banner), not Always-Approve alone.
 #[test]
 #[ignore = "spawns real pager PTY; run with cargo test -- --ignored"]
 fn pty_shift_tab_cycles_to_auto_mode_banner() {
@@ -115,27 +110,27 @@ fn pty_shift_tab_cycles_to_auto_mode_banner() {
         Ok(b) => b,
         Err(e) => panic!("resolve pager binary via harness env: {e:#}"),
     };
-    let tmp = tempfile::tempdir().expect("temp HOME");
-    let env_owned = prepare_sandbox(tmp.path(), true);
+    let mut sandbox = TestSandbox::new();
+    let env_owned = prepare_sandbox(&mut sandbox, true);
     let env_refs: Vec<(&str, &str)> = env_owned
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
         .collect();
 
-    let mut harness = PtyHarness::new(&binary, ROWS, COLS, &[], &env_refs)
-        .expect("spawn pager in PTY (xvora-pager-pty-harness)");
+    let mut harness =
+        PtyHarness::new_in_sandbox(&binary, ROWS, COLS, &[], &sandbox, &env_refs, None)
+            .expect("spawn pager in PTY (xvora-pager-pty-harness)");
 
-    // Drain startup; welcome or agent chrome.
+    // Drain startup output; either the welcome or the agent chrome may be on screen
     let _ = harness.wait_for_text(WELCOME_SCREEN_SENTINEL, WELCOME_TIMEOUT);
     let early = harness.screen_contents();
     if is_login_screen(&early) {
         assert!(
             !require_auth(),
-            "XVORA_PTY_REQUIRE_AUTH set but pager hit the login screen — auth seeding broke"
+            "GROK_PTY_REQUIRE_AUTH set but pager hit the login screen — auth seeding broke"
         );
-        // Auth still blocking (expired token / no network). Honest env failure:
-        // the UI-ring guarantee is covered by the dispatch-level unit tests; save
-        // the screen for debugging.
+        // Auth is still blocking (expired token or no network), an environmental failure
+        // The UI-ring guarantee is covered by the dispatch-level unit tests; save the screen for debugging
         if let Ok(dump) = std::env::var("PTY_AUTO_MODE_SCREEN_DUMP") {
             let _ = std::fs::write(&dump, &early);
         }
@@ -145,21 +140,22 @@ fn pty_shift_tab_cycles_to_auto_mode_banner() {
              see the permission_auto_mode SessionActor wire tests for coverage."
         );
         // Still prove we exercised PtyHarness spawn (not a no-op).
+        let running = harness.is_running().expect("poll pager liveness");
         assert!(
-            harness.is_running() || !early.is_empty(),
+            running || !early.is_empty(),
             "pager must have produced output even on login screen"
         );
         let _ = harness.inject_keys(b"\x11"); // ctrl+q if bound
         return;
     }
 
-    // Normal → Plan
+    // Normal to Plan
     harness
         .inject_keys(SHIFT_TAB)
         .expect("inject Shift+Tab (Plan)");
     let _ = harness.wait_for_text("Plan", Duration::from_secs(8));
 
-    // Plan → Auto
+    // Plan to Auto
     harness
         .inject_keys(SHIFT_TAB)
         .expect("inject Shift+Tab (Auto)");
@@ -188,10 +184,9 @@ fn pty_shift_tab_cycles_to_auto_mode_banner() {
     let _ = harness.inject_keys(b"q");
 }
 
-/// Gate OFF (the shipped default): the Shift+Tab ring must SKIP Auto entirely
-/// (Normal → Plan → Always-Approve → Normal), so the feature is inert and the
-/// classifier never launches. Negative companion to the gate-ON cycle test;
-/// proves the gate governs the UI ring, not just the engine.
+/// Gate off (the shipped default): the Shift+Tab ring must skip Auto entirely, so the feature is inert and the classifier never launches.
+/// The ring cycles Normal, Plan, Always-Approve, back to Normal.
+/// The negative companion to the gate-on cycle test; it proves the gate governs the UI ring, not just the engine.
 #[test]
 #[ignore = "spawns real pager PTY; run with cargo test -- --ignored"]
 fn pty_shift_tab_skips_auto_when_gate_off() {
@@ -199,47 +194,47 @@ fn pty_shift_tab_skips_auto_when_gate_off() {
         Ok(b) => b,
         Err(e) => panic!("resolve pager binary via harness env: {e:#}"),
     };
-    let tmp = tempfile::tempdir().expect("temp HOME");
-    let env_owned = prepare_sandbox(tmp.path(), false);
+    let mut sandbox = TestSandbox::new();
+    let env_owned = prepare_sandbox(&mut sandbox, false);
     let env_refs: Vec<(&str, &str)> = env_owned
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
         .collect();
 
-    let mut harness = PtyHarness::new(&binary, ROWS, COLS, &[], &env_refs)
-        .expect("spawn pager in PTY (xvora-pager-pty-harness)");
+    let mut harness =
+        PtyHarness::new_in_sandbox(&binary, ROWS, COLS, &[], &sandbox, &env_refs, None)
+            .expect("spawn pager in PTY (xvora-pager-pty-harness)");
 
     let _ = harness.wait_for_text(WELCOME_SCREEN_SENTINEL, WELCOME_TIMEOUT);
     let early = harness.screen_contents();
     if is_login_screen(&early) {
         assert!(
             !require_auth(),
-            "XVORA_PTY_REQUIRE_AUTH set but pager hit the login screen — auth seeding broke"
+            "GROK_PTY_REQUIRE_AUTH set but pager hit the login screen — auth seeding broke"
         );
         eprintln!(
             "pty_auto_mode(gate off): login/device-auth screen blocked cycle; env auth limit"
         );
+        let running = harness.is_running().expect("poll pager liveness");
         assert!(
-            harness.is_running() || !early.is_empty(),
+            running || !early.is_empty(),
             "pager must have produced output even on login screen"
         );
         let _ = harness.inject_keys(b"\x11");
         return;
     }
 
-    // Cycle the full ring (4 presses returns to Normal). With the gate off the
-    // ring is Normal → Plan → Always-Approve → Normal: Auto must never appear,
-    // while Plan and Always-Approve still must (the ring otherwise works).
+    // Cycle the full ring (4 presses returns to Normal)
+    // With the gate off the ring is Normal, Plan, Always-Approve, Normal: Auto must never appear
+    // Plan and Always-Approve still must appear, proving the ring otherwise works
     let mut saw_plan = false;
     let mut saw_always = false;
     let mut saw_auto = false;
     for _ in 0..4 {
         harness.inject_keys(SHIFT_TAB).expect("inject Shift+Tab");
-        // Drain output so the NEW mode banner renders before we read. A
-        // `wait_for_text("Switched to mode:")` would hit its fast-path and
-        // return instantly on the prior press's banner still on screen, so we
-        // explicitly pump for a fixed window instead (the screen tracker keeps
-        // only the latest frame, so each read reflects the current mode).
+        // Drain output so the new mode banner renders before we read
+        // `wait_for_text("Switched to mode:")` would hit its fast path and return instantly on the prior press's banner still on screen
+        // Pump for a fixed window instead; the screen tracker keeps only the latest frame, so each read reflects the current mode
         harness.update(Duration::from_secs(2));
         let s = harness.screen_contents();
         if is_login_screen(&s) {
@@ -274,7 +269,7 @@ fn pty_shift_tab_skips_auto_when_gate_off() {
     let _ = harness.inject_keys(b"q");
 }
 
-/// Structural: harness crate exports used by this e2e (fails compile if removed).
+/// Structural: the harness crate exports this e2e uses (fails to compile if they are removed).
 #[test]
 fn pty_harness_api_surface_for_auto_mode_e2e() {
     let _ = std::any::type_name::<PtyHarness>();

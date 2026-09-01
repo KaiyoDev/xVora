@@ -1,14 +1,14 @@
-//! Observability seam for the full-replace (xvora) pass.
+//! Observability seam for the full-replace (grok-build) pass.
 //!
 //! The shared orchestrator reports per-attempt and terminal outcomes through
-//! this trait so each harness can emit its own telemetry (xvora:
+//! this trait so each harness can emit its own telemetry (grok-build:
 //! `CompactionAttempt` rows, `CompactionRetryDegraded` events, span records,
 //! request-artifact persistence) without the shared crate depending on a
 //! telemetry backend. Mirrors
 //! [`IntraCompactionObserver`](crate::intra_compaction::IntraCompactionObserver)
 //! / [`InterCompactionObserver`](crate::inter_compaction::InterCompactionObserver).
 //!
-//! Emission points are part of the behavior contract: the xvora observer
+//! Emission points are part of the behavior contract: the grok-build observer
 //! preserves the pre-migration `CompactionAttempt`/`CompactionRetryDegraded`
 //! semantics byte-for-byte.
 

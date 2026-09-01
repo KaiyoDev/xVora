@@ -1,6 +1,6 @@
 # Getting Started
 
-Xvora is a terminal-based AI coding assistant from SpaceXAI. It runs as a TUI (Terminal User Interface) that understands your codebase, executes shell commands, edits files, searches the web, and manages tasks.
+Grok Build is a terminal-based AI coding assistant from SpaceXAI. It runs as a TUI (Terminal User Interface) that understands your codebase, executes shell commands, edits files, searches the web, and manages tasks.
 
 You can use it interactively as a full-screen TUI, run it headlessly for scripting and CI/CD, or integrate it into editors via the Agent Client Protocol (ACP).
 
@@ -8,35 +8,53 @@ You can use it interactively as a full-screen TUI, run it headlessly for scripti
 
 ## Installation
 
-**Open-source xVora** ships from [KaiyoDev/xVora](https://github.com/KaiyoDev/xVora) — not the xAI / grok-build CDN.
-
-### From GitHub (recommended)
-
-1. Open [Actions → CI](https://github.com/KaiyoDev/xVora/actions) (or [Releases](https://github.com/KaiyoDev/xVora/releases))
-2. Download artifact **`xvora-win-x64`** (`xvora.exe`) or the platform binary for your OS
-3. Place it on your `PATH`, or run it directly:
-
-```powershell
-.\xvora.exe --version
-```
-
-### From npm (if published)
+Install the latest stable release (macOS, Linux, or Windows via Git Bash):
 
 ```bash
-npm i -g @kaiyodev/xvora
+curl -fsSL https://x.ai/cli/install.sh | bash
 ```
+
+Install a specific version:
+
+```bash
+curl -fsSL https://x.ai/cli/install.sh | bash -s 0.1.42
+```
+
+On **Windows (PowerShell)**, use the native PowerShell installer:
+
+```powershell
+irm https://x.ai/cli/install.ps1 | iex
+```
+
+Install a specific version:
+
+```powershell
+$env:GROK_VERSION="0.1.42"; irm https://x.ai/cli/install.ps1 | iex
+```
+
+The PowerShell installer automatically adds `%USERPROFILE%\.grok\bin` to your User PATH. Alternatively, install via [Git for Windows](https://gitforwindows.org/) (Git Bash) or MSYS2 using the bash script above. WSL users get the Linux binary automatically.
 
 Verify the installation:
 
 ```bash
-xvora --version
+grok --version
 ```
 
 Update to the latest version at any time:
 
 ```bash
-xvora update
+grok update
 ```
+
+To fetch a repository through Grove (NFS on macOS, FUSE on Linux) after
+`[clone] enabled = true` in Grove config:
+
+```bash
+grok clone <url> [dir]
+```
+
+The default is a depth-1 checkout of the selected branch. Pass `--full-history`
+for a complete clone. See [grok clone](27-grok-clone.md).
 
 ---
 
@@ -48,12 +66,12 @@ Start Grok by running:
 grok
 ```
 
-On first launch, Grok opens your browser to authenticate with grok.com. After you sign in, Grok stores your credentials in `~/.xvora/auth.json`, where they persist across sessions. Grok refreshes your credentials automatically and prompts you to sign in again when they can no longer be renewed.
+On first launch, Grok opens your browser to authenticate with grok.com. After you sign in, Grok stores your credentials in `~/.grok/auth.json`, where they persist across sessions. Grok refreshes your credentials automatically and prompts you to sign in again when they can no longer be renewed.
 
 If you prefer API key authentication (e.g., for CI/CD or environments without a browser), set the `XAI_API_KEY` environment variable instead:
 
 ```bash
-export XAI_API_KEY="xai-..."
+export XAI_API_KEY="xvora-..."
 grok
 ```
 
@@ -70,7 +88,7 @@ Once authenticated, Grok presents a full-screen TUI with two main areas:
 
 Type a message and press `Enter` to send it. Grok reads files, runs commands, and edits code as needed. Each tool run streams into the scrollback in real time.
 
-Press `Tab` to move focus between the prompt and the scrollback. While a turn is running, `Ctrl+C` cancels it (or clears a non-empty draft first); `Esc` is a no-op mid-turn. Idle, press `Esc` twice within 800ms to clear a non-empty prompt, or (with an empty prompt and conversation messages) to open rewind — see [Keyboard Shortcuts](03-keyboard-shortcuts.md#escape). With the scrollback focused, use the arrow keys to select entries and to collapse or expand them. To navigate with `j`/`k` and fold with `h`/`l` instead, enable Vim mode.
+Press `Tab` to move focus between the prompt and the scrollback. While a turn is running, `Esc` cancels it (the exception is fullscreen vim scrollback mode, where mid-turn `Esc` is a no-op; minimal mode cancels even with vim on); `Ctrl+C` cancels once the composer is empty — with a draft, the first press only clears it. Idle, press `Esc` twice within 800ms to clear a non-empty prompt, or (with an empty prompt and conversation messages) to open rewind — see [Keyboard Shortcuts](03-keyboard-shortcuts.md#escape). With the scrollback focused, use the arrow keys to select entries and to collapse or expand them. To navigate with `j`/`k` and fold with `h`/`l` instead, enable Vim mode.
 
 ### File References
 
@@ -103,7 +121,7 @@ By default, Grok asks for permission before executing shell commands or editing 
 
 ### Sessions
 
-Every conversation is a **session**. Sessions are automatically saved to `~/.xvora/sessions/` and can be resumed later. Each session tracks the full conversation history, tool calls, file edits, and task state.
+Every conversation is a **session**. Sessions are automatically saved to `~/.grok/sessions/` and can be resumed later. Each session tracks the full conversation history, tool calls, file edits, and task state.
 
 - Start a new session: `Ctrl+N` or `/new`
 - Resume a previous session: `/resume` in the TUI, or `--resume <ID>` from the CLI
@@ -143,7 +161,7 @@ Tools can be extended with [MCP servers](05-configuration.md#mcp-servers) for in
 Type `/` in the prompt to access commands. These provide quick actions without writing a full prompt:
 
 ```
-/model xvora                 # Switch model
+/model grok-4.6                 # Switch model
 /compact                          # Compress conversation history
 /always-approve                   # Toggle always-approve mode
 /new                              # Start a new session
@@ -178,7 +196,7 @@ grok --rules "Always use TypeScript. Prefer functional components."
 grok --yolo
 
 # Use a specific model
-grok -m xvora
+grok -m grok-4.6
 
 # Resume a previous session
 grok --resume <session-id>
@@ -186,7 +204,7 @@ grok --resume <session-id>
 # Continue the most recent session
 grok -c
 
-# Experimental scrollback-native render mode. Sticky: plain `xvora` reopens in
+# Experimental scrollback-native render mode. Sticky: plain `grok` reopens in
 # the mode last chosen via --minimal/--fullscreen (or /minimal//fullscreen).
 grok --minimal
 
@@ -194,7 +212,7 @@ grok --minimal
 grok --fullscreen
 
 # Headless mode (for scripts)
-xvora -p "Explain this codebase"
+grok -p "Explain this codebase"
 ```
 
 ---
@@ -204,7 +222,7 @@ xvora -p "Explain this codebase"
 Run Grok non-interactively for scripting, CI/CD, and automation:
 
 ```bash
-xvora -p "Your prompt here"
+grok -p "Your prompt here"
 ```
 
 Output formats:
@@ -218,7 +236,7 @@ Output formats:
 Example CI/CD usage:
 
 ```bash
-xvora -p "Review changes for bugs" --output-format json --yolo | jq -r '.text'
+grok -p "Review changes for bugs" --output-format json --yolo | jq -r '.text'
 ```
 
 ---
@@ -228,7 +246,7 @@ xvora -p "Review changes for bugs" --output-format json --yolo | jq -r '.text'
 Add per-project instructions by creating an `AGENTS.md` file in your repository. Grok reads these files and injects their contents as a project-instructions message at the start of the conversation:
 
 ```
-~/.xvora/AGENTS.md           # Global rules (apply to all projects)
+~/.grok/AGENTS.md           # Global rules (apply to all projects)
 <repo-root>/AGENTS.md       # Repository-level rules
 <cwd>/AGENTS.md             # Directory-level rules (highest priority)
 ```

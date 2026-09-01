@@ -1,7 +1,4 @@
-//! Install registry for managing plugins installed from git repos or local directories.
-//!
-//! Tracks which repos have been cloned/symlinked into the managed install directory,
-//! along with the plugins discovered within each repo.
+//! Tracks which repos have been cloned/symlinked into the managed install directory, along with the plugins discovered within each repo.
 //!
 //! The registry is persisted as `registry.json` in the install directory.
 
@@ -10,10 +7,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Default install directory name under `~/.xvora/`.
+/// Default install directory name under `~/.grok/`.
 const DEFAULT_INSTALL_DIR_NAME: &str = "installed-plugins";
 
-/// Registry of installed repos and their plugins.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstallRegistry {
     /// Schema version for forward compatibility.
@@ -25,7 +21,6 @@ pub struct InstallRegistry {
     install_dir: PathBuf,
 }
 
-/// How a repo was installed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum InstallKind {
@@ -41,15 +36,13 @@ pub enum InstallKind {
     /// Copied from a local directory (full tree snapshot under installed-plugins).
     Local {
         source_path: PathBuf,
-        /// Optional plugin subdirectory selector used at install time (e.g.
-        /// multi-package `path#plugins/foo`). Preserved so refresh rediscovers
-        /// the same scope.
+        /// Optional plugin subdirectory selector used at install time (e.g. multi-package `path#plugins/foo`).
+        /// Preserved so refresh rediscovers the same scope.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         subdir: Option<String>,
     },
 }
 
-/// A single installed repo, which may contain one or more plugins.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledRepo {
     pub kind: InstallKind,
@@ -64,7 +57,6 @@ pub struct InstalledRepo {
     pub marketplace: Option<MarketplaceProvenance>,
 }
 
-/// Marketplace provenance — tracks which marketplace a plugin was installed from.
 /// Lives here (not in xvora-plugin-marketplace) to keep dependency direction sane.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketplaceProvenance {
@@ -76,7 +68,6 @@ pub struct MarketplaceProvenance {
     pub plugin_subdir: String,
 }
 
-/// A plugin discovered within an installed repo.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoPlugin {
     /// Subdirectory within the repo (None if plugin is at repo root).
@@ -101,40 +92,47 @@ fn paths_match_plugin_root(
 
 impl InstallRegistry {
     /// Load the registry from the resolved install directory.
-    ///
     /// If the registry file doesn't exist, returns an empty registry.
     pub fn load() -> Self {
-        let install_dir = Self::resolve_install_dir();
-        let registry_path = install_dir.join("registry.json");
+        Self::load_from(Self::resolve_install_dir())
+    }
 
-        match std::fs::read_to_string(&registry_path) {
-            Ok(content) => match serde_json::from_str::<InstallRegistry>(&content) {
-                Ok(mut reg) => {
-                    reg.install_dir = install_dir;
-                    reg
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        path = %registry_path.display(),
-                        error = %e,
-                        "failed to parse install registry; starting fresh"
-                    );
-                    Self::empty(install_dir)
-                }
-            },
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Self::empty(install_dir),
+    /// Load the registry from an explicit install directory.
+    /// A missing file returns an empty registry. Read or parse errors also return an empty registry, after a warning.
+    pub fn load_from(install_dir: PathBuf) -> Self {
+        match Self::try_load_from(install_dir.clone()) {
+            Ok(reg) => reg,
             Err(e) => {
                 tracing::warn!(
-                    path = %registry_path.display(),
+                    path = %install_dir.join("registry.json").display(),
                     error = %e,
-                    "failed to read install registry; starting fresh"
+                    "failed to load install registry; starting fresh"
                 );
                 Self::empty(install_dir)
             }
         }
     }
 
-    /// Create an empty registry for the given install directory.
+    /// Fallible load: a missing `registry.json` yields an empty registry; read/parse errors yield `Err`.
+    pub fn try_load_from(install_dir: PathBuf) -> Result<Self, InstallError> {
+        let registry_path = install_dir.join("registry.json");
+        match std::fs::read_to_string(&registry_path) {
+            Ok(content) => {
+                let mut reg: InstallRegistry =
+                    serde_json::from_str(&content).map_err(|e| InstallError::Json {
+                        detail: e.to_string(),
+                    })?;
+                reg.install_dir = install_dir;
+                Ok(reg)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::empty(install_dir)),
+            Err(e) => Err(InstallError::Io {
+                path: registry_path,
+                source: e,
+            }),
+        }
+    }
+
     pub fn empty(install_dir: PathBuf) -> Self {
         Self {
             version: 1,
@@ -143,7 +141,6 @@ impl InstallRegistry {
         }
     }
 
-    /// Save the registry to disk.
     pub fn save(&self) -> Result<(), InstallError> {
         self.save_atomic()
     }
@@ -158,7 +155,7 @@ impl InstallRegistry {
         let content = serde_json::to_string_pretty(self).map_err(|e| InstallError::Json {
             detail: e.to_string(),
         })?;
-        if std::env::var_os("XVORA_TEST_FAIL_REGISTRY_SAVE_AFTER_SERIALIZE").is_some() {
+        if std::env::var_os("XAI_GROK_TEST_FAIL_REGISTRY_SAVE_AFTER_SERIALIZE").is_some() {
             return Err(InstallError::InstallFailed {
                 detail: "test-injected registry save failure".into(),
             });
@@ -184,18 +181,15 @@ impl InstallRegistry {
         Ok(())
     }
 
-    /// Get a repo by its repo key.
     pub fn get_repo(&self, repo_key: &str) -> Option<&InstalledRepo> {
         self.repos.get(repo_key)
     }
 
-    /// Get a mutable reference to a repo by its repo key.
     pub fn get_repo_mut(&mut self, repo_key: &str) -> Option<&mut InstalledRepo> {
         self.repos.get_mut(repo_key)
     }
 
     /// Find which repo a plugin belongs to.
-    ///
     /// Returns `(repo_key, repo, plugin)` if found.
     pub fn find_plugin(&self, plugin_name: &str) -> Option<(&str, &InstalledRepo, &RepoPlugin)> {
         for (repo_key, repo) in &self.repos {
@@ -223,58 +217,48 @@ impl InstallRegistry {
         })
     }
 
-    /// Insert a repo into the registry.
     pub fn insert(&mut self, repo_key: String, repo: InstalledRepo) {
         self.repos.insert(repo_key, repo);
     }
 
-    /// Remove a repo from the registry.
     pub fn remove(&mut self, repo_key: &str) -> Option<InstalledRepo> {
         self.repos.remove(repo_key)
     }
 
-    /// List all installed repos.
     pub fn list(&self) -> Vec<(&str, &InstalledRepo)> {
         let mut entries: Vec<_> = self.repos.iter().map(|(k, v)| (k.as_str(), v)).collect();
         entries.sort_by_key(|(k, _)| *k);
         entries
     }
 
-    /// Get the install directory path.
     pub fn install_dir(&self) -> &Path {
         &self.install_dir
     }
 
-    /// Resolve the install directory from config or default.
-    ///
     /// Resolution order:
     /// 1. `[plugins].install_dir` from effective config (requirements > config > managed)
-    /// 2. Default: `~/.xvora/installed-plugins/`
+    /// 2. Default: `~/.grok/installed-plugins/`
     pub fn resolve_install_dir() -> PathBuf {
         if let Some(dir) = Self::read_install_dir_from_config() {
             return dir;
         }
 
-        xvora_config::xvora_home().join(DEFAULT_INSTALL_DIR_NAME)
+        xvora_config::grok_home().join(DEFAULT_INSTALL_DIR_NAME)
     }
 
-    /// Read `[plugins].install_dir` from the effective config
-    /// (managed_config.toml merged under config.toml — user wins).
+    /// Read `[plugins].install_dir` from the effective config (managed_config.toml merged under config.toml; user wins).
     fn read_install_dir_from_config() -> Option<PathBuf> {
         let root = xvora_config::load_effective_config_disk_only().ok()?;
         let value = root.get("plugins")?.get("install_dir")?.as_str()?;
         let expanded = if let Some(stripped) = value.strip_prefix("~/") {
-            dirs::home_dir()?.join(stripped)
+            xvora_dirs::home_dir()?.join(stripped)
         } else {
             PathBuf::from(value)
         };
         Some(expanded)
     }
 
-    /// Generate a unique repo key from a source identifier.
-    ///
-    /// Format: `<basename>-<hash8>` where hash8 = first 8 hex chars of
-    /// SHA-256(normalized source).
+    /// Format: `<basename>-<hash8>` where hash8 is the first 8 hex chars of SHA-256(normalized source).
     ///
     /// Examples:
     /// - `https://github.com/org-a/tools` → `tools-a1b2c3d4`
@@ -334,6 +318,13 @@ pub enum InstallError {
     #[error("SHA verification failed: expected {expected}, got {actual}")]
     ShaMismatch { expected: String, actual: String },
 
+    #[error(
+        "refusing unpinned remote plugin code for '{plugin}' from {url}: \
+         marketplace.require_sha / GROK_MARKETPLACE_REQUIRE_SHA is enabled and \
+         no full commit sha (40/64 hex) is pinned"
+    )]
+    UnpinnedRemoteRefused { plugin: String, url: String },
+
     #[error("install failed: {detail}")]
     InstallFailed { detail: String },
 }
@@ -382,7 +373,6 @@ mod tests {
         assert!(reg.repos.is_empty());
         assert!(reg.list().is_empty());
 
-        // Insert
         reg.insert(
             "test-repo-12345678".to_string(),
             InstalledRepo {

@@ -15,31 +15,32 @@ use crate::implementations::codex::apply_patch::tool::ApplyPatchInput;
 use crate::implementations::codex::grep_files::tool::CodexGrepFilesInput;
 use crate::implementations::codex::list_dir::tool::CodexListDirInput;
 use crate::implementations::codex::read_file::tool::CodexReadFileInput;
+use crate::implementations::grok_build::ask_user_question::AskUserQuestionInput;
+use crate::implementations::grok_build::enter_plan_mode::EnterPlanModeInput;
+use crate::implementations::grok_build::exit_plan_mode::ExitPlanModeInput;
+use crate::implementations::grok_build::grep::GrepSearchInput;
+use crate::implementations::grok_build::image_edit::ImageEditInput;
+use crate::implementations::grok_build::image_gen::ImageGenInput;
+use crate::implementations::grok_build::list_dir::ListDirInput;
+use crate::implementations::grok_build::read_file::ReadFileInput;
+use crate::implementations::grok_build::search_replace::SearchReplaceInput;
+use crate::implementations::grok_build::send_subagent_message::SendSubagentMessageInput;
+use crate::implementations::grok_build::todo::TodoWriteInput;
+use crate::implementations::grok_build::update_goal::UpdateGoalInput;
+use crate::implementations::grok_build::video_gen::{ImageToVideoInput, ReferenceToVideoInput};
+use crate::implementations::grok_build::web_fetch::WebFetchInput;
+use crate::implementations::grok_build::web_search::WebSearchInput;
 use crate::implementations::lsp::LspToolInput;
 use crate::implementations::memory::types::{MemoryGetInput, MemorySearchInput};
 use crate::implementations::opencode::write::WriteInput;
 use crate::implementations::search_tool::SearchToolInput;
 use crate::implementations::skills::skill::SkillInput;
 use crate::implementations::use_tool::UseToolInput;
-use crate::implementations::xvora::ask_user_question::AskUserQuestionInput;
-use crate::implementations::xvora::enter_plan_mode::EnterPlanModeInput;
-use crate::implementations::xvora::exit_plan_mode::ExitPlanModeInput;
-use crate::implementations::xvora::grep::GrepSearchInput;
-use crate::implementations::xvora::image_edit::ImageEditInput;
-use crate::implementations::xvora::image_gen::ImageGenInput;
-use crate::implementations::xvora::list_dir::ListDirInput;
-use crate::implementations::xvora::read_file::ReadFileInput;
-use crate::implementations::xvora::search_replace::SearchReplaceInput;
-use crate::implementations::xvora::todo::TodoWriteInput;
-use crate::implementations::xvora::update_goal::UpdateGoalInput;
-use crate::implementations::xvora::video_gen::{ImageToVideoInput, ReferenceToVideoInput};
-use crate::implementations::xvora::web_fetch::WebFetchInput;
-use crate::implementations::xvora::web_search::WebSearchInput;
 use serde::{Deserialize, Serialize};
-use tool_types::KillTaskToolInput;
-use tool_types::TaskOutputToolInput;
-use tool_types::TaskToolInput;
-use tool_types::WaitTasksToolInput;
+use xvora_tool_types::KillTaskToolInput;
+use xvora_tool_types::TaskOutputToolInput;
+use xvora_tool_types::TaskToolInput;
+use xvora_tool_types::WaitTasksToolInput;
 /// Raw input for an MCP (Model Context Protocol) tool call.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MCPToolInput {
@@ -78,7 +79,7 @@ pub enum ToolInput {
     WebFetch(WebFetchInput),
     Write(WriteInput),
     ApplyPatch(ApplyPatchInput),
-    HashlineEdit(crate::implementations::xvora_hashline::edit::types::HashlineEditInput),
+    HashlineEdit(crate::implementations::grok_build_hashline::edit::types::HashlineEditInput),
     CodexListDir(CodexListDirInput),
     CodexGrepFiles(CodexGrepFilesInput),
     CodexReadFile(CodexReadFileInput),
@@ -89,12 +90,15 @@ pub enum ToolInput {
     EnterPlanMode(EnterPlanModeInput),
     ExitPlanMode(ExitPlanModeInput),
     AskUserQuestion(AskUserQuestionInput),
+    #[serde(alias = "SendAgentMessage")]
+    SendSubagentMessage(SendSubagentMessageInput),
     Lsp(LspToolInput),
-    Monitor(crate::implementations::xvora::monitor::types::MonitorInput),
-    SchedulerCreate(crate::implementations::xvora::scheduler::create::SchedulerCreateInput),
-    SchedulerDelete(crate::implementations::xvora::scheduler::delete::SchedulerDeleteInput),
-    SchedulerList(crate::implementations::xvora::scheduler::list::SchedulerListInput),
+    Monitor(crate::implementations::grok_build::monitor::types::MonitorInput),
+    SchedulerCreate(crate::implementations::grok_build::scheduler::create::SchedulerCreateInput),
+    SchedulerDelete(crate::implementations::grok_build::scheduler::delete::SchedulerDeleteInput),
+    SchedulerList(crate::implementations::grok_build::scheduler::list::SchedulerListInput),
     UpdateGoal(UpdateGoalInput),
+    Workflow(crate::implementations::grok_build::workflow::WorkflowToolInput),
     /// Dynamic input for runtime-registered tools (MCP, etc.)
     Dynamic(serde_json::Value),
 }
@@ -114,6 +118,20 @@ impl ToolInput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_send_agent_message_input_envelope_deserializes() {
+        let input: ToolInput = serde_json::from_value(serde_json::json!({
+            "variant": "SendAgentMessage",
+            "subagent_id": "sub-1",
+            "text": "follow up",
+        }))
+        .expect("legacy input envelope must remain replayable");
+        let ToolInput::SendSubagentMessage(input) = input else {
+            panic!("expected renamed input variant");
+        };
+        assert_eq!(input.subagent_id, "sub-1");
+        assert_eq!(input.text, "follow up");
+    }
     #[test]
     fn try_into_input_succeeds_for_matching_variant() {
         let input = ToolInput::ListDir(ListDirInput {
@@ -173,9 +191,9 @@ mod tests {
             before_context: None,
             after_context: None,
             context: None,
-            case_insensitive: None,
+            case_insensitive: false,
             head_limit: None,
-            multiline: None,
+            multiline: false,
             r#type: None,
         })
         .try_into();
@@ -194,7 +212,7 @@ mod tests {
     }
     #[test]
     fn dynamic_input_holds_arbitrary_json() {
-        let input = ToolInput::Dynamic(serde_json::json!({ "custom" : "data" }));
+        let input = ToolInput::Dynamic(serde_json::json!({"custom": "data"}));
         match input {
             ToolInput::Dynamic(v) => {
                 assert_eq!(v["custom"], "data");

@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use codebase_graph::{IndexBuilder, LanguageRegistry};
+use xvora_codebase_graph::{IndexBuilder, LanguageRegistry};
 
 // Use mimalloc for faster allocation in multi-threaded workloads
 #[global_allocator]

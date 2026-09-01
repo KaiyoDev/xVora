@@ -2,7 +2,7 @@
 //!
 //! This is a faithful port of `codex-rs/core/src/tools/handlers/list_dir.rs`.
 //! It does NOT respect `.gitignore`, does NOT exclude hidden files, and requires
-//! absolute paths. See the plan document for the full diff vs the xvora
+//! absolute paths. See the plan document for the full diff vs the grok-build
 //! `ListDirTool`.
 
 use std::collections::VecDeque;
@@ -45,6 +45,7 @@ pub struct CodexListDirInput {
 
     /// The entry number to start listing from. Must be 1 or greater.
     #[serde(default = "default_offset")]
+    #[schemars(range(min = 1))]
     pub offset: usize,
 
     /// The maximum number of entries to return.
@@ -53,6 +54,7 @@ pub struct CodexListDirInput {
 
     /// The maximum directory depth to traverse. Must be 1 or greater.
     #[serde(default = "default_depth")]
+    #[schemars(range(min = 1))]
     pub depth: usize,
 }
 
@@ -271,25 +273,28 @@ impl crate::types::tool_metadata::ToolMetadata for CodexListDirTool {
     }
 }
 
-impl tool_runtime::Tool for CodexListDirTool {
+impl xvora_tool_runtime::Tool for CodexListDirTool {
     type Args = CodexListDirInput;
     type Output = ListDirOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("list_dir").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("list_dir").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "list_dir",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -301,9 +306,9 @@ impl tool_runtime::Tool for CodexListDirTool {
     )]
     async fn run(
         &self,
-        _ctx: tool_runtime::ToolCallContext,
+        _ctx: xvora_tool_runtime::ToolCallContext,
         input: CodexListDirInput,
-    ) -> Result<ListDirOutput, tool_runtime::ToolError> {
+    ) -> Result<ListDirOutput, xvora_tool_runtime::ToolError> {
         let CodexListDirInput {
             dir_path,
             offset,
@@ -496,7 +501,7 @@ mod tests {
         std::fs::create_dir(tmp.path().join("sub")).unwrap();
 
         let tool = CodexListDirTool;
-        let ctx = tool_runtime::ToolCallContext::default();
+        let ctx = xvora_tool_runtime::ToolCallContext::default();
 
         let input = CodexListDirInput {
             dir_path: tmp.path().to_string_lossy().to_string(),
@@ -505,7 +510,9 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ListDirOutput::Content(content) => {
                 assert!(
@@ -524,7 +531,7 @@ mod tests {
     async fn tool_returns_error_for_invalid_offset() {
         let tmp = TempDir::new().unwrap();
         let tool = CodexListDirTool;
-        let ctx = tool_runtime::ToolCallContext::default();
+        let ctx = xvora_tool_runtime::ToolCallContext::default();
 
         let input = CodexListDirInput {
             dir_path: tmp.path().to_string_lossy().to_string(),
@@ -533,7 +540,9 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "offset must be a 1-indexed entry number");
@@ -546,7 +555,7 @@ mod tests {
     async fn tool_returns_error_for_nonexistent_dir() {
         let tmp = TempDir::new().unwrap();
         let tool = CodexListDirTool;
-        let ctx = tool_runtime::ToolCallContext::default();
+        let ctx = xvora_tool_runtime::ToolCallContext::default();
 
         let input = CodexListDirInput {
             dir_path: tmp.path().join("nonexistent").to_string_lossy().to_string(),
@@ -555,7 +564,9 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert!(
@@ -570,7 +581,7 @@ mod tests {
     #[tokio::test]
     async fn tool_returns_error_for_relative_path() {
         let tool = CodexListDirTool;
-        let ctx = tool_runtime::ToolCallContext::default();
+        let ctx = xvora_tool_runtime::ToolCallContext::default();
 
         let input = CodexListDirInput {
             dir_path: "relative/path".to_string(),
@@ -579,7 +590,9 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "dir_path must be an absolute path");
@@ -592,7 +605,7 @@ mod tests {
     async fn tool_returns_error_for_zero_limit() {
         let tmp = TempDir::new().unwrap();
         let tool = CodexListDirTool;
-        let ctx = tool_runtime::ToolCallContext::default();
+        let ctx = xvora_tool_runtime::ToolCallContext::default();
 
         let input = CodexListDirInput {
             dir_path: tmp.path().to_string_lossy().to_string(),
@@ -601,7 +614,9 @@ mod tests {
             depth: 2,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "limit must be greater than zero");
@@ -614,7 +629,7 @@ mod tests {
     async fn tool_returns_error_for_zero_depth() {
         let tmp = TempDir::new().unwrap();
         let tool = CodexListDirTool;
-        let ctx = tool_runtime::ToolCallContext::default();
+        let ctx = xvora_tool_runtime::ToolCallContext::default();
 
         let input = CodexListDirInput {
             dir_path: tmp.path().to_string_lossy().to_string(),
@@ -623,7 +638,9 @@ mod tests {
             depth: 0,
         };
 
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ListDirOutput::Error(msg) => {
                 assert_eq!(msg, "depth must be greater than zero");
@@ -641,7 +658,7 @@ mod tests {
 
         // Also verify the tool-level wrapper returns Content, not Error.
         let tool = CodexListDirTool;
-        let ctx = tool_runtime::ToolCallContext::default();
+        let ctx = xvora_tool_runtime::ToolCallContext::default();
         let input = CodexListDirInput {
             dir_path: tmp.path().to_string_lossy().to_string(),
             offset: 1,
@@ -649,7 +666,9 @@ mod tests {
             depth: 2,
         };
 
-        let output = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let output = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match output {
             ListDirOutput::Content(content) => {
                 assert!(

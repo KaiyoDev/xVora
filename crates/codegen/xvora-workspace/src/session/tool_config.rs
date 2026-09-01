@@ -16,12 +16,9 @@ use xvora_tools::registry::types::{
     FinalizedToolset, ToolConfig, ToolRegistryBuilder, ToolServerConfig,
 };
 use xvora_tools::types::tool::ToolKind;
-/// Create-shaped entry of the resolution pipeline: run
-/// [`resolve_session_toolset_rebuild`] around a FRESH factory-built
-/// session-lifetime terminal backend, and return that backend so the caller
-/// can store it on the session it is creating. Session-less resolves (the
-/// `__template__` catalog resolve in `connect_hub`) also use this entry and
-/// simply drop the returned backend with the toolset.
+/// Entry point for session creation: runs [`resolve_session_toolset_rebuild`] around a fresh factory-built terminal backend.
+/// The backend lives for the session; it is returned so the caller can store it on the session being created.
+/// Session-less resolves (the `__template__` catalog resolve in `connect_hub`) also use this entry and drop the returned backend with the toolset.
 pub(crate) fn resolve_session_toolset(
     effective_tool_config: ToolServerConfig,
     capability_mode: CapabilityMode,
@@ -31,9 +28,9 @@ pub(crate) fn resolve_session_toolset(
     session_env: Arc<HashMap<String, String>>,
     session_id: &str,
     factory: &dyn SessionContextFactory,
-    local_registry: Option<computer_hub_sdk::LocalRegistry>,
+    local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
     lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
-    viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+    viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
     notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
 ) -> WorkspaceResult<(
     ToolServerConfig,
@@ -58,22 +55,17 @@ pub(crate) fn resolve_session_toolset(
     )?;
     Ok((effective, toolset, terminal_backend))
 }
-/// Rebuild-shaped entry: run steps 2-5 of the resolution pipeline around an
-/// EXISTING session-owned terminal backend. The parameter is non-optional on
-/// purpose: every toolset-swap call site must state which backend it rebuilds
-/// around, so background tasks and shell state can never be orphaned by a
-/// resolve that silently built a fresh backend.
+/// Entry point for toolset rebuilds: runs steps 2-5 of the resolution pipeline around an existing session-owned terminal backend.
+/// The parameter is non-optional on purpose: every toolset-swap call site must state which backend it rebuilds around.
+/// Otherwise a resolve could silently build a fresh backend and orphan background tasks and shell state.
 ///
-/// Returns the *unmodified* `effective_tool_config` (step-1 baseline) so
-/// the caller can store it on the session. The FinalizedToolset reflects
-/// MCP + hub merging and capability filtering on top of that baseline.
+/// Returns the *unmodified* `effective_tool_config` (step-1 baseline) so the caller can store it on the session.
+/// The FinalizedToolset reflects MCP and hub merging and capability filtering on top of that baseline.
 ///
-/// **MCP-origin and hub-origin `kind: None` tools are dropped under
-/// every non-`All` mode.** Baseline `kind: None` tools are always kept —
-/// but before filtering, kind-less baseline entries whose id the binary's
-/// registry knows get their [`ToolKind`] backfilled (see
-/// [`backfill_tool_kinds`]), so the capability filter applies to pinned
-/// server-bind toolsets whose wire entries cannot carry a kind.
+/// **MCP-origin and hub-origin `kind: None` tools are dropped under every non-`All` mode.**
+/// Baseline `kind: None` tools are always kept.
+/// Kind-less baseline entries whose id the binary's registry knows get their [`ToolKind`] backfilled before filtering (see [`backfill_tool_kinds`]).
+/// That backfill lets the capability filter apply to pinned server-bind toolsets whose wire entries cannot carry a kind.
 pub(crate) fn resolve_session_toolset_rebuild(
     effective_tool_config: ToolServerConfig,
     capability_mode: CapabilityMode,
@@ -83,9 +75,9 @@ pub(crate) fn resolve_session_toolset_rebuild(
     session_env: Arc<HashMap<String, String>>,
     session_id: &str,
     factory: &dyn SessionContextFactory,
-    local_registry: Option<computer_hub_sdk::LocalRegistry>,
+    local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
     lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
-    viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+    viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
     notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
     terminal_backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
 ) -> WorkspaceResult<(ToolServerConfig, Arc<FinalizedToolset>)> {
@@ -132,12 +124,9 @@ pub(crate) fn resolve_session_toolset_rebuild(
         })?;
     Ok((effective_tool_config, Arc::new(toolset)))
 }
-/// Backfill `kind: None` baseline entries from the binary's own registry
-/// (fully-qualified id -> declared [`ToolKind`]).
-///
-/// Ids unknown to the registry stay `None` and keep the always-kept
-/// baseline behavior (ad-hoc `ToolConfig::simple` tools). Entries that
-/// already carry a kind are left untouched.
+/// Backfill `kind: None` baseline entries from the binary's own registry (`kinds` maps fully-qualified id to declared [`ToolKind`]).
+/// Ids unknown to the registry stay `None` and keep the always-kept baseline behavior (ad-hoc `ToolConfig::simple` tools).
+/// Entries that already carry a kind are left untouched.
 fn backfill_tool_kinds(
     config: &ToolServerConfig,
     kinds: &HashMap<String, ToolKind>,
@@ -159,12 +148,12 @@ fn backfill_tool_kinds(
 }
 /// Steps 2-4 of the resolution pipeline, without step 5 (`finalize`):
 ///
-/// - **Step 2** -- MCP merge: append MCP-origin tools, skipping ID/name collisions with baseline.
-/// - **Step 3** -- Hub merge: append hub-origin tools, skipping ID/name collisions with baseline or MCP.
-/// - **Step 4** -- Capability filter: drop tools whose `kind` is not allowed by the mode.
+/// - **Step 2** (MCP merge): append MCP-origin tools, skipping ID/name collisions with baseline.
+/// - **Step 3** (Hub merge): append hub-origin tools, skipping ID/name collisions with baseline or MCP.
+/// - **Step 4** (Capability filter): drop tools whose `kind` is not allowed by the mode.
 ///   External (MCP/hub) `kind: None` tools are only kept under `CapabilityMode::All`.
 ///
-/// Priority on ID/name collision: baseline wins > MCP wins > hub is skipped.
+/// Priority on ID/name collision: baseline wins over MCP, and MCP wins over hub.
 pub(crate) fn merge_and_filter(
     baseline: &ToolServerConfig,
     mcp_snapshot: &[ToolConfig],
@@ -191,7 +180,8 @@ pub(crate) fn merge_and_filter(
     for mcp_tool in mcp_snapshot {
         if baseline_ids.contains(mcp_tool.id.as_str()) {
             tracing::warn!(
-                mcp_id = % mcp_tool.id, session = % session_id,
+                mcp_id = %mcp_tool.id,
+                session = %session_id,
                 "skipping MCP tool: id collides with baseline"
             );
             continue;
@@ -199,8 +189,9 @@ pub(crate) fn merge_and_filter(
         let client_name = mcp_tool.resolve_client_name(&mcp_tool.id);
         if !taken_names.insert(client_name.clone()) {
             tracing::warn!(
-                mcp_id = % mcp_tool.id, client_name = % client_name, session = %
-                session_id,
+                mcp_id = %mcp_tool.id,
+                client_name = %client_name,
+                session = %session_id,
                 "skipping MCP tool: resolved client name collides with another tool"
             );
             continue;
@@ -211,14 +202,16 @@ pub(crate) fn merge_and_filter(
     for hub_tool in hub_snapshot {
         if baseline_ids.contains(hub_tool.id.as_str()) {
             tracing::debug!(
-                hub_id = % hub_tool.id, session = % session_id,
+                hub_id = %hub_tool.id,
+                session = %session_id,
                 "skipping remote tool: id collides with baseline"
             );
             continue;
         }
         if mcp_tool_ids.contains(hub_tool.id.as_str()) {
             tracing::debug!(
-                hub_id = % hub_tool.id, session = % session_id,
+                hub_id = %hub_tool.id,
+                session = %session_id,
                 "skipping remote tool: id collides with MCP tool"
             );
             continue;
@@ -226,8 +219,9 @@ pub(crate) fn merge_and_filter(
         let client_name = hub_tool.resolve_client_name(&hub_tool.id);
         if !taken_names.insert(client_name.clone()) {
             tracing::debug!(
-                hub_id = % hub_tool.id, client_name = % client_name, session = %
-                session_id,
+                hub_id = %hub_tool.id,
+                client_name = %client_name,
+                session = %session_id,
                 "skipping remote tool: resolved client name collides with another tool"
             );
             continue;
@@ -250,18 +244,15 @@ pub(crate) fn merge_and_filter(
 }
 /// Alias for backward compatibility.
 pub type NoopSessionContextFactory = WorkspaceSessionContextFactory;
-/// Whether per-session `tool_state.json` persistence + per-turn upload is
-/// enabled (`XVORA_WORKSPACE_TOOL_STATE_ENABLED=true`; any other value keeps
-/// legacy behavior).
+/// Whether per-session `tool_state.json` persistence and per-turn upload are enabled.
+/// Only `GROK_WORKSPACE_TOOL_STATE_ENABLED=true` enables it; any other value keeps legacy behavior.
 pub fn tool_state_enabled() -> bool {
-    std::env::var("XVORA_WORKSPACE_TOOL_STATE_ENABLED").as_deref() == Ok("true")
+    std::env::var("GROK_WORKSPACE_TOOL_STATE_ENABLED").as_deref() == Ok("true")
 }
-/// Sanitize a `session_id` into a single safe filesystem path segment: chars
-/// outside `[A-Za-z0-9_-]` become `_`, empty becomes `anon`. When any
-/// replacement happened, an 8-hex digest of the ORIGINAL id is appended so the
-/// mapping stays injective — plain substitution would collide distinct ids
-/// (`sess/1` and `sess_1`) into one directory, cross-contaminating
-/// persistence, rehydration, and [`crate::recovery::cleanup_stale_sessions`].
+/// Sanitize a `session_id` into a single safe filesystem path segment: chars outside `[A-Za-z0-9_-]` become `_`, empty becomes `anon`.
+/// When any replacement happened, an 8-hex digest of the ORIGINAL id is appended so the mapping stays injective.
+/// Plain substitution would collide distinct ids (`sess/1` and `sess_1`) into one directory.
+/// That would cross-contaminate persistence, rehydration, and [`crate::recovery::cleanup_stale_sessions`].
 /// Already-safe ids (the common UUID case) map to themselves.
 fn sanitize_session_id(session_id: &str) -> String {
     let mut safe = String::with_capacity(session_id.len());
@@ -279,7 +270,7 @@ fn sanitize_session_id(session_id: &str) -> String {
         modified = true;
     }
     if modified {
-        let digest = file_utils::sha256_hex(session_id.as_bytes());
+        let digest = xvora_file_utils::sha256_hex(session_id.as_bytes());
         safe.push('-');
         safe.push_str(&digest[..8]);
     }
@@ -291,39 +282,30 @@ fn ensure_session_dir(root: &std::path::Path, session_id: &str) -> (PathBuf, std
     let created = std::fs::create_dir_all(&dir);
     (dir, created)
 }
-/// Serializes tests (across modules) that mutate the process-global
-/// `XVORA_WORKSPACE_TOOL_STATE_ENABLED`. Aliased to the crate-wide
-/// [`crate::ENV_TEST_LOCK`] so ALL env-mutating tests share ONE lock (the
-/// hazard is the global `environ` array, not the variable's value).
+/// Serializes tests (across modules) that mutate the process-global `GROK_WORKSPACE_TOOL_STATE_ENABLED`.
+/// Aliased to the crate-wide [`crate::ENV_TEST_LOCK`] so ALL env-mutating tests share ONE lock.
+/// The hazard is the global `environ` array, not the variable's value.
 #[cfg(test)]
 pub(crate) use crate::ENV_TEST_LOCK as TOOL_STATE_ENV_LOCK;
-/// [`SessionContextFactory`] for workspace server sessions.
+/// With an [`AuthProvider`] and API base URL, gen tools (image_gen, video_gen) are enabled using the provider's current OAuth token.
+/// Without auth, gen tools default to `Disabled`.
 ///
-/// When constructed with an [`AuthProvider`] and API base URL, gen tools
-/// (image_gen, video_gen) are enabled using the provider's current
-/// OAuth token. Without auth, gen tools default to `Disabled`.
+/// When [`with_tool_state_home`](Self::with_tool_state_home) is set, [`SessionContext::state_path`] is rooted at `<home>/sessions/<session_id>/`.
+/// Left unset, `state_path` stays empty (legacy behavior).
 ///
-/// When [`with_tool_state_home`](Self::with_tool_state_home) is set, each
-/// session's [`SessionContext::state_path`] is rooted at
-/// `<home>/sessions/<session_id>/`; left unset, `state_path` stays empty
-/// (legacy behavior).
+/// [`SessionContext::session_folder`] is `/tmp/sessions/<sanitized_id>/` (terminal logs and other tool artifacts, not the project `cwd`).
 ///
-/// [`SessionContext::session_folder`] is `/tmp/sessions/<sanitized_id>/`
-/// (terminal logs and other tool artifacts — not the project `cwd`).
-///
-/// Terminal backends are persistent-shell [`LocalTerminalBackend`]s, built
-/// once per session by [`build_terminal_backend`] and passed into every
-/// [`build_session_context`] call.
+/// Terminal backends are persistent-shell [`LocalTerminalBackend`]s, built once per session by [`build_terminal_backend`].
+/// The same backend is passed into every [`build_session_context`] call.
 ///
 /// [`build_terminal_backend`]: crate::config::SessionContextFactory::build_terminal_backend
 /// [`build_session_context`]: crate::config::SessionContextFactory::build_session_context
 /// [`LocalTerminalBackend`]: xvora_tools::computer::local::LocalTerminalBackend
 pub struct WorkspaceSessionContextFactory {
-    auth: Option<computer_hub_sdk::SharedAuthProvider>,
+    auth: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
     api_base_url: Option<String>,
-    /// Resolved `$XVORA_WORKSPACE_HOME` when tool-state persistence is enabled;
-    /// `None` disables it. Resolved once by the caller so the factory performs
-    /// no per-build env reads.
+    /// Resolved `$GROK_WORKSPACE_HOME` when tool-state persistence is enabled; `None` disables it.
+    /// Resolved once by the caller so the factory performs no per-build env reads.
     tool_state_home: Option<PathBuf>,
 }
 impl Default for WorkspaceSessionContextFactory {
@@ -339,23 +321,21 @@ impl WorkspaceSessionContextFactory {
             tool_state_home: None,
         }
     }
-    /// Factory with auth — gen tools use the provider's live token.
-    pub fn with_auth(auth: computer_hub_sdk::SharedAuthProvider, api_base_url: String) -> Self {
+    /// Factory with auth: gen tools use the provider's live token.
+    pub fn with_auth(auth: xvora_computer_hub_sdk::SharedAuthProvider, api_base_url: String) -> Self {
         Self {
             auth: Some(auth),
             api_base_url: Some(api_base_url),
             tool_state_home: None,
         }
     }
-    /// Enable session-keyed tool-state persistence rooted at `home`
-    /// (`$XVORA_WORKSPACE_HOME`). Callers should only invoke this when
-    /// [`tool_state_enabled`] is `true`.
+    /// Enable session-keyed tool-state persistence rooted at `home` (`$GROK_WORKSPACE_HOME`).
+    /// Callers should only invoke this when [`tool_state_enabled`] is `true`.
     pub fn with_tool_state_home(mut self, home: PathBuf) -> Self {
         self.tool_state_home = Some(home);
         self
     }
-    /// `<tool_state_home>/sessions/<sanitized_id>/tool_state.json`, or empty
-    /// when persistence is disabled / dir creation fails.
+    /// `<tool_state_home>/sessions/<sanitized_id>/tool_state.json`, or empty when persistence is disabled or dir creation fails.
     fn resolve_state_path(&self, session_id: &str) -> PathBuf {
         let Some(home) = self.tool_state_home.as_ref() else {
             return PathBuf::new();
@@ -363,13 +343,16 @@ impl WorkspaceSessionContextFactory {
         let (dir, created) = ensure_session_dir(home, session_id);
         if let Err(e) = created {
             tracing::warn!(
-                session = % session_id, dir = % dir.display(), error = % e,
+                session = %session_id,
+                dir = %dir.display(),
+                error = %e,
                 "tool_state: failed to create session dir; persistence disabled for session"
             );
             return PathBuf::new();
         }
         tracing::debug!(
-            session = % session_id, dir = % dir.display(),
+            session = %session_id,
+            dir = %dir.display(),
             "tool_state: persistence bound to session-keyed dir"
         );
         dir.join("tool_state.json")
@@ -379,7 +362,9 @@ impl WorkspaceSessionContextFactory {
         let (dir, created) = ensure_session_dir(std::path::Path::new("/tmp"), session_id);
         if let Err(e) = created {
             tracing::warn!(
-                session = % session_id, dir = % dir.display(), error = % e,
+                session = %session_id,
+                dir = %dir.display(),
+                error = %e,
                 "session_folder: failed to create dir; tools may create it on write"
             );
         }
@@ -394,10 +379,10 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
         session_env: Arc<HashMap<String, String>>,
         backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
     ) -> xvora_tools::registry::types::SessionContext {
+        use xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
+        use xvora_tools::implementations::grok_build::image_gen::ImageGenConfig;
+        use xvora_tools::implementations::grok_build::video_gen::VideoGenConfig;
         use xvora_tools::implementations::web_search::WebSearchConfig;
-        use xvora_tools::implementations::xvora::deploy_app::AppBuilderDeployerConfig;
-        use xvora_tools::implementations::xvora::image_gen::ImageGenConfig;
-        use xvora_tools::implementations::xvora::video_gen::VideoGenConfig;
         let fs = Arc::new(xvora_tools::computer::local::LocalFs)
             as Arc<dyn xvora_tools::computer::types::AsyncFileSystem>;
         let notification_handle = xvora_tools::notification::ToolNotificationHandle::noop();
@@ -405,7 +390,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
             if let (Some(auth), Some(url)) = (&self.auth, &self.api_base_url) {
                 let cred = auth.current();
                 match cred {
-                    computer_hub_sdk::AuthCredential::Bearer { token, .. } => {
+                    xvora_computer_hub_sdk::AuthCredential::Bearer { token, .. } => {
                         let headers = build_proxy_headers(url);
                         (
                             ImageGenConfig::Enabled {
@@ -415,6 +400,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
                                 image_gen_enabled: true,
                                 image_edit_enabled: true,
                                 model_override: None,
+                                edit_model_override: None,
                                 tier_restricted: false,
                             },
                             VideoGenConfig::Enabled {
@@ -423,6 +409,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
                                 extra_headers: headers.clone(),
                                 zdr_video_output_s3: None,
                                 tier_restricted: false,
+                                zdr_restricted: false,
                             },
                             WebSearchConfig::Enabled {
                                 api_key: token,
@@ -430,6 +417,8 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
                                 model: default_web_search_model(),
                                 extra_headers: headers,
                                 alpha_test_key: None,
+                                allowed_domains: None,
+                                excluded_domains: None,
                             },
                             AppBuilderDeployerConfig::default(),
                         )
@@ -456,7 +445,8 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
             session_folder: Self::resolve_session_folder(session_id),
             session_env,
             notification_handle,
-            owner_session_id: None,
+            owner_session_id: Some(session_id.to_string()),
+            subagent: None,
             parent_scheduler_handle: None,
             skills: vec![],
             state_path: self.resolve_state_path(session_id),
@@ -475,7 +465,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
     }
     fn build_terminal_backend(&self) -> crate::config::SessionTerminalBackend {
         crate::config::SessionTerminalBackend::local(
-            xvora_tools::computer::local::LocalTerminalBackend::with_persistent_shell(),
+            xvora_tools::computer::local::LocalTerminalBackend::new(),
         )
     }
     fn registry_builder(&self) -> ToolRegistryBuilder {
@@ -497,6 +487,10 @@ fn build_proxy_headers(base_url: &str) -> indexmap::IndexMap<String, String> {
         format!("xvora-workspace/{version}"),
     );
     headers.insert("x-grok-client-version".to_string(), version.to_string());
+    headers.insert(
+        "x-grok-client-identifier".to_string(),
+        std::env::var("GROK_CLIENT_NAME").unwrap_or_else(|_| "grok-shell".to_string()),
+    );
     if base_url.contains("cli-chat-proxy") || base_url.contains("chat-proxy") {
         headers.insert("X-XAI-Token-Auth".to_string(), "xvora-cli".to_string());
         headers.insert(
@@ -506,24 +500,26 @@ fn build_proxy_headers(base_url: &str) -> indexmap::IndexMap<String, String> {
     }
     headers
 }
-/// Build web fetch config. Enabled with default params unless
-/// `XVORA_DISABLE_WEB_FETCH=1` is set.
-fn build_web_fetch_config() -> xvora_tools::implementations::xvora::web_fetch::WebFetchConfig {
-    use xvora_tools::implementations::xvora::web_fetch::{WebFetchConfig, WebFetchParams};
-    if std::env::var("XVORA_DISABLE_WEB_FETCH").is_ok_and(|v| v == "1" || v == "true") {
+/// Enabled with default params unless `GROK_DISABLE_WEB_FETCH=1` is set.
+fn build_web_fetch_config() -> xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig
+{
+    use xvora_tools::implementations::grok_build::web_fetch::{WebFetchConfig, WebFetchParams};
+    if std::env::var("GROK_DISABLE_WEB_FETCH").is_ok_and(|v| v == "1" || v == "true") {
         return WebFetchConfig::Disabled;
     }
     let mut params = WebFetchParams::default();
-    if let Ok(proxy) = std::env::var("XVORA_WEB_FETCH_PROXY") {
+    if let Ok(proxy) = std::env::var("GROK_WEB_FETCH_PROXY") {
         params.proxy_endpoint = Some(proxy);
+    }
+    if xvora_config::env_bool("GROK_WEB_FETCH_ALLOW_LOCAL") == Some(true) {
+        params.allow_local = Some(true);
     }
     WebFetchConfig::Enabled { params }
 }
 fn default_web_search_model() -> String {
-    std::env::var("XVORA_WEB_SEARCH_MODEL").unwrap_or_else(|_| "grok-4.20-multi-agent".to_string())
+    std::env::var("GROK_WEB_SEARCH_MODEL").unwrap_or_else(|_| "grok-4.5".to_string())
 }
-// Not `cfg(test)` only: `WorkspaceHandle::for_test` (used by xvora-shell tests)
-// lives outside this crate's test cfg.
+#[cfg(any(test, feature = "test-support"))]
 pub mod test_support {
     use crate::config::SessionContextFactory;
     use std::collections::HashMap;
@@ -539,6 +535,7 @@ pub mod test_support {
     /// Test factory: builds a `SessionContext` rooted at a per-test temp dir.
     pub struct TestSessionContextFactory {
         pub temp: TempDir,
+        tool_state: bool,
     }
     impl Default for TestSessionContextFactory {
         fn default() -> Self {
@@ -549,6 +546,14 @@ pub mod test_support {
         pub fn new() -> Self {
             Self {
                 temp: TempDir::new().expect("create temp dir"),
+                tool_state: true,
+            }
+        }
+        /// Matches production, where `GROK_WORKSPACE_TOOL_STATE_ENABLED` is unset and the real factory returns an empty path.
+        pub fn without_tool_state() -> Self {
+            Self {
+                tool_state: false,
+                ..Self::new()
             }
         }
     }
@@ -573,9 +578,14 @@ pub mod test_support {
                 session_env,
                 notification_handle: ToolNotificationHandle::noop(),
                 owner_session_id: None,
+                subagent: None,
                 parent_scheduler_handle: None,
                 skills: vec![],
-                state_path: session_root.join("tool_state.json"),
+                state_path: if self.tool_state {
+                    session_root.join("tool_state.json")
+                } else {
+                    PathBuf::new()
+                },
                 memory_backend: None,
                 web_search_config: Default::default(),
                 web_fetch_config: Default::default(),
@@ -612,10 +622,10 @@ pub mod test_support {
     pub fn baseline_config() -> ToolServerConfig {
         ToolServerConfig {
             tools: vec![
-                tc("Xvora:read_file", Some(ToolKind::Read)),
-                tc("Xvora:search_replace", Some(ToolKind::Edit)),
-                tc("Xvora:grep", Some(ToolKind::Search)),
-                tc("Xvora:list_dir", Some(ToolKind::ListDir)),
+                tc("GrokBuild:read_file", Some(ToolKind::Read)),
+                tc("GrokBuild:search_replace", Some(ToolKind::Edit)),
+                tc("GrokBuild:grep", Some(ToolKind::Search)),
+                tc("GrokBuild:list_dir", Some(ToolKind::ListDir)),
             ],
             behavior_preset: None,
         }
@@ -669,10 +679,13 @@ mod tests {
     async fn resolve_session_toolset_mcp_merge_dedup_by_id_baseline_wins() {
         let factory = factory_for_test();
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
+            tools: vec![test_support::tc(
+                "GrokBuild:read_file",
+                Some(ToolKind::Read),
+            )],
             behavior_preset: None,
         };
-        let mut mcp_dup = test_support::tc("Xvora:read_file", Some(ToolKind::Read));
+        let mut mcp_dup = test_support::tc("GrokBuild:read_file", Some(ToolKind::Read));
         mcp_dup.name_override = Some("mcp_read".into());
         let snapshot = vec![mcp_dup];
         let (_eff, ts, _backend) = resolve_session_toolset(
@@ -704,14 +717,15 @@ mod tests {
     #[test]
     fn backfill_tool_kinds_fills_known_kindless_ids_only() {
         let kinds = HashMap::from([
-            ("Xvora:search_replace".to_owned(), ToolKind::Edit),
-            ("Xvora:read_file".to_owned(), ToolKind::Read),
+            ("GrokBuild:search_replace".to_owned(), ToolKind::Edit),
+            ("GrokBuild:read_file".to_owned(), ToolKind::Read),
         ]);
         let config = ToolServerConfig {
             tools: vec![
-                test_support::tc("Xvora:search_replace", None),
+                test_support::tc("GrokBuild:search_replace", None),
                 test_support::tc("adhoc.opaque", None),
-                test_support::tc("Xvora:read_file", Some(ToolKind::Search)),
+                // Pre-set kinds must never be overwritten by the registry.
+                test_support::tc("GrokBuild:read_file", Some(ToolKind::Search)),
             ],
             behavior_preset: Some("current".to_owned()),
         };
@@ -724,34 +738,32 @@ mod tests {
                 .expect("tool present")
                 .kind
         };
-        assert_eq!(kind_of("Xvora:search_replace"), Some(ToolKind::Edit));
+        assert_eq!(kind_of("GrokBuild:search_replace"), Some(ToolKind::Edit));
         assert_eq!(
             kind_of("adhoc.opaque"),
             None,
             "ids unknown to the registry stay kind-less"
         );
         assert_eq!(
-            kind_of("Xvora:read_file"),
+            kind_of("GrokBuild:read_file"),
             Some(ToolKind::Search),
             "an explicit kind wins over the registry's"
         );
         assert_eq!(backfilled.behavior_preset.as_deref(), Some("current"));
     }
-    /// Regression: pinned server-bind toolsets arrive kind-less (the gRPC
-    /// `ToolConfigEntry` has no kind field), which used to make every
-    /// baseline entry bypass the capability filter — a `read_only`
-    /// sub-agent kept edit + execute tools. The registry backfill must
-    /// restore the filter.
+    /// Regression: pinned server-bind toolsets arrive kind-less (the gRPC `ToolConfigEntry` has no kind field).
+    /// Every baseline entry used to bypass the capability filter, so a `read_only` sub-agent kept edit and execute tools.
+    /// The registry backfill must restore the filter.
     #[tokio::test]
     async fn resolve_session_toolset_readonly_filters_kindless_pinned_tools() {
         let factory = factory_for_test();
         let baseline = ToolServerConfig {
             tools: vec![
-                test_support::tc("Xvora:read_file", None),
-                test_support::tc("Xvora:grep", None),
-                test_support::tc("Xvora:list_dir", None),
-                test_support::tc("Xvora:search_replace", None),
-                test_support::tc("Xvora:run_terminal_cmd", None),
+                test_support::tc("GrokBuild:read_file", None),
+                test_support::tc("GrokBuild:grep", None),
+                test_support::tc("GrokBuild:list_dir", None),
+                test_support::tc("GrokBuild:search_replace", None),
+                test_support::tc("GrokBuild:run_terminal_cmd", None),
             ],
             behavior_preset: None,
         };
@@ -792,7 +804,10 @@ mod tests {
     #[test]
     fn resolve_session_toolset_mcp_edit_dropped_under_readonly() {
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
+            tools: vec![test_support::tc(
+                "GrokBuild:read_file",
+                Some(ToolKind::Read),
+            )],
             behavior_preset: None,
         };
         let mcp_edit = test_support::tc("mcp.editor", Some(ToolKind::Edit));
@@ -810,7 +825,7 @@ mod tests {
         let factory = factory_for_test();
         let baseline = ToolServerConfig {
             tools: vec![
-                test_support::tc("Xvora:read_file", Some(ToolKind::Read)),
+                test_support::tc("GrokBuild:read_file", Some(ToolKind::Read)),
                 test_support::tc("baseline.opaque", None),
             ],
             behavior_preset: None,
@@ -833,7 +848,7 @@ mod tests {
             "MCP kind: None MUST be dropped under ReadOnly: {kept_ids:?}"
         );
         assert!(
-            kept_ids.contains(&"Xvora:read_file"),
+            kept_ids.contains(&"GrokBuild:read_file"),
             "baseline Read kind must survive ReadOnly: {kept_ids:?}"
         );
         let _ = factory;
@@ -894,7 +909,10 @@ mod tests {
     #[test]
     fn hub_tool_dropped_under_readonly_because_kind_none() {
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
+            tools: vec![test_support::tc(
+                "GrokBuild:read_file",
+                Some(ToolKind::Read),
+            )],
             behavior_preset: None,
         };
         let hub = vec![test_support::tc("hub:remote_exec", None)];
@@ -945,7 +963,10 @@ mod tests {
     #[test]
     fn hub_tool_name_collision_with_baseline_skipped() {
         let baseline = ToolServerConfig {
-            tools: vec![test_support::tc("Xvora:read_file", Some(ToolKind::Read))],
+            tools: vec![test_support::tc(
+                "GrokBuild:read_file",
+                Some(ToolKind::Read),
+            )],
             behavior_preset: None,
         };
         let mut hub_tool = test_support::tc("hub:read_file_v2", None);
@@ -966,13 +987,12 @@ mod tests {
         let filtered_ids: Vec<String> = filtered.tools.iter().map(|t| t.id.clone()).collect();
         assert_eq!(filtered_ids, baseline_ids);
     }
-    /// Only the literal `"true"` enables tool-state persistence.
     #[test]
     fn tool_state_enabled_only_true_enables() {
         let _guard = super::TOOL_STATE_ENV_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        let var = "XVORA_WORKSPACE_TOOL_STATE_ENABLED";
+        let var = "GROK_WORKSPACE_TOOL_STATE_ENABLED";
         unsafe { std::env::remove_var(var) };
         assert!(!tool_state_enabled(), "unset → disabled");
         unsafe { std::env::set_var(var, "false") };
@@ -983,8 +1003,7 @@ mod tests {
         assert!(tool_state_enabled(), "true → enabled");
         unsafe { std::env::remove_var(var) };
     }
-    /// With a tool-state home set, state is rooted at
-    /// `<home>/sessions/<session_id>/tool_state.json` and the dir is created.
+    /// With a tool-state home set, state is rooted at `<home>/sessions/<session_id>/tool_state.json` and the dir is created.
     #[test]
     fn factory_resolves_session_keyed_state_path_when_home_set() {
         let home = tempfile::TempDir::new().unwrap();
@@ -1058,8 +1077,7 @@ mod tests {
         assert_eq!(under_tmp, PathBuf::from("/tmp/sessions/shared-id"));
         assert!(under_tmp.is_dir());
     }
-    /// A hostile `session_id` (`../../etc`) is sanitized to a single safe
-    /// segment and cannot traverse outside `<home>/sessions/`.
+    /// A hostile `session_id` (`../../etc`) is sanitized to a single safe segment and cannot traverse outside `<home>/sessions/`.
     #[test]
     fn factory_sanitizes_malicious_session_id_no_traversal() {
         let home = tempfile::TempDir::new().unwrap();
@@ -1093,9 +1111,8 @@ mod tests {
             "the confined session dir must be the only thing created"
         );
     }
-    /// Sanitization is injective: distinct ids that substitute to the same
-    /// base string still map to distinct directories (hash disambiguator),
-    /// while already-safe ids map to themselves.
+    /// Sanitization is injective: ids that substitute to the same base string still map to distinct directories (the appended digest differs).
+    /// Already-safe ids map to themselves.
     #[test]
     fn sanitize_session_id_is_injective() {
         assert_eq!(super::sanitize_session_id("sess-1_a"), "sess-1_a");
@@ -1110,8 +1127,7 @@ mod tests {
         );
         assert!(super::sanitize_session_id("").starts_with("anon-"));
     }
-    /// A toolset rebuilt for the SAME session rehydrates persisted state from
-    /// disk; a DIFFERENT session_id cold-starts with no cross-contamination.
+    /// A toolset rebuilt for the SAME session rehydrates persisted state from disk; a DIFFERENT session_id cold-starts with no cross-contamination.
     #[tokio::test]
     async fn tool_state_rehydrates_same_session_and_cold_starts_other() {
         use xvora_tools::types::resources::{State, WebCitationCounter};
@@ -1137,7 +1153,9 @@ mod tests {
             let counter = res.get_or_default::<State<WebCitationCounter>>();
             counter.counter = 123;
         }
-        ts_a.save_and_flush_persistence().await;
+        ts_a.save_and_flush_persistence()
+            .await
+            .expect("the test factory gives this session a state path");
         drop(ts_a);
         let (_eff, ts_b, _backend_b) = resolve_session_toolset(
             test_support::baseline_config(),

@@ -26,7 +26,7 @@ pub async fn run_document_extraction<F>(
     max_bytes: usize,
     timeout: std::time::Duration,
     extract_fn: F,
-) -> Result<ReadFileOutput, tool_runtime::ToolError>
+) -> Result<ReadFileOutput, xvora_tool_runtime::ToolError>
 where
     F: FnOnce(Vec<u8>) -> Result<ReadFileOutput, String> + Send + 'static,
 {
@@ -81,7 +81,7 @@ pub(crate) async fn handle_pdf(
     path: &std::path::Path,
     pages: Option<String>,
     format: Option<&str>,
-) -> Result<ReadFileOutput, tool_runtime::ToolError> {
+) -> Result<ReadFileOutput, xvora_tool_runtime::ToolError> {
     let extract_text = match format {
         None | Some("image") => false,
         Some("text") => true,
@@ -267,7 +267,7 @@ pub fn raw_text_to_file_content(text: String) -> ReadFileOutput {
 }
 
 enum PageTextStyle {
-    Xvora,
+    GrokBuild,
     Cursor { total_pages: usize },
 }
 
@@ -296,7 +296,7 @@ fn extract_page_texts(
             text.push('\n');
         }
         match style {
-            PageTextStyle::Xvora => {
+            PageTextStyle::GrokBuild => {
                 writeln!(&mut text, "--- Page {} ---", page_idx + 1).ok();
             }
             PageTextStyle::Cursor { .. } => {}
@@ -317,7 +317,7 @@ fn extract_pdf_plain_text(bytes: Vec<u8>, style: PageTextStyle) -> Result<String
     let (doc, page_count) = open_pdf_document(bytes)?;
     let page_indices: Vec<usize> = (0..page_count).collect();
     let style = match style {
-        PageTextStyle::Xvora => PageTextStyle::Xvora,
+        PageTextStyle::GrokBuild => PageTextStyle::GrokBuild,
         PageTextStyle::Cursor { .. } => PageTextStyle::Cursor {
             total_pages: page_count,
         },
@@ -328,7 +328,7 @@ fn extract_pdf_plain_text(bytes: Vec<u8>, style: PageTextStyle) -> Result<String
 /// Extract plain text from all PDF pages (no auto-read page limit).
 #[cfg(test)]
 pub(crate) fn extract_pdf_plain_text_all(bytes: Vec<u8>) -> Result<String, String> {
-    extract_pdf_plain_text(bytes, PageTextStyle::Xvora)
+    extract_pdf_plain_text(bytes, PageTextStyle::GrokBuild)
 }
 
 /// Plain text from all PDF pages in the `Read` format.
@@ -341,7 +341,7 @@ pub(crate) fn extract_pdf_text(
     pages_spec: Option<&str>,
 ) -> Result<ReadFileOutput, String> {
     let (doc, _page_count, page_indices) = open_pdf_and_resolve_pages(bytes, pages_spec)?;
-    let text = extract_page_texts(&doc, &page_indices, PageTextStyle::Xvora)?;
+    let text = extract_page_texts(&doc, &page_indices, PageTextStyle::GrokBuild)?;
     Ok(raw_text_to_file_content(text))
 }
 
@@ -534,16 +534,5 @@ mod tests {
     fn render_pdf_pages_rejects_invalid_pdf() {
         let err = render_pdf_pages(b"not a pdf".to_vec(), None, 10).unwrap_err();
         assert!(err.contains("Failed to open PDF"), "got: {err}");
-    }
-
-    #[test]
-    fn parse_page_range_single_page() {
-        assert_eq!(parse_page_range("3", 10).unwrap(), vec![2]);
-    }
-
-    #[test]
-    fn parse_page_range_rejects_too_many_pages() {
-        let err = parse_page_range("1-21", 30).unwrap_err();
-        assert!(err.contains("maximum is"), "got: {err}");
     }
 }

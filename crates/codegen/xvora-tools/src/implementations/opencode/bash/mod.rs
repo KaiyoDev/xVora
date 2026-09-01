@@ -1,9 +1,11 @@
 //! `bash` tool — OpenCode namespace.
 //!
-//! Executes shell commands in a persistent terminal session with optional
-//! timeout and working directory override. Delegates to the shared
-//! `TerminalBackend` for process management, output streaming, and
-//! background task support.
+//! Executes shell commands with optional timeout and working directory
+//! override. Delegates to the shared `TerminalBackend` for process
+//! management, output streaming, and background task support. The
+//! grok-tools-server serves this tool on the stateless local backend
+//! (fresh shell per command; persistent shell state is only enabled when
+//! `Cursor:Shell` is served), which is what the description documents.
 //!
 //! ## Resources
 //!
@@ -44,7 +46,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 // Description
 // ───────────────────────────────────────────────────────────────────────────
 
-const DESCRIPTION: &str = r#"Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
+const DESCRIPTION: &str = r#"Executes a given bash command in a shell session with optional timeout, ensuring proper handling and security measures. Each command runs in a fresh shell: working directory changes and environment variables do not persist between calls.
 IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) - use the specialized tools for this instead.
 
 Before executing the command, please follow these steps:
@@ -64,15 +66,15 @@ Before executing the command, please follow these steps:
    - Capture the output of the command.
 
 Usage notes:
-  - The command argument is required.
-  - You can specify an optional timeout in milliseconds. If not specified, commands will use the default timeout.
+  - The ${{ params.execute.command }} argument is required.
+  - You can specify an optional ${{ params.execute.timeout }} in milliseconds. If not specified, commands will use the default timeout.
   - It is very helpful if you write a clear, concise description of what this command does in 5-10 words.
   - If the output exceeds {max_output_bytes} characters, output will be truncated before being returned to you.
 ${%- if tools.by_kind.list or tools.by_kind.search or tools.by_kind.read or tools.by_kind.edit or tools.by_kind.write %}
 ${%- if has_unix_utilities %}
   - Avoid using this tool with the `find`, `grep`, `cat`, `head`, `tail`, `sed`, `awk`, or `echo` commands, unless explicitly instructed or when these commands are truly necessary for the task. Instead, always prefer using the dedicated tools for these commands:${%- if tools.by_kind.list %}
-    - File search: Use ${{ tools.by_kind.list }} (NOT find or ls)${%- endif %}${%- if tools.by_kind.search %}
-    - Content search: Use ${{ tools.by_kind.search }} (NOT grep or rg)${%- endif %}${%- if tools.by_kind.read %}
+    - File search: Use the ${{ tools.by_kind.list }} tool (NOT the `find` or `ls` shell commands)${%- endif %}${%- if tools.by_kind.search %}
+    - Content search: Use the ${{ tools.by_kind.search }} tool (NOT the `grep` or `rg` shell commands)${%- endif %}${%- if tools.by_kind.read %}
     - Read files: Use ${{ tools.by_kind.read }} (NOT cat/head/tail)${%- endif %}${%- if tools.by_kind.edit %}
     - Edit files: Use ${{ tools.by_kind.edit }} (NOT sed/awk)${%- endif %}${%- if tools.by_kind.write %}
     - Write files: Use ${{ tools.by_kind.write }} (NOT echo >/cat <<EOF)${%- endif %}
@@ -111,7 +113,7 @@ Git Safety Protocol:
 - CRITICAL: If you already pushed to remote, NEVER amend unless user explicitly requests it (requires force push)
 - NEVER commit changes unless the user explicitly asks you to. It is VERY IMPORTANT to only commit when explicitly asked, otherwise the user will feel that you are being too proactive.
 
-1. You can call multiple tools in a single response. When multiple independent pieces of information are requested and all commands are likely to succeed, run multiple tool calls in parallel for optimal performance. run the following bash commands in parallel, each using the Bash tool:
+1. You can call multiple tools in a single response. When multiple independent pieces of information are requested and all commands are likely to succeed, run multiple tool calls in parallel for optimal performance. run the following bash commands in parallel, each using this tool:
   - Run a git status command to see all untracked files.
   - Run a git diff command to see both staged and unstaged changes that will be committed.
   - Run a git log command to see recent commit messages, so that you can follow this repository's commit message style.
@@ -134,11 +136,11 @@ Important notes:
 - If there are no changes to commit (i.e., no untracked files and no modifications), do not create an empty commit
 
 # Creating pull requests
-Use the gh command via the Bash tool for ALL GitHub-related tasks including working with issues, pull requests, checks, and releases. If given a GitHub URL use the gh command to get the information needed.
+Use the gh command via this tool for ALL GitHub-related tasks including working with issues, pull requests, checks, and releases. If given a GitHub URL use the gh command to get the information needed.
 
 IMPORTANT: When the user asks you to create a pull request, follow these steps carefully:
 
-1. You can call multiple tools in a single response. When multiple independent pieces of information are requested and all commands are likely to succeed, run multiple tool calls in parallel for optimal performance. run the following bash commands in parallel using the Bash tool, in order to understand the current state of the branch since it diverged from the main branch:
+1. You can call multiple tools in a single response. When multiple independent pieces of information are requested and all commands are likely to succeed, run multiple tool calls in parallel for optimal performance. run the following bash commands in parallel using this tool, in order to understand the current state of the branch since it diverged from the main branch:
    - Run a git status command to see all untracked files
    - Run a git diff command to see both staged and unstaged changes that will be committed
    - Check if the current branch tracks a remote branch and is up to date with the remote, so you know if you need to push to the remote
@@ -305,25 +307,28 @@ impl crate::types::tool_metadata::ToolMetadata for BashTool {
     }
 }
 
-impl tool_runtime::Tool for BashTool {
+impl xvora_tool_runtime::Tool for BashTool {
     type Args = BashInput;
     type Output = BashToolOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("bash").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("bash").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "bash",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -331,9 +336,9 @@ impl tool_runtime::Tool for BashTool {
     #[tracing::instrument(name = "tool.opencode.bash", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: BashInput,
-    ) -> Result<BashToolOutput, tool_runtime::ToolError> {
+    ) -> Result<BashToolOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -391,7 +396,9 @@ impl tool_runtime::Tool for BashTool {
             auto_background_on_timeout: false, // OpenCode doesn't support auto-backgrounding
             foreground_block_budget: None,
             kind: crate::computer::types::TaskKind::Bash,
-            owner_session_id: None, // OpenCode doesn't use shared terminal backends
+            // OpenCode doesn't use shared terminal backends.
+            owner_session_id: None,
+            description: None,
         };
 
         let result = match backend.run(request).await {
@@ -403,8 +410,8 @@ impl tool_runtime::Tool for BashTool {
                     cwd: cwd.clone(),
                     error: e.to_string(),
                 });
-                return Err(tool_runtime::ToolError::execution(
-                    tool_protocol::ToolId::new("run_terminal_command").expect("valid"),
+                return Err(xvora_tool_runtime::ToolError::execution(
+                    xvora_tool_protocol::ToolId::new("run_terminal_command").expect("valid"),
                     e.to_string(),
                 ));
             }
@@ -457,9 +464,12 @@ mod tests {
     use super::*;
     use crate::types::tool_metadata::test_ctx;
 
-    fn rt_ctx_with_call_id(resources: Resources, call_id: &str) -> tool_runtime::ToolCallContext {
-        let id = tool_protocol::ToolCallId::new(call_id).unwrap();
-        let mut ctx = tool_runtime::ToolCallContext::new(id);
+    fn rt_ctx_with_call_id(
+        resources: Resources,
+        call_id: &str,
+    ) -> xvora_tool_runtime::ToolCallContext {
+        let id = xvora_tool_protocol::ToolCallId::new(call_id).unwrap();
+        let mut ctx = xvora_tool_runtime::ToolCallContext::new(id);
         ctx.extensions.insert(resources.into_shared());
         ctx
     }
@@ -566,6 +576,51 @@ mod tests {
         resources
     }
 
+    #[test]
+    fn description_template_tracks_renamed_timeout() {
+        use crate::types::template_renderer::TemplateRenderer;
+        use crate::types::tool::ToolKind;
+        use crate::types::tool_metadata::ToolMetadata;
+        use std::collections::HashMap;
+
+        let tools = HashMap::from([(ToolKind::Execute, "bash".to_string())]);
+        let params = HashMap::from([(
+            ToolKind::Execute,
+            HashMap::from([("timeout".to_string(), "max_wait".to_string())]),
+        )]);
+        let rendered = TemplateRenderer::new(tools, params)
+            .render(ToolMetadata::description_template(&BashTool))
+            .unwrap();
+        assert!(
+            rendered.contains("max_wait"),
+            "renamed timeout must appear:\n{rendered}"
+        );
+    }
+
+    #[test]
+    fn description_template_tracks_renamed_command() {
+        use crate::types::template_renderer::TemplateRenderer;
+        use crate::types::tool::ToolKind;
+        use crate::types::tool_metadata::ToolMetadata;
+        use std::collections::HashMap;
+
+        let tools = HashMap::from([(ToolKind::Execute, "run_command".to_string())]);
+        let params = HashMap::from([(
+            ToolKind::Execute,
+            HashMap::from([
+                ("command".to_string(), "script".to_string()),
+                ("timeout".to_string(), "timeout".to_string()),
+            ]),
+        )]);
+        let rendered = TemplateRenderer::new(tools, params)
+            .render(ToolMetadata::description_template(&BashTool))
+            .unwrap();
+        assert!(
+            rendered.contains("script"),
+            "renamed command must appear:\n{rendered}"
+        );
+    }
+
     fn make_input(command: &str) -> BashInput {
         BashInput {
             command: command.to_string(),
@@ -582,7 +637,7 @@ mod tests {
         let resources = make_resources(MockTerminal::success("hello world\n", 0));
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo hello"),
@@ -608,7 +663,7 @@ mod tests {
         let resources = make_resources(MockTerminal::timed_out("partial output"));
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("sleep 999"),
@@ -630,7 +685,7 @@ mod tests {
         let resources = make_resources(MockTerminal::failing());
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("bad_cmd"),
@@ -674,7 +729,7 @@ mod tests {
     async fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = BashTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "bash");
+        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "bash");
         assert!(matches!(tool.kind(), ToolKind::Execute));
         assert!(matches!(tool.tool_namespace(), ToolNamespace::OpenCode));
     }
@@ -688,7 +743,7 @@ mod tests {
         let tool = BashTool;
 
         let result =
-            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), make_input("ls"))
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), make_input("ls"))
                 .await;
         assert!(result.is_err());
         assert!(
@@ -716,7 +771,7 @@ mod tests {
         let resources = make_resources(mock);
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("cat bigfile"),
@@ -750,7 +805,7 @@ mod tests {
         let resources = make_resources(mock);
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("kill -9 $$"),
@@ -774,7 +829,7 @@ mod tests {
         resources.insert(SessionFolder(PathBuf::from("/sessions/abc")));
 
         let tool = BashTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             rt_ctx_with_call_id(resources, "my-call-42"),
             make_input("echo ok"),
@@ -795,7 +850,7 @@ mod tests {
         let resources = make_resources(MockTerminal::success("ok", 0));
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo ok"),
@@ -914,7 +969,7 @@ mod tests {
         let resources = make_resources(MockTerminal::success("hello world\n", 0));
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo hello"),
@@ -949,7 +1004,7 @@ mod tests {
             description: "Check workdir".to_string(),
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -1038,7 +1093,7 @@ mod tests {
         resources.insert(TruncationCfg(cfg));
 
         let tool = BashTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo ok"),
@@ -1068,7 +1123,7 @@ mod tests {
 
         let tool = BashTool;
         let result =
-            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), make_input("ls"))
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), make_input("ls"))
                 .await;
 
         assert!(result.is_err());
@@ -1083,7 +1138,7 @@ mod tests {
 
     // ─── Description template shell-awareness parity tests ───
     //
-    // Same shape as xvora/bash: the opencode tool inherits the same
+    // Same shape as grok_build/bash: the opencode tool inherits the same
     // Unix-utility guidance and must branch on PowerShell/cmd.
 
     mod description_shell_branches {
@@ -1100,8 +1155,12 @@ mod tests {
                     (ToolKind::Read, "read_file".to_string()),
                     (ToolKind::Edit, "search_replace".to_string()),
                     (ToolKind::Write, "write".to_string()),
+                    (ToolKind::Execute, "bash".to_string()),
                 ]),
-                HashMap::new(),
+                HashMap::from([(
+                    ToolKind::Execute,
+                    HashMap::from([("timeout".to_string(), "timeout".to_string())]),
+                )]),
             )
         }
 
@@ -1116,20 +1175,10 @@ mod tests {
         }
 
         #[test]
-        fn unix_shell_emits_legacy_avoid_paragraph() {
-            let out = render(true);
-            assert!(out.contains("Avoid using this tool with the `find`, `grep`, `cat`, `head`"));
-            assert!(!out.contains("are NOT available in this shell"));
-        }
-
-        #[test]
-        fn powershell_emits_explicit_unavailable_warning() {
-            let out = render(false);
-            assert!(out.contains(
-                "Unix utilities `grep`, `head`, `tail`, `sed`, `awk`, and `find` are NOT available in this shell"
-            ));
-            assert!(out.contains("'<name>' is not recognized"));
-            assert!(!out.contains("Avoid using this tool with the `find`, `grep`, `cat`, `head`"));
+        fn unix_and_powershell_descriptions_differ() {
+            let unix = render(true);
+            let pwsh = render(false);
+            assert_ne!(unix, pwsh);
         }
     }
 }

@@ -93,11 +93,9 @@ pub fn section_description_lines(section: &McpSectionId, team_id: Option<&str>) 
 
 /// Classify a server into a UI section.
 ///
-/// Priority: `grok_com_` prefix or managed wire source → Managed; else plugin
-/// label → Plugin; else Local. A managed server with a plugin display label
-/// still lands in Managed.
+/// Priority: a gateway / managed wire source maps to Managed; else a plugin label maps to Plugin; else Local.
 pub fn section_for(server: &McpServerInfo) -> McpSectionId {
-    if server.name.starts_with("grok_com_") || server.wire_source == McpWireSource::Managed {
+    if server.is_managed_gateway || server.wire_source == McpWireSource::Managed {
         McpSectionId::Managed
     } else if let Some(ref name) = server.plugin_name {
         McpSectionId::Plugin(name.clone())
@@ -108,7 +106,7 @@ pub fn section_for(server: &McpServerInfo) -> McpSectionId {
 
 /// Whether the user may delete this server from local config.
 pub fn is_removable(server: &McpServerInfo) -> bool {
-    server.wire_source == McpWireSource::Local && !server.name.starts_with("grok_com_")
+    server.wire_source == McpWireSource::Local && !server.is_managed_gateway
 }
 
 fn parse_wire_source(raw: Option<&str>) -> McpWireSource {
@@ -146,6 +144,10 @@ pub struct McpsServerEntry {
     #[serde(default, rename = "type")]
     pub config_type: Option<String>,
     #[serde(default)]
+    pub setup: Option<McpSetupConfig>,
+    #[serde(default)]
+    pub setup_values: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
     pub session: Option<McpsServerSession>,
 }
 
@@ -158,6 +160,34 @@ pub struct McpsServerSession {
     pub tools: Vec<serde_json::Value>,
     #[serde(default)]
     pub auth_required: bool,
+    #[serde(default)]
+    pub setup_required: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+pub struct McpSetupConfig {
+    #[serde(default)]
+    pub fields: Vec<McpSetupField>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+pub struct McpSetupField {
+    pub id: String,
+    pub label: String,
+    #[serde(rename = "type")]
+    pub field_type: String,
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default)]
+    pub default: Option<String>,
+    #[serde(default)]
+    pub options: Vec<McpSetupOption>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+pub struct McpSetupOption {
+    pub label: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone)]
@@ -175,6 +205,9 @@ pub struct McpServerInfo {
     pub status: McpServerDisplayStatus,
     pub tool_count: usize,
     pub auth_required: bool,
+    pub setup_required: bool,
+    pub setup: Option<McpSetupConfig>,
+    pub setup_values: std::collections::HashMap<String, String>,
     /// Detailed tool list for expanded view.
     pub tools: Vec<McpToolDetail>,
     /// Whether the server is enabled in config.
@@ -192,6 +225,7 @@ pub struct McpServerInfo {
 pub enum McpServerDisplayStatus {
     Ready,
     NeedsAuth,
+    SetupRequired,
     Unavailable,
     Initializing,
 }
@@ -202,6 +236,7 @@ impl McpServerDisplayStatus {
         match self {
             Self::Ready => theme.accent_success,
             Self::NeedsAuth => theme.warning,
+            Self::SetupRequired => theme.warning,
             Self::Unavailable => theme.accent_error,
             Self::Initializing => theme.running,
         }
@@ -212,6 +247,7 @@ impl McpServerDisplayStatus {
         match self {
             Self::Ready => "ready",
             Self::NeedsAuth => "needs auth",
+            Self::SetupRequired => "setup required",
             Self::Unavailable => "unavailable",
             Self::Initializing => "initializing",
         }
@@ -226,7 +262,16 @@ pub fn convert_list_response(resp: McpsListResponse) -> Vec<McpServerInfo> {
             let (status, tool_count, tools, auth_required, enabled) =
                 if let Some(session) = &entry.session {
                     let enabled = session.enabled;
-                    if session.auth_required {
+                    // Prefer setupRequired bool; status is a fallback for older shells.
+                    if session.setup_required {
+                        (
+                            McpServerDisplayStatus::SetupRequired,
+                            0,
+                            vec![],
+                            false,
+                            enabled,
+                        )
+                    } else if session.auth_required {
                         (McpServerDisplayStatus::NeedsAuth, 0, vec![], true, enabled)
                     } else if !enabled {
                         (McpServerDisplayStatus::Unavailable, 0, vec![], false, false)
@@ -234,6 +279,7 @@ pub fn convert_list_response(resp: McpsListResponse) -> Vec<McpServerInfo> {
                         let st = match session.status.as_deref() {
                             Some("ready") => McpServerDisplayStatus::Ready,
                             Some("initializing") => McpServerDisplayStatus::Initializing,
+                            Some("setuprequired") => McpServerDisplayStatus::SetupRequired,
                             _ => McpServerDisplayStatus::Unavailable,
                         };
                         let tools: Vec<McpToolDetail> = session
@@ -270,12 +316,20 @@ pub fn convert_list_response(resp: McpsListResponse) -> Vec<McpServerInfo> {
                 .source_label
                 .or(entry.source)
                 .unwrap_or_else(|| "local".to_string());
+            let setup_required = entry
+                .session
+                .as_ref()
+                .is_some_and(|session| session.setup_required)
+                || matches!(status, McpServerDisplayStatus::SetupRequired);
             McpServerInfo {
                 name: entry.name,
                 display_name: entry.display_name,
                 status,
                 tool_count,
                 auth_required,
+                setup_required,
+                setup: entry.setup,
+                setup_values: entry.setup_values.unwrap_or_default(),
                 tools,
                 enabled,
                 source,
@@ -307,22 +361,17 @@ pub fn convert_list_response(resp: McpsListResponse) -> Vec<McpServerInfo> {
     servers
 }
 
-/// Patch a single server row in-place from an `x.ai/mcp/server_status`
-/// push.
+/// Patch a single server row in-place from an `x.ai/mcp/server_status` push.
 ///
-/// Finds the row by `name` and updates its `status` (and optionally its
-/// `tools` list + `tool_count`). When the named server is not present
-/// the call is a silent no-op — the pager may receive a status push
-/// for a server it has not yet fetched (e.g. the modal was just opened
-/// and the cached `mcp/list` response has not landed yet). The cheap
-/// no-op keeps the push subscription side-effect-free in that case.
+/// Finds the row by `name` and updates its `status` (and optionally its `tools` list and `tool_count`).
+/// When the named server is not present the call is a silent no-op.
+/// The pager may receive a status push for a server it has not yet fetched (e.g. the modal was just opened and `mcp/list` has not landed yet).
+/// The cheap no-op keeps the push subscription side-effect-free in that case.
 ///
 /// When duplicate names exist, only the first occurrence is mutated.
-/// In practice `build_mcp_catalog` deduplicates by name before the
-/// list reaches the pager, so this is dead-code in production.
+/// In practice `build_mcp_catalog` deduplicates by name before the list reaches the pager, so this is dead-code in production.
 ///
-/// Returns `true` when a row was actually mutated; the caller can use
-/// this signal to decide whether a redraw is warranted.
+/// Returns `true` when a row was actually mutated; the caller can use this signal to decide whether a redraw is warranted.
 pub fn patch_server_row(
     servers: &mut [McpServerInfo],
     name: &str,
@@ -351,6 +400,9 @@ mod tests {
             status,
             tool_count: 0,
             auth_required: false,
+            setup_required: false,
+            setup: None,
+            setup_values: std::collections::HashMap::new(),
             tools: Vec::new(),
             enabled: true,
             source: "local".to_string(),
@@ -381,11 +433,14 @@ mod tests {
                 source: source.map(str::to_string),
                 source_label: source_label.map(str::to_string),
                 config_type: config_type.map(str::to_string),
+                setup: None,
+                setup_values: None,
                 session: Some(McpsServerSession {
                     enabled: true,
                     status: Some("ready".into()),
                     tools: vec![],
                     auth_required: false,
+                    setup_required: false,
                 }),
             }],
         })
@@ -450,13 +505,20 @@ mod tests {
     }
 
     #[test]
-    fn section_for_grok_com_with_plugin_label_is_managed() {
-        let server = server_from_wire(
-            "grok_com_linear",
+    fn section_for_gateway_with_plugin_label_is_managed() {
+        let server = server_from_wire_with_type(
+            "managed_gateway:linear",
             Some("managed"),
             Some("plugin: my-plugin"),
+            Some("managedGateway"),
         );
         assert_eq!(section_for(&server), McpSectionId::Managed);
+    }
+
+    #[test]
+    fn section_for_grok_com_local_name_is_local() {
+        let server = server_from_wire("grok_com_linear", Some("local"), None);
+        assert_eq!(section_for(&server), McpSectionId::Local);
     }
 
     #[test]
@@ -481,9 +543,9 @@ mod tests {
     }
 
     #[test]
-    fn is_removable_rejects_grok_com_prefix() {
+    fn is_removable_allows_grok_com_local_name() {
         let server = server_from_wire("grok_com_slack", Some("local"), None);
-        assert!(!is_removable(&server));
+        assert!(is_removable(&server));
     }
 
     #[test]
@@ -529,11 +591,14 @@ mod tests {
                 source: Some("managed".to_string()),
                 source_label: None,
                 config_type: Some("managedGateway".to_string()),
+                setup: None,
+                setup_values: None,
                 session: Some(McpsServerSession {
                     enabled: true,
                     status: Some("ready".to_string()),
                     tools: vec![],
                     auth_required: false,
+                    setup_required: false,
                 }),
             }
         }
@@ -546,6 +611,45 @@ mod tests {
         assert_eq!(servers[0].display_name.as_deref(), Some("Alpha"));
         assert_eq!(servers[0].name, "managed_gateway:zeta");
         assert_eq!(servers[1].display_name.as_deref(), Some("Zeta"));
+    }
+
+    #[test]
+    fn convert_list_response_setup_required_takes_priority() {
+        let servers = convert_list_response(McpsListResponse {
+            servers: vec![McpsServerEntry {
+                name: "acme".into(),
+                display_name: None,
+                source: Some("local".into()),
+                source_label: Some("plugin: acme".into()),
+                config_type: Some("http".into()),
+                setup: Some(McpSetupConfig {
+                    fields: vec![McpSetupField {
+                        id: "site".into(),
+                        label: "Site".into(),
+                        field_type: "select".into(),
+                        required: true,
+                        default: Some("us1".into()),
+                        options: vec![McpSetupOption {
+                            label: "US1".into(),
+                            value: "us1".into(),
+                        }],
+                    }],
+                }),
+                setup_values: None,
+                session: Some(McpsServerSession {
+                    enabled: true,
+                    status: Some("setuprequired".into()),
+                    tools: vec![],
+                    auth_required: true,
+                    setup_required: true,
+                }),
+            }],
+        });
+        assert_eq!(servers.len(), 1);
+        assert!(servers[0].setup_required);
+        assert!(!servers[0].auth_required);
+        assert_eq!(servers[0].status, McpServerDisplayStatus::SetupRequired);
+        assert!(servers[0].setup.is_some());
     }
 
     #[test]
@@ -606,6 +710,9 @@ mod tests {
             status: McpServerDisplayStatus::Ready,
             tool_count: 3,
             auth_required: false,
+            setup_required: false,
+            setup: None,
+            setup_values: std::collections::HashMap::new(),
             tools: vec![McpToolDetail {
                 name: "existing".into(),
                 display_name: None,
@@ -626,7 +733,7 @@ mod tests {
         );
         assert!(mutated);
         assert_eq!(servers[0].status, McpServerDisplayStatus::Unavailable);
-        // Tools left untouched when caller passes None.
+        // Tools are left untouched when the caller passes None
         assert_eq!(servers[0].tool_count, 3);
         assert_eq!(servers[0].tools.len(), 1);
         assert_eq!(servers[0].tools[0].name, "existing");

@@ -2,14 +2,11 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// Regression, Linux-hermetic: under Otty (`TERM_PROGRAM=otty` — the
-/// only terminal known to deliver macOS IME commits as bracketed paste),
-/// bracketed text that did not come from the system clipboard must not attach
-/// the unrelated clipboard image. Any other terminal keeps the historical
-/// probe behavior, asserted here with a second, TERM_PROGRAM-less spawn. A
-/// fake `wl-paste`/`wl-copy` pair on `PATH` plays the clipboard; the sibling
-/// `bracketed_ime_paste_skips_clipboard_image_macos` covers the reported
-/// agent-prompt surface on a real pasteboard.
+/// Regression, hermetic on Linux: bracketed text that did not come from the system clipboard must not attach the unrelated clipboard image.
+/// This only applies under Otty (`TERM_PROGRAM=otty`), the only terminal known to deliver macOS IME commits as bracketed paste.
+/// Any other terminal keeps the historical probe behavior, asserted here with a second spawn that has no TERM_PROGRAM.
+/// A fake `wl-paste`/`wl-copy` pair on `PATH` plays the clipboard.
+/// The sibling `bracketed_ime_paste_skips_clipboard_image_macos` covers the agent prompt, where the bug was reported, on a real pasteboard.
 #[cfg(target_os = "linux")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
@@ -49,26 +46,33 @@ async fn bracketed_ime_paste_skips_clipboard_image_linux() {
         bin_dir.display(),
         std::env::var("PATH").unwrap_or_default()
     );
-    let base_env: Vec<(String, String)> = {
-        let mut env = content.env_for_pager();
-        env.push(("PATH".into(), path_env));
-        env.push(("WAYLAND_DISPLAY".into(), "wayland-fake".into()));
-        env.push(("DISPLAY".into(), String::new()));
-        env
-    };
+    let base_env = [
+        ("PATH", path_env.as_str()),
+        ("WAYLAND_DISPLAY", "wayland-fake"),
+        ("DISPLAY", ""),
+    ];
 
-    /// Spawn the pager with `extra_env` and drive it to the dashboard, where
-    /// bracketed paste routes to the dispatch input.
-    fn spawn_on_dashboard(base_env: &[(String, String)], extra_env: &[(&str, &str)]) -> PtyHarness {
-        let mut env_refs: Vec<(&str, &str)> = base_env
+    /// Spawn the pager with `extra_env` and drive it to the dashboard, where bracketed paste routes to the dispatch input.
+    fn spawn_on_dashboard(
+        content: &ContentController,
+        base_env: &[(&str, &str)],
+        extra_env: &[EnvOp<'_>],
+    ) -> PtyHarness {
+        let mut operations: Vec<_> = base_env
             .iter()
-            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .map(|(key, value)| EnvOp::set(key, value))
             .collect();
-        env_refs.extend_from_slice(extra_env);
+        operations.extend_from_slice(extra_env);
         let binary = pager_binary().expect("resolve pager binary");
-        let mut harness =
-            PtyHarness::new_in_dir(&binary, DEFAULT_ROWS, DEFAULT_COLS, &[], &env_refs, None)
-                .expect("spawn pager");
+        let mut harness = PtyHarness::spawn_with_content_env_ops(
+            &binary,
+            DEFAULT_ROWS,
+            DEFAULT_COLS,
+            content,
+            &[],
+            &operations,
+        )
+        .expect("spawn pager");
         harness
             .wait_for_text(WELCOME_SCREEN_SENTINEL, WELCOME_TIMEOUT)
             .expect("welcome text");
@@ -87,8 +91,9 @@ async fn bracketed_ime_paste_skips_clipboard_image_linux() {
         harness
     }
 
-    // ── Otty: IME-style bracketed paste, image-only clipboard → no image ──
-    let mut harness = spawn_on_dashboard(&base_env, &[("TERM_PROGRAM", "otty")]);
+    // ── Otty: IME-style bracketed paste while the clipboard holds only an image; no image attaches ──
+    let mut harness =
+        spawn_on_dashboard(&content, &base_env, &[EnvOp::set("TERM_PROGRAM", "otty")]);
     harness
         .inject_keys(format!("\x1b[200~{IME_PAYLOAD}\x1b[201~").as_bytes())
         .expect("bracketed IME payload");
@@ -102,7 +107,7 @@ async fn bracketed_ime_paste_skips_clipboard_image_linux() {
         harness.screen_contents()
     );
 
-    // ── Otty (positive control): payload == clipboard caption → image ──
+    // ── Otty (positive control): the payload matches the clipboard caption, so the image attaches ──
     std::fs::write(&text_file, CAPTION.as_bytes()).expect("genuine-paste clipboard text");
     harness
         .inject_keys(format!("\x1b[200~{CAPTION}\x1b[201~").as_bytes())
@@ -120,10 +125,9 @@ async fn bracketed_ime_paste_skips_clipboard_image_linux() {
     );
     harness.quit().expect("clean quit");
 
-    // ── No TERM_PROGRAM (any other terminal): historical behavior intact —
-    //    the same mismatched bracketed payload still attaches the image ──
+    // ── No TERM_PROGRAM (any other terminal): historical behavior intact, the same mismatched bracketed payload still attaches the image ──
     std::fs::write(&text_file, b"").expect("reset clipboard text");
-    let mut harness = spawn_on_dashboard(&base_env, &[]);
+    let mut harness = spawn_on_dashboard(&content, &base_env, &[]);
     harness
         .inject_keys(format!("\x1b[200~{IME_PAYLOAD}\x1b[201~").as_bytes())
         .expect("bracketed payload without otty");

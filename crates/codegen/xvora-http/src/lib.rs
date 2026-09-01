@@ -1,42 +1,58 @@
 //! HTTP clients for the application.
 //!
-//! Building a `reqwest::Client` is expensive (~95ms) because it loads
-//! TLS root certificates from the OS trust store. This module
-//! provides four clients for non-sampling traffic (the first three
-//! public and cached, the last crate-internal and built on demand):
+//! Building a `reqwest::Client` is expensive (~95ms) because it loads TLS root certificates from the OS trust store.
+//! This module provides four clients for non-sampling traffic (the first three public and cached, the last crate-internal and built on demand):
 //!
-//! - `shared_client` -- a `OnceLock`-cached async client for general
-//!   use (telemetry, feedback, settings, etc.).
-//! - `shared_upload_client` -- a `OnceLock`-cached client for GCS
-//!   uploads with aggressive connection pool eviction.
-//! - `shared_blocking_client` -- a blocking client for the early
-//!   model prefetch (runs before the async runtime is available).
-//! - `fresh_http1_client` -- a crate-internal, on-demand, pool-less
-//!   HTTP/1.1 client used by `send_with_retry_escaping_pool` for the
-//!   final retry attempt to escape a poisoned pool within a tight budget.
+//! - `shared_client`: a `OnceLock`-cached async client for general use (telemetry, feedback, settings, etc.).
+//! - `shared_upload_client`: a `OnceLock`-cached client for GCS uploads with aggressive connection pool eviction.
+//! - `shared_startup_blocking_client`: a blocking client for the early model prefetch (runs before the async runtime is available).
+//! - `fresh_http1_client`: a crate-internal, on-demand, pool-less HTTP/1.1 client.
+//!   `send_with_retry_escaping_pool` uses it for the final retry attempt to escape a poisoned pool within a tight budget.
 //!
-//! Sampling traffic uses process-wide shared clients owned by
-//! `xvora_sampler::shared_http` (one HTTP/2 pooled client plus
-//! a pool-less HTTP/1.1 fallback shared across every
-//! `SamplingClient`). The sampler reads `XVORA_POOL_*` /
-//! `XVORA_CONNECT_TIMEOUT_SECS` once, when its shared client is
-//! first built, and `XVORA_SAMPLER_SHARED_CLIENT=0` falls back to
-//! a fresh client per `SamplingClient`.
+//! Sampling traffic uses the process-wide shared clients owned by `xvora_sampler::shared_http`.
+//! Every `SamplingClient` shares one HTTP/2 pooled client and one pool-less HTTP/1.1 fallback.
+//! The sampler reads `GROK_POOL_*` and `GROK_CONNECT_TIMEOUT_SECS` once, when its shared client is first built.
+//! `GROK_SAMPLER_SHARED_CLIENT=0` falls back to a fresh client per `SamplingClient`.
 //!
-//! TLS root certificates are warmed at process start via
-//! `warm_async_http_client()` (in `mvp_agent.rs`).
+//! TLS policy (backend pin, roots, provider) lives in `xvora_extra_ca`.
 
 use std::sync::OnceLock;
 
 use xvora_workspace::permission::ClientType;
 
+/// Per-attempt ceiling for a startup `/settings` or `/v1/models` fetch; raising it delays how soon the background refresh gives up and retries.
+pub const STARTUP_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+/// Cap on auth during a non-interactive boot, either a token refresh or a cold-start mint.
+/// A mint that exceeds it leaves the leader with no session and is retried off the readiness path.
+pub const STARTUP_AUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+/// Ceiling on a single startup token-refresh round trip, kept separate from `STARTUP_FETCH_TIMEOUT` so the two tune independently.
+/// On timeout the caller proceeds with cached or no credentials and authenticates again later.
+pub const STARTUP_AUTH_REFRESH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+/// Outer bound on a single settings-reapply task, which drives up to `SETTINGS_FETCH_MAX_ATTEMPTS` fetches.
+pub const SETTINGS_REAPPLY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+/// Attempt budget for the background settings fetch; the cap bounds proxy load while still covering a brief blip.
+pub const SETTINGS_FETCH_MAX_ATTEMPTS: u32 = 3;
+// Recovering from a `401` may add one more bounded fetch beyond this cap
+// That extra fetch is cut off and treated as a failure, then retried later, so the cap only needs to cover the common path
+const _: () = assert!(
+    SETTINGS_REAPPLY_TIMEOUT.as_millis()
+        > STARTUP_FETCH_TIMEOUT.as_millis() * (1 + SETTINGS_FETCH_MAX_ATTEMPTS as u128),
+    "SETTINGS_REAPPLY_TIMEOUT must exceed STARTUP_FETCH_TIMEOUT * (1 + MAX_ATTEMPTS)"
+);
+
+/// Lower bound for the timeout a client puts on connecting to the leader.
+/// A slow but valid boot (bounded startup auth, plus the rest of leader startup and the connect handshake) must never be aborted.
+/// The pager bounds its connect by this value, reached via the shell's `http` re-export.
+pub const MIN_CLIENT_CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+const _: () = assert!(
+    MIN_CLIENT_CONNECT_TIMEOUT.as_millis() >= 2 * STARTUP_AUTH_TIMEOUT.as_millis(),
+    "MIN_CLIENT_CONNECT_TIMEOUT must stay >= 2x STARTUP_AUTH_TIMEOUT"
+);
+
 /// Startup span timer, local to this crate.
 ///
-/// Replaces `xvora_shell::instrumentation_timer!`, which cannot be referenced
-/// here (it lives in the shell crate, which now depends on this one). This is a
-/// behavior-preserving copy: it routes to the same
-/// `xvora_telemetry::instrumentation` API and keeps the Chrome trace
-/// span for these startup timings.
+/// Replaces `xvora_shell::instrumentation_timer!`, which cannot be referenced here (the shell crate depends on this one).
+/// It routes to the same `xvora_telemetry::instrumentation` API and keeps the Chrome trace span for these startup timings.
 macro_rules! startup_timer {
     ($name:literal) => {{
         use xvora_telemetry::instrumentation::{
@@ -55,30 +71,24 @@ macro_rules! startup_timer {
 
 static CLIENT_TYPE: OnceLock<ClientType> = OnceLock::new();
 
-// `OriginClientInfo` is owned by `xvora-sampler` so `SamplerConfig` can use
-// it without taking a circular dependency on `xvora-shell`. Re-exported
-// under the same path (`crate::http::OriginClientInfo`) so existing call-sites
-// compile unchanged. The telemetry engine in `xvora-telemetry` consumes
-// the same type via `xvora_sampler::OriginClientInfo`. The shell-specific
-// constructors that depended on `ClientType` (a shell-only type) are free
-// functions below.
+// `OriginClientInfo` is owned by `xvora-sampler` so `SamplerConfig` can use it without taking a circular dependency on `xvora-shell`
+// It is re-exported here so callers keep the `crate::http::OriginClientInfo` path
+// The telemetry engine in `xvora-telemetry` consumes the same type via `xvora_sampler::OriginClientInfo`
+// The constructors that take `ClientType` (a shell-only type) are free functions below
 pub use xvora_sampler::OriginClientInfo;
 
-/// Construct an [`OriginClientInfo`] from `XVORA_CLIENT_NAME` /
-/// `XVORA_CLIENT_VERSION` env vars. Returns `None` when
-/// `XVORA_CLIENT_NAME` is unset.
+/// Construct an [`OriginClientInfo`] from the `GROK_CLIENT_NAME` and `GROK_CLIENT_VERSION` env vars.
+/// Returns `None` when `GROK_CLIENT_NAME` is unset.
 pub fn origin_client_info_from_env() -> Option<OriginClientInfo> {
-    std::env::var("XVORA_CLIENT_NAME")
+    std::env::var("GROK_CLIENT_NAME")
         .ok()
         .map(|product| OriginClientInfo {
             product,
-            version: std::env::var("XVORA_CLIENT_VERSION").ok(),
+            version: std::env::var("GROK_CLIENT_VERSION").ok(),
         })
 }
 
-/// Construct an [`OriginClientInfo`] from a shell-side
-/// [`ClientType`] (which carries its UA label) and an optional
-/// version string.
+/// Construct an [`OriginClientInfo`] from a shell-side [`ClientType`] (which carries its user-agent label) and an optional version string.
 pub fn origin_client_info_from_client_type(
     client_type: ClientType,
     version: Option<String>,
@@ -178,7 +188,7 @@ pub fn process_user_agent_string() -> String {
 
     UserAgent {
         origin,
-        agent_product: "xvora-shell",
+        agent_product: "grok-shell",
         agent_version,
         platform: PlatformInfo::current(),
     }
@@ -188,7 +198,7 @@ pub fn process_user_agent_string() -> String {
 pub fn session_user_agent_string(origin: &OriginClientInfo) -> String {
     UserAgent {
         origin: origin.clone(),
-        agent_product: "xvora-shell",
+        agent_product: "grok-shell",
         agent_version: agent_version(),
         platform: PlatformInfo::current(),
     }
@@ -236,19 +246,16 @@ pub fn client_type_from_origin(origin: Option<&OriginClientInfo>) -> ClientType 
     ClientType::from_client_identifier(origin.map(|o| o.product.as_str()))
 }
 
-/// Process-level client identifier (`XVORA_CLIENT_NAME` env var, default `"xvora-shell"`).
+/// Process-level client identifier (`GROK_CLIENT_NAME` env var, default `"grok-shell"`).
 pub fn process_client_identifier() -> String {
-    std::env::var("XVORA_CLIENT_NAME").unwrap_or_else(|_| "xvora-shell".to_string())
+    std::env::var("GROK_CLIENT_NAME").unwrap_or_else(|_| "grok-shell".to_string())
 }
 
-/// Header telling cli-chat-proxy whether this process is a single-prompt
-/// (`grok -p`) run or an interactive session; feeds the `client_mode`
-/// metric label.
+/// Header telling cli-chat-proxy whether this process is a single-prompt (`grok -p`) run or an interactive session.
+/// The value feeds the `client_mode` metric label.
 pub const CLIENT_MODE_HEADER: &str = "x-grok-client-mode";
 
-/// One-way latch: set to `"headless"` at startup by the non-TUI entry points
-/// (`run_single_turn` for `grok -p`, `run_headless_inner` for
-/// `grok agent [headless]`), `"interactive"` otherwise.
+/// Set to `"headless"` at startup by the non-TUI entry points (`run_single_turn` for `grok -p`, `run_headless_inner` for `grok agent [headless]`).
 static CLIENT_MODE: OnceLock<&'static str> = OnceLock::new();
 
 /// Mark this process as headless (single-prompt). No-op if already set.
@@ -267,33 +274,30 @@ pub fn user_agent_string_for(origin: &OriginClientInfo) -> String {
 
 /// Returns a shared [`reqwest::Client`], creating it on first call.
 ///
-/// The returned client is a cheap `Arc` clone — safe to pass across threads
-/// and tasks. Sets a 30-second connect timeout; callers should set
-/// per-request timeouts as needed.
+/// The returned client is a cheap `Arc` clone, safe to pass across threads and tasks.
+/// Sets a 30-second connect timeout; callers should set per-request timeouts as needed.
 ///
-/// Keeps HTTP/2 + connection pooling, but adds health-checks so a half-dead
-/// pooled connection is detected and dropped instead of reused. Through an
-/// LB/Cloudflare/proxy a kept-alive connection can be silently dropped upstream;
-/// without these, reqwest reuses it and mints doomed streams on it, so every
-/// retry fails identically and a reachable server looks unreachable. Idle/TCP
-/// eviction drops connections before the upstream idle window (~60-100s; 30s is
-/// a conservative default) closes them, and the HTTP/2 keepalive ping detects a
-/// dead connection so the pool stops handing it out.
+/// Keeps HTTP/2 and connection pooling, but adds health-checks so a half-dead pooled connection is detected and dropped instead of reused.
+/// Through a load balancer, Cloudflare, or a proxy, a kept-alive connection can be silently dropped upstream.
+/// Without the health checks reqwest reuses it for new streams, so every retry fails identically and a reachable server looks unreachable.
+/// Idle and TCP eviction drops connections before the upstream idle window (~60-100s; 30s is a conservative default) closes them.
+/// The HTTP/2 keepalive ping detects a dead connection so the pool stops handing it out.
 pub fn shared_client() -> reqwest::Client {
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     CLIENT
         .get_or_init(|| {
             let _timer = startup_timer!("startup.http_client_build");
-            reqwest::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(30))
-                .user_agent(process_user_agent_string())
-                .pool_idle_timeout(std::time::Duration::from_secs(30))
-                .http2_keep_alive_interval(std::time::Duration::from_secs(20))
-                .http2_keep_alive_timeout(std::time::Duration::from_secs(10))
-                .http2_keep_alive_while_idle(true)
-                .tcp_keepalive(std::time::Duration::from_secs(30))
-                .build()
-                .expect("failed to build shared HTTP client")
+            xvora_extra_ca::build_reqwest_client(|builder| {
+                builder
+                    .connect_timeout(std::time::Duration::from_secs(30))
+                    .user_agent(process_user_agent_string())
+                    .pool_idle_timeout(std::time::Duration::from_secs(30))
+                    .http2_keep_alive_interval(std::time::Duration::from_secs(20))
+                    .http2_keep_alive_timeout(std::time::Duration::from_secs(10))
+                    .http2_keep_alive_while_idle(true)
+                    .tcp_keepalive(std::time::Duration::from_secs(30))
+            })
+            .expect("failed to build shared HTTP client")
         })
         .clone()
 }
@@ -310,55 +314,47 @@ pub fn with_auth_retry(
 
 /// Returns a shared [`reqwest::Client`] for GCS uploads, creating it on first call.
 ///
-/// Unlike `shared_client()`, this client has aggressive connection pool eviction
-/// to avoid reusing stale/poisoned connections during retry loops. When uploads
-/// fail and trigger exponential backoff (1s, 2s, 4s...), idle connections may be
-/// closed by the server, Cloudflare, or load balancers. Without pool eviction,
-/// all retries would reuse the same dead connection and fail.
+/// Unlike `shared_client()`, this client has aggressive connection pool eviction to avoid reusing stale or poisoned connections during retry loops.
+/// When uploads fail and trigger exponential backoff (1s, 2s, 4s...), idle connections may be closed by the server, Cloudflare, or load balancers.
+/// Without pool eviction, all retries would reuse the same dead connection and fail.
 ///
 /// Settings:
-/// - HTTP/1.1 only — avoids HTTP/2 connection-poisoning where a degraded
-///   multiplexed connection silently drops multipart request bodies, causing
-///   cascading 400 errors across all concurrent uploads
+/// - HTTP/1.1 only: a degraded multiplexed HTTP/2 connection can silently drop multipart request bodies.
+///   The drops cascade into 400 errors across all concurrent uploads
 /// - Small connection pool (2 per host) for parallel chunk uploads
 /// - Short idle timeout (10s) to evict stale connections before backoff completes
 pub fn shared_upload_client() -> reqwest::Client {
     static UPLOAD_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     UPLOAD_CLIENT
         .get_or_init(|| {
-            reqwest::Client::builder()
-                // Force HTTP/1.1: batch_upload multipart bodies are silently
-                // dropped when an HTTP/2 connection degrades (GOAWAY, flow-control
-                // exhaustion). Because all streams share one connection, a single
-                // bad connection causes every subsequent request to arrive with
-                // Content-Length: 0, producing thousands of 400s until the process
-                // restarts. HTTP/1.1 isolates failures to individual connections.
-                .http1_only()
-                .pool_max_idle_per_host(2)
-                .pool_idle_timeout(std::time::Duration::from_secs(10))
-                .user_agent(process_user_agent_string())
-                .build()
-                .expect("failed to build shared upload HTTP client")
+            xvora_extra_ca::build_reqwest_client(|builder| {
+                builder
+                    .http1_only()
+                    .pool_max_idle_per_host(2)
+                    .pool_idle_timeout(std::time::Duration::from_secs(10))
+                    .user_agent(process_user_agent_string())
+            })
+            .expect("failed to build shared upload HTTP client")
         })
         .clone()
 }
 
-/// A fresh, pool-less HTTP/1.1 [`reqwest::Client`], deliberately NOT cached:
-/// `pool_max_idle_per_host(0)` + `http1_only()` so each request opens a new connection, and no
-/// connect timeout (callers bound each request with their own total timeout). The retry escape
-/// policy that reaches for this client to dodge a poisoned pool lives on `send_with_retry_escaping_pool`.
-pub(crate) fn fresh_http1_client() -> reqwest::Client {
-    reqwest::Client::builder()
-        .http1_only()
-        .pool_max_idle_per_host(0)
-        .user_agent(process_user_agent_string())
-        .build()
-        .expect("failed to build fresh HTTP/1.1 client")
+/// A fresh, pool-less HTTP/1.1 [`reqwest::Client`], deliberately not cached: each request opens a new connection.
+/// There is no connect timeout; callers bound each request with their own total timeout.
+/// The retry policy that uses this client to escape a poisoned pool lives on `send_with_retry_escaping_pool`.
+/// The build can fail under file-descriptor or TLS pressure; the caller must not panic on error (the fallback lives at the call site).
+pub(crate) fn fresh_http1_client() -> reqwest::Result<reqwest::Client> {
+    xvora_extra_ca::build_reqwest_client(|builder| {
+        builder
+            .http1_only()
+            .pool_max_idle_per_host(0)
+            .user_agent(process_user_agent_string())
+    })
 }
 
-/// Joins an error's `source()` chain into one string. A `reqwest::Error`'s `Display`
-/// shows only the outer "error sending request for url (...)", hiding the real hyper
-/// cause (reset, closed-before-complete, timeout) reachable only via `source()`.
+/// Joins an error's `source()` chain into one string.
+/// A `reqwest::Error`'s `Display` shows only the outer "error sending request for url (...)".
+/// The real hyper cause (reset, closed-before-complete, timeout) is reachable only via `source()`.
 pub fn error_cause_chain(err: &dyn std::error::Error) -> String {
     let mut msg = err.to_string();
     let mut source = err.source();
@@ -370,24 +366,52 @@ pub fn error_cause_chain(err: &dyn std::error::Error) -> String {
     msg
 }
 
-/// How a `reqwest` request/send failure should be treated by a retry loop.
+/// First OS error code in `err`'s `source()` chain (e.g. 104 `ECONNRESET` on Linux, 10054 on Windows).
+/// Prefers [`std::io::Error::raw_os_error`] and falls back to the `(os error N)` suffix `io::Error`'s `Display` appends.
+///
+/// The fallback is essential: a reset during the TLS handshake arrives as a *custom* `io::Error` (kind `Other`, no raw code).
+/// That suffix is then the only record of the code; without it a rustls reset is indistinguishable from an unreachable host.
+/// The `+ 'static` bound exists because `downcast_ref` resolves the type through [`std::any::Any`], whose type ids only exist for `'static` types.
+pub fn find_os_error_code(err: &(dyn std::error::Error + 'static)) -> Option<i32> {
+    let mut cur: Option<&(dyn std::error::Error + 'static)> = Some(err);
+    while let Some(e) = cur {
+        if let Some(code) = e.downcast_ref::<std::io::Error>().and_then(|ioe| {
+            ioe.raw_os_error()
+                .or_else(|| parse_os_error(&ioe.to_string()))
+        }) {
+            return Some(code);
+        }
+        cur = e.source();
+    }
+    None
+}
+
+/// Extract `N` from a message ending in `(os error N)`.
+fn parse_os_error(msg: &str) -> Option<i32> {
+    msg.rsplit_once("(os error ")?
+        .1
+        .trim_end_matches(')')
+        .parse()
+        .ok()
+}
+
+/// How a `reqwest` request or send failure should be treated by a retry loop.
 #[derive(Debug, PartialEq, Eq)]
 pub enum TransportFailureKind {
-    /// The connection could never be established (`is_connect`): the server is
-    /// down or genuinely unreachable. Retrying the same target rarely helps soon.
+    /// The connection could never be established: the server is down or unreachable. Retryable.
     Unreachable,
-    /// An established request was cut short — a per-request timeout, an in-flight
-    /// reset/close/GOAWAY, or a body-phase drop. Retryable: a fresh connection
-    /// can succeed.
+    /// The server certificate's issuer is not trusted; installing the root CA fixes it. Not retryable.
+    CertificateUntrusted,
+    /// The server certificate is otherwise invalid (expired, wrong hostname); installing a root will not fix it. Not retryable.
+    CertificateInvalid,
+    /// An established request was cut short (timeout, reset, GOAWAY). Retryable.
     Interrupted,
-    /// A client-side defect (request-builder error, redirect-policy violation):
-    /// not retryable, because retrying can't fix it.
+    /// A client-side defect (builder error, redirect-policy violation). Not retryable.
     Permanent,
 }
 
-/// A classified `reqwest` request/send failure: a [`TransportFailureKind`] plus the
-/// joined cause-chain detail. Derives `PartialEq` so the kind-to-error mapping can
-/// be unit-tested by constructing values directly.
+/// A classified `reqwest` request or send failure: a [`TransportFailureKind`] plus the joined cause-chain detail.
+/// Derives `PartialEq` so the mapping from error to kind can be unit-tested by constructing values directly.
 #[derive(Debug, PartialEq)]
 pub struct TransportFailure {
     pub kind: TransportFailureKind,
@@ -395,40 +419,85 @@ pub struct TransportFailure {
 }
 
 impl TransportFailure {
-    /// Classify a `reqwest` request/send error. `is_connect()` MUST be checked first:
-    /// in reqwest 0.12 a connect failure is also `Kind::Request`.
+    /// Order matters: a certificate failure also satisfies `is_connect()`, and a connect failure is also `Kind::Request`.
     pub fn classify(e: &reqwest::Error) -> Self {
-        let detail = error_cause_chain(e);
-        let kind = if e.is_connect() {
-            TransportFailureKind::Unreachable
-        } else if e.is_timeout() || e.is_request() || e.is_body() {
-            TransportFailureKind::Interrupted
-        } else {
-            TransportFailureKind::Permanent
-        };
-        Self { kind, detail }
+        let kind = transport_kind(
+            certificate_error(e),
+            e.is_connect(),
+            e.is_timeout() || e.is_request() || e.is_body(),
+        );
+        Self {
+            kind,
+            detail: error_cause_chain(e),
+        }
     }
+}
+
+/// Split from [`TransportFailure::classify`] so the mapping is unit-testable without forging a `reqwest::Error`.
+/// Order matters: a certificate failure also satisfies `is_connect()`, and a connect failure also looks like a request error.
+/// So the match checks certificate first, then connect, then interrupted.
+fn transport_kind(
+    cert: Option<CertVerdict>,
+    is_connect: bool,
+    is_interrupted: bool,
+) -> TransportFailureKind {
+    match cert {
+        Some(CertVerdict::UntrustedIssuer) => TransportFailureKind::CertificateUntrusted,
+        Some(CertVerdict::Other) => TransportFailureKind::CertificateInvalid,
+        None if is_connect => TransportFailureKind::Unreachable,
+        None if is_interrupted => TransportFailureKind::Interrupted,
+        None => TransportFailureKind::Permanent,
+    }
+}
+
+/// A rustls certificate-verification failure found in a `reqwest` error chain.
+#[derive(Debug, PartialEq, Eq)]
+enum CertVerdict {
+    /// The issuer is not in the trust store; installing the root CA fixes it.
+    UntrustedIssuer,
+    /// Any other invalid certificate (expired, wrong name): non-retryable, but not fixable by installing a root.
+    Other,
+}
+
+/// The certificate-verification failure in `err`'s cause chain, if any.
+/// Descends into custom `io::Error` payloads, which `source()` skips.
+fn certificate_error(err: &(dyn std::error::Error + 'static)) -> Option<CertVerdict> {
+    let mut cur: Option<&(dyn std::error::Error + 'static)> = Some(err);
+    while let Some(e) = cur {
+        if let Some(rustls::Error::InvalidCertificate(cert)) = e.downcast_ref::<rustls::Error>() {
+            return Some(match cert {
+                rustls::CertificateError::UnknownIssuer => CertVerdict::UntrustedIssuer,
+                _ => CertVerdict::Other,
+            });
+        }
+        cur = match e
+            .downcast_ref::<std::io::Error>()
+            .and_then(|ioe| ioe.get_ref())
+        {
+            Some(payload) => Some(payload as &(dyn std::error::Error + 'static)),
+            None => e.source(),
+        };
+    }
+    None
 }
 
 /// Run `op` with bounded retries, swapping to a fresh pool-less client for the final attempt.
 ///
-/// NOTE: this is not a plain retry loop — it bakes in a connection-escape policy. Early attempts run
-/// on the pooled [`shared_client`] (HTTP/2 + keepalive + idle/TCP eviction); the FINAL attempt of a
-/// multi-attempt run instead FORCES a fresh, pool-less HTTP/1.1 client (`fresh_http1_client`) so a
-/// tight-budget caller (e.g. a 2-attempt login) can escape a half-dead pooled connection without
-/// waiting out the pool's own keepalive/idle eviction (~20-30s).
+/// Early attempts run on the pooled [`shared_client`] (HTTP/2, keepalive, idle and TCP eviction).
+/// The final attempt of a multi-attempt run instead forces a fresh, pool-less HTTP/1.1 client from `fresh_http1_client`.
+/// That lets a tight-budget caller (e.g. a 2-attempt login) escape a half-dead pooled connection.
+/// Waiting for the pool's own keepalive and idle eviction would take ~20-30s.
 ///
-/// This only rescues a FAST-FAIL connection (reset/GOAWAY/refused) within budget: the fresh attempt
-/// returns quickly and succeeds. A silently black-holed connection still burns the caller's
-/// per-request timeout on each attempt, so a tight deadline can elapse first and recovery defers to
-/// the background sync loop / next start (best-effort, the documented behavior).
+/// This only rescues a fast-failing connection (reset, GOAWAY, refused) within budget: the fresh attempt returns quickly and succeeds.
+/// A connection that swallows traffic without answering still burns the caller's per-request timeout on each attempt.
+/// A tight deadline can therefore elapse first; recovery is then best-effort, deferred to the background sync loop or the next start.
 ///
-/// `op` receives the client to use and returns the WHOLE operation's result (send + body read +
-/// decode), so a body-phase interruption is inside the retried unit, not just the send. `is_retryable`
-/// decides whether a given error earns another attempt, so the caller keeps its own typed retry policy
-/// (e.g. retry 5xx, fail fast on auth). `backoff(attempt)` is awaited before attempt N (N >= 1),
-/// keeping this helper runtime-agnostic (the caller supplies the sleep). The client is passed by value
-/// (a cheap `Arc` clone) so each attempt's future owns it instead of borrowing across the loop.
+/// `op` receives the client to use and returns the whole operation's result (send, body read, and decode).
+/// An interruption while reading the body therefore lands inside the retried unit, not just the send.
+/// `is_retryable` decides whether a given error earns another attempt.
+/// The caller thus keeps its own typed retry policy (e.g. retry 5xx, fail fast on auth).
+/// `backoff(attempt)` is awaited before attempt N (N >= 1), keeping this helper independent of any async runtime (the caller supplies the sleep).
+/// The client is passed by value (a cheap `Arc` clone) so each attempt's future owns it instead of borrowing across the loop.
 pub async fn send_with_retry_escaping_pool<T, E, Op, OpFut, Backoff, BackoffFut>(
     op: Op,
     max_attempts: u32,
@@ -445,7 +514,7 @@ where
     // `max(1)` guarantees at least one attempt runs, so `last_err` is set if the loop falls through.
     let max_attempts = max_attempts.max(1);
     let pooled = shared_client();
-    // Built lazily (loads OS TLS roots, ~95ms) and only if a final escape attempt is actually reached.
+    // The fresh client is built lazily (loading OS TLS roots takes ~95ms) and only if a final escape attempt is actually reached
     let mut fresh: Option<reqwest::Client> = None;
     let mut last_err: Option<E> = None;
 
@@ -453,17 +522,27 @@ where
         if attempt > 0 {
             backoff(attempt).await;
         }
-        // Only the final attempt of a multi-attempt run escapes onto a fresh pool-less connection; a
-        // single-attempt caller keeps the pooled client (there is no prior failure to escape).
+        // Only the final attempt of a multi-attempt run escapes onto a fresh pool-less connection
+        // A single-attempt caller keeps the pooled client (there is no prior failure to escape)
         let client = if attempt > 0 && attempt + 1 == max_attempts {
-            fresh.get_or_insert_with(fresh_http1_client).clone()
+            match &fresh {
+                Some(c) => c.clone(),
+                None => match fresh_http1_client() {
+                    Ok(c) => fresh.insert(c).clone(),
+                    // Can't escape the pool (e.g. file-descriptor exhaustion); a pooled final attempt still beats aborting the process.
+                    Err(e) => {
+                        tracing::warn!(error = %e, "failed to build pool-escape client; final attempt stays on pooled client");
+                        pooled.clone()
+                    }
+                },
+            }
         } else {
             pooled.clone()
         };
         match op(client).await {
             Ok(value) => return Ok(value),
             Err(e) if is_retryable(&e) => {
-                // Log recovered-transient failures (a connection-health path); a silent retry would hide a degrading pool.
+                // A silent retry would hide a degrading pool
                 tracing::debug!(attempt, error = %e, "send_with_retry_escaping_pool: retrying after transient failure");
                 last_err = Some(e);
             }
@@ -474,43 +553,40 @@ where
     Err(last_err.expect("send_with_retry_escaping_pool ran at least one attempt"))
 }
 
-/// Returns a shared [`reqwest::blocking::Client`], creating it on first call.
+/// Shared blocking client for startup fetches.
+/// Carries `STARTUP_FETCH_TIMEOUT` as the connect and read ceiling; do not reuse for long-lived requests.
 ///
-/// This avoids redundant TLS certificate loading for blocking HTTP calls
-/// (e.g., model prefetching during startup). The blocking client is separate
-/// from the async `shared_client()` because reqwest's blocking client creates
-/// its own internal tokio runtime.
+/// This avoids redundant TLS certificate loading for blocking HTTP calls (e.g., model prefetching during startup).
+/// The blocking client is separate from the async `shared_client()` because reqwest's blocking client creates its own internal tokio runtime.
 ///
-/// Mirrors `shared_client()`'s pool self-healing for the same reason: this client
-/// is reused (settings, prefetch) and a kept-alive connection an LB/Cloudflare/proxy
-/// silently drops would otherwise be handed back out, so a reachable server looks
-/// unreachable. Idle/TCP eviction drops a connection before the upstream idle window
-/// (~60-100s; 30s is a conservative default) closes it. The HTTP/2 keepalive-ping
-/// setters that `shared_client()` uses are NOT exposed on reqwest's blocking
-/// `ClientBuilder` (0.12), so only the idle/TCP-eviction half applies here.
-pub fn shared_blocking_client() -> reqwest::blocking::Client {
+/// Mirrors `shared_client()`'s pool self-healing for the same reason: this client is reused (settings, prefetch).
+/// Idle and TCP eviction drops a connection before the upstream idle window (~60-100s; 30s is a conservative default) closes it.
+/// The HTTP/2 keepalive-ping setters that `shared_client()` uses are not exposed on reqwest's blocking `ClientBuilder` (0.12).
+/// Only the idle and TCP eviction half applies here.
+pub fn shared_startup_blocking_client() -> reqwest::blocking::Client {
     static BLOCKING_CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
     BLOCKING_CLIENT
         .get_or_init(|| {
             let _timer = startup_timer!("startup.http_blocking_client_build");
-            reqwest::blocking::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(30))
-                .timeout(std::time::Duration::from_secs(30))
-                .user_agent(process_user_agent_string())
-                .pool_idle_timeout(std::time::Duration::from_secs(30))
-                .tcp_keepalive(std::time::Duration::from_secs(30))
-                .build()
-                .expect("failed to build shared blocking HTTP client")
+            xvora_extra_ca::build_blocking_reqwest_client(|builder| {
+                builder
+                    .connect_timeout(STARTUP_FETCH_TIMEOUT)
+                    .timeout(STARTUP_FETCH_TIMEOUT)
+                    .user_agent(process_user_agent_string())
+                    .pool_idle_timeout(std::time::Duration::from_secs(30))
+                    .tcp_keepalive(std::time::Duration::from_secs(30))
+            })
+            .expect("failed to build shared blocking HTTP client")
         })
         .clone()
 }
 
+#[allow(clippy::disallowed_methods)] // test clients hit localhost mocks
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The cause-chain formatter appends each `source()` joined with ": ", so a
-    /// reqwest error whose `Display` hides the hyper cause still surfaces it.
+    /// `error_cause_chain` appends each `source()` joined with ": ", so a reqwest error whose `Display` hides the hyper cause still surfaces it.
     #[test]
     fn error_cause_chain_appends_hidden_sources() {
         #[derive(Debug)]
@@ -543,6 +619,197 @@ mod tests {
     }
 
     #[test]
+    fn find_os_error_code_walks_source_chain() {
+        #[derive(Debug)]
+        struct IoLeaf(std::io::Error);
+        impl std::fmt::Display for IoLeaf {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "io leaf")
+            }
+        }
+        impl std::error::Error for IoLeaf {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.0)
+            }
+        }
+
+        #[derive(Debug)]
+        struct Wrapper(IoLeaf);
+        impl std::fmt::Display for Wrapper {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "wrapper")
+            }
+        }
+        impl std::error::Error for Wrapper {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.0)
+            }
+        }
+
+        let err = Wrapper(IoLeaf(std::io::Error::from_raw_os_error(104)));
+        assert_eq!(find_os_error_code(&err), Some(104));
+        assert_eq!(find_os_error_code(&std::io::Error::other("no code")), None);
+    }
+
+    /// A TLS-handshake reset arrives as a custom `io::Error` with no raw code.
+    /// Live reqwest gives the chain `client error (Connect)` wrapping `Connection reset by peer (os error 54)`.
+    #[test]
+    fn recovers_code_from_a_custom_io_error() {
+        let tls_shaped = std::io::Error::other("Connection reset by peer (os error 54)");
+        assert_eq!(tls_shaped.raw_os_error(), None, "precondition: no raw code");
+        assert_eq!(find_os_error_code(&tls_shaped), Some(54));
+
+        let windows_shaped = std::io::Error::other(
+            "An existing connection was forcibly closed by the remote host. (os error 10054)",
+        );
+        assert_eq!(find_os_error_code(&windows_shaped), Some(10054));
+    }
+
+    /// Over a real socket, a mid-request reset must classify as `Interrupted` *and* surface the OS code.
+    /// The OS code is what lets a fleet report tell "peer reset us" from "server unreachable".
+    ///
+    /// The test lives here because a `reqwest` client drags rustls into the test binary, which not every caller's tests tolerate.
+    #[test]
+    fn real_connection_reset_classifies_as_interrupted_with_os_code() {
+        // Closing a socket whose receive queue still holds the request emits RST instead of FIN
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        std::thread::spawn(move || {
+            let sock = listener.accept().expect("accept").0;
+            sock.set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .expect("read timeout");
+            let _ = sock.peek(&mut [0u8; 64]);
+            drop(sock);
+        });
+
+        let err = reqwest::blocking::Client::new()
+            .get(format!("http://127.0.0.1:{port}/oauth2/device/code"))
+            .send()
+            .expect_err("reset must fail the request");
+
+        assert_eq!(
+            TransportFailure::classify(&err).kind,
+            TransportFailureKind::Interrupted
+        );
+        assert!(
+            // ECONNRESET: 54 on macOS, 104 on Linux, 10054 on Windows.
+            matches!(find_os_error_code(&err), Some(54 | 104 | 10054)),
+            "reset must carry an OS code, got {:?}",
+            find_os_error_code(&err)
+        );
+    }
+
+    #[test]
+    fn certificate_errors_split_untrusted_issuer_from_other_invalid() {
+        let wrap = |e: rustls::CertificateError| {
+            std::io::Error::other(rustls::Error::InvalidCertificate(e))
+        };
+        assert_eq!(
+            certificate_error(&wrap(rustls::CertificateError::UnknownIssuer)),
+            Some(CertVerdict::UntrustedIssuer)
+        );
+        assert_eq!(
+            certificate_error(&wrap(rustls::CertificateError::Expired)),
+            Some(CertVerdict::Other)
+        );
+        assert_eq!(
+            certificate_error(&wrap(rustls::CertificateError::NotValidForName)),
+            Some(CertVerdict::Other)
+        );
+        assert_eq!(
+            certificate_error(&std::io::Error::other("connection reset")),
+            None
+        );
+    }
+
+    #[test]
+    fn transport_kind_maps_every_certificate_verdict_before_connect() {
+        // An untrusted issuer gets the install-a-root path.
+        assert_eq!(
+            transport_kind(Some(CertVerdict::UntrustedIssuer), true, false),
+            TransportFailureKind::CertificateUntrusted
+        );
+        // An expired or wrong-name certificate is its own non-retryable kind, never Unreachable
+        // This holds even though the underlying error also reports is_connect()
+        assert_eq!(
+            transport_kind(Some(CertVerdict::Other), true, false),
+            TransportFailureKind::CertificateInvalid
+        );
+        assert_eq!(
+            transport_kind(None, true, false),
+            TransportFailureKind::Unreachable
+        );
+        assert_eq!(
+            transport_kind(None, false, true),
+            TransportFailureKind::Interrupted
+        );
+        assert_eq!(
+            transport_kind(None, false, false),
+            TransportFailureKind::Permanent
+        );
+    }
+
+    #[test]
+    fn untrusted_certificate_over_real_handshake_classifies_as_certificate_untrusted() {
+        // A proxy would route the localhost request and misclassify.
+        if ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"]
+            .iter()
+            .any(|v| std::env::var_os(v).is_some())
+        {
+            eprintln!("skipping: proxy environment set");
+            return;
+        }
+        let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).expect("cert");
+        let server_config = rustls::ServerConfig::builder_with_provider(
+            rustls::crypto::aws_lc_rs::default_provider().into(),
+        )
+        .with_safe_default_protocol_versions()
+        .expect("protocol versions")
+        .with_no_client_auth()
+        .with_single_cert(
+            vec![cert.cert.der().clone()],
+            rustls::pki_types::PrivateKeyDer::Pkcs8(cert.key_pair.serialize_der().into()),
+        )
+        .expect("server config");
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        std::thread::spawn(move || {
+            let (mut sock, _) = listener.accept().expect("accept");
+            let mut conn = rustls::ServerConnection::new(std::sync::Arc::new(server_config))
+                .expect("server conn");
+            let _ = conn.complete_io(&mut sock);
+        });
+
+        // The test uses the production client, so a lost `use_rustls_tls()` pin fails here
+        let err = shared_startup_blocking_client()
+            .get(format!("https://localhost:{port}/"))
+            .send()
+            .expect_err("an untrusted certificate must fail the request");
+
+        let failure = TransportFailure::classify(&err);
+        assert_eq!(
+            failure.kind,
+            TransportFailureKind::CertificateUntrusted,
+            "must not be mistaken for an unreachable server: {}",
+            failure.detail
+        );
+    }
+
+    #[test]
+    fn parse_os_error_ignores_messages_without_a_code() {
+        assert_eq!(
+            parse_os_error("connection closed before message completed"),
+            None
+        );
+        assert_eq!(
+            parse_os_error("invalid peer certificate (os error oops)"),
+            None
+        );
+        assert_eq!(parse_os_error("broken pipe (os error 32)"), Some(32));
+    }
+
+    #[test]
     fn origin_client_info_from_meta_extracts_identifier_and_version() {
         let meta = serde_json::json!({
             "clientIdentifier": "grok-desktop",
@@ -572,7 +839,7 @@ mod tests {
         assert_eq!(
             origin_client_info_from_meta(Some(&meta)),
             Some(OriginClientInfo {
-                product: "xvora-pager".to_string(),
+                product: "grok-pager".to_string(),
                 version: Some("0.1.2".to_string()),
             })
         );
@@ -605,14 +872,14 @@ mod tests {
             product: "grok-desktop".to_string(),
             version: Some("1.2.3".to_string()),
         });
-        assert!(with_version.starts_with("grok-desktop/1.2.3 xvora-shell/"));
+        assert!(with_version.starts_with("grok-desktop/1.2.3 grok-shell/"));
         assert!(with_version.contains(" ("));
 
         let without_version = session_user_agent_string(&OriginClientInfo {
             product: "grok-web".to_string(),
             version: None,
         });
-        assert!(without_version.starts_with("grok-web xvora-shell/"));
+        assert!(without_version.starts_with("grok-web grok-shell/"));
         assert!(!without_version.starts_with("grok-web/"));
     }
 
@@ -620,10 +887,10 @@ mod tests {
     fn user_agent_render_collapses_duplicate_origin_and_agent_identity() {
         let ua = UserAgent {
             origin: OriginClientInfo {
-                product: "xvora-shell".to_string(),
+                product: "grok-shell".to_string(),
                 version: Some("0.1.171".to_string()),
             },
-            agent_product: "xvora-shell",
+            agent_product: "grok-shell",
             agent_version: "0.1.171".to_string(),
             platform: PlatformInfo {
                 os: "macos".to_string(),
@@ -631,6 +898,87 @@ mod tests {
             },
         };
 
-        assert_eq!(ua.render(), "xvora-shell/0.1.171 (macos; aarch64)");
+        assert_eq!(ua.render(), "grok-shell/0.1.171 (macos; aarch64)");
+    }
+
+    #[tokio::test]
+    async fn send_with_retry_escaping_pool_combinator_behavior() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+
+        // (a) all-retryable: op runs max_attempts times, backoff awaited max_attempts-1 times, last Err returned.
+        let op_calls = AtomicU32::new(0);
+        let backoffs = AtomicU32::new(0);
+        let exhausted: Result<(), u32> = send_with_retry_escaping_pool(
+            |_client| {
+                let n = op_calls.fetch_add(1, Ordering::SeqCst);
+                async move { Err(n) }
+            },
+            3,
+            |_e: &u32| true,
+            |_attempt| {
+                backoffs.fetch_add(1, Ordering::SeqCst);
+                std::future::ready(())
+            },
+        )
+        .await;
+        assert_eq!(exhausted, Err(2), "returns the last attempt's error");
+        assert_eq!(
+            op_calls.load(Ordering::SeqCst),
+            3,
+            "op runs max_attempts times"
+        );
+        assert_eq!(
+            backoffs.load(Ordering::SeqCst),
+            2,
+            "backoff awaited max_attempts-1 times"
+        );
+
+        // (b) non-retryable: fail fast after one op call, no backoff.
+        let op_calls = AtomicU32::new(0);
+        let backoffs = AtomicU32::new(0);
+        let fast: Result<(), u32> = send_with_retry_escaping_pool(
+            |_client| {
+                op_calls.fetch_add(1, Ordering::SeqCst);
+                async { Err(7) }
+            },
+            5,
+            |_e: &u32| false,
+            |_attempt| {
+                backoffs.fetch_add(1, Ordering::SeqCst);
+                std::future::ready(())
+            },
+        )
+        .await;
+        assert_eq!(fast, Err(7));
+        assert_eq!(
+            op_calls.load(Ordering::SeqCst),
+            1,
+            "a non-retryable error fails fast"
+        );
+        assert_eq!(
+            backoffs.load(Ordering::SeqCst),
+            0,
+            "no backoff on a fast failure"
+        );
+
+        // (c) success short-circuits: fail once (retryable), then succeed on the 2nd attempt.
+        let op_calls = AtomicU32::new(0);
+        let ok: Result<u32, u32> = send_with_retry_escaping_pool(
+            |_client| {
+                let n = op_calls.fetch_add(1, Ordering::SeqCst);
+                let outcome: Result<u32, u32> = if n == 0 { Err(1) } else { Ok(42) };
+                async move { outcome }
+            },
+            5,
+            |_e: &u32| true,
+            |_attempt| std::future::ready(()),
+        )
+        .await;
+        assert_eq!(ok, Ok(42));
+        assert_eq!(
+            op_calls.load(Ordering::SeqCst),
+            2,
+            "stops at the first success"
+        );
     }
 }

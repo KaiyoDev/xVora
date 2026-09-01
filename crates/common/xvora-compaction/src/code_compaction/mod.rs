@@ -1,11 +1,11 @@
-//! xvora's "code agent" compaction subsystem.
+//! grok-build's "code agent" compaction subsystem.
 //!
-//! xvora does not select a tail to keep; it summarizes the whole
+//! grok-build does not select a tail to keep; it summarizes the whole
 //! conversation and rebuilds a fresh history from scratch (the *full-replace*
 //! strategy). This module groups that subsystem — generic over the engine's
 //! [`CompactionItem`](crate::item::CompactionItem) /
 //! [`CompactionItemFactory`](crate::item::CompactionItemFactory) seams — so it
-//! can be reused as a unit by xvora, separate from Grok chat's
+//! can be reused as a unit by grok-build, separate from Grok chat's
 //! [`intra_compaction`](crate::intra_compaction) (tail-keep, per-step) and
 //! [`inter_compaction`](crate::inter_compaction) (chunked, between-turn).
 //!
@@ -41,9 +41,7 @@ pub use compact::{
 pub use config::{
     DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT, FullReplaceConfig, MIN_SUMMARY_SEED_CHARS,
 };
-pub use failure::{
-    FailureKind, classify_http_status, classify_stream_event_error, is_context_length_error,
-};
+pub use failure::is_context_length_error;
 pub use observer::{FullReplaceAttemptOutcome, FullReplaceObserver};
 pub use prompt::{
     SELF_SUMMARIZATION_PROMPT, SummaryPromptKind, build_summary_prompt, build_summary_prompt_kind,

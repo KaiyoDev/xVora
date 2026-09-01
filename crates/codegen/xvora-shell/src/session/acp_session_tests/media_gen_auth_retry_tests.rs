@@ -1,17 +1,17 @@
 use super::*;
-use crate::auth::{AuthManager, AuthMode, GrokComConfig, XaiAuth};
+use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use xvora_tools::types::output::{ToolOutput, ToolRunResult};
 
 fn succeeding_am() -> Arc<AuthManager> {
     let dir = tempfile::tempdir().unwrap();
     let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    am.hot_swap(XaiAuth {
+    am.hot_swap(GrokAuth {
         key: "expired".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(chrono::Utc::now() - chrono::Duration::hours(1)),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     });
     struct Ok;
     #[async_trait::async_trait]
@@ -20,11 +20,11 @@ fn succeeding_am() -> Arc<AuthManager> {
             &self,
             _: crate::auth::refresh::RefreshReason,
         ) -> crate::auth::refresh::RefreshOutcome {
-            crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
+            crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
                 key: "fresh".into(),
                 expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
                 refresh_token: Some("rt-new".into()),
-                ..XaiAuth::test_default()
+                ..GrokAuth::test_default()
             }))
         }
     }
@@ -37,12 +37,12 @@ fn succeeding_am() -> Arc<AuthManager> {
 fn failing_am() -> Arc<AuthManager> {
     let dir = tempfile::tempdir().unwrap();
     let am = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
-    am.hot_swap(XaiAuth {
+    am.hot_swap(GrokAuth {
         key: "expired".into(),
         auth_mode: AuthMode::Oidc,
         refresh_token: Some("rt".into()),
         expires_at: Some(chrono::Utc::now() - chrono::Duration::hours(1)),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     });
     struct Fail;
     #[async_trait::async_trait]
@@ -63,7 +63,7 @@ fn failing_am() -> Arc<AuthManager> {
     am
 }
 
-fn ok_result(text: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
+fn ok_result(text: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
     Ok(ToolRunResult {
         output: ToolOutput::Text(text.to_owned().into()),
         prompt_text: text.to_owned(),
@@ -71,16 +71,17 @@ fn ok_result(text: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
     })
 }
 
-fn err(msg: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
-    Err(tool_runtime::ToolError::invalid_arguments(msg.to_owned()))
+fn err(msg: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+    Err(xvora_tool_runtime::ToolError::invalid_arguments(
+        msg.to_owned(),
+    ))
 }
 
-/// Production-shaped HTTP failure (image_gen / video_gen emit this on
-/// any non-success status). Use for retry tests that should exercise
-/// the structured status-code path rather than the string fallback.
-fn http_err(status: u16, msg: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
+/// Build the HTTP failure shape that image_gen and video_gen emit on any non-success status.
+/// Use for retry tests that should exercise the structured status-code path rather than the string fallback.
+fn http_err(status: u16, msg: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
     Err(
-        tool_runtime::ToolError::new(tool_runtime::ToolErrorKind::Custom, msg.to_owned())
+        xvora_tool_runtime::ToolError::new(xvora_tool_runtime::ToolErrorKind::Custom, msg.to_owned())
             .with_details(
                 serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: status}),
             ),
@@ -89,49 +90,44 @@ fn http_err(status: u16, msg: &str) -> Result<ToolRunResult, tool_runtime::ToolE
 
 // ── is_auth_tool_error ────────────────────────────────────────
 
-/// Single source of truth for which error strings/variants the helper
-/// must classify. Adding a new pattern is a one-line change here.
+/// Single source of truth for which error strings/variants the helper must classify.
+/// Adding a new pattern is a one-line change here.
 #[test]
 fn is_auth_tool_error_classification() {
-    // (expected, error) — covers every branch + a sample of negatives
-    // a careless edit could plausibly break.
-    let cases: Vec<(bool, tool_runtime::ToolError)> = vec![
-        // Primary path: image_gen / video_gen now surface 401s as
-        // structured custom errors with status in details; classifier
-        // matches the status code, not the rendered string.
+    // (expected, error) pairs: covers every branch and a sample of negatives a careless edit could plausibly break
+    let cases: Vec<(bool, xvora_tool_runtime::ToolError)> = vec![
+        // Primary path: image_gen and video_gen surface 401s as structured custom errors with the status in details
+        // The classifier matches the status code, not the rendered string
         (
             true,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "Image generation failed with HTTP 401 Unauthorized: missing token",
             )
             .with_details(
                 serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: 401}),
             ),
         ),
-        // Negative: 403 Forbidden must NOT trigger a refresh. Mirrors
-        // the inference path's gate in xvora-sampling-types/src/error.rs:
-        // 403 means "authenticated but not permitted" (content safety,
-        // ZDR, remote settings gates) and refreshing the token is a no-op
-        // that surfaces as a spurious auth_required teardown.
+        // Negative: 403 Forbidden must NOT trigger a refresh
+        // This mirrors the inference path's gate in xvora-sampling-types/src/error.rs
+        // 403 means "authenticated but not permitted" (content safety, ZDR, remote settings gates)
+        // Refreshing the token is a no-op that surfaces as a spurious auth_required teardown
         (
             false,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "Forbidden: ZDR-blocked operation",
             )
             .with_details(
                 serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: 403}),
             ),
         ),
-        // Regression guard: a 403 whose body happens to contain
-        // "unauthorized" must still be classified as not-auth. Without
-        // the structured-variant short-circuit in is_auth_tool_error,
-        // the keyword fallback would mis-fire here.
+        // Regression guard: a 403 whose body happens to contain "unauthorized" must still be classified as not-auth
+        // Without the structured-variant short-circuit in is_auth_tool_error, the keyword fallback would mis-fire here
         (
             false,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "Forbidden: unauthorized to perform this action",
             )
             .with_details(
@@ -141,52 +137,48 @@ fn is_auth_tool_error_classification() {
         // Negative: any other non-success HTTP status falls through.
         (
             false,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "internal server error",
             )
             .with_details(
                 serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: 500}),
             ),
         ),
-        // Fallback path: BYOK / provider key validation arrives as a
-        // ValidationError without a status code. Classifier still
-        // catches it via the message-string fallback.
+        // Fallback path: BYOK or provider key validation arrives as a ValidationError without a status code
+        // The classifier still catches it via the message-string fallback
         (
             true,
-            tool_runtime::ToolError::invalid_arguments("response: invalid api key for project"),
+            xvora_tool_runtime::ToolError::invalid_arguments("response: invalid api key for project"),
         ),
-        // Fallback path: OAuth 2.0 `invalid_token` payload (RFC 6749)
-        // surfaced as raw JSON without a structured status code.
+        // Fallback path: an OAuth 2.0 `invalid_token` payload (RFC 6749) surfaced as raw JSON without a structured status code
         (
             true,
-            tool_runtime::ToolError::invalid_arguments(r#"{"error":"invalid_token"}"#),
+            xvora_tool_runtime::ToolError::invalid_arguments(r#"{"error":"invalid_token"}"#),
         ),
-        // Fallback path: case-insensitive "unauthorized" anywhere in
-        // the message body.
+        // Fallback path: case-insensitive "unauthorized" anywhere in the message body
         (
             true,
-            tool_runtime::ToolError::invalid_arguments("UNAUTHORIZED"),
+            xvora_tool_runtime::ToolError::invalid_arguments("UNAUTHORIZED"),
         ),
         // Negative: transport failure must not trigger a token refresh.
         (
             false,
-            tool_runtime::ToolError::invalid_arguments("Image generation timed out after 60s"),
+            xvora_tool_runtime::ToolError::invalid_arguments("Image generation timed out after 60s"),
         ),
         // Negative: structural not-found error; not a network response.
         (
             false,
-            tool_runtime::ToolError::not_found(
-                tool_protocol::ToolId::new("image_gen").expect("valid"),
+            xvora_tool_runtime::ToolError::not_found(
+                xvora_tool_protocol::ToolId::new("image_gen").expect("valid"),
                 "Tool not found: image_gen",
             ),
         ),
-        // Negative: bare digits embedded in a request id must not trigger
-        // a refresh (regression guard for any future bare-`401` substring
-        // match accidentally re-introduced into the fallback path).
+        // Negative: bare digits embedded in a request id must not trigger a refresh
+        // Regression guard for a bare-`401` substring match accidentally re-introduced into the fallback path
         (
             false,
-            tool_runtime::ToolError::invalid_arguments("request id req_401abc failed"),
+            xvora_tool_runtime::ToolError::invalid_arguments("request id req_401abc failed"),
         ),
     ];
 
@@ -285,9 +277,8 @@ async fn auth_error_without_refresher_returns_original_error() {
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 }
 
-/// Defensive bound: if the freshly-refreshed token also 401s
-/// (server-side revocation, clock skew, IdP/RP desync), give up
-/// after one retry rather than spinning.
+/// Defensive bound: if the freshly refreshed token also 401s, give up after one retry rather than spinning.
+/// That happens on server-side revocation, clock skew, or when the IdP and RP fall out of sync.
 #[tokio::test]
 async fn retry_is_bounded_at_one_even_if_retry_also_fails_with_auth() {
     let am = succeeding_am();

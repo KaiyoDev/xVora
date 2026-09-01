@@ -1,27 +1,23 @@
-//! EditToolCallBlock - displays file edit diffs with syntax highlighting.
-//!
 //! # Progressive highlight
 //!
-//! First paint uses per-hunk syntect (fast). When the post-edit file is available
-//! and under size/line caps, a background worker upgrades to full-file-scoped
-//! styles so mid-file multi-line scopes (e.g. closing `"""`) paint correctly.
+//! First paint uses per-hunk syntect (fast).
+//! When the post-edit file is available and under size/line caps, a background worker upgrades to full-file-scoped styles.
+//! Mid-file multi-line scopes (e.g. a closing `"""`) then paint correctly.
 //!
 //! # Caps ([`EDIT_HL_MAX_BYTES`] / [`EDIT_HL_MAX_LINES`])
 //!
-//! Full-file HL costs up to **O(file lines)** in syntect, not O(hunk lines) —
-//! the walk stops at the last hunk line, but a hunk near EOF pays for the whole
-//! file. Caps keep background work bounded so a multi-megabyte monorepo dump
-//! never freezes the worker or balloons the style map:
+//! Full-file HL costs up to **O(file lines)** in syntect, not O(hunk lines).
+//! The walk stops at the last hunk line, but a hunk near EOF pays for the whole file.
+//! Caps keep background work bounded so a multi-megabyte monorepo dump never freezes the worker or balloons the style map:
 //!
 //! | Gate | Default | On exceed |
 //! |------|---------|-----------|
 //! | File bytes | 2 MiB | stay [`EditHighlightPhase::HunkOnly`] |
 //! | Line count | 50_000 | stay hunk-only |
 //!
-//! Cost magnitudes: see `benches/edit_highlight` (hunk-only first paint is
-//! cheap; full-file is once-per-upgrade; naïve prefix-per-hunk is not shipped).
+//! Cost magnitudes: see `benches/edit_highlight`.
+//! Hunk-only first paint is cheap; full-file runs once per upgrade; the naïve prefix-per-hunk approach is not shipped.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Range;
 use std::path::Path;
@@ -34,7 +30,7 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::Style as SyntectStyle;
 
 use super::TOOL_HEADER_RANGE;
-use crate::diff::{DiffHunk, diff_hunks_to_patch};
+use crate::appearance::AppearanceConfig;
 use crate::scrollback::block::BlockContent;
 use crate::scrollback::types::{
     AccentStyle, BlockBackground, BlockContext, BlockLine, BlockOutput, DisplayMode,
@@ -43,15 +39,13 @@ use crate::scrollback::types::{
 };
 use crate::syntax::{Syntect, get_syntect};
 use crate::theme::{Theme, ThemeKind};
+use xvora_pager_diff::{DiffHunk, diff_hunks_to_patch};
 
 /// Skip full-file HL when the post-edit file exceeds this size (2 MiB).
-///
-/// Full-file syntect on multi-MB sources is poor background work vs staying
-/// hunk-only; see `benches/edit_highlight`.
+/// Full-file syntect on multi-MB sources is poor background work vs staying hunk-only; see `benches/edit_highlight`.
 pub const EDIT_HL_MAX_BYTES: u64 = 2 * 1024 * 1024;
 /// Skip full-file HL when the post-edit file has more lines than this (50k).
-///
-/// Larger files stay hunk-only so the worker cannot unbounded-walk a dump.
+/// Larger files stay hunk-only so the worker never does an unbounded walk over a dump.
 pub const EDIT_HL_MAX_LINES: usize = 50_000;
 
 /// Content spans for one source line: FG styles only (height-neutral).
@@ -59,8 +53,8 @@ pub type EditLineStyles = Vec<(Style, String)>;
 
 /// Progressive syntax-highlight state for an edit block.
 ///
-/// `HunkOnly` / `Pending` use per-hunk syntect; `FileScoped` maps full-file FG
-/// styles onto Equal/Insert hunk text (Deletes keep per-hunk syntect). Clone via [`Arc`].
+/// `HunkOnly` / `Pending` use per-hunk syntect; `FileScoped` maps full-file FG styles onto Equal/Insert hunk text (Deletes keep per-hunk syntect).
+/// Clone via [`Arc`].
 #[derive(Debug, Clone, Default)]
 pub enum EditHighlightPhase {
     #[default]
@@ -70,8 +64,7 @@ pub enum EditHighlightPhase {
     /// Precomputed full-file styles keyed by 1-based new-file line.
     FileScoped {
         by_new_line: Arc<HashMap<usize, EditLineStyles>>,
-        /// Theme the styles were baked under; paint falls back to hunk-only
-        /// on mismatch so a runtime theme flip never mixes palettes.
+        /// Theme the styles were baked under; paint falls back to hunk-only on mismatch so a runtime theme flip never mixes palettes.
         theme: ThemeKind,
     },
 }
@@ -90,7 +83,7 @@ pub struct DiffRenderConfig {
     /// Separator string between hunks.
     /// Options: "───" (line), "…" (ellipsis), "⋯" (midline ellipsis), "" (none).
     pub hunk_separator: String,
-    /// Show two line-number columns (old + new) like GitHub's unified diff.
+    /// Show two line-number columns (old and new) like GitHub's unified diff.
     /// When false (default), show a single column with the new-file line number.
     pub dual_line_numbers: bool,
 }
@@ -111,15 +104,6 @@ impl Default for DiffRenderConfig {
 const INDENT: &str = "  ";
 const GUTTER_GAP: &str = " ";
 const CONTENT_GAP: &str = "  ";
-
-/// Expand tabs using the global tab_width (`Cow::Borrowed` when none).
-fn expand_tabs(text: &str) -> Cow<'_, str> {
-    let tw = crate::appearance::tab_width();
-    if tw == 0 || !text.contains('\t') {
-        return Cow::Borrowed(text);
-    }
-    Cow::Owned(text.replace('\t', &" ".repeat(tw as usize)))
-}
 
 /// A rendered diff line with optional background color.
 pub struct DiffLineOutput {
@@ -161,11 +145,10 @@ pub fn render_diff_hunks_highlighted(
     render_diff_hunks_core(hunks, path, None, theme, width, config)
 }
 
-/// The single hunk walker behind both public fronts, so gutters, backgrounds,
-/// separators, and wrap behavior are identical across highlight phases by
-/// construction. Every line renders its per-hunk syntect spans (keeping the
-/// highlighter state exactly as in the hunk-only phase); when `by_new_line`
-/// is given, matching Equal/Insert lines swap in the full-file styles.
+/// The single hunk walker behind both public fronts.
+/// Gutters, backgrounds, separators, and wrap behavior are therefore identical across highlight phases by construction.
+/// Every line renders its per-hunk syntect spans, keeping the highlighter state exactly as in the hunk-only phase.
+/// When `by_new_line` is given, matching Equal/Insert lines swap in the full-file styles.
 fn render_diff_hunks_core(
     hunks: &[DiffHunk],
     path: &Path,
@@ -206,17 +189,30 @@ fn render_diff_hunks_core(
         let layout = gutter_layout(hunk, config);
         let indent_width = if config.indent { INDENT.len() } else { 0 };
         let content_width = (width as usize).saturating_sub(layout.total);
-        // Fresh per-hunk highlighter, same as the hunk-only phase always did.
-        let mut highlighter = syntect.highlight_lines_by_file_path(path);
+        // A diff interleaves two file versions; give each side its own highlighter so a multi-line construct can't leak across sides
+        // Equal lines render on the new side and advance both
+        let mut old_highlighter = syntect.highlight_lines_by_file_path(path);
+        let mut new_highlighter = syntect.highlight_lines_by_file_path(path);
         for line in hunk {
             let trimmed = line.text.trim_end_matches(['\r', '\n']);
-            let raw_text = expand_tabs(trimmed);
-            // Cold spans render unconditionally so Delete lines and any map
-            // miss (text drift) paint exactly like the hunk-only phase.
-            let mut content_spans =
-                render_content_spans(&raw_text, line.tag, theme, &mut highlighter, syntect);
+            let text = xvora_pager_render::appearance::expand_tabs(trimmed);
+            // Cold spans render unconditionally so Delete lines and any map miss (text drift) paint exactly like the hunk-only phase
+            let mut content_spans = match line.tag {
+                ChangeTag::Delete => {
+                    render_content_spans(&text, line.tag, theme, &mut old_highlighter, syntect)
+                }
+                ChangeTag::Insert => {
+                    render_content_spans(&text, line.tag, theme, &mut new_highlighter, syntect)
+                }
+                ChangeTag::Equal => {
+                    let spans =
+                        render_content_spans(&text, line.tag, theme, &mut new_highlighter, syntect);
+                    advance_highlighter(&mut old_highlighter, &text, syntect);
+                    spans
+                }
+            };
             if let Some(map) = by_new_line
-                && let Some(spans) = map_spans_for_line(line, &raw_text, map, theme)
+                && let Some(spans) = map_spans_for_line(line, &text, map, theme)
             {
                 content_spans = spans;
             }
@@ -238,10 +234,9 @@ fn render_diff_hunks_core(
 /// Unchanged new-file lines hidden between two hunks, when computable.
 ///
 /// Uses the `ln` of the new-file lines (Equal/Insert) bordering the gap.
-/// `None` — a hunk with no new-file lines, or a non-positive gap — keeps the
-/// bare separator. Non-monotonic `ln` happens on coalesced multi-call blocks
-/// whose later edit landed above an earlier one (each call's hunks are
-/// numbered against its own file snapshot), so a count would be wrong there.
+/// `None` (a hunk with no new-file lines, or a non-positive gap) keeps the bare separator.
+/// Non-monotonic `ln` happens on coalesced multi-call blocks whose later edit landed above an earlier one.
+/// Each call's hunks are numbered against its own file snapshot, so a count would be wrong there.
 fn hunk_gap_lines(prev: &DiffHunk, next: &DiffHunk) -> Option<usize> {
     let prev_last = prev.iter().rev().find(|l| l.tag != ChangeTag::Delete)?.ln;
     let next_first = next.iter().find(|l| l.tag != ChangeTag::Delete)?.ln;
@@ -251,14 +246,17 @@ fn hunk_gap_lines(prev: &DiffHunk, next: &DiffHunk) -> Option<usize> {
         .filter(|n| *n > 0)
 }
 
-/// Expanded (tabs → spaces) text for Equal/Insert hunk lines, keyed by 1-based ln.
+/// Tab-expanded text for Equal/Insert hunk lines, keyed by 1-based ln.
 fn hunk_new_line_texts(hunks: &[DiffHunk]) -> HashMap<usize, String> {
     let mut out = HashMap::new();
     for hunk in hunks {
         for line in hunk {
             if matches!(line.tag, ChangeTag::Equal | ChangeTag::Insert) && line.ln > 0 {
                 let trimmed = line.text.trim_end_matches(['\r', '\n']);
-                out.insert(line.ln, expand_tabs(trimmed).into_owned());
+                out.insert(
+                    line.ln,
+                    xvora_pager_render::appearance::expand_tabs(trimmed).into_owned(),
+                );
             }
         }
     }
@@ -280,13 +278,10 @@ pub fn file_text_within_hl_caps(file_text: &str) -> bool {
 
 /// Full-file HL once; keep new-side lines referenced by `hunks`.
 ///
-/// Production upgrade path (edit-HL worker): one syntect walk over `file_text`
-/// up to the last hunk line, retaining only Equal/Insert lines present in
-/// `hunks`. Expands tabs before HL
-/// (same as cold paint). Returns `None` if any needed disk line differs from
-/// hunk text (so upgrade never rewrites displayed content). That refusal is also
-/// the expected outcome for multi-edit blocks whose earlier hunks' `ln` were
-/// shifted by a later edit above them, not a missed upgrade.
+/// Production upgrade path (edit-HL worker): one syntect walk over `file_text` up to the last hunk line.
+/// Only Equal/Insert lines present in `hunks` are retained. Expands tabs before HL (same as cold paint).
+/// Returns `None` if any needed disk line differs from hunk text (so upgrade never rewrites displayed content).
+/// That refusal is also expected for multi-edit blocks whose earlier hunks' `ln` were shifted by a later edit above them, not a missed upgrade.
 /// Caller enforces caps ([`file_text_within_hl_caps`]) and UTF-8.
 pub fn compute_file_scoped_styles(
     path: &Path,
@@ -309,7 +304,7 @@ pub fn compute_file_scoped_styles(
         if ln > max_needed {
             break;
         }
-        let expanded = expand_tabs(line);
+        let expanded = xvora_pager_render::appearance::expand_tabs(line);
         let owned = format!("{expanded}\n");
         let ranges = highlighter
             .highlight_line(&owned, &syntect.syntax_set)
@@ -342,10 +337,10 @@ pub fn compute_file_scoped_styles(
     Some(out)
 }
 
-/// Render hunks with precomputed full-file styles (FileScoped). A thin front
-/// over [`render_diff_hunks_core`], so gutters/BG/wrap — and the Delete lines'
-/// per-hunk syntect paint — match [`render_diff_hunks_highlighted`] by
-/// construction; the map only overrides Equal/Insert foregrounds.
+/// Render hunks with precomputed full-file styles (FileScoped).
+/// A thin front over [`render_diff_hunks_core`].
+/// Gutters, BG, wrap, and the Delete lines' per-hunk syntect paint match [`render_diff_hunks_highlighted`] by construction.
+/// The map only overrides Equal/Insert foregrounds.
 pub fn render_diff_hunks_with_styles(
     hunks: &[DiffHunk],
     path: &Path,
@@ -357,13 +352,12 @@ pub fn render_diff_hunks_with_styles(
     render_diff_hunks_core(hunks, path, Some(by_new_line), theme, width, config)
 }
 
-/// Full-file map spans for one line, when they may override the cold spans:
-/// Equal always; Insert only on banded themes (bandless paints changed lines
-/// with a solid line FG); Delete never (it keeps the per-hunk syntect paint the
-/// user already saw). `None` — missing line, text drift, or nothing visible —
-/// keeps the cold spans.
+/// Full-file map spans for one line, when they may override the cold spans.
+/// Equal always; Insert only on banded themes (bandless paints changed lines with a solid line FG).
+/// Delete never: it keeps the per-hunk syntect paint the user already saw.
+/// `None` (missing line, text drift, or nothing visible) keeps the cold spans.
 fn map_spans_for_line(
-    line: &crate::diff::DiffLine,
+    line: &xvora_pager_diff::DiffLine,
     expanded: &str,
     by_new_line: &HashMap<usize, EditLineStyles>,
     theme: &Theme,
@@ -394,7 +388,7 @@ fn map_spans_for_line(
 
 /// Assemble gutter + content spans into one or more wrapped [`DiffLineOutput`]s.
 fn assemble_diff_line_outputs(
-    line: &crate::diff::DiffLine,
+    line: &xvora_pager_diff::DiffLine,
     content_spans: Vec<Span<'static>>,
     layout: &GutterLayout,
     indent_width: usize,
@@ -431,12 +425,36 @@ fn assemble_diff_line_outputs(
         }];
     }
 
-    // Wrap: fall back to solid FG for wrapped segments (same as hunk-only path).
+    // Wrap: project the precomputed styles onto the wrap segments; fall back to a solid FG per segment when the projection cannot be aligned
     let mut outputs = Vec::new();
     let gutter_padding = " ".repeat(layout.total);
     let wrapped_lines = wrap_text(&raw_content, content_width);
     let bg_start = compute_bg_start(config, layout.total, indent_width);
-    for (i, wrapped) in wrapped_lines.iter().enumerate() {
+    let styled_rows = match project_styles_onto_wrap_segments(&content_spans, &wrapped_lines) {
+        Some(rows) if rows.len() == wrapped_lines.len() => rows,
+        _ => {
+            let style = match line.tag {
+                ChangeTag::Equal => Style::default().fg(theme.diff_equal_fg),
+                ChangeTag::Delete | ChangeTag::Insert => {
+                    if theme.diff_uses_line_fg() {
+                        let fg = if line.tag == ChangeTag::Delete {
+                            theme.diff_delete_fg
+                        } else {
+                            theme.diff_insert_fg
+                        };
+                        Style::default().fg(fg)
+                    } else {
+                        Style::default().fg(theme.text_primary)
+                    }
+                }
+            };
+            wrapped_lines
+                .iter()
+                .map(|wrapped| vec![Span::styled(wrapped.clone(), style)])
+                .collect()
+        }
+    };
+    for (i, (wrapped, row)) in wrapped_lines.iter().zip(styled_rows).enumerate() {
         let mut spans = Vec::new();
         let gutter_count = if i == 0 {
             render_gutter(&mut spans, line, layout, theme, config);
@@ -445,22 +463,7 @@ fn assemble_diff_line_outputs(
             spans.push(Span::raw(gutter_padding.clone()));
             1
         };
-        let style = match line.tag {
-            ChangeTag::Equal => Style::default().fg(theme.diff_equal_fg),
-            ChangeTag::Delete | ChangeTag::Insert => {
-                if theme.diff_uses_line_fg() {
-                    let fg = if line.tag == ChangeTag::Delete {
-                        theme.diff_delete_fg
-                    } else {
-                        theme.diff_insert_fg
-                    };
-                    Style::default().fg(fg)
-                } else {
-                    Style::default().fg(theme.text_primary)
-                }
-            }
-        };
-        spans.push(Span::styled(wrapped.clone(), style));
+        spans.extend(row);
         outputs.push(DiffLineOutput {
             line: Line::from(spans),
             background: bg,
@@ -477,7 +480,7 @@ fn assemble_diff_line_outputs(
 /// Compute where background starts based on config.
 fn compute_bg_start(config: &DiffRenderConfig, gutter_width: usize, indent_width: usize) -> u16 {
     if config.gutter_bg {
-        // Gutter bg is on - check if we should skip indent
+        // Gutter bg is on: check if we should skip indent
         // indent_bg = true means skip indent (keep it clean)
         // indent_bg = false means include indent in background
         if config.indent && config.indent_bg {
@@ -486,12 +489,11 @@ fn compute_bg_start(config: &DiffRenderConfig, gutter_width: usize, indent_width
             0
         }
     } else {
-        // Gutter bg is off - color from content only
+        // Gutter bg is off: color from content only
         gutter_width as u16
     }
 }
 
-/// Simple word-wrap implementation.
 fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
     if max_width == 0 || text.is_empty() {
         return vec![text.to_string()];
@@ -523,6 +525,46 @@ fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
     }
 
     lines
+}
+
+/// Project precomputed content-span styles onto [`wrap_text`] segments.
+///
+/// Walks the source spans with a monotonic cursor, splitting only at existing span edges or wrap edges.
+/// Each whole [`Style`] is copied onto owned substrings, so the concat of every returned row's text equals its wrap segment.
+/// Returns `None` when the span text and the segments do not partition the same bytes (the caller keeps its solid-FG wrap path).
+fn project_styles_onto_wrap_segments(
+    content_spans: &[Span<'static>],
+    wrapped_segments: &[String],
+) -> Option<Vec<Vec<Span<'static>>>> {
+    let spans_text: String = content_spans.iter().map(|s| s.content.as_ref()).collect();
+    if spans_text != wrapped_segments.concat() {
+        return None;
+    }
+
+    let mut rows = Vec::with_capacity(wrapped_segments.len());
+    let mut span_idx = 0;
+    let mut span_byte = 0;
+    for segment in wrapped_segments {
+        let mut row = Vec::new();
+        let mut remaining = segment.len();
+        while remaining > 0 {
+            let span = content_spans.get(span_idx)?;
+            let available = span.content.len().checked_sub(span_byte)?;
+            if available == 0 {
+                span_idx += 1;
+                span_byte = 0;
+                continue;
+            }
+            let take = available.min(remaining);
+            // `get` fails closed if either edge is not a char boundary.
+            let piece = span.content.get(span_byte..span_byte + take)?;
+            row.push(Span::styled(piece.to_owned(), span.style));
+            span_byte += take;
+            remaining -= take;
+        }
+        rows.push(row);
+    }
+    Some(rows)
 }
 
 /// Gutter layout computed from a hunk and config.
@@ -575,7 +617,7 @@ fn gutter_layout(hunk: &DiffHunk, config: &DiffRenderConfig) -> GutterLayout {
 /// Render the line number gutter.
 fn render_gutter(
     spans: &mut Vec<Span<'static>>,
-    line: &crate::diff::DiffLine,
+    line: &xvora_pager_diff::DiffLine,
     layout: &GutterLayout,
     theme: &Theme,
     config: &DiffRenderConfig,
@@ -588,7 +630,7 @@ fn render_gutter(
     }
 
     if layout.dual {
-        // Dual mode: two columns (old + new) like GitHub unified diff
+        // Dual mode: two columns (old and new) like GitHub unified diff
         let w_old = layout.width_old;
         let w_new = layout.width_new;
         match line.tag {
@@ -640,11 +682,20 @@ fn render_gutter(
     spans.push(Span::raw(CONTENT_GAP));
 }
 
-/// Span with `style`; empty text paints a single space so the row keeps a
-/// visible background band and stays selectable.
+/// Span with `style`; empty text paints a single space so the row keeps a visible background band and stays selectable.
 fn painted(text: &str, style: Style) -> Span<'static> {
     let text = if text.is_empty() { " " } else { text };
     Span::styled(text.to_string(), style)
+}
+
+fn advance_highlighter(
+    highlighter: &mut Option<HighlightLines<'_>>,
+    content: &str,
+    syntect: &Syntect,
+) {
+    if let Some(hl) = highlighter.as_mut() {
+        let _ = hl.highlight_line(&format!("{content}\n"), &syntect.syntax_set);
+    }
 }
 
 /// Render content spans with syntax highlighting.
@@ -703,27 +754,25 @@ fn syntect_to_ratatui_fg(style: SyntectStyle) -> Style {
     crate::syntax::syntect_to_ratatui_fg(style)
 }
 
-/// Edit tool call block - displays file edit with diff.
 #[derive(Debug, Clone)]
 pub struct EditToolCallBlock {
     /// File path being edited.
     pub path: String,
-    /// Diff hunks.
     pub hunks: Vec<DiffHunk>,
     /// Number of edits (for multi-edit display).
     pub edit_count: usize,
     /// Error message if the tool call failed (None = success).
     pub error: Option<String>,
-    /// When the tool started running (Phase 2: time tracking).
+    /// When the tool started running.
     pub started_at: Option<std::time::Instant>,
-    /// Elapsed time in ms after completion (Phase 2: time tracking).
+    /// Elapsed time in ms after completion.
     pub elapsed_ms: Option<i64>,
     /// Header prefix (e.g. "Edit " or "Creating ").
     pub prefix: &'static str,
-    /// One-liner summary can't be trusted: the call touched multiple files
-    /// (apply_patch emits one Diff per file, only the first becomes hunks) or
-    /// the path fell back to the tool title. Suppresses the diffstat suffix;
-    /// `ScrollbackState`'s materialize policy keeps such blocks expanded.
+    pub display_name: Option<String>,
+    /// One-liner summary can't be trusted: the call touched multiple files, or the path fell back to the tool title.
+    /// (apply_patch emits one Diff per file; only the first becomes hunks.)
+    /// Suppresses the diffstat suffix; `ScrollbackState`'s materialize policy keeps such blocks expanded.
     pub summary_untrusted: bool,
     /// Cached `(insertions, deletions)` count, computed eagerly from hunks.
     change_counts: (usize, usize),
@@ -731,32 +780,54 @@ pub struct EditToolCallBlock {
     pub highlight: EditHighlightPhase,
 }
 
+fn workflow_script_name(path: &str) -> Option<String> {
+    let p = Path::new(path);
+    if p.extension().is_none_or(|e| e != "rhai") {
+        return None;
+    }
+    if !p
+        .ancestors()
+        .skip(1)
+        .any(|a| a.file_name().is_some_and(|n| n == "workflows"))
+    {
+        return None;
+    }
+    Some(p.file_stem()?.to_string_lossy().into_owned())
+}
+
 impl EditToolCallBlock {
-    /// Create a new edit block.
-    ///
-    /// Pre-completed blocks have no meaningful local timing — `started_at`
-    /// is `None`. Timing is only set for blocks that enter a running UI
-    /// state (via `set_last_running(true)` in `ScrollbackState`).
+    /// Pre-completed blocks have no meaningful local timing, so `started_at` is `None`.
+    /// Timing is only set for blocks that enter a running UI state (via `set_last_running(true)` in `ScrollbackState`).
     pub fn new(path: impl Into<String>, hunks: Vec<DiffHunk>) -> Self {
+        let path = path.into();
         let edit_count = hunks.len().max(1);
         let change_counts = Self::compute_changes(&hunks);
+        let display_name = workflow_script_name(&path);
         Self {
-            path: path.into(),
+            path,
             hunks,
             edit_count,
             error: None,
             started_at: None,
             elapsed_ms: None,
-            prefix: "Edit ",
+            prefix: if display_name.is_some() {
+                "Editing workflow "
+            } else {
+                "Edit "
+            },
+            display_name,
             summary_untrusted: false,
             change_counts,
             highlight: EditHighlightPhase::HunkOnly,
         }
     }
 
-    /// Set the header prefix (e.g. "Creating " for write).
     pub fn with_prefix(mut self, prefix: &'static str) -> Self {
-        self.prefix = prefix;
+        self.prefix = if self.display_name.is_some() && prefix == "Creating " {
+            "Creating workflow "
+        } else {
+            prefix
+        };
         self
     }
 
@@ -777,7 +848,7 @@ impl EditToolCallBlock {
         self.error.is_none()
     }
 
-    /// Set error (mutable) — compute elapsed time if not already set (Phase 2).
+    /// Set error (mutable); computes elapsed time if not already set.
     pub fn set_error(&mut self, error: Option<String>) {
         if self.elapsed_ms.is_none()
             && let Some(start) = self.started_at
@@ -788,9 +859,7 @@ impl EditToolCallBlock {
     }
 
     /// Finalize elapsed time from `started_at`.
-    ///
-    /// Idempotent: no-op if `started_at` is `None` (pre-completed block)
-    /// or if `elapsed_ms` is already set (already finalized).
+    /// Idempotent: no-op if `started_at` is `None` (pre-completed block) or if `elapsed_ms` is already set (already finalized).
     pub fn finish(&mut self) {
         if self.elapsed_ms.is_some() {
             return;
@@ -800,7 +869,6 @@ impl EditToolCallBlock {
         }
     }
 
-    /// Get elapsed time in ms (Phase 2).
     pub fn elapsed_ms(&self) -> Option<i64> {
         match self.elapsed_ms {
             Some(ms) => Some(ms),
@@ -810,20 +878,16 @@ impl EditToolCallBlock {
         }
     }
 
-    /// Set edit count explicitly.
     pub fn with_edit_count(mut self, count: usize) -> Self {
         self.edit_count = count;
         self
     }
 
-    /// Get copyable text as a unified diff patch.
-    ///
-    /// Generates a patch format suitable for `git apply` or clipboard sharing.
+    /// Get copyable text as a unified diff patch, suitable for `git apply` or clipboard sharing.
     pub fn copy_text(&self) -> String {
         diff_hunks_to_patch(&self.path, &self.hunks)
     }
 
-    /// Set hunks (mutable).
     pub fn set_hunks(&mut self, hunks: Vec<DiffHunk>) {
         self.edit_count = hunks.len().max(1);
         self.change_counts = Self::compute_changes(&hunks);
@@ -883,12 +947,10 @@ impl EditToolCallBlock {
         let prefix = self.prefix;
 
         // Build the suffix spans first so we can reserve space for them.
-        // The suffix (diffstat / "(N edits)") renders only on the collapsed
-        // one-liner: expanded and fullscreen surfaces show the hunks, so
-        // their headers stay bare. Diffstat counts keep their diff colors
-        // even when the header is muted; untrusted summaries (multi-file,
-        // title-fallback path) never show counts that would only describe
-        // the first diff.
+        // The suffix (diffstat / "(N edits)") renders only on the collapsed one-liner
+        // Expanded and fullscreen surfaces show the hunks, so their headers stay bare
+        // Diffstat counts keep their diff colors even when the header is muted
+        // Untrusted summaries (multi-file, title-fallback path) never show counts that would only describe the first diff
         let collapsed = matches!(
             surface,
             crate::render::tool_paths::ToolPathSurface::Collapsed
@@ -921,13 +983,16 @@ impl EditToolCallBlock {
             .map(|span| unicode_width::UnicodeWidthStr::width(span.content.as_ref()))
             .sum();
 
-        let path = crate::render::tool_paths::path_for_tool_surface(
-            &self.path,
-            surface,
-            cwd,
-            width,
-            prefix.len() + suffix_width,
-        );
+        let path = match &self.display_name {
+            Some(name) => name.clone(),
+            None => crate::render::tool_paths::path_for_tool_surface(
+                &self.path,
+                surface,
+                cwd,
+                width,
+                prefix.len() + suffix_width,
+            ),
+        };
 
         let mut spans = vec![
             Span::styled(prefix, bold_style),
@@ -938,15 +1003,13 @@ impl EditToolCallBlock {
         Line::from(spans)
     }
 
-    /// Absolute `file://` for OSC8 regardless of painted path surface.
-    fn path_link_url(&self, cwd: Option<&Path>) -> Option<Arc<str>> {
-        crate::render::osc8::tool_path_file_url(&self.path, cwd)
+    fn path_link_target(&self, cwd: Option<&Path>) -> Option<crate::render::osc8::LinkTarget> {
+        crate::render::osc8::tool_path_file_target(&self.path, cwd)
     }
 
-    /// Render this block's hunks for its current highlight phase — the single
-    /// dispatch point shared by scrollback `output()` and the fullscreen block
-    /// viewer. FileScoped styles baked under a different theme than the live
-    /// one are skipped (hunk-only paint) so a theme flip never mixes palettes.
+    /// Render this block's hunks for its current highlight phase.
+    /// This is the single dispatch point shared by scrollback `output()` and the fullscreen block viewer.
+    /// FileScoped styles baked under a different theme than the live one are skipped (hunk-only paint) so a theme flip never mixes palettes.
     pub fn render_diff_lines(
         &self,
         theme: &Theme,
@@ -1152,7 +1215,7 @@ impl EditToolCallBlock {
             edit_cfg.effective_line_summary(crate::appearance::cache::load_collapsed_edit_blocks());
 
         let cwd = ctx.cwd.as_deref();
-        let link_url = self.path_link_url(cwd);
+        let link_target = self.path_link_target(cwd);
 
         match ctx.mode {
             DisplayMode::Collapsed => {
@@ -1179,7 +1242,7 @@ impl EditToolCallBlock {
                         selection_range: Some(TOOL_HEADER_RANGE),
                         // Copy the painted path span (basename when collapsed).
                         content: line,
-                        link_url,
+                        link_target,
                         ..Default::default()
                     }],
                 })
@@ -1232,7 +1295,7 @@ impl EditToolCallBlock {
                         selection_text: line.selection_text,
                         joiner: line.joiner,
                         content: line.content,
-                        link_url: if has_path { link_url.clone() } else { None },
+                        link_target: if has_path { link_target.clone() } else { None },
                         ..Default::default()
                     });
                 }
@@ -1305,7 +1368,7 @@ impl BlockContent for EditToolCallBlock {
 
     fn accent(&self, ctx: &BlockContext) -> Option<AccentStyle> {
         // Edit blocks: use config accent color if set, otherwise no accent.
-        // Note: errors no longer show red accent — they show red bullet instead.
+        // Errors show a red bullet instead of a red accent
         ctx.appearance
             .scrollback
             .blocks
@@ -1328,8 +1391,8 @@ impl BlockContent for EditToolCallBlock {
         ctx.appearance.scrollback.blocks.edit.accent_bg
     }
 
-    fn has_vpad(&self, ctx: &BlockContext) -> bool {
-        ctx.appearance.scrollback.blocks.edit.vpad
+    fn has_vpad_for(&self, appearance: &AppearanceConfig) -> bool {
+        appearance.scrollback.blocks.edit.vpad
     }
 
     fn background(&self, ctx: &BlockContext) -> BlockBackground {
@@ -1346,9 +1409,8 @@ impl BlockContent for EditToolCallBlock {
     }
 
     fn default_display_mode(&self) -> DisplayMode {
-        // Context-free: the effective expanded default (pager.toml shape >
-        // collapsed_edit_blocks flag) and the untrusted-summary escape live
-        // in ScrollbackState's materialize policy (push / replace_tool_block).
+        // Context-free: the effective expanded default and the untrusted-summary escape live in ScrollbackState's materialize policy
+        // That policy runs in push / replace_tool_block; the pager.toml shape wins over the collapsed_edit_blocks flag
         DisplayMode::Collapsed
     }
 
@@ -1370,8 +1432,7 @@ impl BlockContent for EditToolCallBlock {
     fn preamble(&self, ctx: &BlockContext) -> Option<Text<'static>> {
         let theme = Theme::current();
         let dim_details = ctx.appearance.scrollback.blocks.tool.dim_details;
-        // Same effective toggle as `rendered_output` (moot here: the suffix
-        // is collapsed-only and this is the Fullscreen surface).
+        // Same effective toggle as `rendered_output` (moot here: the suffix is collapsed-only and this is the Fullscreen surface)
         let show_summary = ctx
             .appearance
             .scrollback
@@ -1396,8 +1457,8 @@ mod tests {
 
     use super::*;
     use crate::appearance::AppearanceConfig;
-    use crate::diff::DiffLine;
     use crate::scrollback::types::DisplayMode;
+    use xvora_pager_diff::DiffLine;
 
     fn test_ctx() -> BlockContext {
         BlockContext {
@@ -1514,6 +1575,51 @@ mod tests {
     }
 
     #[test]
+    fn workflow_script_header_hides_rhai_path() {
+        let theme = Theme::current();
+        let block = EditToolCallBlock::new(".grok/workflows/cc-deep-research.rhai", vec![]);
+        let header = block.header_line(
+            &theme,
+            false,
+            false,
+            false,
+            ToolPathSurface::Expanded,
+            None,
+            None,
+        );
+        let text: String = header.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(text, "Editing workflow cc-deep-research");
+        assert!(
+            block
+                .path_link_target(Some(Path::new("/repo")))
+                .and_then(|target| crate::render::osc8::resolve_link_target(&target))
+                .and_then(|resolved| resolved.osc8_url)
+                .is_some_and(|u| u.contains("cc-deep-research.rhai")),
+        );
+
+        let block =
+            EditToolCallBlock::new(".grok/workflows/triage.rhai", vec![]).with_prefix("Creating ");
+        let header = block.header_line(
+            &theme,
+            false,
+            false,
+            false,
+            ToolPathSurface::Expanded,
+            None,
+            None,
+        );
+        let text: String = header.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(text, "Creating workflow triage");
+
+        let block = EditToolCallBlock::new("scripts/build.rhai", vec![]);
+        assert_eq!(block.prefix, "Edit ");
+        assert!(block.display_name.is_none());
+
+        let block = EditToolCallBlock::new("workflows/wf_0199abc/script.rhai", vec![]);
+        assert_eq!(block.display_name.as_deref(), Some("script"));
+    }
+
+    #[test]
     fn header_diffstat_spans_use_diff_colors() {
         let block = EditToolCallBlock::new("/Users/me/project/src/foo.rs", vec![make_hunk()]);
         let theme = Theme::current();
@@ -1526,9 +1632,8 @@ mod tests {
             None,
             Some(80),
         );
-        // Spans: ["Edit ", basename, " +1", "/", "-1"] — path stays span 1 so
-        // the collapsed arm's selection/link invariant holds. Sole pin of the
-        // exact diffstat suffix format.
+        // Spans: ["Edit ", basename, " +1", "/", "-1"]; path stays span 1 so the collapsed arm's selection/link invariant holds
+        // Sole pin of the exact diffstat suffix format
         assert_eq!(header.spans.len(), 5);
         assert_eq!(header.spans[0].content.as_ref(), "Edit ");
         assert_eq!(header.spans[1].content.as_ref(), "foo.rs");
@@ -1538,9 +1643,8 @@ mod tests {
         assert_eq!(header.spans[4].content.as_ref(), "-1");
         assert_eq!(header.spans[4].style.fg, Some(theme.diff_delete_fg));
 
-        // The suffix is collapsed-only: expanded and fullscreen headers stay
-        // bare — the hunks/body carry the information there. Both suffix
-        // shapes (diffstat, "(N edits)" fallback) are gated.
+        // The suffix is collapsed-only: expanded and fullscreen headers stay bare; the hunks/body carry the information there
+        // Both suffix shapes (diffstat, "(N edits)" fallback) are gated
         let multi = block.clone().with_edit_count(3);
         for surface in [ToolPathSurface::Expanded, ToolPathSurface::Fullscreen] {
             let header = block.header_line(&theme, false, true, false, surface, None, None);
@@ -1556,8 +1660,7 @@ mod tests {
 
     #[test]
     fn untrusted_summary_suppresses_diffstat() {
-        // Counts would only describe the first diff of a multi-file call, so
-        // the suffix falls back to "(N edits)" / nothing.
+        // Counts would only describe the first diff of a multi-file call, so the suffix falls back to "(N edits)" / nothing
         let block =
             EditToolCallBlock::new("src/foo.rs", vec![make_hunk()]).with_untrusted_summary();
         let theme = Theme::current();
@@ -1589,9 +1692,8 @@ mod tests {
 
     #[test]
     fn collapsed_mode_renders_header_only() {
-        // The block's context-free default is Collapsed (the effective
-        // expanded default is applied by ScrollbackState's materialize
-        // policy, pinned in state/mod.rs).
+        // The block's context-free default is Collapsed
+        // The effective expanded default is applied by ScrollbackState's materialize policy, pinned in state/mod.rs
         let block = EditToolCallBlock::new("src/foo.rs", vec![make_hunk()]);
         let entry = crate::scrollback::entry::ScrollbackEntry::new(
             crate::scrollback::block::RenderBlock::ToolCall(
@@ -1656,13 +1758,23 @@ mod tests {
     }
 
     #[test]
-    fn header_link_url_is_absolute_file_url_for_all_surfaces() {
+    fn header_link_target_is_absolute_file_for_all_surfaces() {
         let abs = "/Users/me/project/src/foo.rs";
         let cwd = Path::new("/Users/me/project");
         let block = EditToolCallBlock::new(abs, vec![]);
-        let url = block.path_link_url(Some(cwd)).expect("file url");
-        assert!(url.starts_with("file://"), "got {url}");
-        assert!(url.contains("foo.rs"), "got {url}");
+        let target = block.path_link_target(Some(cwd)).expect("file target");
+        assert_eq!(
+            target,
+            crate::render::osc8::LinkTarget::File(Arc::from(Path::new(abs)))
+        );
+        assert_eq!(
+            crate::render::osc8::resolve_link_target(&target)
+                .unwrap()
+                .osc8_url
+                .unwrap()
+                .as_ref(),
+            "file:///Users/me/project/src/foo.rs"
+        );
 
         let mut ctx = test_ctx();
         ctx.cwd = Some(cwd.to_path_buf());
@@ -1672,7 +1784,7 @@ mod tests {
             collapsed.lines[0].content.spans[1].content.as_ref(),
             "foo.rs"
         );
-        assert_eq!(collapsed.lines[0].link_url.as_deref(), Some(url.as_ref()));
+        assert_eq!(collapsed.lines[0].link_target.as_ref(), Some(&target));
 
         ctx.mode = DisplayMode::Expanded;
         let expanded = block.output(&ctx);
@@ -1680,7 +1792,7 @@ mod tests {
             expanded.lines[0].content.spans[1].content.as_ref(),
             "src/foo.rs"
         );
-        assert_eq!(expanded.lines[0].link_url.as_deref(), Some(url.as_ref()));
+        assert_eq!(expanded.lines[0].link_target.as_ref(), Some(&target));
     }
 
     #[test]
@@ -1696,9 +1808,8 @@ mod tests {
 
         for path in cases {
             for width in 8..=48 {
-                // Mirrors production: expanded headers are prefix + path only
-                // (the diffstat suffix is collapsed-only, and collapsed
-                // headers never reach wrap_edit_header).
+                // Mirrors production: expanded headers are prefix and path only
+                // (The diffstat suffix is collapsed-only, and collapsed headers never reach wrap_edit_header.)
                 let header = Line::from(vec![Span::raw("Edit "), Span::raw(path.to_owned())]);
                 let wrapped = wrap_edit_header(header, width, 2);
                 let mut reassembled = String::new();
@@ -1755,9 +1866,8 @@ mod tests {
         assert!(output.lines[4].background.is_some()); // insert
         assert_eq!(output.lines[5].background, None); // equal
 
-        // Insert/delete shading is semantic, NOT a decorative panel — it must
-        // survive minimal mode's flat rendering (EntryRenderer::flat_background),
-        // so it must never be marked `background_is_panel`.
+        // Insert/delete shading is semantic, not a decorative panel
+        // It must survive minimal mode's flat rendering (EntryRenderer::flat_background), so it must never be marked `background_is_panel`
         assert!(
             output.lines.iter().all(|l| !l.background_is_panel),
             "diff shading must not be marked panel"
@@ -1902,9 +2012,8 @@ mod tests {
         }
     }
 
-    /// Regression pin: wrapped continuation segments of a
-    /// changed line used to fall back to `text_primary` (= Reset on bandless
-    /// themes), reading like plain context.
+    /// Regression pin: wrapped continuation segments of a changed line used to fall back to `text_primary`.
+    /// On bandless themes `text_primary` is Reset, so those rows read like plain context.
     #[test]
     fn test_diff_reflow_keeps_change_fg_for_bandless_theme() {
         let theme = Theme::terminal_default();
@@ -1960,6 +2069,201 @@ mod tests {
         for output in &outputs {
             assert_eq!(output.background, Some(theme.diff_insert_bg));
         }
+    }
+
+    /// Wrapped diff rows must keep the precomputed syntect / FileScoped styles instead of flattening to a solid foreground on banded themes.
+    #[test]
+    fn test_diff_reflow_preserves_banded_syntect_styles_across_wrap() {
+        let _guard = pin_groknight_syntect();
+        let theme = Theme::groknight();
+        let config = DiffRenderConfig::default();
+        let path = Path::new("probe.rs");
+        let source = "let naïve = compute(input); // café comment stretching over wraps";
+
+        fn style_stream(outputs: &[DiffLineOutput]) -> Vec<(char, Style)> {
+            outputs
+                .iter()
+                .flat_map(|o| {
+                    o.line.spans.iter().skip(o.gutter_span_count).flat_map(|s| {
+                        let style = s.style;
+                        s.content.chars().map(move |c| (c, style))
+                    })
+                })
+                .collect()
+        }
+
+        for (tag, expected_bg, label) in [
+            (ChangeTag::Insert, Some(theme.diff_insert_bg), "insert"),
+            (ChangeTag::Equal, None, "equal"),
+            (ChangeTag::Delete, Some(theme.diff_delete_bg), "delete"),
+        ] {
+            let hunk = vec![DiffLine {
+                text: format!("{source}\n"),
+                lo: if tag == ChangeTag::Insert { 0 } else { 1 },
+                ln: if tag == ChangeTag::Delete { 0 } else { 1 },
+                tag,
+            }];
+            let wide = render_diff_hunk_highlighted(&hunk, path, &theme, 120, &config);
+            assert_eq!(wide.len(), 1, "{label}: wide render must not wrap");
+            let narrow = render_diff_hunk_highlighted(&hunk, path, &theme, 30, &config);
+            assert!(narrow.len() > 1, "{label}: narrow render must wrap");
+
+            // Per-character styles survive the wrap, row 0 included.
+            let narrow_stream = style_stream(&narrow);
+            assert_eq!(
+                narrow_stream,
+                style_stream(&wide),
+                "{label}: wrapped rows must keep the unwrapped styles"
+            );
+
+            // Non-vacuous fixture: the comment is italic, the code is not.
+            assert!(
+                narrow_stream
+                    .iter()
+                    .any(|(_, st)| st.add_modifier.contains(Modifier::ITALIC)),
+                "{label}: comment chars must be italic"
+            );
+            assert!(
+                narrow_stream
+                    .iter()
+                    .any(|(_, st)| !st.add_modifier.contains(Modifier::ITALIC)),
+                "{label}: code chars must not be italic"
+            );
+
+            // Geometry is unchanged: joiners, content_text partition, painted content after the gutter, background band on every row
+            assert_eq!(narrow[0].joiner, None, "{label}: row 0 joiner");
+            assert!(
+                narrow[1..].iter().all(|o| o.joiner == Some(String::new())),
+                "{label}: continuation joiners"
+            );
+            let joined: String = narrow.iter().map(|o| o.content_text.as_str()).collect();
+            assert_eq!(joined, source, "{label}: content_text partition");
+            for (i, output) in narrow.iter().enumerate() {
+                let painted: String = output.line.spans[output.gutter_span_count..]
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect();
+                assert_eq!(
+                    painted, output.content_text,
+                    "{label}: row {i} painted text"
+                );
+                assert_eq!(
+                    output.background, expected_bg,
+                    "{label}: row {i} background"
+                );
+            }
+        }
+
+        // FileScoped styles flow through the same projection: a style edge mid-word must survive wrapping at a different column
+        let fs_source = "abcdef ghijkl mnopqr stuvwx yzabcd efghij";
+        let split = 17;
+        let style_a = Style::default()
+            .fg(Color::Rgb(10, 20, 30))
+            .add_modifier(Modifier::BOLD);
+        let style_b = Style::default()
+            .fg(Color::Rgb(200, 100, 50))
+            .add_modifier(Modifier::ITALIC);
+        let mut map = HashMap::new();
+        map.insert(
+            1usize,
+            vec![
+                (style_a, fs_source[..split].to_string()),
+                (style_b, fs_source[split..].to_string()),
+            ],
+        );
+        let hunk = vec![DiffLine {
+            text: format!("{fs_source}\n"),
+            lo: 0,
+            ln: 1,
+            tag: ChangeTag::Insert,
+        }];
+        let outputs = render_diff_hunks_with_styles(&[hunk], path, &map, &theme, 30, &config);
+        assert!(outputs.len() > 1, "file-scoped render must wrap");
+        let expected: Vec<(char, Style)> = fs_source
+            .chars()
+            .enumerate()
+            .map(|(i, c)| (c, if i < split { style_a } else { style_b }))
+            .collect();
+        assert_eq!(
+            style_stream(&outputs),
+            expected,
+            "file-scoped styles must survive the wrap"
+        );
+    }
+
+    /// A token wider than the content width still wraps into a single row and must keep its styles rather than flatten to `text_primary`.
+    #[test]
+    fn test_diff_reflow_keeps_overlong_token_styles() {
+        let _guard = pin_groknight_syntect();
+        let theme = Theme::groknight();
+        let config = DiffRenderConfig::default();
+        let path = Path::new("probe.rs");
+        let source = format!("//{}", "x".repeat(40));
+        let hunk = vec![DiffLine {
+            text: format!("{source}\n"),
+            lo: 0,
+            ln: 1,
+            tag: ChangeTag::Insert,
+        }];
+
+        let outputs = render_diff_hunk_highlighted(&hunk, path, &theme, 30, &config);
+        assert_eq!(outputs.len(), 1, "overlong token must stay one row");
+        assert_eq!(outputs[0].joiner, None);
+        assert_eq!(outputs[0].content_text, source);
+        let content = &outputs[0].line.spans[outputs[0].gutter_span_count..];
+        let painted: String = content.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(painted, source);
+        assert!(
+            content
+                .iter()
+                .all(|s| s.style.add_modifier.contains(Modifier::ITALIC)),
+            "comment styles must survive the wrap branch"
+        );
+    }
+
+    /// The projection helper fails closed when the segments do not partition the span text exactly.
+    #[test]
+    fn test_diff_style_projection_rejects_mismatched_partition() {
+        let spans = vec![Span::styled(
+            "hello world".to_string(),
+            Style::default().fg(Color::Red),
+        )];
+        // Extra byte.
+        assert!(
+            project_styles_onto_wrap_segments(
+                &spans,
+                &["hello ".to_string(), "world!".to_string()]
+            )
+            .is_none()
+        );
+        // Same length, different bytes.
+        assert!(
+            project_styles_onto_wrap_segments(&spans, &["hello ".to_string(), "wOrld".to_string()])
+                .is_none()
+        );
+        // Exact partition succeeds.
+        let rows =
+            project_styles_onto_wrap_segments(&spans, &["hello ".to_string(), "world".to_string()])
+                .expect("exact partition must project");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0][0].content.as_ref(), "hello ");
+        assert_eq!(rows[1][0].content.as_ref(), "world");
+
+        // Empty mid-spans must be skipped without underflow/panic.
+        let with_empty = vec![
+            Span::styled("ab".to_string(), Style::default().fg(Color::Red)),
+            Span::raw(""),
+            Span::styled("cd".to_string(), Style::default().fg(Color::Blue)),
+        ];
+        let rows =
+            project_styles_onto_wrap_segments(&with_empty, &["a".to_string(), "bcd".to_string()])
+                .expect("empty mid-span must project");
+        assert_eq!(
+            rows.iter()
+                .map(|row| row.iter().map(|s| s.content.as_ref()).collect::<String>())
+                .collect::<Vec<_>>(),
+            ["a", "bcd"]
+        );
     }
 
     #[test]
@@ -2026,8 +2330,7 @@ mod tests {
         let config = DiffRenderConfig::default();
         let path = Path::new("test.txt");
 
-        // Non-monotonic ln (a coalesced later edit above an earlier one):
-        // never render a negative/zero count, keep the bare separator.
+        // Non-monotonic ln (a coalesced later edit above an earlier one): never render a negative/zero count, keep the bare separator
         let outputs = render_diff_hunks_highlighted(&[mk(20), mk(4)], path, &theme, 80, &config);
         assert_eq!(line_to_string(&outputs[1].line), "  …");
 
@@ -2163,9 +2466,8 @@ mod tests {
 
     #[test]
     fn snapshot_diff_merged_hunks_gap_markers() {
-        // Shape of a coalesced block: hunks from consecutive same-file edits
-        // appended in completion order, monotonically increasing, so every
-        // separator carries a computable gap count.
+        // Shape of a coalesced block: hunks from consecutive same-file edits appended in completion order, monotonically increasing
+        // Every separator therefore carries a computable gap count
         let hunk1 = vec![
             DiffLine {
                 text: "fn one() {\n".into(),
@@ -2379,7 +2681,7 @@ mod tests {
     #[test]
     fn tabs_expanded_in_diff_lines() {
         // Simulates creating a new file with tab-indented content (e.g. Go, Makefile).
-        // All lines are Insert — tabs must be expanded to spaces so they're visible.
+        // All lines are Insert; tabs must be expanded to spaces so they're visible
         let hunk = go_tab_hunk();
 
         let theme = Theme::current();
@@ -2389,7 +2691,7 @@ mod tests {
 
         assert_eq!(outputs.len(), 3);
 
-        // The tab on line 2 should be expanded to spaces (default tab_width=4).
+        // Line 2's tab expands with the default tab_width of 4
         let line2 = line_to_string(&outputs[1].line);
         assert!(
             !line2.contains('\t'),
@@ -2402,7 +2704,6 @@ mod tests {
             line2,
         );
 
-        // content_text should also have expanded tabs.
         assert!(
             !outputs[1].content_text.contains('\t'),
             "content_text should also have tabs expanded",
@@ -2411,20 +2712,19 @@ mod tests {
 
     // ── Edit syntax-highlight harness (triple-quote spill) ──
     //
-    // Asserts use **raw syntect RGB** (not ratatui FG after quantize). Under
-    // `NO_COLOR` quantize maps every RGB → Reset, which would make keyword vs
-    // string asserts tautological / false.
+    // Asserts use **raw syntect RGB** (not ratatui FG after quantize)
+    // Under `NO_COLOR` quantize maps every RGB to Reset, which would make keyword vs string asserts tautological / false
 
     type Rgb = (u8, u8, u8);
     type SyntectSpans = Vec<(Rgb, String)>;
 
-    /// Pins XvoraNight via the shared test-lock guard; hold it for the whole
-    /// test so a concurrent theme flip can't skew the compared highlighter walks.
-    fn pin_xvoranight_syntect() -> std::sync::MutexGuard<'static, ()> {
+    /// Pins GrokNight via the shared test-lock guard.
+    /// Hold it for the whole test so a concurrent theme flip can't skew the compared highlighter walks.
+    fn pin_groknight_syntect() -> std::sync::MutexGuard<'static, ()> {
         let guard = crate::theme::cache::pin_theme();
         assert!(
-            !Theme::xvoranight().diff_uses_line_fg(),
-            "XvoraNight must be banded for Equal-line syntect path in render"
+            !Theme::groknight().diff_uses_line_fg(),
+            "GrokNight must be banded for Equal-line syntect path in render"
         );
         guard
     }
@@ -2454,7 +2754,7 @@ mod tests {
     }
 
     /// Hunk-only: fresh highlighter, only the given lines in order (prod path).
-    /// Caller pins the theme via `pin_xvoranight_syntect` (lock is not reentrant).
+    /// Caller pins the theme via `pin_groknight_syntect` (lock is not reentrant).
     fn hunk_only_raw_styles(path: &Path, lines: &[&str]) -> Vec<SyntectSpans> {
         let syntect = get_syntect();
         let mut hl = syntect
@@ -2467,7 +2767,7 @@ mod tests {
     }
 
     /// Full-file then slice: silent HL from line 1, return styles for all lines.
-    /// Caller pins the theme via `pin_xvoranight_syntect` (lock is not reentrant).
+    /// Caller pins the theme via `pin_groknight_syntect` (lock is not reentrant).
     fn full_file_raw_styles(path: &Path, file_text: &str) -> Vec<SyntectSpans> {
         let syntect = get_syntect();
         let mut hl = syntect
@@ -2479,8 +2779,8 @@ mod tests {
             .collect()
     }
 
-    /// Triple-quote-spill shape: synthetic file text + 1-based line of the
-    /// closing `"""`. Content is fictional (layout stress only).
+    /// Triple-quote-spill shape: synthetic file text and the 1-based line of the closing `"""`.
+    /// Content is fictional (layout stress only).
     fn fixture_python_parts() -> (String, usize) {
         let file = "\
 class ProcessQueueItem(BaseModel):
@@ -2502,10 +2802,10 @@ class ProcessQueueItem(BaseModel):
         (file, close_ln)
     }
 
-    /// Control: self-contained Rust line → keyword RGB ≠ string RGB (raw syntect).
+    /// Control: on a self-contained Rust line, keyword RGB differs from string RGB (raw syntect).
     #[test]
     fn syntax_highlight_splits_keyword_and_string_fg() {
-        let _guard = pin_xvoranight_syntect();
+        let _guard = pin_groknight_syntect();
         let path = Path::new("probe.rs");
         let lines = hunk_only_raw_styles(path, &["let x = \"hello\";"]);
         assert_eq!(lines.len(), 1);
@@ -2523,6 +2823,57 @@ class ProcessQueueItem(BaseModel):
         assert_ne!(
             let_rgb, str_rgb,
             "keyword and string must not share syntect FG; styles={styles:?}"
+        );
+    }
+
+    /// Regression: a `"""` opened on a removed line must not change how the added line highlights.
+    /// The two diff sides are highlighted independently.
+    #[test]
+    fn delete_side_multiline_string_does_not_leak_into_insert() {
+        let _guard = pin_groknight_syntect();
+        let path = Path::new("probe.py");
+        let config = DiffRenderConfig::default();
+        let theme = Theme::groknight();
+
+        // Content spans of the added `def` line, given the removed line above it.
+        let added_def = |removed: &str| -> Vec<(ratatui::style::Color, String)> {
+            let hunk = vec![
+                DiffLine {
+                    text: format!("{removed}\n"),
+                    lo: 1,
+                    ln: 0,
+                    tag: ChangeTag::Delete,
+                },
+                DiffLine {
+                    text: "def parse(x: str) -> int:\n".into(),
+                    lo: 0,
+                    ln: 1,
+                    tag: ChangeTag::Insert,
+                },
+            ];
+            let rows = render_diff_hunk_highlighted(&hunk, path, &theme, 120, &config);
+            let insert = rows.last().expect("insert row");
+            insert.line.spans[insert.gutter_span_count..]
+                .iter()
+                .map(|span| {
+                    (
+                        span.style.fg.unwrap_or(ratatui::style::Color::Reset),
+                        span.content.to_string(),
+                    )
+                })
+                .collect()
+        };
+
+        let after_open_docstring = added_def("    \"\"\"Old docstring opener");
+        let after_plain_code = added_def("    x = 1");
+        assert_eq!(
+            after_open_docstring, after_plain_code,
+            "added line must be highlighted independently of the removed side",
+        );
+        // Under the bug the added line is one string span; the fix keeps it code.
+        assert!(
+            after_open_docstring.len() > 1,
+            "added def line should be syntax highlighted"
         );
     }
 
@@ -2548,11 +2899,10 @@ class ProcessQueueItem(BaseModel):
         (file, hunk, start + field_offset + 1) // 1-based field ln
     }
 
-    /// Fix pin: file-scoped field styles match full-file raw styles
-    /// (and differ from cold hunk-only spill) after a mid-file closing `"""`.
+    /// Fix pin: file-scoped field styles match full-file raw styles (and differ from cold hunk-only spill) after a mid-file closing `"""`.
     #[test]
     fn file_scoped_matches_full_file_on_field_line() {
-        let _guard = pin_xvoranight_syntect();
+        let _guard = pin_groknight_syntect();
         let path = Path::new("queue_item.py");
         let (file, hunk, field_ln) = fixture_python_close_hunk();
         let close_ln = hunk[0].ln;
@@ -2624,16 +2974,14 @@ class ProcessQueueItem(BaseModel):
         );
     }
 
-    /// Pins both directions of the `render_diff_lines` theme gate with one
-    /// paintable map: under its baking theme it repaints (positive control);
-    /// baked under another theme it must not paint — hunk-only output.
+    /// Pins both directions of the `render_diff_lines` theme gate with one paintable map.
+    /// Under its baking theme it repaints (positive control); baked under another theme it must not paint (hunk-only output).
     #[test]
     fn file_scoped_stale_theme_falls_back_to_hunk_only() {
-        let _guard = pin_xvoranight_syntect();
+        let _guard = pin_groknight_syntect();
         let path = Path::new("queue_item.py");
         let (file, hunk, field_ln) = fixture_python_close_hunk();
-        // Real computed map: paintable by construction (line keys and texts
-        // match the hunk).
+        // Real computed map: paintable by construction (line keys and texts match the hunk)
         let map = compute_file_scoped_styles(path, &file, std::slice::from_ref(&hunk))
             .expect("matching file+hunk must yield styles");
         assert!(
@@ -2658,8 +3006,7 @@ class ProcessQueueItem(BaseModel):
                 .collect()
         };
 
-        // Positive control: under its baking theme the map must repaint the
-        // spilled field line, so the stale assert below cannot go vacuous.
+        // Positive control: under its baking theme the map must repaint the spilled field line, so the stale assert below cannot go vacuous
         block.highlight = EditHighlightPhase::FileScoped {
             by_new_line: Arc::clone(&by_new_line),
             theme: crate::theme::cache::current_kind(),
@@ -2671,8 +3018,8 @@ class ProcessQueueItem(BaseModel):
             "fresh-theme FileScoped must paint the map (differ from hunk-only)"
         );
 
-        // Stale: the SAME paintable map baked under another theme is skipped.
-        let stale = ThemeKind::XvoraDay;
+        // Stale: the same paintable map baked under another theme is skipped
+        let stale = ThemeKind::GrokDay;
         assert_ne!(stale, crate::theme::cache::current_kind());
         block.highlight = EditHighlightPhase::FileScoped {
             by_new_line,
@@ -2686,7 +3033,7 @@ class ProcessQueueItem(BaseModel):
         );
     }
 
-    /// Disk line ≠ hunk line → compute refuses upgrade (no content swap).
+    /// When a disk line differs from the hunk line, compute refuses the upgrade (no content swap).
     #[test]
     fn compute_file_scoped_rejects_disk_hunk_mismatch() {
         let path = Path::new("probe.py");
@@ -2735,11 +3082,10 @@ class ProcessQueueItem(BaseModel):
         );
     }
 
-    /// Runnable pin: cold hunk-only and full-file disagree on the field line
-    /// after a mid-file closing `"""`.
+    /// Runnable pin: cold hunk-only and full-file disagree on the field line after a mid-file closing `"""`.
     #[test]
     fn triple_quote_hunk_only_differs_from_full_file_today() {
-        let _guard = pin_xvoranight_syntect();
+        let _guard = pin_groknight_syntect();
         let path = Path::new("queue_item.py");
         let (file, hunk, field_ln) = fixture_python_close_hunk();
         let close_ln = hunk[0].ln;

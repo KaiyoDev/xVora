@@ -2,16 +2,16 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// The fail-closed gate refuses during bootstrap, after the TUI redirects fd 2 to `/dev/null`; its refusal must
-/// still reach the real terminal (a regression that doesn't restore fd 2 leaves a managed user a blank `exit 1`).
+/// The fail-closed gate refuses during bootstrap, after the TUI redirects fd 2 to `/dev/null`; its refusal must still reach the real terminal.
+/// A regression that does not restore fd 2 leaves a managed user a blank `exit 1`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "PTY e2e; run the owning pty_e2e_* Cargo test with --ignored (see Cargo.toml)"]
 async fn managed_policy_gate_refusal_reaches_real_terminal() {
-    let home = tempfile::tempdir().expect("tempdir");
-    let home_path = home.path();
+    let sandbox = xvora_test_support::TestSandbox::new();
+    let home_path = sandbox.grok_home();
     std::fs::write(
         home_path.join("config.toml"),
-        // Dead local port so any incidental fetch fails fast offline (the gate is synchronous anyway).
+        // A dead local port makes any incidental fetch fail fast offline (the gate is synchronous anyway)
         "[endpoints]\n\
          deployment_key = \"KEY-AAA\"\n\
          managed_config_url = \"http://127.0.0.1:1/deployment/config\"\n\
@@ -23,7 +23,7 @@ async fn managed_policy_gate_refusal_reaches_real_terminal() {
         "[cli]\ntheme = \"dark\"\n",
     )
     .expect("write managed_config.toml");
-    // requirements.toml is deliberately absent (served-then-deleted).
+    // requirements.toml is deliberately absent even though the cache below records it existed
     let synced_at = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("clock after epoch")
@@ -39,32 +39,34 @@ async fn managed_policy_gate_refusal_reaches_real_terminal() {
     .expect("write marker");
 
     let binary = pager_binary().expect("resolve pager binary");
-    let home_str = home_path.to_str().expect("utf8 home path");
-    let mut harness = PtyHarness::new(
+    let mut harness = PtyHarness::new_in_sandbox_ops(
         &binary,
         DEFAULT_ROWS,
         DEFAULT_COLS,
         &["--no-auto-update"],
-        // XVORA_MANAGED_CONFIG=0 disables the background refetch so the gate decision is deterministic and offline.
+        &sandbox,
+        // GROK_MANAGED_CONFIG=0 disables the background refetch so the gate decision is deterministic and offline.
         &[
-            ("XVORA_HOME", home_str),
-            ("XVORA_MANAGED_CONFIG", "0"),
-            ("NO_COLOR", "1"),
+            EnvOp::set("GROK_MANAGED_CONFIG", "0"),
+            EnvOp::set("NO_COLOR", "1"),
         ],
+        None,
     )
     .expect("spawn pager");
 
-    // The gate refuses synchronously and exits; drain output, capturing the exit code once.
+    // The gate refuses synchronously and exits; drain output until its cached status arrives.
     let gate_msg = "Managed policy is required for this account";
     let deadline = Instant::now() + Duration::from_secs(30);
     let mut exit_code = None;
     while Instant::now() < deadline {
         harness.update(Duration::from_millis(100));
-        // Poll non-blocking; `wait_exit_code` reaps, so capture it exactly once.
         if exit_code.is_none() {
-            exit_code = harness.wait_exit_code(Duration::ZERO);
+            match wait_for_exit_status(&mut harness, Duration::ZERO).expect("poll gate exit") {
+                PtyExitPoll::Exited(code) => exit_code = Some(code),
+                PtyExitPoll::Running | PtyExitPoll::PendingStatus => {}
+            }
             if exit_code.is_some() {
-                harness.update(Duration::from_millis(200)); // final drain after exit
+                harness.update(Duration::from_millis(200)); // the exit may flush more output
                 break;
             }
         }

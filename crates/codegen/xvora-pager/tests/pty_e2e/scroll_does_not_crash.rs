@@ -2,9 +2,7 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// 4. **Scroll.**
-/// After receiving a long agent response, scrolling keeps the pager
-/// running and doesn't render a `panicked` string anywhere on screen.
+/// After receiving a long agent response, scrolling keeps the pager running and doesn't render a `panicked` string anywhere on screen.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn scroll_does_not_crash() {
@@ -37,7 +35,7 @@ async fn scroll_does_not_crash() {
     harness.update(Duration::from_millis(250));
 
     assert!(
-        harness.is_running(),
+        harness.is_running().expect("poll pager liveness"),
         "pager exited during scroll\nscreen:\n{}",
         harness.screen_contents()
     );

@@ -2,8 +2,7 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// A `!` command queued mid-turn is server-promoted after the turn ends; its
-/// output must render (the marker file proves execution out-of-band).
+/// A `!` command queued mid-turn is server-promoted after the turn ends; its output must render (the marker file proves execution out-of-band).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 #[cfg(unix)]
@@ -17,7 +16,8 @@ async fn queued_bash_promotion_renders_output_pty() {
         }
         s
     };
-    content.set_turns([step_one]);
+    let _turn_one =
+        content.expect_agent_turn("running turn before queued bash promotion", step_one);
 
     let project = tempfile::tempdir().expect("create project dir");
     std::fs::create_dir_all(project.path().join(".git")).expect("create .git");
@@ -45,7 +45,7 @@ async fn queued_bash_promotion_renders_output_pty() {
         .wait_for_text("STEPONE", Duration::from_secs(30))
         .expect("turn 1 streaming");
 
-    // `CLAIMONE_%s_OK` keeps the executed-output sentinel out of the queue-row text.
+    // The queued row only ever shows `CLAIMONE_%s_OK`; printf produces `CLAIMONE_RAN_OK`, so that string can only come from rendered output
     harness
         .inject_keys(b"!printf 'CLAIMONE_%s_OK\\n' RAN | tee claim1_marker.txt\r")
         .expect("submit bash-mode command mid-turn");

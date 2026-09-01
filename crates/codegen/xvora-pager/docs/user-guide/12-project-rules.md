@@ -31,11 +31,19 @@ In addition to AGENTS.md files, Grok scans for `*.md` files in rules directories
 
 | Location | Notes |
 |----------|-------|
-| `<dir>/.xvora/rules/` | Always scanned |
+| `<dir>/.grok/rules/` | Always scanned |
 | `<dir>/.claude/rules/` | Claude compatibility (configurable) |
 | `<dir>/.cursor/rules/` | Cursor compatibility (configurable) |
 
-Grok scans the Claude and Cursor rules directories by default. To disable scanning for a specific vendor, set its cell in the `[compat]` config section or the corresponding environment variable. See [Configuration](05-configuration.md#harness-compatibility) for details.
+Grok also scans home-level rules, regardless of where it starts. These roots are already vendor-specific, so rules live directly under `rules/`:
+
+| Location | Notes |
+|----------|-------|
+| `$GROK_HOME/rules/` (default `~/.grok/rules/`) | Always scanned; applies to all projects |
+| `~/.claude/rules/` | Controlled by `compat.claude.rules` |
+| `~/.cursor/rules/` | Controlled by `compat.cursor.rules` |
+
+Home rules load first, in the table order, followed by project files from repo root to the current directory. Files are alphabetical within each rules directory. The vendor `rules` cells control both home and project rules independently of the corresponding `agents` cells. Claude's `agents` cell controls named files under `~/.claude/` and project `<dir>/.claude/CLAUDE*.md`; generic top-level names such as `Claude.md`, `CLAUDE.md`, and `CLAUDE.local.md` remain recognized. See [Configuration](05-configuration.md#harness-compatibility).
 
 ---
 
@@ -43,7 +51,7 @@ Grok scans the Claude and Cursor rules directories by default. To disable scanni
 
 Grok scans for project rules in this order:
 
-1. **Global rules**: `~/.xvora/` (applies to all projects)
+1. **Home rules**: `$GROK_HOME`, then enabled `~/.claude/` and `~/.cursor/` sources
 2. **Repo rules**: If inside a git repo, every directory from the repo root down to the current working directory (inclusive)
 3. **CWD-only**: If not inside a git repo, only the current working directory
 
@@ -166,7 +174,7 @@ To replace the system prompt entirely, pass `--system-prompt-override` (alias `-
 
 ## File Size
 
-Xvora loads each project instruction file in full; there is no character cap and no truncation. Even so, keep instructions concise and focused. Shorter, specific rules are easier for Xvora to follow than long ones, and every file you load consumes context.
+Grok loads each project instruction file in full; there is no character cap and no truncation. Even so, keep instructions concise and focused. Shorter, specific rules are easier for Grok to follow than long ones, and every file you load consumes context.
 
 ---
 
@@ -179,22 +187,22 @@ Files ignored by `.gitignore` are skipped during discovery. To keep personal ove
 CLAUDE.local.md
 ```
 
-As top-level instruction files, Grok discovers only the recognized filenames listed under [Supported File Names](#supported-file-names) — not custom names such as `AGENTS.local.md` or `notes.md`. (Inside a rules directory such as `.xvora/rules/`, every `*.md` file is loaded regardless of name.)
+As top-level instruction files, Grok discovers only the recognized filenames listed under [Supported File Names](#supported-file-names) — not custom names such as `AGENTS.local.md` or `notes.md`. (Inside a rules directory such as `.grok/rules/`, every `*.md` file is loaded regardless of name.)
 
 ---
 
-## The .xvora/ Project Directory
+## The .grok/ Project Directory
 
-Beyond AGENTS.md files, the `.xvora/` directory in your project root can contain additional project-level configuration:
+Beyond AGENTS.md files, the `.grok/` directory in your project root can contain additional project-level configuration:
 
 | Path | Purpose |
 |------|---------|
-| `.xvora/config.toml` | Project-scoped MCP servers, plugins, and permission rules (other settings load only from `~/.xvora/config.toml`) |
-| `.xvora/skills/` | Project-scoped skill definitions |
-| `.xvora/plugins/` | Project-scoped plugins |
-| `.xvora/agents/` | Project-scoped agent definitions |
-| `.xvora/hooks/` | Project-scoped lifecycle hooks |
-| `.xvora/lsp.json` | LSP server configuration |
+| `.grok/config.toml` | Project-scoped MCP servers, plugins, and permission rules (other settings load only from `~/.grok/config.toml`) |
+| `.grok/skills/` | Project-scoped skill definitions |
+| `.grok/plugins/` | Project-scoped plugins |
+| `.grok/agents/` | Project-scoped agent definitions |
+| `.grok/hooks/` | Project-scoped lifecycle hooks |
+| `.grok/lsp.json` | LSP server configuration |
 
 These are all optional. See the respective guides for details on each.
 
@@ -202,10 +210,10 @@ These are all optional. See the respective guides for details on each.
 
 ## Inspecting Loaded Rules
 
-Use `xvora inspect` to see all loaded project instructions:
+Use `grok inspect` to see all loaded project instructions:
 
 ```bash
-xvora inspect
+grok inspect
 ```
 
 This shows each project instruction file it finds, with its path and approximate token count. Use it to confirm Grok picks up your rules.
@@ -222,7 +230,7 @@ This shows each project instruction file it finds, with its path and approximate
 
 4. **Use subdirectory scoping for large repos.** Different parts of a monorepo may have different conventions. Use per-directory AGENTS.md to scope rules appropriately.
 
-5. **Version control your rules.** Commit AGENTS.md to the repository so the whole team benefits. User-specific overrides belong in `~/.xvora/` (global rules).
+5. **Version control your rules.** Commit AGENTS.md to the repository so the whole team benefits. User-specific overrides belong in `~/.grok/` (global rules).
 
 6. **Do not duplicate documentation.** AGENTS.md should contain actionable instructions, not a copy of your project's README. Link to external docs if needed.
 

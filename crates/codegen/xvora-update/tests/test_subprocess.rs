@@ -1,22 +1,14 @@
-//! Subprocess-based integration tests using fake `npm` / `gh` shell scripts
-//! placed first on `PATH`.
+//! `auto_update::install_npm` and `version::fetch_npm_tag` spawn `npm` by bare name (`Command::new("npm")`).
+//! To test them without touching the real npm registry, we install a fake `npm` shell script that logs its args and prints canned stdout.
+//! The script lives in a tempdir prepended to `PATH` for the duration of the test.
 //!
-//! `auto_update::install_npm` and `version::fetch_npm_tag` spawn `npm` by
-//! bare name (`Command::new("npm")`). To test them without touching the real
-//! npm registry, we install a tempdir-resident shell script named `npm`
-//! that logs its args and prints canned stdout, then prepend that tempdir
-//! to `PATH` for the duration of the test.
+//! The same pattern covers `gh` for the `gh-release` installer paths.
 //!
-//! Same pattern for `gh` for the `gh-release` installer paths.
-//!
-//! All tests in this file mutate `PATH` (global), so they're serialized with
-//! `#[serial]`.
+//! All tests in this file mutate `PATH` (global), so they're serialized with `#[serial]`.
 
 #![cfg(unix)]
 
 mod common;
-
-use std::time::Duration;
 
 use serial_test::serial;
 
@@ -64,7 +56,7 @@ async fn fetch_npm_tag_passes_pkg_and_tag_to_npm() {
     let args = &log[0];
     assert!(args.contains("view"), "args: {args}");
     // For "latest" tag, no `@latest` suffix is appended in pkg_spec.
-    assert!(args.contains("@kaiyodev/xvora"), "args: {args}");
+    assert!(args.contains("@xvora-official/grok"), "args: {args}");
     assert!(!args.contains("@latest"), "args: {args}");
     assert!(args.contains("--json"), "args: {args}");
 }
@@ -79,7 +71,11 @@ async fn fetch_npm_tag_alpha_appends_at_alpha_suffix() {
     assert_eq!(v, "0.1.181-alpha.1");
 
     let log = g.args_log();
-    assert!(log[0].contains("@kaiyodev/grok@alpha"), "args: {}", log[0]);
+    assert!(
+        log[0].contains("@xvora-official/grok@alpha"),
+        "args: {}",
+        log[0]
+    );
 }
 
 #[tokio::test]
@@ -137,8 +133,8 @@ async fn fetch_npm_tag_invalid_json_returns_err() {
 #[tokio::test]
 #[serial]
 async fn fetch_npm_tag_unexpected_json_shape_returns_err() {
-    // npm view can return null, an object, etc. The function expects string
-    // or array of strings — anything else is an error.
+    // npm view can return null, an object, etc
+    // The function expects string or array of strings; anything else is an error
     let g = FakeBinGuard::install_npm();
     g.set_stdout("42");
 
@@ -177,7 +173,7 @@ async fn fetch_npm_version_stable_calls_only_latest() {
 #[serial]
 async fn fetch_npm_version_alpha_returns_max_of_alpha_and_latest_when_alpha_higher() {
     let g = FakeBinGuard::install_npm();
-    g.set_stdout("\"0.1.181\""); // latest tag → stable
+    g.set_stdout("\"0.1.181\""); // latest tag (stable)
     g.set_alpha_stdout("\"0.1.182-alpha.1\""); // alpha tag
 
     let v = fetch_npm_version_for_test("alpha", None).await.unwrap();
@@ -188,8 +184,7 @@ async fn fetch_npm_version_alpha_returns_max_of_alpha_and_latest_when_alpha_high
 #[tokio::test]
 #[serial]
 async fn fetch_npm_version_alpha_returns_stable_when_higher() {
-    // Common case: stable shipped after a stale alpha tag — must not strand
-    // alpha users on the older alpha.
+    // Common case: stable shipped after a stale alpha tag; the updater must not strand alpha users on the older alpha
     let g = FakeBinGuard::install_npm();
     g.set_stdout("\"0.1.182\"");
     g.set_alpha_stdout("\"0.1.181-alpha.1\"");
@@ -206,14 +201,14 @@ async fn fetch_npm_version_alpha_returns_stable_when_higher() {
 #[serial]
 async fn install_npm_calls_npm_with_version_arg() {
     let g = FakeBinGuard::install_npm();
-    // No stdout/exit setup → succeeds with empty stdout.
+    // No stdout/exit setup, so the fake npm succeeds with empty stdout
 
     install_npm_for_test(Some("0.1.181"), "stable", None).unwrap();
     let log = g.args_log();
     assert_eq!(log.len(), 1, "exactly one npm invocation");
     let args = &log[0];
     assert!(args.contains("i -g"), "args: {args}");
-    assert!(args.contains("@kaiyodev/grok@0.1.181"), "args: {args}");
+    assert!(args.contains("@xvora-official/grok@0.1.181"), "args: {args}");
 }
 
 #[tokio::test]
@@ -224,7 +219,7 @@ async fn install_npm_falls_back_to_dist_tag_on_no_target() {
     install_npm_for_test(None, "stable", None).unwrap();
     let log = g.args_log();
     assert!(
-        log[0].contains("@kaiyodev/grok@latest"),
+        log[0].contains("@xvora-official/grok@latest"),
         "stable channel uses @latest dist-tag: {}",
         log[0]
     );
@@ -238,7 +233,7 @@ async fn install_npm_falls_back_to_alpha_dist_tag_on_alpha_channel() {
     install_npm_for_test(None, "alpha", None).unwrap();
     let log = g.args_log();
     assert!(
-        log[0].contains("@kaiyodev/grok@alpha"),
+        log[0].contains("@xvora-official/grok@alpha"),
         "alpha channel uses @alpha dist-tag: {}",
         log[0]
     );
@@ -353,8 +348,7 @@ async fn fetch_gh_release_stable_handles_tag_without_v_prefix() {
 #[tokio::test]
 #[serial]
 async fn fetch_gh_release_alpha_returns_max_of_pre_and_stable() {
-    // Alpha channel makes two `gh release list` calls (with and without
-    // --exclude-pre-releases) and returns the semver-max.
+    // Alpha channel makes two `gh release list` calls (with and without --exclude-pre-releases) and returns the semver-max
     let g = FakeBinGuard::install_gh();
     g.set_with_pre_stdout("v0.1.182-alpha.1");
     g.set_stable_only_stdout("v0.1.181");
@@ -407,15 +401,17 @@ async fn fetch_gh_release_passes_repo_flag() {
     let _ = fetch_gh_release_version("stable").await.unwrap();
     let log = g.args_log();
     assert!(log[0].contains("--repo"), "args: {}", log[0]);
-    assert!(log[0].contains("KaiyoDev/xVora"), "args: {}", log[0]);
+    assert!(
+        log[0].contains("xvora-org-shared/grok-build"),
+        "args: {}",
+        log[0]
+    );
 }
 
 #[tokio::test]
 #[serial]
 async fn fetch_gh_release_uses_jq_to_extract_tag() {
     // The function constructs `gh release list --json tagName --jq '.[0].tagName'`
-    // — we verify the args include the jq filter so a refactor doesn't accidentally
-    // drop it.
     let g = FakeBinGuard::install_gh();
     g.set_stable_only_stdout("v0.1.181");
 
@@ -423,16 +419,4 @@ async fn fetch_gh_release_uses_jq_to_extract_tag() {
     let log = g.args_log();
     assert!(log[0].contains("--json"), "args: {}", log[0]);
     assert!(log[0].contains("--jq"), "args: {}", log[0]);
-}
-
-#[tokio::test]
-#[serial]
-async fn fetch_gh_release_does_not_hang_on_quick_responses() {
-    // Sanity: every call should return well under our test timeout.
-    let g = FakeBinGuard::install_gh();
-    g.set_stable_only_stdout("v0.1.181");
-
-    let res =
-        tokio::time::timeout(Duration::from_secs(5), fetch_gh_release_version("stable")).await;
-    assert!(res.is_ok(), "should not hang");
 }

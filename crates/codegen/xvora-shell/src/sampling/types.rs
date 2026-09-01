@@ -1,25 +1,17 @@
-// Re-export all types from the standalone xvora-sampling-types crate.
-// This keeps all existing `crate::sampling::types::*` imports working.
+// This re-export keeps all existing `crate::sampling::types::*` imports working
 pub use xvora_sampling_types::types::*;
 
-// `CreateResponseWrapper` and `MessagesRequestWrapper` previously lived
-// here. They were moved into `xvora-sampling-types::types` (and
-// are re-exported above via the wildcard) so the new
-// `xvora-sampler` crate can reference them without a circular
-// dep on `xvora-shell`.
+// `CreateResponseWrapper` and `MessagesRequestWrapper` live in `xvora-sampling-types::types`, re-exported above via the wildcard
+// That placement lets the `xvora-sampler` crate reference them without a circular dep on `xvora-shell`
 
-// Tests for the types now live in xvora-sampling-types crate.
+// Tests for the types live in the xvora-sampling-types crate
 
 use xvora_tools::types::output::ImageContent as ToolsImageContent;
 
-/// Render an `ImageContent` produced by the read-file tool as a URL
-/// string suitable for an `image_url` content block: passes the
-/// explicit `uri` through if present, otherwise builds a
-/// `data:<mime>;base64,<data>` URI.
+/// Render an `ImageContent` produced by the read-file tool as a URL string suitable for an `image_url` content block.
+/// Passes the explicit `uri` through if present, otherwise builds a `data:<mime>;base64,<data>` URI.
 ///
-/// Lives in the shell (rather than `xvora-sampling-types` or
-/// `xvora-tools`) so neither of those crates needs to depend on
-/// `agent-client-protocol`.
+/// Lives in the shell (rather than `xvora-sampling-types` or `xvora-tools`) so neither crate needs a dep on `agent-client-protocol`.
 pub fn get_image_content_url(image_content: &ToolsImageContent) -> String {
     if let Some(uri) = &image_content.uri {
         uri.clone()

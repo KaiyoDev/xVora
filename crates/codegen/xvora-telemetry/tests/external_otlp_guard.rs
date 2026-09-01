@@ -1,12 +1,9 @@
 //! Wire test for the **no-double-send invariant** (the credential-leak guard).
 //!
-//! If the internal trace firehose resolved its endpoint/headers from the
-//! deprecated `OTEL_EXPORTER_OTLP_*` fallback, the shell sets
-//! `internal_pipeline_consumed_otel_vars = true`, and `external::init` MUST
-//! refuse to activate — otherwise the same standard vars could point both the
-//! internally-authed firehose and the customer collector at one endpoint,
-//! leaking xAI credentials. Here we prove the refusal end-to-end: even with a
-//! fully valid double opt-in pointed at a live collector, nothing is exported.
+//! The internal trace firehose can resolve its endpoint and headers from the deprecated `OTEL_EXPORTER_OTLP_*` fallback.
+//! When it does, the shell sets `internal_pipeline_consumed_otel_vars = true` and `external::init` MUST refuse to activate.
+//! Otherwise the standard vars could point both the internally-authed firehose and the customer collector at one endpoint, leaking xAI credentials.
+//! Here we prove the refusal end-to-end: even with a fully valid double opt-in pointed at a live collector, nothing is exported.
 
 mod otlp_collector;
 
@@ -20,7 +17,7 @@ fn refuses_to_activate_when_internal_consumed_standard_vars() {
 
     let mut cfg = external::ExternalOtelConfig::resolve_with(
         |name| match name {
-            "XVORA_EXTERNAL_OTEL" => Some("1".into()),
+            "GROK_EXTERNAL_OTEL" => Some("1".into()),
             "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
             "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
             "OTEL_METRIC_EXPORT_INTERVAL" => Some("100".into()),
@@ -35,8 +32,7 @@ fn refuses_to_activate_when_internal_consumed_standard_vars() {
         client_version: "0.0.0-test".into(),
         app_entrypoint: "cli".into(),
     };
-    // The flag the shell sets when the internal firehose consumed the standard
-    // OTEL_* vars via the deprecated fallback.
+    // This is the flag the shell sets when the internal firehose consumed the standard OTEL_* vars via the deprecated fallback
     cfg.internal_pipeline_consumed_otel_vars = true;
 
     external::init(Some(cfg));

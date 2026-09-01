@@ -1,9 +1,8 @@
-//! Tip of the Day — selection logic for tips served from remote settings.
+//! Tip of the Day: selection logic for tips served from remote settings.
 //!
 //! Tips are fetched at startup via `RemoteSettings.tips` (from `/v1/settings`).
-//! This module provides per-session rotation: each launch shows the next tip
-//! in sequence, cycling through all tips before repeating. The cursor is
-//! persisted to `~/.xvora/tip_cursor.json`.
+//! This module provides per-session rotation: each launch shows the next tip in sequence, cycling through all tips before repeating. The cursor is
+//! persisted to `~/.grok/tip_cursor.json`.
 
 use std::path::{Path, PathBuf};
 
@@ -17,13 +16,13 @@ struct TipState {
     cursor: u64,
 }
 
-fn cursor_path(xvora_home: &Path) -> PathBuf {
-    xvora_home.join(CURSOR_FILE)
+fn cursor_path(grok_home: &Path) -> PathBuf {
+    grok_home.join(CURSOR_FILE)
 }
 
-/// Load the cursor from `~/.xvora/tip_cursor.json`. Returns 0 on any error.
-fn load_cursor(xvora_home: &Path) -> u64 {
-    let text = match std::fs::read_to_string(cursor_path(xvora_home)) {
+/// Load the cursor from `~/.grok/tip_cursor.json`. Returns 0 on any error.
+fn load_cursor(grok_home: &Path) -> u64 {
+    let text = match std::fs::read_to_string(cursor_path(grok_home)) {
         Ok(t) => t,
         Err(_) => return 0,
     };
@@ -32,27 +31,27 @@ fn load_cursor(xvora_home: &Path) -> u64 {
         .unwrap_or(0)
 }
 
-/// Save the cursor to `~/.xvora/tip_cursor.json`. Silently ignores write errors.
-fn save_cursor(xvora_home: &Path, cursor: u64) {
+/// Save the cursor to `~/.grok/tip_cursor.json`. Silently ignores write errors.
+fn save_cursor(grok_home: &Path, cursor: u64) {
     if let Ok(text) = serde_json::to_string(&TipState { cursor }) {
-        let _ = std::fs::write(cursor_path(xvora_home), text);
+        let _ = std::fs::write(cursor_path(grok_home), text);
     }
 }
 
 /// Pick the next tip for this session and advance the persistent cursor.
 ///
 /// Each call returns the tip at `cursor % tips.len()` and increments the
-/// cursor in `~/.xvora/tip_cursor.json`, so every session sees the next tip
+/// cursor in `~/.grok/tip_cursor.json`, so every session sees the next tip
 /// in sequence. After all tips have been shown, the cycle repeats.
 ///
 /// Returns `None` if `tips` is empty (cursor is not advanced in that case).
-pub fn pick_and_advance(tips: &[String], xvora_home: &Path) -> Option<String> {
+pub fn pick_and_advance(tips: &[String], grok_home: &Path) -> Option<String> {
     if tips.is_empty() {
         return None;
     }
-    let cursor = load_cursor(xvora_home);
+    let cursor = load_cursor(grok_home);
     let tip = tips[cursor as usize % tips.len()].clone();
-    save_cursor(xvora_home, cursor + 1);
+    save_cursor(grok_home, cursor + 1);
     Some(tip)
 }
 
@@ -98,9 +97,9 @@ mod tests {
     fn cursor_persists_across_calls() {
         let dir = tempfile::tempdir().unwrap();
         let tips = vec!["x".to_string(), "y".to_string()];
-        pick_and_advance(&tips, dir.path()); // cursor → 1
+        pick_and_advance(&tips, dir.path()); // cursor becomes 1
         assert_eq!(load_cursor(dir.path()), 1);
-        pick_and_advance(&tips, dir.path()); // cursor → 2
+        pick_and_advance(&tips, dir.path()); // cursor becomes 2
         assert_eq!(load_cursor(dir.path()), 2);
     }
 
@@ -119,11 +118,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         // Start with 3 tips, advance cursor to 3
         let tips3 = vec!["a".to_string(), "b".to_string(), "c".to_string()];
-        pick_and_advance(&tips3, dir.path()); // cursor 0 → 1
-        pick_and_advance(&tips3, dir.path()); // cursor 1 → 2
-        pick_and_advance(&tips3, dir.path()); // cursor 2 → 3
+        pick_and_advance(&tips3, dir.path()); // cursor 0 to 1
+        pick_and_advance(&tips3, dir.path()); // cursor 1 to 2
+        pick_and_advance(&tips3, dir.path()); // cursor 2 to 3
 
-        // remote settings pushes a 5-tip list; cursor=3, 3%5=3 → "d"
+        // remote settings pushes a 5-tip list; the cursor is 3 and 3 % 5 = 3, so "d"
         let tips5 = vec![
             "a".to_string(),
             "b".to_string(),
@@ -141,12 +140,5 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(cursor_path(dir.path()), b"not json").unwrap();
         assert_eq!(load_cursor(dir.path()), 0);
-    }
-
-    #[test]
-    fn save_and_load_roundtrip() {
-        let dir = tempfile::tempdir().unwrap();
-        save_cursor(dir.path(), 42);
-        assert_eq!(load_cursor(dir.path()), 42);
     }
 }

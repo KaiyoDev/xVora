@@ -5,7 +5,7 @@
 //!
 //! - Grok chat intra FullReplace ([`crate::intra_compaction`]) and inter
 //!   (appends after sampling via [`append_reminder_block`])
-//! - xvora full-replace ([`crate::code_compaction`] assemble's
+//! - grok-build full-replace ([`crate::code_compaction`] assemble's
 //!   `system_reminder`)
 //!
 //! **What lives here:** pure formatting of the three **common** active-agent
@@ -16,6 +16,12 @@
 //! sections (files, AGENTS.md, skills, MCP, memory). Callers pass **borrowed
 //! views** (`&str` over live state) so long fields (commands, todo content,
 //! descriptions, ids) are not cloned just to format.
+//!
+//! KEEP IN SYNC: the exact wording of these sections is a compatibility
+//! surface — downstream mirrors reproduce it verbatim (grep for
+//! `format_section_running_subagents` / `format_section_background_tasks`
+//! and `section_todo_list` mirrors). Update them when changing any wording
+//! here.
 
 // ---------------------------------------------------------------------------
 // Borrowed views over harness live state (no long-string clones)

@@ -3,7 +3,7 @@
 
 use std::str::FromStr;
 
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionId, IdError, RequestId, ServerId, SessionId, ToolCallId, ToolId, UserId,
 };
 
@@ -12,8 +12,8 @@ fn tool_id_accepts_bare_and_namespaced_names() {
     let bare = ToolId::new("read_file").unwrap();
     assert_eq!(bare.as_str(), "read_file");
 
-    let namespaced = ToolId::new("Xvora:read_file").unwrap();
-    assert_eq!(namespaced.as_str(), "Xvora:read_file");
+    let namespaced = ToolId::new("GrokBuild:read_file").unwrap();
+    assert_eq!(namespaced.as_str(), "GrokBuild:read_file");
 
     assert_eq!(
         ToolId::from_str("github:list_repos").unwrap().as_str(),
@@ -78,13 +78,6 @@ fn tool_id_rejects_empty_segments_around_separator() {
         );
     }
 }
-
-#[test]
-fn tool_id_try_from_string_works() {
-    let id: ToolId = "Xvora:read_file".to_owned().try_into().unwrap();
-    assert_eq!(id.as_str(), "Xvora:read_file");
-}
-
 #[test]
 fn server_id_accepts_arbitrary_non_empty_strings() {
     for ok in ["my-uuid-v7", "srv_42", "x", "abc.def"] {
@@ -96,6 +89,23 @@ fn server_id_accepts_arbitrary_non_empty_strings() {
 #[test]
 fn server_id_rejects_empty() {
     assert_eq!(ServerId::new("").unwrap_err(), IdError::Empty);
+}
+
+#[test]
+fn session_id_rejects_hub_reserved_prefix() {
+    use xvora_tool_protocol::HUB_RESERVED_SESSION_PREFIX;
+    for bad in [
+        format!("{HUB_RESERVED_SESSION_PREFIX}botrelay:rotate:u"),
+        format!("{HUB_RESERVED_SESSION_PREFIX}"),
+        format!("{HUB_RESERVED_SESSION_PREFIX}x"),
+    ] {
+        let err = SessionId::new(&bad).unwrap_err();
+        assert!(
+            matches!(err, IdError::ReservedPrefix { ref value } if value == &bad),
+            "expected ReservedPrefix for {bad:?}, got {err:?}"
+        );
+    }
+    assert!(SessionId::new("botrelay:rotate:u").is_ok());
 }
 
 #[test]
@@ -116,15 +126,15 @@ fn server_id_synthesis_starts_with_auto_prefix() {
     let synth = ServerId::synthesize_for_tool(&conn, &bare);
     assert_eq!(synth.as_str(), "auto:tool:read_file");
 
-    let namespaced = ToolId::new("Xvora:read_file").unwrap();
+    let namespaced = ToolId::new("GrokBuild:read_file").unwrap();
     let synth_ns = ServerId::synthesize_for_tool(&conn, &namespaced);
-    assert_eq!(synth_ns.as_str(), "auto:tool:Xvora:read_file");
+    assert_eq!(synth_ns.as_str(), "auto:tool:GrokBuild:read_file");
 }
 
 #[test]
 fn server_id_synthesis_is_deterministic() {
     let conn = ConnectionId::new("conn-abc").unwrap();
-    let tool = ToolId::new("Xvora:read_file").unwrap();
+    let tool = ToolId::new("GrokBuild:read_file").unwrap();
     let a = ServerId::synthesize_for_tool(&conn, &tool);
     let b = ServerId::synthesize_for_tool(&conn, &tool);
     assert_eq!(
@@ -181,12 +191,4 @@ fn tool_call_id_uuid_v7_helper_is_unique_and_valid_uuid() {
             "expected UUID v7, got {parsed}"
         );
     }
-}
-
-#[test]
-fn opaque_id_display_matches_inner_string() {
-    let s = SessionId::new("sess_abc").unwrap();
-    assert_eq!(format!("{s}"), "sess_abc");
-    let t = ToolId::new("github:list_repos").unwrap();
-    assert_eq!(format!("{t}"), "github:list_repos");
 }

@@ -1,17 +1,16 @@
 use crate::file_system::{AsyncFileSystem, FsError};
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use std::path::{Path, PathBuf};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 pub struct AcpSessionFs {
     root: PathBuf,
     gateway: GatewaySender,
     session_id: acp::SessionId,
-    /// When set, any path under `display_cwd` is rewritten to `root` before
-    /// being sent to the extension.  This is the defense-in-depth guard for
-    /// AB overlay isolation: if a tool accidentally passes the display path
+    /// When set, any path under `display_cwd` is rewritten to `root` before being sent to the extension.
+    /// This is the defense-in-depth guard for AB overlay isolation: if a tool accidentally passes the display path
     /// (e.g., `/testbed/project/foo.rs`) instead of the overlay path
-    /// (`~/.xvora/worktrees/.../b-overlay/foo.rs`), the adapter rewrites it
+    /// (`~/.grok/worktrees/.../b-overlay/foo.rs`), the adapter rewrites it
     /// so the extension reads/writes to the correct overlay location.
     display_cwd: Option<PathBuf>,
 }
@@ -26,12 +25,8 @@ impl AcpSessionFs {
         }
     }
 
-    /// Set the display CWD for path rewriting.
-    ///
-    /// When AB FS isolation is active, the model sees `display_cwd`
-    /// (e.g., `/testbed/project`) but writes should go to `root`
-    /// (the overlay path).  Any path under `display_cwd` is rewritten
-    /// to the equivalent path under `root`.
+    /// When AB FS isolation is active, the model sees `display_cwd` (e.g., `/testbed/project`) but writes should go to `root` (the overlay path).
+    /// Any path under `display_cwd` is rewritten to the equivalent path under `root`.
     pub fn with_display_cwd(mut self, display_cwd: PathBuf) -> Self {
         self.display_cwd = Some(display_cwd);
         self
@@ -107,7 +102,6 @@ impl AsyncFileSystem for AcpSessionFs {
 
     async fn delete_file(&self, path: &Path) -> Result<(), FsError> {
         // ACP protocol doesn't support file deletion yet
-        // For now, we'll log a warning and return Ok (no-op)
         tracing::warn!(?path, "ACP filesystem does not support file deletion");
         Err(FsError::Other(
             "File deletion not supported via ACP".to_string(),
@@ -119,12 +113,10 @@ impl AsyncFileSystem for AcpSessionFs {
 mod tests {
     use super::*;
 
-    // resolve_path only uses self.root and self.display_cwd — extract
-    // the logic into a standalone test helper that doesn't need a gateway.
+    // resolve_path only uses self.root and self.display_cwd, so this helper inlines the same logic without needing a gateway
     fn test_resolve(root: &str, display_cwd: Option<&str>, input: &str) -> PathBuf {
         let root = PathBuf::from(root);
         let display = display_cwd.map(PathBuf::from);
-        // Inline the same logic as resolve_path
         if let Some(ref display) = display
             && let Ok(suffix) = Path::new(input).strip_prefix(display)
         {
@@ -136,21 +128,21 @@ mod tests {
     #[test]
     fn resolve_path_rewrites_display_to_overlay() {
         let result = test_resolve(
-            "/root/.xvora/worktrees/proj/ab-123-b-overlay",
+            "/root/.grok/worktrees/proj/ab-123-b-overlay",
             Some("/testbed/proj"),
             "/testbed/proj/src/main.rs",
         );
         assert_eq!(
             result,
-            PathBuf::from("/root/.xvora/worktrees/proj/ab-123-b-overlay/src/main.rs")
+            PathBuf::from("/root/.grok/worktrees/proj/ab-123-b-overlay/src/main.rs")
         );
     }
 
     #[test]
     fn resolve_path_passes_through_overlay_path() {
-        let overlay_path = "/root/.xvora/worktrees/proj/ab-123-b-overlay/src/main.rs";
+        let overlay_path = "/root/.grok/worktrees/proj/ab-123-b-overlay/src/main.rs";
         let result = test_resolve(
-            "/root/.xvora/worktrees/proj/ab-123-b-overlay",
+            "/root/.grok/worktrees/proj/ab-123-b-overlay",
             Some("/testbed/proj"),
             overlay_path,
         );
@@ -160,7 +152,7 @@ mod tests {
     #[test]
     fn resolve_path_no_display_cwd_passthrough() {
         let result = test_resolve(
-            "/root/.xvora/worktrees/proj/ab-123-b-overlay",
+            "/root/.grok/worktrees/proj/ab-123-b-overlay",
             None,
             "/testbed/proj/src/main.rs",
         );
@@ -170,7 +162,7 @@ mod tests {
     #[test]
     fn resolve_path_relative_path_passthrough() {
         let result = test_resolve(
-            "/root/.xvora/worktrees/proj/ab-123-b-overlay",
+            "/root/.grok/worktrees/proj/ab-123-b-overlay",
             Some("/testbed/proj"),
             "src/main.rs",
         );

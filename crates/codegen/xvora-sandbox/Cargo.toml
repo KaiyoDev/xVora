@@ -3,17 +3,18 @@ license = "Apache-2.0"
 name = "xvora-sandbox"
 version = "0.1.0"
 edition.workspace = true
-description = "OS-level sandboxing for Xvora using kernel primitives (Landlock/Seatbelt) via nono"
+description = "OS-level sandboxing for Grok Build using kernel primitives (Landlock/Seatbelt) via nono"
 
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-dirs = "5.0"
+xvora-dirs = { workspace = true }
 dunce = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }

@@ -1,6 +1,5 @@
-//! Integration test for the external OTEL stream against an in-process OTLP
-//! collector: wire payloads, delta temporality, gates-off canary absence at
-//! the wire layer, flush-on-shutdown ≤ 2 s, and post-shutdown silence.
+//! Integration test for the external OTEL stream against an in-process OTLP collector.
+//! Covers wire payloads, delta temporality, canary absence at the wire layer with gates off, flush on shutdown within 2 s, and post-shutdown silence.
 
 mod otlp_collector;
 
@@ -18,7 +17,7 @@ fn external_stream_end_to_end() {
     // Resolve through the real config path (double opt-in, gates off).
     let mut cfg = xvora_telemetry::external::ExternalOtelConfig::resolve_with(
         |name| match name {
-            "XVORA_EXTERNAL_OTEL" => Some("1".into()),
+            "GROK_EXTERNAL_OTEL" => Some("1".into()),
             "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
             "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
             // Keep intervals short so the test is fast; flush() forces anyway.
@@ -38,10 +37,8 @@ fn external_stream_end_to_end() {
     xvora_telemetry::external::init(Some(cfg));
     assert!(xvora_telemetry::external::is_active());
 
-    // Emit through the same funnel production uses — with the product events client
-    // never initialized (TelemetryMode effectively Disabled) and no auth at
-    // all, pinning the Disabled half of the G7 independence matrix at the
-    // funnel level: the external sink fires anyway.
+    // Emit through the same funnel production uses, with the product events client never initialized and no auth at all
+    // The external sink must fire anyway: it does not depend on product telemetry being enabled
     assert!(!xvora_telemetry::is_enabled());
     xvora_telemetry::log_event(xvora_telemetry::events::SessionNew {
         session_id: "sess-int-1".into(),
@@ -52,9 +49,9 @@ fn external_stream_end_to_end() {
     });
     xvora_telemetry::log_event(xvora_telemetry::events::SessionHarness {
         session_id: "sess-int-1".into(),
-        client_identifier: Some("xvora-pager".into()),
+        client_identifier: Some("grok-pager".into()),
         model_id: "grok-4".into(),
-        agent_name: "xvora-plan".into(),
+        agent_name: "grok-build-plan".into(),
         permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![CANARY_MCP.into()],
         plugin_names: vec![],
@@ -63,6 +60,7 @@ fn external_stream_end_to_end() {
         hook_names: vec![],
         agents_md_dir_names: vec![],
         memory_enabled: false,
+        memory_retrieval_mode: xvora_telemetry::events::MemoryRetrievalMode::Disabled,
         is_git_repo: true,
         auto_update: None,
     });
@@ -73,7 +71,7 @@ fn external_stream_end_to_end() {
         screen_mode: None,
         prompt_text: Some(CANARY_PROMPT.into()),
     });
-    // Model-id canary for the metrics body (increment-time scrub).
+    // The model id is a canary: the scrub that runs when the metric increments must keep it out of the metrics body
     xvora_telemetry::log_event(xvora_telemetry::events::ModelResponseReceived {
         model_id: CANARY_MODEL.into(),
         duration_ms: 5,
@@ -82,6 +80,8 @@ fn external_stream_end_to_end() {
         completion_tokens: Some(7),
         reasoning_tokens: None,
         cached_prompt_tokens: None,
+        cache_creation_tokens: None,
+        cost_usd_ticks: None,
     });
 
     xvora_telemetry::external::flush();
@@ -111,7 +111,7 @@ fn external_stream_end_to_end() {
             for sl in &rl.scope_logs {
                 assert_eq!(
                     sl.scope.as_ref().map(|s| s.name.as_str()),
-                    Some("ai.xai.grok_code")
+                    Some("ai.xvora.grok_code")
                 );
                 for record in &sl.log_records {
                     event_names.push(record.event_name.clone());
@@ -135,8 +135,7 @@ fn external_stream_end_to_end() {
             "missing {expected} in {event_names:?}"
         );
     }
-    // session_start arrives exactly once per emission (no double-send from
-    // the funnel).
+    // session_start arrives exactly once per emission (no double-send from the funnel)
     assert_eq!(
         event_names
             .iter()
@@ -201,7 +200,7 @@ fn external_stream_end_to_end() {
             "MCP server name reached the {label} wire"
         );
     }
-    // Prompt length exported, text not (already covered by the canary scan).
+    // The prompt length exports; the canary scan above already proves the text does not
 
     // ── Shutdown: ≤ 2 s + post-shutdown silence ─────────────────────────
     let start = std::time::Instant::now();

@@ -1,4 +1,4 @@
-﻿use unicode_segmentation::UnicodeSegmentation as _;
+use unicode_segmentation::UnicodeSegmentation as _;
 
 use super::super::*;
 use super::{delta, is_extended_grapheme_boundary};

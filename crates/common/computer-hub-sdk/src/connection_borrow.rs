@@ -7,12 +7,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio_util::sync::CancellationToken;
-use tool_protocol::ConnectionKind;
 use url::Url;
+use xvora_tool_protocol::ConnectionKind;
 
 use crate::auth::AuthProvider;
 use crate::connection::{
     ConnectCallback, ConnectionTuning, DisconnectCallback, HubConnection, ReconnectCallback,
+    TerminalCloseCallback,
 };
 use crate::error::ClientError;
 use crate::pool::HubConnectionPool;
@@ -52,7 +53,8 @@ impl ConnectionBorrow {
         on_reconnect: Option<Arc<ReconnectCallback>>,
         on_disconnect: Option<Arc<DisconnectCallback>>,
         on_connect: Option<Arc<ConnectCallback>>,
-        server_id: Option<tool_protocol::ServerId>,
+        on_terminal_close: Option<Arc<TerminalCloseCallback>>,
+        server_id: Option<xvora_tool_protocol::ServerId>,
         server_description: Option<String>,
         server_metadata: Option<serde_json::Value>,
         alpha_test_key: Option<String>,
@@ -67,6 +69,7 @@ impl ConnectionBorrow {
                 on_reconnect,
                 on_disconnect,
                 on_connect,
+                on_terminal_close,
                 server_id,
                 server_description,
                 server_metadata,
@@ -95,6 +98,11 @@ impl ConnectionBorrow {
         self.torn_down
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
+    }
+
+    /// Whether teardown has already been claimed (`begin_teardown` won).
+    pub(crate) fn is_torn_down(&self) -> bool {
+        self.torn_down.load(Ordering::SeqCst)
     }
 }
 
@@ -162,6 +170,7 @@ mod tests {
             None, // on_reconnect
             None, // on_disconnect
             None, // on_connect
+            None, // on_terminal_close
             None, // server_id
             None, // server_description
             None, // server_metadata

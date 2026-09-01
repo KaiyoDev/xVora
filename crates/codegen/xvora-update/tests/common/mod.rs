@@ -1,11 +1,9 @@
 //! Shared helpers for integration tests.
 //!
-//! Each `tests/*.rs` integration test is its own binary, so each binary has
-//! its own `OnceLock<XVORA_HOME>`. The helpers below ensure the per-binary
-//! initialization is identical: same env-var set, same isolation guarantees,
-//! same reset between tests.
+//! Each `tests/*.rs` integration test is its own binary, so each binary has its own `OnceLock<GROK_HOME>`.
+//! The helpers below ensure the per-binary initialization is identical: same env-var set, same isolation guarantees, same reset between tests.
 //!
-//! Mirrors the XVORA_HOME isolation pattern used in other integration tests.
+//! Mirrors the GROK_HOME isolation pattern used in other integration tests.
 //!
 //! ## Usage
 //!
@@ -16,7 +14,7 @@
 //! #[tokio::test]
 //! #[serial_test::serial]
 //! async fn my_test() {
-//!     let _ = test_home();   // initializes XVORA_HOME once per binary
+//!     let _ = test_home();   // initializes GROK_HOME once per binary
 //!     reset_home();          // wipes state between tests
 //!     // ...
 //! }
@@ -32,16 +30,14 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// XVORA_HOME isolation
+// GROK_HOME isolation
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Returns a process-wide test `XVORA_HOME`, initialized exactly once per test
-/// binary. Once initialized, `xvora_config::xvora_home()` will resolve to
-/// this directory for the lifetime of the process.
+/// Returns a process-wide test `GROK_HOME`, initialized exactly once per test binary.
+/// Once initialized, `xvora_config::grok_home()` will resolve to this directory for the lifetime of the process.
 ///
-/// Also clears env vars that the auto-update code consults so a parent shell's
-/// values can't pollute the baseline (e.g. running tests from `npm run` would
-/// otherwise inherit `npm_config_user_agent` and `NPM_TOKEN`).
+/// Also clears env vars that the auto-update code consults so a parent shell's values can't pollute the baseline.
+/// For example, running tests from `npm run` would otherwise inherit `npm_config_user_agent` and `NPM_TOKEN`.
 pub fn test_home() -> &'static PathBuf {
     static HOME: OnceLock<PathBuf> = OnceLock::new();
     HOME.get_or_init(|| {
@@ -50,20 +46,19 @@ pub fn test_home() -> &'static PathBuf {
         // SAFETY: called once at OnceLock init, before any other thread touches
         // these env vars. Tests using this helper must be `#[serial]`.
         unsafe {
-            std::env::set_var("XVORA_HOME", &path);
-            std::env::remove_var("XVORA_TEST_VERSION");
+            std::env::set_var("GROK_HOME", &path);
+            std::env::remove_var("GROK_TEST_VERSION");
             std::env::remove_var("NPM_TOKEN");
-            std::env::remove_var("XVORA_INSTALLER");
-            std::env::remove_var("XVORA_MANAGED_BY_NPM");
-            std::env::remove_var("XVORA_MANAGED_BY_INTERNAL");
+            std::env::remove_var("GROK_INSTALLER");
+            std::env::remove_var("GROK_MANAGED_BY_NPM");
+            std::env::remove_var("GROK_MANAGED_BY_INTERNAL");
         }
         path
     })
 }
 
-/// Wipe state in `XVORA_HOME` between tests so each test sees a clean home.
-/// Removes the well-known files and subdirectories the update path writes,
-/// and clears env vars that individual tests may set.
+/// Wipe state in `GROK_HOME` between tests so each test sees a clean home.
+/// Removes the well-known files and subdirectories the update path writes, and clears env vars that individual tests may set.
 pub fn reset_home() {
     let home = test_home();
     let _ = std::fs::remove_file(home.join("config.toml"));
@@ -73,9 +68,9 @@ pub fn reset_home() {
     let _ = std::fs::remove_dir_all(home.join("downloads"));
     // SAFETY: tests using this helper must be `#[serial]`.
     unsafe {
-        std::env::remove_var("XVORA_TEST_VERSION");
+        std::env::remove_var("GROK_TEST_VERSION");
         std::env::remove_var("NPM_TOKEN");
-        std::env::remove_var("XVORA_INSTALLER");
+        std::env::remove_var("GROK_INSTALLER");
     }
 }
 
@@ -83,15 +78,14 @@ pub fn reset_home() {
 /// duration of the test (until [`reset_home`] or process exit).
 pub fn set_test_version(v: &str) {
     // SAFETY: tests using this helper must be `#[serial]`.
-    unsafe { std::env::set_var("XVORA_TEST_VERSION", v) };
+    unsafe { std::env::set_var("GROK_TEST_VERSION", v) };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Install-test fixtures (shared by the blitz + convergence suites)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Host `{os}-{arch}` string matching the versioned binary naming scheme
-/// (`grok-{version}-{platform}`).
+/// Host `{os}-{arch}` string matching the versioned binary naming scheme (`grok-{version}-{platform}`).
 pub fn host_platform() -> String {
     let os = if cfg!(target_os = "macos") {
         "macos"
@@ -122,8 +116,8 @@ pub fn make_update_config(channel: &str) -> xvora_update::UpdateConfig {
     }
 }
 
-/// True if shell-script artifacts can execute in this environment. False in
-/// restricted sandboxes (e.g. hermetic remote execution) that lack /bin/sh.
+/// True if shell-script artifacts can execute in this environment.
+/// False in restricted sandboxes (e.g. hermetic remote execution) that lack /bin/sh.
 #[cfg(unix)]
 pub fn can_exec_shell_scripts() -> bool {
     use std::os::unix::fs::PermissionsExt;
@@ -145,12 +139,10 @@ pub fn small_good_artifact() -> Vec<u8> {
     b"#!/bin/sh\nexit 0\n".to_vec()
 }
 
-/// Backdate every file in `XVORA_HOME/downloads` by ~2 hours.
+/// Backdate every file in `GROK_HOME/downloads` by ~2 hours.
 ///
-/// `cleanup_old_downloads` deliberately never deletes a freshly-written
-/// binary or temp file (it may belong to a concurrent in-flight install), so
-/// tests asserting the retention policy must age their fixtures to look like
-/// real leftovers from previous releases.
+/// `cleanup_old_downloads` deliberately never deletes a freshly-written binary or temp file (it may belong to a concurrent in-flight install).
+/// Tests asserting the retention policy must therefore age their fixtures to look like real leftovers from previous releases.
 pub fn backdate_downloads() {
     let downloads = test_home().join("downloads");
     let Ok(entries) = std::fs::read_dir(&downloads) else {
@@ -182,8 +174,7 @@ pub struct FakeBinGuard {
 }
 
 impl FakeBinGuard {
-    /// Install a fake binary at `<tmp>/<name>` whose body is produced by
-    /// `script_body(<tmp>)`, and prepend `<tmp>` to `PATH`.
+    /// Install a fake binary at `<tmp>/<name>` whose body is produced by `script_body(<tmp>)`, and prepend `<tmp>` to `PATH`.
     pub fn install<F>(name: &str, script_body: F) -> Self
     where
         F: FnOnce(&Path) -> String,
@@ -225,13 +216,12 @@ impl FakeBinGuard {
         Self::install("gh", fake_gh_script)
     }
 
-    /// The tempdir backing this guard (where canned stdout/stderr/exit files
-    /// can be written by tests, and where `<name>-args.log` is appended).
+    /// The tempdir backing this guard (where canned stdout/stderr/exit files can be written by tests, and where `<name>-args.log` is appended).
     pub fn dir(&self) -> PathBuf {
         self.tmp.path().to_path_buf()
     }
 
-    /// Argv lines logged by the fake script — one line per invocation.
+    /// Argv lines logged by the fake script, one line per invocation.
     pub fn args_log(&self) -> Vec<String> {
         std::fs::read_to_string(self.dir().join(format!("{}-args.log", self.name)))
             .unwrap_or_default()
@@ -291,20 +281,19 @@ impl Drop for FakeBinGuard {
 /// Single-quote a path for safe substitution into a sh script.
 fn single_quote_for_sh(p: &Path) -> String {
     let s = p.to_string_lossy();
-    // Escape any embedded single quotes (paranoid — tempdir paths shouldn't
-    // contain them, but defensively quote).
+    // Escape any embedded single quotes (paranoid: tempdir paths shouldn't contain them, but defensively quote)
     let escaped = s.replace('\'', "'\\''");
     format!("'{escaped}'")
 }
 
-/// sh script body for a fake `npm`. Logs argv to `<dir>/npm-args.log` and
-/// dispatches stdout based on the first matching argv pattern:
+/// sh script body for a fake `npm`.
+/// Logs argv to `<dir>/npm-args.log` and dispatches stdout based on the first matching argv pattern:
 ///
 /// - argv contains `@alpha`     → cat `<dir>/npm-alpha-stdout`
 /// - else                       → cat `<dir>/npm-stdout`
 ///
-/// Always cats `<dir>/npm-stderr` to stderr (if exists). Exits with the integer
-/// in `<dir>/npm-exit` (default 0).
+/// Always cats `<dir>/npm-stderr` to stderr (if exists).
+/// Exits with the integer in `<dir>/npm-exit` (default 0).
 pub fn fake_npm_script(dir: &Path) -> String {
     let dq = single_quote_for_sh(dir);
     format!(
@@ -323,8 +312,8 @@ exit "$exit_code"
     )
 }
 
-/// sh script body for a fake `gh`. Logs argv to `<dir>/gh-args.log` and
-/// dispatches stdout based on `release list` argv:
+/// sh script body for a fake `gh`.
+/// Logs argv to `<dir>/gh-args.log` and dispatches stdout based on `release list` argv:
 ///
 /// - argv contains `release list --exclude-pre-releases` → `<dir>/gh-stable-only-stdout`
 /// - argv contains `release list` (no exclude flag)      → `<dir>/gh-with-pre-stdout`

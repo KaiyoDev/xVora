@@ -2,23 +2,21 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// OSC 52 sink advertisement e2e: the wrapped child must see
-/// `XVORA_OSC52_SINK=1` (the signal an inner `grok` uses to trust OSC 52 over
-/// SSH — see `run_wrapped_command`), including through the `$SHELL -i -c` hop.
-/// The parent env pins the var to `0` so a pass can only come from the wrap
-/// layer's own override, not from an inherited value.
+/// The wrapped child must see `GROK_OSC52_SINK=1` even through the `$SHELL -i -c` hop.
+/// An inner `grok` reads that variable to trust OSC 52 over SSH (see `run_wrapped_command`).
+/// The parent env pins the var to `0`, so a pass proves the wrap layer overrode the inherited value.
 #[test]
 #[ignore = "PTY e2e; run the owning pty_e2e_* Cargo test with --ignored (see Cargo.toml)"]
 #[cfg(unix)]
 fn wrap_osc52_sink_env_advertised_through_shell() {
     let (code, raw) = run_wrap(
-        &["echo sink=$XVORA_OSC52_SINK"],
-        &[("SHELL", "/bin/sh"), ("XVORA_OSC52_SINK", "0")],
+        &["echo sink=$GROK_OSC52_SINK"],
+        &[("SHELL", "/bin/sh"), ("GROK_OSC52_SINK", "0")],
     );
 
     assert!(
         raw.contains("sink=1"),
-        "wrapped child must see XVORA_OSC52_SINK=1 through the shell route\nraw:\n{raw}"
+        "wrapped child must see GROK_OSC52_SINK=1 through the shell route\nraw:\n{raw}"
     );
     assert!(
         !raw.contains("sink=0"),

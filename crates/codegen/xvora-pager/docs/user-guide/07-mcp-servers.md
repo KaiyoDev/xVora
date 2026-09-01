@@ -16,7 +16,9 @@ See the [MCP specification](https://modelcontextprotocol.io) for protocol detail
 
 ## Configuration
 
-MCP servers are configured in `~/.xvora/config.toml` under `[mcp_servers.<name>]` sections.
+MCP servers are configured in `~/.grok/config.toml` under `[mcp_servers.<name>]` sections.
+
+To distribute MCP servers to a team, or to restrict which servers users may run, see [Distribute across an organization](09-plugins.md#distribute-across-an-organization) in the Plugins guide.
 
 ### stdio Transport (Local Process)
 
@@ -36,7 +38,7 @@ tool_timeouts = { slow_op = 120 }     # Per-tool timeout overrides, seconds
 > **Global startup-timeout override:** instead of setting `startup_timeout_sec`
 > per server, you can change the default for all servers via the `MCP_TIMEOUT`
 > environment variable (milliseconds, compatible with Claude Code) or
-> `XVORA_MCP_STARTUP_TIMEOUT_SECS` (seconds). A per-server `startup_timeout_sec`
+> `GROK_MCP_STARTUP_TIMEOUT_SECS` (seconds). A per-server `startup_timeout_sec`
 > still takes precedence over both. Cold-start `npx`/`uvx` servers that download
 > packages on first launch often need this; the default is 30s.
 >
@@ -44,10 +46,10 @@ tool_timeouts = { slow_op = 120 }     # Per-tool timeout overrides, seconds
 > inline (full payload spilled under the session `mcp/` folder). Default is
 > **20_000 bytes**. Override via:
 >
-> - env `XVORA_MAX_MCP_OUTPUT_BYTES` or `MAX_MCP_OUTPUT_BYTES` (bytes; Grok-native
+> - env `GROK_MAX_MCP_OUTPUT_BYTES` or `MAX_MCP_OUTPUT_BYTES` (bytes; Grok-native
 >   wins if both set; Claude-style name, but we bound by **bytes** not tokens)
-> - `config.toml` — user-level (`~/.xvora/config.toml`) **or repo-level**
->   (`.xvora/config.toml` anywhere on the cwd → git-root chain; the deepest
+> - `config.toml` — user-level (`~/.grok/config.toml`) **or repo-level**
+>   (`.grok/config.toml` anywhere on the cwd → git-root chain; the deepest
 >   file wins, and the repo value applies only once the folder is trusted):
 >
 > ```toml
@@ -55,7 +57,7 @@ tool_timeouts = { slow_op = 120 }     # Per-tool timeout overrides, seconds
 > max_output_bytes = 40000
 > ```
 >
-> Precedence: requirements.toml > env > repo `.xvora/config.toml` >
+> Precedence: requirements.toml > env > repo `.grok/config.toml` >
 > user/managed config > default. Repo edits apply to running sessions in that
 > directory via config hot-reload.
 
@@ -68,6 +70,17 @@ For remote MCP servers accessible over HTTP:
 url = "https://mcp.example.com/api"
 headers = { "Authorization" = "Bearer token" }
 ```
+
+MCP data-plane requests (JSON-RPC and SSE) and the anonymous-access probe carry a
+default `User-Agent: grok-cli/<version>` header, where `<version>` is the Grok binary
+version. OAuth discovery, client registration, and token requests are issued by the
+rmcp OAuth client and keep its own behavior (no default `User-Agent`). A valid
+`User-Agent` entry in the server's `headers` overrides the default; an invalid
+configured `User-Agent` value is dropped by header parsing (with a warning), so such a
+server still receives the default. Exception: Figma MCP servers (server name `figma`,
+legacy managed name `grok_com_figma`, or a `figma.com` host — all case-insensitive)
+send the bare token `grok-cli` with no version unless the config supplies its own
+`User-Agent`.
 
 ### Streamable HTTP with Session ID
 
@@ -107,6 +120,10 @@ grok mcp add --transport sse linear https://mcp.linear.app/sse
 # Remove a server
 grok mcp remove github
 
+# Enable or disable a local/TOML (or compat-sourced) server
+grok mcp enable github
+grok mcp disable github
+
 # Diagnose a server's configuration and connectivity
 grok mcp doctor               # Check every configured server
 grok mcp doctor github        # Check one server
@@ -115,9 +132,15 @@ grok mcp doctor --json        # Machine-readable output
 
 The transport defaults to `stdio`; pass `--transport http` or `--transport sse` for remote servers.
 
-By default `grok mcp add` writes to `~/.xvora/config.toml` (`--scope user`). Use `--scope project` to write to `.xvora/config.toml` in the current directory instead, which can be committed and shared with your team (see [Project-Scoped MCP Servers](#project-scoped-mcp-servers)). Header and environment variable values are stored verbatim, so reference secrets as `${VAR}` instead of pasting them into a committed project config (see [Example Configurations](#example-configurations)). `grok mcp list` shows servers from both scopes, marking project-scoped ones with `(project)`.
+By default `grok mcp add` writes to `~/.grok/config.toml` (`--scope user`). Use `--scope project` to write to `.grok/config.toml` in the current directory instead, which can be committed and shared with your team (see [Project-Scoped MCP Servers](#project-scoped-mcp-servers)). Header and environment variable values are stored verbatim, so reference secrets as `${VAR}` instead of pasting them into a committed project config (see [Example Configurations](#example-configurations)). `grok mcp list` shows servers from both scopes, marking project-scoped ones with `(project)` and disabled ones with `(disabled)`.
 
 `grok mcp remove` searches both scopes and exits 0 after removing the server. It exits 1 when the name is not found, or when the name is defined in both user and project scope — pass `--scope` to say which one to remove.
+
+`grok mcp enable` / `disable` persist the personal on/off state to user `~/.grok/config.toml` (`disabled_mcp_servers`, and `[mcp_servers.<name>].enabled` when that entry exists). Scope:
+
+- **Known names:** user/project Grok TOML, names already on the disabled list, compat sources (`.mcp.json`, Claude, Cursor), and **plugin** MCP servers (same discovery as doctor/`/mcps`).
+- **Enable only:** if the cwd-nearest project definition has sticky `enabled = false`, that single key is cleared (comments preserved); disable never rewrites project configs.
+- **Not full `/mcps` parity:** gateway connectors (`managed_gateway:…`, stored under `disabled_mcp_tools.__managed_gateway_connectors`) stay Space-only in the TUI. Idempotent; unknown names exit 1.
 
 Breaking changes from earlier releases: `--env` now takes one `KEY=value` per flag (use `-e A=1 -e B=2`, not `--env A=1 B=2`), and server names may only contain letters, numbers, hyphens, and underscores.
 
@@ -125,18 +148,18 @@ Breaking changes from earlier releases: `--env` now takes one `KEY=value` per fl
 
 ## Project-Scoped MCP Servers
 
-MCP servers can be configured per-project by placing a `.xvora/config.toml` in your repository:
+MCP servers can be configured per-project by placing a `.grok/config.toml` in your repository:
 
 ```
 my-project/
-  .xvora/
+  .grok/
     config.toml
   src/
   ...
 ```
 
 ```toml
-# .xvora/config.toml
+# .grok/config.toml
 [mcp_servers.linear]
 url = "https://mcp.linear.app/mcp"
 enabled = true
@@ -144,17 +167,17 @@ enabled = true
 
 When a server exposes a native HTTP/SSE endpoint, prefer the `url` form over wrapping it in a stdio proxy such as `npx mcp-remote <url>`. Grok handles HTTP/SSE and OAuth directly, so the native form avoids an extra subprocess per session. It also registers Grok's own OAuth client with the provider.
 
-Grok walks from the current directory up to the git repo root, loading `.xvora/config.toml` at each level:
+Grok walks from the current directory up to the git repo root, loading `.grok/config.toml` at each level:
 
 | Location | Scope | Priority |
 |----------|-------|----------|
-| `~/.xvora/config.toml` | All projects | Lowest |
-| `<repo-root>/.xvora/config.toml` | This repository | Medium |
-| `<cwd>/.xvora/config.toml` | Current directory | Highest |
+| `~/.grok/config.toml` | All projects | Lowest |
+| `<repo-root>/.grok/config.toml` | This repository | Medium |
+| `<cwd>/.grok/config.toml` | Current directory | Highest |
 
 If a project defines a server with the same name as a global one, the project version replaces it entirely (fields are not merged).
 
-Project-scoped files contribute `[mcp_servers]`, `[plugins]`, and `[permission]` entries. Grok reads most other config sections only from `~/.xvora/config.toml`.
+Project-scoped files contribute `[mcp_servers]`, `[plugins]`, and `[permission]` entries. Grok reads most other config sections only from `~/.grok/config.toml`.
 
 ---
 
@@ -169,7 +192,7 @@ MCP tools are namespaced with the server name to avoid collisions:
 
 ## Toggle Servers at Runtime
 
-You can enable or disable MCP servers during a session without restarting Grok.
+You can enable or disable MCP servers without restarting Grok (TUI `/mcps` or CLI — see [CLI Management](#cli-management)).
 
 ### The /mcps Modal
 
@@ -185,7 +208,7 @@ From the modal you can:
 - Expand a server to view the tools it provides
 - Refresh the list with `r` after you edit `config.toml`
 - Authenticate an OAuth server with `i`
-- Add a server with `a`, or remove one with `x`
+- Add a server with `a`, or remove a local server with `x` (the modal asks for confirmation; press lowercase `y` to remove, or any other key to cancel)
 
 ### Tool Discovery
 
@@ -202,14 +225,14 @@ Grok loads MCP server configurations from multiple sources for compatibility:
 
 | Source | Format | Location | Configurable |
 |--------|--------|----------|-------------|
-| `config.toml` | Native Grok config | `~/.xvora/config.toml`, `.xvora/config.toml` | Always on |
+| `config.toml` | Native Grok config | `~/.grok/config.toml`, `.grok/config.toml` | Always on |
 | `.claude.json` | Claude Code format | `~/.claude.json` | `[compat.claude] mcps` |
 | `.cursor/mcp.json` | Cursor format | `~/.cursor/mcp.json`, `<project>/.cursor/mcp.json` | `[compat.cursor] mcps` |
 | `.mcp.json` | MCP standard format | Project root (cwd to git root) | Loaded unless you have imported or dismissed the Claude import prompt (the import marker is set) |
 
 All sources are merged in priority order: config.toml > Claude > Cursor > `.mcp.json`. Servers from higher-priority sources take precedence when names conflict.
 
-The Claude and Cursor MCP sources are scanned by default. To disable scanning for a specific vendor, set `[compat.<vendor>] mcps = false` in `~/.xvora/config.toml` or the corresponding environment variable (`XVORA_CURSOR_MCPS_ENABLED`, `XVORA_CLAUDE_MCPS_ENABLED`). See [Configuration](05-configuration.md#harness-compatibility) for details. Use `xvora inspect` to see which MCP servers were loaded and their vendor origin (`[cursor]`, `[claude]`).
+The Claude and Cursor MCP sources are scanned by default. To disable scanning for a specific vendor, set `[compat.<vendor>] mcps = false` in `~/.grok/config.toml` or the corresponding environment variable (`GROK_CURSOR_MCPS_ENABLED`, `GROK_CLAUDE_MCPS_ENABLED`). See [Configuration](05-configuration.md#harness-compatibility) for details. Use `grok inspect` to see which MCP servers were loaded and their vendor origin (`[cursor]`, `[claude]`).
 
 ---
 
@@ -225,7 +248,7 @@ Use the `url` form for hosted MCP servers and the `command` / `args` form for lo
 
 ### Native HTTP (hosted services)
 
-You must authenticate OAuth-based MCP servers before you can use them. Grok stores the resulting tokens under `~/.xvora/mcp_credentials.json`. After you edit `config.toml`, press `r` in the `/mcps` modal to refresh the server list.
+You must authenticate OAuth-based MCP servers before you can use them. Grok stores the resulting tokens under `~/.grok/mcp_credentials.json` as local plaintext with owner-only file permissions (`0600` on Unix). Prefer full-disk encryption on the host. After you edit `config.toml`, press `r` in the `/mcps` modal to refresh the server list.
 
 ```toml
 [mcp_servers.linear]
@@ -310,6 +333,18 @@ See the [MCP Server Registry](https://github.com/modelcontextprotocol/servers) f
 
 ---
 
+## Subagents and MCP
+
+Subagents inherit the parent session’s connected MCP servers by default, including plugin-sourced agents. Use agent frontmatter `mcpInheritance` to restrict that set (`all`, `none`, `named`, or `except`). Details are in [Subagents — MCP inheritance](16-subagents.md#mcp-inheritance).
+
+If a child lists `search_tool` / `use_tool` but returns an empty catalog, check that:
+
+1. The parent session actually connected the server (see Extensions / `grok inspect`)
+2. The agent’s `mcpInheritance` is not `none` or a filter that excludes the server
+3. Plugin agents cannot declare their own `mcpServers` in frontmatter — they only see parent-connected servers
+
+---
+
 ## Troubleshooting
 
 ### Server Not Starting
@@ -324,25 +359,25 @@ npx -y @modelcontextprotocol/server-filesystem /path
 startup_timeout_sec = 30
 ```
 
-For stdio servers, Grok captures the process's standard error to `~/.xvora/logs/mcp/<server>.stderr.log`, truncated on each launch. Check this file when a server starts but fails to handshake:
+For stdio servers, Grok captures the process's standard error to `~/.grok/logs/mcp/<server>.stderr.log`, truncated on each launch. Check this file when a server starts but fails to handshake:
 
 ```bash
-tail -f ~/.xvora/logs/mcp/filesystem.stderr.log
+tail -f ~/.grok/logs/mcp/filesystem.stderr.log
 ```
 
 ### Viewing Server Status
 
-Use `xvora inspect` to see all loaded MCP servers and their sources:
+Use `grok inspect` to see all loaded MCP servers and their sources:
 
 ```bash
-xvora inspect          # Human-readable
-xvora inspect --json   # Machine-readable
+grok inspect          # Human-readable
+grok inspect --json   # Machine-readable
 ```
 
 ### Debug Logging
 
 ```bash
-RUST_LOG=debug XVORA_LOG_FILE=/tmp/grok.log grok
+RUST_LOG=debug GROK_LOG_FILE=/tmp/grok.log grok
 tail -f /tmp/grok.log
 ```
 

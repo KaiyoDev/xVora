@@ -1,4 +1,4 @@
-//! `xvora models` subcommand.
+//! `grok models` subcommand.
 
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
@@ -20,50 +20,24 @@ pub async fn list_available_models(agent_config: &AgentConfig) -> Result<()> {
     println!();
 
     let cancel = CancellationToken::new();
+    xvora_telemetry::startup::mark_utility_process();
     let spawned = crate::acp::spawn::spawn_grok_shell(agent_config.clone(), &cancel, None).await?;
+    // Cancel and join on every return path, including the `?` below
+    let _agent_guard =
+        crate::acp::spawn::AgentShutdownGuard::new(cancel.clone(), Some(spawned.thread_handle));
 
     let state = list_models(&spawned.channel.tx, PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION).await?;
 
     println!("Default model: {}", state.current_model_id.0);
     println!();
-    println!("Available models (provider · id):");
-    // Sort by provider then id for a multi-provider-friendly list.
-    let mut rows: Vec<_> = state.available_models.into_iter().collect();
-    rows.sort_by(|a, b| {
-        let pa = a
-            .meta
-            .as_ref()
-            .and_then(|m| m.get("provider"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("custom");
-        let pb = b
-            .meta
-            .as_ref()
-            .and_then(|m| m.get("provider"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("custom");
-        pa.cmp(pb).then_with(|| a.model_id.0.cmp(&b.model_id.0))
-    });
-    for m in rows {
-        let provider = m
-            .meta
-            .as_ref()
-            .and_then(|meta| meta.get("provider"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("custom");
-        let mark = if m.model_id == state.current_model_id {
-            "*"
+    println!("Available models:");
+    for m in state.available_models {
+        if m.model_id == state.current_model_id {
+            println!("  * {} (default)", m.model_id.0);
         } else {
-            "-"
-        };
-        let default = if m.model_id == state.current_model_id {
-            " (default)"
-        } else {
-            ""
-        };
-        println!("  {mark} {provider} · {}{default}", m.model_id.0);
+            println!("  - {}", m.model_id.0);
+        }
     }
 
-    cancel.cancel();
     Ok(())
 }

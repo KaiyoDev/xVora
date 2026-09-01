@@ -1,8 +1,5 @@
-//! Plugin marketplace browse and index crate.
-//!
-//! Provides marketplace source configuration, plugin discovery (indexed +
-//! filesystem fallback), and install integration with the existing
-//! `InstallRegistry` pipeline.
+//! Provides marketplace source configuration and plugin discovery, indexed with a filesystem fallback.
+//! Install integration goes through the existing `InstallRegistry` pipeline.
 
 pub mod catalog;
 pub mod config;
@@ -16,7 +13,8 @@ pub mod scanner;
 pub mod types;
 
 pub use config::{
-    load_extra_sources_from_settings, load_extra_sources_from_settings_in, load_sources,
+    env_require_sha, load_extra_sources_from_settings, load_extra_sources_from_settings_in,
+    load_require_sha, load_sources,
 };
 pub use error::MarketplaceError;
 pub use scanner::scan_marketplace;
@@ -25,17 +23,16 @@ pub use types::*;
 /// Display name of the official xAI marketplace source.
 pub const OFFICIAL_SOURCE_NAME: &str = "xAI Official";
 
-/// Git URL of the official xAI marketplace source. Auto-registered on first run.
-pub const OFFICIAL_SOURCE_GIT_URL: &str = "https://github.com/KaiyoDev/plugin-marketplace.git";
+/// Git URL of the official xAI marketplace source, auto-registered on first run.
+pub const OFFICIAL_SOURCE_GIT_URL: &str = "https://github.com/xvora-org/plugin-marketplace.git";
 
-/// Whether `url` is the official xAI marketplace source, normalizing case, a
-/// `www.` prefix, a trailing `/` or `.git`, and HTTPS/SSH forms before comparing.
+/// Whether `url` is the official xAI marketplace source.
+/// Case, a `www.` prefix, a trailing `/` or `.git`, and HTTPS/SSH forms are normalized before comparing.
 pub fn is_official_source_url(url: &str) -> bool {
-    canonical_github_owner_repo(url).as_deref() == Some("KaiyoDev/plugin-marketplace")
+    canonical_github_owner_repo(url).as_deref() == Some("xvora-org/plugin-marketplace")
 }
 
-/// Normalized lowercase `owner/repo` from a GitHub URL (HTTPS/http/ssh/scp,
-/// `www.`, trailing `.git`/`/`), or `None` if not a GitHub URL.
+/// Normalized lowercase `owner/repo` from a GitHub URL (HTTPS/http/ssh/scp, `www.`, trailing `.git`/`/`), or `None` if not a GitHub URL.
 pub(crate) fn canonical_github_owner_repo(url: &str) -> Option<String> {
     let s = url.trim();
     let s = s.strip_suffix('/').unwrap_or(s);
@@ -66,23 +63,23 @@ mod tests {
     fn is_official_matches_canonical_https() {
         assert!(is_official_source_url(OFFICIAL_SOURCE_GIT_URL));
         assert!(is_official_source_url(
-            "https://github.com/KaiyoDev/plugin-marketplace"
+            "https://github.com/xvora-org/plugin-marketplace"
         ));
     }
 
     #[test]
     fn is_official_matches_ssh_form() {
         assert!(is_official_source_url(
-            "git@github.com:KaiyoDev/plugin-marketplace.git"
+            "git@github.com:xvora-org/plugin-marketplace.git"
         ));
         assert!(is_official_source_url(
-            "git@github.com:KaiyoDev/plugin-marketplace"
+            "git@github.com:xvora-org/plugin-marketplace"
         ));
         assert!(is_official_source_url(
-            "ssh://git@github.com/KaiyoDev/plugin-marketplace.git"
+            "ssh://git@github.com/xvora-org/plugin-marketplace.git"
         ));
         assert!(is_official_source_url(
-            "ssh://git@github.com/KaiyoDev/plugin-marketplace"
+            "ssh://git@github.com/xvora-org/plugin-marketplace"
         ));
     }
 
@@ -92,7 +89,7 @@ mod tests {
             "https://github.com/anthropics/claude-plugins-official.git"
         ));
         assert!(!is_official_source_url(
-            "https://github.com/KaiyoDev/some-other-repo.git"
+            "https://github.com/xvora-org/some-other-repo.git"
         ));
         assert!(!is_official_source_url(""));
     }
@@ -103,16 +100,16 @@ mod tests {
             "https://GitHub.com/XAI-org/Plugin-Marketplace"
         ));
         assert!(is_official_source_url(
-            "https://github.com/KaiyoDev/plugin-marketplace/"
+            "https://github.com/xvora-org/plugin-marketplace/"
         ));
         assert!(is_official_source_url(
-            "https://github.com/KaiyoDev/plugin-marketplace.git/"
+            "https://github.com/xvora-org/plugin-marketplace.git/"
         ));
         assert!(is_official_source_url(
-            "http://github.com/KaiyoDev/plugin-marketplace"
+            "http://github.com/xvora-org/plugin-marketplace"
         ));
         assert!(is_official_source_url(
-            "https://www.github.com/KaiyoDev/plugin-marketplace.git"
+            "https://www.github.com/xvora-org/plugin-marketplace.git"
         ));
         assert!(is_official_source_url(
             "git@github.com:XAI-org/plugin-marketplace.git"

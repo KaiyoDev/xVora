@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```
-//! use codebase_graph::interner::StringInterner;
+//! use xvora_codebase_graph::interner::StringInterner;
 //!
 //! let mut interner = StringInterner::new();
 //!

@@ -1,4 +1,4 @@
-//! Agent definition types — parsed from `.xvora/agents/*.md` files.
+//! Agent definition types, parsed from `.grok/agents/*.md` files.
 use crate::error::AgentBuildError;
 use crate::prompt::context::TemplateOverride;
 use crate::prompt::user_message::UserMessageTemplate;
@@ -8,33 +8,20 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use strum::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
 use xvora_tools::implementations::codex;
+use xvora_tools::implementations::grok_build;
+use xvora_tools::implementations::grok_build_concise;
 use xvora_tools::implementations::memory;
 use xvora_tools::implementations::opencode;
 use xvora_tools::implementations::search_tool;
 use xvora_tools::implementations::use_tool;
-use xvora_tools::implementations::xvora;
-use xvora_tools::implementations::xvora_concise;
 use xvora_tools::registry::types::{ToolConfig, ToolServerConfig};
 /// Process-global registry of externally-provided toolset presets.
 ///
-/// # Visibility
-/// Each preset is registered as either **public** or **internal**:
-/// - **Public** presets are product presets: they are enumerated by
-///   [`preset_names`] / [`all_toolset_presets`] (so they appear in the
-///   workspace manifest, preset sets, etc.) *and* resolvable via
-///   [`toolset_for_preset`].
-/// - **Internal** presets are resolved by name at runtime by the shell /
-///   orchestrator spawn path via [`toolset_for_preset`], but are deliberately
-///   NOT enumerated, so a harness-internal preset never leaks into public
-///   preset enumeration.
+/// Public presets are enumerated by [`preset_names`] / [`all_toolset_presets`] and resolvable via [`toolset_for_preset`].
+/// Internal presets resolve via [`toolset_for_preset`] only, so they never appear in the workspace manifest or product preset sets.
 ///
-/// # Ordering contract
-/// [`register_toolset_preset`] / [`register_internal_toolset_preset`] MUST run
-/// before the first preset resolution in the process. Presets registered later
-/// are still visible to subsequent `toolset_for_preset` / `preset_names` /
-/// `all_toolset_presets` calls, but any config resolved before registration
-/// will not see them.
-/// A toolset preset builder: a function producing a [`ToolServerConfig`].
+/// [`register_toolset_preset`] / [`register_internal_toolset_preset`] MUST run before the first preset resolution in the process.
+/// Presets registered later are visible to subsequent lookups, but any config resolved before registration will not see them.
 pub type ToolsetPresetBuilder = fn() -> ToolServerConfig;
 /// Whether a registered preset is enumerated publicly or resolved by name only.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -50,21 +37,15 @@ fn toolset_preset_registry()
 -> &'static Mutex<HashMap<String, (ToolsetPresetBuilder, PresetVisibility)>> {
     TOOLSET_PRESETS.get_or_init(|| Mutex::new(HashMap::new()))
 }
-/// Register an out-of-tree **public** (product) toolset preset by name. Public
-/// presets are enumerated by [`preset_names`] / [`all_toolset_presets`] and
-/// resolvable via [`toolset_for_preset`]. See [`TOOLSET_PRESETS`].
+/// Register an out-of-tree **public** (product) toolset preset by name. See [`TOOLSET_PRESETS`].
 pub fn register_toolset_preset(name: &str, builder: ToolsetPresetBuilder) {
     toolset_preset_registry()
         .lock()
         .expect("toolset preset registry poisoned")
         .insert(name.to_string(), (builder, PresetVisibility::Public));
 }
-/// Register an out-of-tree **internal** toolset preset by name. Internal presets
-/// are resolvable via [`toolset_for_preset`] (the shell / orchestrator spawn
-/// path resolves them by name) but are deliberately NOT enumerated by
-/// [`preset_names`] / [`all_toolset_presets`], so they never leak into public
-/// preset enumeration (manifest generation, product preset sets, …). See
-/// [`TOOLSET_PRESETS`].
+/// Register an out-of-tree **internal** toolset preset by name; the shell / orchestrator spawn path resolves it via [`toolset_for_preset`].
+/// See [`TOOLSET_PRESETS`].
 pub fn register_internal_toolset_preset(name: &str, builder: ToolsetPresetBuilder) {
     toolset_preset_registry()
         .lock()
@@ -80,8 +61,7 @@ fn registered_toolset_preset(name: &str) -> Option<ToolServerConfig> {
         .get(name)
         .map(|(f, _)| f())
 }
-/// Names of externally-registered **public** presets only (internal presets are
-/// intentionally excluded from enumeration).
+/// Names of externally-registered **public** presets only (internal presets are intentionally excluded from enumeration).
 fn registered_public_toolset_preset_names() -> Vec<String> {
     toolset_preset_registry()
         .lock()
@@ -91,9 +71,8 @@ fn registered_public_toolset_preset_names() -> Vec<String> {
         .map(|(name, _)| name.clone())
         .collect()
 }
-/// Orchestrator-specific prompt body appended to the standard Xvora
-/// system prompt (`prompt.md`). Instructs the GBL model to delegate
-/// coding and exploration work to subagents.
+/// Orchestrator-specific prompt body appended to the standard GrokBuild system prompt (`prompt.md`).
+/// Instructs the GBL model to delegate coding and exploration work to subagents.
 const ORCHESTRATOR_PROMPT_BODY: &str = "\
 ## Orchestrator Mode
 
@@ -140,53 +119,48 @@ Write prompts the way you would brief a senior engineer:
 - Do NOT implement code changes yourself \u{2014} you have no file editing tools
 - Do NOT give subagents overly prescriptive step-by-step instructions \u{2014} trust their expertise
 - Do NOT summarize or re-explain what the user said \u{2014} get to work immediately";
-/// Bash tool with clearer model-facing names:
-/// `run_terminal_cmd` → `run_terminal_command`, `is_background` → `background`.
+/// Bash tool with clearer model-facing names: `run_terminal_cmd` becomes `run_terminal_command` and `is_background` becomes `background`.
 fn bash_tool_config() -> ToolConfig {
-    ToolConfig::from(&xvora::BashTool)
+    ToolConfig::from(&grok_build::BashTool)
         .with_name("run_terminal_command")
         .with_param_rename("is_background", "background")
 }
-/// Task/subagent tool with clearer model-facing names:
-/// `task` → `spawn_subagent`, `run_in_background` → `background`.
+/// Task/subagent tool with clearer model-facing names: `task` becomes `spawn_subagent` and `run_in_background` becomes `background`.
 fn task_tool_config() -> ToolConfig {
-    ToolConfig::from(&xvora::TaskTool)
+    ToolConfig::from(&grok_build::TaskTool)
         .with_name("spawn_subagent")
         .with_param_rename("run_in_background", "background")
 }
-/// Task output tool renamed for clarity:
-/// `get_task_output` → `get_command_or_subagent_output`.
+/// Task output tool renamed for clarity: `get_task_output` becomes `get_command_or_subagent_output`.
 fn task_output_tool_config() -> ToolConfig {
-    ToolConfig::from(&xvora::TaskOutputTool).with_name("get_command_or_subagent_output")
+    ToolConfig::from(&grok_build::TaskOutputTool).with_name("get_command_or_subagent_output")
 }
-/// `wait_tasks` → `wait_commands_or_subagents`.
+/// `wait_tasks` becomes `wait_commands_or_subagents`.
 fn wait_tasks_tool_config() -> ToolConfig {
-    ToolConfig::from(&xvora::WaitTasksTool).with_name("wait_commands_or_subagents")
+    ToolConfig::from(&grok_build::WaitTasksTool).with_name("wait_commands_or_subagents")
 }
-/// `kill_task` → `kill_command_or_subagent`.
+/// `kill_task` becomes `kill_command_or_subagent`.
 fn kill_task_tool_config() -> ToolConfig {
-    ToolConfig::from(&xvora::KillTaskTool).with_name("kill_command_or_subagent")
+    ToolConfig::from(&grok_build::KillTaskTool).with_name("kill_command_or_subagent")
 }
 /// Complete workspace-executable toolset for hub registration.
 ///
-/// Extends `default_xvora_toolset()` with tools that are dynamically
-/// injected by `AgentBuilder::build()` or only available in specific modes.
-/// In proxy mode, the workspace server executes ALL tools — the shell has
-/// zero local dispatch.
-pub fn workspace_xvora_toolset() -> ToolServerConfig {
-    let mut tools = default_xvora_toolset().tools;
+/// Extends `default_grok_build_toolset()` with tools that are dynamically injected by `AgentBuilder::build()` or only available in specific modes.
+/// In proxy mode, the workspace server executes ALL tools; the shell has zero local dispatch.
+pub fn workspace_grok_build_toolset() -> ToolServerConfig {
+    let mut tools = default_grok_build_toolset().tools;
     tools.push((&opencode::OpenCodeWriteTool).into());
-    tools.push((&xvora::EnterPlanModeTool).into());
-    tools.push((&xvora::ExitPlanModeTool).into());
-    tools.push((&xvora::AskUserQuestionTool).into());
-    tools.push((&xvora::WebSearchTool).into());
-    tools.push((&xvora::ImageGenTool).into());
-    tools.push((&xvora::ImageToVideoTool).into());
-    tools.push((&xvora::ReferenceToVideoTool).into());
-    tools.push((&xvora::WebFetchTool).into());
+    tools.push((&grok_build::EnterPlanModeTool).into());
+    tools.push((&grok_build::ExitPlanModeTool).into());
+    tools.push((&grok_build::AskUserQuestionTool).into());
+    tools.push((&grok_build::WebSearchTool).into());
+    tools.push((&grok_build::ImageGenTool).into());
+    tools.push((&grok_build::ImageToVideoTool).into());
+    tools.push((&grok_build::ReferenceToVideoTool).into());
+    tools.push((&grok_build::WebFetchTool).into());
     tools.push((&memory::search_tool::MemorySearchImpl).into());
     tools.push((&memory::get_tool::MemoryGetImpl).into());
-    tools.push((&xvora::LspTool).into());
+    tools.push((&grok_build::LspTool).into());
     ToolServerConfig {
         tools,
         behavior_preset: None,
@@ -197,13 +171,16 @@ fn grok_computer_toolset() -> ToolServerConfig {
     #[allow(unused_mut)]
     let mut tools = vec![
         bash_tool_config(),
-        (&xvora::ReadFileTool).into(),
-        (&xvora::SearchReplaceTool).into(),
+        (&grok_build::ReadFileTool).into(),
+        (&grok_build::SearchReplaceTool).into(),
         (&opencode::OpenCodeWriteTool).into(),
-        (&xvora::ListDirTool).into(),
-        (&xvora::GrepTool).into(),
-        (&xvora::KillTerminalCommandTool).into(),
-        (&xvora::GetTerminalCommandOutputTool).into(),
+        (&grok_build::ListDirTool).into(),
+        (&grok_build::GrepTool).into(),
+        (&grok_build::KillTerminalCommandTool).into(),
+        (&grok_build::GetTerminalCommandOutputTool).into(),
+        (&grok_build::SchedulerCreateTool).into(),
+        (&grok_build::SchedulerDeleteTool).into(),
+        (&grok_build::SchedulerListTool).into(),
     ];
     ToolServerConfig {
         tools,
@@ -212,24 +189,22 @@ fn grok_computer_toolset() -> ToolServerConfig {
 }
 /// Every named toolset preset, as `(normalized_name, config)` pairs.
 ///
-/// Single source of truth: [`toolset_for_preset`] resolves through this
-/// table, and the preset-coverage tests iterate it, so a new preset is
-/// automatically covered the moment it becomes resolvable.
+/// Single source of truth: [`toolset_for_preset`] resolves through this table, and the preset-coverage tests iterate it.
+/// A new preset is automatically covered the moment it becomes resolvable.
 /// Native (in-crate) toolset presets.
 fn native_toolset_presets() -> Vec<(&'static str, ToolServerConfig)> {
     vec![
-        ("xvora", workspace_xvora_toolset()),
-        ("xvora-concise", xvora_concise_toolset()),
-        ("xvora-plan", xvora_plan_toolset()),
+        ("grok-build", workspace_grok_build_toolset()),
+        ("grok-build-concise", grok_build_concise_toolset()),
+        ("grok-build-plan", grok_build_plan_toolset()),
         ("codex", codex_toolset()),
         ("explore", explore_toolset()),
         ("plan", plan_toolset()),
         ("grok-computer", grok_computer_toolset()),
     ]
 }
-/// Every named **public** toolset preset (native + externally registered public
-/// presets), as `(name, config)` pairs. Harness-internal registered presets are
-/// intentionally excluded — resolve them by name via [`toolset_for_preset`].
+/// Every named **public** toolset preset (native and externally registered public presets), as `(name, config)` pairs.
+/// Harness-internal registered presets are intentionally excluded; resolve them by name via [`toolset_for_preset`].
 fn all_toolset_presets() -> Vec<(String, ToolServerConfig)> {
     let mut out: Vec<(String, ToolServerConfig)> = native_toolset_presets()
         .into_iter()
@@ -260,75 +235,88 @@ pub fn toolset_for_preset(preset: &str) -> Option<ToolServerConfig> {
         .map(|(_, toolset)| toolset)
         .or_else(|| registered_toolset_preset(&normalized))
 }
-fn default_xvora_toolset() -> ToolServerConfig {
+fn default_grok_build_toolset() -> ToolServerConfig {
+    grok_build_core_toolset(true)
+}
+/// Same as the parent grok-build list, without `workflow`.
+/// The usual `general-purpose` spawn path must not add that tool and then strip it.
+fn general_purpose_toolset() -> ToolServerConfig {
+    grok_build_core_toolset(false)
+}
+fn grok_build_core_toolset(include_workflow: bool) -> ToolServerConfig {
+    let mut tools = vec![
+        bash_tool_config(),
+        (&grok_build::ReadFileTool).into(),
+        (&grok_build::SearchReplaceTool).into(),
+        (&grok_build::ListDirTool).into(),
+        (&grok_build::GrepTool).into(),
+        kill_task_tool_config(),
+        (&grok_build::TodoWriteTool).into(),
+        task_output_tool_config(),
+        wait_tasks_tool_config(),
+        task_tool_config(),
+        (&grok_build::SchedulerCreateTool).into(),
+        (&grok_build::SchedulerDeleteTool).into(),
+        (&grok_build::SchedulerListTool).into(),
+        (&grok_build::MonitorTool).into(),
+        (&search_tool::SearchTool).into(),
+        (&use_tool::UseTool).into(),
+        (&grok_build::UpdateGoalTool).into(),
+    ];
+    if include_workflow {
+        tools.push((&grok_build::WorkflowTool).into());
+    }
+    ToolServerConfig {
+        tools,
+        behavior_preset: None,
+    }
+}
+fn grok_build_concise_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
-            bash_tool_config(),
-            (&xvora::ReadFileTool).into(),
-            (&xvora::SearchReplaceTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
+            (&grok_build_concise::BashConciseTool).into(),
+            (&grok_build_concise::ReadFileConciseTool).into(),
+            (&grok_build_concise::SearchReplaceConciseTool).into(),
+            (&grok_build::ListDirTool).into(),
+            (&grok_build::GrepTool).into(),
             kill_task_tool_config(),
-            (&xvora::TodoWriteTool).into(),
+            (&grok_build::TodoWriteTool).into(),
             task_output_tool_config(),
-            wait_tasks_tool_config(),
-            task_tool_config(),
-            (&xvora::SchedulerCreateTool).into(),
-            (&xvora::SchedulerDeleteTool).into(),
-            (&xvora::SchedulerListTool).into(),
-            (&xvora::MonitorTool).into(),
-            (&search_tool::SearchTool).into(),
-            (&use_tool::UseTool).into(),
-            (&xvora::UpdateGoalTool).into(),
+            (&grok_build::SchedulerCreateTool).into(),
+            (&grok_build::SchedulerDeleteTool).into(),
+            (&grok_build::SchedulerListTool).into(),
+            (&grok_build::MonitorTool).into(),
+            (&grok_build::UpdateGoalTool).into(),
+            (&grok_build::WorkflowTool).into(),
         ],
         behavior_preset: None,
     }
 }
-fn xvora_concise_toolset() -> ToolServerConfig {
-    ToolServerConfig {
-        tools: vec![
-            (&xvora_concise::BashConciseTool).into(),
-            (&xvora_concise::ReadFileConciseTool).into(),
-            (&xvora_concise::SearchReplaceConciseTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
-            kill_task_tool_config(),
-            (&xvora::TodoWriteTool).into(),
-            task_output_tool_config(),
-            (&xvora::SchedulerCreateTool).into(),
-            (&xvora::SchedulerDeleteTool).into(),
-            (&xvora::SchedulerListTool).into(),
-            (&xvora::MonitorTool).into(),
-            (&xvora::UpdateGoalTool).into(),
-        ],
-        behavior_preset: None,
-    }
-}
-/// Hashline toolset: anchor-based read/edit/search + standard utilities.
+/// Hashline toolset: anchor-based read/edit/search and standard utilities.
 ///
-/// `hashline_tools` should be the 3 hashline `ToolConfig` entries produced by
-/// `FileToolset::Hashline.tool_configs(&hashline_config)` — they carry the
-/// scheme parameters as tool params.
-pub fn xvora_hashline_toolset(
+/// `hashline_tools` should be the 3 hashline `ToolConfig` entries produced by `FileToolset::Hashline.tool_configs(&hashline_config)`.
+/// They carry the scheme parameters as tool params.
+pub fn grok_build_hashline_toolset(
     hashline_tools: Vec<xvora_tools::registry::types::ToolConfig>,
 ) -> ToolServerConfig {
     let mut tools: Vec<xvora_tools::registry::types::ToolConfig> = vec![bash_tool_config()];
     tools.extend(hashline_tools);
     tools.extend([
-        (&xvora::ListDirTool).into(),
+        (&grok_build::ListDirTool).into(),
         kill_task_tool_config(),
-        (&xvora::TodoWriteTool).into(),
+        (&grok_build::TodoWriteTool).into(),
         task_output_tool_config(),
         wait_tasks_tool_config(),
         task_tool_config(),
-        (&xvora::WebSearchTool).into(),
-        (&xvora::SchedulerCreateTool).into(),
-        (&xvora::SchedulerDeleteTool).into(),
-        (&xvora::SchedulerListTool).into(),
-        (&xvora::MonitorTool).into(),
+        (&grok_build::WebSearchTool).into(),
+        (&grok_build::SchedulerCreateTool).into(),
+        (&grok_build::SchedulerDeleteTool).into(),
+        (&grok_build::SchedulerListTool).into(),
+        (&grok_build::MonitorTool).into(),
         (&search_tool::SearchTool).into(),
         (&use_tool::UseTool).into(),
-        (&xvora::UpdateGoalTool).into(),
+        (&grok_build::UpdateGoalTool).into(),
+        (&grok_build::WorkflowTool).into(),
     ]);
     ToolServerConfig {
         tools,
@@ -344,7 +332,7 @@ fn codex_toolset() -> ToolServerConfig {
             (&codex::CodexListDirTool).into(),
             (&codex::CodexGrepFilesTool).into(),
             kill_task_tool_config(),
-            (&xvora::TodoWriteTool).into(),
+            (&grok_build::TodoWriteTool).into(),
             task_output_tool_config(),
             (&search_tool::SearchTool).into(),
             (&use_tool::UseTool).into(),
@@ -354,163 +342,169 @@ fn codex_toolset() -> ToolServerConfig {
 }
 /// Read-only toolset for the **explore** subagent.
 ///
-/// Genuinely read-only: `read_file` (Read), `list_dir` (Glob), `grep` (Grep).
-/// `run_terminal_command` (Bash) is intentionally omitted so exploration cannot
-/// mutate the workspace — the read-only guarantee is enforced by the toolset,
-/// not merely by the prompt. With no `BashTool`, the background-task helpers
-/// (`KillTaskTool`/`TaskOutputTool`) are unnecessary and also omitted.
+/// `run_terminal_command` is intentionally omitted so exploration cannot mutate the workspace: the toolset enforces read-only, not just the prompt.
+/// With no `BashTool`, the background-task helpers (`KillTaskTool`/`TaskOutputTool`) are unnecessary and also omitted.
 fn explore_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
-            (&xvora::ReadFileTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
+            (&grok_build::ReadFileTool).into(),
+            (&grok_build::ListDirTool).into(),
+            (&grok_build::GrepTool).into(),
         ],
         behavior_preset: None,
     }
 }
-/// Plan-mode toolset — read-only inspection tools, no shell, no file-editing.
+/// Plan-mode toolset: read-only inspection tools, no shell, no file-editing.
 ///
-/// Enforces read-only at the toolset: the agent may inspect the repo and keep
-/// a todo list, but `search_replace` (file edits) and `run_terminal_command`
-/// (shell) are both omitted so it cannot mutate the workspace.
+/// Enforces read-only at the toolset: the agent may inspect the repo and keep a todo list but cannot mutate the workspace.
 fn plan_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
-            (&xvora::ReadFileTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
-            (&xvora::TodoWriteTool).into(),
+            (&grok_build::ReadFileTool).into(),
+            (&grok_build::ListDirTool).into(),
+            (&grok_build::GrepTool).into(),
+            // (&grok_build::SkillTool).into(),
+            (&grok_build::TodoWriteTool).into(),
+            // search_replace and run_terminal_command intentionally omitted (read-only)
         ],
         behavior_preset: None,
     }
 }
-/// Xvora + plan mode toolset.
-///
-/// Extends the default `xvora` toolset with plan mode tools:
-/// `enter_plan_mode`, `exit_plan_mode`, and `ask_user_question`.
-/// This allows the agent to enter a structured planning phase before
-/// writing code, with user-approved plans.
-fn xvora_plan_toolset() -> ToolServerConfig {
+/// Extends the default `grok-build` toolset with plan mode tools.
+/// This allows the agent to enter a structured planning phase before writing code, with user-approved plans.
+fn grok_build_plan_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
+            // Standard grok-build tools
             bash_tool_config(),
-            (&xvora::ReadFileTool).into(),
-            (&xvora::SearchReplaceTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
+            (&grok_build::ReadFileTool).into(),
+            (&grok_build::SearchReplaceTool).into(),
+            (&grok_build::ListDirTool).into(),
+            (&grok_build::GrepTool).into(),
             kill_task_tool_config(),
-            (&xvora::TodoWriteTool).into(),
+            (&grok_build::TodoWriteTool).into(),
             task_output_tool_config(),
             task_tool_config(),
-            (&xvora::SchedulerCreateTool).into(),
-            (&xvora::SchedulerDeleteTool).into(),
-            (&xvora::SchedulerListTool).into(),
-            (&xvora::MonitorTool).into(),
+            (&grok_build::SchedulerCreateTool).into(),
+            (&grok_build::SchedulerDeleteTool).into(),
+            (&grok_build::SchedulerListTool).into(),
+            (&grok_build::MonitorTool).into(),
             (&search_tool::SearchTool).into(),
             (&use_tool::UseTool).into(),
-            (&xvora::UpdateGoalTool).into(),
-            (&xvora::EnterPlanModeTool).into(),
-            (&xvora::ExitPlanModeTool).into(),
-            (&xvora::AskUserQuestionTool).into(),
+            (&grok_build::UpdateGoalTool).into(),
+            (&grok_build::WorkflowTool).into(),
+            // Plan mode tools
+            (&grok_build::EnterPlanModeTool).into(),
+            (&grok_build::ExitPlanModeTool).into(),
+            (&grok_build::AskUserQuestionTool).into(),
         ],
         behavior_preset: None,
     }
 }
 /// Orchestrator toolset: read/search/orchestration tools only.
 ///
-/// No terminal execution, no file editing. The orchestrator delegates
-/// all execution and file modification to subagents. Retains read_file,
-/// grep, list_dir for research, plus the full subagent/skill/MCP/plan
-/// stack for orchestration.
+/// No terminal execution, no file editing.
+/// The orchestrator delegates all execution and file modification to subagents.
+/// Retains read_file, grep, list_dir for research, plus the full subagent/skill/MCP/plan stack for orchestration.
 fn orchestrator_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
+            // Research tools
             bash_tool_config(),
-            (&xvora::ReadFileTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
+            (&grok_build::ReadFileTool).into(),
+            (&grok_build::ListDirTool).into(),
+            (&grok_build::GrepTool).into(),
+            // Subagent orchestration
             task_tool_config(),
             task_output_tool_config(),
             wait_tasks_tool_config(),
             kill_task_tool_config(),
+            // Skills and MCP
             (&search_tool::SearchTool).into(),
             (&use_tool::UseTool).into(),
-            (&xvora::TodoWriteTool).into(),
-            (&xvora::EnterPlanModeTool).into(),
-            (&xvora::ExitPlanModeTool).into(),
-            (&xvora::AskUserQuestionTool).into(),
-            (&xvora::UpdateGoalTool).into(),
-            (&xvora::SchedulerCreateTool).into(),
-            (&xvora::SchedulerDeleteTool).into(),
-            (&xvora::SchedulerListTool).into(),
-            (&xvora::MonitorTool).into(),
-            (&xvora::WebSearchTool).into(),
-            (&xvora::WebFetchTool).into(),
-            (&xvora::ImageGenTool).into(),
-            (&xvora::ImageToVideoTool).into(),
-            (&xvora::ReferenceToVideoTool).into(),
+            // Planning and user interaction
+            (&grok_build::TodoWriteTool).into(),
+            (&grok_build::EnterPlanModeTool).into(),
+            (&grok_build::ExitPlanModeTool).into(),
+            (&grok_build::AskUserQuestionTool).into(),
+            (&grok_build::UpdateGoalTool).into(),
+            (&grok_build::WorkflowTool).into(),
+            // Scheduling and monitoring
+            (&grok_build::SchedulerCreateTool).into(),
+            (&grok_build::SchedulerDeleteTool).into(),
+            (&grok_build::SchedulerListTool).into(),
+            (&grok_build::MonitorTool).into(),
+            // Web tools
+            (&grok_build::WebSearchTool).into(),
+            (&grok_build::WebFetchTool).into(),
+            // Imagine
+            (&grok_build::ImageGenTool).into(),
+            (&grok_build::ImageToVideoTool).into(),
+            (&grok_build::ReferenceToVideoTool).into(),
+            // Memory
             (&memory::MemorySearchImpl).into(),
             (&memory::MemoryGetImpl).into(),
+            // Intentionally excluded:
+            // - SearchReplaceTool (no file editing; delegate to subagents)
+            // - OpenCodeWriteTool (no file writing; delegate to subagents)
         ],
         behavior_preset: None,
     }
 }
-/// Xvora + plan mode toolset WITHOUT subagent tools.
-///
-/// Same as `xvora_plan_toolset` but excludes `TaskTool`,
-/// `TaskOutputTool`, and `KillTaskTool`. Use this when the shell
-/// does not have subagent infrastructure wired up.
-fn xvora_plan_no_subagents_toolset() -> ToolServerConfig {
+/// Same as `grok_build_plan_toolset` but excludes `TaskTool`, `TaskOutputTool`, and `KillTaskTool`.
+/// Use this when the shell does not have subagent infrastructure wired up.
+fn grok_build_plan_no_subagents_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
+            // Standard grok-build tools, minus TaskTool only
+            // KillTaskTool and TaskOutputTool are kept because BashTool's background mode requires them
             bash_tool_config(),
-            (&xvora::ReadFileTool).into(),
-            (&xvora::SearchReplaceTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
+            (&grok_build::ReadFileTool).into(),
+            (&grok_build::SearchReplaceTool).into(),
+            (&grok_build::ListDirTool).into(),
+            (&grok_build::GrepTool).into(),
             kill_task_tool_config(),
-            (&xvora::TodoWriteTool).into(),
+            (&grok_build::TodoWriteTool).into(),
             task_output_tool_config(),
-            (&xvora::SchedulerCreateTool).into(),
-            (&xvora::SchedulerDeleteTool).into(),
-            (&xvora::SchedulerListTool).into(),
-            (&xvora::MonitorTool).into(),
+            (&grok_build::SchedulerCreateTool).into(),
+            (&grok_build::SchedulerDeleteTool).into(),
+            (&grok_build::SchedulerListTool).into(),
+            (&grok_build::MonitorTool).into(),
             (&search_tool::SearchTool).into(),
             (&use_tool::UseTool).into(),
-            (&xvora::UpdateGoalTool).into(),
-            (&xvora::EnterPlanModeTool).into(),
-            (&xvora::ExitPlanModeTool).into(),
-            (&xvora::AskUserQuestionTool).into(),
+            (&grok_build::UpdateGoalTool).into(),
+            (&grok_build::WorkflowTool).into(),
+            // Plan mode tools
+            (&grok_build::EnterPlanModeTool).into(),
+            (&grok_build::ExitPlanModeTool).into(),
+            (&grok_build::AskUserQuestionTool).into(),
         ],
         behavior_preset: None,
     }
 }
-/// Default Xvora toolset + `ask_user_question`.
-///
-/// Same as `default_xvora_toolset` with the `AskUserQuestionTool` added,
-/// allowing the agent to ask structured questions without full plan mode.
-fn xvora_ask_user_toolset() -> ToolServerConfig {
+/// Same as `default_grok_build_toolset` with the `AskUserQuestionTool` added, allowing the agent to ask structured questions without full plan mode.
+fn grok_build_ask_user_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
             bash_tool_config(),
-            (&xvora::ReadFileTool).into(),
-            (&xvora::SearchReplaceTool).into(),
-            (&xvora::ListDirTool).into(),
-            (&xvora::GrepTool).into(),
+            (&grok_build::ReadFileTool).into(),
+            (&grok_build::SearchReplaceTool).into(),
+            (&grok_build::ListDirTool).into(),
+            (&grok_build::GrepTool).into(),
             kill_task_tool_config(),
-            (&xvora::TodoWriteTool).into(),
+            (&grok_build::TodoWriteTool).into(),
             task_output_tool_config(),
             wait_tasks_tool_config(),
             task_tool_config(),
-            (&xvora::SchedulerCreateTool).into(),
-            (&xvora::SchedulerDeleteTool).into(),
-            (&xvora::SchedulerListTool).into(),
-            (&xvora::MonitorTool).into(),
+            (&grok_build::SchedulerCreateTool).into(),
+            (&grok_build::SchedulerDeleteTool).into(),
+            (&grok_build::SchedulerListTool).into(),
+            (&grok_build::MonitorTool).into(),
             (&search_tool::SearchTool).into(),
             (&use_tool::UseTool).into(),
-            (&xvora::UpdateGoalTool).into(),
-            (&xvora::AskUserQuestionTool).into(),
+            (&grok_build::UpdateGoalTool).into(),
+            (&grok_build::WorkflowTool).into(),
+            (&grok_build::AskUserQuestionTool).into(),
         ],
         behavior_preset: None,
     }
@@ -534,10 +528,7 @@ fn opencode_toolset() -> ToolServerConfig {
 }
 /// Model override for an agent definition.
 ///
-/// Two states:
-/// - `Inherit` — use the parent session's model (default).
-/// - `Override(String)` — use a specific model ID, resolved against
-///   available models at subagent spawn time.
+/// An `Override` model ID is resolved against available models at subagent spawn time.
 ///
 /// In YAML frontmatter / JSON:
 /// - `model: inherit` or omitted → `Inherit`
@@ -583,13 +574,13 @@ impl serde::Serialize for ModelOverride {
     }
 }
 const AGENT_TASK_KEYWORDS: &str = "Agent|Task";
-/// Splits `"Agent(a, b), read_file"` → `["Agent(a, b)", "read_file"]`.
+/// Splits `"Agent(a, b), read_file"` into `["Agent(a, b)", "read_file"]`.
 pub static AGENT_TASK_TOKENIZER_RE: std::sync::LazyLock<regex::Regex> =
     std::sync::LazyLock::new(|| {
         regex::Regex::new(&format!(r"(?i:{AGENT_TASK_KEYWORDS})\([^)]*\)|[^,]+"))
             .expect("valid regex")
     });
-/// Matches `"Agent(a, b)"` and captures `"a, b"` in group 1. `None` for bare `Agent`.
+/// Matches `"Agent(a, b)"` and captures `"a, b"` in group 1; the group is `None` for bare `Agent`.
 pub static AGENT_TASK_CLASSIFIER_RE: std::sync::LazyLock<regex::Regex> =
     std::sync::LazyLock::new(|| {
         regex::Regex::new(&format!(r"^(?i:{AGENT_TASK_KEYWORDS})(?:\(([^)]*)\))?$"))
@@ -641,39 +632,32 @@ where
     }
     Ok(opt)
 }
-/// All built-in agent names as a typed enum.
+/// Eliminates string matching in discovery and ensures built-in names are defined in exactly one place.
 ///
-/// Eliminates string matching in discovery and ensures built-in names
-/// are defined in exactly one place. The enum covers all built-in
-/// agents for centralized name management and `by_name()` dispatch.
-///
-/// `subagent_variants()` returns only the 3 that are exposed to the LLM
-/// via the `TaskTool` description. The remaining 6 are top-level agent
-/// profiles resolvable by name but not advertised as subagent types.
+/// `subagent_variants()` returns only the 3 that are exposed to the LLM via the `TaskTool` description.
+/// The remaining 6 are top-level agent profiles resolvable by name but not advertised as subagent types.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Display, EnumString, EnumIter, AsRefStr, IntoStaticStr,
 )]
 #[strum(serialize_all = "kebab-case")]
 pub enum BuiltinAgentName {
-    Xvora,
-    XvoraConcise,
-    XvoraPlan,
-    XvoraPlanNoSubagents,
-    XvoraAskUser,
+    GrokBuild,
+    GrokBuildConcise,
+    GrokBuildPlan,
+    GrokBuildPlanNoSubagents,
+    GrokBuildAskUser,
     Codex,
     Opencode,
     GeneralPurpose,
     Explore,
     Plan,
     BrowserUse,
-    #[strum(serialize = "xvora-orchestrator")]
-    XvoraOrchestrator,
+    #[strum(serialize = "grok-build-orchestrator")]
+    GrokBuildOrchestrator,
 }
-/// Strict-harness predicate by name. Resolves via `BuiltinAgentName` and
-/// delegates to [`AgentDefinition::is_strict_harness`]; unknown names
-/// return `false` (conservative — never enforce a harness we can't verify).
-/// Callers that already hold an `AgentDefinition` should call that method
-/// directly so project-level shadowing is honored.
+/// Resolves via `BuiltinAgentName` and delegates to [`AgentDefinition::is_strict_harness`].
+/// Unknown names return `false`: never enforce a harness we can't verify.
+/// Callers that already hold an `AgentDefinition` should call that method directly so project-level shadowing is honored.
 pub fn is_strict_harness_agent_type(name: &str) -> bool {
     use std::str::FromStr;
     BuiltinAgentName::from_str(name)
@@ -681,21 +665,20 @@ pub fn is_strict_harness_agent_type(name: &str) -> bool {
         .unwrap_or(false)
 }
 impl BuiltinAgentName {
-    /// Build the `AgentDefinition` for this built-in agent.
     pub fn definition(self) -> AgentDefinition {
         match self {
-            Self::Xvora => AgentDefinition::default_xvora(),
-            Self::XvoraConcise => AgentDefinition::xvora_concise(),
-            Self::XvoraPlan => AgentDefinition::xvora_plan(),
-            Self::XvoraPlanNoSubagents => AgentDefinition::xvora_plan_no_subagents(),
-            Self::XvoraAskUser => AgentDefinition::xvora_ask_user(),
+            Self::GrokBuild => AgentDefinition::default_grok_build(),
+            Self::GrokBuildConcise => AgentDefinition::grok_build_concise(),
+            Self::GrokBuildPlan => AgentDefinition::grok_build_plan(),
+            Self::GrokBuildPlanNoSubagents => AgentDefinition::grok_build_plan_no_subagents(),
+            Self::GrokBuildAskUser => AgentDefinition::grok_build_ask_user(),
             Self::Codex => AgentDefinition::codex(),
             Self::Opencode => AgentDefinition::opencode(),
             Self::GeneralPurpose => AgentDefinition::general_purpose(),
             Self::Explore => AgentDefinition::explore(),
             Self::Plan => AgentDefinition::plan(),
             Self::BrowserUse => AgentDefinition::browser_use(),
-            Self::XvoraOrchestrator => AgentDefinition::xvora_orchestrator(),
+            Self::GrokBuildOrchestrator => AgentDefinition::grok_build_orchestrator(),
         }
     }
     /// Built-in agents available as subagents via the Task tool.
@@ -703,11 +686,11 @@ impl BuiltinAgentName {
         &[Self::GeneralPurpose, Self::Explore, Self::Plan]
     }
 }
-/// Portable agent identity — parsed from .xvora/agents/*.md.
+/// Portable agent identity, parsed from .grok/agents/*.md.
 /// Usable as both a top-level agent and a subagent definition.
 ///
-/// This is the stable, version-controllable contract. It does NOT
-/// contain session-level policies (compaction, system reminders).
+/// This is the stable, version-controllable contract.
+/// It does NOT contain session-level policies (compaction, system reminders).
 /// Those are provided by the AgentBuilder at build time.
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -717,43 +700,39 @@ pub struct AgentDefinition {
     /// Plugin namespace for plugin-backed agents only.
     #[serde(skip)]
     pub plugin_name: Option<String>,
+    /// Prevents external definitions from opting into built-in-only policy by name.
+    #[serde(skip)]
+    pub(crate) builtin_name: Option<BuiltinAgentName>,
     #[serde(default = "default_prompt_mode")]
     pub prompt_mode: PromptMode,
-    #[serde(default = "default_xvora_toolset")]
+    #[serde(default = "default_grok_build_toolset")]
     pub tool_config: ToolServerConfig,
-    /// Runtime capability mode that constrains which tool kinds the agent
-    /// can use. Applied during subagent spawn in `handle_subagent_request`
-    /// by filtering the definition's `tool_config` before session creation.
+    /// Runtime capability mode that constrains which tool kinds the agent can use.
+    /// Applied during subagent spawn in `handle_subagent_request` by filtering the definition's `tool_config` before session creation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub capability_mode: Option<tool_types::SubagentCapabilityMode>,
+    pub capability_mode: Option<xvora_tool_types::SubagentCapabilityMode>,
     #[serde(default)]
     pub permission_mode: PermissionMode,
     #[serde(default)]
     pub skills: Vec<String>,
-    /// When true (the default), the AgentBuilder discovers skills from CWD
-    /// at build time and seeds mid-session skill discovery. When false,
-    /// skill discovery is suppressed and the agent gets an empty skill
-    /// list with no CWD-based runtime discovery.
+    /// When true (the default), the AgentBuilder discovers skills from CWD at build time and seeds mid-session skill discovery.
+    /// When false, skill discovery is suppressed and the agent gets an empty skill list with no CWD-based runtime discovery.
     #[serde(default = "default_true")]
     pub discover_skills: bool,
-    /// Whether to inherit the parent session's discovered skills when
-    /// spawned as a subagent. Ignored for primary sessions.
+    /// Whether to inherit the parent session's discovered skills when spawned as a subagent. Ignored for primary sessions.
     #[serde(default = "default_true")]
     pub inherit_skills: bool,
     #[serde(default = "default_true")]
     pub agents_md: bool,
-    /// When true (the default), the AgentBuilder layers session-level optional
-    /// tools on top of the agent's declared `tool_config`: memory_search/get,
-    /// web_search, web_fetch, lsp, image_gen, video_gen, OpenCode write
-    /// fallback, and the plan-mode tools.
+    /// When true (the default), the AgentBuilder layers session-level optional tools on top of the agent's declared `tool_config`.
+    /// These are memory_search/get, web_search, web_fetch, lsp, image_gen, video_gen, the OpenCode write fallback, and the plan-mode tools.
     ///
-    /// Set this to `false` for harnesses that need an exact, minimal toolset
-    /// (e.g. the compat harness, where every advertised tool must match the
-    /// model's trained schema). The agent's `tool_config` is then used
-    /// verbatim with only the subagent strip applied.
+    /// Set this to `false` for harnesses that need an exact, minimal toolset.
+    /// In the compat harness, for example, every advertised tool must match the model's trained schema.
+    /// The agent's `tool_config` is then used verbatim with only the subagent strip applied.
     #[serde(default = "default_true")]
     pub inject_default_tools: bool,
-    /// Tool allowlist. Empty = inherit all. Also carries `Agent(type)` directives.
+    /// Tool allowlist. Empty means inherit all. Also carries `Agent(type)` directives.
     #[serde(default, deserialize_with = "deserialize_string_or_vec")]
     pub tools: Vec<String>,
     /// Tool denylist. `Agent(type)` entries strip spawn permissions.
@@ -767,7 +746,7 @@ pub struct AgentDefinition {
     pub isolation: Option<IsolationMode>,
     #[serde(default)]
     pub background: Option<bool>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_agent_color")]
     pub color: Option<AgentColor>,
     #[serde(default)]
     pub initial_prompt: Option<String>,
@@ -781,20 +760,18 @@ pub struct AgentDefinition {
     pub memory: Option<MemoryScope>,
     #[serde(default)]
     pub model: ModelOverride,
-    /// Completion requirement — declares that this agent must call a
-    /// specific tool before the turn ends.
     #[serde(default)]
     pub completion_requirement: Option<CompletionRequirement>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_overrides: Option<xvora_sampling_types::ToolOverrides>,
     /// Subagent types this agent can spawn (derived by builder from `tools`).
-    /// `None` = unrestricted, `Some([t1])` = restricted, `Some([])` = blocked.
+    /// `None` is unrestricted, `Some([t1])` restricts to those types, and `Some([])` blocks spawning.
     #[serde(skip)]
     pub allowed_subagent_types: Option<Vec<String>>,
-    /// Session-operator tool restrictions (`--tools` / `--disallowed-tools`),
-    /// distinct from the agent author's own `tools`/`disallowed_tools`. The
-    /// builder applies them as a final clamp over the fully-assembled toolset
-    /// (function + hosted), so they bind regardless of later `tool_config`
-    /// mutations and compose with the agent's own filters by intersection.
-    /// `None` = no session restriction.
+    /// Session-operator tool restrictions (`--tools` / `--disallowed-tools`), distinct from the agent author's own `tools`/`disallowed_tools`.
+    /// The builder applies them as a final clamp over the fully-assembled toolset (function and hosted).
+    /// They bind regardless of later `tool_config` mutations and compose with the agent's own filters by intersection.
+    /// `None` means no session restriction.
     #[serde(skip)]
     pub session_tools_allowlist: Option<Vec<String>>,
     #[serde(skip)]
@@ -803,12 +780,12 @@ pub struct AgentDefinition {
     pub prompt_body: Option<String>,
     #[serde(skip)]
     pub system_prompt: TemplateOverride,
-    /// First-user-message template selector. `Default` (the default) lets
-    /// the shell layer build the legacy `<user_info>` + `<git_status>`
-    /// prefix; `Custom` uses a caller-supplied template string.
+    /// First-user-message template selector.
+    /// `Default` (the default) lets the shell layer build the legacy `<user_info>` and `<git_status>` prefix.
+    /// `Custom` uses a caller-supplied template string.
     #[serde(default)]
     pub user_message_template: UserMessageTemplate,
-    /// Where this definition was loaded from, optional if built in agent definition
+    /// Where this definition was loaded from; `None` for built-in definitions
     #[serde(skip)]
     pub source_path: Option<PathBuf>,
     /// Discovery scope (project vs user).
@@ -839,7 +816,7 @@ pub struct RecoveryPolicy {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolExecConfig {
-    /// Retry config for this tool. None = no retry (execute once).
+    /// Retry config for this tool. None means no retry (execute once).
     #[serde(default)]
     pub retry: Option<ToolRetryConfig>,
 }
@@ -855,11 +832,10 @@ pub struct ToolRetryConfig {
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PromptMode {
-    /// Body is appended to the base template (tool conventions,
-    /// formatting rules, user_info). Default.
+    /// Body is appended to the base template (tool conventions, formatting rules, user_info).
     #[default]
     Extend,
-    /// Body IS the complete system prompt. No base template.
+    /// Body IS the complete system prompt.
     Full,
 }
 fn default_prompt_mode() -> PromptMode {
@@ -868,13 +844,13 @@ fn default_prompt_mode() -> PromptMode {
 /// Where the agent definition was discovered.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum AgentScope {
-    /// .xvora/agents/ (project-level, highest priority)
+    /// .grok/agents/ (project-level, highest priority)
     Project,
-    /// ~/.xvora/agents/ (user-level)
+    /// ~/.grok/agents/ (user-level)
     User,
-    /// ~/.xvora/bundled/agents/ (lowest-priority bundled cache)
+    /// ~/.grok/bundled/agents/ (lowest-priority bundled cache)
     Bundled,
-    /// Built-in agent (e.g., default_xvora(), browser_use()).
+    /// Built-in agent (e.g., default_grok_build(), browser_use()).
     #[default]
     BuiltIn,
 }
@@ -899,9 +875,8 @@ impl std::fmt::Display for AgentScope {
 /// - `"all"` / `"none"` (string, case-insensitive)
 /// - `{ "named": ["slack", "github"] }` / `{ "except": ["internal"] }` (map)
 ///
-/// The custom `Deserialize` is needed because `serde_yaml` 0.9 uses YAML
-/// tags (`!named`) for externally-tagged enum data variants, but agent
-/// definition frontmatter uses the mapping style that JSON also expects.
+/// The custom `Deserialize` exists because `serde_yaml` 0.9 uses YAML tags (`!named`) for externally-tagged enum data variants.
+/// Agent definition frontmatter uses the mapping style that JSON also expects.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum McpInheritance {
@@ -950,7 +925,7 @@ impl<'de> Deserialize<'de> for McpInheritance {
         deserializer.deserialize_any(McpInheritanceVisitor)
     }
 }
-/// Permission mode. Only `BypassPermissions` is wired at spawn; others are forward-compat.
+/// Only `BypassPermissions` is wired at spawn; others are forward-compat.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, serde::Serialize, strum::EnumCount)]
 #[serde(rename_all = "camelCase")]
 pub enum PermissionMode {
@@ -1032,11 +1007,13 @@ const _: () =
     Eq,
     Deserialize,
     serde::Serialize,
+    AsRefStr,
+    EnumString,
     IntoStaticStr,
     strum::EnumCount,
 )]
 #[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
+#[strum(serialize_all = "lowercase", ascii_case_insensitive)]
 pub enum AgentColor {
     Red,
     Blue,
@@ -1053,7 +1030,33 @@ impl AgentColor {
     ];
 }
 const _: () = assert!(AgentColor::VALID_VALUES.len() == <AgentColor as strum::EnumCount>::COUNT);
-/// Agent memory scope. Distinct from `storage::MemoryScope` (global-vs-workspace write target).
+/// Never fails: `color` is decorative, but a rejected value fails the whole frontmatter parse, and discovery skips agents that fail to parse.
+/// A typo'd or hex color would therefore silently make the agent unspawnable.
+///
+/// Frontmatter is only ever decoded by `serde_yaml`, so the intermediate value is captured as `serde_yaml::Value`.
+/// That type is total for YAML: it also holds tagged scalars and maps with non-string keys, which have no `serde_json::Value` form.
+/// Unrecognized values are dropped to `None` with a warning rather than mapped to a stand-in color the author never wrote.
+fn deserialize_agent_color<'de, D>(deserializer: D) -> Result<Option<AgentColor>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use std::str::FromStr;
+    let Some(value) = Option::<serde_yaml::Value>::deserialize(deserializer)? else {
+        return Ok(None);
+    };
+    let parsed = value
+        .as_str()
+        .and_then(|name| AgentColor::from_str(name.trim()).ok());
+    if parsed.is_none() {
+        tracing::warn!(
+            color = ?value,
+            valid = ?AgentColor::VALID_VALUES,
+            "unrecognized agent color, ignoring"
+        );
+    }
+    Ok(parsed)
+}
+/// Distinct from `storage::MemoryScope` (global-vs-workspace write target).
 #[derive(
     Debug,
     Clone,
@@ -1068,11 +1071,11 @@ const _: () = assert!(AgentColor::VALID_VALUES.len() == <AgentColor as strum::En
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum MemoryScope {
-    /// `~/.xvora/agent-memory/<name>/`
+    /// `~/.grok/agent-memory/<name>/`
     User,
-    /// `<project>/.xvora/agent-memory/<name>/`
+    /// `<project>/.grok/agent-memory/<name>/`
     Project,
-    /// `<project>/.xvora/agent-memory-local/<name>/`
+    /// `<project>/.grok/agent-memory-local/<name>/`
     Local,
 }
 impl MemoryScope {
@@ -1089,25 +1092,25 @@ impl MemoryScope {
     pub fn resolve_dir(self, agent_name: &str, project_cwd: &std::path::Path) -> ResolvedMemoryDir {
         match self {
             Self::User => ResolvedMemoryDir {
-                path: xvora_config::xvora_home()
+                path: xvora_config::grok_home()
                     .join("agent-memory")
                     .join(agent_name),
                 is_project_scoped: false,
             },
             Self::Project => ResolvedMemoryDir {
-                path: project_cwd.join(".xvora/agent-memory").join(agent_name),
+                path: project_cwd.join(".grok/agent-memory").join(agent_name),
                 is_project_scoped: true,
             },
             Self::Local => ResolvedMemoryDir {
                 path: project_cwd
-                    .join(".xvora/agent-memory-local")
+                    .join(".grok/agent-memory-local")
                     .join(agent_name),
                 is_project_scoped: true,
             },
         }
     }
 }
-/// Hooks config validated as an object at parse time. Semantic parsing deferred to spawn.
+/// Hooks config is validated as an object at parse time; semantic parsing is deferred to spawn.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct HooksConfig(pub serde_json::Map<String, serde_json::Value>);
 impl HooksConfig {
@@ -1126,7 +1129,7 @@ where
         Some(_) => Err(serde::de::Error::custom("hooks must be an object")),
     }
 }
-/// MCP server reference — typed to catch config errors at parse time.
+/// MCP server reference, typed to catch config errors at parse time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum McpServerRef {
     Named(String),
@@ -1190,9 +1193,8 @@ impl serde::Serialize for McpServerRef {
 }
 /// Bash tool config overrides (agent-definition layer).
 ///
-/// NOTE: Uses `camelCase` for YAML frontmatter. The `AgentBuilder` maps
-/// these into `xvora_tools::registry::types::ToolsetConfig.bash`
-/// which uses the tools crate's `BashToolConfig` type.
+/// NOTE: Uses `camelCase` for YAML frontmatter.
+/// The `AgentBuilder` maps these into `xvora_tools::registry::types::ToolsetConfig.bash` which uses the tools crate's `BashToolConfig` type.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BashConfig {
@@ -1306,20 +1308,19 @@ impl AgentDefinition {
         def.plugin_name = None;
         Ok(def)
     }
-    /// Determine the scope of a definition file based on its path.
     fn scope_from_path(path: &Path) -> AgentScope {
         let path_str = path.to_string_lossy();
-        let grok = xvora_config::user_xvora_home();
-        let home = dirs::home_dir();
+        let grok = xvora_config::user_grok_home();
+        let home = xvora_dirs::home_dir();
         for (dir, scope) in crate::discovery::user_agent_dirs(home.as_deref(), grok.as_deref()) {
             if path.starts_with(&dir) {
                 return scope;
             }
         }
-        if path_str.contains(".xvora/agents/") || path_str.contains(".grok\\agents\\") {
+        if path_str.contains(".grok/agents/") || path_str.contains(".grok\\agents\\") {
             return AgentScope::Project;
         }
-        if path_str.contains(".xvora/bundled/agents/")
+        if path_str.contains(".grok/bundled/agents/")
             || path_str.contains(".grok\\bundled\\agents\\")
         {
             return AgentScope::Bundled;
@@ -1328,8 +1329,7 @@ impl AgentDefinition {
     }
 }
 impl AgentDefinition {
-    /// Whether `id` passes the session-operator clamp: denylist wins, then an
-    /// unset allowlist allows all.
+    /// Whether `id` passes the session-operator clamp: denylist wins, then an unset allowlist allows all.
     pub(crate) fn session_tools_allowed(&self, id: &str) -> bool {
         if self
             .session_tools_denylist
@@ -1342,10 +1342,9 @@ impl AgentDefinition {
             .as_deref()
             .is_none_or(|a| tool_id_matches(a, id))
     }
-    /// Whether a hosted/server-side tool `id` survives the agent's own
-    /// `disallowed_tools`/`tools` and the session clamp. Hosted tools aren't in
-    /// `tool_config`, so they're gated by name here — and strictly (no
-    /// compat-name mapping or unresolved-entry fallback like the function path).
+    /// Whether a hosted/server-side tool `id` survives the agent's own `disallowed_tools`/`tools` and the session clamp.
+    /// Hosted tools aren't in `tool_config`, so they're gated by name here.
+    /// The gate is strict: no compat-name mapping or unresolved-entry fallback like the function path.
     pub(crate) fn hosted_tool_allowed(&self, id: &str) -> bool {
         if tool_id_matches(&self.disallowed_tools, id) {
             return false;
@@ -1355,30 +1354,27 @@ impl AgentDefinition {
         }
         self.session_tools_allowed(id)
     }
-    /// Replace the file-operation tools (read/edit/search) in the tool config
-    /// with the given set. Used by the shell layer to swap from standard to
-    /// hashline toolset based on `config.toml` / remote settings.
-    /// True iff the active system prompt template for `audience` carries
-    /// the `<task_completion_discipline>` block.
+    /// True iff the active system prompt template for `audience` carries the `<task_completion_discipline>` block.
     ///
-    /// Used by the runtime turn-end TodoGate to gate firing on sessions
-    /// whose prompt actually references the rules the gate's reminder
-    /// text invokes. The block has been removed from every built-in
-    /// template, so this returns `false` unconditionally. Kept as a
-    /// helper so the gate's call-site stays stable in case the block
-    /// is reintroduced behind a future flag.
+    /// Used by the runtime turn-end TodoGate to gate firing on sessions whose prompt actually references the rules the gate's reminder text invokes.
+    /// The block has been removed from every built-in template, so this returns `false` unconditionally.
+    /// Kept as a helper so the gate's call-site stays stable in case the block is reintroduced behind a future flag.
     pub fn carries_task_completion_discipline(
         &self,
         _audience: crate::prompt::context::PromptAudience,
     ) -> bool {
         false
     }
-    /// True iff this agent's wire format is non-interchangeable with the
-    /// stock harness, so a client-supplied `_meta.agentProfile` must NOT
-    /// override it. Strict iff any of: bespoke `system_prompt` template,
-    /// bespoke `user_message_template`, or curated toolset
-    /// (`!inject_default_tools`). Stock `xvora*` agents leave all
-    /// three at defaults and are non-strict.
+    pub fn include_browser_verification(&self) -> bool {
+        matches!(
+            self.builtin_name,
+            Some(BuiltinAgentName::GrokBuildPlan | BuiltinAgentName::GrokBuildPlanNoSubagents)
+        )
+    }
+    /// True iff this agent's wire format is non-interchangeable with the stock harness.
+    /// A client-supplied `_meta.agentProfile` must NOT override it.
+    /// Strict iff any of: bespoke `system_prompt` template, bespoke `user_message_template`, or curated toolset (`!inject_default_tools`).
+    /// Stock `grok-build*` agents leave all three at defaults and are non-strict.
     pub fn is_strict_harness(&self) -> bool {
         use crate::prompt::context::TemplateOverride;
         use crate::prompt::user_message::UserMessageTemplate;
@@ -1388,17 +1384,19 @@ impl AgentDefinition {
         let toolset_is_curated = !self.inject_default_tools;
         prompt_is_custom || user_template_is_custom || toolset_is_curated
     }
-    /// Swap the definition's file tools for the equivalents in `file_tools`
-    /// (hashline vs standard), slot by slot — never granting a slot the
-    /// definition doesn't already have (read-only toolsets stay read-only).
+    /// Swap the definition's file tools for the equivalents in `file_tools` (hashline vs standard), slot by slot.
+    /// Never grants a slot the definition doesn't already have (read-only toolsets stay read-only).
     pub fn override_file_tools(
         &mut self,
         file_tools: Vec<xvora_tools::registry::types::ToolConfig>,
     ) {
         const FILE_TOOL_SLOTS: &[[&str; 2]] = &[
-            ["Xvora:read_file", "XvoraHashline:hashline_read"],
-            ["Xvora:search_replace", "XvoraHashline:hashline_edit"],
-            ["Xvora:grep", "XvoraHashline:hashline_grep"],
+            ["GrokBuild:read_file", "GrokBuildHashline:hashline_read"],
+            [
+                "GrokBuild:search_replace",
+                "GrokBuildHashline:hashline_edit",
+            ],
+            ["GrokBuild:grep", "GrokBuildHashline:hashline_grep"],
         ];
         for tool in self.tool_config.tools.iter_mut() {
             let Some(slot) = FILE_TOOL_SLOTS
@@ -1414,7 +1412,10 @@ impl AgentDefinition {
     }
     /// Shared defaults for built-in constructors.
     fn base(name: BuiltinAgentName, description: &str) -> Self {
-        Self::builtin_defaults(name.as_ref(), description)
+        Self {
+            builtin_name: Some(name),
+            ..Self::builtin_defaults(name.as_ref(), description)
+        }
     }
     /// Shared defaults for out-of-tree built-in agent registrations.
     pub fn builtin_defaults(name: &str, description: &str) -> Self {
@@ -1422,8 +1423,9 @@ impl AgentDefinition {
             name: name.to_owned(),
             description: description.to_string(),
             plugin_name: None,
+            builtin_name: None,
             prompt_mode: PromptMode::Extend,
-            tool_config: default_xvora_toolset(),
+            tool_config: default_grok_build_toolset(),
             capability_mode: None,
             permission_mode: PermissionMode::Default,
             skills: vec![],
@@ -1448,6 +1450,7 @@ impl AgentDefinition {
             session_tools_denylist: None,
             model: ModelOverride::Inherit,
             completion_requirement: None,
+            tool_overrides: None,
             prompt_body: None,
             system_prompt: TemplateOverride::None,
             source_path: None,
@@ -1455,50 +1458,47 @@ impl AgentDefinition {
             scope: AgentScope::BuiltIn,
         }
     }
-    pub fn default_xvora() -> Self {
+    pub fn default_grok_build() -> Self {
         Self::base(
-            BuiltinAgentName::Xvora,
-            "Xvora agent for software engineering tasks.",
+            BuiltinAgentName::GrokBuild,
+            "Grok Build agent for software engineering tasks.",
         )
     }
-    /// Xvora Concise agent definition — concise output format for SFT/RL.
-    pub fn xvora_concise() -> Self {
+    /// Concise output format for SFT/RL.
+    pub fn grok_build_concise() -> Self {
         Self {
-            tool_config: xvora_concise_toolset(),
+            tool_config: grok_build_concise_toolset(),
             agents_md: false,
             ..Self::base(
-                BuiltinAgentName::XvoraConcise,
-                "Xvora agent with concise output format.",
+                BuiltinAgentName::GrokBuildConcise,
+                "Grok Build agent with concise output format.",
             )
         }
     }
-    /// Xvora agent with plan mode tools.
-    pub fn xvora_plan() -> Self {
+    pub fn grok_build_plan() -> Self {
         Self {
-            tool_config: xvora_plan_toolset(),
+            tool_config: grok_build_plan_toolset(),
             ..Self::base(
-                BuiltinAgentName::XvoraPlan,
-                "Xvora agent with plan mode support.",
+                BuiltinAgentName::GrokBuildPlan,
+                "Grok Build agent with plan mode support.",
             )
         }
     }
-    /// Xvora + plan mode WITHOUT subagent tools.
-    pub fn xvora_plan_no_subagents() -> Self {
+    pub fn grok_build_plan_no_subagents() -> Self {
         Self {
-            tool_config: xvora_plan_no_subagents_toolset(),
+            tool_config: grok_build_plan_no_subagents_toolset(),
             ..Self::base(
-                BuiltinAgentName::XvoraPlanNoSubagents,
-                "Xvora agent with plan mode (no subagents).",
+                BuiltinAgentName::GrokBuildPlanNoSubagents,
+                "Grok Build agent with plan mode (no subagents).",
             )
         }
     }
-    /// Default Xvora agent with the `ask_user_question` tool.
-    pub fn xvora_ask_user() -> Self {
+    pub fn grok_build_ask_user() -> Self {
         Self {
-            tool_config: xvora_ask_user_toolset(),
+            tool_config: grok_build_ask_user_toolset(),
             ..Self::base(
-                BuiltinAgentName::XvoraAskUser,
-                "Xvora agent with ask-user-question tool.",
+                BuiltinAgentName::GrokBuildAskUser,
+                "Grok Build agent with ask-user-question tool.",
             )
         }
     }
@@ -1518,20 +1518,21 @@ impl AgentDefinition {
             )
         }
     }
-    /// General-purpose subagent definition.
     pub fn general_purpose() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: tool_types::GENERAL_PURPOSE_SUBAGENT.description.to_string(),
+            description: xvora_tool_types::GENERAL_PURPOSE_SUBAGENT
+                .description
+                .to_string(),
+            tool_config: general_purpose_toolset(),
             prompt_body: Some(subagent_prompts::GENERAL_PURPOSE_PROMPT.to_string()),
             ..Self::base(BuiltinAgentName::GeneralPurpose, "")
         }
     }
-    /// Explore subagent — fast, read-only codebase exploration.
     pub fn explore() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: tool_types::EXPLORE_SUBAGENT.description.to_string(),
+            description: xvora_tool_types::EXPLORE_SUBAGENT.description.to_string(),
             tool_config: explore_toolset(),
             permission_mode: PermissionMode::Plan,
             prompt_body: Some(subagent_prompts::EXPLORE_PROMPT.to_string()),
@@ -1539,11 +1540,10 @@ impl AgentDefinition {
             ..Self::base(BuiltinAgentName::Explore, "")
         }
     }
-    /// Plan subagent — read-only architect for implementation plans.
     pub fn plan() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: tool_types::PLAN_SUBAGENT.description.to_string(),
+            description: xvora_tool_types::PLAN_SUBAGENT.description.to_string(),
             tool_config: plan_toolset(),
             permission_mode: PermissionMode::Plan,
             prompt_body: Some(subagent_prompts::PLAN_PROMPT.to_string()),
@@ -1551,7 +1551,6 @@ impl AgentDefinition {
             ..Self::base(BuiltinAgentName::Plan, "")
         }
     }
-    /// Browser Use agent definition.
     pub fn browser_use() -> Self {
         Self {
             prompt_mode: PromptMode::Full,
@@ -1568,29 +1567,25 @@ impl AgentDefinition {
             )
         }
     }
-    /// Xvora Orchestrator — GBL model with full Xvora tools
-    /// (skills, MCPs, plan mode) that delegates coding/exploration to
-    /// subagents.
+    /// GBL model with full GrokBuild tools (skills, MCPs, plan mode) that delegates coding/exploration to subagents.
     ///
-    /// Subagent overrides are applied in `handle_subagent_request`:
-    /// general-purpose children get `implementer_toolset()` and explore
-    /// children get `explorer_toolset()`, both with the subagent model.
-    pub fn xvora_orchestrator() -> Self {
+    /// Subagent overrides are applied in `handle_subagent_request`.
+    /// General-purpose children get `implementer_toolset()` and explore children get `explorer_toolset()`, both with the subagent model.
+    pub fn grok_build_orchestrator() -> Self {
         Self {
             tool_config: orchestrator_toolset(),
             inject_default_tools: false,
             prompt_body: Some(ORCHESTRATOR_PROMPT_BODY.to_string()),
             ..Self::base(
-                BuiltinAgentName::XvoraOrchestrator,
-                "Xvora orchestrator that delegates coding to specialized subagents",
+                BuiltinAgentName::GrokBuildOrchestrator,
+                "GrokBuild orchestrator that delegates coding to specialized subagents",
             )
         }
     }
     /// Deserialize an agent definition from a JSON value (e.g. from ACP `_meta.agentProfile`).
     ///
-    /// Unlike `parse()` (which reads YAML frontmatter + Markdown body from a file),
-    /// this method accepts a flat JSON object where `promptBody` is an explicit
-    /// string field rather than the body below `---` delimiters.
+    /// Unlike `parse()`, which reads YAML frontmatter and a Markdown body from a file, this method accepts a flat JSON object.
+    /// `promptBody` is an explicit string field rather than the body below `---` delimiters.
     ///
     /// ```json
     /// {
@@ -1611,7 +1606,7 @@ impl AgentDefinition {
             }
         }
         if !value.get("toolConfig").is_some_and(|v| v.is_object()) {
-            def.tool_config = default_xvora_toolset();
+            def.tool_config = default_grok_build_toolset();
         }
         def.scope = AgentScope::BuiltIn;
         Ok(def)
@@ -1629,14 +1624,33 @@ impl AgentDefinition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Pins the `spawn_subagent` rename to the shared predicate.
+    #[test]
+    fn task_tool_rename_matches_task_tool_id_predicate() {
+        let name = task_tool_config()
+            .name_override
+            .expect("task tool is renamed");
+        assert!(xvora_tools::is_task_tool_id(&name));
+    }
+    /// Pins the `run_terminal_command` rename to the writing-phase taxonomy so a future rename can't silently degrade the spinner label.
+    #[test]
+    fn bash_tool_rename_matches_writing_tool_kind() {
+        let name = bash_tool_config()
+            .name_override
+            .expect("bash tool is renamed");
+        assert_eq!(
+            xvora_tools::tool_taxonomy::writing_tool_kind(&name),
+            Some(xvora_tools::types::tool::ToolKind::Execute)
+        );
+    }
     /// Native presets only.
     #[test]
     fn toolset_for_preset_resolves_known_names() {
         for name in [
-            "xvora",
-            "xvora",
-            "xvora-concise",
-            "xvora-plan",
+            "grok-build",
+            "grok_build",
+            "grok-build-concise",
+            "grok-build-plan",
             "codex",
             "explore",
             "plan",
@@ -1652,7 +1666,7 @@ mod tests {
     }
     #[test]
     fn presets_select_distinct_toolsets_by_size() {
-        let gb = toolset_for_preset("xvora").unwrap();
+        let gb = toolset_for_preset("grok-build").unwrap();
         let plan = toolset_for_preset("plan").unwrap();
         let explore = toolset_for_preset("explore").unwrap();
         assert!(explore.tools.len() < plan.tools.len());
@@ -1661,15 +1675,15 @@ mod tests {
     fn grok_computer_exclusive_ids() -> Vec<String> {
         #[allow(unused_mut)]
         let mut ids: Vec<String> = vec![
-            ToolConfig::from(&xvora::GetTerminalCommandOutputTool).id,
-            ToolConfig::from(&xvora::KillTerminalCommandTool).id,
+            ToolConfig::from(&grok_build::GetTerminalCommandOutputTool).id,
+            ToolConfig::from(&grok_build::KillTerminalCommandTool).id,
         ];
         ids
     }
     #[test]
-    fn grok_computer_preset_is_curated_xvora_subset() {
+    fn grok_computer_preset_is_curated_grok_build_subset() {
         let gc = toolset_for_preset("grok-computer").unwrap();
-        let gb = toolset_for_preset("xvora").unwrap();
+        let gb = toolset_for_preset("grok-build").unwrap();
         let gb_ids: std::collections::HashSet<&str> =
             gb.tools.iter().map(|t| t.id.as_str()).collect();
         let exclusive_ids = grok_computer_exclusive_ids();
@@ -1680,13 +1694,13 @@ mod tests {
             }
             assert!(
                 gb_ids.contains(t.id.as_str()),
-                "grok-computer tool `{}` must also ship in the xvora preset",
+                "grok-computer tool `{}` must also ship in the grok-build preset",
                 t.id
             );
         }
         assert!(
             gc.tools.len() < gb.tools.len(),
-            "grok-computer should be a curated subset of xvora"
+            "grok-computer should be a curated subset of grok-build"
         );
     }
     #[test]
@@ -1695,34 +1709,32 @@ mod tests {
         let ids: std::collections::HashSet<&str> = gc.tools.iter().map(|t| t.id.as_str()).collect();
         assert!(
             ids.contains(
-                ToolConfig::from(&xvora::GetTerminalCommandOutputTool)
+                ToolConfig::from(&grok_build::GetTerminalCommandOutputTool)
                     .id
                     .as_str()
             )
         );
         assert!(
             ids.contains(
-                ToolConfig::from(&xvora::KillTerminalCommandTool)
+                ToolConfig::from(&grok_build::KillTerminalCommandTool)
                     .id
                     .as_str()
             )
         );
-        assert!(!ids.contains(ToolConfig::from(&xvora::TaskOutputTool).id.as_str()));
-        assert!(!ids.contains(ToolConfig::from(&xvora::KillTaskTool).id.as_str()));
-        assert!(!ids.contains(ToolConfig::from(&xvora::TaskTool).id.as_str()));
+        assert!(!ids.contains(ToolConfig::from(&grok_build::TaskOutputTool).id.as_str()));
+        assert!(!ids.contains(ToolConfig::from(&grok_build::KillTaskTool).id.as_str()));
+        assert!(!ids.contains(ToolConfig::from(&grok_build::TaskTool).id.as_str()));
         for t in &gc.tools {
-            if t.id == ToolConfig::from(&xvora::GetTerminalCommandOutputTool).id
-                || t.id == ToolConfig::from(&xvora::KillTerminalCommandTool).id
+            if t.id == ToolConfig::from(&grok_build::GetTerminalCommandOutputTool).id
+                || t.id == ToolConfig::from(&grok_build::KillTerminalCommandTool).id
             {
                 assert!(t.name_override.is_none(), "tool `{}` must not rename", t.id);
             }
         }
     }
-    /// The grok-computer preset must ship a full-file write tool (legacy
-    /// `write_file` parity) — the same OpenCode `write` tool the xvora
-    /// preset uses. Guards against `search_replace` being the only
-    /// file-mutation path, which has no single-tool full-rewrite when the
-    /// empty-old_string overwrite guard is enabled.
+    /// The grok-computer preset must ship a full-file write tool (legacy `write_file` parity), the same OpenCode `write` tool grok-build uses.
+    /// Guards against `search_replace` being the only file-mutation path.
+    /// With the empty-old_string overwrite guard enabled, that path has no single-tool full rewrite.
     #[test]
     fn grok_computer_preset_includes_write_tool() {
         let gc = toolset_for_preset("grok-computer").unwrap();
@@ -1738,39 +1750,38 @@ mod tests {
         let gc_ids: std::collections::HashSet<&str> =
             gc.tools.iter().map(|t| t.id.as_str()).collect();
         for excluded in [
-            ToolConfig::from(&xvora::LspTool).id,
-            ToolConfig::from(&xvora::EnterPlanModeTool).id,
-            ToolConfig::from(&xvora::ExitPlanModeTool).id,
+            ToolConfig::from(&grok_build::LspTool).id,
+            ToolConfig::from(&grok_build::EnterPlanModeTool).id,
+            ToolConfig::from(&grok_build::ExitPlanModeTool).id,
         ] {
             assert!(
                 !gc_ids.contains(excluded.as_str()),
                 "grok-computer preset must not advertise `{excluded}`"
             );
         }
-        let full = workspace_xvora_toolset();
+        let full = workspace_grok_build_toolset();
         let full_ids: std::collections::HashSet<&str> =
             full.tools.iter().map(|t| t.id.as_str()).collect();
         for present in [
-            ToolConfig::from(&xvora::LspTool).id,
-            ToolConfig::from(&xvora::EnterPlanModeTool).id,
-            ToolConfig::from(&xvora::ExitPlanModeTool).id,
+            ToolConfig::from(&grok_build::LspTool).id,
+            ToolConfig::from(&grok_build::EnterPlanModeTool).id,
+            ToolConfig::from(&grok_build::ExitPlanModeTool).id,
         ] {
             assert!(
                 full_ids.contains(present.as_str()),
-                "workspace_xvora_toolset must ship `{present}`"
+                "workspace_grok_build_toolset must ship `{present}`"
             );
         }
     }
-    /// Exhaustive match → adding a new `BuiltinAgentName` won't compile
-    /// until classified.
+    /// Exhaustive match, so adding a new `BuiltinAgentName` won't compile until classified.
     fn expected_strict_harness(name: BuiltinAgentName) -> bool {
         match name {
-            BuiltinAgentName::Codex | BuiltinAgentName::XvoraOrchestrator => true,
-            BuiltinAgentName::Xvora
-            | BuiltinAgentName::XvoraConcise
-            | BuiltinAgentName::XvoraPlan
-            | BuiltinAgentName::XvoraPlanNoSubagents
-            | BuiltinAgentName::XvoraAskUser
+            BuiltinAgentName::Codex | BuiltinAgentName::GrokBuildOrchestrator => true,
+            BuiltinAgentName::GrokBuild
+            | BuiltinAgentName::GrokBuildConcise
+            | BuiltinAgentName::GrokBuildPlan
+            | BuiltinAgentName::GrokBuildPlanNoSubagents
+            | BuiltinAgentName::GrokBuildAskUser
             | BuiltinAgentName::GeneralPurpose
             | BuiltinAgentName::Explore
             | BuiltinAgentName::Plan
@@ -1778,8 +1789,7 @@ mod tests {
             | BuiltinAgentName::BrowserUse => false,
         }
     }
-    /// Invariant: structural `is_strict_harness()` must match the
-    /// hand-classified expectation for every built-in variant.
+    /// Invariant: structural `is_strict_harness()` must match the hand-classified expectation for every built-in variant.
     #[test]
     fn is_strict_harness_matches_structural_classification_for_all_builtins() {
         use strum::IntoEnumIterator;
@@ -1796,22 +1806,22 @@ mod tests {
     }
     #[test]
     fn is_strict_harness_agent_type_classifies_by_name() {
-        for strict in ["codex", "xvora-orchestrator"] {
+        for strict in ["codex", "grok-build-orchestrator"] {
             assert!(
                 is_strict_harness_agent_type(strict),
                 "{strict} should be strict"
             );
         }
         for non_strict in [
-            "xvora",
-            "xvora-plan",
-            "xvora-concise",
-            "xvora-ask-user",
+            "grok-build",
+            "grok-build-plan",
+            "grok-build-concise",
+            "grok-build-ask-user",
             "opencode",
             "browser-use",
             "custom-user-agent",
             "",
-            "xvora-totally-made-up",
+            "grok-build-totally-made-up",
         ] {
             assert!(
                 !is_strict_harness_agent_type(non_strict),
@@ -2014,20 +2024,16 @@ description: Minimal agent
         let v: McpServerRef = serde_json::from_value(serde_json::json!("slack")).unwrap();
         assert_eq!(v, McpServerRef::Named("slack".to_string()));
         let v: McpServerRef =
-            serde_json::from_value(serde_json::json!({ "s" : { "type" : "stdio" } })).unwrap();
+            serde_json::from_value(serde_json::json!({"s": {"type": "stdio"}})).unwrap();
         assert!(matches!(v, McpServerRef::Inline { ref name, .. } if name == "s"));
         let v: McpServerRef =
-            serde_json::from_value(serde_json::json!({ "name" : "s", "type" : "stdio" })).unwrap();
+            serde_json::from_value(serde_json::json!({"name": "s", "type": "stdio"})).unwrap();
         assert!(matches!(v, McpServerRef::Inline { ref name, .. } if name == "s"));
         assert!(
-            serde_json::from_value::<McpServerRef>(serde_json::json!({ "type" :
-            "stdio" }))
-            .is_err()
+            serde_json::from_value::<McpServerRef>(serde_json::json!({"type": "stdio"})).is_err()
         );
         assert!(serde_json::from_value::<McpServerRef>(serde_json::json!(42)).is_err());
-        assert!(
-            serde_json::from_value::<McpServerRef>(serde_json::json!({ "s" : "bad" })).is_err()
-        );
+        assert!(serde_json::from_value::<McpServerRef>(serde_json::json!({"s": "bad"})).is_err());
     }
     #[test]
     fn memory_scope_resolve_dir() {
@@ -2038,13 +2044,13 @@ description: Minimal agent
         let proj = MemoryScope::Project.resolve_dir("a", cwd);
         assert_eq!(
             proj.path,
-            std::path::PathBuf::from("/project/.xvora/agent-memory/a")
+            std::path::PathBuf::from("/project/.grok/agent-memory/a")
         );
         assert!(proj.is_project_scoped);
         let local = MemoryScope::Local.resolve_dir("a", cwd);
         assert_eq!(
             local.path,
-            std::path::PathBuf::from("/project/.xvora/agent-memory-local/a")
+            std::path::PathBuf::from("/project/.grok/agent-memory-local/a")
         );
         assert!(local.is_project_scoped);
     }
@@ -2066,8 +2072,10 @@ description: Minimal agent
         }
         for color in AgentColor::VALID_VALUES {
             let c = format!("---\nname: t\ndescription: t\ncolor: {color}\n---\n");
-            assert!(
-                AgentDefinition::parse(&c).unwrap().color.is_some(),
+            let parsed = AgentDefinition::parse(&c).unwrap().color;
+            assert_eq!(
+                parsed.map(<&'static str>::from),
+                Some(*color),
                 "color: {color}"
             );
         }
@@ -2078,6 +2086,33 @@ description: Minimal agent
                 "memory: {memory}"
             );
         }
+    }
+    #[test]
+    fn unparseable_color_is_dropped_instead_of_dropping_the_agent() {
+        for (declared, expected) in [
+            ("Purple", Some(AgentColor::Purple)),
+            ("  CYAN  ", Some(AgentColor::Cyan)),
+            ("teal", None),
+            ("\"#ff0000\"", None),
+            ("chartreuse", None),
+            ("42", None),
+            ("[red, blue]", None),
+            ("!custom x", None),
+            ("{1: 2}", None),
+        ] {
+            let c = format!("---\nname: t\ndescription: t\ncolor: {declared}\n---\n");
+            let def = AgentDefinition::parse(&c)
+                .unwrap_or_else(|e| panic!("color {declared} must not fail the parse: {e}"));
+            assert_eq!(def.color, expected, "color: {declared}");
+            assert_eq!(def.name, "t");
+        }
+    }
+    #[test]
+    fn absent_or_null_color_stays_none() {
+        let def = AgentDefinition::parse("---\nname: t\ndescription: t\n---\n").unwrap();
+        assert!(def.color.is_none());
+        let def = AgentDefinition::parse("---\nname: t\ndescription: t\ncolor:\n---\n").unwrap();
+        assert!(def.color.is_none());
     }
     #[test]
     fn test_parse_missing_name() {
@@ -2155,30 +2190,7 @@ completionRequirement:
         assert!(!def.agents_md);
     }
     #[test]
-    fn test_completion_requirement_round_trips() {
-        let content = r#"---
-name: roundtrip
-description: Test round-trip
-completionRequirement:
-  tool: my__complete
-  reminder: Please complete
-  recovery:
-    maxRetries: 3
-    baseDelayMs: 1000
-    maxDelayMs: 10000
----
-"#;
-        let def = AgentDefinition::parse(content).unwrap();
-        let req = def.completion_requirement.as_ref().unwrap();
-        assert_eq!(req.tool, "my__complete");
-        assert_eq!(req.reminder, "Please complete");
-        let rec = req.recovery.as_ref().unwrap();
-        assert_eq!(rec.max_retries, 3);
-        assert_eq!(rec.base_delay_ms, 1000);
-        assert_eq!(rec.max_delay_ms, 10000);
-    }
-    #[test]
-    fn test_default_tool_config_has_xvora_tools() {
+    fn test_default_tool_config_has_grok_build_tools() {
         let content = r#"---
 name: default-tools
 description: Test default tool config
@@ -2187,7 +2199,7 @@ description: Test default tool config
         let def = AgentDefinition::parse(content).unwrap();
         assert!(
             !def.tool_config.tools.is_empty(),
-            "default tool_config should have xvora tools"
+            "default tool_config should have grok_build tools"
         );
     }
     #[test]
@@ -2226,7 +2238,7 @@ description: Test default tool config
         let bundled = tmp
             .path()
             .join("nested")
-            .join(".xvora")
+            .join(".grok")
             .join("bundled")
             .join("agents")
             .join("bundled-agent.md");
@@ -2243,9 +2255,10 @@ description: Test default tool config
     }
     #[test]
     fn test_from_json_minimal() {
-        let json = serde_json::json!(
-            { "name" : "acp-agent", "description" : "An agent from ACP" }
-        );
+        let json = serde_json::json!({
+            "name": "acp-agent",
+            "description": "An agent from ACP"
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert_eq!(def.name, "acp-agent");
         assert_eq!(def.description, "An agent from ACP");
@@ -2255,14 +2268,28 @@ description: Test default tool config
         assert_eq!(def.scope, AgentScope::BuiltIn);
     }
     #[test]
+    fn same_name_acp_definition_does_not_enable_browser_verification() {
+        let def = AgentDefinition::from_json(&serde_json::json!({
+            "name": "grok-build-plan",
+            "description": "Custom plan agent"
+        }))
+        .unwrap();
+        assert!(!def.include_browser_verification());
+        assert!(AgentDefinition::grok_build_plan().include_browser_verification());
+        assert!(AgentDefinition::grok_build_plan_no_subagents().include_browser_verification());
+    }
+    #[test]
     fn test_from_json_has_default_toolset_with_task_tool() {
-        let json = serde_json::json!(
-            { "name" : "xvora", "description" : "Multi-surface coding agent.",
-            "promptMode" : "extend", "permissionMode" : "dontAsk", "agentsMd" : true,
-            "promptBody" : "You are a coding assistant." }
-        );
+        let json = serde_json::json!({
+            "name": "grok-build",
+            "description": "Multi-surface coding agent.",
+            "promptMode": "extend",
+            "permissionMode": "dontAsk",
+            "agentsMd": true,
+            "promptBody": "You are a coding assistant."
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
-        let task_tool_id = "Xvora:task";
+        let task_tool_id = "GrokBuild:task";
         assert!(
             def.tool_config.tools.iter().any(|tc| tc.id == task_tool_id),
             "from_json() without toolConfig should include TaskTool in default toolset, \
@@ -2276,10 +2303,11 @@ description: Test default tool config
     }
     #[test]
     fn test_from_json_with_prompt_body() {
-        let json = serde_json::json!(
-            { "name" : "custom-agent", "description" : "Agent with prompt body",
-            "promptBody" : "You are a specialized coding assistant.\n\nFocus on Rust." }
-        );
+        let json = serde_json::json!({
+            "name": "custom-agent",
+            "description": "Agent with prompt body",
+            "promptBody": "You are a specialized coding assistant.\n\nFocus on Rust."
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert_eq!(def.name, "custom-agent");
         assert_eq!(
@@ -2289,20 +2317,23 @@ description: Test default tool config
     }
     #[test]
     fn test_from_json_with_permission_mode() {
-        let json = serde_json::json!(
-            { "name" : "auto-accept-agent", "description" :
-            "Agent with dontAsk permission mode", "permissionMode" : "dontAsk",
-            "promptBody" : "## Auto-accept Mode" }
-        );
+        let json = serde_json::json!({
+            "name": "auto-accept-agent",
+            "description": "Agent with dontAsk permission mode",
+            "permissionMode": "dontAsk",
+            "promptBody": "## Auto-accept Mode"
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert_eq!(def.permission_mode, PermissionMode::DontAsk);
         assert_eq!(def.prompt_body.as_deref(), Some("## Auto-accept Mode"));
     }
     #[test]
     fn test_from_json_empty_prompt_body_is_none() {
-        let json = serde_json::json!(
-            { "name" : "test", "description" : "Test", "promptBody" : "   " }
-        );
+        let json = serde_json::json!({
+            "name": "test",
+            "description": "Test",
+            "promptBody": "   "
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert!(
             def.prompt_body.is_none(),
@@ -2311,16 +2342,20 @@ description: Test default tool config
     }
     #[test]
     fn test_from_json_missing_required_fields() {
-        let json = serde_json::json!({ "description" : "Missing name" });
+        let json = serde_json::json!({
+            "description": "Missing name"
+        });
         let result = AgentDefinition::from_json(&json);
         assert!(result.is_err());
     }
     #[test]
     fn test_from_json_ignores_unknown_fields() {
-        let json = serde_json::json!(
-            { "name" : "test", "description" : "Test", "unknownField" : "value",
-            "futureFeature" : true }
-        );
+        let json = serde_json::json!({
+            "name": "test",
+            "description": "Test",
+            "unknownField": "value",
+            "futureFeature": true
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert_eq!(def.name, "test");
     }
@@ -2340,10 +2375,6 @@ description: Test default tool config
         assert_eq!(recovered.permission_mode, PermissionMode::DontAsk);
         assert_eq!(recovered.tools, vec!["read_file", "grep"]);
         assert_eq!(recovered.disallowed_tools, vec!["web_search"]);
-    }
-    #[test]
-    fn test_model_override_default_is_inherit() {
-        assert_eq!(ModelOverride::default(), ModelOverride::Inherit);
     }
     #[test]
     fn test_model_override_serde_inherit() {
@@ -2398,9 +2429,11 @@ description: Test default tool config
     }
     #[test]
     fn test_model_override_in_json() {
-        let json = serde_json::json!(
-            { "name" : "test", "description" : "Test", "model" : "grok-code-fast-1" }
-        );
+        let json = serde_json::json!({
+            "name": "test",
+            "description": "Test",
+            "model": "grok-code-fast-1"
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert_eq!(
             def.model,
@@ -2411,9 +2444,9 @@ description: Test default tool config
     fn test_builtin_agent_name_strum_round_trip() {
         use std::str::FromStr;
         for (s, expected) in [
-            ("xvora", BuiltinAgentName::Xvora),
-            ("xvora-concise", BuiltinAgentName::XvoraConcise),
-            ("xvora-ask-user", BuiltinAgentName::XvoraAskUser),
+            ("grok-build", BuiltinAgentName::GrokBuild),
+            ("grok-build-concise", BuiltinAgentName::GrokBuildConcise),
+            ("grok-build-ask-user", BuiltinAgentName::GrokBuildAskUser),
             ("codex", BuiltinAgentName::Codex),
             ("opencode", BuiltinAgentName::Opencode),
             ("general-purpose", BuiltinAgentName::GeneralPurpose),
@@ -2506,10 +2539,11 @@ description: Test default tool config
     }
     #[test]
     fn mcp_inheritance_round_trips_via_json() {
-        let json = serde_json::json!(
-            { "name" : "t", "description" : "t", "mcpInheritance" : { "named" : ["a",
-            "b"] } }
-        );
+        let json = serde_json::json!({
+            "name": "t",
+            "description": "t",
+            "mcpInheritance": {"named": ["a", "b"]}
+        });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert_eq!(
             def.mcp_inheritance,
@@ -2520,7 +2554,7 @@ description: Test default tool config
         assert_eq!(recovered.mcp_inheritance, def.mcp_inheritance);
     }
     fn def_with_template(tpl: crate::prompt::context::TemplateOverride) -> AgentDefinition {
-        let mut def = AgentDefinition::default_xvora();
+        let mut def = AgentDefinition::default_grok_build();
         def.system_prompt = tpl;
         def
     }

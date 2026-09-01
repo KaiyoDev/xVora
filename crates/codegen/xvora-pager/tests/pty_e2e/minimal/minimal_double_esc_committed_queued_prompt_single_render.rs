@@ -2,27 +2,27 @@
 #[allow(unused_imports)]
 use crate::common::*;
 
-/// Minimal mode guards the documented `in_flight_committed` dogfood
-/// double-show: a promoted queued prompt's "❯ " block commits (prints) into
-/// native scrollback immediately, so cancelling its turn pre-first-token
-/// (minimal's cancel gesture is Ctrl+C; Esc is swallowed) must SKIP the
-/// composer rewind — a rewind would leave the printed block on screen AND
-/// refill the composer, showing the prompt twice. Standard cancel instead:
-/// the block renders exactly once and the cancel marker is visible.
+/// Minimal mode guards against rendering a committed queued prompt twice (the `in_flight_committed` case).
+/// A promoted queued prompt's "❯ " block commits (prints) into native scrollback immediately.
+/// Cancelling its turn before the first token arrives (via Ctrl+C here) must therefore SKIP the composer rewind.
+/// A rewind would leave the printed block on screen AND refill the composer, showing the prompt twice.
+/// Standard cancel instead: the block renders exactly once and the cancel marker is visible.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn minimal_double_esc_committed_queued_prompt_single_render() {
     const QUEUED_PROMPT: &str = "bravo promoted block";
 
     let content = ContentController::start().await.expect("start content");
-    // Gate turn 1's completion so the queue provably lands mid-turn; turn 2
-    // (the promoted prompt's) streams nothing before the cancel thanks to
-    // the pacing set just before the release.
-    content.hold_agent_completions();
-    content.set_turns([
-        "STEPONE first reply.".to_owned(),
-        "STEPTWO never streams before the cancel.".to_owned(),
-    ]);
+    // Gate turn 1's completion so the queue provably lands mid-turn
+    // Turn 2 (the promoted prompt's) streams nothing before the cancel thanks to the pacing set just before the release
+    let mut turn_one = content.expect_agent_turn_blocked(
+        "running turn before minimal queue promotion",
+        "STEPONE first reply.",
+    );
+    let _turn_two = content.expect_agent_turn(
+        "promoted minimal prompt cancelled before first token",
+        "STEPTWO never streams before the cancel.",
+    );
 
     let mut harness = spawn_minimal(&content);
     wait_minimal_ready(&mut harness);
@@ -33,6 +33,9 @@ async fn minimal_double_esc_committed_queued_prompt_single_render() {
     harness
         .wait_for_text("STEPONE", Duration::from_secs(30))
         .expect("turn 1 streamed (completion still gated)");
+    tokio::time::timeout(Duration::from_secs(10), turn_one.wait_blocked())
+        .await
+        .expect("turn 1 reached completion barrier");
 
     harness
         .inject_keys(format!("{QUEUED_PROMPT}\r").as_bytes())
@@ -41,11 +44,10 @@ async fn minimal_double_esc_committed_queued_prompt_single_render() {
         .wait_for_text("1 queued", Duration::from_secs(10))
         .expect("queue indicator");
 
-    // Promote: turn 1 ends, the queued prompt's block commits (prints) and
-    // its turn starts — but its first token is 30s away, the exact window
-    // where a naive rewind would double-show the committed block.
+    // Promote: turn 1 ends, the queued prompt's block commits (prints) and its turn starts
+    // Its first token is 30s away, the exact window where a naive rewind would show the committed block twice
     content.set_chunk_delay(Some(Duration::from_secs(30)));
-    content.release_agent_completions();
+    turn_one.release();
     harness
         .wait_for_full_text(
             &format!("\u{276F} {QUEUED_PROMPT}"),
@@ -60,9 +62,8 @@ async fn minimal_double_esc_committed_queued_prompt_single_render() {
         harness.full_text()
     );
 
-    // Cancel the promoted turn pre-first-token. The committed block forces
-    // the standard cancel path (rewind skipped): marker renders, composer
-    // stays empty, and the prompt count does NOT grow.
+    // Cancel the promoted turn before its first token arrives
+    // The committed block forces the standard cancel path (rewind skipped): marker renders, composer stays empty, and the prompt count does NOT grow
     harness.inject_keys(keys::CTRL_C).expect("Ctrl+C cancel");
     harness
         .wait_for_full_text("Turn cancelled by user", Duration::from_secs(15))

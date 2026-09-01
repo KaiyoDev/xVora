@@ -1,4 +1,4 @@
-//! Shared API definitions for Xvora tools: protobuf types, config validation,
+//! Shared API definitions for Grok tools: protobuf types, config validation,
 //! and canonical slash-command wording.
 //!
 //! Used by both the tools library and the gRPC server, and by host services
@@ -8,7 +8,7 @@
 
 /// Generated protobuf types.
 pub mod pb {
-    include!(concat!(env!("OUT_DIR"), "/xai.grok.tools.v1.rs"));
+    include!(concat!(env!("OUT_DIR"), "/xvora.grok.tools.v1.rs"));
 }
 
 pub mod config_validation;
@@ -21,6 +21,7 @@ pub use pb::{
     AgentToolExecConfig,
     AgentToolRetryConfig,
     // Request/response types
+    CallbackStatus,
     ClearToolOverrideRequest,
     ClearToolOverrideResponse,
     DisableToolRequest,
@@ -75,10 +76,12 @@ pub use pb::{
     SetToolOverrideResponse,
     SetTruncationConfigRequest,
     SetTruncationConfigResponse,
+    SpawnSubagentRequest,
     // Streaming types
     StreamDataChunk,
     StreamDataKind,
     StreamFinalResult,
+    SubagentResultMsg,
     // Capability/metadata types
     ToolCapabilities,
     ToolCategory,
@@ -86,6 +89,7 @@ pub use pb::{
     ToolConfigEntry,
     ToolError,
     ToolInfo,
+    ToolNotificationMsg,
     ToolSource,
     ToolStreamChunk,
     ToolSuccess,
@@ -96,7 +100,7 @@ pub use pb::{
 
 /// Default client-facing tool name derived from a namespaced tool id.
 ///
-/// Tool ids are colon-separated `Namespace:tool` (e.g. `Xvora:grep`); the
+/// Tool ids are colon-separated `Namespace:tool` (e.g. `GrokBuild:grep`); the
 /// default name is the segment after the FIRST colon, so an id with embedded
 /// colons (`ns:a:b`) resolves to `a`. Ids without a colon are returned as-is.
 ///
@@ -131,7 +135,7 @@ mod default_client_name_tests {
 
     #[test]
     fn pins_first_colon_derivation() {
-        assert_eq!(default_client_name("Xvora:grep"), "grep");
+        assert_eq!(default_client_name("GrokBuild:grep"), "grep");
         assert_eq!(default_client_name("ns:a:b"), "a");
         assert_eq!(default_client_name("bare"), "bare");
         assert_eq!(default_client_name(""), "");

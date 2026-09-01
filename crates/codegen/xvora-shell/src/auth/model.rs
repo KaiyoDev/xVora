@@ -1,6 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use xvora_auth::bearer_suffix;
 
 use super::is_xai_oauth2_issuer;
 
@@ -11,12 +12,18 @@ const DEFAULT_EARLY_INVALIDATION_SECS: u64 = 300; // 5 minutes
 pub(super) const LEGACY_SCOPE: &str = "https://accounts.x.ai/sign-in";
 
 /// auth.json scope key for plain API key auth (desktop login, `grok login --api-key`).
-pub const API_KEY_SCOPE: &str = "xai::api_key";
+pub(super) const API_KEY_SCOPE: &str = "xvora::api_key";
 
 const BLOCKED_REASON_NO_LOGS: &str = "BLOCKED_REASON_NO_LOGS";
 const BLOCKED_REASON_NO_LOGS_MODERATED: &str = "BLOCKED_REASON_NO_LOGS_MODERATED";
 
-/// Token provenance (debugging/auth.json only -- no code branches on this).
+/// Fresh-credential / missing-field default: opted out until the user or server enrichment opts in.
+/// Single source for `GrokAuth`, `AuthMeta`, and every login-path constructor so the sides cannot drift.
+pub(crate) fn default_coding_data_retention_opt_out() -> bool {
+    true
+}
+
+/// Token provenance (debugging/auth.json only; no code branches on this).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthMode {
@@ -32,17 +39,12 @@ pub enum AuthMode {
     ApiKey,
 }
 
-/// Wire value of `principal_type` for team OAuth principals (capitalized by
-/// the auth service). Single source for every comparison site.
+/// Wire value of `principal_type` for team OAuth principals (capitalized by the auth service).
+/// Single source for every comparison site.
 pub(crate) const TEAM_PRINCIPAL_TYPE: &str = "Team";
 
-/// Session credential for the **xAI provider** (OAuth / API key stored in auth.json).
-///
-/// Product multi-provider: this is not “app auth” generically — only the xAI
-/// provider path. Field names stay wire-stable for existing `auth.json` files.
-/// Formerly named `GrokAuth`.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct XaiAuth {
+pub struct GrokAuth {
     pub key: String,
     pub auth_mode: AuthMode,
     pub create_time: DateTime<Utc>,
@@ -74,7 +76,8 @@ pub struct XaiAuth {
     pub user_blocked_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub team_blocked_reasons: Vec<String>,
-    #[serde(default)]
+    /// Defaults to `true` (opted out) for safer consumer privacy until the user explicitly shares or server enrichment sets the team preference.
+    #[serde(default = "default_coding_data_retention_opt_out")]
     pub coding_data_retention_opt_out: bool,
 
     /// Deprecated. Kept for deserializing existing auth.json files.
@@ -90,10 +93,9 @@ pub struct XaiAuth {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
 
-    /// Issuer URL that issued this token. For OIDC credentials it drives
-    /// refresh via discovery; for external-provider credentials it is the
-    /// provider's `issuer` claim. In both modes an x.ai issuer marks the
-    /// credential first-party (`is_xai_auth`).
+    /// Issuer URL that issued this token.
+    /// For OIDC credentials it drives refresh via discovery; for external-provider credentials it is the provider's `issuer` claim.
+    /// In both modes an x.ai issuer marks the credential first-party (`is_xai_auth`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oidc_issuer: Option<String>,
 
@@ -102,40 +104,36 @@ pub struct XaiAuth {
     pub oidc_client_id: Option<String>,
 }
 
-impl std::fmt::Debug for XaiAuth {
+impl std::fmt::Debug for GrokAuth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("XaiAuth")
-            .field("key", &token_suffix(&self.key))
+        f.debug_struct("GrokAuth")
+            .field("key", &bearer_suffix(&self.key))
             .field("auth_mode", &self.auth_mode)
             .field("user_id", &self.user_id)
             .field("expires_at", &self.expires_at)
             .field(
                 "refresh_token",
-                &self.refresh_token.as_deref().map(token_suffix),
+                &self.refresh_token.as_deref().map(bearer_suffix),
             )
             .finish_non_exhaustive()
     }
 }
 
-impl XaiAuth {
-    /// Seconds since this credential was minted. Negative when the local
-    /// clock stepped back past `create_time` (NTP correction, VM restore, or
-    /// a sibling machine's clock via an adopted auth.json) — `create_time`
-    /// is always stamped from the minting machine's local clock.
+impl GrokAuth {
+    /// Seconds since this credential was minted.
+    /// Negative when the clock stepped back past `create_time` (NTP correction, VM restore, or a sibling machine's clock via an adopted auth.json).
+    /// `create_time` is always stamped from the minting machine's local clock.
     pub(crate) fn mint_age_seconds(&self) -> i64 {
         Utc::now()
             .signed_duration_since(self.create_time)
             .num_seconds()
     }
 
-    /// `true` when the token comes from a first-party xAI account —
-    /// either an OIDC login against https://auth.x.ai (or the local-dev
-    /// equivalent), or an external auth provider that declared an xAI
-    /// issuer for its token.
+    /// `true` when the token comes from a first-party xAI account.
+    /// That is either an OIDC login against https://auth.x.ai (or the local-dev equivalent), or an external auth provider declaring an xAI issuer.
     ///
-    /// The issuer is a client-side hint, not a trust assertion: everything
-    /// it unlocks still authenticates the actual token server-side, and it
-    /// never influences endpoints.
+    /// The issuer is a client-side hint, not a trust assertion.
+    /// Everything it unlocks still authenticates the actual token server-side, and it never influences endpoints.
     pub fn is_xai_auth(&self) -> bool {
         match self.auth_mode {
             AuthMode::Oidc | AuthMode::External => self
@@ -153,11 +151,10 @@ impl XaiAuth {
 
     /// Whether this credential can access `supported_in_api: false` models.
     ///
-    /// Session logins (WebLogin, OIDC — including enterprise issuers) always
-    /// qualify; external-provider credentials qualify only when first-party
-    /// (`is_xai_auth`), matching the built-in devbox login they replace.
+    /// Session logins (WebLogin, OIDC, including enterprise issuers) always qualify.
+    /// External-provider credentials qualify only when first-party (`is_xai_auth`), matching the built-in devbox login they replace.
     /// Plain API keys never do.
-    pub fn is_session_auth(&self) -> bool {
+    pub(crate) fn is_session_auth(&self) -> bool {
         match self.auth_mode {
             AuthMode::WebLogin | AuthMode::Oidc => true,
             AuthMode::External => self.is_xai_auth(),
@@ -176,16 +173,15 @@ impl XaiAuth {
             .any(|r| r == BLOCKED_REASON_NO_LOGS || r == BLOCKED_REASON_NO_LOGS_MODERATED)
     }
 
-    /// `true` when the team has ZDR or the user opted out of coding data
-    /// retention. Use this for trace-upload and research-data gates.
-    /// Product analytics (`telemetry_enabled`) and user-facing sync
-    /// features should use `is_zdr_team()` directly.
-    pub fn is_data_collection_disabled(&self) -> bool {
+    /// `true` when the team has ZDR or the user opted out of coding data retention.
+    /// Use this for trace-upload and research-data gates.
+    /// Product analytics (`telemetry_enabled`) and user-facing sync features should use `is_zdr_team()` directly.
+    pub(crate) fn is_data_collection_disabled(&self) -> bool {
         self.is_zdr_team() || self.coding_data_retention_opt_out
     }
 
     /// Carry `/user`-derived fields from a previous auth so refresh rebuilds don't drop them.
-    pub(crate) fn carry_user_profile_from(&mut self, prev: &XaiAuth) {
+    pub(crate) fn carry_user_profile_from(&mut self, prev: &GrokAuth) {
         self.user_id = prev.user_id.clone();
         self.email = prev.email.clone();
         self.principal_type = prev.principal_type.clone();
@@ -202,7 +198,7 @@ impl XaiAuth {
     }
 }
 
-impl Default for XaiAuth {
+impl Default for GrokAuth {
     fn default() -> Self {
         Self {
             key: String::new(),
@@ -223,7 +219,7 @@ impl Default for XaiAuth {
             organization_role: None,
             user_blocked_reason: None,
             team_blocked_reasons: vec![],
-            coding_data_retention_opt_out: false,
+            coding_data_retention_opt_out: default_coding_data_retention_opt_out(),
             has_grok_code_access: None,
             refresh_token: None,
             expires_at: None,
@@ -234,22 +230,24 @@ impl Default for XaiAuth {
 }
 
 #[cfg(test)]
-impl XaiAuth {
-    /// Returns a `XaiAuth` with sensible defaults for tests. Override fields
-    /// with struct update syntax:
+impl GrokAuth {
+    /// Returns a `GrokAuth` with sensible defaults for tests.
+    /// Override fields with struct update syntax:
     /// ```ignore
-    /// XaiAuth { key: "my-key".into(), ..XaiAuth::test_default() }
+    /// GrokAuth { key: "my-key".into(), ..GrokAuth::test_default() }
     /// ```
-    pub fn test_default() -> Self {
+    pub(crate) fn test_default() -> Self {
         Self {
             key: "test-key".into(),
             user_id: "test-user".into(),
+            // Tests that exercise collection gates need sharing enabled by default; opt out explicitly when asserting the privacy path
+            coding_data_retention_opt_out: false,
             ..Default::default()
         }
     }
 }
 
-pub(crate) type AuthStore = BTreeMap<String, XaiAuth>;
+pub(crate) type AuthStore = BTreeMap<String, GrokAuth>;
 
 /// User information from the cli-chat-proxy `GET /v1/user` endpoint.
 #[derive(Debug, Clone, Deserialize)]
@@ -286,36 +284,21 @@ pub(crate) struct UserInfo {
     pub(super) team_blocked_reasons: Option<Vec<String>>,
     #[serde(default)]
     pub(super) coding_data_retention_opt_out: Option<bool>,
-    /// Live subscription tier from the backend (only present when
-    /// `?include=subscription` is passed to `/user`).
+    /// Live subscription tier from the backend (only present when `?include=subscription` is passed to `/user`).
     #[serde(default)]
     pub(crate) subscription_tier: Option<String>,
 }
 
-/// Last 12 chars of a token string, safe for diagnostic logging.
-/// Uses the tail because JWT access tokens all share the same base64
-/// header prefix (`eyJ0eXAiOiJh…`); the tail (signature bytes) is
-/// unique per token and makes `key_changed` / `is_stale_snapshot`
-/// diagnostics meaningful.
-pub(crate) fn token_suffix(t: &str) -> &str {
-    let len = t.len();
-    if len > 12 { &t[len - 12..] } else { t }
-}
-
 /// Look up auth from the store by scope key.
 ///
-/// Legacy `WebLogin` tokens (from the pre-OIDC `grok login --legacy`
-/// flow) are skipped — they are validated via a per-request DB lookup
-/// server-side which fails at high volume.  Skipping them here forces
-/// affected users to re-authenticate via OIDC on next launch.
-pub fn lookup_auth(map: &AuthStore, scope: &str) -> Option<XaiAuth> {
-    let auth = map.get(scope).cloned().or_else(|| {
-        if scope == LEGACY_SCOPE {
-            None
-        } else {
-            map.get(LEGACY_SCOPE).cloned()
-        }
-    })?;
+/// Legacy `WebLogin` tokens (from the pre-OIDC `grok login --legacy` flow) are skipped.
+/// They are validated via a per-request DB lookup server-side, which fails at high volume.
+/// Skipping them here forces affected users to re-authenticate via OIDC on next launch.
+pub fn lookup_auth(map: &AuthStore, scope: &str) -> Option<GrokAuth> {
+    let auth = map
+        .get(scope)
+        .cloned()
+        .or_else(|| inherited_lookup(map, scope))?;
     if auth.auth_mode == AuthMode::WebLogin {
         tracing::info!("auth: ignoring legacy WebLogin token — re-authentication required");
         return None;
@@ -323,24 +306,34 @@ pub fn lookup_auth(map: &AuthStore, scope: &str) -> Option<XaiAuth> {
     Some(auth)
 }
 
-/// Early-invalidation buffer. Override with `XVORA_AUTH_EARLY_INVALIDATION_SECS`
-/// for testing (e.g. `=5` to shrink the buffer to 5 seconds).
+/// Falls back to a scope the active backend inherits, skipping the one already tried.
+fn inherited_lookup(map: &AuthStore, scope: &str) -> Option<GrokAuth> {
+    use crate::auth::backend::{ActiveAuthBackend, AuthBackend};
+
+    ActiveAuthBackend::default()
+        .inherited_scopes()
+        .iter()
+        .filter(|inherited| **inherited != scope)
+        .find_map(|inherited| map.get(*inherited).cloned())
+}
+
+/// Early-invalidation buffer.
+/// Override with `GROK_AUTH_EARLY_INVALIDATION_SECS` for testing (e.g. `=5` to shrink the buffer to 5 seconds).
 pub(super) fn early_invalidation() -> Duration {
-    std::env::var("XVORA_AUTH_EARLY_INVALIDATION_SECS")
+    std::env::var("GROK_AUTH_EARLY_INVALIDATION_SECS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .map(|s| Duration::seconds(s as i64))
         .unwrap_or_else(|| Duration::seconds(DEFAULT_EARLY_INVALIDATION_SECS as i64))
 }
 
-pub(crate) fn is_expired(auth: &XaiAuth) -> bool {
+pub(crate) fn is_expired(auth: &GrokAuth) -> bool {
     is_expired_with_buffer(auth, early_invalidation())
 }
 
-/// Like [`is_expired`] but with an explicit pre-expiry buffer. Pass
-/// `Duration::zero()` for actual (hard) expiry — the instant the token would
-/// really be rejected on the wire, with no early-invalidation margin.
-pub(crate) fn is_expired_with_buffer(auth: &XaiAuth, buffer: Duration) -> bool {
+/// Like [`is_expired`] but with an explicit pre-expiry buffer.
+/// Pass `Duration::zero()` for actual (hard) expiry: the instant the token would really be rejected on the wire, with no early-invalidation margin.
+pub(crate) fn is_expired_with_buffer(auth: &GrokAuth, buffer: Duration) -> bool {
     if let Some(expires_at) = auth.expires_at {
         Utc::now() >= (expires_at - buffer)
     } else {
@@ -353,8 +346,8 @@ pub(crate) fn is_expired_with_buffer(auth: &XaiAuth, buffer: Duration) -> bool {
 mod tests {
     use super::*;
 
-    fn make_auth(mode: AuthMode) -> XaiAuth {
-        XaiAuth {
+    fn make_auth(mode: AuthMode) -> GrokAuth {
+        GrokAuth {
             key: "k".into(),
             auth_mode: mode,
             create_time: Utc::now(),
@@ -385,7 +378,7 @@ mod tests {
     #[test]
     fn is_xai_auth_matrix() {
         use crate::auth::XAI_OAUTH2_ISSUER;
-        let with_issuer = |mode: AuthMode, issuer: Option<&str>| XaiAuth {
+        let with_issuer = |mode: AuthMode, issuer: Option<&str>| GrokAuth {
             oidc_issuer: issuer.map(str::to_owned),
             ..make_auth(mode)
         };
@@ -406,7 +399,7 @@ mod tests {
     #[test]
     fn is_session_auth_requires_first_party_for_external() {
         use crate::auth::XAI_OAUTH2_ISSUER;
-        let with_issuer = |mode: AuthMode, issuer: Option<&str>| XaiAuth {
+        let with_issuer = |mode: AuthMode, issuer: Option<&str>| GrokAuth {
             oidc_issuer: issuer.map(str::to_owned),
             ..make_auth(mode)
         };
@@ -455,7 +448,7 @@ mod tests {
         assert!(lookup_auth(&map, "scope").is_some());
     }
 
-    /// subscriptionTier present → deserializes to Some.
+    /// subscriptionTier present deserializes to Some.
     #[test]
     fn user_info_subscription_tier_present() {
         let json = r#"{
@@ -466,7 +459,7 @@ mod tests {
         assert_eq!(info.subscription_tier.as_deref(), Some("SuperGrokPro"));
     }
 
-    /// subscriptionTier absent → deserializes to None (backwards compat).
+    /// subscriptionTier absent deserializes to None (backwards compat).
     #[test]
     fn user_info_subscription_tier_absent() {
         let json = r#"{"userId": "u1"}"#;
@@ -474,7 +467,7 @@ mod tests {
         assert!(info.subscription_tier.is_none());
     }
 
-    /// subscriptionTier null → deserializes to None.
+    /// subscriptionTier null deserializes to None.
     #[test]
     fn user_info_subscription_tier_null() {
         let json = r#"{"userId": "u1", "subscriptionTier": null}"#;
@@ -482,13 +475,30 @@ mod tests {
         assert!(info.subscription_tier.is_none());
     }
 
-    /// subscriptionTier empty string → deserializes to Some("").
-    /// The paywall poller treats this as "no subscription" (line 230:
-    /// `Some(tier) if !tier.is_empty()`) and keeps polling.
+    /// subscriptionTier empty string deserializes to Some("").
+    /// The paywall poller treats this as "no subscription" (its guard is `Some(tier) if !tier.is_empty()`) and keeps polling.
     #[test]
     fn user_info_subscription_tier_empty_string() {
         let json = r#"{"userId": "u1", "subscriptionTier": ""}"#;
         let info: UserInfo = serde_json::from_str(json).unwrap();
         assert_eq!(info.subscription_tier.as_deref(), Some(""));
+    }
+
+    /// A pre-default auth.json (no coding_data_retention_opt_out key) must deserialize as opted-out, not the old fail-open false.
+    #[test]
+    fn missing_coding_data_retention_opt_out_deserializes_opted_out() {
+        let json = r#"{
+            "key": "k",
+            "auth_mode": "oidc",
+            "create_time": "2020-01-01T00:00:00Z",
+            "user_id": "u"
+        }"#;
+        let auth: GrokAuth = serde_json::from_str(json).unwrap();
+        assert!(
+            auth.coding_data_retention_opt_out,
+            "missing field must default to opted-out"
+        );
+        assert!(default_coding_data_retention_opt_out());
+        assert!(GrokAuth::default().coding_data_retention_opt_out);
     }
 }

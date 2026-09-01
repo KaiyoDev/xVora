@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{AuthManager, XaiAuth};
+use crate::auth::{AuthManager, GrokAuth};
 
-const XVORA_WEB_URL: &str = "https://grok.com";
+const GROK_WEB_URL: &str = "https://grok.com";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,15 +92,15 @@ pub struct ConversationsClient {
 
 impl ConversationsClient {
     pub fn new(auth: Arc<AuthManager>) -> Self {
-        let base_url = std::env::var("XVORA_CONVERSATIONS_BASE_URL")
+        let base_url = std::env::var("GROK_CONVERSATIONS_BASE_URL")
             .ok()
             .filter(|s| !s.is_empty())
             .or_else(|| {
-                std::env::var("XVORA_CODE_WEB_URL")
+                std::env::var("GROK_CODE_WEB_URL")
                     .ok()
                     .filter(|s| !s.is_empty())
             })
-            .unwrap_or_else(|| XVORA_WEB_URL.to_string());
+            .unwrap_or_else(|| GROK_WEB_URL.to_string());
         Self {
             http: crate::http::shared_client(),
             base_url,
@@ -108,7 +108,7 @@ impl ConversationsClient {
         }
     }
 
-    async fn require_xai_auth(&self) -> Result<XaiAuth, ConvError> {
+    async fn require_xai_auth(&self) -> Result<GrokAuth, ConvError> {
         let auth = self.auth.auth().await.map_err(|_| ConvError::NoOauth)?;
         if !auth.is_xai_auth() {
             return Err(ConvError::NoOauth);
@@ -119,7 +119,7 @@ impl ConversationsClient {
     fn apply_auth_headers(
         &self,
         builder: reqwest::RequestBuilder,
-        auth: &XaiAuth,
+        auth: &GrokAuth,
     ) -> reqwest::RequestBuilder {
         let mut builder = builder
             .header("Authorization", format!("Bearer {}", auth.key))
@@ -141,7 +141,7 @@ impl ConversationsClient {
         if let Some(email) = &auth.email {
             builder = builder.header("x-email", email);
         }
-        file_utils::trace_context::inject_trace_context_into_request(builder)
+        xvora_file_utils::trace_context::inject_trace_context_into_request(builder)
     }
 
     pub async fn list_conversations(
@@ -176,11 +176,9 @@ impl ConversationsClient {
         let wire: ListConversationsResponseWire = serde_json::from_slice(&bytes)?;
 
         let searching = q.search_query.as_deref().is_some_and(|s| !s.is_empty());
-        // During an active search, results come exclusively from
-        // `text_search_matches`. Never fall back to `wire.conversations` here:
-        // an empty match set means "no hits", and the server may return
-        // recent/unfiltered conversations in `conversations` that are NOT search
-        // matches — surfacing those would be wrong.
+        // During an active search, results come exclusively from `text_search_matches`
+        // Never fall back to `wire.conversations` here: an empty match set means "no hits"
+        // The server may return recent/unfiltered conversations in `conversations` that are NOT search matches; showing those would be wrong
         let conversations = if searching {
             wire.text_search_matches
                 .into_iter()
@@ -196,7 +194,7 @@ impl ConversationsClient {
         })
     }
 
-    /// `PUT /rest/app-chat/conversations/{conversation_id}` — rename and/or star.
+    /// `PUT /rest/app-chat/conversations/{conversation_id}`: rename and/or star.
     pub async fn update_conversation(
         &self,
         conversation_id: &str,
@@ -222,8 +220,11 @@ impl ConversationsClient {
         Ok(())
     }
 
-    /// `DELETE /rest/app-chat/conversations/soft/{conversation_id}` — soft-delete.
-    pub async fn soft_delete_conversation(&self, conversation_id: &str) -> Result<(), ConvError> {
+    /// `DELETE /rest/app-chat/conversations/soft/{conversation_id}`: soft-delete.
+    pub(crate) async fn soft_delete_conversation(
+        &self,
+        conversation_id: &str,
+    ) -> Result<(), ConvError> {
         let auth = self.require_xai_auth().await?;
         let url = format!(
             "{}/rest/app-chat/conversations/soft/{}",
@@ -234,8 +235,7 @@ impl ConversationsClient {
 
         let response = builder.send().await?;
         let status = response.status();
-        // 404 = already soft-deleted; keep deletion idempotent like the
-        // build path's `classify_remote_delete`.
+        // A 404 means already soft-deleted; keep deletion idempotent like the build path's `classify_remote_delete`
         if !status.is_success() && status.as_u16() != 404 {
             return Err(ConvError::Http {
                 status: status.as_u16(),

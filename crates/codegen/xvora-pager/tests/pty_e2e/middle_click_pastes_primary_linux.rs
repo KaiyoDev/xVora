@@ -50,22 +50,22 @@ async fn middle_click_pastes_primary_linux() {
         bin_dir.display(),
         std::env::var("PATH").unwrap_or_default()
     );
-    let env: Vec<(String, String)> = {
-        let mut env = content.env_for_pager();
-        env.push(("PATH".into(), path_env));
-        env.push(("TERM".into(), "xterm".into()));
-        env.push(("DISPLAY".into(), ":99".into()));
-        env.push(("WAYLAND_DISPLAY".into(), String::new()));
-        env
-    };
-    let env_refs: Vec<(&str, &str)> = env
-        .iter()
-        .map(|(key, value)| (key.as_str(), value.as_str()))
-        .collect();
+    let overrides = [
+        ("PATH", path_env.as_str()),
+        ("TERM", "xterm"),
+        ("DISPLAY", ":99"),
+        ("WAYLAND_DISPLAY", ""),
+    ];
     let binary = pager_binary().expect("resolve pager binary");
-    let mut harness =
-        PtyHarness::new_in_dir(&binary, DEFAULT_ROWS, DEFAULT_COLS, &[], &env_refs, None)
-            .expect("spawn pager");
+    let mut harness = PtyHarness::spawn_with_content_env(
+        &binary,
+        DEFAULT_ROWS,
+        DEFAULT_COLS,
+        &content,
+        &[],
+        &overrides,
+    )
+    .expect("spawn pager");
 
     harness
         .wait_for_text(WELCOME_SCREEN_SENTINEL, WELCOME_TIMEOUT)
@@ -94,7 +94,7 @@ async fn middle_click_pastes_primary_linux() {
         .wait_for_text(MOCK_RESPONSE_SENTINEL, Duration::from_secs(30))
         .expect("PRIMARY prompt reaches the mock backend");
 
-    // Recorded requests repeat cumulative history, so wire presence is the stable assertion here.
+    // Recorded requests repeat cumulative history, so the stable assertion here is presence on the wire, not a count
     let user_messages = all_user_message_blobs(&content);
     assert!(
         user_messages

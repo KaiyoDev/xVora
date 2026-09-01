@@ -1,53 +1,33 @@
-//! `/theme` (alias `/t`) -- switch the color theme.
+//! `/theme` (alias `/t`): switch the color theme.
 //!
 //! Toggles between available themes or switches to a named theme.
-//! Selecting `auto` enables system-appearance-driven theme switching.
-//! Selecting an explicit theme disengages auto mode.
+//! Selecting `auto` makes the theme follow the system appearance.
+//! Selecting an explicit theme turns auto mode off.
 //!
-//! `run` dispatches `Action::SetTheme(<canonical>)` — the dispatcher
-//! handles mutation + persistence + toast. `preview_arg` /
-//! `cancel_preview` call `Theme::apply_kind` directly for non-persisting
-//! visual previews (no toast/disk writes per keystroke).
+//! `run` dispatches `Action::SetTheme(<canonical>)`; the dispatcher handles the state change, persistence, and the toast.
+//! `preview_arg` and `cancel_preview` call `Theme::apply_kind` directly so a preview never persists: no toast or disk write per keystroke.
 
 use crate::app::actions::Action;
-use crate::slash::command::{AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand};
+use crate::slash::command::{
+    AppCtx, ArgItem, CommandExecCtx, CommandResult, SlashCommand, slash_meta,
+};
+use crate::slash::{ModeSupport, Remedy};
 use crate::theme::{Theme, ThemeKind, cache as theme_cache};
 
-/// Switch the pager color theme.
 pub struct ThemeCommand;
 
 impl SlashCommand for ThemeCommand {
-    fn name(&self) -> &str {
-        "theme"
-    }
-
-    fn aliases(&self) -> &[&str] {
-        &["t"]
-    }
-
-    fn description(&self) -> &str {
-        "Switch the color theme"
-    }
-
-    /// Minimal has no theming, so there is nothing for `/theme` to switch.
-    fn available_in_minimal(&self) -> bool {
-        false
-    }
-
-    fn usage(&self) -> &str {
-        "/theme <name>"
-    }
-
-    fn takes_args(&self) -> bool {
-        true
-    }
-
-    fn args_required(&self) -> bool {
-        false
-    }
-
-    fn arg_placeholder(&self) -> Option<&str> {
-        Some("<theme>")
+    slash_meta! {
+        name: "theme",
+        aliases: ["t"],
+        description: "Switch the color theme",
+        usage: "/theme <name>",
+        takes_args: true,
+        args_required: false,
+        mode_support: ModeSupport::FullscreenOnly(Remedy::SwitchMode {
+            why: "minimal renders with your terminal's own palette",
+        }),
+        arg_placeholder: "<theme>",
     }
 
     fn supports_preview(&self) -> bool {
@@ -90,7 +70,7 @@ impl SlashCommand for ThemeCommand {
             description: format!("auto (follow system){auto_active}"),
         }];
 
-        // Concrete themes — only show "(active)" when not in auto mode.
+        // Concrete themes: only show "(active)" when not in auto mode
         items.extend(available.iter().map(|kind| {
             let active = if *kind == current && !is_auto {
                 " (active)"
@@ -122,11 +102,10 @@ impl SlashCommand for ThemeCommand {
         }
 
         // Named theme (including "auto"): parse and dispatch.
-        // Truecolor-only themes are accepted regardless of terminal —
-        // `Theme::apply_kind` clamps the live visual as needed.
+        // Truecolor-only themes are accepted on any terminal; `Theme::apply_kind` clamps the live colors as needed
         match ThemeKind::from_name(trimmed) {
             Some(kind) => {
-                // Normalise alias to canonical display_name.
+                // An alias normalises to the canonical `display_name`
                 CommandResult::Action(Action::SetTheme(kind.display_name().to_string()))
             }
             None => {
@@ -147,8 +126,8 @@ mod tests {
     use super::*;
     use crate::theme::{cache as theme_cache, system_appearance};
 
-    /// Run a test with a clean in-memory state. Prevents disk reads by
-    /// pre-loading the theme state.
+    /// Run a test with a clean in-memory state.
+    /// Prevents disk reads by pre-loading the theme state.
     fn with_test_env(f: impl FnOnce()) {
         let _guard = theme_cache::test_lock()
             .lock()
@@ -157,15 +136,10 @@ mod tests {
         theme_cache::seed_auto_theme_defaults_for_test();
         system_appearance::clear_mock();
         // Set LOADED=true so current_kind() doesn't try to read from disk.
-        theme_cache::set(ThemeKind::XvoraNight);
+        theme_cache::set(ThemeKind::GrokNight);
         f();
         system_appearance::clear_mock();
         theme_cache::reset_for_test();
-    }
-
-    #[test]
-    fn theme_unavailable_in_minimal() {
-        assert!(!ThemeCommand.available_in_minimal());
     }
 
     // -- suggest_args ---------------------------------------------------------
@@ -179,12 +153,18 @@ mod tests {
                 models: &models,
                 cwd: std::path::Path::new("."),
                 has_session_announcements: false,
+                billing_surface_visible: true,
+                usage_command_visible: true,
+                workflows_available: true,
+                saved_workflows: &[],
+                workflow_runs: &[],
                 screen_mode: crate::app::ScreenMode::Fullscreen,
+                current_title: None,
             };
             let items = cmd.suggest_args(&ctx, "").expect("should return items");
             assert_eq!(items[0].insert_text, "auto");
             assert!(items[0].description.contains("follow system"));
-            // auto + all available concrete themes
+            // The "auto" entry plus every available concrete theme
             assert_eq!(items.len(), ThemeKind::available().len() + 1);
         });
     }
@@ -199,7 +179,13 @@ mod tests {
                 models: &models,
                 cwd: std::path::Path::new("."),
                 has_session_announcements: false,
+                billing_surface_visible: true,
+                usage_command_visible: true,
+                workflows_available: true,
+                saved_workflows: &[],
+                workflow_runs: &[],
                 screen_mode: crate::app::ScreenMode::Fullscreen,
+                current_title: None,
             };
             let items = cmd.suggest_args(&ctx, "").expect("should return items");
             assert!(
@@ -220,7 +206,13 @@ mod tests {
                 models: &models,
                 cwd: std::path::Path::new("."),
                 has_session_announcements: false,
+                billing_surface_visible: true,
+                usage_command_visible: true,
+                workflows_available: true,
+                saved_workflows: &[],
+                workflow_runs: &[],
                 screen_mode: crate::app::ScreenMode::Fullscreen,
+                current_title: None,
             };
             let items = cmd.suggest_args(&ctx, "").expect("should return items");
             assert!(
@@ -235,24 +227,30 @@ mod tests {
     fn suggest_args_explicit_active_when_not_auto() {
         with_test_env(|| {
             theme_cache::set_auto_mode(false);
-            theme_cache::set(ThemeKind::XvoraNight);
+            theme_cache::set(ThemeKind::GrokNight);
             let cmd = ThemeCommand;
             let models = crate::acp::model_state::ModelState::default();
             let ctx = AppCtx {
                 models: &models,
                 cwd: std::path::Path::new("."),
                 has_session_announcements: false,
+                billing_surface_visible: true,
+                usage_command_visible: true,
+                workflows_available: true,
+                saved_workflows: &[],
+                workflow_runs: &[],
                 screen_mode: crate::app::ScreenMode::Fullscreen,
+                current_title: None,
             };
             let items = cmd.suggest_args(&ctx, "").expect("should return items");
-            let xvoranight = items
+            let groknight = items
                 .iter()
-                .find(|i| i.insert_text == "xvoranight")
-                .expect("xvoranight should be in list");
+                .find(|i| i.insert_text == "groknight")
+                .expect("groknight should be in list");
             assert!(
-                xvoranight.description.contains("(active)"),
+                groknight.description.contains("(active)"),
                 "explicit theme should show (active), got: {}",
-                xvoranight.description
+                groknight.description
             );
         });
     }
@@ -261,14 +259,20 @@ mod tests {
     fn suggest_args_no_explicit_active_when_auto() {
         with_test_env(|| {
             theme_cache::set_auto_mode(true);
-            theme_cache::set(ThemeKind::XvoraNight);
+            theme_cache::set(ThemeKind::GrokNight);
             let cmd = ThemeCommand;
             let models = crate::acp::model_state::ModelState::default();
             let ctx = AppCtx {
                 models: &models,
                 cwd: std::path::Path::new("."),
                 has_session_announcements: false,
+                billing_surface_visible: true,
+                usage_command_visible: true,
+                workflows_available: true,
+                saved_workflows: &[],
+                workflow_runs: &[],
                 screen_mode: crate::app::ScreenMode::Fullscreen,
+                current_title: None,
             };
             let items = cmd.suggest_args(&ctx, "").expect("should return items");
             // No concrete theme should show "(active)" in auto mode.
@@ -284,8 +288,7 @@ mod tests {
 
     // -- run (dispatches Action::SetTheme) ------------------------------------
 
-    /// `/theme <name>` returns `Action::SetTheme(<canonical>)` —
-    /// the dispatcher handles in-memory state + disk write + toast.
+    /// `/theme <name>` returns `Action::SetTheme(<canonical>)`; the dispatcher handles the in-memory state, the disk write, and the toast.
     #[test]
     fn run_explicit_dispatches_set_theme_action() {
         with_test_env(|| {
@@ -297,34 +300,32 @@ mod tests {
                 session_id: None,
                 bundle_state: &bundle,
                 screen_mode: crate::app::ScreenMode::Inline,
+                billing_surface_visible: true,
+                usage_command_visible: true,
                 pager_state: crate::settings::PagerLocalSnapshot {
                     multiline_mode: false,
                     yolo_mode: false,
                     ..crate::settings::PagerLocalSnapshot::default()
                 },
             };
-            let result = cmd.run(&mut ctx, "xvoranight");
+            let result = cmd.run(&mut ctx, "groknight");
             match result {
                 CommandResult::Action(Action::SetTheme(name)) => {
-                    assert_eq!(name, "xvoranight");
+                    assert_eq!(name, "groknight");
                 }
-                other => panic!("expected Action::SetTheme(\"xvoranight\"), got {other:?}"),
+                other => panic!("expected Action::SetTheme(\"groknight\"), got {other:?}"),
             }
         });
     }
 
     /// `/theme` (no args) toggles by dispatching `Action::SetTheme(<next>)`.
-    /// Precondition-assert that `ThemeKind::available()` has ≥2 entries;
-    /// otherwise the previous `unwrap_or` masked a broken upstream
-    /// invariant.
+    /// Asserts first that `ThemeKind::available()` has at least 2 entries so a broken invariant fails loudly instead of being masked.
     #[test]
     fn run_toggle_dispatches_set_theme_action() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::XvoraNight);
-            // Hard-fail with a clear message if the precondition
-            // breaks — `(0 + 1) % 0` in `run` would otherwise panic
-            // with `attempt to calculate the remainder with a
-            // divisor of zero`, which is a worse error message.
+            theme_cache::set(ThemeKind::GrokNight);
+            // Hard-fail with a clear message if the precondition breaks
+            // `(0 + 1) % 0` in `run` would otherwise panic with `attempt to calculate the remainder with a divisor of zero`, a worse message
             assert!(
                 ThemeKind::available().len() >= 2,
                 "toggle test requires ≥2 available themes, got {}",
@@ -338,6 +339,8 @@ mod tests {
                 session_id: None,
                 bundle_state: &bundle,
                 screen_mode: crate::app::ScreenMode::Inline,
+                billing_surface_visible: true,
+                usage_command_visible: true,
                 pager_state: crate::settings::PagerLocalSnapshot {
                     multiline_mode: false,
                     yolo_mode: false,
@@ -347,7 +350,7 @@ mod tests {
             let result = cmd.run(&mut ctx, "");
             match result {
                 CommandResult::Action(Action::SetTheme(name)) => {
-                    // available[0] = XvoraNight; next is available[1].
+                    // available[0] is GrokNight; next is available[1]
                     let expected = ThemeKind::available()[1].display_name();
                     assert_eq!(name, expected);
                 }
@@ -356,7 +359,6 @@ mod tests {
         });
     }
 
-    /// `/theme auto` dispatches `SetTheme("auto")`.
     #[test]
     fn run_auto_dispatches_set_theme_auto() {
         with_test_env(|| {
@@ -368,6 +370,8 @@ mod tests {
                 session_id: None,
                 bundle_state: &bundle,
                 screen_mode: crate::app::ScreenMode::Inline,
+                billing_surface_visible: true,
+                usage_command_visible: true,
                 pager_state: crate::settings::PagerLocalSnapshot {
                     multiline_mode: false,
                     yolo_mode: false,
@@ -396,19 +400,21 @@ mod tests {
                 session_id: None,
                 bundle_state: &bundle,
                 screen_mode: crate::app::ScreenMode::Inline,
+                billing_surface_visible: true,
+                usage_command_visible: true,
                 pager_state: crate::settings::PagerLocalSnapshot {
                     multiline_mode: false,
                     yolo_mode: false,
                     ..crate::settings::PagerLocalSnapshot::default()
                 },
             };
-            // "dark" is an alias for XvoraNight.
+            // "dark" is an alias for GrokNight.
             let result = cmd.run(&mut ctx, "dark");
             match result {
                 CommandResult::Action(Action::SetTheme(name)) => {
-                    assert_eq!(name, "xvoranight", "alias must normalise to canonical");
+                    assert_eq!(name, "groknight", "alias must normalise to canonical");
                 }
-                other => panic!("expected Action::SetTheme(\"xvoranight\"), got {other:?}"),
+                other => panic!("expected Action::SetTheme(\"groknight\"), got {other:?}"),
             }
         });
     }
@@ -421,32 +427,30 @@ mod tests {
             system_appearance::set_mock(Some(system_appearance::SystemAppearance::Light));
             let cmd = ThemeCommand;
             cmd.preview_arg("auto");
-            // Default auto config maps Light -> XvoraDay.
-            assert_eq!(Theme::current_kind(), ThemeKind::XvoraDay);
+            // The default auto config maps Light to GrokDay
+            assert_eq!(Theme::current_kind(), ThemeKind::GrokDay);
         });
     }
 
-    /// `preview_arg` applies the named theme directly.
     #[test]
     fn preview_explicit_theme_applies_directly() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::XvoraNight);
+            theme_cache::set(ThemeKind::GrokNight);
             let cmd = ThemeCommand;
-            cmd.preview_arg("xvoraday");
-            assert_eq!(Theme::current_kind(), ThemeKind::XvoraDay);
+            cmd.preview_arg("grokday");
+            assert_eq!(Theme::current_kind(), ThemeKind::GrokDay);
         });
     }
 
-    /// `preview_arg` with unknown theme is a no-op.
     #[test]
     fn preview_unknown_theme_is_no_op() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::XvoraNight);
+            theme_cache::set(ThemeKind::GrokNight);
             let cmd = ThemeCommand;
             cmd.preview_arg("nonexistent-theme");
             assert_eq!(
                 Theme::current_kind(),
-                ThemeKind::XvoraNight,
+                ThemeKind::GrokNight,
                 "unknown theme name must NOT change Theme::current_kind",
             );
         });
@@ -454,36 +458,34 @@ mod tests {
 
     // -- cancel_preview -------------------------------------------------------
 
-    /// `cancel_preview` restores the previously-applied theme.
     #[test]
     fn cancel_preview_restores_previous_kind() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::XvoraNight);
+            theme_cache::set(ThemeKind::GrokNight);
             let cmd = ThemeCommand;
             // Simulate user navigating into a different theme during preview.
-            cmd.preview_arg("xvoraday");
-            assert_eq!(Theme::current_kind(), ThemeKind::XvoraDay);
+            cmd.preview_arg("grokday");
+            assert_eq!(Theme::current_kind(), ThemeKind::GrokDay);
 
             // Then Escape (or arg picker dismissal): restore.
-            cmd.cancel_preview("xvoranight");
+            cmd.cancel_preview("groknight");
             assert_eq!(
                 Theme::current_kind(),
-                ThemeKind::XvoraNight,
+                ThemeKind::GrokNight,
                 "cancel_preview must restore the previous canonical",
             );
         });
     }
 
-    /// `cancel_preview` with unknown theme is a no-op.
     #[test]
     fn cancel_preview_unknown_theme_is_no_op() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::XvoraDay);
+            theme_cache::set(ThemeKind::GrokDay);
             let cmd = ThemeCommand;
             cmd.cancel_preview("nonexistent-theme");
             assert_eq!(
                 Theme::current_kind(),
-                ThemeKind::XvoraDay,
+                ThemeKind::GrokDay,
                 "unknown previous must NOT change Theme::current_kind",
             );
         });
@@ -502,6 +504,8 @@ mod tests {
                 session_id: None,
                 bundle_state: &bundle,
                 screen_mode: crate::app::ScreenMode::Inline,
+                billing_surface_visible: true,
+                usage_command_visible: true,
                 pager_state: crate::settings::PagerLocalSnapshot {
                     multiline_mode: false,
                     yolo_mode: false,
@@ -517,7 +521,6 @@ mod tests {
         });
     }
 
-    /// Truecolor-only themes are accepted; clamping happens downstream.
     #[test]
     fn run_truecolor_theme_dispatches_set_theme_action() {
         with_test_env(|| {
@@ -529,6 +532,8 @@ mod tests {
                 session_id: None,
                 bundle_state: &bundle,
                 screen_mode: crate::app::ScreenMode::Inline,
+                billing_surface_visible: true,
+                usage_command_visible: true,
                 pager_state: crate::settings::PagerLocalSnapshot {
                     multiline_mode: false,
                     yolo_mode: false,

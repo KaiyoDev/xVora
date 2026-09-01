@@ -3,7 +3,7 @@
 //! These standalone functions convert `xvora_tools::types::output::ToolOutput`
 //! into ACP protocol types (`acp::ToolCallUpdate`, `acp::Plan`).
 //!
-//! `raw_output` is serialized directly from ToolOutput via serde — no manual JSON
+//! `raw_output` is serialized directly from ToolOutput via serde, with no manual JSON
 //! construction. The TUI deserializes it back into the same ToolOutput type, so
 //! field names must match exactly. Path relativization for display happens on the
 //! TUI side (which already has `base_path` for this purpose).
@@ -12,19 +12,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use agent_client_protocol as acp;
-use tool_types::{KillTaskOutput, TaskOutputOutput};
 use xvora_tools::types::output::{
     ApplyPatchOutput, CodexGrepFilesOutput, ListDirOutput, MCPOutputDetails, ReadFileOutput,
     SearchReplaceEditContextInformation, SearchReplaceEditDetail, SearchReplaceOutput, ToolOutput,
 };
+use xvora_tool_types::{KillTaskOutput, TaskOutputOutput};
 
 /// Rewrites real worktree paths to display paths in serialized output.
 ///
-/// In forked sessions, tools produce output containing the worktree
-/// directory (e.g., `/root/.xvora/worktrees/project/fork-019cb252-...`). The
-/// client UI should instead see the original project path (the `display_cwd`).
+/// In forked sessions, tools produce output containing the worktree directory (e.g., `/root/.grok/worktrees/project/fork-019cb252-...`).
+/// The client UI should instead see the original project path (the `display_cwd`).
 #[derive(Clone, Debug)]
-pub struct PathRewriter {
+pub(crate) struct PathRewriter {
     /// The real worktree path (what tools actually see).
     real_cwd: String,
     /// The display path (what the client UI should see).
@@ -34,9 +33,8 @@ pub struct PathRewriter {
 impl PathRewriter {
     /// Create a new `PathRewriter` if `display_cwd` differs from `real_cwd`.
     ///
-    /// Returns `None` if the paths are the same (no rewriting needed) or if
-    /// `display_cwd` is not set.
-    pub fn new(real_cwd: &str, display_cwd: Option<&str>) -> Option<Self> {
+    /// Returns `None` if the paths are the same (no rewriting needed) or if `display_cwd` is not set.
+    pub(crate) fn new(real_cwd: &str, display_cwd: Option<&str>) -> Option<Self> {
         let display_cwd = display_cwd?;
         if real_cwd == display_cwd {
             return None;
@@ -49,14 +47,12 @@ impl PathRewriter {
 
     /// Rewrite all occurrences of the real worktree path with the display path.
     ///
-    /// Handles both plain paths (e.g., `/root/.xvora/worktrees/project/fork-...`)
-    /// and URL-encoded paths (e.g., `%2Froot%2F.grok%2Fworktrees%2F...`) that
-    /// appear in session directory structures and `output_file` references.
-    pub fn rewrite(&self, text: &str) -> String {
+    /// Handles both plain paths (e.g., `/root/.grok/worktrees/project/fork-...`)
+    /// and URL-encoded paths (e.g., `%2Froot%2F.grok%2Fworktrees%2F...`) that appear in session directory structures and `output_file` references.
+    pub(crate) fn rewrite(&self, text: &str) -> String {
         let plain = text.replace(&self.real_cwd, &self.display_cwd);
-        // Also replace URL-encoded form — session directory paths use
-        // urlencoding::encode(&cwd) as a path component, so background task
-        // output_file paths and similar references contain encoded overlay cwd.
+        // Also replace the URL-encoded form: session directory paths use urlencoding::encode(&cwd) as a path component,
+        // so background task output_file paths and similar references embed the encoded real cwd
         let encoded_real = urlencoding::encode(&self.real_cwd);
         if plain.contains(encoded_real.as_ref()) {
             let encoded_display = urlencoding::encode(&self.display_cwd);
@@ -67,7 +63,7 @@ impl PathRewriter {
     }
 
     /// Rewrite a `PathBuf` if it starts with the real worktree path.
-    pub fn rewrite_path(&self, path: &Path) -> PathBuf {
+    pub(crate) fn rewrite_path(&self, path: &Path) -> PathBuf {
         match path.strip_prefix(&self.real_cwd) {
             Ok(relative) => PathBuf::from(&self.display_cwd).join(relative),
             Err(_) => path.to_path_buf(),
@@ -76,11 +72,10 @@ impl PathRewriter {
 
     /// Rewrite a `serde_json::Value` by replacing paths in the serialized JSON string.
     ///
-    /// Serialize to string, replace (plain + URL-encoded), re-parse. Catches
-    /// paths embedded anywhere in the JSON tree without needing to walk the
-    /// structure. Reuses `rewrite()` so both plain and encoded replacements
-    /// are applied consistently.
-    pub fn rewrite_json(&self, value: serde_json::Value) -> serde_json::Value {
+    /// Serialize to string, replace (plain and URL-encoded), re-parse.
+    /// Catches paths embedded anywhere in the JSON tree without needing to walk the structure.
+    /// Reuses `rewrite()` so both plain and encoded replacements are applied consistently.
+    pub(crate) fn rewrite_json(&self, value: serde_json::Value) -> serde_json::Value {
         let serialized = value.to_string();
         let rewritten = self.rewrite(&serialized);
         if rewritten == serialized {
@@ -108,9 +103,8 @@ fn maybe_rewrite_path(rewriter: Option<&PathRewriter>, path: PathBuf) -> PathBuf
 
 /// Serialize ToolOutput to JSON for the `raw_output` field in ACP updates.
 ///
-/// Uses serde directly — ToolOutput derives Serialize with `#[serde(tag = "type")]`,
-/// so the JSON round-trips cleanly with the TUI's deserialization.
-pub fn raw_output_json(
+/// Uses serde directly: ToolOutput derives Serialize with `#[serde(tag = "type")]`, so the JSON round-trips cleanly with the TUI's deserialization.
+pub(crate) fn raw_output_json(
     output: &ToolOutput,
     rewriter: Option<&PathRewriter>,
 ) -> Option<serde_json::Value> {
@@ -123,13 +117,11 @@ pub fn raw_output_json(
 
 /// Convert tool output to an ACP `ToolCallUpdate` for rich TUI rendering.
 ///
-/// `Todo` output returns a minimal `Completed` update (the richer rendering
-/// goes through `acp_plan_update` as a `Plan` notification).
+/// `Todo` output returns a minimal `Completed` update (the richer rendering goes through `acp_plan_update` as a `Plan` notification).
 ///
-/// `tool_meta` is attached as `_meta` on the update for MCP tools that have
-/// MCP Apps UI metadata (e.g., `_meta.ui.resourceUri`). This allows clients
-/// to render interactive UIs without maintaining a separate metadata store.
-pub fn acp_tool_update(
+/// `tool_meta` is attached as `_meta` on the update for MCP tools that have MCP Apps UI metadata (e.g., `_meta.ui.resourceUri`).
+/// This allows clients to render interactive UIs without maintaining a separate metadata store.
+pub(crate) fn acp_tool_update(
     output: &ToolOutput,
     tool_call_id: &str,
     rewriter: Option<&PathRewriter>,
@@ -155,11 +147,8 @@ pub fn acp_tool_update(
                     (content, acp::ToolCallStatus::Failed)
                 }
                 ReadFileOutput::ImageContent(image_content) => {
-                    // Construct the ACP `ImageContent` directly from the
-                    // tool's local image type rather than going through a
-                    // `From` impl on the tools crate -- that lets
-                    // `xvora-tools` stay free of an
-                    // `agent-client-protocol` dependency.
+                    // Construct the ACP `ImageContent` directly from the tool's local image type rather than going
+                    // through a `From` impl on the tools crate, so that `xvora-tools` stays free of an `agent-client-protocol` dependency
                     let content = Some(vec![acp::ToolCallContent::from(acp::ContentBlock::Image(
                         acp::ImageContent::new(
                             image_content.data.clone(),
@@ -299,7 +288,7 @@ pub fn acp_tool_update(
                 .raw_output(raw_output_json(output, rewriter)),
         )),
         // Web fetch output is converted to text content for the model.
-        // Success (Content) → Completed; errors (DomainNotAllowed, CrossHostRedirect) → Failed.
+        // Success (Content) maps to Completed; errors (DomainNotAllowed, CrossHostRedirect) map to Failed
         // This matches the pattern used by ReadFile, ListDir, and SearchReplace.
         ToolOutput::WebFetch(web_fetch_output) => {
             use xvora_tools::types::output::WebFetchOutput;
@@ -321,8 +310,7 @@ pub fn acp_tool_update(
             ))
         }
         // Todo also sends a Plan notification (see acp_plan_update), but we still
-        // need to complete the tool call so the TUI flushes pending agent messages
-        // and avoids concatenating text across tool-call boundaries.
+        // need to complete the tool call so the TUI flushes pending agent messages and avoids concatenating text across tool-call boundaries
         //
         // Error variants (e.g., DuplicateId) get `Failed` status so the Python
         // side can distinguish tool-logic errors from infra errors via raw_output.
@@ -459,7 +447,7 @@ pub fn acp_tool_update(
         ToolOutput::ApplyPatch(apply_patch_output) => {
             let (content, status) = match apply_patch_output {
                 ApplyPatchOutput::Success { files, .. } => {
-                    // Send one acp::Diff per affected file — mirrors the
+                    // Send one acp::Diff per affected file, mirroring the
                     // SearchReplace pattern so the TUI can render inline diffs.
                     let content: Vec<acp::ToolCallContent> = files
                         .iter()
@@ -547,9 +535,8 @@ pub fn acp_tool_update(
                 .raw_output(raw_output_json(output, rewriter)),
         )),
         ToolOutput::SubagentCompleted(sub) => {
-            // Text includes resume handle for discoverability + meta for TUI.
-            // Shared with the chat-bidi server via `to_model_text` so both
-            // surfaces present a completed subagent identically.
+            // The text includes the resume handle so users can find it, plus meta for the TUI
+            // Shared with the chat-bidi server via `to_model_text` so both clients present a completed subagent identically
             let content = Some(vec![acp::ToolCallContent::from(acp::ContentBlock::Text(
                 acp::TextContent::new(sub.to_model_text()),
             ))]);
@@ -558,6 +545,24 @@ pub fn acp_tool_update(
                 acp::ToolCallUpdateFields::new()
                     .status(Some(acp::ToolCallStatus::Completed))
                     .content(content)
+                    .raw_output(raw_output_json(output, rewriter)),
+            ))
+        }
+        ToolOutput::SendSubagentMessage(send) => {
+            use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageDisposition;
+
+            let status = match send.disposition() {
+                SendSubagentMessageDisposition::Accepted
+                | SendSubagentMessageDisposition::Unconfirmed => acp::ToolCallStatus::Completed,
+                SendSubagentMessageDisposition::Rejected => acp::ToolCallStatus::Failed,
+            };
+            Some(acp::ToolCallUpdate::new(
+                acp::ToolCallId::new(Arc::from(tool_call_id)),
+                acp::ToolCallUpdateFields::new()
+                    .status(Some(status))
+                    .content(Some(vec![acp::ToolCallContent::from(
+                        acp::ContentBlock::Text(acp::TextContent::new(send.to_string())),
+                    )]))
                     .raw_output(raw_output_json(output, rewriter)),
             ))
         }
@@ -600,12 +605,12 @@ pub fn acp_tool_update(
         }
         ToolOutput::ExitPlanMode(exit) => {
             let message = match exit {
-                xvora_tools::types::output::ExitPlanModeOutput::PlanReady { message, .. } => {
-                    message.clone()
-                }
-                xvora_tools::types::output::ExitPlanModeOutput::EmptyPlan { message, .. } => {
-                    message.clone()
-                }
+                xvora_tools::types::output::ExitPlanModeOutput::PlanReady {
+                    message, ..
+                } => message.clone(),
+                xvora_tools::types::output::ExitPlanModeOutput::EmptyPlan {
+                    message, ..
+                } => message.clone(),
             };
             Some(acp::ToolCallUpdate::new(
                 acp::ToolCallId::new(Arc::from(tool_call_id)),
@@ -619,6 +624,7 @@ pub fn acp_tool_update(
             ))
         }
         ToolOutput::UpdateGoal(_)
+        | ToolOutput::Workflow(_)
         | ToolOutput::Monitor(_)
         | ToolOutput::SchedulerCreate(_)
         | ToolOutput::SchedulerDelete(_)
@@ -628,9 +634,8 @@ pub fn acp_tool_update(
                 .status(Some(acp::ToolCallStatus::Completed))
                 .raw_output(raw_output_json(output, rewriter)),
         )),
-        // Internal tools (open_page, browse_page, etc.) are not used in the
-        // shell — they are server-only.  This arm covers variants that appear
-        // when Cargo unifies the optional web-tools feature across the workspace.
+        // Internal tools (open_page, browse_page, etc.) are not used in the shell; they are server-only
+        // This arm covers variants that appear when Cargo unifies the optional web-tools feature across the workspace
         #[allow(unreachable_patterns)]
         _ => None,
     }
@@ -643,7 +648,7 @@ pub fn acp_tool_update(
 /// This converts `xvora-tools`' TodoItem (which has `id`, `content: Option<String>`,
 /// `status: Option<String>`) to `acp::PlanEntry` (which has `content`, `priority`, `status`).
 /// The `id` is not directly represented in `PlanEntry` but the ordering is preserved.
-pub fn acp_plan_update(output: &ToolOutput) -> Option<acp::Plan> {
+pub(crate) fn acp_plan_update(output: &ToolOutput) -> Option<acp::Plan> {
     use crate::tools::todo::plan_entry_from_todo_item;
     use xvora_tools::types::output::TodoWriteOutput;
     match output {
@@ -728,8 +733,7 @@ fn build_apply_patch_edit_details(
         }
     }
 
-    // If no differences found (e.g., add or delete), create a single entry
-    // covering the whole content.
+    // If no differences found (e.g., add or delete), create a single entry covering the whole content
     if details.is_empty() {
         details.push(SearchReplaceEditDetail {
             old_string: old_content.to_string(),
@@ -750,6 +754,52 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
     use xvora_tools::types::output::*;
+
+    #[test]
+    fn test_acp_tool_update_send_subagent_message_outcomes_are_terminal() {
+        use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput::*;
+
+        for (send, expected_status) in [
+            (
+                Accepted {
+                    message_id: "m-1".into(),
+                },
+                acp::ToolCallStatus::Completed,
+            ),
+            (NotFoundOrNotOwned, acp::ToolCallStatus::Failed),
+            (NotActiveOrFinalizing, acp::ToolCallStatus::Failed),
+            (Saturated { max_in_flight: 8 }, acp::ToolCallStatus::Failed),
+            (AdmissionUncertain, acp::ToolCallStatus::Completed),
+            (NotAcceptedBeforeDeadline, acp::ToolCallStatus::Failed),
+            (Unsupported, acp::ToolCallStatus::Failed),
+            (
+                Limit {
+                    max_bytes: 8,
+                    observed_bytes: 9,
+                },
+                acp::ToolCallStatus::Failed,
+            ),
+            (ChannelClosed, acp::ToolCallStatus::Failed),
+        ] {
+            let expected_text = send.to_string();
+            let output = ToolOutput::SendSubagentMessage(send);
+            let update = acp_tool_update(&output, "call-message", None, None).expect("update");
+            assert_eq!(update.fields.status, Some(expected_status));
+            assert_eq!(update.fields.raw_output, serde_json::to_value(&output).ok());
+            let Some(acp::ToolCallContent::Content(acp::Content {
+                content: acp::ContentBlock::Text(text),
+                ..
+            })) = update
+                .fields
+                .content
+                .as_deref()
+                .and_then(|content| content.first())
+            else {
+                panic!("expected text content");
+            };
+            assert_eq!(text.text, expected_text);
+        }
+    }
 
     #[test]
     fn test_acp_tool_update_read_file_success() {
@@ -773,7 +823,7 @@ mod tests {
         let output = ToolOutput::Todo(TodoWriteOutput::TodosUpdated(TodoWriteSuccess {
             summary_for_prompt: "tasks".to_string(),
             todos: vec![],
-            state: xvora_tools::implementations::xvora::todo::TodoState::default(),
+            state: xvora_tools::implementations::grok_build::todo::TodoState::default(),
         }));
         let update = acp_tool_update(&output, "call-1", None, None).unwrap();
         assert_eq!(update.fields.status, Some(acp::ToolCallStatus::Completed));
@@ -782,7 +832,9 @@ mod tests {
     #[test]
     fn test_turn_end_plan_cleanup_preserves_semantics_and_priority() {
         use crate::tools::todo::plan_entry_from_todo_item;
-        use xvora_tools::implementations::xvora::todo::{TodoItem, TodoPriority, TodoStatus};
+        use xvora_tools::implementations::grok_build::todo::{
+            TodoItem, TodoPriority, TodoStatus,
+        };
 
         // Simulate a mixed todo list at turn end.
         let items = [
@@ -806,8 +858,7 @@ mod tests {
             },
         ];
 
-        // Build plan entries using the canonical helper, then override
-        // in_progress → completed (same logic as emit_turn_end_plan_cleanup).
+        // Build plan entries using the canonical helper, then override in_progress to completed (same logic as emit_turn_end_plan_cleanup).
         let entries: Vec<acp::PlanEntry> = items
             .iter()
             .map(|item| {
@@ -850,13 +901,17 @@ mod tests {
     fn test_acp_plan_update_todo() {
         let output = ToolOutput::Todo(TodoWriteOutput::TodosUpdated(TodoWriteSuccess {
             summary_for_prompt: "tasks".to_string(),
-            todos: vec![xvora_tools::implementations::xvora::todo::TodoItem {
-                content: "Task 1".to_string(),
-                priority: xvora_tools::implementations::xvora::todo::TodoPriority::Medium,
-                status: xvora_tools::implementations::xvora::todo::TodoStatus::Completed,
-                meta: None,
-            }],
-            state: xvora_tools::implementations::xvora::todo::TodoState::default(),
+            todos: vec![
+                xvora_tools::implementations::grok_build::todo::TodoItem {
+                    content: "Task 1".to_string(),
+                    priority:
+                        xvora_tools::implementations::grok_build::todo::TodoPriority::Medium,
+                    status:
+                        xvora_tools::implementations::grok_build::todo::TodoStatus::Completed,
+                    meta: None,
+                },
+            ],
+            state: xvora_tools::implementations::grok_build::todo::TodoState::default(),
         }));
         let plan = acp_plan_update(&output).unwrap();
         assert_eq!(plan.entries.len(), 1);
@@ -929,8 +984,8 @@ mod tests {
             other => panic!("expected Text content, got {other:?}"),
         }
 
-        // ToolOutput::Text wraps TextOutput { text: String }, which serde can
-        // serialize with internal tagging. raw_output carries the JSON.
+        // ToolOutput::Text wraps TextOutput { text: String }, which serde can serialize with internal tagging
+        // raw_output carries the JSON
         assert!(update.fields.raw_output.is_some());
     }
 
@@ -964,7 +1019,7 @@ mod tests {
     #[test]
     fn test_path_rewriter_new_returns_some_when_different() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/project/ab-123",
+            "/root/.grok/worktrees/project/ab-123",
             Some("/home/user/project"),
         );
         assert!(rw.is_some());
@@ -973,11 +1028,11 @@ mod tests {
     #[test]
     fn test_path_rewriter_rewrite_text() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/myproject/ab-123",
+            "/root/.grok/worktrees/myproject/ab-123",
             Some("/testbed/myproject"),
         )
         .unwrap();
-        let input = "File at /root/.xvora/worktrees/myproject/ab-123/src/main.rs";
+        let input = "File at /root/.grok/worktrees/myproject/ab-123/src/main.rs";
         let output = rw.rewrite(input);
         assert_eq!(output, "File at /testbed/myproject/src/main.rs");
     }
@@ -985,11 +1040,11 @@ mod tests {
     #[test]
     fn test_path_rewriter_rewrite_path() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/myproject/ab-123",
+            "/root/.grok/worktrees/myproject/ab-123",
             Some("/testbed/myproject"),
         )
         .unwrap();
-        let path = Path::new("/root/.xvora/worktrees/myproject/ab-123/src/lib.rs");
+        let path = Path::new("/root/.grok/worktrees/myproject/ab-123/src/lib.rs");
         let rewritten = rw.rewrite_path(path);
         assert_eq!(rewritten, PathBuf::from("/testbed/myproject/src/lib.rs"));
     }
@@ -997,7 +1052,7 @@ mod tests {
     #[test]
     fn test_path_rewriter_rewrite_path_no_match() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/myproject/ab-123",
+            "/root/.grok/worktrees/myproject/ab-123",
             Some("/testbed/myproject"),
         )
         .unwrap();
@@ -1009,14 +1064,14 @@ mod tests {
     #[test]
     fn test_path_rewriter_rewrites_raw_output_json() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/myproject/ab-123",
+            "/root/.grok/worktrees/myproject/ab-123",
             Some("/testbed/myproject"),
         )
         .unwrap();
         let output = ToolOutput::ReadFile(ReadFileOutput::FileContent(FileContent {
             content: "content".to_string(),
             content_concise: None,
-            absolute_path: PathBuf::from("/root/.xvora/worktrees/myproject/ab-123/src/main.rs"),
+            absolute_path: PathBuf::from("/root/.grok/worktrees/myproject/ab-123/src/main.rs"),
             offset: None,
             limit: None,
             raw_output: "content".to_string(),
@@ -1067,13 +1122,13 @@ mod tests {
     #[test]
     fn test_path_rewriter_rewrites_list_dir_raw_output() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/myproject/ab-123",
+            "/root/.grok/worktrees/myproject/ab-123",
             Some("/testbed/myproject"),
         )
         .unwrap();
         let output = ToolOutput::ListDir(ListDirOutput::Content(ListDirContent {
             content: "file1.rs\nfile2.rs".to_string(),
-            absolute_root_path: PathBuf::from("/root/.xvora/worktrees/myproject/ab-123/src"),
+            absolute_root_path: PathBuf::from("/root/.grok/worktrees/myproject/ab-123/src"),
         }));
         let json = raw_output_json(&output, Some(&rw)).unwrap();
         let round_tripped: ToolOutput = serde_json::from_value(json).unwrap();
@@ -1091,20 +1146,20 @@ mod tests {
     #[test]
     fn test_path_rewriter_rewrites_bash_command_and_output() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/myproject/ab-123",
+            "/root/.grok/worktrees/myproject/ab-123",
             Some("/testbed/myproject"),
         )
         .unwrap();
         let output = ToolOutput::Bash(BashOutput {
-            output: b"listing /root/.xvora/worktrees/myproject/ab-123/src".to_vec(),
+            output: b"listing /root/.grok/worktrees/myproject/ab-123/src".to_vec(),
             output_for_prompt: String::new(),
             exit_code: 0,
-            command: "ls /root/.xvora/worktrees/myproject/ab-123/src".to_string(),
+            command: "ls /root/.grok/worktrees/myproject/ab-123/src".to_string(),
             truncated: false,
             signal: None,
             timed_out: false,
             description: None,
-            current_dir: "/root/.xvora/worktrees/myproject/ab-123".to_string(),
+            current_dir: "/root/.grok/worktrees/myproject/ab-123".to_string(),
             output_file: "/tmp/output.txt".to_string(),
             output_delta: None,
             total_bytes: 0,
@@ -1124,7 +1179,7 @@ mod tests {
     #[test]
     fn test_path_rewriter_rewrites_search_replace_diff_path() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/myproject/ab-123",
+            "/root/.grok/worktrees/myproject/ab-123",
             Some("/testbed/myproject"),
         )
         .unwrap();
@@ -1134,7 +1189,7 @@ mod tests {
                 new_string: "new".to_string(),
                 tool_output_for_prompt: String::new(),
                 tool_output_for_prompt_concise: None,
-                absolute_path: PathBuf::from("/root/.xvora/worktrees/myproject/ab-123/src/lib.rs"),
+                absolute_path: PathBuf::from("/root/.grok/worktrees/myproject/ab-123/src/lib.rs"),
                 edits: SearchReplaceEditContextInformation::default(),
                 patch: None,
                 unicode_normalized: false,
@@ -1152,7 +1207,7 @@ mod tests {
         let raw = update.fields.raw_output.unwrap();
         let raw_str = raw.to_string();
         assert!(
-            !raw_str.contains("/root/.xvora/worktrees/myproject/ab-123"),
+            !raw_str.contains("/root/.grok/worktrees/myproject/ab-123"),
             "raw_output should not contain worktree path, got: {}",
             raw_str
         );
@@ -1164,15 +1219,14 @@ mod tests {
     #[test]
     fn test_rewrite_handles_url_encoded_paths() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/project/ab-123-a-overlay",
+            "/root/.grok/worktrees/project/ab-123-a-overlay",
             Some("/home/user/project"),
         )
         .unwrap();
         // Session directory paths use urlencoding::encode(&cwd)
-        let encoded_overlay =
-            urlencoding::encode("/root/.xvora/worktrees/project/ab-123-a-overlay");
+        let encoded_overlay = urlencoding::encode("/root/.grok/worktrees/project/ab-123-a-overlay");
         let input = format!(
-            "output-file: /root/.xvora/sessions/{}/session-id/terminal/call.log",
+            "output-file: /root/.grok/sessions/{}/session-id/terminal/call.log",
             encoded_overlay
         );
         let result = rw.rewrite(&input);
@@ -1190,11 +1244,11 @@ mod tests {
     #[test]
     fn test_rewrite_handles_plain_paths() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/project/ab-123-a-overlay",
+            "/root/.grok/worktrees/project/ab-123-a-overlay",
             Some("/home/user/project"),
         )
         .unwrap();
-        let input = "file: /root/.xvora/worktrees/project/ab-123-a-overlay/src/main.rs";
+        let input = "file: /root/.grok/worktrees/project/ab-123-a-overlay/src/main.rs";
         let result = rw.rewrite(input);
         assert_eq!(result, "file: /home/user/project/src/main.rs");
     }
@@ -1202,11 +1256,11 @@ mod tests {
     #[test]
     fn test_rewrite_json_handles_url_encoded_paths() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/project/ab-123",
+            "/root/.grok/worktrees/project/ab-123",
             Some("/testbed/project"),
         )
         .unwrap();
-        let encoded = urlencoding::encode("/root/.xvora/worktrees/project/ab-123");
+        let encoded = urlencoding::encode("/root/.grok/worktrees/project/ab-123");
         let value = serde_json::json!({
             "output_file": format!("/sessions/{}/task.log", encoded),
             "status": "running",
@@ -1222,7 +1276,7 @@ mod tests {
     #[test]
     fn test_rewrite_noop_when_no_overlay_path_present() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/project/ab-123",
+            "/root/.grok/worktrees/project/ab-123",
             Some("/testbed/project"),
         )
         .unwrap();
@@ -1244,11 +1298,11 @@ mod tests {
     #[test]
     fn test_maybe_rewrite_with_rewriter_sanitizes_error_text() {
         let rw = PathRewriter::new(
-            "/root/.xvora/worktrees/project/ab-999",
+            "/root/.grok/worktrees/project/ab-999",
             Some("/home/user/project"),
         )
         .unwrap();
-        let error_text = "Tool `read_file` failed: IO error reading /root/.xvora/worktrees/project/ab-999/src/lib.rs".to_string();
+        let error_text = "Tool `read_file` failed: IO error reading /root/.grok/worktrees/project/ab-999/src/lib.rs".to_string();
         let result = maybe_rewrite(Some(&rw), error_text);
         assert!(
             !result.contains("ab-999"),
@@ -1265,7 +1319,7 @@ mod tests {
         let output = ToolOutput::ReadFile(ReadFileOutput::FileContent(FileContent {
             content: "content".to_string(),
             content_concise: None,
-            absolute_path: PathBuf::from("/root/.xvora/worktrees/myproject/ab-123/src/main.rs"),
+            absolute_path: PathBuf::from("/root/.grok/worktrees/myproject/ab-123/src/main.rs"),
             offset: None,
             limit: None,
             raw_output: "content".to_string(),
@@ -1278,7 +1332,7 @@ mod tests {
             ToolOutput::ReadFile(ReadFileOutput::FileContent(fc)) => {
                 assert_eq!(
                     fc.absolute_path,
-                    PathBuf::from("/root/.xvora/worktrees/myproject/ab-123/src/main.rs")
+                    PathBuf::from("/root/.grok/worktrees/myproject/ab-123/src/main.rs")
                 );
             }
             other => panic!("Expected ReadFile, got {:?}", other),

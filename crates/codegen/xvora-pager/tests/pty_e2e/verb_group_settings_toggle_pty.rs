@@ -4,9 +4,9 @@ use super::common::*;
 
 const DONE_SENTINEL: &str = "VERB_GROUP_TOGGLE_DONE";
 
-/// F2 → filter `group tool calls` (unique Bool row) → Enter commit → Space
-/// toggle once → assert the row value. Mirrors the show-thinking-blocks
-/// toggle e2e helper.
+/// Opens settings with F2, filters to `group tool calls` (the unique Bool row), commits with Enter, and toggles once with Space.
+/// Asserts the row value.
+/// Mirrors the show-thinking-blocks toggle e2e helper.
 fn toggle_group_tool_calls(harness: &mut PtyHarness, want_on: bool) {
     const F2: &[u8] = b"\x1bOQ";
     if harness.contains_text("Space:prompt") {
@@ -69,19 +69,18 @@ fn toggle_group_tool_calls(harness: &mut PtyHarness, want_on: bool) {
     }
 }
 
-/// PTY: the settings-modal "Group tool calls" toggle re-lays-out the LIVE
-/// transcript. Turning it OFF unfolds an existing "Read 3 files" group into
-/// individual Read rows immediately (no `/new` needed — the toggle path must
-/// invalidate cached entry heights); turning it back ON refolds them.
+/// PTY: the settings-modal "Group tool calls" toggle re-lays-out the LIVE transcript.
+/// Turning it OFF unfolds an existing "Read 3 files" group into individual Read rows immediately, no `/new` needed.
+/// The toggle path must invalidate cached entry heights.
+/// Turning it back ON refolds them.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "PTY e2e; run the owning pty_e2e_* Cargo test with --ignored (see Cargo.toml)"]
 async fn verb_group_settings_toggle_pty() {
     let content = ContentController::start().await.expect("start content");
-    // Pin ON via the CONFIG tier, not the env var — env outranks config in
-    // the resolve chain, so an env pin could not be overridden by the
-    // modal's config write if anything re-resolves the full chain mid-test
-    // (e.g. a settings update); the config seed keeps the modal toggle in
-    // control of the effective value on every path.
+    // Pin ON via the CONFIG tier, not the env var
+    // Env outranks config in the resolve chain
+    // An env pin could not be overridden by the modal's config write if anything re-resolves the full chain mid-test (e.g. a settings update).
+    // The config seed keeps the modal toggle in control of the effective value on every path
     seed_ui_config(&content, "group_tool_verbs = true");
 
     // Seed real files under the isolated HOME so the reads succeed.
@@ -91,14 +90,18 @@ async fn verb_group_settings_toggle_pty() {
         std::fs::write(&path, "hello verb group\n").expect("write fixture file");
         paths.push(dunce::canonicalize(&path).unwrap_or(path));
     }
-    for (i, p) in paths.iter().enumerate() {
-        enqueue_tool_turn(
-            &content,
-            &format!("call_t{i}"),
-            "read_file",
-            json!({ "target_file": p.to_string_lossy() }).to_string(),
-        );
-    }
+    let _tool_turns: Vec<_> = paths
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            expect_tool_turn(
+                &content,
+                &format!("call_t{i}"),
+                "read_file",
+                json!({ "target_file": p.to_string_lossy() }).to_string(),
+            )
+        })
+        .collect();
     content.set_response(DONE_SENTINEL);
 
     let binary = pager_binary().expect("resolve pager binary");

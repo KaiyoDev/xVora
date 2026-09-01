@@ -13,11 +13,11 @@ pub const BEFORE_TURN_KIND: &str = "before_turn";
 pub const AFTER_TURN_KIND: &str = "after_turn";
 
 /// Default `session_relationship` wire value (mirrors
-/// `file_utils::events::SessionRelationship::Primary`).
+/// `xvora_session_events::SessionRelationship::Primary`).
 pub const DEFAULT_SESSION_RELATIONSHIP: &str = "primary";
 
 /// Default `schema_version` wire value. Bare literal (not the
-/// `file-utils` constant) to avoid a dependency cycle.
+/// `xvora-session-events` constant) to avoid a dependency cycle.
 pub const DEFAULT_SCHEMA_VERSION: &str = "1.0";
 
 fn default_session_relationship() -> String {
@@ -35,7 +35,8 @@ fn default_schema_version() -> String {
 /// tracking, etc.) but MUST NOT block — hooks are fire-and-forget.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BeforeTurnPayload {
-    /// Monotonically increasing turn counter within the session.
+    /// Per-session user-turn counter, 0-based. Not strictly monotonic: a tool-result continuation keeps the issuing turn's number, and
+    /// editing or regenerating an earlier message reuses that turn's number (consumers deduping on it treat a regenerate as the same turn).
     pub turn_number: u64,
     /// Model being used for this turn (e.g. "grok-3").
     pub model_id: String,
@@ -48,7 +49,7 @@ pub struct BeforeTurnPayload {
     #[serde(default)]
     pub conversation_message_count: usize,
     /// Snake-case mirror of `Event::TurnStarted::session_relationship`
-    /// (`"primary"` | `"subagent"`). A `String`, not the `file-utils`
+    /// (`"primary"` | `"subagent"`). A `String`, not the `xvora-file-utils`
     /// enum, to avoid a dependency cycle; decoded by the workspace at emit time.
     #[serde(default = "default_session_relationship")]
     pub session_relationship: String,
@@ -103,7 +104,7 @@ pub struct AfterTurnPayload {
     /// Snake-case mirror of `Event::TurnEnded::cancellation_category` (e.g.
     /// `"doom_loop_repetition"`). Carried as a `String` for the same
     /// dep-cycle-avoidance reason as `BeforeTurnPayload::session_relationship`;
-    /// the workspace decodes it into the `file-utils`
+    /// the workspace decodes it into the `xvora-file-utils`
     /// `CancellationCategory` enum at emit time. `None` for non-cancelled turns.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_category: Option<String>,

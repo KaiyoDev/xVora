@@ -1,5 +1,3 @@
-//! Environment helpers for benchmarking and testing.
-
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -30,17 +28,19 @@ fn local_pager_binary_path() -> Result<PathBuf> {
 }
 
 fn ensure_local_pager_binary(binary: &std::path::Path) -> Result<()> {
-    if binary.exists() {
-        return Ok(());
-    }
-
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
     let mut cmd = Command::new(&cargo);
     cmd.current_dir(workspace_root()?)
-        .args(["build", "-p", "xvora-pager-bin", "--bin", "xvora-pager"])
+        .args([
+            "build",
+            "-p",
+            "xvora-pager-bin",
+            "--bin",
+            "xvora-pager",
+        ])
         .stdin(Stdio::null())
-        .envs(tty_utils::pager_env());
-    tty_utils::detach_std_command(&mut cmd);
+        .envs(xvora_tty_utils::pager_env());
+    xvora_tty_utils::detach_std_command(&mut cmd);
     let output = cmd
         .output()
         .with_context(|| format!("failed to spawn {cargo} to build xvora-pager"))?;
@@ -66,22 +66,20 @@ fn ensure_local_pager_binary(binary: &std::path::Path) -> Result<()> {
 ///
 /// Resolution order:
 /// 1. `PAGER_BINARY` env var (for CI / explicit override)
-/// 2. `CARGO_BIN_EXE_xvora-pager` (set by `cargo test`)
-/// 3. Build locally via `cargo build -p xvora-pager-bin` (the composition-
-///    root package that owns the `xvora-pager` binary)
+/// 2. `CARGO_BIN_EXE_xai-grok-pager` (set by `cargo test`)
+/// 3. Build locally via `cargo build -p xvora-pager-bin` (the composition-root package that owns the `xvora-pager` binary)
 pub fn pager_binary() -> Result<PathBuf> {
     if let Ok(path) = std::env::var("PAGER_BINARY") {
         let p = PathBuf::from(path);
         if !p.exists() {
             bail!("PAGER_BINARY does not exist: {}", p.display());
         }
-        // Bazel sets PAGER_BINARY to a runfiles-relative path; portable_pty
-        // resolves non-absolute paths via PATH lookup instead of the cwd.
+        // Bazel sets PAGER_BINARY to a runfiles-relative path; portable_pty resolves non-absolute paths via PATH lookup instead of the cwd
         return std::path::absolute(&p)
             .with_context(|| format!("failed to absolutize PAGER_BINARY: {}", p.display()));
     }
 
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_xvora-pager") {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_xai-grok-pager") {
         let p = PathBuf::from(path);
         if p.exists() {
             return Ok(p);

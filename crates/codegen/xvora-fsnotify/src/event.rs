@@ -1,4 +1,4 @@
-//! Public event types — the wire contract for `fsnotify`.
+//! Public event types — the wire contract for `xvora-fsnotify`.
 //!
 //! Pure data: no I/O, no tokio, no intra-crate deps. Safe to lift into a
 //! sibling `-types` crate for WASM/no-tokio consumers.

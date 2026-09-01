@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use crate::computer::types::KillOutcome;
+use crate::computer::types::KillSource;
 use crate::computer::types::TaskKind;
 use crate::computer::types::TerminalBackend;
 use crate::registry::types::{
@@ -71,9 +72,9 @@ impl ToolBridge {
         builder: ToolRegistryBuilder,
         config: ToolServerConfig,
         ctx: SessionContext,
-    ) -> Result<Self, tool_runtime::ToolError> {
+    ) -> Result<Self, xvora_tool_runtime::ToolError> {
         let finalized_toolset = builder.finalize(config, ctx).map_err(|errs| {
-            tool_runtime::ToolError::invalid_arguments(format!(
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Requirements unsatisfied: {errs:?}"
             ))
         })?;
@@ -105,7 +106,7 @@ impl ToolBridge {
     /// rather than by namespaced id.
     ///
     /// Example: `tool_for_kind(ToolKind::BackgroundTaskAction)` returns
-    /// `Some("get_task_output")` for the xvora agent and `None` for
+    /// `Some("get_task_output")` for the grok_build agent and `None` for
     /// agents that do not register a tool of that kind.
     pub async fn tool_for_kind(&self, kind: ToolKind) -> Option<String> {
         self.registry
@@ -114,6 +115,11 @@ impl ToolBridge {
             .await
             .get::<TemplateRenderer>()
             .and_then(|r| r.tool_for_kind(kind).map(str::to_string))
+    }
+
+    /// Resolve a canonical registry ID to its enabled client-facing name.
+    pub fn tool_for_registry_id(&self, registry_id: &str) -> Option<String> {
+        self.registry.tool_name_for_registry_id(registry_id)
     }
 
     /// [`ToolKind`] for a registered tool by client-facing name, or
@@ -141,17 +147,22 @@ impl ToolBridge {
         template: &str,
         placeholders: &serde_json::Value,
     ) -> Option<String> {
-        let registry = &*self.registry;
-        let result;
-        {
-            result = registry
-                .resources
-                .lock()
-                .await
-                .get::<TemplateRenderer>()
-                .and_then(|r| r.render_with_extra(template, placeholders).ok());
-        }
-        result
+        self.registry
+            .resources
+            .lock()
+            .await
+            .get::<TemplateRenderer>()
+            .and_then(|renderer| renderer.render_with_extra(template, placeholders).ok())
+    }
+
+    /// Return the finalized template renderer for multi-part prompt assembly.
+    pub async fn template_renderer_snapshot(&self) -> Option<TemplateRenderer> {
+        self.registry
+            .resources
+            .lock()
+            .await
+            .get::<TemplateRenderer>()
+            .cloned()
     }
 
     pub async fn register_mcp_tools<T>(
@@ -159,9 +170,9 @@ impl ToolBridge {
         mcp_name: String,
         tool: T,
         input_schema: Option<serde_json::Value>,
-    ) -> Result<(), tool_runtime::ToolError>
+    ) -> Result<(), xvora_tool_runtime::ToolError>
     where
-        T: tool_runtime::Tool
+        T: xvora_tool_runtime::Tool
             + crate::types::tool_metadata::ToolMetadata
             + std::fmt::Debug
             + Send
@@ -195,7 +206,7 @@ impl ToolBridge {
         client_function_name: &str,
         client_params: serde_json::Value,
         tool_call_id: &str,
-    ) -> Result<ToolRunResult, tool_runtime::ToolError> {
+    ) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
         self.registry
             .call(client_function_name, client_params, tool_call_id, None)
             .await
@@ -205,7 +216,7 @@ impl ToolBridge {
         &self,
         client_function_name: &str,
         client_params: serde_json::Value,
-    ) -> Result<ToolInput, tool_runtime::ToolError> {
+    ) -> Result<ToolInput, xvora_tool_runtime::ToolError> {
         self.registry
             .try_parse(client_function_name, &client_params)
             .await
@@ -415,6 +426,16 @@ impl ToolBridge {
             .unwrap_or_default()
     }
 
+    /// Every skill name from session-start discovery
+    /// (see `SkillManager::discovery_snapshot_names`).
+    pub async fn skill_discovery_snapshot_names(&self) -> Vec<String> {
+        let registry = &*self.registry;
+        let res = registry.resources.lock().await;
+        res.get::<crate::types::skill_discovery_tracker::SkillManager>()
+            .map(|m| m.discovery_snapshot_names().to_vec())
+            .unwrap_or_default()
+    }
+
     /// Get the paths that have been reminded about.
     pub async fn agents_md_reminded_paths(&self) -> std::collections::HashSet<std::path::PathBuf> {
         let registry = &*self.registry;
@@ -468,6 +489,21 @@ impl ToolBridge {
             terminal
                 .kill_foreground_commands_by_owner(owner_session_id)
                 .await;
+        }
+    }
+
+    /// Move all running foreground commands to background instead of killing them, optionally scoped to `owner_session_id`.
+    /// Used on a mid-turn redirect (send-now) so an in-flight command is never SIGKILLed.
+    pub async fn background_foreground_commands(
+        &self,
+        owner_session_id: Option<&str>,
+    ) -> Vec<crate::computer::types::BackgroundedForeground> {
+        if let Some(terminal) = &self.terminal {
+            terminal
+                .background_foreground_commands(owner_session_id)
+                .await
+        } else {
+            Vec::new()
         }
     }
 
@@ -529,30 +565,69 @@ impl ToolBridge {
         let _ = self.registry.update_resource(resource).await;
     }
 
-    /// Kill any background task
+    /// See [`FinalizedToolset::update_resources_with`].
+    pub async fn update_resources_with(
+        &self,
+        seed: impl FnOnce(&mut crate::types::resources::Resources),
+    ) {
+        self.registry.update_resources_with(seed).await;
+    }
+
+    /// Kill a background task, recording who initiated the kill.
     pub async fn kill_background_task(
         &self,
         task_id: &str,
-    ) -> Result<KillOutcome, tool_runtime::ToolError> {
+        source: KillSource,
+    ) -> Result<KillOutcome, xvora_tool_runtime::ToolError> {
         if let Some(terminal) = &self.terminal {
-            Ok(terminal.kill_task(task_id).await)
+            Ok(terminal.kill_task_with_source(task_id, source).await)
         } else {
-            Err(tool_runtime::ToolError::invalid_arguments(format!(
+            Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Missing Task Id: {task_id}"
             )))
         }
     }
 
+    /// Snapshot the session's scheduled tasks; empty when no scheduler is
+    /// registered or the actor has stopped.
+    pub async fn list_scheduled_tasks(
+        &self,
+    ) -> Vec<crate::implementations::grok_build::scheduler::types::ScheduledTask> {
+        use crate::implementations::grok_build::scheduler::types::{
+            SchedulerCommand, SchedulerHandle,
+        };
+        let sender = {
+            let res = self.registry.resources.lock().await;
+            match res.get::<SchedulerHandle>() {
+                Some(handle) => handle.0.clone(),
+                None => return Vec::new(),
+            }
+        };
+        let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+        if sender
+            .send(SchedulerCommand::List { reply: reply_tx })
+            .is_err()
+        {
+            return Vec::new();
+        }
+        reply_rx
+            .await
+            .map(|snapshot| snapshot.tasks)
+            .unwrap_or_default()
+    }
+
     pub async fn delete_scheduled_task(
         &self,
         task_id: &str,
-    ) -> Result<bool, tool_runtime::ToolError> {
-        use crate::implementations::xvora::scheduler::types::{SchedulerCommand, SchedulerHandle};
+    ) -> Result<bool, xvora_tool_runtime::ToolError> {
+        use crate::implementations::grok_build::scheduler::types::{
+            SchedulerCommand, SchedulerHandle,
+        };
         let sender = {
             let res = self.registry.resources.lock().await;
             res.get::<SchedulerHandle>()
                 .ok_or_else(|| {
-                    tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
+                    xvora_tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
                 })?
                 .0
                 .clone()
@@ -564,11 +639,17 @@ impl ToolBridge {
                 reply: reply_tx,
             })
             .map_err(|_| {
-                tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
+                xvora_tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
             })?;
-        reply_rx.await.map_err(|_| {
-            tool_runtime::ToolError::custom("process_manager", "Scheduler actor dropped reply")
-        })
+        reply_rx
+            .await
+            .map_err(|_| {
+                xvora_tool_runtime::ToolError::custom(
+                    "process_manager",
+                    "Scheduler actor dropped reply",
+                )
+            })?
+            .map_err(crate::implementations::grok_build::scheduler::types::scheduler_tool_error)
     }
 
     /// Move a foreground command to background by tool_call_id.
@@ -592,8 +673,12 @@ impl ToolBridge {
 
     /// Drain newly-completed bash background tasks not yet reported.
     /// Marks returned tasks in [`ReportedTaskCompletions`] to prevent
-    /// duplicate reminders from [`TaskCompletionReminder`].
-    pub async fn drain_between_turn_bash_completions(&self) -> Vec<TaskSnapshot> {
+    /// duplicate reminders from [`TaskCompletionReminder`]. Reserved IDs stay
+    /// unreported for a later genuine user turn.
+    pub async fn drain_between_turn_bash_completions(
+        &self,
+        reserved_ids: &[String],
+    ) -> Vec<TaskSnapshot> {
         let tasks = match self.list_tasks().await {
             Some(t) => t,
             None => return Vec::new(),
@@ -623,6 +708,7 @@ impl ToolBridge {
         completed
             .into_iter()
             .filter(|t| task_owned_by_session(t, my_owner.as_deref()))
+            .filter(|t| !reserved_ids.contains(&t.task_id))
             .filter(|t| state.mark_reported(&t.task_id))
             .collect()
     }
@@ -666,24 +752,24 @@ mod tests {
         }
     }
 
-    impl tool_runtime::Tool for KindFixture {
+    impl xvora_tool_runtime::Tool for KindFixture {
         type Args = serde_json::Value;
         type Output = String;
 
-        fn id(&self) -> tool_protocol::ToolId {
-            tool_protocol::ToolId::new(self.id).expect("valid id")
+        fn id(&self) -> xvora_tool_protocol::ToolId {
+            xvora_tool_protocol::ToolId::new(self.id).expect("valid id")
         }
         fn description(
             &self,
-            _ctx: &::tool_runtime::ListToolsContext,
-        ) -> tool_types::ToolDescription {
-            tool_types::ToolDescription::new(self.id, "kind fixture")
+            _ctx: &::xvora_tool_runtime::ListToolsContext,
+        ) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new(self.id, "kind fixture")
         }
         async fn run(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<String, tool_runtime::ToolError> {
+        ) -> Result<String, xvora_tool_runtime::ToolError> {
             Ok("ok".into())
         }
     }
@@ -703,7 +789,7 @@ mod tests {
         let bridge = ToolBridge::for_test();
         let toolset = bridge.toolset();
 
-        // PascalCase + xvora's snake_case in one registry
+        // PascalCase + grok_build's snake_case in one registry
         // to exercise the lookup on the literal name strings each
         // namespace ships.
         register_fixture(&toolset, "Write", ToolKind::Write, "fixture_write");
@@ -787,7 +873,11 @@ mod tests {
             kind: Default::default(),
             block_waited: false,
             explicitly_killed: false,
+            kill_result_delivered: false,
             owner_session_id: owner.map(|s| s.to_string()),
+            description: None,
+            is_backgrounded: false,
+            output_total_bytes: 0,
         }
     }
 
@@ -815,7 +905,7 @@ mod tests {
             terminal: Some(backend),
         };
 
-        let drained = bridge.drain_between_turn_bash_completions().await;
+        let drained = bridge.drain_between_turn_bash_completions(&[]).await;
         let ids: Vec<&str> = drained.iter().map(|t| t.task_id.as_str()).collect();
 
         assert!(ids.contains(&"mine-task"), "own task must drain: {ids:?}");
@@ -826,6 +916,110 @@ mod tests {
         assert!(
             !ids.contains(&"parent-task"),
             "another session's task must NOT leak into this session: {ids:?}"
+        );
+    }
+
+    struct RecordingKillTerminal {
+        kills: std::sync::Mutex<Vec<(String, KillSource)>>,
+    }
+
+    #[async_trait::async_trait]
+    impl TerminalBackend for RecordingKillTerminal {
+        async fn run(
+            &self,
+            _: TerminalRunRequest,
+        ) -> Result<TerminalRunResult, crate::computer::types::ComputerError> {
+            unimplemented!()
+        }
+        async fn run_background(
+            &self,
+            _: TerminalRunRequest,
+        ) -> Result<BackgroundHandle, crate::computer::types::ComputerError> {
+            unimplemented!()
+        }
+        async fn kill_task(&self, task_id: &str) -> KillOutcome {
+            self.kill_task_with_source(task_id, KillSource::ModelTool)
+                .await
+        }
+        async fn kill_task_with_source(&self, task_id: &str, source: KillSource) -> KillOutcome {
+            self.kills
+                .lock()
+                .unwrap()
+                .push((task_id.to_string(), source));
+            KillOutcome::Killed
+        }
+        async fn get_task(&self, _: &str) -> Option<TaskSnapshot> {
+            None
+        }
+        async fn wait_for_completion(&self, _: &str, _: Option<Duration>) -> Option<TaskSnapshot> {
+            None
+        }
+        async fn list_tasks(&self) -> Vec<TaskSnapshot> {
+            vec![]
+        }
+    }
+
+    #[tokio::test]
+    async fn kill_background_task_forwards_source() {
+        let backend = Arc::new(RecordingKillTerminal {
+            kills: std::sync::Mutex::new(Vec::new()),
+        });
+        let bridge = ToolBridge {
+            registry: Arc::new(FinalizedToolset::empty_for_test()),
+            terminal: Some(backend.clone()),
+        };
+        assert_eq!(
+            bridge
+                .kill_background_task("t-ui", KillSource::ClientUi)
+                .await
+                .unwrap(),
+            KillOutcome::Killed
+        );
+        assert_eq!(
+            bridge
+                .kill_background_task("t-td", KillSource::Teardown)
+                .await
+                .unwrap(),
+            KillOutcome::Killed
+        );
+        assert_eq!(
+            *backend.kills.lock().unwrap(),
+            vec![
+                ("t-ui".into(), KillSource::ClientUi),
+                ("t-td".into(), KillSource::Teardown),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn between_turn_bash_completions_skip_reserved_ids_without_reporting_them() {
+        let toolset = FinalizedToolset::empty_for_test();
+        {
+            let mut res = toolset.resources.lock().await;
+            res.register_state::<ReportedTaskCompletions>();
+        }
+        let backend: Arc<dyn TerminalBackend> = Arc::new(MockTerminal {
+            tasks: vec![completed_task("reserved", None)],
+        });
+        let bridge = ToolBridge {
+            registry: Arc::new(toolset),
+            terminal: Some(backend),
+        };
+
+        assert!(
+            bridge
+                .drain_between_turn_bash_completions(&["reserved".to_string()])
+                .await
+                .is_empty()
+        );
+        assert_eq!(
+            bridge
+                .drain_between_turn_bash_completions(&[])
+                .await
+                .into_iter()
+                .map(|task| task.task_id)
+                .collect::<Vec<_>>(),
+            vec!["reserved".to_string()]
         );
     }
 }

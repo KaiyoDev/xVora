@@ -39,7 +39,7 @@ impl crate::types::tool_metadata::ToolMetadata for MemoryGetImpl {
     }
 
     fn tool_namespace(&self) -> ToolNamespace {
-        ToolNamespace::Xvora
+        ToolNamespace::GrokBuild
     }
 
     fn description_template(&self) -> &str {
@@ -48,38 +48,43 @@ impl crate::types::tool_metadata::ToolMetadata for MemoryGetImpl {
          Use after `memory_search` returns a relevant result and you need the full context \
          around a snippet, or to read a specific MEMORY.md file in full.\n\n\
          Line numbers are 1-based and match the line offsets accepted by the `from` parameter, \
-         so targeted follow-up reads or edits can reference exact positions."
+         so targeted follow-up reads or edits can reference exact positions.\n\n\
+         Memory is historical context, not automatically the current plan. Verify recalled facts \
+         against live sources before relying on them."
     }
 }
 
-impl tool_runtime::Tool for MemoryGetImpl {
+impl xvora_tool_runtime::Tool for MemoryGetImpl {
     type Args = MemoryGetInput;
     type Output = ToolOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("memory_get").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("memory_get").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "memory_get",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
 
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: MemoryGetInput,
-    ) -> Result<ToolOutput, tool_runtime::ToolError> {
+    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
         let Some(memory) = resources
@@ -94,16 +99,19 @@ impl tool_runtime::Tool for MemoryGetImpl {
         };
         let memory = memory.clone();
         tracing::info!(target: crate::types::memory_backend::MEMORY_LOG_TARGET,"MEMORY_GET: invoked");
+        // `from` is 1-based in the client schema (matching displayed line
+        // numbers); the backend expects a 0-based offset. 0 is treated as 1.
+        let from_zero_based = input.from.map(|f| f.saturating_sub(1));
         let content = memory
-            .get(&input.path, input.from, input.lines)
+            .get(&input.path, from_zero_based, input.lines)
             .map_err(|e| {
-                tool_runtime::ToolError::execution(
-                    tool_protocol::ToolId::new("memory_get").expect("valid"),
+                xvora_tool_runtime::ToolError::execution(
+                    xvora_tool_protocol::ToolId::new("memory_get").expect("valid"),
                     format!("memory get failed: {e}"),
                 )
             })?;
         let total_lines = content.lines().count();
-        let first_line_num = input.from.unwrap_or(0) + 1;
+        let first_line_num = from_zero_based.unwrap_or(0) + 1;
         let numbered = format_with_line_numbers(&content, first_line_num);
         let output = format!(
             "**File:** {}\n**Lines:** {} (from: {}, limit: {})\n\n{}",
@@ -132,8 +140,8 @@ mod tests {
     /// actual position in the source file, not the slice position.
     #[test]
     fn test_format_offset_adjusts_line_numbers() {
-        // Simulates memory_get called with from=4 (0-based) — first displayed
-        // line should be labelled "5" (1-based).
+        // Simulates memory_get called with from=5 (1-based) — first displayed
+        // line should be labelled "5".
         let out = format_with_line_numbers("line five\nline six", 5);
         assert!(out.starts_with("5→line five"), "got: {out}");
         assert!(out.ends_with("6→line six"), "got: {out}");

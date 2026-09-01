@@ -1,11 +1,10 @@
-//! Regression guard: every blocking reverse-request
-//! (permission / `ask_user_question` / plan-approval) must carry a
-//! non-empty `sessionId`, otherwise Tier-2 routing silently drops it
-//! (`server.rs`). The invariant holds today; these tests pin it.
-use xvora_tools::implementations::xvora::ask_user_question::{
+//! Regression guard: every blocking reverse-request (permission, `ask_user_question`, plan-approval) must carry a non-empty `sessionId`.
+//! Otherwise Tier-2 routing silently drops it (`server.rs`).
+//! The invariant holds today; these tests pin it.
+use xvora_tools::implementations::grok_build::ask_user_question::{
     AskUserQuestionExtRequest, AskUserQuestionMode,
 };
-use xvora_tools::implementations::xvora::exit_plan_mode::ExitPlanModeExtRequest;
+use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtRequest;
 
 #[test]
 fn ask_user_question_request_carries_session_id() {

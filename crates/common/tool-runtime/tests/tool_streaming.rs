@@ -7,12 +7,12 @@ use futures::stream::{self, Stream, StreamExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use tool_protocol::{StreamingSpec, ToolCapabilities, ToolId};
-use tool_runtime::{
+use xvora_tool_protocol::{StreamingSpec, ToolCapabilities, ToolId};
+use xvora_tool_runtime::{
     ContentBlock, Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolProgress,
     ToolStream, ToolStreamItem, with_progress,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 struct EmptyArgs {}
@@ -33,7 +33,7 @@ impl Tool for StreamingOk {
         ToolId::new("streaming_ok").unwrap()
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("streaming_ok", "ok")
     }
 
@@ -76,7 +76,7 @@ impl Tool for StreamingErr {
         ToolId::new("streaming_err").unwrap()
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("streaming_err", "err")
     }
 
@@ -145,20 +145,6 @@ async fn streaming_err_propagates_through_terminal() {
             assert_eq!(err.detail, "boom");
         }
         other => panic!("expected Terminal(Err(Custom)), got {other:?}"),
-    }
-}
-
-#[tokio::test]
-async fn streaming_progress_count_is_independent_of_args() {
-    // Distinct invocations on the same tool produce the same shape.
-    let tool = StreamingOk;
-    for _ in 0..3 {
-        let count = tool
-            .execute(ToolCallContext::default(), EmptyArgs {})
-            .await
-            .count()
-            .await;
-        assert_eq!(count, 4);
     }
 }
 

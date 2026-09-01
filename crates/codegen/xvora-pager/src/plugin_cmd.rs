@@ -1,13 +1,10 @@
-//! `xvora plugin` CLI subcommand — manage plugins and marketplace sources.
+//! `grok plugin` CLI subcommand: manage plugins and marketplace sources.
 //!
-//! Follows the `memory_cmd.rs` / `sessions_cmd.rs` / `worktree_cmd` pattern:
-//! clap args and handler logic co-located in a dedicated module. The pager's
-//! `main.rs` dispatches here with a one-liner.
+//! Follows the `memory_cmd.rs`, `sessions_cmd.rs`, and `worktree_cmd` pattern: clap args and handler logic co-located in a dedicated module.
+//! The pager's `main.rs` dispatches here with a one-liner.
 //!
-//! Business logic lives in `xvora_shell::plugin` (shared orchestration)
-//! and lower crates (`xvora-agent`, `xvora-plugin-marketplace`). This
-//! module is a thin CLI wrapper: parse args, call ops, format output, emit
-//! telemetry.
+//! Business logic lives in `xvora_shell::plugin` and lower crates (`xvora-agent`, `xvora-plugin-marketplace`).
+//! This module is a thin CLI wrapper: parse args, call ops, format output, emit telemetry.
 
 use std::path::{Path, PathBuf};
 
@@ -23,9 +20,9 @@ use xvora_shell::plugin::{self, RepoUpdateOutcome, UninstallError};
 
 // ── JSON output types ───────────────────────────────────────────────
 
-/// Typed entry for `xvora plugin list --json`. The `status` field acts as a
-/// discriminator: `"installed"` entries have repo/path fields, `"available"`
-/// entries have description/component fields.
+/// Typed entry for `grok plugin list --json`.
+/// The `status` field is the discriminator.
+/// `"installed"` entries have repo and path fields, `"available"` entries have description and component fields.
 #[derive(Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 enum PluginEntry {
@@ -47,11 +44,11 @@ enum PluginEntry {
         has_agents: bool,
         has_mcp: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
-        components: Option<hooks_plugins_types::PluginComponents>,
+        components: Option<xvora_hooks_plugins_types::PluginComponents>,
     },
 }
 
-/// Typed entry for `xvora plugin marketplace list --json`.
+/// Typed entry for `grok plugin marketplace list --json`.
 #[derive(Serialize)]
 struct MarketplaceSourceEntry {
     name: String,
@@ -106,7 +103,7 @@ pub enum PluginCommand {
     /// Uninstall an installed plugin by name
     #[command(visible_alias = "rm", visible_alias = "remove")]
     Uninstall {
-        /// Plugin name (as shown by `xvora plugin list`).
+        /// Plugin name (as shown by `grok plugin list`).
         name: String,
         /// Skip confirmation for multi-plugin repos.
         #[arg(long)]
@@ -178,11 +175,14 @@ pub enum MarketplaceCommand {
     Add {
         /// Git URL, GitHub shorthand (e.g. user/repo), or local directory path.
         url: String,
+        /// Skip the reachability probe (e.g. for hosts only reachable on VPN).
+        #[arg(long)]
+        force: bool,
     },
     /// Remove a marketplace source and uninstall its plugins
     Remove {
-        /// Git URL or local path of the source to remove.
-        url: String,
+        /// Name, git URL, or local path of the source to remove.
+        source: String,
     },
     /// Refresh marketplace source(s) and sync git caches
     Update {
@@ -229,7 +229,7 @@ fn trust_prompt(subject: &str, source_arg: &str) -> String {
         "Installing {subject} requires confirmation.\n\
          Plugins can run hooks, MCP servers, and skills on your machine, so installation needs explicit trust.\n\
          \n\
-         To proceed, re-run with --trust:\n  xvora plugin install {source_arg} --trust"
+         To proceed, re-run with --trust:\n  grok plugin install {source_arg} --trust"
     )
 }
 
@@ -272,7 +272,7 @@ fn cmd_list(json: bool, available: bool) -> Result<()> {
         }
         println!("{}", serde_json::to_string_pretty(&entries)?);
     } else if repos.is_empty() {
-        println!("No plugins installed. Run `xvora plugin install --help` to get started.");
+        println!("No plugins installed. Run `grok plugin install --help` to get started.");
     } else {
         for (repo_key, repo) in &repos {
             let mp = repo
@@ -292,7 +292,10 @@ fn cmd_list(json: bool, available: bool) -> Result<()> {
 }
 
 fn installed_plugins(
-    repos: &[(&str, &xvora_agent::plugins::install_registry::InstalledRepo)],
+    repos: &[(
+        &str,
+        &xvora_agent::plugins::install_registry::InstalledRepo,
+    )],
 ) -> Vec<PluginEntry> {
     repos
         .iter()
@@ -324,9 +327,7 @@ fn available_plugins(registry: &InstallRegistry) -> Vec<PluginEntry> {
         .ok()
         .unwrap_or(toml::Value::Table(toml::map::Map::new()));
     let mut sources = xvora_plugin_marketplace::load_sources(&config);
-    sources.extend(xvora_plugin_marketplace::load_extra_sources_from_settings(
-        &sources,
-    ));
+    sources.extend(xvora_plugin_marketplace::load_extra_sources_from_settings(&sources));
 
     let mut entries = Vec::new();
     for source in &sources {
@@ -412,7 +413,8 @@ fn log_plugin_installed(
 }
 
 fn cmd_install(source: &str, trust: bool) -> Result<()> {
-    if let Some(mref) = xvora_plugin_marketplace::install_resolve::parse_marketplace_ref(source) {
+    if let Some(mref) = xvora_plugin_marketplace::install_resolve::parse_marketplace_ref(source)
+    {
         return cmd_install_marketplace(source, &mref, trust);
     }
 
@@ -444,7 +446,11 @@ fn cmd_install(source: &str, trust: bool) -> Result<()> {
         Err(e) => {
             let cat = plugin::classify_install_error(&e);
             // On failure we don't know the kind; default to Git (matches canonical).
-            log_plugin_installed(xvora_telemetry::events::InstallKind::Git, false, Some(cat));
+            log_plugin_installed(
+                xvora_telemetry::events::InstallKind::Git,
+                false,
+                Some(cat),
+            );
             bail!("{e}");
         }
     }
@@ -489,7 +495,7 @@ fn cmd_install_marketplace(
                     .unwrap_or(&mref.name);
                 println!(
                     "Plugin \"{}\" is already installed from {}. \
-                     Run `xvora plugin update {}` to update it.",
+                     Run `grok plugin update {}` to update it.",
                     mref.name, outcome.source_display_name, update_name,
                 );
                 return Ok(());
@@ -521,10 +527,12 @@ fn cmd_install_marketplace(
 fn cmd_uninstall(name: &str, confirm: bool, keep_data: bool) -> Result<()> {
     match plugin::uninstall_plugin(name, confirm, keep_data) {
         Ok(outcome) => {
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PluginUninstalled {
-                confirmed: true,
-                success: true,
-            });
+            xvora_telemetry::session_ctx::log_event(
+                xvora_telemetry::events::PluginUninstalled {
+                    confirmed: true,
+                    success: true,
+                },
+            );
             let suffix = if keep_data { " (data preserved)" } else { "" };
             println!(
                 "Uninstalled {} plugin(s): {}{suffix}",
@@ -542,7 +550,7 @@ fn cmd_uninstall(name: &str, confirm: bool, keep_data: bool) -> Result<()> {
             "Plugin \"{name}\" belongs to repo \"{repo_key}\" which also contains:\n\
              {}\n\n\
              Uninstalling will remove all {total} plugin(s). To proceed:\n\
-               xvora plugin uninstall {name} --confirm",
+               grok plugin uninstall {name} --confirm",
             other_plugins
                 .iter()
                 .map(|p| format!("  - {p}"))
@@ -596,7 +604,7 @@ fn cmd_enable(name: &str) -> Result<()> {
     if registry.find_plugin(name).is_none() {
         bail!(
             "Plugin \"{name}\" not found.\n\
-               Run `xvora plugin list` to see installed plugins."
+               Run `grok plugin list` to see installed plugins."
         );
     }
     if let Err(e) = xvora_shell::config::remove_disabled_plugin(name) {
@@ -613,7 +621,7 @@ fn cmd_disable(name: &str) -> Result<()> {
     if registry.find_plugin(name).is_none() {
         bail!(
             "Plugin \"{name}\" not found.\n\
-               Run `xvora plugin list` to see installed plugins."
+               Run `grok plugin list` to see installed plugins."
         );
     }
     if let Err(e) = xvora_shell::config::remove_enabled_plugin(name) {
@@ -630,7 +638,7 @@ fn cmd_details(name: &str) -> Result<()> {
     let (repo_key, repo, _) = registry.find_plugin(name).ok_or_else(|| {
         anyhow::anyhow!(
             "Plugin \"{name}\" not found.\n\
-             Run `xvora plugin list` to see installed plugins."
+             Run `grok plugin list` to see installed plugins."
         )
     })?;
 
@@ -692,7 +700,7 @@ fn cmd_validate(path: &str) -> Result<()> {
         }
         Ok(ManifestLoadResult::NotFound) => {
             println!(
-                "No plugin.json found. xVora discovers skills, agents, and hooks \
+                "No plugin.json found. Grok discovers skills, agents, and hooks \
                  automatically from standard directories. A manifest is only needed \
                  for custom paths or metadata."
             );
@@ -710,7 +718,7 @@ fn cmd_tag(path: &str, push: bool, force: bool, dry_run: bool) -> Result<()> {
     let version = match load_manifest(&root) {
         Ok(ManifestLoadResult::Found(m)) => m.version.ok_or_else(|| {
             anyhow::anyhow!(
-                "No `version` field in plugin.json. Set a version to use `xvora plugin tag`."
+                "No `version` field in plugin.json. Set a version to use `grok plugin tag`."
             )
         })?,
         Ok(ManifestLoadResult::NotFound) => bail!("No plugin.json found in {path}."),
@@ -782,14 +790,12 @@ async fn run_marketplace(cmd: MarketplaceCommand) -> Result<()> {
         .ok()
         .unwrap_or(toml::Value::Table(toml::map::Map::new()));
     let mut sources = xvora_plugin_marketplace::load_sources(&config);
-    sources.extend(xvora_plugin_marketplace::load_extra_sources_from_settings(
-        &sources,
-    ));
+    sources.extend(xvora_plugin_marketplace::load_extra_sources_from_settings(&sources));
 
     match cmd {
         MarketplaceCommand::List { json } => marketplace_list(&sources, json),
-        MarketplaceCommand::Add { url } => marketplace_add(&sources, &url),
-        MarketplaceCommand::Remove { url } => marketplace_remove(&sources, &url),
+        MarketplaceCommand::Add { url, force } => marketplace_add(&sources, &url, force),
+        MarketplaceCommand::Remove { source } => marketplace_remove(&sources, &source),
         MarketplaceCommand::Update { name } => marketplace_update(&sources, name.as_deref()),
     }
 }
@@ -822,7 +828,7 @@ fn marketplace_list(
     } else if sources.is_empty() {
         println!(
             "No marketplace sources configured.\n\
-             Run `xvora plugin marketplace add --help` to get started."
+             Run `grok plugin marketplace add --help` to get started."
         );
     } else {
         for s in sources {
@@ -839,6 +845,7 @@ fn marketplace_list(
 fn marketplace_add(
     sources: &[xvora_plugin_marketplace::MarketplaceSource],
     url: &str,
+    force: bool,
 ) -> Result<()> {
     use xvora_shell::plugin::MarketplaceAddInput;
 
@@ -850,8 +857,7 @@ fn marketplace_add(
     let cwd = std::env::current_dir().unwrap_or_default();
     let input = plugin::classify_marketplace_add_input(url, &cwd);
 
-    // Fail fast on missing local paths: without this, a path input would be
-    // stored as a git URL and only error after network clone attempts.
+    // Fail fast on missing local paths: otherwise a path input is stored as a git URL and only errors after network clone attempts
     if let MarketplaceAddInput::LocalPath(path) = &input
         && !path.is_dir()
     {
@@ -866,8 +872,7 @@ fn marketplace_add(
         MarketplaceAddInput::LocalPath(p) => p.display().to_string(),
     };
 
-    // Local paths never match the git-URL allowlist, so a restricted
-    // strictKnownMarketplaces policy blocks them — intentionally fail-closed.
+    // Local paths never match the git-URL allowlist, so a restricted strictKnownMarketplaces policy blocks them; intentionally fail-closed
     let allowlist =
         &xvora_workspace::permission::resolution::managed_settings().marketplace_allowlist;
     if allowlist.is_restricted() && !allowlist.is_url_allowed(&identity) {
@@ -890,11 +895,20 @@ fn marketplace_add(
         bail!("Marketplace source already configured: {identity}");
     }
 
+    if !force && let MarketplaceAddInput::GitUrl(git_url) = &input {
+        xvora_plugin_marketplace::git::probe_git_remote(git_url).map_err(|e| {
+            anyhow::anyhow!(
+                "{e}\nNot adding \"{url}\": it doesn't look like a reachable git repository. \
+                 Re-run with --force to add it anyway (e.g. a host only reachable on VPN)."
+            )
+        })?;
+    }
+
     let name = match &input {
         MarketplaceAddInput::GitUrl(u) => plugin::name_from_url(u),
         MarketplaceAddInput::LocalPath(p) => plugin::name_from_path(p),
     };
-    let config_path = xvora_config::xvora_home().join("config.toml");
+    let config_path = xvora_config::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
 
     let content = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut doc: toml_edit::DocumentMut = content
@@ -931,26 +945,38 @@ fn marketplace_add(
     Ok(())
 }
 
-fn marketplace_remove(
-    sources: &[xvora_plugin_marketplace::MarketplaceSource],
-    url: &str,
-) -> Result<()> {
-    let url = url.trim();
-    if url.is_empty() {
-        bail!("URL cannot be empty.");
+/// Resolve `remove` input to a source: exact name match first, then the same URL or path matching `marketplace add` uses.
+fn find_removal_source<'a>(
+    sources: &'a [xvora_plugin_marketplace::MarketplaceSource],
+    input: &str,
+    cwd: &Path,
+) -> Result<&'a xvora_plugin_marketplace::MarketplaceSource, String> {
+    let mut by_name = sources.iter().filter(|s| s.name == input);
+    if let Some(first) = by_name.next() {
+        if by_name.next().is_some() {
+            let identities: Vec<String> = sources
+                .iter()
+                .filter(|s| s.name == input)
+                .map(source_identity)
+                .collect();
+            return Err(format!(
+                "Multiple sources are named \"{input}\"; remove by URL/path instead: {}",
+                identities.join(", ")
+            ));
+        }
+        return Ok(first);
     }
-    let expanded = plugin::normalize_git_url(url);
-    let norm = url.trim_end_matches(".git");
+
+    let expanded = plugin::normalize_git_url(input);
+    let norm = input.trim_end_matches(".git");
     let exp_norm = expanded.trim_end_matches(".git");
-    // Loaded local sources carry expanded paths, so expand `~`/relative inputs
-    // the same way `marketplace add` does before comparing.
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let local_input = match plugin::classify_marketplace_add_input(url, &cwd) {
+    // Loaded local sources carry expanded paths, so expand `~` and relative inputs the same way `marketplace add` does before comparing
+    let local_input = match plugin::classify_marketplace_add_input(input, cwd) {
         xvora_shell::plugin::MarketplaceAddInput::LocalPath(p) => Some(p),
         _ => None,
     };
 
-    let source = sources
+    sources
         .iter()
         .find(|s| match &s.kind {
             SourceKind::Git { url: u, .. } => {
@@ -958,16 +984,39 @@ fn marketplace_remove(
                 un == norm || un == exp_norm
             }
             SourceKind::Local { path } => {
-                path.display().to_string() == url || local_input.as_ref().is_some_and(|p| p == path)
+                path.display().to_string() == input
+                    || local_input.as_ref().is_some_and(|p| p == path)
             }
         })
-        .ok_or_else(|| anyhow::anyhow!("Marketplace source \"{url}\" not found."))?;
+        .ok_or_else(|| {
+            let names: Vec<&str> = sources.iter().map(|s| s.name.as_str()).collect();
+            if names.is_empty() {
+                format!("Marketplace source \"{input}\" not found; no sources are configured.")
+            } else {
+                format!(
+                    "Marketplace source \"{input}\" not found. Configured sources: {}",
+                    names.join(", ")
+                )
+            }
+        })
+}
+
+fn marketplace_remove(
+    sources: &[xvora_plugin_marketplace::MarketplaceSource],
+    name_or_url: &str,
+) -> Result<()> {
+    let input = name_or_url.trim();
+    if input.is_empty() {
+        bail!("Provide the source name, git URL, or local path to remove.");
+    }
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let source = find_removal_source(sources, input, &cwd).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let identity = source_identity(source);
 
     let uninstalled = plugin::uninstall_marketplace_source_plugins(&identity);
 
-    let config_path = xvora_config::xvora_home().join("config.toml");
+    let config_path = xvora_config::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
     let mut removed_from_config = false;
     if let Ok(content) = std::fs::read_to_string(&config_path)
         && let Some(new) = plugin::remove_toml_marketplace_block(&content, &identity)
@@ -979,7 +1028,7 @@ fn marketplace_remove(
         }
     }
 
-    // Fallback: settings.json / known_marketplaces.json.
+    // Fallback: settings.json or known_marketplaces.json
     if !removed_from_config && !plugin::try_remove_source_from_json_files(&identity) {
         eprintln!(
             "Warning: source was found but could not be removed from config files.\n\
@@ -988,7 +1037,7 @@ fn marketplace_remove(
     }
 
     if uninstalled.is_empty() {
-        println!("Removed marketplace source: {url}");
+        println!("Removed marketplace source: {} ({identity})", source.name);
     } else {
         println!(
             "Removed marketplace source and uninstalled {} plugin(s): {}",
@@ -1044,8 +1093,7 @@ fn marketplace_update_with_cache_root(
     if refreshed == 0 && errors.is_empty() {
         if let Some(filter) = name {
             if name_matched {
-                // Source exists but is local — nothing to sync.
-                println!("Source \"{filter}\" is local — nothing to sync.");
+                println!("Source \"{filter}\" is local, nothing to sync.");
             } else {
                 bail!("Marketplace source \"{filter}\" not found.");
             }
@@ -1069,11 +1117,89 @@ mod tests {
     use super::*;
     use xvora_plugin_marketplace::MarketplaceSource;
 
+    fn removal_fixture() -> Vec<MarketplaceSource> {
+        vec![
+            MarketplaceSource {
+                name: "jira".into(),
+                kind: SourceKind::Git {
+                    url: "https://nova.example.com:4466/mcp/jira".into(),
+                    branch: None,
+                },
+            },
+            MarketplaceSource {
+                name: "official".into(),
+                kind: SourceKind::Git {
+                    url: "https://github.com/xvora-org/plugin-marketplace.git".into(),
+                    branch: None,
+                },
+            },
+            MarketplaceSource {
+                name: "local".into(),
+                kind: SourceKind::Local {
+                    path: "/tmp/my-marketplace".into(),
+                },
+            },
+        ]
+    }
+
+    #[test]
+    fn find_removal_source_matches_by_name() {
+        let sources = removal_fixture();
+        let found = find_removal_source(&sources, "jira", Path::new("/")).unwrap();
+        assert_eq!(found.name, "jira");
+    }
+
+    #[test]
+    fn find_removal_source_matches_by_url_ignoring_git_suffix() {
+        let sources = removal_fixture();
+        let found = find_removal_source(
+            &sources,
+            "https://github.com/xvora-org/plugin-marketplace",
+            Path::new("/"),
+        )
+        .unwrap();
+        assert_eq!(found.name, "official");
+    }
+
+    #[test]
+    fn find_removal_source_matches_local_path() {
+        let sources = removal_fixture();
+        let found = find_removal_source(&sources, "/tmp/my-marketplace", Path::new("/")).unwrap();
+        assert_eq!(found.name, "local");
+    }
+
+    #[test]
+    fn find_removal_source_not_found_lists_names() {
+        let sources = removal_fixture();
+        let err = find_removal_source(&sources, "nope", Path::new("/")).unwrap_err();
+        assert!(err.contains("\"nope\" not found"), "{err}");
+        assert!(err.contains("jira, official, local"), "{err}");
+    }
+
+    #[test]
+    fn find_removal_source_duplicate_names_require_url() {
+        let mut sources = removal_fixture();
+        sources.push(MarketplaceSource {
+            name: "jira".into(),
+            kind: SourceKind::Git {
+                url: "https://other.example.com/jira.git".into(),
+                branch: None,
+            },
+        });
+        let err = find_removal_source(&sources, "jira", Path::new("/")).unwrap_err();
+        assert!(err.contains("Multiple sources are named \"jira\""), "{err}");
+        assert!(
+            err.contains("https://nova.example.com:4466/mcp/jira"),
+            "{err}"
+        );
+        assert!(err.contains("https://other.example.com/jira.git"), "{err}");
+    }
+
     #[test]
     fn trust_prompt_marketplace_has_no_error_framing() {
         let msg = trust_prompt(
             "\"sentry\" from marketplace \"xAI Official\"",
-            "sentry@KaiyoDev/plugin-marketplace",
+            "sentry@xvora-org/plugin-marketplace",
         );
         assert!(
             msg.starts_with(
@@ -1083,7 +1209,7 @@ mod tests {
         );
         assert!(msg.contains("hooks, MCP servers, and skills"));
         assert!(msg.contains(
-            "To proceed, re-run with --trust:\n  xvora plugin install sentry@KaiyoDev/plugin-marketplace --trust"
+            "To proceed, re-run with --trust:\n  grok plugin install sentry@xvora-org/plugin-marketplace --trust"
         ));
         assert!(!msg.contains("Error"));
         assert!(!msg.contains("Failed"));
@@ -1099,7 +1225,7 @@ mod tests {
             ),
             "{git}"
         );
-        assert!(git.ends_with("  xvora plugin install u/r --trust"), "{git}");
+        assert!(git.ends_with("  grok plugin install u/r --trust"), "{git}");
         let local = trust_prompt("from directory /tmp/p", "./p");
         assert!(
             local.starts_with("Installing from directory /tmp/p requires confirmation."),
@@ -1125,9 +1251,12 @@ mod tests {
             },
         };
 
-        let cache_dir =
-            xvora_plugin_marketplace::git::sync_source_cache(&url, Some("main"), cache_root.path())
-                .unwrap();
+        let cache_dir = xvora_plugin_marketplace::git::sync_source_cache(
+            &url,
+            Some("main"),
+            cache_root.path(),
+        )
+        .unwrap();
         let first_head = current_head(&cache_dir);
         add_commit(remote.path(), "second.txt", "second");
 

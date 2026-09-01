@@ -1,7 +1,7 @@
 use super::*;
-use xvora_shell::sampling::error::rate_limited_user_message;
-/// Stash a live stop/stop_failure batch under `stash_pid` for the turn marker
-/// to fold. `merge_same_name` merges a same-name repeat instead of standalone.
+use xvora_shell::sampling::error::format_rate_limited_user_message;
+/// Stash a live stop-family batch under `stash_pid` for the turn marker to fold.
+/// `merge_same_name` merges a same-name repeat instead of pushing it standalone.
 pub(super) fn stash_live_stop_batch(
     agent: &mut AgentView,
     stash_pid: Option<String>,
@@ -45,33 +45,42 @@ pub(super) fn refresh_context_used(view: &mut AgentView, used: u64) {
     let total = view.session.models.get_context_window().unwrap_or(0);
     view.apply_context_used(used, total);
 }
-/// Refresh the bar and record `used` as the confirmed count for a pending
-/// compaction message; call only from the `meta.totalTokens` path.
+/// Context-bar refresh carried by a compaction lifecycle update, if any.
+/// `AutoCompactStarted` carries the count the trigger fired on, and the banner percentage derives from it.
+/// Without this refresh the bar shows the stale pre-turn number right next to the "N% full" banner.
+pub(super) fn compaction_context_refresh(update: &XaiSessionUpdate) -> Option<u64> {
+    match update {
+        XaiSessionUpdate::AutoCompactStarted { tokens_used, .. } => Some(*tokens_used),
+        XaiSessionUpdate::AutoCompactCompleted { tokens_after, .. } => Some(*tokens_after),
+        _ => None,
+    }
+}
+/// Refresh the bar and record `used` as the confirmed count for a pending compaction message; call only from the `meta.totalTokens` path.
 pub(super) fn confirm_context_used(view: &mut AgentView, used: u64) {
     refresh_context_used(view, used);
     view.session.note_context_used(used);
 }
-/// Replay gate shared by the ACP and xAI session-update paths. Returns `true`
-/// when the update must be dropped.
+/// Replay gate shared by the ACP and xAI session-update paths. Returns `true` when the update must be dropped.
 ///
-/// Replay is only expected while a `session/load` is in flight for this agent
-/// (fresh-view load or reconnect reload window). Anything else is misrouted —
-/// e.g. a leader falling through to broadcast another client's replay, or a
-/// replay landing after its reload already timed out — and applying it would
-/// append duplicated history below the live transcript. An expected replay is
-/// recorded on the open reload window instead (see
-/// [`AgentView::mark_reload_replay_seen`]). One `warn!` per incident; the rest
-/// of the burst (one line per replayed event) logs at `debug!`.
-pub(super) fn drop_unexpected_replay(
+/// Replay is only expected while a `session/load` is in flight for this agent (fresh-view load or reconnect reload window).
+/// Anything else is misrouted: a leader falling through to broadcast another client's replay, or a replay landing after its reload timed out.
+/// Applying a misrouted replay would append duplicated history below the live transcript.
+/// An expected replay is recorded on the open reload window instead (see [`AgentView::mark_reload_replay_seen`]).
+/// One `warn!` per incident; the rest of the burst (one line per replayed event) logs at `debug!`.
+///
+/// After `SessionLoaded` the barrier may release on an Unrelated ACP timeout while remaining `isReplay` still sits behind a foreign head.
+/// `late_replay_until` keeps accepting that tail until the first this-session live update or the grace expires.
+pub(crate) fn drop_unexpected_replay(
     agent: &mut AgentView,
     meta: &NotificationMeta,
     session_id: &str,
     source: &'static str,
 ) -> bool {
     if !meta.is_replay {
+        agent.late_replay_until = None;
         return false;
     }
-    if agent.session.loading_replay {
+    if agent.accepts_replayed_update() {
         agent.mark_reload_replay_seen();
         return false;
     }
@@ -93,20 +102,99 @@ pub(super) fn drop_unexpected_replay(
     agent.unexpected_replay_drops = agent.unexpected_replay_drops.saturating_add(1);
     true
 }
-/// Advance the reconnect cursor to an APPLIED update's eventId. Called from
-/// every applied arm (Plan, bg-stdout, tracker) — dropped updates (dedup,
-/// promptId gate, unexpected replay) deliberately don't move it.
+/// Advance the reconnect cursor to an applied update's eventId.
+/// Called from every applied arm (Plan, bg-stdout, tracker); dropped updates (dedup, promptId gate, unexpected replay) deliberately don't move it.
+/// Forward-only via [`AgentView::advance_last_seen_event_id`].
 pub(super) fn advance_reconnect_cursor(agent: &mut AgentView, meta: &mut NotificationMeta) {
     if let Some(id) = meta.event_id.take() {
-        agent.last_seen_event_id = Some(id);
+        agent.advance_last_seen_event_id(id, meta.event_seq);
     }
+}
+/// A string field off a turn-terminal notification envelope's `_meta` (the cancel-qualifier keys; absent on older shells).
+fn terminal_meta_str<'a>(meta: Option<&'a serde_json::Value>, key: &str) -> Option<&'a str> {
+    meta.and_then(|v| v.get(key)).and_then(|v| v.as_str())
+}
+/// Decode the HTML entities that appear in generated session summaries.
+fn decode_html_entities(s: &str) -> std::borrow::Cow<'_, str> {
+    if !s.contains('&') {
+        return std::borrow::Cow::Borrowed(s);
+    }
+    let mut out = s.to_string();
+    out = out.replace("&amp;", "&");
+    out = out.replace("&lt;", "<");
+    out = out.replace("&gt;", ">");
+    out = out.replace("&quot;", "\"");
+    out = out.replace("&#39;", "'");
+    out = out.replace("&#x27;", "'");
+    out = out.replace("&apos;", "'");
+    std::borrow::Cow::Owned(out)
+}
+/// Display-only end marker for a replayed `TurnCompleted`.
+/// Reads cancel metadata once; chatty rate-limited wakes still paint `TurnFailed`.
+fn synthesize_replay_turn_marker(
+    agent: &mut AgentView,
+    prompt_id: &str,
+    stop_reason: &str,
+    agent_result: Option<&str>,
+    error_kind: Option<crate::app::error_display::WireErrorType>,
+    elapsed_ms: Option<u64>,
+    meta: Option<&serde_json::Value>,
+) -> Option<crate::scrollback::blocks::SessionEvent> {
+    use crate::app::turn_completion::{
+        CANCEL_TRIGGER_KEY, CANCELLATION_CATEGORY_KEY, TerminalMarkerInput, TurnStopReason,
+        terminal_marker,
+    };
+    let stop = TurnStopReason::from(stop_reason);
+    let is_wake = is_wake_prompt(prompt_id);
+    let visible = agent.replayed_visible_prompts.contains(prompt_id);
+    let chatty_rate_limit = is_wake && stop == TurnStopReason::RateLimit && visible;
+    if is_wake && (matches!(stop, TurnStopReason::Error) || chatty_rate_limit) {
+        agent.failed_wake_marker_for = Some(prompt_id.to_string());
+    }
+    let suppress = super::prompt_origin::suppress_replay_marker_for_origin(
+        agent.replayed_bash_prompts.contains(prompt_id),
+        visible,
+        prompt_id,
+        stop,
+    );
+    let banner = crate::app::dispatch::scrollback_has_recent_error_banner(&agent.scrollback);
+    let cancel_trigger = terminal_meta_str(meta, CANCEL_TRIGGER_KEY);
+    let cancellation_category = terminal_meta_str(meta, CANCELLATION_CATEGORY_KEY);
+    let paint_rate_limit_failure = chatty_rate_limit && !suppress && !banner;
+    let marker = if suppress {
+        None
+    } else {
+        terminal_marker(TerminalMarkerInput {
+            stop,
+            elapsed_ms,
+            agent_result,
+            send_now_cancel: cancel_trigger == Some("send_now"),
+            cancellation_category,
+            error_kind,
+            error_banner_present: banner,
+        })
+    };
+    marker.or_else(|| {
+        paint_rate_limit_failure.then(|| {
+            super::prompt_origin::rate_limited_wake_failure_event(
+                agent_result,
+                elapsed_ms.map(std::time::Duration::from_millis),
+            )
+        })
+    })
 }
 /// Handle `x.ai/session_notification` and replay-path `x.ai/session/update`.
 ///
-/// Routes by `session_id` so events for an inactive agent still mutate that
-/// agent's state. The redraw decision is gated on whether the matched agent
-/// is the currently visible one.
+/// Routes by `session_id` so events for an inactive agent still mutate that agent's state.
+/// The redraw decision is gated on whether the matched agent is the currently visible one.
 pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mut AppView) -> bool {
+    handle_session_notification_with_origin(notif, app, LifecycleOrigin::Stream)
+}
+pub(super) fn handle_session_notification_with_origin(
+    notif: &acp::ExtNotification,
+    app: &mut AppView,
+    origin: LifecycleOrigin,
+) -> bool {
     let Ok(session_notif) = serde_json::from_str::<SessionNotification>(notif.params.get()) else {
         tracing::warn!("Failed to parse {}", notif.method.as_ref());
         return false;
@@ -163,7 +251,34 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
     ) {
         return false;
     }
-    if !meta.is_replay
+    let is_workflow_update = matches!(
+        &session_notif.update,
+        XaiSessionUpdate::WorkflowUpdated { .. }
+    );
+    let is_subagent_lifecycle =
+        if let Some(lifecycle) = classify_subagent_lifecycle(&session_notif.update, origin) {
+            match gate_subagent_lifecycle(
+                &agent.subagent_sessions,
+                &agent.scrollback,
+                &mut agent.deferred_subagent_finishes,
+                &lifecycle,
+                meta.is_replay,
+                session_notif.session_id.0.as_ref(),
+                meta.event_id.as_deref(),
+                &session_notif,
+                std::time::Instant::now(),
+            ) {
+                LifecycleDelivery::Apply => true,
+                LifecycleDelivery::DropDuplicate | LifecycleDelivery::AwaitSpawn => {
+                    return false;
+                }
+            }
+        } else {
+            false
+        };
+    if !is_workflow_update
+        && !is_subagent_lifecycle
+        && !meta.is_replay
         && meta.event_seq.is_some_and(|seq| {
             agent
                 .last_applied_xai_event_seq
@@ -179,7 +294,9 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
         return false;
     }
     let mut plugins_changed_needs_skills_refetch = false;
+    let mut status_snapshot_applied = false;
     let mut terminal_outcome: Option<super::super::turn_completion::TerminalApply> = None;
+    let mut deferred_subagent_finish: Option<SessionNotification> = None;
     let root_session_id: &str = session_notif.session_id.0.as_ref();
     let changed = match session_notif.update {
         ref update @ (XaiSessionUpdate::AutoCompactStarted { .. }
@@ -197,8 +314,10 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 &mut agent.scrollback,
                 is_api_key_auth,
             );
-            if let XaiSessionUpdate::AutoCompactCompleted { tokens_after, .. } = update {
-                refresh_context_used(agent, *tokens_after);
+            if let Some(used) = compaction_context_refresh(update) {
+                refresh_context_used(agent, used);
+            }
+            if let XaiSessionUpdate::AutoCompactCompleted { .. } = update {
                 agent.todo.update_todos(Vec::new());
             }
             changed
@@ -207,39 +326,144 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             ref images,
             ref message,
         } => apply_image_compressed(agent, images, message),
+        XaiSessionUpdate::ToolCallDeltaChunk {
+            ref name,
+            tool_index,
+            ..
+        } => {
+            if meta.is_replay || agent.session.loading_replay || agent.running_wake_turn.is_some() {
+                false
+            } else {
+                let had_activity_before = agent.session.tracker.activity().is_some();
+                let changed = agent
+                    .session
+                    .tracker
+                    .note_tool_call_arguments_delta(name.as_deref(), tool_index);
+                if !had_activity_before && agent.session.tracker.activity().is_some() {
+                    note_first_turn_activity(agent);
+                }
+                changed
+            }
+        }
         XaiSessionUpdate::TurnCompleted {
             prompt_id,
             stop_reason,
             agent_result,
+            error_kind,
+            elapsed_ms,
             ..
         } => {
+            let error_kind = crate::app::error_display::wire_error_kind(error_kind.as_deref());
             if agent.session.loading_replay {
-                agent.replayed_terminal_prompts.insert(prompt_id);
+                let first = agent.replayed_terminal_prompts.insert(prompt_id.clone());
+                if first
+                    && !prompt_id.is_empty()
+                    && let Some(event) = synthesize_replay_turn_marker(
+                        agent,
+                        &prompt_id,
+                        stop_reason.as_str(),
+                        agent_result.as_deref(),
+                        error_kind,
+                        elapsed_ms,
+                        session_notif.meta.as_ref(),
+                    )
+                {
+                    agent.push_end_marker_block(event, Vec::new(), Some(prompt_id));
+                }
                 false
             } else if is_wake_prompt(&prompt_id) {
+                if agent
+                    .running_wake_turn
+                    .as_ref()
+                    .is_some_and(|wake| wake.prompt_id == prompt_id)
+                {
+                    agent.running_wake_turn = None;
+                }
+                agent.finished_wake_prompts.insert(prompt_id.to_string());
                 if agent.session.state.is_busy() {
-                    false
-                } else if matches!(stop_reason.as_str(), "cancelled" | "error" | "rate_limit") {
-                    agent.maybe_push_work_status()
+                    if agent.session.state.command_in_flight().is_some() {
+                        agent.session.tracker.snapshot_output_epoch();
+                    }
+                    let errored = matches!(stop_reason.as_str(), "error" | "rate_limit");
+                    if errored && agent.failed_wake_marker_for.as_deref() != Some(&*prompt_id) {
+                        agent.failed_wake_marker_for = Some(prompt_id.clone());
+                        if crate::app::dispatch::scrollback_has_recent_error_banner(
+                            &agent.scrollback,
+                        ) {
+                            false
+                        } else {
+                            let event = if stop_reason == "rate_limit" {
+                                super::prompt_origin::rate_limited_wake_failure_event(
+                                    agent_result.as_deref(),
+                                    None,
+                                )
+                            } else {
+                                crate::app::turn_completion::failed_turn_event(
+                                    error_kind,
+                                    agent_result.as_deref(),
+                                    None,
+                                )
+                            };
+                            agent.push_end_marker_block(event, Vec::new(), Some(prompt_id.clone()));
+                            true
+                        }
+                    } else {
+                        false
+                    }
                 } else {
-                    let elapsed = wake_turn_elapsed(agent, &prompt_id, meta.agent_timestamp_ms);
-                    push_wake_end_marker(agent, &prompt_id, elapsed);
+                    finish_wake_turn(
+                        agent,
+                        &prompt_id,
+                        super::prompt_origin::WakeTerminal {
+                            stop_reason: &stop_reason,
+                            agent_result: agent_result.as_deref(),
+                            cancel_trigger: terminal_meta_str(
+                                session_notif.meta.as_ref(),
+                                super::super::turn_completion::CANCEL_TRIGGER_KEY,
+                            ),
+                            cancellation_category: terminal_meta_str(
+                                session_notif.meta.as_ref(),
+                                super::super::turn_completion::CANCELLATION_CATEGORY_KEY,
+                            ),
+                            error_kind,
+                        },
+                    );
+                    true
+                }
+            } else if is_server_initiated_prompt(&prompt_id)
+                && !is_scheduler_fired_prompt(&prompt_id)
+            {
+                if agent.session.state.is_busy() {
+                    if agent.session.state.command_in_flight().is_some() {
+                        agent.session.tracker.snapshot_output_epoch();
+                    }
+                    false
+                } else {
+                    agent.session.tracker.finish_turn(&mut agent.scrollback);
                     true
                 }
             } else {
-                let cancel_trigger = session_notif
-                    .meta
-                    .as_ref()
-                    .and_then(|v| v.get("cancelTrigger"))
-                    .and_then(|v| v.as_str());
                 terminal_outcome =
                     Some(super::super::turn_completion::finalize_turn_from_terminal(
                         agent,
                         root_session_id,
-                        Some(&prompt_id),
-                        Some(&stop_reason),
-                        agent_result.as_deref(),
-                        cancel_trigger,
+                        super::super::turn_completion::TerminalSignal {
+                            prompt_id: Some(&prompt_id),
+                            stop_reason: Some(&stop_reason),
+                            agent_result: agent_result.as_deref(),
+                            cancel_trigger: terminal_meta_str(
+                                session_notif.meta.as_ref(),
+                                super::super::turn_completion::CANCEL_TRIGGER_KEY,
+                            ),
+                            cancellation_category: terminal_meta_str(
+                                session_notif.meta.as_ref(),
+                                super::super::turn_completion::CANCELLATION_CATEGORY_KEY,
+                            ),
+                            cancellation_context: session_notif.meta.as_ref().and_then(|m| {
+                                m.get(super::super::turn_completion::CANCELLATION_CONTEXT_KEY)
+                            }),
+                            error_kind,
+                        },
                     ));
                 false
             }
@@ -257,10 +481,12 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             capability_mode,
             context_normalized,
             parent_prompt_id,
+            workflow_run_id,
             ..
         } => {
             tracing::info!(
-                child_session_id = % child_session_id, subagent_type = % subagent_type,
+                child_session_id = %child_session_id,
+                subagent_type = %subagent_type,
                 "Subagent spawned"
             );
             let is_background = agent
@@ -272,6 +498,26 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             let persona_display = persona.clone();
             let role_display = role.clone();
             let model_display = model.clone();
+            let retained_terminal_finish = agent
+                .subagent_sessions
+                .get(&child_session_id)
+                .filter(|info| info.finished)
+                .map(|info| SessionNotification {
+                    session_id: session_notif.session_id.clone(),
+                    update: XaiSessionUpdate::SubagentFinished {
+                        subagent_id: info.subagent_id.to_string(),
+                        child_session_id: child_session_id.clone(),
+                        status: info.status.as_deref().unwrap_or("cancelled").to_owned(),
+                        error: info.error.as_deref().map(str::to_owned),
+                        tool_calls: info.tool_calls.unwrap_or(0),
+                        turns: info.turns.unwrap_or(0),
+                        duration_ms: info.duration_ms.unwrap_or(0),
+                        tokens_used: info.tokens_used.unwrap_or(0),
+                        output: None,
+                        will_wake: false,
+                    },
+                    meta: session_notif.meta.clone(),
+                });
             agent.subagent_sessions.insert(
                 child_session_id.clone(),
                 SubagentInfo {
@@ -285,6 +531,7 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                     context_source: effective_context_source.map(Arc::from),
                     resumed_from: resumed_from.map(Arc::from),
                     capability_mode: capability_mode.map(Arc::from),
+                    workflow_run_id: workflow_run_id.clone().map(Arc::from),
                     context_normalized,
                     parent_prompt_id: parent_prompt_id.map(Arc::from),
                     started_at: std::time::Instant::now(),
@@ -310,7 +557,7 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                     prompt: None,
                     child_cwd: None,
                     worktree_path: None,
-                    child_updates_replayed: false,
+                    transcript: Default::default(),
                 },
             );
             if let Some(ref sid) = agent.session.session_id
@@ -351,9 +598,12 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 available_commands_generation: 0,
                 available_tools: None,
                 model_switch_pending: false,
+                hook_block_hold: false,
+                blocked_prompt: None,
                 user_model_preference: None,
                 deferred_model_switch: None,
                 in_flight_prompt: None,
+                compact_held_prompt: None,
                 current_prompt_id: None,
                 created_via_new: false,
             };
@@ -361,16 +611,10 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             child_scrollback.set_appearance(agent.scrollback.appearance().clone());
             let mut child_view = AgentView::new(child_session, child_scrollback);
             child_view.set_input_mode(InputMode::Vim);
-            child_view.is_subagent_view = true;
             child_view.active_pane = crate::views::agent::ActivePane::Scrollback;
             child_view.set_sharing_enabled(agent.sharing_enabled);
-            let usage_visible = agent
-                .prompt
-                .slash_controller
-                .registry()
-                .get("usage")
-                .is_some();
-            child_view.set_usage_visible(usage_visible);
+            child_view.set_billing_surface_visible(agent.billing_surface_visible);
+            child_view.set_usage_command_visible(agent.usage_command_visible);
             let dashboard_visible = agent
                 .prompt
                 .slash_controller
@@ -405,33 +649,12 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 .registry()
                 .restricted_commands();
             child_view.set_restricted_commands(&restricted);
-            agent
-                .subagent_views
-                .insert(child_session_id.clone(), Box::new(child_view));
-            if !agent.session.loading_replay {
-                if let Some(child_view) = agent.subagent_views.get_mut(&child_session_id) {
-                    crate::app::subagent::replay_inherited_updates(child_view, &child_session_id);
-                }
-                if let Some(info) = agent.subagent_sessions.get_mut(&child_session_id) {
-                    info.child_updates_replayed = true;
-                }
-            }
+            agent.insert_subagent_view(child_session_id.clone(), Box::new(child_view));
             let prompt_to_inject = agent
                 .subagent_sessions
                 .get(&child_session_id)
                 .and_then(|info| info.prompt.as_deref())
                 .filter(|p| !p.trim().is_empty())
-                .filter(|p| {
-                    agent
-                        .subagent_views
-                        .get(&child_session_id)
-                        .is_some_and(|cv| {
-                            !crate::app::subagent::child_scrollback_already_shows_prompt(
-                                &cv.scrollback,
-                                p,
-                            )
-                        })
-                })
                 .map(str::to_owned);
             if let (Some(prompt), Some(child_view)) = (
                 prompt_to_inject,
@@ -442,22 +665,38 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                     .push_block(RenderBlock::user_prompt(prompt));
                 child_view.session.tracker.expect_user_echo();
             }
-            let block = crate::scrollback::blocks::SubagentBlock::started(
-                &description,
-                &child_session_id,
-                &subagent_type,
-                persona_display,
-                role_display,
-                model_display,
-                is_background,
-            );
-            let entry_id = agent.scrollback.push_block(RenderBlock::Subagent(block));
-            agent.scrollback.set_last_running(true);
-            if let Some(info) = agent.subagent_sessions.get_mut(&child_session_id) {
-                info.scrollback_entry_id = Some(entry_id);
+            if workflow_run_id.is_none() {
+                let block = crate::scrollback::blocks::SubagentBlock::started(
+                    &description,
+                    &child_session_id,
+                    &subagent_type,
+                    persona_display,
+                    role_display,
+                    model_display,
+                    is_background,
+                );
+                let entry_id = agent.scrollback.push_block(RenderBlock::Subagent(block));
+                agent.scrollback.set_last_running(true);
+                if let Some(info) = agent.subagent_sessions.get_mut(&child_session_id) {
+                    info.scrollback_entry_id = Some(entry_id);
+                    info.is_background = is_background;
+                }
+            } else if let Some(info) = agent.subagent_sessions.get_mut(&child_session_id) {
                 info.is_background = is_background;
             }
-            agent.maybe_push_parked_marker();
+            let taken_deferred = take_deferred_subagent_finish(
+                &mut agent.deferred_subagent_finishes,
+                &child_session_id,
+                std::time::Instant::now(),
+            );
+            if retained_terminal_finish.is_some() && taken_deferred.is_some() {
+                tracing::debug!(
+                    child_session_id = %child_session_id,
+                    reason = "retained_terminal_preferred",
+                    "dropping deferred subagent finish"
+                );
+            }
+            deferred_subagent_finish = retained_terminal_finish.or(taken_deferred);
             true
         }
         XaiSessionUpdate::SubagentProgress {
@@ -506,12 +745,15 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             turns,
             duration_ms,
             tokens_used,
-            will_wake,
             ..
         } => {
             tracing::info!(
-                child_session_id = % child_session_id, status = % status, tool_calls =
-                tool_calls, turns = turns, duration_ms = duration_ms, "Subagent finished"
+                child_session_id = %child_session_id,
+                status = %status,
+                tool_calls = tool_calls,
+                turns = turns,
+                duration_ms = duration_ms,
+                "Subagent finished"
             );
             let elapsed_dur = std::time::Duration::from_millis(duration_ms);
             let info_ref = agent.subagent_sessions.get(&child_session_id);
@@ -523,29 +765,70 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             }
             sync_subagent_activity(agent, &child_session_id, None);
             if is_background {
-                let block = match status.as_str() {
-                    "completed" => {
-                        RenderBlock::Subagent(crate::scrollback::blocks::SubagentBlock::completed(
-                            description.as_ref(),
-                            child_session_id.as_str(),
-                            elapsed_dur,
-                        ))
+                let existing_terminal = (0..agent.scrollback.len()).rev().find_map(|idx| {
+                    let entry = agent.scrollback.entry(idx)?;
+                    match &entry.block {
+                        RenderBlock::Subagent(sb)
+                            if sb.child_session_id == child_session_id
+                                && !matches!(
+                                    sb.kind,
+                                    crate::scrollback::blocks::SubagentBlockKind::Started
+                                ) =>
+                        {
+                            Some(entry.id)
+                        }
+                        _ => None,
                     }
-                    "cancelled" => {
-                        RenderBlock::Subagent(crate::scrollback::blocks::SubagentBlock::cancelled(
-                            description.as_ref(),
-                            child_session_id.as_str(),
-                            elapsed_dur,
-                        ))
+                });
+                if let Some(eid) = existing_terminal
+                    && let Some(entry) = agent.scrollback.get_by_id_mut(eid)
+                {
+                    if let RenderBlock::Subagent(ref mut sb) = entry.block {
+                        sb.kind = match status.as_str() {
+                            "completed" => {
+                                crate::scrollback::blocks::SubagentBlockKind::Completed {
+                                    elapsed: elapsed_dur,
+                                }
+                            }
+                            "cancelled" => {
+                                crate::scrollback::blocks::SubagentBlockKind::Cancelled {
+                                    elapsed: elapsed_dur,
+                                }
+                            }
+                            _ => crate::scrollback::blocks::SubagentBlockKind::Failed {
+                                elapsed: elapsed_dur,
+                                error: error.clone(),
+                            },
+                        };
                     }
-                    _ => RenderBlock::Subagent(crate::scrollback::blocks::SubagentBlock::failed(
-                        description.as_ref(),
-                        child_session_id.as_str(),
-                        elapsed_dur,
-                        error.clone(),
-                    )),
-                };
-                agent.scrollback.push_block(block);
+                    entry.invalidate_cache();
+                } else {
+                    let block = match status.as_str() {
+                        "completed" => RenderBlock::Subagent(
+                            crate::scrollback::blocks::SubagentBlock::completed(
+                                description.as_ref(),
+                                child_session_id.as_str(),
+                                elapsed_dur,
+                            ),
+                        ),
+                        "cancelled" => RenderBlock::Subagent(
+                            crate::scrollback::blocks::SubagentBlock::cancelled(
+                                description.as_ref(),
+                                child_session_id.as_str(),
+                                elapsed_dur,
+                            ),
+                        ),
+                        _ => {
+                            RenderBlock::Subagent(crate::scrollback::blocks::SubagentBlock::failed(
+                                description.as_ref(),
+                                child_session_id.as_str(),
+                                elapsed_dur,
+                                error.clone(),
+                            ))
+                        }
+                    };
+                    agent.scrollback.push_block(block);
+                }
             } else if let Some(eid) = entry_id
                 && let Some(entry) = agent.scrollback.get_by_id_mut(eid)
             {
@@ -571,9 +854,7 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 }
                 entry.invalidate_cache();
             }
-            let mut was_running = false;
             if let Some(info) = agent.subagent_sessions.get_mut(&child_session_id) {
-                was_running = info.is_running();
                 info.finished = true;
                 info.status = Some(Arc::from(status));
                 info.error = error.map(Arc::from);
@@ -586,19 +867,21 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 info.pending_kill = false;
                 info.kill_requested_at = None;
                 info.last_progress_at = std::time::Instant::now();
+                info.transcript.retry_disk_after_finish();
             }
             let resuming = agent.session.loading_replay;
             if let Some(child_view) = agent.subagent_views.get_mut(&child_session_id) {
                 child_view.session.state = AgentState::Idle;
-                if !resuming {
+            }
+            if !resuming {
+                let outcome =
+                    crate::app::subagent::evict_finished_child_view(agent, &child_session_id);
+                if outcome == crate::app::subagent::EvictOutcome::Retained
+                    && let Some(child_view) =
+                        agent.child_view_for_live_update_mut(&child_session_id)
+                {
                     crate::app::subagent::finalize_finished_child_view(child_view, elapsed_dur);
                 }
-            }
-            if was_running && !resuming {
-                agent.maybe_refresh_parked_subagent_marker();
-            }
-            if !resuming && !will_wake {
-                agent.maybe_push_work_status();
             }
             true
         }
@@ -636,6 +919,15 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                         xvora_shell::extensions::notification::HookRunStatusDto::Failed {
                             error,
                             elapsed_ms,
+                            blocked: true,
+                        } => HookRunStatus::Blocked {
+                            detail: error,
+                            elapsed: std::time::Duration::from_millis(elapsed_ms),
+                        },
+                        xvora_shell::extensions::notification::HookRunStatusDto::Failed {
+                            error,
+                            elapsed_ms,
+                            blocked: false,
                         } => HookRunStatus::Failed {
                             error,
                             elapsed: std::time::Duration::from_millis(elapsed_ms),
@@ -649,7 +941,8 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 })
                 .collect();
             let is_tool_hook = event_name == "pre_tool_use" || event_name == "post_tool_use";
-            let is_stop_hook = event_name == "stop" || event_name == "stop_failure";
+            let is_stop_hook =
+                xvora_hooks_plugins_types::HookEvent::from_wire(&event_name).is_turn_end();
             if is_tool_hook {
                 let phase = if event_name == "pre_tool_use" {
                     HookPhase::Pre
@@ -692,18 +985,6 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                         hook_entries,
                         batch_prompt_id.as_deref(),
                     );
-                } else if batch_is_wake
-                    && !batch_prompt_id
-                        .as_deref()
-                        .is_some_and(|pid| agent.scrollback.has_turn_terminal_marker_with_pid(pid))
-                {
-                    stash_live_stop_batch(
-                        agent,
-                        batch_prompt_id.clone(),
-                        event_name,
-                        hook_entries,
-                        true,
-                    );
                 } else {
                     agent
                         .scrollback
@@ -723,11 +1004,13 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
         } => {
             if let Some(ref mut modal) = agent.extensions_modal {
                 use crate::views::extensions_modal::TabDataState;
-                modal.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
-                    hooks,
-                    project_trusted,
-                    load_errors,
-                });
+                modal.seed_hook_groups_once(&hooks);
+                modal.hooks_data =
+                    TabDataState::Loaded(xvora_hooks_plugins_types::HooksListResponse {
+                        hooks,
+                        project_trusted,
+                        load_errors,
+                    });
                 true
             } else {
                 false
@@ -738,7 +1021,7 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 use crate::views::extensions_modal::TabDataState;
                 modal.seed_plugin_groups_once(&plugins);
                 modal.plugins_data =
-                    TabDataState::Loaded(hooks_plugins_types::PluginsListResponse { plugins });
+                    TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse { plugins });
                 if !matches!(modal.skills_data, TabDataState::Loading) {
                     modal.skills_data = TabDataState::Loading;
                     plugins_changed_needs_skills_refetch = true;
@@ -749,17 +1032,61 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             }
         }
         XaiSessionUpdate::SessionSummaryGenerated { session_summary } => {
-            agent.generated_session_title =
-                Some(crate::util::decode_html_entities(&session_summary).into_owned());
+            let title_is_manual = session_notif.meta.as_ref().and_then(|v| {
+                v.get(xvora_shell::extensions::notification::TITLE_IS_MANUAL_META_KEY)
+                    .and_then(|v| v.as_bool())
+            });
+            match title_is_manual {
+                Some(true) => {
+                    if let Some(clean) =
+                        xvora_shell::session::persistence::sanitize_and_cap_title(
+                            &session_summary,
+                        )
+                    {
+                        agent.display_name = Some(clean.clone());
+                        agent.generated_session_title = Some(clean);
+                        agent.title_unpin_committed = false;
+                    }
+                }
+                other => {
+                    let pin = if other == Some(false) {
+                        agent.title_unpin_committed = true;
+                        agent.display_name.take()
+                    } else {
+                        None
+                    };
+                    let decoded = decode_html_entities(&session_summary);
+                    if let Some(clean) =
+                        xvora_shell::session::persistence::sanitize_and_cap_title(&decoded)
+                    {
+                        agent.generated_session_title = Some(clean);
+                    } else if other == Some(false)
+                        && agent.generated_session_title.as_deref() == pin.as_deref()
+                    {
+                        agent.generated_session_title = None;
+                    }
+                }
+            }
+            true
+        }
+        XaiSessionUpdate::LastTurnSummary {
+            summary,
+            prompt_id: _,
+        } => {
+            agent.set_last_turn_summary(Some(summary));
             true
         }
         XaiSessionUpdate::SessionRecap { summary, auto } => {
             use crate::scrollback::block::RenderBlock;
             use crate::scrollback::blocks::SessionEvent;
-            if should_drop_late_auto_recap(auto, meta.is_replay, agent.session.state.is_idle()) {
+            if should_drop_late_auto_recap(auto, meta.is_replay, agent) {
+                tracing::debug!("dropping late auto SessionRecap; CLI not idle for recap");
+                false
+            } else if should_drop_duplicate_auto_recap(auto, meta.is_replay, &agent.scrollback) {
                 tracing::debug!(
-                    "dropping late auto SessionRecap; agent busy (turn or command in flight)"
+                    "dropping duplicate live auto SessionRecap; recap already shown since last user turn"
                 );
+                app.notification_service.focus_tracker.mark_recap_shown();
                 false
             } else {
                 app.notification_service.focus_tracker.mark_recap_shown();
@@ -798,19 +1125,22 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 .map(|m| m.0.as_ref())
                 .collect();
             tracing::warn!(
-                session_id = session_notif.session_id.0.as_ref(), previous = %
-                previous_model_id, new = % new_model_id, available_count, available_keys
-                = ? available_keys,
+                session_id = session_notif.session_id.0.as_ref(),
+                previous = %previous_model_id,
+                new = %new_model_id,
+                available_count,
+                available_keys = ?available_keys,
                 "Model auto-switched: previous model no longer available"
             );
             crate::unified_log::warn(
                 "model auto-switched: previous model unavailable",
                 Some(session_notif.session_id.0.as_ref()),
-                Some(serde_json::json!(
-                    { "previous_model" : previous_model_id.as_str(), "new_model" :
-                    new_model_id.as_str(), "available_count" : available_count,
-                    "available_keys" : available_keys, }
-                )),
+                Some(serde_json::json!({
+                    "previous_model": previous_model_id.as_str(),
+                    "new_model": new_model_id.as_str(),
+                    "available_count": available_count,
+                    "available_keys": available_keys,
+                })),
             );
             agent.scrollback.push_block(RenderBlock::session_event(
                 SessionEvent::ModelUnavailable {
@@ -827,8 +1157,8 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
         } => {
             if agent.session.model_switch_pending {
                 tracing::debug!(
-                    session_id = session_notif.session_id.0.as_ref(), model_id = %
-                    model_id,
+                    session_id = session_notif.session_id.0.as_ref(),
+                    model_id = %model_id,
                     "ignoring ModelChanged broadcast — local switch is in flight"
                 );
                 return false;
@@ -843,8 +1173,8 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                     );
                 } else {
                     tracing::warn!(
-                        session_id = session_notif.session_id.0.as_ref(), model_id = %
-                        model_id,
+                        session_id = session_notif.session_id.0.as_ref(),
+                        model_id = %model_id,
                         "ignoring ModelChanged broadcast — model not in local catalog"
                     );
                     return false;
@@ -865,8 +1195,9 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
                 prev_model.as_ref() != Some(&new_model_id) || prev_effort != resolved_effort;
             if actually_changed {
                 tracing::info!(
-                    session_id = session_notif.session_id.0.as_ref(), model_id = %
-                    model_id, effort = ? resolved_effort,
+                    session_id = session_notif.session_id.0.as_ref(),
+                    model_id = %model_id,
+                    effort = ?resolved_effort,
                     "ModelChanged broadcast applied (remote switch)"
                 );
             }
@@ -880,6 +1211,7 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             });
             true
         }
+        update @ XaiSessionUpdate::WorkflowUpdated { .. } => ingest_workflow_update(agent, update),
         XaiSessionUpdate::GoalUpdated {
             goal_id,
             objective,
@@ -989,6 +1321,11 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
         XaiSessionUpdate::InteractionResolved { tool_call_id } => {
             agent.dismiss_resolved_interaction(&tool_call_id)
         }
+        XaiSessionUpdate::SessionStatus(status) => {
+            agent.status_context = Some(*status);
+            status_snapshot_applied = true;
+            false
+        }
         _ => {
             tracing::trace!(
                 "Ignoring {}: {:?}",
@@ -998,6 +1335,11 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
             return false;
         }
     };
+    let mut changed = changed;
+    if status_snapshot_applied && is_active {
+        app.refresh_status_line_now();
+        changed |= app.status_line.take_changed();
+    }
     if plugins_changed_needs_skills_refetch {
         if let Some(agent) = app.agents.get(&parent_id)
             && let Some(session_id) = agent.session.session_id.clone()
@@ -1018,11 +1360,26 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
     if let Some(agent) = app.agents.get_mut(&parent_id) {
         if let Some(seq) = meta.event_seq
             && !meta.is_replay
+            && !is_workflow_update
         {
-            agent.last_applied_xai_event_seq = Some(seq);
+            agent.last_applied_xai_event_seq = Some(
+                agent
+                    .last_applied_xai_event_seq
+                    .map_or(seq, |last| last.max(seq)),
+            );
         }
         if let Some(id) = meta.event_id {
-            agent.last_seen_event_id = Some(id);
+            agent.advance_last_seen_event_id(id, meta.event_seq);
+        }
+    }
+    if let Some(payload) = deferred_subagent_finish {
+        if let Some(deferred) = redispatched_subagent_finish(payload) {
+            let _ = handle_session_notification(&deferred, app);
+        } else {
+            tracing::warn!(
+                session_id = session_notif.session_id.0.as_ref(),
+                "Failed to serialize deferred subagent finish"
+            );
         }
     }
     if let Some(outcome) = terminal_outcome {
@@ -1034,9 +1391,8 @@ pub(super) fn handle_session_notification(notif: &acp::ExtNotification, app: &mu
 }
 /// Handle an xAI session notification that targets a child (subagent) session.
 ///
-/// Events like compaction, retry, and memory flush are emitted by the child's
-/// `acp_session` with the *child's* `session_id`. This routes them to the
-/// correct child view and updates `SubagentInfo` where appropriate.
+/// Events like compaction, retry, and memory flush are emitted by the child's `acp_session` with the *child's* `session_id`.
+/// This routes them to the correct child view and updates `SubagentInfo` where appropriate.
 pub(super) fn handle_child_session_notification(
     update: XaiSessionUpdate,
     child_sid: &str,
@@ -1048,58 +1404,81 @@ pub(super) fn handle_child_session_notification(
         | XaiSessionUpdate::AutoCompactCompleted { .. }
         | XaiSessionUpdate::AutoCompactFailed { .. }
         | XaiSessionUpdate::AutoCompactCancelled { .. }
-        | XaiSessionUpdate::RetryState(_) => {
-            let compact_tokens = match &update {
-                XaiSessionUpdate::AutoCompactCompleted { tokens_after, .. } => Some(*tokens_after),
-                _ => None,
-            };
+        | XaiSessionUpdate::RetryState(_)
+        | XaiSessionUpdate::MemoryFlushCompleted { .. }
+        | XaiSessionUpdate::MemoryDreamCompleted { .. }
+        | XaiSessionUpdate::MemorySessionSaved { .. } => {
             let mut changed = false;
-            if let Some(child_view) = agent.subagent_views.get_mut(child_sid) {
-                changed = apply_session_event(
-                    &update,
-                    &mut child_view.session,
-                    &mut child_view.scrollback,
-                    is_api_key_auth,
-                );
-                if let Some(tokens_after) = compact_tokens {
-                    refresh_context_used(child_view, tokens_after);
-                }
+            if let Some(child_view) = agent.child_view_for_live_update_mut(child_sid) {
+                changed = apply_child_view_session_event(child_view, &update, is_api_key_auth);
             }
-            if let Some(tokens_after) = compact_tokens
+            if let XaiSessionUpdate::AutoCompactCompleted { tokens_after, .. } = update
                 && let Some(info) = agent.subagent_sessions.get_mut(child_sid)
             {
                 info.tokens_used = Some(tokens_after);
                 if let Some(cw) = info.context_window_tokens.filter(|&cw| cw > 0) {
                     info.context_usage_pct =
-                        Some(token_estimation::usage_percentage_u8(tokens_after, cw));
+                        Some(xvora_token_estimation::usage_percentage_u8(tokens_after, cw));
                 }
             }
             changed
         }
-        ref update @ (XaiSessionUpdate::MemoryFlushCompleted { .. }
-        | XaiSessionUpdate::MemoryDreamCompleted { .. }
-        | XaiSessionUpdate::MemorySessionSaved { .. }) => {
-            if let Some(child_view) = agent.subagent_views.get_mut(child_sid) {
-                apply_session_event(
-                    update,
-                    &mut child_view.session,
-                    &mut child_view.scrollback,
-                    is_api_key_auth,
-                )
-            } else {
-                false
+        XaiSessionUpdate::ToolCallDeltaChunk {
+            ref name,
+            tool_index,
+            ..
+        } => {
+            let Some(child_view) = agent.subagent_views.get_mut(child_sid) else {
+                return false;
+            };
+            if child_view.session.loading_replay {
+                return false;
             }
+            let row_live = agent
+                .subagent_sessions
+                .get(child_sid)
+                .is_some_and(|info| !info.finished);
+            if !row_live {
+                return false;
+            }
+            if !child_view
+                .session
+                .tracker
+                .note_tool_call_arguments_delta(name.as_deref(), tool_index)
+            {
+                return false;
+            }
+            let activity_label = subagent_activity_label(child_view);
+            sync_subagent_activity(agent, child_sid, activity_label);
+            true
         }
         _ => false,
     }
 }
+/// Apply one xAI session event to a child view.
+/// The live child routing above and the from-disk child replay (`crate::app::subagent::replay_inherited_updates`) share this rendering.
+/// A rebuilt transcript therefore keeps the same compaction/retry markers the live one had.
+pub(crate) fn apply_child_view_session_event(
+    child_view: &mut AgentView,
+    update: &XaiSessionUpdate,
+    is_api_key_auth: bool,
+) -> bool {
+    let changed = apply_session_event(
+        update,
+        &mut child_view.session,
+        &mut child_view.scrollback,
+        is_api_key_auth,
+    );
+    if let Some(used) = compaction_context_refresh(update) {
+        refresh_context_used(child_view, used);
+    }
+    changed
+}
 /// Apply a compaction or retry event to a session's activity state and scrollback.
 ///
 /// Shared between the root agent and child (subagent) notification paths.
-/// Test-only shim so dispatch-level tests can replay real notification
-/// sequences (e.g. `RetryState::Retrying` → `Exhausted`) through the
-/// production handler — the Retrying arm clears the `in_flight_prompt`
-/// rewind stash, which a fixture setting fields directly would miss.
+/// Test-only shim so dispatch tests can replay notification sequences (e.g. `RetryState::Retrying` then `Exhausted`) through the production handler.
+/// The Retrying arm clears the `in_flight_prompt` rewind stash, which a fixture setting fields directly would miss.
 #[cfg(test)]
 pub(crate) fn apply_session_event_for_test(
     update: &XaiSessionUpdate,
@@ -1117,6 +1496,9 @@ pub(super) fn apply_session_event(
     match update {
         XaiSessionUpdate::AutoCompactStarted { percentage, .. } => {
             tracing::info!("Auto-compact started: {percentage}% context used");
+            if session.compact_held_prompt.is_none() {
+                session.compact_held_prompt = session.in_flight_prompt.clone();
+            }
             session.in_flight_prompt = None;
             session.set_compaction_activity(Some(TurnActivity::AutoCompacting));
             scrollback.push_block(RenderBlock::session_event(
@@ -1134,6 +1516,7 @@ pub(super) fn apply_session_event(
         } => {
             tracing::info!("Auto-compact completed: {tokens_after} tokens after");
             session.set_compaction_activity(None);
+            session.compact_held_prompt = None;
             if session.loading_replay {
                 scrollback.push_block(RenderBlock::session_event(
                     SessionEvent::CompactionCompleted {
@@ -1148,7 +1531,7 @@ pub(super) fn apply_session_event(
             true
         }
         XaiSessionUpdate::AutoCompactFailed { error } => {
-            tracing::error!(error = % error, "Auto-compaction failed");
+            tracing::error!(error = %error, "Auto-compaction failed");
             session.set_compaction_activity(None);
             scrollback.push_block(RenderBlock::session_event(SessionEvent::CompactionFailed {
                 error: error.clone(),
@@ -1158,6 +1541,7 @@ pub(super) fn apply_session_event(
         XaiSessionUpdate::AutoCompactCancelled { .. } => {
             tracing::info!("Auto-compact cancelled");
             session.set_compaction_activity(None);
+            session.compact_held_prompt = None;
             scrollback.push_block(RenderBlock::session_event(
                 SessionEvent::CompactionCancelled,
             ));
@@ -1177,9 +1561,8 @@ pub(super) fn apply_session_event(
         _ => false,
     }
 }
-/// True if the trailing run of session/system blocks contains a
-/// [`SessionEvent::CompactionFailed`]. Used so we don't stack a [`SessionEvent::ContextTooLarge`]
-/// prompt on top of the compaction handler's "too large to compact" message.
+/// True if the trailing run of session/system blocks contains a [`SessionEvent::CompactionFailed`].
+/// Used so we don't stack a [`SessionEvent::ContextTooLarge`] prompt on top of the compaction handler's "too large to compact" message.
 pub(super) fn scrollback_has_recent_compaction_failed(
     scrollback: &crate::scrollback::state::ScrollbackState,
 ) -> bool {
@@ -1197,12 +1580,10 @@ pub(super) fn scrollback_has_recent_compaction_failed(
     }
     false
 }
-/// Handle an `ImageCompressed` notification. A successful compression is
-/// deliberately invisible in the TUI (log-only): it needs no user action,
-/// and the model-facing `<image_compression_notice>` reminder is attached
-/// to the prompt independently. Only the re-encode *fallback* — the
-/// oversized original was KEPT — surfaces, as a persistent scrollback
-/// warning (and is re-materialized on session replay).
+/// Handle an `ImageCompressed` notification.
+/// A successful compression is deliberately invisible in the TUI (log-only): it needs no user action.
+/// The model-facing `<image_compression_notice>` reminder is attached to the prompt independently.
+/// Only the re-encode *fallback* (the oversized original was kept) shows, as a persistent scrollback warning that is rebuilt on session replay.
 pub(super) fn apply_image_compressed(
     agent: &mut AgentView,
     images: &[xvora_shell::extensions::notification::ImageCompressedEntry],
@@ -1232,11 +1613,13 @@ pub(super) fn apply_retry_state(
             attempt,
             max_retries,
             reason,
+            error_type,
         } => {
             session.set_retry_activity(Some(TurnActivity::Retrying {
                 attempt: *attempt,
                 max_retries: *max_retries,
                 reason: reason.clone(),
+                error_type: error_type.clone(),
             }));
         }
         RetryState::Exhausted {
@@ -1247,19 +1630,21 @@ pub(super) fn apply_retry_state(
             session.set_retry_activity(None);
             session.rate_limited = *rate_limited;
             if *rate_limited {
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::RateLimitHit {
-                    model_id: session
-                        .models
-                        .current
-                        .as_ref()
-                        .map(|m| m.0.to_string())
-                        .unwrap_or_default(),
-                    attempts: *attempts,
-                });
+                xvora_telemetry::session_ctx::log_event(
+                    xvora_telemetry::events::RateLimitHit {
+                        model_id: session
+                            .models
+                            .current
+                            .as_ref()
+                            .map(|m| m.0.to_string())
+                            .unwrap_or_default(),
+                        attempts: *attempts,
+                    },
+                );
             }
             is_credit_limit = super::super::dispatch::is_credit_limit_error(None, reason);
-            let is_free_usage =
-                *rate_limited && super::super::dispatch::is_free_usage_exhausted_error(reason);
+            let is_free_usage = *rate_limited
+                && xvora_shell::sampling::error::is_free_usage_exhausted_error(reason);
             if is_credit_limit {
                 session.credit_limit_blocked = true;
             } else if is_free_usage {
@@ -1267,16 +1652,19 @@ pub(super) fn apply_retry_state(
             } else if !*rate_limited && is_reauthable_failure(None, reason) {
                 is_reauth = true;
                 scrollback.push_block(RenderBlock::session_event(SessionEvent::ReAuthRequired));
-            } else {
-                let error = if *rate_limited {
-                    rate_limited_user_message(is_api_key_auth).into()
-                } else {
-                    format!("failed after {attempts} retries: {reason}")
-                };
+            } else if *rate_limited {
+                let error = crate::app::effects::sanitize_user_error(
+                    &format_rate_limited_user_message(Some(reason.as_str()), is_api_key_auth),
+                );
                 scrollback.push_block(RenderBlock::session_event(SessionEvent::RetryFailed {
                     error,
                     error_type: None,
                 }));
+            } else {
+                scrollback.push_block(RenderBlock::session_event(
+                    crate::app::error_display::format_request_failure(None, None, reason)
+                        .into_session_event(),
+                ));
             }
         }
         RetryState::Failed {
@@ -1284,7 +1672,8 @@ pub(super) fn apply_retry_state(
             message,
         } => {
             session.set_retry_activity(None);
-            if error_type == "encrypted_content_mismatch" {
+            let wire = crate::app::error_display::WireErrorType::parse(Some(error_type.as_str()));
+            if wire == crate::app::error_display::WireErrorType::EncryptedContentMismatch {
                 session.model_incompatible = true;
             }
             is_credit_limit = super::super::dispatch::is_credit_limit_error(None, message);
@@ -1293,16 +1682,27 @@ pub(super) fn apply_retry_state(
             } else if is_reauthable_failure(Some(error_type.as_str()), message) {
                 is_reauth = true;
                 scrollback.push_block(RenderBlock::session_event(SessionEvent::ReAuthRequired));
-            } else if error_type == "context_length" {
+            } else if wire == crate::app::error_display::WireErrorType::DiskFull {
+                if !crate::app::dispatch::scrollback_has_recent_disk_full(scrollback) {
+                    scrollback.push_block(RenderBlock::session_event(SessionEvent::DiskFull));
+                }
+            } else if wire == crate::app::error_display::WireErrorType::ContextLength {
                 if !scrollback_has_recent_compaction_failed(scrollback) {
                     scrollback
                         .push_block(RenderBlock::session_event(SessionEvent::ContextTooLarge));
                 }
-            } else {
+            } else if wire == crate::app::error_display::WireErrorType::EncryptedContentMismatch
+                || wire == crate::app::error_display::WireErrorType::LegacyAuth
+            {
                 scrollback.push_block(RenderBlock::session_event(SessionEvent::RetryFailed {
                     error: message.clone(),
                     error_type: Some(error_type.clone()),
                 }));
+            } else {
+                scrollback.push_block(RenderBlock::session_event(
+                    crate::app::error_display::format_request_failure(None, Some(wire), message)
+                        .into_session_event(),
+                ));
             }
         }
     }
@@ -1321,19 +1721,15 @@ pub(super) fn apply_retry_state(
 }
 /// Single source of truth for plan-mode state on the pager side.
 ///
-/// The agent emits `CurrentModeUpdate` on every entry and exit — both for
-/// user-driven mode switches (Shift+Tab → `session/set_mode`) and for
-/// agent-driven `EnterPlanMode` / `ExitPlanMode` tool calls (mapped by the
-/// notification bridge).
+/// The agent emits `CurrentModeUpdate` on every entry and exit.
+/// That covers user-driven mode switches (Shift+Tab sends `session/set_mode`).
+/// It also covers agent-driven `EnterPlanMode` / `ExitPlanMode` tool calls (mapped by the notification bridge).
 ///
-/// Do not be tempted to infer mode from tool-call titles: titles incorporate
-/// raw model/user input (Grep pattern, Bash command, search query, ...), so
-/// a substring match silently bricks sessions whenever any tool happens to
-/// mention `enter_plan_mode`.
+/// Do not be tempted to infer mode from tool-call titles.
+/// Titles incorporate raw model/user input (Grep pattern, Bash command, search query, ...).
+/// A substring match would silently brick sessions whenever any tool happens to mention `enter_plan_mode`.
 ///
-/// Returns `true` when a `CurrentModeUpdate` was processed so the
-/// caller can refresh open settings modals after the per-agent borrow
-/// releases.
+/// Returns `true` when a `CurrentModeUpdate` was processed so the caller can refresh open settings modals after the per-agent borrow releases.
 pub(super) fn detect_plan_mode_change(update: &acp::SessionUpdate, agent: &mut AgentView) -> bool {
     use xvora_tools::types::SessionMode;
     let acp::SessionUpdate::CurrentModeUpdate(cmu) = update else {
@@ -1346,7 +1742,8 @@ pub(super) fn detect_plan_mode_change(update: &acp::SessionUpdate, agent: &mut A
     agent.plan_mode_pending = None;
     if was_active != now_active {
         tracing::info!(
-            mode_id = % cmu.current_mode_id.0, plan_active = now_active,
+            mode_id = %cmu.current_mode_id.0,
+            plan_active = now_active,
             "Plan mode state updated (from CurrentModeUpdate)"
         );
     }

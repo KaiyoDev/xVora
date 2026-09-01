@@ -8,7 +8,7 @@
         let mut app = make_app_with_agent("sess-plugins");
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
         modal.plugins_data =
-            TabDataState::Loaded(hooks_plugins_types::PluginsListResponse { plugins: vec![] });
+            TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse { plugins: vec![] });
         modal.plugins_groups_seeded = true;
         modal
             .plugins_collapsed_groups
@@ -21,7 +21,7 @@
                 XaiSessionUpdate::PluginsChanged {
                     plugins: vec![crate::views::extensions_modal::test_plugin_info(
                         "user-tool",
-                        Some(hooks_plugins_types::PluginOrigin::UserGrok),
+                        Some(xvora_hooks_plugins_types::PluginOrigin::UserGrok),
                     )],
                 },
             ),
@@ -60,11 +60,11 @@
                     plugins: vec![
                         crate::views::extensions_modal::test_plugin_info(
                             "user-tool",
-                            Some(hooks_plugins_types::PluginOrigin::UserGrok),
+                            Some(xvora_hooks_plugins_types::PluginOrigin::UserGrok),
                         ),
                         crate::views::extensions_modal::test_plugin_info(
                             "claude-tool",
-                            Some(hooks_plugins_types::PluginOrigin::UserClaude),
+                            Some(xvora_hooks_plugins_types::PluginOrigin::UserClaude),
                         ),
                     ],
                 },
@@ -87,8 +87,7 @@
             other => panic!("expected Loaded plugins data, got {other:?}"),
         }
 
-        // The push counts as the one seeding: expand a group, deliver again,
-        // and the expansion must survive.
+        // The push counts as the one seeding: expand a group, deliver again, and the expansion must survive
         app.agents
             .get_mut(&AgentId(0))
             .unwrap()
@@ -103,7 +102,7 @@
                 XaiSessionUpdate::PluginsChanged {
                     plugins: vec![crate::views::extensions_modal::test_plugin_info(
                         "user-tool",
-                        Some(hooks_plugins_types::PluginOrigin::UserGrok),
+                        Some(xvora_hooks_plugins_types::PluginOrigin::UserGrok),
                     )],
                 },
             ),

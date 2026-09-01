@@ -1,4 +1,4 @@
-//! # codebase-graph
+//! # xvora-codebase-graph
 //!
 //! High-performance code graph generation using tree-sitter queries.
 //!
@@ -14,7 +14,7 @@
 //!
 //! ```rust,ignore
 //! use std::path::Path;
-//! use codebase_graph::{IndexBuilder, load_index, save_index, get_cache_path, Navigator};
+//! use xvora_codebase_graph::{IndexBuilder, load_index, save_index, get_cache_path, Navigator};
 //!
 //! let repo_path = Path::new("/path/to/repo");
 //! let cache_path = get_cache_path(repo_path);
@@ -49,7 +49,7 @@
 //!
 //! ```rust,ignore
 //! use std::path::PathBuf;
-//! use codebase_graph::{IndexManager, IndexManagerConfig, FileEvent};
+//! use xvora_codebase_graph::{IndexManager, IndexManagerConfig, FileEvent};
 //!
 //! // Create the manager with config
 //! let config = IndexManagerConfig::new("/path/to/repo".into())

@@ -6,8 +6,8 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
-use codebase_graph::LanguageRegistry;
 use git2::{Repository, StatusOptions};
+use xvora_codebase_graph::LanguageRegistry;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

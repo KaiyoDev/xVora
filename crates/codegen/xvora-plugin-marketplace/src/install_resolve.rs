@@ -3,17 +3,15 @@
 use crate::types::{MarketplaceEntry, MarketplaceSource, SourceKind};
 use crate::{canonical_github_owner_repo, is_official_source_url};
 
-/// A parsed marketplace install ref: a plugin `name` with an optional source
-/// `qualifier` (`owner/repo` for git, `local/<slug>` for local sources).
+/// A parsed marketplace install ref: a plugin `name` with an optional source `qualifier` (`owner/repo` for git, `local/<slug>` for local sources).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MarketplaceRef {
     pub name: String,
     pub qualifier: Option<String>,
 }
 
-/// Recognize `<name>` / `<name>@<qualifier>` install args, leaving git URLs,
-/// GitHub shorthand, and local paths (including Windows paths) for the existing
-/// parser.
+/// Recognize `<name>` / `<name>@<qualifier>` install args.
+/// Git URLs, GitHub shorthand, and local paths (including Windows paths) are left for the existing parser.
 pub fn parse_marketplace_ref(arg: &str) -> Option<MarketplaceRef> {
     if arg.contains("://") || arg.starts_with("git@") {
         return None;
@@ -58,9 +56,8 @@ pub fn slugify(name: &str) -> String {
         .join("-")
 }
 
-/// The qualifier a user would type to pin this source: `owner/repo` for a
-/// GitHub git source, `git/<slug>` for a non-GitHub git source, `local/<slug>`
-/// for a local source.
+/// The qualifier a user would type to pin this source.
+/// `owner/repo` names a GitHub git source, `git/<slug>` a non-GitHub git source, `local/<slug>` a local source.
 pub fn addressable_qualifier(source: &MarketplaceSource) -> String {
     match &source.kind {
         SourceKind::Git { url, .. } => canonical_github_owner_repo(url)
@@ -78,14 +75,12 @@ pub enum QualifierResolveError {
 
 /// Resolve a qualifier to exactly one registered source index.
 ///
-/// A bare `owner/repo` matches GitHub git sources. `local/<slug>` and
-/// `git/<slug>` match local/git sources by slugified name, and both also keep
-/// the `owner/repo` interpretation so a GitHub source owned by `git`/`local`
-/// still resolves. A qualifier also matches a source's registered `name`
-/// (exactly, or slugified): `<plugin>@<marketplace-name>` is the only pin for
-/// non-github.com hosts (e.g. GitHub Enterprise) that have no `owner/repo`
-/// form. Matches spanning more than one source surface as
-/// [`QualifierResolveError::Ambiguous`].
+/// A bare `owner/repo` matches GitHub git sources.
+/// `local/<slug>` and `git/<slug>` match local/git sources by slugified name.
+/// Both also keep the `owner/repo` interpretation so a GitHub source owned by `git`/`local` still resolves.
+/// A qualifier also matches a source's registered `name`, exactly or slugified.
+/// `<plugin>@<marketplace-name>` is the only pin for non-github.com hosts (e.g. GitHub Enterprise) that have no `owner/repo` form.
+/// When more than one source matches, the result is [`QualifierResolveError::Ambiguous`].
 pub fn resolve_qualified_source(
     qualifier: &str,
     sources: &[MarketplaceSource],
@@ -140,16 +135,14 @@ pub struct ScannedEntry<'a> {
 pub struct BareNameSelection {
     /// Index into the scanned slice of the entry to install.
     pub chosen: usize,
-    /// How many other copies of the name exist (non-zero only when official
-    /// priority broke a tie).
+    /// How many other copies of the name exist (non-zero only when official priority broke a tie).
     pub other_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BareNameError {
     NotFound,
-    /// Several sources provide the name and none is uniquely official; payload
-    /// is the matching indices into the scanned slice.
+    /// Several sources provide the name and none is uniquely official; payload is the matching indices into the scanned slice.
     Ambiguous {
         matched: Vec<usize>,
     },
@@ -157,8 +150,8 @@ pub enum BareNameError {
 
 /// Choose which scanned entry to install for a bare `<name>` (case-insensitive).
 ///
-/// One match wins outright. With several matches, a single official-source copy
-/// wins (reporting the others); otherwise the result is ambiguous.
+/// One match wins outright.
+/// With several matches, a single official-source copy wins (reporting the others); otherwise the result is ambiguous.
 pub fn select_bare_name(
     name: &str,
     scanned: &[ScannedEntry<'_>],
@@ -267,10 +260,10 @@ mod tests {
     #[test]
     fn parse_name_with_owner_repo_qualifier() {
         assert_eq!(
-            parse_marketplace_ref("sentry@KaiyoDev/plugin-marketplace"),
+            parse_marketplace_ref("sentry@xvora-org/plugin-marketplace"),
             Some(MarketplaceRef {
                 name: "sentry".into(),
-                qualifier: Some("KaiyoDev/plugin-marketplace".into()),
+                qualifier: Some("xvora-org/plugin-marketplace".into()),
             })
         );
     }
@@ -323,7 +316,7 @@ mod tests {
     fn parse_rejects_fragment() {
         assert_eq!(parse_marketplace_ref("sentry#sub"), None);
         assert_eq!(
-            parse_marketplace_ref("sentry@KaiyoDev/marketplace#sub"),
+            parse_marketplace_ref("sentry@xvora-org/marketplace#sub"),
             None
         );
     }
@@ -342,7 +335,7 @@ mod tests {
     #[test]
     fn slugify_lowercases_and_hyphenates_spaces() {
         assert_eq!(slugify("Local Dev"), "local-dev");
-        assert_eq!(slugify("xAI Official"), "xai-official");
+        assert_eq!(slugify("xAI Official"), "xvora-official");
     }
 
     #[test]
@@ -350,9 +343,9 @@ mod tests {
         assert_eq!(
             addressable_qualifier(&git_source(
                 "x",
-                "https://github.com/KaiyoDev/plugin-marketplace.git"
+                "https://github.com/xvora-org/plugin-marketplace.git"
             )),
-            "KaiyoDev/plugin-marketplace"
+            "xvora-org/plugin-marketplace"
         );
         assert_eq!(
             addressable_qualifier(&local_source("Local Dev", "/tmp/p")),
@@ -374,14 +367,14 @@ mod tests {
     #[test]
     fn resolve_qualifier_matches_git_owner_repo_across_url_forms() {
         for url in [
-            "https://github.com/KaiyoDev/plugin-marketplace.git",
-            "git@github.com:KaiyoDev/plugin-marketplace.git",
-            "ssh://git@github.com/KaiyoDev/plugin-marketplace",
+            "https://github.com/xvora-org/plugin-marketplace.git",
+            "git@github.com:xvora-org/plugin-marketplace.git",
+            "ssh://git@github.com/xvora-org/plugin-marketplace",
             "https://GitHub.com/XAI-org/Plugin-Marketplace",
         ] {
             let sources = [git_source("src", url)];
             assert_eq!(
-                resolve_qualified_source("KaiyoDev/plugin-marketplace", &sources),
+                resolve_qualified_source("xvora-org/plugin-marketplace", &sources),
                 Ok(0),
                 "url: {url}"
             );
@@ -392,10 +385,10 @@ mod tests {
     fn resolve_qualifier_normalizes_dot_git_in_qualifier() {
         let sources = [git_source(
             "src",
-            "https://github.com/KaiyoDev/plugin-marketplace",
+            "https://github.com/xvora-org/plugin-marketplace",
         )];
         assert_eq!(
-            resolve_qualified_source("KaiyoDev/plugin-marketplace.git", &sources),
+            resolve_qualified_source("xvora-org/plugin-marketplace.git", &sources),
             Ok(0)
         );
     }
@@ -405,7 +398,7 @@ mod tests {
         let sources = [
             git_source(
                 "xAI Official",
-                "https://github.com/KaiyoDev/plugin-marketplace.git",
+                "https://github.com/xvora-org/plugin-marketplace.git",
             ),
             local_source("Local Dev", "/tmp/plugins"),
         ];
@@ -417,7 +410,7 @@ mod tests {
         let sources = [
             git_source(
                 "xAI Official",
-                "https://github.com/KaiyoDev/plugin-marketplace.git",
+                "https://github.com/xvora-org/plugin-marketplace.git",
             ),
             git_source("Self Hosted", "https://git.example.com/org/repo.git"),
         ];
@@ -448,7 +441,7 @@ mod tests {
         let sources = [
             git_source(
                 "xAI Official",
-                "https://github.com/KaiyoDev/plugin-marketplace.git",
+                "https://github.com/xvora-org/plugin-marketplace.git",
             ),
             local_source("Local Dev", "/tmp/plugins"),
         ];
@@ -467,12 +460,12 @@ mod tests {
         let sources = [
             git_source(
                 "Mirror A",
-                "https://github.com/KaiyoDev/plugin-marketplace.git",
+                "https://github.com/xvora-org/plugin-marketplace.git",
             ),
-            git_source("Mirror B", "git@github.com:KaiyoDev/plugin-marketplace.git"),
+            git_source("Mirror B", "git@github.com:xvora-org/plugin-marketplace.git"),
         ];
         assert_eq!(
-            resolve_qualified_source("KaiyoDev/plugin-marketplace", &sources),
+            resolve_qualified_source("xvora-org/plugin-marketplace", &sources),
             Err(QualifierResolveError::Ambiguous(vec![0, 1]))
         );
     }
@@ -520,15 +513,15 @@ mod tests {
         let sources = [
             git_source(
                 "xAI Official",
-                "https://github.com/KaiyoDev/plugin-marketplace.git",
+                "https://github.com/xvora-org/plugin-marketplace.git",
             ),
             git_source(
-                "KaiyoDev/plugin-marketplace",
-                "git@github.example.com:mirror/xai.git",
+                "xvora-org/plugin-marketplace",
+                "git@github.example.com:mirror/xvora.git",
             ),
         ];
         assert_eq!(
-            resolve_qualified_source("KaiyoDev/plugin-marketplace", &sources),
+            resolve_qualified_source("xvora-org/plugin-marketplace", &sources),
             Err(QualifierResolveError::Ambiguous(vec![0, 1]))
         );
     }
@@ -536,11 +529,11 @@ mod tests {
     #[test]
     fn resolve_qualifier_name_and_owner_repo_same_source_resolves() {
         let sources = [git_source(
-            "KaiyoDev/plugin-marketplace",
-            "https://github.com/KaiyoDev/plugin-marketplace.git",
+            "xvora-org/plugin-marketplace",
+            "https://github.com/xvora-org/plugin-marketplace.git",
         )];
         assert_eq!(
-            resolve_qualified_source("KaiyoDev/plugin-marketplace", &sources),
+            resolve_qualified_source("xvora-org/plugin-marketplace", &sources),
             Ok(0)
         );
     }
@@ -599,7 +592,7 @@ mod tests {
             (
                 git_source(
                     "xAI Official",
-                    "https://github.com/KaiyoDev/plugin-marketplace.git",
+                    "https://github.com/xvora-org/plugin-marketplace.git",
                 ),
                 entry("sentry"),
             ),
@@ -641,14 +634,14 @@ mod tests {
             (
                 git_source(
                     "Official Mirror A",
-                    "https://github.com/KaiyoDev/plugin-marketplace.git",
+                    "https://github.com/xvora-org/plugin-marketplace.git",
                 ),
                 entry("sentry"),
             ),
             (
                 git_source(
                     "Official Mirror B",
-                    "git@github.com:KaiyoDev/plugin-marketplace.git",
+                    "git@github.com:xvora-org/plugin-marketplace.git",
                 ),
                 entry("sentry"),
             ),

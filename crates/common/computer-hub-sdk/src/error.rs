@@ -1,13 +1,13 @@
 //! Client-side error taxonomy.
 //!
-//! Wire-level [`tool_protocol::ToolErrorWire`] variants and JSON-RPC
+//! Wire-level [`xvora_tool_protocol::ToolErrorWire`] variants and JSON-RPC
 //! error envelopes are mapped into the smaller [`ClientError`] vocabulary
 //! at the SDK boundary so consumers can match on a single enum without
 //! re-deriving the numeric/string code mapping.
 
 use thiserror::Error;
-use tool_protocol::{IdError, JsonRpcError, ToolCallId, ToolErrorWire};
 use url::Url;
+use xvora_tool_protocol::{IdError, JsonRpcError, ToolCallId, ToolErrorWire};
 
 /// Errors surfaced by the client SDK.
 #[derive(Debug, Error)]
@@ -78,7 +78,7 @@ pub enum ClientError {
     /// waiter and response correlation are left intact; this error
     /// surfaces synchronously so the second caller can retry with a
     /// fresh id. Mint a fresh [`ToolCallId::new_v7`] (or use
-    /// [`tool_runtime::ToolCallContext::default`], which does so)
+    /// [`xvora_tool_runtime::ToolCallContext::default`], which does so)
     /// per call. This is client misuse, not a transport or server
     /// failure.
     #[error("call_id {call_id} already in flight on this connection")]
@@ -128,6 +128,12 @@ impl ClientError {
     /// re-provisions this recoverable case, distinct from [`Self::is_server_not_found`].
     pub fn is_tool_unavailable(&self) -> bool {
         self.has_collapsed_jsonrpc_subcode("jsonrpc_-32013")
+    }
+
+    /// The server's `-32099` `rate_limited` rejection: it did not act on the
+    /// request, so retrying after a backoff is duplicate-safe.
+    pub fn is_rate_limited(&self) -> bool {
+        self.has_collapsed_jsonrpc_subcode("jsonrpc_-32099")
     }
 
     /// Map a [`ToolErrorWire`] variant into the SDK error taxonomy.
@@ -196,7 +202,7 @@ impl From<tokio::sync::oneshot::error::RecvError> for ClientError {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use tool_protocol::{
+    use xvora_tool_protocol::{
         WORKSPACE_UNAVAILABLE_SUBCODE, WorkspaceGonePhase, WorkspaceGoneReason,
         workspace_unavailable_wire,
     };
@@ -220,7 +226,7 @@ mod tests {
             .status(status)
             .body(None::<Vec<u8>>)
             .expect("response builds");
-        tokio_tungstenite::tungstenite::Error::Http(resp)
+        tokio_tungstenite::tungstenite::Error::Http(Box::new(resp))
     }
 
     #[test]
@@ -324,7 +330,7 @@ mod tests {
     fn sdk_reexported_recognizer_matches_decoded_error() {
         // SDK-only consumers reach the recognizer through the SDK re-export and
         // the core decode path.
-        let err = computer_hub_core::error_from_envelope(workspace_gone_envelope());
+        let err = xvora_computer_hub_core::error_from_envelope(workspace_gone_envelope());
         assert!(crate::is_workspace_unavailable(&err));
     }
 
@@ -340,7 +346,7 @@ mod tests {
             message: "nope".to_owned(),
             data: Some(serde_json::to_value(&wire).unwrap()),
         };
-        let err = computer_hub_core::error_from_envelope(env);
+        let err = xvora_computer_hub_core::error_from_envelope(env);
         assert!(!crate::is_workspace_unavailable(&err));
     }
 }

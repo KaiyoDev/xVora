@@ -27,25 +27,25 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tool_protocol::{
+use tracing::{debug, warn};
+use url::Url;
+use xvora_tool_protocol::{
     ConnectionKind, HookEvent, HookFrame, HookReplyFrame, JsonRpcError, JsonRpcId,
     JsonRpcNotification, JsonRpcResponse, JsonRpcVersion, Method, ResponseOutcome, SessionId,
     ToolCallId, ToolCallParams, ToolCallProgressFrame, ToolCallResult, ToolErrorWire, ToolId,
     ToolOutputWire, ToolServerEvictParams, error_codes,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     BehaviorVersion, Cancellation, Cwd, ToolCallContext, ToolError, ToolProgress, ToolStream,
     ToolStreamItem, TraceContext, TypedToolOutput,
 };
-use tool_types::ToolDescription;
-use tracing::{debug, warn};
-use url::Url;
+use xvora_tool_types::ToolDescription;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::cancel::CancelRegistry;
 use crate::connection::{
     ConnectCallback, ConnectionTuning, DisconnectCallback, HubConnection, ReconnectCallback,
-    ReconnectEvent,
+    ReconnectEvent, TerminalCloseCallback,
 };
 use crate::connection_borrow::ConnectionBorrow;
 use crate::demux::InboundFrame;
@@ -89,7 +89,8 @@ fn system_notify_ack_from_outcome(
         // require `data` absent so a richer error still flows through the normal taxonomy.
         ResponseOutcome::Error(err)
             if err.data.is_none()
-                && tool_protocol::error_codes::string_for(err.code) == Some("method_not_found") =>
+                && xvora_tool_protocol::error_codes::string_for(err.code)
+                    == Some("method_not_found") =>
         {
             Ok(SystemNotifyAck::ForwardingUnsupported)
         }
@@ -113,10 +114,10 @@ type SessionHandlerMap =
 pub struct ResolvedSessionHandlers {
     pub handlers: Vec<Arc<dyn ToolServerHandler>>,
     /// Tool ids the resolver declined to serve; forwarded as
-    /// [`tool_protocol::SessionBindResult::unserved_tool_ids`].
+    /// [`xvora_tool_protocol::SessionBindResult::unserved_tool_ids`].
     pub unserved_tool_ids: Vec<String>,
     /// Human-readable reason the resolver failed the toolset closed;
-    /// forwarded as [`tool_protocol::SessionBindResult::resolve_error`].
+    /// forwarded as [`xvora_tool_protocol::SessionBindResult::resolve_error`].
     pub resolve_error: Option<String>,
 }
 
@@ -153,7 +154,7 @@ pub type SessionHandlerResolver = Arc<
 ///
 /// The server speaks JSON, so handlers receive `serde_json::Value`
 /// arguments and return a `ToolStream<Value>`. Implementations that
-/// already use [`tool_runtime::Tool`] can adapt by calling the
+/// already use [`xvora_tool_runtime::Tool`] can adapt by calling the
 /// underlying tool's `execute` and serialising the typed output.
 #[async_trait]
 pub trait ToolServerHandler: Send + Sync + 'static {
@@ -220,9 +221,10 @@ pub struct ToolServerBuilder {
     /// precede server session re-serve.
     on_reconnect_settled: Option<Arc<ReconnectSettledCallback>>,
     on_disconnect: Option<Arc<DisconnectCallback>>,
+    on_terminal_close: Option<Arc<TerminalCloseCallback>>,
     on_connect: Option<Arc<ConnectCallback>>,
     metadata: Option<serde_json::Value>,
-    server_id: Option<tool_protocol::ServerId>,
+    server_id: Option<xvora_tool_protocol::ServerId>,
     server_description: Option<String>,
     alpha_test_key: Option<String>,
     allow_insecure_ws: bool,
@@ -233,8 +235,11 @@ pub struct ToolServerBuilder {
     ws_ping_interval: Option<std::time::Duration>,
     ws_liveness_deadline: Option<std::time::Duration>,
     reconnect_backoff: Option<Arc<[std::time::Duration]>>,
+    reconnect_after_terminal_close_codes: Vec<u16>,
+    initial_connect_attempt_timeout: Option<std::time::Duration>,
     session_handler_resolver: Option<SessionHandlerResolver>,
     binary_version: Option<String>,
+    image_capabilities: Vec<String>,
 }
 
 impl ToolServerBuilder {
@@ -293,18 +298,15 @@ impl ToolServerBuilder {
     }
 
     /// Override the inbound-liveness deadline on a freshly-opened
-    /// connection: if no inbound WebSocket frame of any kind arrives within
-    /// this window, the connection is declared dead and reconnected. This
-    /// catches silently dead transports (e.g. a VM snapshot restore or
-    /// NAT/LB flow expiry) that a send-only keepalive never notices.
+    /// connection: if no RTT proof (WS/app pong) arrives within this
+    /// window, the connection is declared dead and reconnected.
+    /// Hub→client pings and one-way data do not re-arm.
     ///
-    /// Default (also used for a zero value): 2.5× the effective ping
-    /// interval — 75s at the default 30s ping — which guarantees at least
-    /// two keepalive pings fit in every window, so a healthy-but-idle
-    /// connection (one pong per ping) can never trip it. Explicit values
-    /// are honored verbatim; keep them comfortably above the ping interval
-    /// for the same reason (a value at or below the ping interval churns
-    /// healthy idle connections and is logged as a warning at connect).
+    /// Default (also used for a zero value): `min(4× ping, 120s)` — 120s
+    /// at the default 30s ping, still under the hub's ~150s idle. Explicit
+    /// values are honored verbatim; keep them comfortably above the ping
+    /// interval (a value at or below the ping interval churns healthy idle
+    /// connections and is logged as a warning at connect).
     pub fn with_ws_liveness_deadline(mut self, deadline: std::time::Duration) -> Self {
         self.ws_liveness_deadline = Some(deadline);
         self
@@ -312,12 +314,51 @@ impl ToolServerBuilder {
 
     /// Override the reconnect backoff schedule on a freshly-opened
     /// connection (default: the built-in exponential table capped at 10s).
-    /// Each attempt uses the next slot, clamping at the last; an empty
-    /// schedule falls back to the default. Not setting it preserves the
-    /// default.
+    /// Each wait is `Uniform(0, min(last_slot, max(slot, 1s)))`, not the
+    /// literal slot — a single-element `[25ms]` table is jittered in
+    /// `[0, 25ms)`. An empty schedule falls back to the default.
     pub fn with_reconnect_backoff(mut self, schedule: Vec<std::time::Duration>) -> Self {
         self.reconnect_backoff = Some(schedule.into());
         self
+    }
+
+    /// Allowlist specific 4100–4199 terminal close codes to reconnect after.
+    /// Empty (default) keeps the protocol contract: the actor stops on every
+    /// terminal close. Only restorable-session codes (e.g.
+    /// [`crate::connection::CLOSE_CODE_SANDBOX_TERMINATED`]) belong here.
+    pub fn reconnect_after_terminal_close_codes(
+        mut self,
+        codes: impl IntoIterator<Item = u16>,
+    ) -> Self {
+        let mut codes: Vec<u16> = codes.into_iter().collect();
+        codes.sort_unstable();
+        codes.dedup();
+        self.reconnect_after_terminal_close_codes = codes;
+        self
+    }
+
+    /// Per-attempt budget for the initial connect (WebSocket upgrade +
+    /// hello/hello_ack). Default (also used for a zero value): 10s. A peer
+    /// that accepts the socket but never answers would otherwise hang the
+    /// caller indefinitely; the SDK retries transient failures a bounded
+    /// number of times with jittered backoff before surfacing the error.
+    pub fn with_initial_connect_attempt_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.initial_connect_attempt_timeout = Some(timeout);
+        self
+    }
+
+    /// Connection knobs handed to [`HubConnection::connect`].
+    /// `reconnect_attempt_reset_after` is left `None` so the SDK applies
+    /// the 10 s production dwell — not zero, not "never".
+    pub(crate) fn connection_tuning(&self) -> ConnectionTuning {
+        ConnectionTuning {
+            ws_ping_interval: self.ws_ping_interval,
+            ws_liveness_deadline: self.ws_liveness_deadline,
+            reconnect_backoff: self.reconnect_backoff.clone(),
+            reconnect_attempt_reset_after: None,
+            reconnect_after_terminal_close_codes: self.reconnect_after_terminal_close_codes.clone(),
+            initial_connect_attempt_timeout: self.initial_connect_attempt_timeout,
+        }
     }
 
     /// Connection pool to attach to. Required.
@@ -377,9 +418,10 @@ impl ToolServerBuilder {
     /// "server-ready" means registered **and** session tools re-served.
     ///
     /// It only fires when **every** session re-served successfully **and** no
-    /// disconnect raced the (async) replay; otherwise it is skipped and the
-    /// next reconnect's replay settles instead. This keeps a readiness marker
-    /// from being resurrected while the socket is already down again.
+    /// disconnect or terminal close raced the (async) replay; otherwise it is
+    /// skipped and the next reconnect's replay settles instead. This keeps a
+    /// readiness marker from being resurrected while the socket is already down
+    /// again.
     pub fn on_reconnect_settled<F>(mut self, cb: F) -> Self
     where
         F: Fn() + Send + Sync + 'static,
@@ -397,8 +439,24 @@ impl ToolServerBuilder {
         self
     }
 
-    /// Optional callback fired once on the initial successful connect, before
-    /// the actor starts (so it happens-before any disconnect/reconnect).
+    /// Optional callback fired with the close code when the server sends a
+    /// terminal close (4100–4199). Invoked before [`Self::on_disconnect`].
+    /// Advances the same disconnect epoch as [`Self::on_disconnect`] so a
+    /// reconnect settle that still holds the pre-close generation cannot fire
+    /// [`Self::on_reconnect_settled`] after this callback. The actor still
+    /// stops afterwards unless the code is allowlisted via
+    /// [`Self::reconnect_after_terminal_close_codes`].
+    pub fn on_terminal_close<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(u16) + Send + Sync + 'static,
+    {
+        self.on_terminal_close = Some(Arc::new(Box::new(cb) as TerminalCloseCallback));
+        self
+    }
+
+    /// Optional callback fired once on the initial successful connect, after
+    /// the writer task enters its loop and before the reader actor starts.
+    /// The first keepalive may still be in flight.
     pub fn on_connect<F>(mut self, cb: F) -> Self
     where
         F: Fn() + Send + Sync + 'static,
@@ -409,7 +467,7 @@ impl ToolServerBuilder {
 
     /// Stable server identity for `servers.list` discovery and
     /// `session.open` addressing. Sent in the hello frame.
-    pub fn server_id(mut self, id: tool_protocol::ServerId) -> Self {
+    pub fn server_id(mut self, id: xvora_tool_protocol::ServerId) -> Self {
         self.server_id = Some(id);
         self
     }
@@ -434,9 +492,17 @@ impl ToolServerBuilder {
     }
 
     /// Version of the embedding binary, echoed as
-    /// [`tool_protocol::SessionBindResult::binary_version`].
+    /// [`xvora_tool_protocol::SessionBindResult::binary_version`].
     pub fn binary_version(mut self, version: impl Into<String>) -> Self {
         self.binary_version = Some(version.into());
+        self
+    }
+
+    /// Image capability tokens echoed on every bind as
+    /// [`xvora_tool_protocol::SessionBindResult::image_capabilities`]. The
+    /// caller validates and sorts them; the SDK forwards them verbatim.
+    pub fn image_capabilities(mut self, tokens: Vec<String>) -> Self {
+        self.image_capabilities = tokens;
         self
     }
 
@@ -449,6 +515,7 @@ impl ToolServerBuilder {
     /// every successfully-bound session before returning the original
     /// error, so a failed `build()` does not leak server-side state.
     pub async fn build(self) -> Result<ToolServer, ClientError> {
+        let tuning = self.connection_tuning();
         let pool = self
             .pool
             .ok_or_else(|| ClientError::InvalidConfig("missing pool".to_owned()))?;
@@ -494,11 +561,18 @@ impl ToolServerBuilder {
             }
         }));
 
-        let tuning = ConnectionTuning {
-            ws_ping_interval: self.ws_ping_interval,
-            ws_liveness_deadline: self.ws_liveness_deadline,
-            reconnect_backoff: self.reconnect_backoff,
-        };
+        // Terminal close runs before on_disconnect. Bump the same epoch so a
+        // reconnect settle that still holds the pre-close generation cannot
+        // fire on_reconnect_settled after last_close_code is latched.
+        let user_on_terminal_close = self.on_terminal_close;
+        let epoch_for_terminal_close = Arc::clone(&disconnect_epoch);
+        let combined_terminal_close: Arc<TerminalCloseCallback> = Arc::new(Box::new(move |code| {
+            epoch_for_terminal_close.fetch_add(1, Ordering::Release);
+            if let Some(ref cb) = user_on_terminal_close {
+                cb(code);
+            }
+        }));
+
         let borrow = ConnectionBorrow::acquire(
             pool,
             url,
@@ -507,6 +581,7 @@ impl ToolServerBuilder {
             Some(combined_reconnect),
             Some(combined_disconnect),
             self.on_connect,
+            Some(combined_terminal_close),
             self.server_id,
             self.server_description,
             self.metadata,
@@ -539,6 +614,7 @@ impl ToolServerBuilder {
             session_unserved: parking_lot::RwLock::new(HashMap::new()),
             session_resolve_errors: parking_lot::RwLock::new(HashMap::new()),
             binary_version: self.binary_version,
+            image_capabilities: self.image_capabilities,
             notification_fwd: Arc::new(parking_lot::Mutex::new(None)),
             parsed_notif_tx: Arc::new(parking_lot::Mutex::new(None)),
             session_handles: Arc::new(parking_lot::Mutex::new(HashMap::new())),
@@ -597,6 +673,7 @@ struct ToolServerInner {
     /// same lifetime as the `session_handlers` entry.
     session_resolve_errors: parking_lot::RwLock<HashMap<SessionId, String>>,
     binary_version: Option<String>,
+    image_capabilities: Vec<String>,
 
     /// Raw notification forwarding channel. Session loops write here;
     /// the parsing task (spawned in `run()`) reads and parses into
@@ -626,10 +703,11 @@ struct ToolServerInner {
     /// Optional readiness / settle hook after serve replay (see
     /// [`ToolServerBuilder::on_reconnect_settled`]).
     on_reconnect_settled: Option<Arc<ReconnectSettledCallback>>,
-    /// Bumped on every disconnect. The reconnect task snapshots this before
-    /// `serve` replay and only fires `on_reconnect_settled` if it is unchanged
-    /// afterward — so a disconnect racing the (async) replay cannot resurrect a
-    /// stale ready marker while the socket is already down.
+    /// Bumped on every disconnect and terminal close. The reconnect task
+    /// snapshots this before `serve` replay and only fires `on_reconnect_settled`
+    /// if it is unchanged afterward — so a disconnect or terminal close racing
+    /// the (async) replay cannot resurrect a stale ready marker while the socket
+    /// is already down.
     disconnect_epoch: Arc<AtomicU64>,
     /// Three-tier (session/connection/global) admission controller. Drives
     /// the bounded-wait-then-overloaded backpressure on the spawned path.
@@ -915,13 +993,13 @@ impl ToolServer {
     pub async fn serve(&self, session_id: SessionId) -> Result<(), ClientError> {
         // Build tool descriptions while holding the read lock so the
         // handler list cannot mutate between read and serialization.
-        let tools: Vec<tool_protocol::ToolDescriptionWithSchema> = {
+        let tools: Vec<xvora_tool_protocol::ToolDescriptionWithSchema> = {
             let map = self.inner().session_handlers.read();
             let handlers = map.get(&session_id);
             handlers
                 .map(|h| {
                     h.iter()
-                        .map(|h| tool_protocol::ToolDescriptionWithSchema {
+                        .map(|h| xvora_tool_protocol::ToolDescriptionWithSchema {
                             description: h.description(),
                             input_schema: h.input_schema(),
                             capabilities: None,
@@ -932,7 +1010,7 @@ impl ToolServer {
                 .unwrap_or_default()
         };
 
-        let params = tool_protocol::ServeParams { tools };
+        let params = xvora_tool_protocol::ServeParams { tools };
 
         let connection = self.inner().borrow.connection();
         connection.serve(session_id, params).await?;
@@ -1080,7 +1158,7 @@ impl ToolServer {
     /// outbound message is queued, without waiting for a server ack.
     pub async fn send_notification(
         &self,
-        notification: tool_protocol::ToolNotificationFrame,
+        notification: xvora_tool_protocol::ToolNotificationFrame,
     ) -> Result<(), ClientError> {
         let session = self
             .inner()
@@ -1095,7 +1173,7 @@ impl ToolServer {
             })?;
         let connection = self.inner().borrow.connection();
         let request_id = connection.try_alloc_request_id()?;
-        let req = tool_protocol::JsonRpcRequest {
+        let req = xvora_tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session),
@@ -1111,19 +1189,19 @@ impl ToolServer {
     pub async fn send_system_notification(
         &self,
         session_id: SessionId,
-        params: tool_protocol::SystemNotifyParams,
+        params: xvora_tool_protocol::SystemNotifyParams,
     ) -> Result<SystemNotifyAck, ClientError> {
         // Fail fast on an oversized payload instead of round-tripping to the server.
         let payload_len = json_serialized_len(&params.payload)?;
-        if payload_len > tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES {
+        if payload_len > xvora_tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES {
             return Err(ClientError::ProtocolError(format!(
                 "system.notify payload {payload_len} bytes exceeds {} byte cap",
-                tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES
+                xvora_tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES
             )));
         }
         let connection = self.inner().borrow.connection();
         let request_id = connection.try_alloc_request_id()?;
-        let req = tool_protocol::JsonRpcRequest {
+        let req = xvora_tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session_id),
@@ -1180,7 +1258,7 @@ impl ToolServer {
         let hook_id = ToolCallId::new_v7().to_string();
         let hook = HookFrame::custom_request(session_id.clone(), hook_id, kind, payload);
         let request_id = connection.try_alloc_request_id()?;
-        let req = tool_protocol::JsonRpcRequest {
+        let req = xvora_tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session_id),
@@ -1217,7 +1295,7 @@ impl ToolServer {
                 )
             })?;
         let connection = self.inner().borrow.connection();
-        let notification = tool_protocol::JsonRpcNotification {
+        let notification = xvora_tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: Some(session),
             seq: None,
@@ -1252,7 +1330,7 @@ impl ToolServer {
                 )
             })?;
         let connection = self.inner().borrow.connection();
-        let notification = tool_protocol::JsonRpcNotification {
+        let notification = xvora_tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: Some(session),
             seq: None,
@@ -1277,7 +1355,7 @@ impl ToolServer {
             otlp_request: &'a str,
         }
         let connection = self.inner().borrow.connection();
-        let notification = tool_protocol::JsonRpcNotification {
+        let notification = xvora_tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: None,
             seq: None,
@@ -1375,7 +1453,7 @@ impl ToolServer {
                         else {
                             continue;
                         };
-                        let Ok(sid) = tool_protocol::SessionId::new(sid_str) else {
+                        let Ok(sid) = xvora_tool_protocol::SessionId::new(sid_str) else {
                             continue;
                         };
                         tracing::info!(%sid, "session.bind: binding new session");
@@ -1394,16 +1472,20 @@ impl ToolServer {
                             if let Some(id) = request_id {
                                 let response = match result {
                                     Ok(()) => {
-                                        let tools: Vec<tool_types::ToolDescription> = server
+                                        let tools: Vec<xvora_tool_types::ToolDescription> = server
                                             .handlers_for_session(&sid)
                                             .iter()
                                             .map(|h| h.description())
                                             .collect();
-                                        let result = tool_protocol::SessionBindResult {
+                                        let result = xvora_tool_protocol::SessionBindResult {
                                             tools,
                                             binary_version: server.inner().binary_version.clone(),
                                             unserved_tool_ids: server.unserved_for_session(&sid),
                                             resolve_error: server.resolve_error_for_session(&sid),
+                                            image_capabilities: server
+                                                .inner()
+                                                .image_capabilities
+                                                .clone(),
                                         };
                                         serde_json::json!({
                                             "jsonrpc": "2.0",
@@ -1457,7 +1539,7 @@ impl ToolServer {
                         else {
                             continue;
                         };
-                        let Ok(sid) = tool_protocol::SessionId::new(sid_str) else {
+                        let Ok(sid) = xvora_tool_protocol::SessionId::new(sid_str) else {
                             continue;
                         };
                         tracing::info!(%sid, "session.unbind: unbinding session");
@@ -1559,8 +1641,9 @@ impl ToolServer {
                     notify.notified().await;
                     // Snapshot the disconnect epoch for the connection we are
                     // now replaying onto; if it advances during replay a fresh
-                    // disconnect raced us and `settled` must not fire (it would
-                    // resurrect a stale ready marker over a downed socket).
+                    // disconnect or terminal close raced us and `settled` must
+                    // not fire (it would resurrect a stale ready marker over a
+                    // downed socket).
                     let epoch_at_start = epoch.load(Ordering::Acquire);
                     let sessions: Vec<SessionId> = server.active_sessions();
                     tracing::info!(
@@ -1579,8 +1662,8 @@ impl ToolServer {
                         }
                     }
                     // Only settle when every session re-served AND no disconnect
-                    // raced this replay — otherwise the next reconnect's notify
-                    // re-runs this loop and settles then.
+                    // or terminal close raced this replay — otherwise the next
+                    // reconnect's notify re-runs this loop and settles then.
                     let raced = epoch.load(Ordering::Acquire) != epoch_at_start;
                     if !all_served || raced {
                         tracing::info!(
@@ -1748,7 +1831,7 @@ async fn teardown_sessions(inner: &ToolServerInner) {
 /// Must be called before `unregister_session` (the server needs the
 /// session bindings to route the notification).
 async fn push_disconnect_status(connection: &HubConnection, sessions: &[SessionId]) {
-    use tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
+    use xvora_tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
 
     for sid in sessions {
         let mut payload =
@@ -2103,8 +2186,9 @@ async fn execute_call(
         .unwrap_or_else(fastrace::Span::noop);
 
     let mut ctx = ToolCallContext::new(params.tool_call_id.clone());
-    ctx.extensions
-        .insert(tool_runtime::SessionContext(session_id.as_str().to_owned()));
+    ctx.extensions.insert(xvora_tool_runtime::SessionContext(
+        session_id.as_str().to_owned(),
+    ));
     if let Some(cwd) = params.cwd {
         ctx.extensions.insert(Cwd(std::path::PathBuf::from(cwd)));
     }
@@ -2334,10 +2418,23 @@ async fn send_overloaded(connection: &Arc<HubConnection>, id: JsonRpcId, session
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tool_runtime::ContentBlock;
+    use xvora_tool_runtime::ContentBlock;
 
     fn call_id() -> ToolCallId {
         ToolCallId::new_v7()
+    }
+
+    #[test]
+    fn tool_server_tuning_does_not_override_attempt_reset_dwell() {
+        let tuning = ToolServerBuilder::default().connection_tuning();
+        assert_eq!(
+            tuning.reconnect_attempt_reset_after, None,
+            "builder must pass None so connect() applies the 10s default"
+        );
+        assert_eq!(
+            crate::connection::resolve_attempt_reset_after(tuning.reconnect_attempt_reset_after),
+            std::time::Duration::from_secs(10),
+        );
     }
 
     // ── build_error_response: wire fidelity ─────────────────────────
@@ -2508,53 +2605,6 @@ mod tests {
         assert_eq!(frame.body[0]["uri"], "file:///tmp/data.csv");
         assert_eq!(frame.body[0]["mime_type"], "text/csv");
         assert_eq!(frame.body[0]["text"], "a,b\n1,2");
-    }
-
-    // ── serde round-trips ───────────────────────────────────────────
-
-    #[test]
-    fn progress_frame_text_round_trips() {
-        let progress = ToolProgress::Text {
-            text: "round-trip".to_owned(),
-        };
-        let frame = progress_to_frame(progress, call_id());
-        let json = serde_json::to_value(&frame).expect("serialize");
-        let back: ToolCallProgressFrame = serde_json::from_value(json).expect("deserialize");
-        assert_eq!(back, frame);
-    }
-
-    #[test]
-    fn progress_frame_content_round_trips() {
-        let blocks = vec![
-            ContentBlock::Text {
-                text: "hello".to_owned(),
-            },
-            ContentBlock::Image {
-                mime_type: "image/png".to_owned(),
-                data: "abc".to_owned(),
-                media_id: None,
-                filename: None,
-                path: None,
-                metadata: Default::default(),
-            },
-        ];
-        let progress = ToolProgress::Content { blocks };
-        let frame = progress_to_frame(progress, call_id());
-        let json = serde_json::to_value(&frame).expect("serialize");
-        let back: ToolCallProgressFrame = serde_json::from_value(json).expect("deserialize");
-        assert_eq!(back, frame);
-    }
-
-    #[test]
-    fn progress_frame_custom_round_trips() {
-        let progress = ToolProgress::Custom {
-            subkind: "streaming.chunk".to_owned(),
-            payload: serde_json::json!({ "offset": 1024, "data": [1, 2, 3] }),
-        };
-        let frame = progress_to_frame(progress, call_id());
-        let json = serde_json::to_value(&frame).expect("serialize");
-        let back: ToolCallProgressFrame = serde_json::from_value(json).expect("deserialize");
-        assert_eq!(back, frame);
     }
 
     // ── wire notification shape ─────────────────────────────────────

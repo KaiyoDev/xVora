@@ -86,7 +86,7 @@
   },
   {
     "category": "features",
-    "description": "**`xvora worktree ls`** now works as a short alias for `xvora worktree list`.",
+    "description": "**`grok worktree ls`** now works as a short alias for `grok worktree list`.",
     "breaking_change": false
   },
   {
@@ -121,7 +121,7 @@
   },
   {
     "category": "features",
-    "description": "**MCP tool output truncation** can now be set per-repo in `.xvora/config.toml`.",
+    "description": "**MCP tool output truncation** can now be set per-repo in `.grok/config.toml`.",
     "breaking_change": false
   },
   {

@@ -1,6 +1,6 @@
 //! Demo for TextArea with @-file-search completion and atomic text elements.
 //!
-//! Run with: cargo run -p ratatui-textarea --example textarea_demo
+//! Run with: cargo run -p xvora-ratatui-textarea --example textarea_demo
 //!
 //! Features demonstrated:
 //! - Type `@` to trigger fuzzy file search (real files from current directory)
@@ -31,8 +31,8 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, StatefulWidgetRef, Widget};
 
-use ratatui_textarea::wrapping::{RtOptions, word_wrap_line};
-use ratatui_textarea::{
+use xvora_ratatui_textarea::wrapping::{RtOptions, word_wrap_line};
+use xvora_ratatui_textarea::{
     ClipboardProvider, ElementId, ElementKind, MouseAction, TextArea, TextAreaState, TextElement,
     TextElementEventKind,
 };
@@ -128,7 +128,7 @@ impl FileSearch {
                         })
                 })
                 .collect();
-            scored.sort_by(|a, b| b.score.cmp(&a.score));
+            scored.sort_by_key(|b| std::cmp::Reverse(b.score));
             scored.truncate(MAX_RESULTS);
             self.results = scored;
         }

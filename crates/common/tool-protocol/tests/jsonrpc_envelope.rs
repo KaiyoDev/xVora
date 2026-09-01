@@ -1,7 +1,7 @@
 //! Envelope-shape tests for the JSON-RPC 2.0 wrappers.
 
 use serde_json::{Value, json};
-use tool_protocol::{
+use xvora_tool_protocol::{
     FrameSeq, JsonRpcError, JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     JsonRpcVersion, RequestId, ResponseOutcome, SessionId,
 };
@@ -209,7 +209,7 @@ fn jsonrpc_id_round_trips_to_request_id_correlator() {
 
 #[test]
 fn full_call_envelope_serialises_to_expected_shape() {
-    use tool_protocol::{ToolCallId, ToolCallParams, ToolId};
+    use xvora_tool_protocol::{ToolCallId, ToolCallParams, ToolId};
     let req = JsonRpcRequest {
         jsonrpc: JsonRpcVersion,
         id: JsonRpcId::new_string("req-9c4f"),
@@ -217,7 +217,7 @@ fn full_call_envelope_serialises_to_expected_shape() {
         method: "tool.call".to_owned(),
         params: ToolCallParams {
             tool_call_id: ToolCallId::new("call_xyz").unwrap(),
-            tool_id: ToolId::new("Xvora:read_file").unwrap(),
+            tool_id: ToolId::new("GrokBuild:read_file").unwrap(),
             arguments: json!({"path": "/etc/hosts"}),
             deadline_ms: None,
             behavior_version: None,
@@ -230,7 +230,7 @@ fn full_call_envelope_serialises_to_expected_shape() {
     assert_eq!(v["id"], json!("req-9c4f"));
     assert_eq!(v["session_id"], json!("sess_abc"));
     assert_eq!(v["method"], json!("tool.call"));
-    assert_eq!(v["params"]["tool_id"], json!("Xvora:read_file"));
+    assert_eq!(v["params"]["tool_id"], json!("GrokBuild:read_file"));
     assert_eq!(v["params"]["tool_call_id"], json!("call_xyz"));
 }
 
@@ -240,7 +240,7 @@ fn full_call_envelope_serialises_to_expected_shape() {
 /// collapses the two layers (e.g. via `#[serde(flatten)]`) fails loudly.
 #[test]
 fn envelope_session_id_and_inner_params_session_id_are_distinct_layers() {
-    use tool_protocol::{ToolDefinitionMode, ToolsListParams};
+    use xvora_tool_protocol::{ToolDefinitionMode, ToolsListParams};
     let req = JsonRpcRequest {
         jsonrpc: JsonRpcVersion,
         id: JsonRpcId::new_string("req-mix"),

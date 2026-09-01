@@ -1,7 +1,8 @@
 use crate::{
     computer::types::{AsyncFileSystem, TerminalBackend},
     implementations::{
-        codex, opencode, skills::types::SkillInfo, xvora, xvora_concise, xvora_hashline,
+        codex, grok_build, grok_build_concise, grok_build_hashline, opencode,
+        skills::types::SkillInfo,
     },
     notification::ToolNotificationHandle,
     persistence::ResourcesPersistence,
@@ -19,7 +20,7 @@ use crate::{
     },
     util::remap::remap_json_keys,
 };
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -102,9 +103,7 @@ where
     };
     let kind = ToolKind::deserialize(serde::de::value::StrDeserializer::<D::Error>::new(&raw))?;
     if kind == ToolKind::Other && raw != "other" {
-        tracing::warn!(
-            kind = % raw, "unknown tool kind in config; treating as \"other\""
-        );
+        tracing::warn!(kind = %raw, "unknown tool kind in config; treating as \"other\"");
     }
     Ok(Some(kind))
 }
@@ -113,7 +112,7 @@ impl ToolConfig {
     ///
     /// The fully-qualified id (`"<namespace>:<id>"`) and `kind` are derived
     /// from the type via `ToolMetadata::tool_namespace()` and
-    /// `tool_runtime::Tool::id()`. Use this for built-in tools known
+    /// `xvora_tool_runtime::Tool::id()`. Use this for built-in tools known
     /// at compile time — it gives compile-time checking of the tool name
     /// and auto-populates `kind` so capability-mode filtering works.
     ///
@@ -122,7 +121,7 @@ impl ToolConfig {
     /// `ToolRegistryBuilder::register`).
     pub fn for_tool<T>() -> Self
     where
-        T: crate::types::tool_metadata::ToolMetadata + tool_runtime::Tool + Default,
+        T: crate::types::tool_metadata::ToolMetadata + xvora_tool_runtime::Tool + Default,
     {
         Self::from(&T::default())
     }
@@ -181,13 +180,15 @@ impl ToolConfig {
             .unwrap_or_else(|| default_id.to_owned())
     }
 }
-impl<T: crate::types::tool_metadata::ToolMetadata + tool_runtime::Tool> From<&T> for ToolConfig {
+impl<T: crate::types::tool_metadata::ToolMetadata + xvora_tool_runtime::Tool> From<&T>
+    for ToolConfig
+{
     fn from(tool: &T) -> Self {
         Self {
             id: format!(
                 "{}:{}",
                 tool.tool_namespace(),
-                tool_runtime::Tool::id(tool).as_str()
+                xvora_tool_runtime::Tool::id(tool).as_str()
             ),
             params: None,
             name_override: None,
@@ -208,6 +209,15 @@ pub struct ToolServerConfig {
     /// Applied to all version-managed tools. Defaults to `"current"` when `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub behavior_preset: Option<String>,
+}
+#[derive(Clone)]
+pub struct SubagentSessionResources {
+    pub backend: crate::implementations::grok_build::task::backend::SubagentBackendResource,
+    /// Same channel as [`Self::backend`]; required so `TaskCompletionReminder`
+    /// can drain completions onto the next tool result (shell parity).
+    pub event_sender: crate::implementations::grok_build::task::types::SubagentEventSender,
+    pub depth: crate::implementations::grok_build::task::types::SubagentDepthCounter,
+    pub session_id: crate::implementations::grok_build::task::types::SessionIdResource,
 }
 /// Everything a session provides at finalization time.
 ///
@@ -230,11 +240,13 @@ pub struct SessionContext {
     /// Session ID that owns processes spawned by this session's tools.
     /// Used to scope kill operations on a shared terminal backend.
     pub owner_session_id: Option<String>,
+    /// Complete subagent capability for this session.
+    pub subagent: Option<SubagentSessionResources>,
     /// Parent's scheduler handle. When `Some`, the session reuses the parent's
     /// scheduler actor instead of spawning its own, so scheduled tasks survive
     /// subagent exit.
     pub parent_scheduler_handle:
-        Option<crate::implementations::xvora::scheduler::types::SchedulerHandle>,
+        Option<crate::implementations::grok_build::scheduler::types::SchedulerHandle>,
     /// Available skills for the Skill tool and description templates.
     pub skills: Vec<SkillInfo>,
     /// File path for persisting Resources state across restarts.
@@ -242,6 +254,9 @@ pub struct SessionContext {
     /// The toolset loads existing state on construction and auto-saves
     /// after every tool execution. The file stores serialized `State<T>`
     /// values (e.g., `TodoState`).
+    ///
+    /// Empty means this registry gives the session a handle that reads and writes nothing. `xvora-agent` reads
+    /// the same empty value as "use the temp directory" for `session_folder`; unifying the two is a follow-up.
     pub state_path: PathBuf,
     /// Optional memory backend for cross-session knowledge retrieval.
     /// When `Some`, injected into `Resources` so `memory_search` / `memory_get`
@@ -255,7 +270,7 @@ pub struct SessionContext {
     /// Optional web fetch configuration. When `Enabled`, a `WebFetchClient`
     /// is created and injected into `Resources` so the `web_fetch` tool can
     /// fetch URLs. When `Disabled` (default), the tool is not registered.
-    pub web_fetch_config: crate::implementations::xvora::web_fetch::WebFetchConfig,
+    pub web_fetch_config: crate::implementations::grok_build::web_fetch::WebFetchConfig,
     /// Optional shared LSP handle — created once by the caller (shell),
     /// passed to every session. Same pattern as `fs` and `backend`.
     /// When `Some`, inserted into `Resources` so `LspTool` can use it.
@@ -264,28 +279,28 @@ pub struct SessionContext {
     /// is created and injected into `Resources` so the `image_gen` tool can
     /// call the xAI Imagine API. When `Disabled` (default), the tool is not
     /// registered and image generation is unavailable.
-    pub image_gen_config: crate::implementations::xvora::image_gen::ImageGenConfig,
+    pub image_gen_config: crate::implementations::grok_build::image_gen::ImageGenConfig,
     /// Optional video generation configuration. When `Enabled`, a `VideoGenClient`
     /// is created and injected into `Resources` so the `video_gen` tool can
     /// call the xAI Video Generation API. When `Disabled` (default), the tool is not
     /// registered and video generation is unavailable.
-    pub video_gen_config: crate::implementations::xvora::video_gen::VideoGenConfig,
+    pub video_gen_config: crate::implementations::grok_build::video_gen::VideoGenConfig,
     /// Optional deploy service configuration. When enabled, the
     /// `deploy_app` tool connects to the service at call time using the shared
     /// API key provider.
     pub app_builder_deployer_config:
-        crate::implementations::xvora::deploy_app::AppBuilderDeployerConfig,
+        crate::implementations::grok_build::app_builder::AppBuilderDeployerConfig,
     /// Dynamic API key provider for tool HTTP clients.
     /// When set, clients resolve the API key per-request from this provider
     /// instead of using the key baked into their config at construction time.
     /// Prevents 401 failures when a session outlives the initial token lifetime.
     pub api_key_provider: Option<crate::types::SharedApiKeyProvider>,
-    /// Auth provider which returns a computer_hub_sdk::AuthCredential. Can be used by
+    /// Auth provider which returns a xvora_computer_hub_sdk::AuthCredential. Can be used by
     /// tools that need to authenticate with services.
     ///
     /// Not to be confused with the api_key_provider, which is a legacy
     /// provider used by the shell's auth manager.
-    pub auth_provider: Option<computer_hub_sdk::SharedAuthProvider>,
+    pub auth_provider: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
     /// Optional 401-attribution callback for tool HTTP clients. When
     /// set, a 401 from `image_gen` / `video_gen` / `web_search`
     /// emits an `auth_401_attribution` event via this hook. Hosts can
@@ -318,13 +333,13 @@ impl ToolMetadata for DefaultToolMetadata {
 /// Drain a `ToolStream<TypedToolOutput>` to the terminal result's `value`.
 /// Progress items are discarded.
 pub async fn drain_value_stream(
-    mut stream: tool_runtime::ToolStream<tool_runtime::TypedToolOutput>,
-) -> Result<serde_json::Value, tool_runtime::ToolError> {
+    mut stream: xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput>,
+) -> Result<serde_json::Value, xvora_tool_runtime::ToolError> {
     use futures::StreamExt;
     while let Some(item) = stream.next().await {
         match item {
-            tool_runtime::ToolStreamItem::Progress(_) => continue,
-            tool_runtime::ToolStreamItem::Terminal(result) => {
+            xvora_tool_runtime::ToolStreamItem::Progress(_) => continue,
+            xvora_tool_runtime::ToolStreamItem::Terminal(result) => {
                 return result.map(|typed| typed.value);
             }
         }
@@ -333,8 +348,8 @@ pub async fn drain_value_stream(
 }
 /// The error yielded when a dispatch stream ends without a terminal item.
 /// Centralized so the code/message can't drift across call sites.
-fn stream_no_terminal_error() -> tool_runtime::ToolError {
-    tool_runtime::ToolError::custom(
+fn stream_no_terminal_error() -> xvora_tool_runtime::ToolError {
+    xvora_tool_runtime::ToolError::custom(
         "stream_no_terminal",
         "dispatch stream ended without a terminal item",
     )
@@ -348,10 +363,10 @@ type OutputConverter =
 /// `.await`.
 struct DispatchParts {
     /// Resolved `LocalRegistry` handle to dispatch through.
-    lr_handle: Arc<dyn computer_hub_core::ToolHandle>,
+    lr_handle: Arc<dyn xvora_computer_hub_core::ToolHandle>,
     /// Runtime context built for the call (resources, renderer, cwd,
     /// behavior version, inner-dispatch).
-    ctx: tool_runtime::ToolCallContext,
+    ctx: xvora_tool_runtime::ToolCallContext,
     /// Canonical (reverse-remapped) params to pass to dispatch.
     canonical_params: serde_json::Value,
     /// Converts the dispatch's `serde_json::Value` back to `ToolOutput`.
@@ -386,11 +401,12 @@ struct ToolEntry {
     /// Registers `Params<T::Params>` for serialization in Resources.
     /// Noop when `T::Params = ()`.
     register_params: Box<dyn Fn(&mut Resources) + Send + Sync>,
-    parse_input:
-        Box<dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync>,
+    parse_input: Box<
+        dyn Fn(serde_json::Value) -> Result<ToolInput, xvora_tool_runtime::ToolError> + Send + Sync,
+    >,
     /// Registers this tool into a `LocalRegistry` using the concrete type.
     /// Captured at `register::<T>()` time when T is known.
-    register_in_local: Box<dyn Fn(&computer_hub_sdk::LocalRegistry) + Send + Sync>,
+    register_in_local: Box<dyn Fn(&xvora_computer_hub_sdk::LocalRegistry) + Send + Sync>,
 }
 /// Per-reminder metadata stored in the builder.
 struct ReminderEntry {
@@ -425,8 +441,9 @@ struct FinalizedTool {
     /// Client-facing param → canonical param, for reverse-remapping at dispatch.
     reverse_params: HashMap<String, String>,
     /// useful for parsing input to specific type
-    parse_input:
-        Arc<dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync>,
+    parse_input: Arc<
+        dyn Fn(serde_json::Value) -> Result<ToolInput, xvora_tool_runtime::ToolError> + Send + Sync,
+    >,
     /// Resolved behavior contract version for this tool (e.g. `"current"`,
     /// `"legacy-0.4.10"`). `None` for unmanaged tools and dynamically
     /// registered (MCP) tools.
@@ -445,7 +462,7 @@ pub struct FinalizedToolset {
     scheduler_cancel: Option<tokio_util::sync::CancellationToken>,
     /// Shared local registry for in-process dispatch.
     /// Contains only config-enabled tools. Can be shared with ToolHarness.
-    local_registry: computer_hub_sdk::LocalRegistry,
+    local_registry: xvora_computer_hub_sdk::LocalRegistry,
     /// Lock-free access to the template renderer for tool name/param resolution.
     /// Cloned into `ToolCallContext::extensions` on each `call()` so tools
     /// can resolve names without acquiring the `resources` mutex.
@@ -454,7 +471,7 @@ pub struct FinalizedToolset {
     system_reminder_tag: &'static str,
     /// Per-user feature-flag bag stamped on every dispatch ctx by
     /// `prepare_dispatch`. `None` outside a workspace bind.
-    workspace_viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+    workspace_viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RequirementError {
@@ -514,7 +531,15 @@ impl RequirementError {
 pub struct ToolRegistryBuilder {
     tools: HashMap<String, ToolEntry>,
     reminders: Vec<ReminderEntry>,
-    shared_local_registry: Option<computer_hub_sdk::LocalRegistry>,
+    shared_local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
+    /// Whether the client delivers system reminders (completion
+    /// notifications for backgrounded commands/subagents) to the model.
+    /// Exposed to description templates as `system_reminders_enabled` so
+    /// "you are notified on completion" promises are only rendered when
+    /// the client actually delivers them. Defaults to `true` (prod CLI
+    /// behavior); the tools server sets it from
+    /// `FinalizeToolServerConfigRequest.system_reminders_enabled`.
+    system_reminders_enabled: bool,
 }
 impl Default for ToolRegistryBuilder {
     fn default() -> Self {
@@ -530,7 +555,13 @@ impl ToolRegistryBuilder {
     /// [`register_tool_pack`] can contribute tool registrations.
     pub fn register<T>(&mut self)
     where
-        T: tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Default + Send + Sync + 'static,
+        T: xvora_tool_runtime::Tool
+            + ToolMetadata
+            + std::fmt::Debug
+            + Default
+            + Send
+            + Sync
+            + 'static,
         T::Args: serde::de::DeserializeOwned + schemars::JsonSchema + Into<ToolInput>,
         T::Output: serde::Serialize + serde::de::DeserializeOwned + Into<ToolOutput>,
     {
@@ -546,7 +577,13 @@ impl ToolRegistryBuilder {
     /// [`register_tool_pack`] can contribute tool registrations.
     pub fn register_with_params<T, P>(&mut self)
     where
-        T: tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Default + Send + Sync + 'static,
+        T: xvora_tool_runtime::Tool
+            + ToolMetadata
+            + std::fmt::Debug
+            + Default
+            + Send
+            + Sync
+            + 'static,
         T::Args: serde::de::DeserializeOwned + schemars::JsonSchema + Into<ToolInput>,
         T::Output: serde::Serialize + serde::de::DeserializeOwned + Into<ToolOutput>,
         P: crate::types::resources::ResourceType
@@ -561,10 +598,10 @@ impl ToolRegistryBuilder {
         let name = format!(
             "{}:{}",
             tool.tool_namespace(),
-            tool_runtime::Tool::id(&tool).as_str()
+            xvora_tool_runtime::Tool::id(&tool).as_str()
         );
         let namespace = tool.tool_namespace().to_string();
-        let id = tool_runtime::Tool::id(&tool).as_str().to_string();
+        let id = xvora_tool_runtime::Tool::id(&tool).as_str().to_string();
         let kind = tool.kind();
         let requires = tool.requires_expr();
         self.tools.insert(
@@ -575,7 +612,7 @@ impl ToolRegistryBuilder {
                 kind,
                 requires,
                 default_params: serde_json::to_value(P::default()).unwrap_or_default(),
-                input_schema: generate_schema::<T::Args>(),
+                input_schema: generate_schema_cached::<T::Args>(),
                 metadata: Box::new(tool),
                 output_converter: Box::new(|value| {
                     let typed: T::Output = serde_json::from_value(value)?;
@@ -596,21 +633,21 @@ impl ToolRegistryBuilder {
                     let typed = serde_json::from_value::<T::Args>(json)?;
                     Ok(typed.into())
                 }),
-                register_in_local: Box::new(|lr: &computer_hub_sdk::LocalRegistry| {
+                register_in_local: Box::new(|lr: &xvora_computer_hub_sdk::LocalRegistry| {
                     lr.register(T::default());
                 }),
             },
         );
     }
     /// Whether this registry knows the fully-qualified tool id
-    /// (`"Xvora:read_file"`).
+    /// (`"GrokBuild:read_file"`).
     pub fn has_tool_id(&self, id: &str) -> bool {
         self.tools.contains_key(id)
     }
     pub fn known_tool_ids(&self) -> std::collections::HashSet<String> {
         self.tools.keys().cloned().collect()
     }
-    /// Fully-qualified tool id (`"Xvora:read_file"`) → declared
+    /// Fully-qualified tool id (`"GrokBuild:read_file"`) → declared
     /// [`ToolKind`], for every registered tool. Lets consumers that receive
     /// kind-less tool configs (e.g. hub `session.bind` wire entries) backfill
     /// the kind from the binary's own registry before capability filtering.
@@ -642,40 +679,43 @@ impl ToolRegistryBuilder {
             tools: HashMap::new(),
             reminders: Vec::new(),
             shared_local_registry: None,
+            system_reminders_enabled: true,
         };
-        b.register_with_params::<xvora::BashTool, xvora::bash::BashParams>();
-        b.register_with_params::<xvora::ReadFileTool, xvora::read_file::ReadFileParams>();
+        b.register_with_params::<grok_build::BashTool, grok_build::bash::BashParams>();
+        b.register_with_params::<grok_build::ReadFileTool, grok_build::read_file::ReadFileParams>();
         b.register_with_params::<
-                xvora::SearchReplaceTool,
-                xvora::search_replace::SearchReplaceParams,
+                grok_build::SearchReplaceTool,
+                grok_build::search_replace::SearchReplaceParams,
             >();
-        b.register_with_params::<xvora::ListDirTool, xvora::list_dir::ListDirParams>();
-        b.register_with_params::<xvora::GrepTool, xvora::grep::GrepParams>();
-        b.register::<xvora::KillTaskTool>();
-        b.register::<xvora::KillTerminalCommandTool>();
-        b.register::<xvora::TodoWriteTool>();
-        b.register::<xvora::UpdateGoalTool>();
-        b.register::<xvora::TaskOutputTool>();
-        b.register::<xvora::GetTerminalCommandOutputTool>();
-        b.register::<xvora::WaitTasksTool>();
-        b.register::<xvora::TaskTool>();
-        b.register::<xvora::WebSearchTool>();
-        b.register_with_params::<xvora::WebFetchTool, xvora::web_fetch::WebFetchParams>();
-        b.register::<xvora::LspTool>();
-        b.register::<xvora::ImageGenTool>();
-        b.register::<xvora::ImageEditTool>();
-        b.register::<xvora::ImageToVideoTool>();
-        b.register::<xvora::ReferenceToVideoTool>();
-        b.register::<xvora::EnterPlanModeTool>();
-        b.register::<xvora::ExitPlanModeTool>();
+        b.register_with_params::<grok_build::ListDirTool, grok_build::list_dir::ListDirParams>();
+        b.register_with_params::<grok_build::GrepTool, grok_build::grep::GrepParams>();
+        b.register::<grok_build::KillTaskTool>();
+        b.register::<grok_build::KillTerminalCommandTool>();
+        b.register::<grok_build::TodoWriteTool>();
+        b.register::<grok_build::UpdateGoalTool>();
+        b.register::<grok_build::WorkflowTool>();
+        b.register::<grok_build::TaskOutputTool>();
+        b.register::<grok_build::GetTerminalCommandOutputTool>();
+        b.register::<grok_build::WaitTasksTool>();
+        b.register::<grok_build::TaskTool>();
+        b.register::<grok_build::SendSubagentMessageTool>();
+        b.register::<grok_build::WebSearchTool>();
+        b.register_with_params::<grok_build::WebFetchTool, grok_build::web_fetch::WebFetchParams>();
+        b.register::<grok_build::LspTool>();
+        b.register::<grok_build::ImageGenTool>();
+        b.register::<grok_build::ImageEditTool>();
+        b.register::<grok_build::ImageToVideoTool>();
+        b.register::<grok_build::ReferenceToVideoTool>();
+        b.register::<grok_build::EnterPlanModeTool>();
+        b.register::<grok_build::ExitPlanModeTool>();
         b.register_with_params::<
-                xvora::AskUserQuestionTool,
-                xvora::ask_user_question::AskUserQuestionParams,
+                grok_build::AskUserQuestionTool,
+                grok_build::ask_user_question::AskUserQuestionParams,
             >();
-        b.register::<xvora::MonitorTool>();
-        b.register::<xvora::SchedulerCreateTool>();
-        b.register::<xvora::SchedulerDeleteTool>();
-        b.register::<xvora::SchedulerListTool>();
+        b.register::<grok_build::MonitorTool>();
+        b.register::<grok_build::SchedulerCreateTool>();
+        b.register::<grok_build::SchedulerDeleteTool>();
+        b.register::<grok_build::SchedulerListTool>();
         b.register::<codex::apply_patch::ApplyPatchTool>();
         b.register::<codex::list_dir::CodexListDirTool>();
         b.register::<codex::grep_files::CodexGrepFilesTool>();
@@ -696,25 +736,28 @@ impl ToolRegistryBuilder {
                 crate::implementations::use_tool::UseToolParams,
             >();
         b.register_with_params::<
-                xvora_concise::ReadFileConciseTool,
-                xvora::read_file::ReadFileParams,
+                grok_build_concise::ReadFileConciseTool,
+                grok_build::read_file::ReadFileParams,
             >();
         b.register_with_params::<
-                xvora_concise::SearchReplaceConciseTool,
-                xvora::search_replace::SearchReplaceParams,
-            >();
-        b.register_with_params::<xvora_concise::BashConciseTool, xvora::bash::BashParams>();
-        b.register_with_params::<
-                xvora_hashline::HashlineReadTool,
-                xvora_hashline::config::HashlineSchemeParams,
+                grok_build_concise::SearchReplaceConciseTool,
+                grok_build::search_replace::SearchReplaceParams,
             >();
         b.register_with_params::<
-                xvora_hashline::HashlineEditTool,
-                xvora_hashline::config::HashlineSchemeParams,
+                grok_build_concise::BashConciseTool,
+                grok_build::bash::BashParams,
             >();
         b.register_with_params::<
-                xvora_hashline::HashlineGrepTool,
-                xvora_hashline::config::HashlineSchemeParams,
+                grok_build_hashline::HashlineReadTool,
+                grok_build_hashline::config::HashlineSchemeParams,
+            >();
+        b.register_with_params::<
+                grok_build_hashline::HashlineEditTool,
+                grok_build_hashline::config::HashlineSchemeParams,
+            >();
+        b.register_with_params::<
+                grok_build_hashline::HashlineGrepTool,
+                grok_build_hashline::config::HashlineSchemeParams,
             >();
         b.register_reminder(crate::reminders::LspDiagnosticsReminder);
         b.register_reminder(crate::reminders::TaskCompletionReminder);
@@ -724,7 +767,7 @@ impl ToolRegistryBuilder {
         }
         b
     }
-    pub fn with_local_registry(mut self, registry: computer_hub_sdk::LocalRegistry) -> Self {
+    pub fn with_local_registry(mut self, registry: xvora_computer_hub_sdk::LocalRegistry) -> Self {
         self.shared_local_registry = Some(registry);
         self
     }
@@ -736,11 +779,14 @@ impl ToolRegistryBuilder {
             .map(|(name, e)| {
                 (
                     name.as_str(),
-                    serde_json::json!(
-                        { "namespace" : e.namespace, "id" : e.id, "kind" : e.kind,
-                        "default_params" : e.default_params, "input_schema" : e.input_schema,
-                        "requires" : e.requires, }
-                    ),
+                    serde_json::json!({
+                        "namespace": e.namespace,
+                        "id": e.id,
+                        "kind": e.kind,
+                        "default_params": e.default_params,
+                        "input_schema": e.input_schema,
+                        "requires": e.requires,
+                    }),
                 )
             })
             .collect();
@@ -767,8 +813,8 @@ impl ToolRegistryBuilder {
         for tool_config in &config.tools {
             let Some(entry) = self.tools.get(tool_config.id.as_str()) else {
                 tracing::warn!(
-                    tool_id = % tool_config.id, registered_keys = ? self.tools.keys()
-                    .collect::< Vec < _ >> (),
+                    tool_id = %tool_config.id,
+                    registered_keys = ?self.tools.keys().collect::<Vec<_>>(),
                     "validate_config: tool NOT FOUND in registry"
                 );
                 errors.push(
@@ -834,12 +880,15 @@ impl ToolRegistryBuilder {
             return errors;
         }
         {
-            let standard_file_ids: &[&str] =
-                &["Xvora:read_file", "Xvora:search_replace", "Xvora:grep"];
+            let standard_file_ids: &[&str] = &[
+                "GrokBuild:read_file",
+                "GrokBuild:search_replace",
+                "GrokBuild:grep",
+            ];
             let hashline_file_ids: &[&str] = &[
-                "XvoraHashline:hashline_read",
-                "XvoraHashline:hashline_edit",
-                "XvoraHashline:hashline_grep",
+                "GrokBuildHashline:hashline_read",
+                "GrokBuildHashline:hashline_edit",
+                "GrokBuildHashline:hashline_grep",
             ];
             let has_standard = config
                 .tools
@@ -889,6 +938,13 @@ impl ToolRegistryBuilder {
     }
     /// Validate and finalize into an immutable toolset.
     /// Consumes the builder — no further modifications possible.
+    /// Set whether the client delivers system reminders to the model.
+    /// Must be called before [`finalize`]; affects how description
+    /// templates render notification promises (see
+    /// `TemplateContext::system_reminders_enabled`).
+    pub fn set_system_reminders_enabled(&mut self, enabled: bool) {
+        self.system_reminders_enabled = enabled;
+    }
     pub fn finalize(
         self,
         config: ToolServerConfig,
@@ -909,7 +965,7 @@ impl ToolRegistryBuilder {
         config: ToolServerConfig,
         ctx: SessionContext,
         truncation_config: crate::types::context::TruncationConfig,
-        workspace_viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+        workspace_viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
     ) -> Result<FinalizedToolset, Vec<RequirementError>> {
         let errors = self.validate_config(&config);
         if !errors.is_empty() {
@@ -938,7 +994,8 @@ impl ToolRegistryBuilder {
                 map.extend(overrides.iter().map(|(k, v)| (k.clone(), v.clone())));
             }
         }
-        let renderer = TemplateRenderer::new(kind_to_name.clone(), kind_params.clone());
+        let renderer = TemplateRenderer::new(kind_to_name.clone(), kind_params.clone())
+            .with_system_reminders_enabled(self.system_reminders_enabled);
         let mut tools = Vec::new();
         let mut resources = Resources::new();
         resources.insert(crate::types::resources::Terminal(ctx.backend));
@@ -947,8 +1004,14 @@ impl ToolRegistryBuilder {
         resources.insert(crate::types::resources::Cwd(cwd.clone()));
         resources.insert(crate::types::resources::SessionFolder(ctx.session_folder));
         resources.insert(crate::types::resources::SessionEnv(ctx.session_env));
-        if let Some(owner_session_id) = ctx.owner_session_id {
+        if let Some(owner_session_id) = ctx.owner_session_id.clone() {
             resources.insert(crate::types::resources::OwnerSessionId(owner_session_id));
+        }
+        if let Some(subagent) = ctx.subagent {
+            resources.insert(subagent.backend);
+            resources.insert(subagent.event_sender);
+            resources.insert(subagent.depth);
+            resources.insert(subagent.session_id);
         }
         let scheduler_notification_handle = ctx.notification_handle.clone();
         resources.insert(crate::types::resources::NotificationHandle(
@@ -960,6 +1023,9 @@ impl ToolRegistryBuilder {
         ));
         {
             let mut mgr = crate::types::skill_discovery_tracker::SkillManager::new();
+            mgr.set_discovery_snapshot_names(
+                startup_skills.iter().map(|s| s.name.clone()).collect(),
+            );
             mgr.seed(Some(cwd.clone()), None, startup_skills, None, None, None);
             let _ = mgr.take_pending();
             resources.insert(mgr);
@@ -980,13 +1046,19 @@ impl ToolRegistryBuilder {
         if let Some(lsp) = ctx.lsp {
             resources.insert(lsp);
         }
-        if ctx.image_gen_config.has_credentials() {
-            match crate::implementations::xvora::image_gen::ImageGenClient::new(
-                &ctx.image_gen_config,
+        let image_gen_config = ctx.image_gen_config;
+        let video_gen_config = ctx.video_gen_config;
+        if image_gen_config.has_credentials() {
+            match crate::implementations::grok_build::image_gen::ImageGenClient::new(
+                &image_gen_config,
                 ctx.api_key_provider.clone(),
             ) {
                 Ok(client) => {
-                    let client = client.with_attribution_callback(ctx.attribution_callback.clone());
+                    let mut client =
+                        client.with_attribution_callback(ctx.attribution_callback.clone());
+                    if let Some(session_id) = &ctx.owner_session_id {
+                        client = client.with_session_id(session_id);
+                    }
                     resources.insert(client);
                 }
                 Err(e) => {
@@ -994,13 +1066,17 @@ impl ToolRegistryBuilder {
                 }
             }
         }
-        if ctx.video_gen_config.is_enabled() {
-            match crate::implementations::xvora::video_gen::VideoGenClient::new(
-                &ctx.video_gen_config,
+        if video_gen_config.is_enabled() {
+            match crate::implementations::grok_build::video_gen::VideoGenClient::new(
+                &video_gen_config,
                 ctx.api_key_provider.clone(),
             ) {
                 Ok(client) => {
-                    let client = client.with_attribution_callback(ctx.attribution_callback.clone());
+                    let mut client =
+                        client.with_attribution_callback(ctx.attribution_callback.clone());
+                    if let Some(session_id) = &ctx.owner_session_id {
+                        client = client.with_session_id(session_id);
+                    }
                     resources.insert(client);
                 }
                 Err(e) => {
@@ -1008,10 +1084,10 @@ impl ToolRegistryBuilder {
                 }
             }
         }
-        if let crate::implementations::xvora::web_fetch::WebFetchConfig::Enabled { params } =
+        if let crate::implementations::grok_build::web_fetch::WebFetchConfig::Enabled { params } =
             &ctx.web_fetch_config
         {
-            match crate::implementations::xvora::web_fetch::WebFetchClient::new(params) {
+            match crate::implementations::grok_build::web_fetch::WebFetchClient::new(params) {
                 Ok(client) => {
                     resources.insert(client);
                 }
@@ -1020,7 +1096,7 @@ impl ToolRegistryBuilder {
                 }
             }
         }
-        let concise_ns = crate::types::tool::ToolNamespace::XvoraConcise.to_string();
+        let concise_ns = crate::types::tool::ToolNamespace::GrokBuildConcise.to_string();
         let has_concise_tools = config.tools.iter().any(|tc| {
             self.tools
                 .get(&tc.id)
@@ -1030,23 +1106,24 @@ impl ToolRegistryBuilder {
             resources.insert(crate::types::resources::SystemRemindersEnabled(false));
         }
         resources.register_state::<crate::reminders::task_completion::ReportedTaskCompletions>();
-        resources.register_state::<crate::implementations::xvora::todo::TodoState>();
+        resources.register_state::<crate::implementations::grok_build::todo::TodoState>();
         resources.register_state::<crate::types::resources::WebCitationCounter>();
         resources
             .register_state::<
                 crate::implementations::cursor_rules_on_read::CursorRulesOnReadTracker,
             >();
         resources
-            .register_state::<crate::implementations::xvora::scheduler::types::SchedulerState>();
+            .register_state::<crate::implementations::grok_build::scheduler::types::SchedulerState>(
+            );
         for entry in self.tools.values() {
             (entry.register_params)(&mut resources);
         }
-        let resources_state_path = ctx
-            .state_path
-            .parent()
-            .unwrap_or(&ctx.state_path)
-            .join("resources_state.json");
-        let persistence = Arc::new(ResourcesPersistence::new(resources_state_path));
+        let persistence = Arc::new(if ctx.state_path.as_os_str().is_empty() {
+            ResourcesPersistence::noop()
+        } else {
+            let dir = ctx.state_path.parent().unwrap_or(&ctx.state_path);
+            ResourcesPersistence::new(dir.join("resources_state.json"))
+        });
         persistence.load(&mut resources);
         let preset_name = config.behavior_preset.as_deref().unwrap_or("current");
         let local_registry = self.shared_local_registry.take().unwrap_or_default();
@@ -1093,9 +1170,16 @@ impl ToolRegistryBuilder {
                     desc,
                     &client_name,
                     crate::DEFAULT_TOOL_OUTPUT_BYTES,
+                    xvora_tool_types::max_wait_block_ms(),
                 ));
             }
             renderer.render_schema_descriptions(&mut definition.function.parameters);
+            truncation_config.apply_to_schema(
+                &mut definition.function.parameters,
+                &client_name,
+                crate::DEFAULT_TOOL_OUTPUT_BYTES,
+                xvora_tool_types::max_wait_block_ms(),
+            );
             (entry.apply_params)(&effective_params, &mut resources);
             tools.push(FinalizedTool {
                 namespace: entry.namespace,
@@ -1120,6 +1204,13 @@ impl ToolRegistryBuilder {
         resources.insert(crate::types::resources::EnabledNativeToolNames(
             native_tool_names,
         ));
+        resources.insert(crate::types::resources::NativeToolClientNames(
+            tools
+                .iter()
+                .filter(|tool| !tool.client_name.contains("__"))
+                .map(|tool| (tool.registry_id.clone(), tool.client_name.clone()))
+                .collect(),
+        ));
         let proposed: Vec<ProposedTool> = tools
             .iter()
             .map(|t| ProposedTool {
@@ -1143,26 +1234,31 @@ impl ToolRegistryBuilder {
         }
         let renderer_arc = Arc::new(renderer.clone());
         resources.insert(renderer);
-        let (scheduler_cmd_rx, scheduler_cancel_token) = if let Some(parent_handle) =
-            ctx.parent_scheduler_handle
-        {
-            resources.insert(parent_handle);
-            (None, None)
-        } else {
-            let (scheduler_cmd_tx, scheduler_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
-            let cancel_token = tokio_util::sync::CancellationToken::new();
-            resources.insert(
-                crate::implementations::xvora::scheduler::types::SchedulerHandle(scheduler_cmd_tx),
-            );
-            (Some(scheduler_cmd_rx), Some(cancel_token))
-        };
+        let (scheduler_cmd_rx, scheduler_cancel_token) =
+            if let Some(parent_handle) = ctx.parent_scheduler_handle {
+                resources.insert(parent_handle);
+                (None, None)
+            } else {
+                let (scheduler_cmd_tx, scheduler_cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+                let cancel_token = tokio_util::sync::CancellationToken::new();
+                resources.insert(
+                    crate::implementations::grok_build::scheduler::types::SchedulerHandle(
+                        scheduler_cmd_tx,
+                    ),
+                );
+                (Some(scheduler_cmd_rx), Some(cancel_token))
+            };
         let shared_resources = resources.into_shared();
         if let (Some(cmd_rx), Some(cancel_token)) = (scheduler_cmd_rx, &scheduler_cancel_token) {
-            let actor = crate::implementations::xvora::scheduler::actor::SchedulerActor {
+            let actor = crate::implementations::grok_build::scheduler::actor::SchedulerActor {
                 resources: shared_resources.clone(),
+                resources_persistence: persistence.clone(),
                 notification_handle: scheduler_notification_handle,
                 cmd_rx,
                 cancel_token: cancel_token.clone(),
+                clock: Default::default(),
+                pending_removal: None,
+                blocked_expiries: Default::default(),
             };
             tokio::spawn(actor.run());
         }
@@ -1192,7 +1288,7 @@ impl Drop for FinalizedToolset {
 /// Stored in [`InnerDispatch`] inside `ToolCallContext::extensions` —
 /// stack-bounded, dropped when `Tool::run()` returns.
 ///
-/// Implements the canonical `tool_runtime::ToolDispatch` trait so the
+/// Implements the canonical `xvora_tool_runtime::ToolDispatch` trait so the
 /// dispatch contract is uniform across all boundaries. The impedance
 /// mismatch (`ToolStream<Value>` vs `Result<ToolOutput>`) is bridged by
 /// serializing `ToolOutput` to `Value` in the stream; callers use
@@ -1201,27 +1297,27 @@ struct InnerDispatchForToolset {
     toolset: Arc<FinalizedToolset>,
 }
 #[async_trait::async_trait]
-impl tool_runtime::ToolDispatch for InnerDispatchForToolset {
+impl xvora_tool_runtime::ToolDispatch for InnerDispatchForToolset {
     async fn call(
         &self,
-        tool_id: tool_protocol::ToolId,
+        tool_id: xvora_tool_protocol::ToolId,
         args: serde_json::Value,
-        ctx: tool_runtime::ToolCallContext,
-    ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
+        ctx: xvora_tool_runtime::ToolCallContext,
+    ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
         let result = self
             .toolset
             .call_raw(tool_id.as_str(), args, ctx)
             .await
             .and_then(|output| {
                 let value = serde_json::to_value(&output).map_err(|e| {
-                    tool_runtime::ToolError::custom("output_encoding", e.to_string())
+                    xvora_tool_runtime::ToolError::custom("output_encoding", e.to_string())
                 })?;
-                Ok(tool_runtime::TypedToolOutput::from_value(
+                Ok(xvora_tool_runtime::TypedToolOutput::from_value(
                     tool_id.clone(),
                     value,
                 ))
             });
-        tool_runtime::terminal_only(result)
+        xvora_tool_runtime::terminal_only(result)
     }
 }
 impl FinalizedToolset {
@@ -1237,7 +1333,7 @@ impl FinalizedToolset {
             )),
             resources_persistence: Arc::new(ResourcesPersistence::noop()),
             scheduler_cancel: None,
-            local_registry: computer_hub_sdk::LocalRegistry::new(),
+            local_registry: xvora_computer_hub_sdk::LocalRegistry::new(),
             renderer: Arc::new(TemplateRenderer::new(
                 std::collections::HashMap::new(),
                 std::collections::HashMap::new(),
@@ -1246,8 +1342,15 @@ impl FinalizedToolset {
             workspace_viewer_ctx: None,
         }
     }
-    pub fn local_registry(&self) -> &computer_hub_sdk::LocalRegistry {
+    pub fn local_registry(&self) -> &xvora_computer_hub_sdk::LocalRegistry {
         &self.local_registry
+    }
+    /// Whether the server must await this tool's in-process cancellation cleanup.
+    pub fn cooperative_cancellation(&self, tool_name: &str) -> bool {
+        {
+            let _ = tool_name;
+            false
+        }
     }
     /// Get all tool definitions to send to the client.
     pub fn tool_definitions(&self) -> Vec<ToolDefinition> {
@@ -1264,6 +1367,14 @@ impl FinalizedToolset {
     pub fn tool_name_for_kind(&self, kind: ToolKind) -> Option<String> {
         self.renderer.tool_for_kind(kind).map(str::to_owned)
     }
+    /// Client-facing name for a canonical registry ID, honoring name overrides.
+    pub fn tool_name_for_registry_id(&self, registry_id: &str) -> Option<String> {
+        self.tools
+            .read()
+            .iter()
+            .find(|tool| tool.registry_id == registry_id)
+            .map(|tool| tool.client_name.clone())
+    }
     /// Map of client-facing tool name → snake_case [`ToolKind`] key.
     pub fn tool_kinds(&self) -> HashMap<String, String> {
         self.tools
@@ -1272,8 +1383,32 @@ impl FinalizedToolset {
             .map(|t| (t.client_name.clone(), t.metadata.kind().as_key().to_owned()))
             .collect()
     }
+    /// Map of client-facing tool name → typed [`ToolKind`].
+    ///
+    /// Unlike the finalize-request `ToolConfig`s (whose `kind` is `None` when
+    /// built from raw IDs over gRPC), the finalized tools always know their
+    /// real kind from the registry metadata — use this for kind-derived
+    /// metadata in server responses (e.g. capability-mode classification).
+    pub fn tool_kind_map(&self) -> HashMap<String, ToolKind> {
+        self.tools
+            .read()
+            .iter()
+            .map(|t| (t.client_name.clone(), t.metadata.kind()))
+            .collect()
+    }
+    /// Finalized canonical-to-client parameter names by tool kind.
+    pub fn template_param_names(&self) -> HashMap<ToolKind, HashMap<String, String>> {
+        self.renderer.param_names()
+    }
     pub async fn update_resource<T: Send + Sync + 'static>(&self, resource: T) {
         self.resources.lock().await.insert(resource);
+    }
+    /// Seed many resources under one lock. The closure runs under the lock; keep it to plain inserts.
+    pub async fn update_resources_with(
+        &self,
+        seed: impl FnOnce(&mut crate::types::resources::Resources),
+    ) {
+        seed(&mut *self.resources.lock().await);
     }
     /// Clone a typed resource out of this toolset, if present.
     ///
@@ -1322,16 +1457,16 @@ impl FinalizedToolset {
             .find(|t| t.client_name == tool_name)
             .map(|t| crate::normalization::tool_identity_of(t.metadata.as_ref()))
     }
-    fn tool_not_found_error(tool_name: &str) -> tool_runtime::ToolError {
-        let tid = tool_protocol::ToolId::new(tool_name)
-            .unwrap_or_else(|_| tool_protocol::ToolId::new("unknown").expect("valid"));
-        tool_runtime::ToolError::not_found(tid, format!("Tool not found: {tool_name}"))
+    fn tool_not_found_error(tool_name: &str) -> xvora_tool_runtime::ToolError {
+        let tid = xvora_tool_protocol::ToolId::new(tool_name)
+            .unwrap_or_else(|_| xvora_tool_protocol::ToolId::new("unknown").expect("valid"));
+        xvora_tool_runtime::ToolError::not_found(tid, format!("Tool not found: {tool_name}"))
     }
     pub async fn try_parse(
         &self,
         tool_name: &str,
         tool_params: &serde_json::Value,
-    ) -> Result<ToolInput, tool_runtime::ToolError> {
+    ) -> Result<ToolInput, xvora_tool_runtime::ToolError> {
         let (reverse_params, parse_input) = {
             let tools = self.tools.read();
             let tool = tools
@@ -1367,8 +1502,8 @@ impl FinalizedToolset {
         &self,
         tool_name: &str,
         tool_args: serde_json::Value,
-        parent_ctx: tool_runtime::ToolCallContext,
-    ) -> Result<crate::types::output::ToolOutput, tool_runtime::ToolError> {
+        parent_ctx: xvora_tool_runtime::ToolCallContext,
+    ) -> Result<crate::types::output::ToolOutput, xvora_tool_runtime::ToolError> {
         let (registry_id, output_converter, reverse_params) = {
             let tools = self.tools.read();
             let entry = tools
@@ -1386,16 +1521,22 @@ impl FinalizedToolset {
         } else {
             remap_json_keys(tool_args, &reverse_params)
         };
-        let mut ctx = tool_runtime::ToolCallContext::new(parent_ctx.call_id.clone());
+        let mut ctx = xvora_tool_runtime::ToolCallContext::new(parent_ctx.call_id.clone());
         ctx.extensions.insert(self.resources.clone());
         ctx.extensions.insert_arc(Arc::clone(&self.renderer));
-        if let Some(cwd) = parent_ctx.extensions.get::<tool_runtime::Cwd>() {
+        if let Some(cancellation) = parent_ctx.get::<xvora_tool_runtime::Cancellation>() {
+            ctx.extensions.insert((*cancellation).clone());
+        }
+        ctx.extensions.insert(
+            crate::types::resources::InvokingToolParamNames::from_reverse_params(&reverse_params),
+        );
+        if let Some(cwd) = parent_ctx.extensions.get::<xvora_tool_runtime::Cwd>() {
             ctx.extensions.insert((*cwd).clone());
         }
-        let tool_id = tool_protocol::ToolId::new(&registry_id)
-            .unwrap_or_else(|_| tool_protocol::ToolId::new("unknown").expect("valid"));
+        let tool_id = xvora_tool_protocol::ToolId::new(&registry_id)
+            .unwrap_or_else(|_| xvora_tool_protocol::ToolId::new("unknown").expect("valid"));
         let lr_handle = self.local_registry.find(&tool_id).ok_or_else(|| {
-            tool_runtime::ToolError::not_found(
+            xvora_tool_runtime::ToolError::not_found(
                 tool_id,
                 format!("Tool not found in LocalRegistry: {registry_id}"),
             )
@@ -1403,7 +1544,7 @@ impl FinalizedToolset {
         let stream = lr_handle.execute(ctx, canonical_params).await;
         let value = drain_value_stream(stream).await?;
         (output_converter)(value)
-            .map_err(|e| tool_runtime::ToolError::custom("output_decoding", e.to_string()))
+            .map_err(|e| xvora_tool_runtime::ToolError::custom("output_decoding", e.to_string()))
     }
     /// Dispatch a tool call by client-facing name with client-facing params.
     ///
@@ -1417,13 +1558,31 @@ impl FinalizedToolset {
         tool_args: serde_json::Value,
         tool_call_id: &str,
         cwd_override: Option<std::path::PathBuf>,
-    ) -> Result<ToolRunResult, tool_runtime::ToolError> {
+    ) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+        self.call_with_cancellation(tool_name, tool_args, tool_call_id, cwd_override, None)
+            .await
+    }
+    /// Dispatch with cooperative cancellation exposed to the tool.
+    pub async fn call_with_cancellation(
+        self: &Arc<Self>,
+        tool_name: &str,
+        tool_args: serde_json::Value,
+        tool_call_id: &str,
+        cwd_override: Option<std::path::PathBuf>,
+        cancellation: Option<tokio_util::sync::CancellationToken>,
+    ) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
         use futures::StreamExt;
-        let mut stream = self.call_streaming(tool_name, tool_args, tool_call_id, cwd_override);
+        let mut stream = self.call_streaming_with_cancellation(
+            tool_name,
+            tool_args,
+            tool_call_id,
+            cwd_override,
+            cancellation,
+        );
         while let Some(item) = stream.next().await {
             match item {
-                tool_runtime::ToolStreamItem::Progress(_) => continue,
-                tool_runtime::ToolStreamItem::Terminal(result) => return result,
+                xvora_tool_runtime::ToolStreamItem::Progress(_) => continue,
+                xvora_tool_runtime::ToolStreamItem::Terminal(result) => return result,
             }
         }
         Err(stream_no_terminal_error())
@@ -1440,36 +1599,78 @@ impl FinalizedToolset {
     /// all `.await` and `Arc::clone(self)` happen *inside* the stream block so
     /// nothing borrows `self` across the stream.
     ///
-    /// [`ToolStream`]: tool_runtime::ToolStream
-    /// [`ToolStreamItem::Progress`]: tool_runtime::ToolStreamItem::Progress
+    /// [`ToolStream`]: xvora_tool_runtime::ToolStream
+    /// [`ToolStreamItem::Progress`]: xvora_tool_runtime::ToolStreamItem::Progress
     pub fn call_streaming(
         self: &Arc<Self>,
         tool_name: &str,
         tool_args: serde_json::Value,
         tool_call_id: &str,
         cwd_override: Option<std::path::PathBuf>,
-    ) -> tool_runtime::ToolStream<ToolRunResult> {
+    ) -> xvora_tool_runtime::ToolStream<ToolRunResult> {
+        self.call_streaming_with_cancellation(
+            tool_name,
+            tool_args,
+            tool_call_id,
+            cwd_override,
+            None,
+        )
+    }
+    /// Streaming dispatch with cooperative cancellation exposed to the tool.
+    pub fn call_streaming_with_cancellation(
+        self: &Arc<Self>,
+        tool_name: &str,
+        tool_args: serde_json::Value,
+        tool_call_id: &str,
+        cwd_override: Option<std::path::PathBuf>,
+        cancellation: Option<tokio_util::sync::CancellationToken>,
+    ) -> xvora_tool_runtime::ToolStream<ToolRunResult> {
         use futures::StreamExt;
         let this = Arc::clone(self);
         let tool_name = tool_name.to_owned();
         let tool_call_id = tool_call_id.to_owned();
         Box::pin(async_stream::stream! {
-            let parts = match this.prepare_dispatch(& tool_name, tool_args, &
-            tool_call_id, cwd_override,) { Ok(parts) => parts, Err(e) => { yield
-            tool_runtime::ToolStreamItem::Terminal(Err(e)); return; } }; let
-            DispatchParts { lr_handle, ctx, canonical_params, output_converter,
-            effective_tool_name, } = parts; let mut inner = lr_handle.execute(ctx,
-            canonical_params). await; while let Some(item) = inner.next(). await {
-            match item { tool_runtime::ToolStreamItem::Progress(p) => { yield
-            tool_runtime::ToolStreamItem::Progress(p); }
-            tool_runtime::ToolStreamItem::Terminal(Err(e)) => { yield
-            tool_runtime::ToolStreamItem::Terminal(Err(e)); return; }
-            tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => { let run_result
-            = this.finalize_output(typed.value, & output_converter,
-            effective_tool_name). await; yield
-            tool_runtime::ToolStreamItem::Terminal(run_result); return; } } }
-            yield
-            tool_runtime::ToolStreamItem::Terminal(Err(stream_no_terminal_error()));
+            let parts = match this.prepare_dispatch(
+                &tool_name,
+                tool_args,
+                &tool_call_id,
+                cwd_override,
+                cancellation,
+            ) {
+                Ok(parts) => parts,
+                Err(e) => {
+                    yield xvora_tool_runtime::ToolStreamItem::Terminal(Err(e));
+                    return;
+                }
+            };
+            let DispatchParts {
+                lr_handle,
+                ctx,
+                canonical_params,
+                output_converter,
+                effective_tool_name,
+            } = parts;
+
+            let mut inner = lr_handle.execute(ctx, canonical_params).await;
+            while let Some(item) = inner.next().await {
+                match item {
+                    xvora_tool_runtime::ToolStreamItem::Progress(p) => {
+                        yield xvora_tool_runtime::ToolStreamItem::Progress(p);
+                    }
+                    xvora_tool_runtime::ToolStreamItem::Terminal(Err(e)) => {
+                        yield xvora_tool_runtime::ToolStreamItem::Terminal(Err(e));
+                        return;
+                    }
+                    xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+                        let run_result = this
+                            .finalize_output(typed.value, &output_converter, effective_tool_name)
+                            .await;
+                        yield xvora_tool_runtime::ToolStreamItem::Terminal(run_result);
+                        return;
+                    }
+                }
+            }
+            yield xvora_tool_runtime::ToolStreamItem::Terminal(Err(stream_no_terminal_error()));
         })
     }
     /// Pre-dispatch setup shared by [`call`] / [`call_streaming`].
@@ -1484,7 +1685,8 @@ impl FinalizedToolset {
         tool_args: serde_json::Value,
         tool_call_id: &str,
         cwd_override: Option<std::path::PathBuf>,
-    ) -> Result<DispatchParts, tool_runtime::ToolError> {
+        cancellation: Option<tokio_util::sync::CancellationToken>,
+    ) -> Result<DispatchParts, xvora_tool_runtime::ToolError> {
         let (registry_id, output_converter, reverse_params) = {
             let tools = self.tools.read();
             let entry = tools
@@ -1512,17 +1714,24 @@ impl FinalizedToolset {
             None
         };
         let contract_version = self.get_contract_version(tool_name);
-        let rt_call_id = tool_protocol::ToolCallId::new(tool_call_id)
-            .unwrap_or_else(|_| tool_protocol::ToolCallId::new_v7());
-        let mut ctx = tool_runtime::ToolCallContext::new(rt_call_id);
+        let rt_call_id = xvora_tool_protocol::ToolCallId::new(tool_call_id)
+            .unwrap_or_else(|_| xvora_tool_protocol::ToolCallId::new_v7());
+        let mut ctx = xvora_tool_runtime::ToolCallContext::new(rt_call_id);
         ctx.extensions.insert(self.resources.clone());
         ctx.extensions.insert_arc(Arc::clone(&self.renderer));
+        ctx.extensions.insert(
+            crate::types::resources::InvokingToolParamNames::from_reverse_params(&reverse_params),
+        );
         if let Some(cwd) = cwd_override {
-            ctx.extensions.insert(tool_runtime::Cwd(cwd));
+            ctx.extensions.insert(xvora_tool_runtime::Cwd(cwd));
+        }
+        if let Some(cancellation) = cancellation {
+            ctx.extensions
+                .insert(xvora_tool_runtime::Cancellation(cancellation));
         }
         if let Some(ref version) = contract_version {
             ctx.extensions
-                .insert(tool_runtime::BehaviorVersion(version.clone()));
+                .insert(xvora_tool_runtime::BehaviorVersion(version.clone()));
         }
         ctx.extensions.insert(InnerDispatch(std::sync::Arc::new(
             InnerDispatchForToolset {
@@ -1532,10 +1741,10 @@ impl FinalizedToolset {
         if let Some(wvc) = self.workspace_viewer_ctx.as_ref() {
             ctx.extensions.insert(wvc.clone());
         }
-        let tool_id = tool_protocol::ToolId::new(&registry_id)
-            .unwrap_or_else(|_| tool_protocol::ToolId::new("unknown").expect("valid"));
+        let tool_id = xvora_tool_protocol::ToolId::new(&registry_id)
+            .unwrap_or_else(|_| xvora_tool_protocol::ToolId::new("unknown").expect("valid"));
         let lr_handle = self.local_registry.find(&tool_id).ok_or_else(|| {
-            tool_runtime::ToolError::not_found(
+            xvora_tool_runtime::ToolError::not_found(
                 tool_id,
                 format!("Tool not found in LocalRegistry: {registry_id}"),
             )
@@ -1559,9 +1768,9 @@ impl FinalizedToolset {
         value: serde_json::Value,
         output_converter: &OutputConverter,
         effective_tool_name: Option<String>,
-    ) -> Result<ToolRunResult, tool_runtime::ToolError> {
+    ) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
         let output = (output_converter)(value)
-            .map_err(|e| tool_runtime::ToolError::custom("output_decoding", e.to_string()))?;
+            .map_err(|e| xvora_tool_runtime::ToolError::custom("output_decoding", e.to_string()))?;
         let reminders_enabled;
         {
             reminders_enabled = self
@@ -1622,7 +1831,7 @@ impl FinalizedToolset {
     }
     /// Register a tool at runtime (e.g., MCP tools).
     ///
-    /// The tool must implement `tool_runtime::Tool + ToolMetadata`.
+    /// The tool must implement `xvora_tool_runtime::Tool + ToolMetadata`.
     /// MCP tools typically use:
     /// - `type Args = serde_json::Value` (untyped JSON passthrough)
     /// - `kind() -> ToolKind::Other`
@@ -1641,21 +1850,21 @@ impl FinalizedToolset {
         name: String,
         tool: T,
         input_schema_override: Option<serde_json::Value>,
-    ) -> Result<(), tool_runtime::ToolError>
+    ) -> Result<(), xvora_tool_runtime::ToolError>
     where
-        T: tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Send + Sync + 'static,
+        T: xvora_tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Send + Sync + 'static,
         T::Output: serde::Serialize,
     {
         let mut tools = self.tools.write();
         if tools.iter().any(|t| t.client_name == name) {
-            return Err(tool_runtime::ToolError::invalid_arguments(format!(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Tool already registered: {name}"
             )));
         }
         let description = tool.description_template().to_string();
         let kind = tool.kind();
-        let registry_id = tool_runtime::Tool::id(&tool).as_str().to_owned();
-        let input_schema = input_schema_override.unwrap_or_else(generate_schema::<T::Args>);
+        let registry_id = xvora_tool_runtime::Tool::id(&tool).as_str().to_owned();
+        let input_schema = input_schema_override.unwrap_or_else(generate_schema_cached::<T::Args>);
         let definition = ToolDefinition::function(&name, Some(&description), input_schema.clone());
         self.local_registry.register(tool);
         tools.push(FinalizedTool {
@@ -1693,7 +1902,7 @@ impl FinalizedToolset {
         let to_remove: Vec<_> = tools
             .iter()
             .filter(|t| t.client_name.starts_with(prefix))
-            .filter_map(|t| tool_protocol::ToolId::new(&t.registry_id).ok())
+            .filter_map(|t| xvora_tool_protocol::ToolId::new(&t.registry_id).ok())
             .collect();
         tools.retain(|t| !t.client_name.starts_with(prefix));
         for tid in &to_remove {
@@ -1706,7 +1915,7 @@ impl FinalizedToolset {
         let tool_id = tools
             .iter()
             .find(|t| t.client_name == name)
-            .and_then(|t| tool_protocol::ToolId::new(&t.registry_id).ok());
+            .and_then(|t| xvora_tool_protocol::ToolId::new(&t.registry_id).ok());
         let before = tools.len();
         tools.retain(|t| t.client_name != name);
         let removed = tools.len() < before;
@@ -1719,13 +1928,11 @@ impl FinalizedToolset {
     pub async fn flush_persistence(&self) {
         self.resources_persistence.flush().await;
     }
-    /// Serialize current in-memory state, write it to disk, and wait for
-    /// the write to complete. Returns the path to the persisted file.
+    /// Serialize current in-memory state, write it to disk, and wait for the write to complete.
+    /// Returns where it landed, or `None` for a session that persists nothing.
     ///
-    /// Unlike `flush_persistence()` (which only flushes previously queued
-    /// snapshots), this method captures a **fresh** snapshot of the current
-    /// `Resources` and ensures it hits disk before returning.
-    pub async fn save_and_flush_persistence(&self) -> &std::path::Path {
+    /// Unlike `flush_persistence()`, which only flushes previously queued snapshots, this takes a fresh snapshot first.
+    pub async fn save_and_flush_persistence(&self) -> Option<&std::path::Path> {
         {
             let res = self.resources.lock().await;
             self.resources_persistence.save(&res);
@@ -1734,11 +1941,43 @@ impl FinalizedToolset {
         self.resources_persistence.state_path()
     }
 }
-/// Generate a JSON Schema for type `T`.
-///
-/// Public so out-of-tree tool packs can
-/// schema-test their tool inputs exactly the way the registry generates
-/// definitions.
+/// Process-global memo of generated tool input schemas, keyed by the exact
+/// [`std::any::TypeId`] of the schema type.
+fn schema_cache() -> &'static RwLock<HashMap<std::any::TypeId, serde_json::Value>> {
+    static CACHE: OnceLock<RwLock<HashMap<std::any::TypeId, serde_json::Value>>> = OnceLock::new();
+    CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+/// Memoized [`generate_schema`], keyed by `TypeId`. Sound as a process-wide cache
+/// because the schema depends on `T` alone, not the agent or toolset; the per-boot
+/// toolset rebuild would otherwise regenerate identical schemas across a fan-out.
+pub(crate) fn generate_schema_cached<T: schemars::JsonSchema + 'static>() -> serde_json::Value {
+    let key = std::any::TypeId::of::<T>();
+    if let Some(cached) = schema_cache().read().get(&key) {
+        return cached.clone();
+    }
+    #[cfg(test)]
+    {
+        *schema_uncached_counts().lock().entry(key).or_insert(0) += 1;
+    }
+    let value = generate_schema::<T>();
+    schema_cache().write().insert(key, value.clone());
+    value
+}
+#[cfg(test)]
+fn schema_uncached_counts() -> &'static Mutex<HashMap<std::any::TypeId, u64>> {
+    static COUNTS: OnceLock<Mutex<HashMap<std::any::TypeId, u64>>> = OnceLock::new();
+    COUNTS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+#[cfg(test)]
+fn schema_uncached_calls(key: std::any::TypeId) -> u64 {
+    schema_uncached_counts()
+        .lock()
+        .get(&key)
+        .copied()
+        .unwrap_or(0)
+}
+/// JSON Schema for `T` with the root `title` and `description` stripped. Pure
+/// and uncached; the per-boot hot path uses [`generate_schema_cached`].
 pub fn generate_schema<T: schemars::JsonSchema>() -> serde_json::Value {
     let settings = schemars::generate::SchemaSettings::draft07().with(|s| {
         s.inline_subschemas = true;
@@ -1746,6 +1985,10 @@ pub fn generate_schema<T: schemars::JsonSchema>() -> serde_json::Value {
     let generator = settings.into_generator();
     let schema = generator.into_root_schema_for::<T>();
     let mut value = serde_json::to_value(&schema).unwrap_or_default();
+    if let Some(obj) = value.as_object_mut() {
+        obj.remove("title");
+        obj.remove("description");
+    }
     if let Some(obj) = value.as_object_mut()
         && obj.get("type").and_then(|v| v.as_str()) == Some("object")
     {
@@ -1775,24 +2018,24 @@ fn explain_requirement_failure(
 ) -> RequirementError {
     let fq_tool_id = format!("{}:{}", entry.namespace, entry.id);
     match fq_tool_id.as_str() {
-        "Xvora:run_terminal_cmd" if params
+        "GrokBuild:run_terminal_cmd" if params
             .get("enabled_background")
             .and_then(|value| value.as_bool())
             .unwrap_or(true) => {
             let mut missing = vec![];
             if !has_tool_kind(proposed, ToolKind::BackgroundTaskAction) {
-                missing.push("Xvora:get_task_output");
+                missing.push("GrokBuild:get_task_output");
             }
             if !has_tool_kind(proposed, ToolKind::KillTaskAction) {
-                missing.push("Xvora:kill_task");
+                missing.push("GrokBuild:kill_task");
             }
             let message = if missing.is_empty() {
                 "unsatisfied requirements".to_string()
             } else {
                 format!(
-                        "enabled_background=true requires {} so background bash tasks can be observed and cancelled",
-                        missing.join(" and ")
-                    )
+                    "enabled_background=true requires {} so background bash tasks can be observed and cancelled",
+                    missing.join(" and ")
+                )
             };
             RequirementError::new(fq_tool_id, message)
                 .with_field_path("params.enabled_background")
@@ -1802,62 +2045,62 @@ fn explain_requirement_failure(
                 .with_bad_value(serde_json::Value::Bool(true))
                 .with_category("requirements")
         }
-        "Xvora:task" => {
+        "GrokBuild:task" => {
             let mut missing = vec![];
             if !has_tool_kind(proposed, ToolKind::BackgroundTaskAction) {
-                missing.push("Xvora:get_task_output");
+                missing.push("GrokBuild:get_task_output");
             }
             if !has_tool_kind(proposed, ToolKind::KillTaskAction) {
-                missing.push("Xvora:kill_task");
+                missing.push("GrokBuild:kill_task");
             }
             RequirementError::new(
                     fq_tool_id,
                     format!(
-                        "task requires {} so spawned background subagents can be monitored and cancelled",
-                        missing.join(" and ")
-                    ),
+                    "task requires {} so spawned background subagents can be monitored and cancelled",
+                    missing.join(" and ")
+                ),
                 )
                 .with_field_path("tools")
                 .with_expected("include get_task_output and kill_task")
                 .with_category("requirements")
         }
-        "Xvora:get_task_output" => {
-            let has_xvora_bash = has_tool_with_bool_param(
+        "GrokBuild:get_task_output" => {
+            let has_grok_build_bash = has_tool_with_bool_param(
                 proposed,
-                "Xvora",
+                "GrokBuild",
                 "run_terminal_cmd",
                 "enabled_background",
                 true,
             );
-            let has_xvora_concise_bash = has_tool_with_bool_param(
+            let has_grok_build_concise_bash = has_tool_with_bool_param(
                 proposed,
-                "XvoraConcise",
+                "GrokBuildConcise",
                 "run_terminal_cmd",
                 "enabled_background",
                 true,
             );
             let has_opencode_bash = has_tool(proposed, "OpenCode", "bash");
-            let has_task = has_tool(proposed, "Xvora", "task");
+            let has_task = has_tool(proposed, "GrokBuild", "task");
             let mut notes = vec![];
-            if has_tool(proposed, "Xvora", "run_terminal_cmd")
-                && !has_xvora_bash
+            if has_tool(proposed, "GrokBuild", "run_terminal_cmd")
+                && !has_grok_build_bash
             {
                 notes
                     .push(
-                        "Xvora:run_terminal_cmd is present but enabled_background=false",
+                        "GrokBuild:run_terminal_cmd is present but enabled_background=false",
                     );
             }
-            if has_tool(proposed, "XvoraConcise", "run_terminal_cmd")
-                && !has_xvora_concise_bash
+            if has_tool(proposed, "GrokBuildConcise", "run_terminal_cmd")
+                && !has_grok_build_concise_bash
             {
                 notes
                     .push(
-                        "XvoraConcise:run_terminal_cmd is present but enabled_background=false",
+                        "GrokBuildConcise:run_terminal_cmd is present but enabled_background=false",
                     );
             }
-            let mut message = "get_task_output requires a background-capable bash tool (Xvora:run_terminal_cmd or XvoraConcise:run_terminal_cmd with enabled_background=true), OpenCode:bash, or Xvora:task"
+            let mut message = "get_task_output requires a background-capable bash tool (GrokBuild:run_terminal_cmd or GrokBuildConcise:run_terminal_cmd with enabled_background=true), OpenCode:bash, or GrokBuild:task"
                 .to_string();
-            let has_provider = has_xvora_bash || has_xvora_concise_bash
+            let has_provider = has_grok_build_bash || has_grok_build_concise_bash
                 || has_opencode_bash || has_task;
             if !has_provider && !notes.is_empty() {
                 message.push_str(&format!("; {}", notes.join("; ")));
@@ -1865,11 +2108,11 @@ fn explain_requirement_failure(
             RequirementError::new(fq_tool_id, message)
                 .with_field_path("tools")
                 .with_expected(
-                    "include a background-capable bash tool, OpenCode:bash, or Xvora:task",
+                    "include a background-capable bash tool, OpenCode:bash, or GrokBuild:task",
                 )
                 .with_category("requirements")
         }
-        "Xvora:search_replace" if !params
+        "GrokBuild:search_replace" if !params
             .get("skip_read_before_edit")
             .and_then(|value| value.as_bool())
             .unwrap_or(false) && !has_tool_kind(proposed, ToolKind::Read) => {
@@ -1879,27 +2122,27 @@ fn explain_requirement_failure(
                 )
                 .with_field_path("params.skip_read_before_edit")
                 .with_expected(
-                    "set skip_read_before_edit=true or include a Read tool such as Xvora:read_file",
+                    "set skip_read_before_edit=true or include a Read tool such as GrokBuild:read_file",
                 )
                 .with_bad_value(serde_json::Value::Bool(false))
                 .with_category("requirements")
         }
-        "Xvora:enter_plan_mode" => {
+        "GrokBuild:enter_plan_mode" => {
             RequirementError::new(
                     fq_tool_id,
-                    "enter_plan_mode requires Xvora:exit_plan_mode so plan mode can always be exited",
+                    "enter_plan_mode requires GrokBuild:exit_plan_mode so plan mode can always be exited",
                 )
                 .with_field_path("tools")
-                .with_expected("include Xvora:exit_plan_mode")
+                .with_expected("include GrokBuild:exit_plan_mode")
                 .with_category("requirements")
         }
-        "Xvora:exit_plan_mode" => {
+        "GrokBuild:exit_plan_mode" => {
             RequirementError::new(
                     fq_tool_id,
-                    "exit_plan_mode requires Xvora:enter_plan_mode so plan mode can be entered before exiting",
+                    "exit_plan_mode requires GrokBuild:enter_plan_mode so plan mode can be entered before exiting",
                 )
                 .with_field_path("tools")
-                .with_expected("include Xvora:enter_plan_mode")
+                .with_expected("include GrokBuild:enter_plan_mode")
                 .with_category("requirements")
         }
         _ => {
@@ -1975,17 +2218,21 @@ mod tests {
             session_env: Arc::new(HashMap::new()),
             notification_handle: crate::notification::ToolNotificationHandle::noop(),
             owner_session_id: None,
+            subagent: None,
             parent_scheduler_handle: None,
             skills: vec![],
             state_path: tmp.path().join("state.json"),
             memory_backend: None,
             web_search_config: crate::implementations::web_search::WebSearchConfig::default(),
-            web_fetch_config: crate::implementations::xvora::web_fetch::WebFetchConfig::default(),
+            web_fetch_config:
+                crate::implementations::grok_build::web_fetch::WebFetchConfig::default(),
             lsp: None,
-            image_gen_config: crate::implementations::xvora::image_gen::ImageGenConfig::default(),
-            video_gen_config: crate::implementations::xvora::video_gen::VideoGenConfig::default(),
+            image_gen_config:
+                crate::implementations::grok_build::image_gen::ImageGenConfig::default(),
+            video_gen_config:
+                crate::implementations::grok_build::video_gen::VideoGenConfig::default(),
             app_builder_deployer_config:
-                crate::implementations::xvora::deploy_app::AppBuilderDeployerConfig::default(),
+                crate::implementations::grok_build::app_builder::AppBuilderDeployerConfig::default(),
             api_key_provider: None,
             auth_provider: None,
             attribution_callback: None,
@@ -1998,7 +2245,7 @@ mod tests {
     /// Before the fix, the `kind_params` builder used `if map.is_empty()` to
     /// seed identity param-name mappings only from the **first** tool of each
     /// kind. When `codex:apply_patch` (`ToolKind::Edit`, input: `{ patch }`)
-    /// appeared before `xvora:search_replace` (`ToolKind::Edit`, input:
+    /// appeared before `grok_build:search_replace` (`ToolKind::Edit`, input:
     /// `{ file_path, old_string, new_string, replace_all }`), the renderer's
     /// context had `params.edit = { "patch": "patch" }` — missing
     /// `replace_all`. At runtime, the template `${{ params.edit.replace_all }}`
@@ -2020,13 +2267,12 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:search_replace".to_string(),
+                    id: "GrokBuild:search_replace".to_string(),
                     params: Some(
-                        serde_json::json!({
-                "skip_read_before_edit" : true })
-                        .as_object()
-                        .unwrap()
-                        .clone(),
+                        serde_json::json!({ "skip_read_before_edit": true })
+                            .as_object()
+                            .unwrap()
+                            .clone(),
                     ),
                     name_override: None,
                     params_name_overrides: None,
@@ -2046,10 +2292,12 @@ mod tests {
         let result = toolset
             .call(
                 "search_replace",
-                serde_json::json!(
-                    { "file_path" : "test.txt", "old_string" : "aaa", "new_string" :
-                    "ccc", "replace_all" : false, }
-                ),
+                serde_json::json!({
+                    "file_path": "test.txt",
+                    "old_string": "aaa",
+                    "new_string": "ccc",
+                    "replace_all": false,
+                }),
                 "test-call",
                 None,
             )
@@ -2064,22 +2312,14 @@ mod tests {
             result.prompt_text
         );
     }
-    /// Verify the exact tool output variants for all template-rendered error
-    /// paths in `search_replace` when it is the **sole** Edit tool in the config.
-    ///
-    /// Exercises two code paths that use `TemplateRenderer` at runtime:
-    /// 1. `MultipleMatchesFound` — renders `${{ params.edit.replace_all }}`
-    /// 2. `NoMatchesFound` — renders `${{ tools.by_kind.read }}`
-    ///
-    /// Verify that the rendered `search_replace` description exposed to the model
-    /// contains the new minimum-anchor guidance and has no unresolved placeholders.
+    /// Rendered `search_replace` description: Read tool name substitutes, no leftover placeholders.
     #[tokio::test]
     async fn search_replace_description_renders_minimum_anchor_guidance() {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:read_file".to_string(),
+                    id: "GrokBuild:read_file".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2088,7 +2328,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:search_replace".to_string(),
+                    id: "GrokBuild:search_replace".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2115,27 +2355,28 @@ mod tests {
             .as_deref()
             .expect("description must be present");
         assert!(
-            !desc.contains("larger string with more surrounding context"),
-            "old guidance encouraging longer blocks must be absent"
+            desc.contains("read_file"),
+            "read tool name must render: {desc}"
         );
         assert!(
             !desc.contains("${{"),
             "rendered description must not contain raw template placeholders"
         );
     }
-    /// Smoke test: finalize the full Xvora toolset and verify every
+    /// Smoke test: finalize the full GrokBuild toolset and verify every
     /// tool description is fully rendered -- no unresolved MiniJinja vars,
     /// no stale `{max_*}` placeholders, no empty tool-name references from
     /// missing conditional guards.
     #[tokio::test]
     async fn full_toolset_descriptions_render_cleanly() {
-        use crate::implementations::xvora::{
-            DEPLOY_APP_TOOL_NAME, IMAGE_GEN_TOOL_NAME, IMAGE_TO_VIDEO_TOOL_NAME,
-            REFERENCE_TO_VIDEO_TOOL_NAME, SCHEDULER_CREATE_TOOL_NAME, SCHEDULER_DELETE_TOOL_NAME,
+        use crate::implementations::grok_build::{
+            IMAGE_GEN_TOOL_NAME, IMAGE_TO_VIDEO_TOOL_NAME, REFERENCE_TO_VIDEO_TOOL_NAME,
+            SCHEDULER_CREATE_TOOL_NAME, SCHEDULER_DELETE_TOOL_NAME,
+            SEND_SUBAGENT_MESSAGE_TOOL_NAME,
         };
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
-            tools: vec![
+            tools: [
                 "read_file",
                 "search_replace",
                 "run_terminal_cmd",
@@ -2148,11 +2389,11 @@ mod tests {
                 "exit_plan_mode",
                 "todo_write",
                 "task",
+                SEND_SUBAGENT_MESSAGE_TOOL_NAME,
                 "web_search",
                 "web_fetch",
                 "lsp",
                 IMAGE_GEN_TOOL_NAME,
-                DEPLOY_APP_TOOL_NAME,
                 IMAGE_TO_VIDEO_TOOL_NAME,
                 REFERENCE_TO_VIDEO_TOOL_NAME,
                 "monitor",
@@ -2161,7 +2402,9 @@ mod tests {
                 "scheduler_list",
             ]
             .into_iter()
-            .map(|id| ToolConfig::from_id(format!("Xvora:{id}")))
+            .map(|id| ToolConfig::from_id(format!("GrokBuild:{id}")))
+            .chain(std::iter::empty::<ToolConfig>())
+            .chain(std::iter::empty::<ToolConfig>())
             .collect(),
             behavior_preset: None,
         };
@@ -2170,7 +2413,53 @@ mod tests {
         let toolset = builder
             .finalize(config, ctx)
             .expect("full toolset should finalize");
-        for def in toolset.tool_definitions() {
+        fn assert_no_render_whitespace_artifacts(name: &str, text: &str) {
+            let mut in_code_block = false;
+            for line in text.lines() {
+                let trimmed = line.trim_start();
+                if trimmed.starts_with("```") {
+                    in_code_block = !in_code_block;
+                    continue;
+                }
+                if in_code_block {
+                    continue;
+                }
+                assert!(
+                    !trimmed.contains("  "),
+                    "{name}: double space (template render artifact?) in line: {line:?}"
+                );
+                assert!(
+                    !trimmed.contains(" , "),
+                    "{name}: stranded space before comma in line: {line:?}"
+                );
+                if let Some((_, roster)) = trimmed.split_once("access to:") {
+                    assert!(
+                        roster.starts_with(' '),
+                        "{name}: roster lost its separators (stripping guard?) in line: {line:?}"
+                    );
+                }
+            }
+        }
+        fn collect_descriptions(v: &serde_json::Value, out: &mut Vec<String>) {
+            match v {
+                serde_json::Value::Object(map) => {
+                    if let Some(serde_json::Value::String(d)) = map.get("description") {
+                        out.push(d.clone());
+                    }
+                    for val in map.values() {
+                        collect_descriptions(val, out);
+                    }
+                }
+                serde_json::Value::Array(arr) => {
+                    for val in arr {
+                        collect_descriptions(val, out);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let definitions = toolset.tool_definitions();
+        for def in definitions {
             let name = &def.function.name;
             let desc = def.function.description.as_deref().unwrap_or_default();
             assert!(
@@ -2189,6 +2478,7 @@ mod tests {
                 !desc.contains("the  tool"),
                 "{name}: empty tool name (missing conditional guard)"
             );
+            assert_no_render_whitespace_artifacts(name, desc);
             let params_str = def.function.parameters.to_string();
             assert!(
                 !params_str.contains("${{"),
@@ -2198,6 +2488,15 @@ mod tests {
                 !params_str.contains("${%"),
                 "{name}: unresolved jinja block in a field description"
             );
+            let mut field_descs = Vec::new();
+            collect_descriptions(&def.function.parameters, &mut field_descs);
+            for field_desc in &field_descs {
+                assert_no_render_whitespace_artifacts(name, field_desc);
+                assert!(
+                    !field_desc.contains("{max_"),
+                    "{name}: unresolved {{max_*}} placeholder in a field description"
+                );
+            }
         }
     }
     /// Bash mode resolves the toolset's execute tool by kind, not a hardcoded
@@ -2210,9 +2509,9 @@ mod tests {
             .finalize(
                 ToolServerConfig {
                     tools: vec![
-                        ToolConfig::from_id("Xvora:run_terminal_cmd".to_string()),
-                        ToolConfig::from_id("Xvora:get_task_output".to_string()),
-                        ToolConfig::from_id("Xvora:kill_task".to_string()),
+                        ToolConfig::from_id("GrokBuild:run_terminal_cmd".to_string()),
+                        ToolConfig::from_id("GrokBuild:get_task_output".to_string()),
+                        ToolConfig::from_id("GrokBuild:kill_task".to_string()),
                     ],
                     behavior_preset: None,
                 },
@@ -2234,9 +2533,9 @@ mod tests {
         use crate::types::tool_io::ToolInput;
         let config = ToolServerConfig {
             tools: vec![
-                ToolConfig::from_id("Xvora:run_terminal_cmd".to_string()),
-                ToolConfig::from_id("Xvora:get_task_output".to_string()),
-                ToolConfig::from_id("Xvora:kill_task".to_string()),
+                ToolConfig::from_id("GrokBuild:run_terminal_cmd".to_string()),
+                ToolConfig::from_id("GrokBuild:get_task_output".to_string()),
+                ToolConfig::from_id("GrokBuild:kill_task".to_string()),
             ],
             behavior_preset: None,
         };
@@ -2252,7 +2551,7 @@ mod tests {
         });
         let merged = merge_tool_meta(
             &toolset,
-            Some(serde_json::json!({ "bash_mode" : true })),
+            Some(serde_json::json!({"bash_mode": true})),
             "run_terminal_cmd",
             Some(&bash),
         )
@@ -2262,13 +2561,49 @@ mod tests {
         assert_eq!(merged[TOOL_META_KEY]["input"]["command"], "ls");
         let unchanged = merge_tool_meta(
             &toolset,
-            Some(serde_json::json!({ "backend" : true })),
+            Some(serde_json::json!({"backend": true})),
             "not_a_registered_tool",
             None,
         )
         .unwrap();
         assert_eq!(unchanged["backend"], true);
         assert!(unchanged.get(TOOL_META_KEY).is_none());
+    }
+    /// The wire (`ToolMetadata::is_read_only`) and doom-loop
+    /// (`Tool::capabilities().is_read_only`) must agree for every registered
+    /// tool. Drift here is a client classifying a tool differently from
+    /// in-process loop detection.
+    #[test]
+    fn capabilities_is_read_only_matches_metadata() {
+        let builder = ToolRegistryBuilder::new();
+        let mismatches: Vec<String> = builder
+            .tools
+            .iter()
+            .filter_map(|(name, entry)| {
+                let lr = xvora_computer_hub_sdk::LocalRegistry::new();
+                (entry.register_in_local)(&lr);
+                let id = xvora_tool_protocol::ToolId::new(&entry.id)
+                    .unwrap_or_else(|_| panic!("{name}: invalid tool id {:?}", entry.id));
+                let caps = lr
+                    .find(&id)
+                    .unwrap_or_else(|| panic!("{name}: missing from LocalRegistry"))
+                    .capabilities()
+                    .is_read_only;
+                let meta = entry.metadata.is_read_only();
+                (meta != caps).then(|| {
+                    format!(
+                        "{name}: ToolMetadata::is_read_only()={meta} \
+                         Tool::capabilities().is_read_only={caps}"
+                    )
+                })
+            })
+            .collect();
+        assert!(
+            mismatches.is_empty(),
+            "every registered tool must give the same is_read_only from \
+             ToolMetadata and Tool::capabilities(); mismatches:\n{}",
+            mismatches.join("\n")
+        );
     }
     /// `read_only` must come from the per-tool override, not the kind default:
     /// `get_task_output` is `BackgroundTaskAction` (default mutating) but
@@ -2277,9 +2612,9 @@ mod tests {
     async fn identity_read_only_honors_per_tool_override() {
         let config = ToolServerConfig {
             tools: vec![
-                ToolConfig::from_id("Xvora:run_terminal_cmd".to_string()),
-                ToolConfig::from_id("Xvora:get_task_output".to_string()),
-                ToolConfig::from_id("Xvora:kill_task".to_string()),
+                ToolConfig::from_id("GrokBuild:run_terminal_cmd".to_string()),
+                ToolConfig::from_id("GrokBuild:get_task_output".to_string()),
+                ToolConfig::from_id("GrokBuild:kill_task".to_string()),
             ],
             behavior_preset: None,
         };
@@ -2302,11 +2637,11 @@ mod tests {
         let parse = |v: serde_json::Value| -> ToolConfig {
             serde_json::from_value(v).expect("ToolConfig deserializes")
         };
-        let known = parse(serde_json::json!({ "id" : "Xvora:read_file", "kind" : "read" }));
+        let known = parse(serde_json::json!({"id": "GrokBuild:read_file", "kind": "read"}));
         assert_eq!(known.kind, Some(ToolKind::Read));
-        let typo = parse(serde_json::json!({ "id" : "Xvora:read_file", "kind" : "raed" }));
+        let typo = parse(serde_json::json!({"id": "GrokBuild:read_file", "kind": "raed"}));
         assert_eq!(typo.kind, Some(ToolKind::Other));
-        let absent = parse(serde_json::json!({ "id" : "Xvora:read_file" }));
+        let absent = parse(serde_json::json!({"id": "GrokBuild:read_file"}));
         assert_eq!(absent.kind, None);
     }
     /// End-to-end: a `params_name_overrides` rename of `old_string` must flow
@@ -2317,8 +2652,9 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
+                // read_file satisfies search_replace's Read requirement.
                 ToolConfig {
-                    id: "Xvora:read_file".to_string(),
+                    id: "GrokBuild:read_file".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2327,7 +2663,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:search_replace".to_string(),
+                    id: "GrokBuild:search_replace".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: Some(std::collections::HashMap::from([(
@@ -2377,6 +2713,61 @@ mod tests {
             "replace_all description should reference the renamed param: {replace_all_desc}"
         );
     }
+    /// Bash tool descriptions branch on the client's system-reminders
+    /// setting, plumbed via `set_system_reminders_enabled` into the
+    /// `TemplateRenderer`. With reminders disabled they name the get-output
+    /// tool when one is served.
+    #[tokio::test]
+    async fn bash_descriptions_track_system_reminders_setting() {
+        let config_with = |ids: &[&str]| ToolServerConfig {
+            tools: ids
+                .iter()
+                .map(|id| ToolConfig::from_id((*id).to_string()))
+                .collect(),
+            behavior_preset: None,
+        };
+        let bash_texts = |toolset: &FinalizedToolset| {
+            let defs = toolset.tool_definitions();
+            let bash = defs
+                .iter()
+                .find(|d| d.function.name == "run_terminal_cmd")
+                .expect("run_terminal_cmd definition not found")
+                .clone();
+            let desc = bash.function.description.clone().unwrap_or_default();
+            let field_desc = bash.function.parameters["properties"]["is_background"]["description"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string();
+            (desc, field_desc)
+        };
+        let ids = [
+            "GrokBuild:run_terminal_cmd",
+            "GrokBuild:get_task_output",
+            "GrokBuild:kill_task",
+        ];
+        let tmp = TempDir::new().unwrap();
+        let toolset = ToolRegistryBuilder::new()
+            .finalize(config_with(&ids), test_session_context(&tmp))
+            .expect("finalize");
+        let (desc_on, field_on) = bash_texts(&toolset);
+        let tmp = TempDir::new().unwrap();
+        let mut builder = ToolRegistryBuilder::new();
+        builder.set_system_reminders_enabled(false);
+        let toolset = builder
+            .finalize(config_with(&ids), test_session_context(&tmp))
+            .expect("finalize");
+        let (desc_off, field_off) = bash_texts(&toolset);
+        assert_ne!(desc_on, desc_off);
+        assert_ne!(field_on, field_off);
+        assert!(
+            desc_off.contains("get_task_output"),
+            "reminders off: description should name get_task_output: {desc_off}"
+        );
+        assert!(
+            field_off.contains("get_task_output"),
+            "reminders off: is_background description should name get_task_output: {field_off}"
+        );
+    }
     /// Each assertion pattern-matches on the exact `ToolOutput::SearchReplace`
     /// variant so the test fails if the renderer silently returns empty strings
     /// or the tool returns the wrong variant.
@@ -2390,7 +2781,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:read_file".to_string(),
+                    id: "GrokBuild:read_file".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2399,8 +2790,8 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:search_replace".to_string(),
-                    params: None,
+                    id: "GrokBuild:search_replace".to_string(),
+                    params: None, // default: skip_read_before_edit = false
                     name_override: None,
                     params_name_overrides: None,
                     description_override: None,
@@ -2420,7 +2811,7 @@ mod tests {
             toolset
                 .call(
                     "read_file",
-                    serde_json::json!({ "target_file" : * fname }),
+                    serde_json::json!({ "target_file": *fname }),
                     "read-call",
                     None,
                 )
@@ -2430,10 +2821,12 @@ mod tests {
         let result = toolset
             .call(
                 "search_replace",
-                serde_json::json!(
-                    { "file_path" : "dup.txt", "old_string" : "aaa", "new_string" :
-                    "ccc", "replace_all" : false, }
-                ),
+                serde_json::json!({
+                    "file_path": "dup.txt",
+                    "old_string": "aaa",
+                    "new_string": "ccc",
+                    "replace_all": false,
+                }),
                 "call-2",
                 None,
             )
@@ -2455,10 +2848,11 @@ mod tests {
         let result = toolset
             .call(
                 "search_replace",
-                serde_json::json!(
-                    { "file_path" : "no_match.txt", "old_string" : "nonexistent_string",
-                    "new_string" : "replacement", }
-                ),
+                serde_json::json!({
+                    "file_path": "no_match.txt",
+                    "old_string": "nonexistent_string",
+                    "new_string": "replacement",
+                }),
                 "call-3",
                 None,
             )
@@ -2468,13 +2862,14 @@ mod tests {
             ToolOutput::SearchReplace(SearchReplaceOutput::NoMatchesFound(e)) => {
                 assert_eq!(
                     e.message,
-                    "The string to replace was not found in the file, use the read_file tool to see the correct string.",
+                    "The string to replace was not found in the file, use the read_file tool to see the correct string. \
+                     The user may have changed the file since you last read it.",
                 );
             }
             other => panic!("Expected SearchReplace(NoMatchesFound), got: {other:?}"),
         }
     }
-    /// Verify XvoraConcise tools can be finalized and produce concise output.
+    /// Verify GrokBuildConcise tools can be finalized and produce concise output.
     #[tokio::test]
     async fn test_concise_namespace_tools() {
         use crate::types::output::{ReadFileOutput, ToolOutput};
@@ -2484,7 +2879,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "XvoraConcise:read_file".to_string(),
+                    id: "GrokBuildConcise:read_file".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2493,7 +2888,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "XvoraConcise:search_replace".to_string(),
+                    id: "GrokBuildConcise:search_replace".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2502,9 +2897,9 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "XvoraConcise:run_terminal_cmd".to_string(),
+                    id: "GrokBuildConcise:run_terminal_cmd".to_string(),
                     params: Some(
-                        serde_json::json!({ "enabled_background" : true })
+                        serde_json::json!({ "enabled_background": true })
                             .as_object()
                             .unwrap()
                             .clone(),
@@ -2515,11 +2910,11 @@ mod tests {
                     behavior_version: None,
                     kind: None,
                 },
-                ToolConfig::for_tool::<xvora::GrepTool>(),
-                ToolConfig::for_tool::<xvora::KillTaskTool>(),
-                ToolConfig::for_tool::<xvora::TaskOutputTool>(),
+                ToolConfig::for_tool::<grok_build::GrepTool>(),
+                ToolConfig::for_tool::<grok_build::KillTaskTool>(),
+                ToolConfig::for_tool::<grok_build::TaskOutputTool>(),
                 ToolConfig {
-                    id: "Xvora:list_dir".to_string(),
+                    id: "GrokBuild:list_dir".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2539,7 +2934,7 @@ mod tests {
         let result = toolset
             .call(
                 "read_file",
-                serde_json::json!({ "target_file" : "hello.txt" }),
+                serde_json::json!({ "target_file": "hello.txt" }),
                 "call-concise-1",
                 None,
             )
@@ -2563,13 +2958,13 @@ mod tests {
     fn has_tool_id_knows_pinned_tool_config_ids() {
         let builder = ToolRegistryBuilder::new();
         for id in [
-            "Xvora:run_terminal_cmd",
-            "Xvora:read_file",
-            "Xvora:search_replace",
-            "Xvora:list_dir",
-            "Xvora:grep",
-            "Xvora:get_terminal_command_output",
-            "Xvora:kill_terminal_command",
+            "GrokBuild:run_terminal_cmd",
+            "GrokBuild:read_file",
+            "GrokBuild:search_replace",
+            "GrokBuild:list_dir",
+            "GrokBuild:grep",
+            "GrokBuild:get_terminal_command_output",
+            "GrokBuild:kill_terminal_command",
         ] {
             assert!(
                 builder.has_tool_id(id),
@@ -2577,7 +2972,7 @@ mod tests {
             );
         }
         assert!(
-            !builder.has_tool_id("Xvora:does_not_exist"),
+            !builder.has_tool_id("GrokBuild:does_not_exist"),
             "unknown ids must not be reported as known"
         );
         assert!(
@@ -2593,11 +2988,11 @@ mod tests {
     fn known_tool_kinds_maps_pinned_tool_config_ids() {
         let kinds = ToolRegistryBuilder::new().known_tool_kinds();
         for (id, expected) in [
-            ("Xvora:run_terminal_cmd", ToolKind::Execute),
-            ("Xvora:read_file", ToolKind::Read),
-            ("Xvora:search_replace", ToolKind::Edit),
-            ("Xvora:grep", ToolKind::Search),
-            ("Xvora:list_dir", ToolKind::List),
+            ("GrokBuild:run_terminal_cmd", ToolKind::Execute),
+            ("GrokBuild:read_file", ToolKind::Read),
+            ("GrokBuild:search_replace", ToolKind::Edit),
+            ("GrokBuild:grep", ToolKind::Search),
+            ("GrokBuild:list_dir", ToolKind::List),
         ] {
             assert_eq!(
                 kinds.get(id),
@@ -2606,7 +3001,7 @@ mod tests {
             );
         }
         assert!(
-            !kinds.contains_key("Xvora:does_not_exist"),
+            !kinds.contains_key("GrokBuild:does_not_exist"),
             "unknown ids must be absent"
         );
     }
@@ -2614,7 +3009,7 @@ mod tests {
     /// two tools resolve to the same `client_name`.
     ///
     /// Without `name_override`, the client_name defaults to `entry.id`
-    /// (e.g. `"read_file"`). If both `Xvora:read_file` and
+    /// (e.g. `"read_file"`). If both `GrokBuild:read_file` and
     /// `Codex:read_file` are in the config, both would get
     /// `client_name = "read_file"`, making the second unreachable at
     /// dispatch time.
@@ -2624,7 +3019,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:read_file".to_string(),
+                    id: "GrokBuild:read_file".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2635,7 +3030,7 @@ mod tests {
                 ToolConfig {
                     id: "Codex:read_file".to_string(),
                     params: None,
-                    name_override: None,
+                    name_override: None, // both resolve to "read_file"
                     params_name_overrides: None,
                     description_override: None,
                     behavior_version: None,
@@ -2658,10 +3053,11 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:run_terminal_cmd".to_string(),
+                id: "GrokBuild:run_terminal_cmd".to_string(),
                 params: Some(
-                    serde_json::from_value(serde_json::json!({ "enabled_background" :
-                "yes" }))
+                    serde_json::from_value(serde_json::json!({
+                        "enabled_background": "yes"
+                    }))
                     .unwrap(),
                 ),
                 name_override: None,
@@ -2675,7 +3071,7 @@ mod tests {
         let errors = builder.validate_config(&config);
         assert_eq!(errors.len(), 1);
         let error = &errors[0];
-        assert_eq!(error.tool, "Xvora:run_terminal_cmd");
+        assert_eq!(error.tool, "GrokBuild:run_terminal_cmd");
         assert_eq!(
             error.field_path.as_deref(),
             Some("params.enabled_background")
@@ -2688,9 +3084,12 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "XvoraHashline:hashline_read".to_string(),
+                id: "GrokBuildHashline:hashline_read".to_string(),
                 params: Some(
-                    serde_json::from_value(serde_json::json!({ "hash_len" : 0 })).unwrap(),
+                    serde_json::from_value(serde_json::json!({
+                        "hash_len": 0
+                    }))
+                    .unwrap(),
                 ),
                 name_override: None,
                 params_name_overrides: None,
@@ -2716,9 +3115,9 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:read_file".to_string(),
+                    id: "GrokBuild:read_file".to_string(),
                     params: None,
-                    name_override: None,
+                    name_override: None, // client_name = "read_file"
                     params_name_overrides: None,
                     description_override: None,
                     behavior_version: None,
@@ -2727,7 +3126,7 @@ mod tests {
                 ToolConfig {
                     id: "Codex:read_file".to_string(),
                     params: None,
-                    name_override: Some("codex_read_file".to_string()),
+                    name_override: Some("codex_read_file".to_string()), // disambiguated
                     params_name_overrides: None,
                     description_override: None,
                     behavior_version: None,
@@ -2755,7 +3154,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:read_file".to_string(),
+                    id: "GrokBuild:read_file".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -2803,23 +3202,23 @@ mod tests {
             &self.description
         }
     }
-    impl tool_runtime::Tool for FakeMcpTool {
+    impl xvora_tool_runtime::Tool for FakeMcpTool {
         type Args = serde_json::Value;
         type Output = String;
-        fn id(&self) -> tool_protocol::ToolId {
-            tool_protocol::ToolId::new("fake_mcp").expect("valid")
+        fn id(&self) -> xvora_tool_protocol::ToolId {
+            xvora_tool_protocol::ToolId::new("fake_mcp").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::tool_runtime::ListToolsContext,
-        ) -> tool_types::ToolDescription {
-            tool_types::ToolDescription::new("fake_mcp", &self.description)
+            _ctx: &::xvora_tool_runtime::ListToolsContext,
+        ) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new("fake_mcp", &self.description)
         }
         async fn run(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<String, tool_runtime::ToolError> {
+        ) -> Result<String, xvora_tool_runtime::ToolError> {
             Ok("ok".into())
         }
     }
@@ -2841,16 +3240,16 @@ mod tests {
                 FakeMcpTool {
                     description: "Create or update a Linear issue".into(),
                 },
-                Some(serde_json::json!({ "type" : "object", "properties" : {} })),
+                Some(serde_json::json!({"type": "object", "properties": {}})),
             )
             .unwrap();
         let result = toolset
             .call(
                 "use_tool",
-                serde_json::json!(
-                    { "tool_name" : "linear__save_issue", "tool_input" : { "title" :
-                    "hello" } }
-                ),
+                serde_json::json!({
+                    "tool_name": "linear__save_issue",
+                    "tool_input": {"title": "hello"}
+                }),
                 "call-1",
                 None,
             )
@@ -2881,23 +3280,23 @@ mod tests {
             "non-streaming stub"
         }
     }
-    impl tool_runtime::Tool for NonStreamingStub {
+    impl xvora_tool_runtime::Tool for NonStreamingStub {
         type Args = serde_json::Value;
         type Output = String;
-        fn id(&self) -> tool_protocol::ToolId {
-            tool_protocol::ToolId::new("non_streaming_stub").expect("valid")
+        fn id(&self) -> xvora_tool_protocol::ToolId {
+            xvora_tool_protocol::ToolId::new("non_streaming_stub").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::tool_runtime::ListToolsContext,
-        ) -> tool_types::ToolDescription {
-            tool_types::ToolDescription::new("non_streaming_stub", "non-streaming stub")
+            _ctx: &::xvora_tool_runtime::ListToolsContext,
+        ) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new("non_streaming_stub", "non-streaming stub")
         }
         async fn run(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<String, tool_runtime::ToolError> {
+        ) -> Result<String, xvora_tool_runtime::ToolError> {
             Ok("stub-output".into())
         }
     }
@@ -2917,35 +3316,35 @@ mod tests {
             "streaming stub"
         }
     }
-    impl tool_runtime::Tool for StreamingStub {
+    impl xvora_tool_runtime::Tool for StreamingStub {
         type Args = serde_json::Value;
         type Output = String;
-        fn id(&self) -> tool_protocol::ToolId {
-            tool_protocol::ToolId::new("streaming_stub").expect("valid")
+        fn id(&self) -> xvora_tool_protocol::ToolId {
+            xvora_tool_protocol::ToolId::new("streaming_stub").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::tool_runtime::ListToolsContext,
-        ) -> tool_types::ToolDescription {
-            tool_types::ToolDescription::new("streaming_stub", "streaming stub")
+            _ctx: &::xvora_tool_runtime::ListToolsContext,
+        ) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new("streaming_stub", "streaming stub")
         }
         async fn run(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<String, tool_runtime::ToolError> {
+        ) -> Result<String, xvora_tool_runtime::ToolError> {
             Ok("terminal-value".into())
         }
         async fn execute(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> tool_runtime::ToolStream<String> {
+        ) -> xvora_tool_runtime::ToolStream<String> {
             Box::pin(futures::stream::iter(vec![
-                tool_runtime::ToolStreamItem::Progress(tool_runtime::ToolProgress::Text {
+                xvora_tool_runtime::ToolStreamItem::Progress(xvora_tool_runtime::ToolProgress::Text {
                     text: "progress-1".into(),
                 }),
-                tool_runtime::ToolStreamItem::Terminal(Ok("terminal-value".to_string())),
+                xvora_tool_runtime::ToolStreamItem::Terminal(Ok("terminal-value".to_string())),
             ]))
         }
     }
@@ -2956,7 +3355,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
-            tools: vec![ToolConfig::for_tool::<xvora::ReadFileTool>()],
+            tools: vec![ToolConfig::for_tool::<grok_build::ReadFileTool>()],
             behavior_preset: None,
         };
         let ctx = test_session_context(&tmp);
@@ -2965,7 +3364,7 @@ mod tests {
             .register_tool(
                 "stub".to_string(),
                 NonStreamingStub,
-                Some(serde_json::json!({ "type" : "object", "properties" : {} })),
+                Some(serde_json::json!({"type": "object", "properties": {}})),
             )
             .unwrap();
         let result = toolset
@@ -2989,7 +3388,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
-            tools: vec![ToolConfig::for_tool::<xvora::ReadFileTool>()],
+            tools: vec![ToolConfig::for_tool::<grok_build::ReadFileTool>()],
             behavior_preset: None,
         };
         let ctx = test_session_context(&tmp);
@@ -2998,7 +3397,7 @@ mod tests {
             .register_tool(
                 "streamer".to_string(),
                 StreamingStub,
-                Some(serde_json::json!({ "type" : "object", "properties" : {} })),
+                Some(serde_json::json!({"type": "object", "properties": {}})),
             )
             .unwrap();
         let mut stream = toolset.call_streaming("streamer", serde_json::json!({}), "call-b", None);
@@ -3006,15 +3405,15 @@ mod tests {
         let mut terminal: Option<ToolRunResult> = None;
         while let Some(item) = stream.next().await {
             match item {
-                tool_runtime::ToolStreamItem::Progress(p) => {
+                xvora_tool_runtime::ToolStreamItem::Progress(p) => {
                     assert!(
                         terminal.is_none(),
                         "progress must arrive before the terminal"
                     );
-                    assert!(matches!(p, tool_runtime::ToolProgress::Text { .. }));
+                    assert!(matches!(p, xvora_tool_runtime::ToolProgress::Text { .. }));
                     progress_count += 1;
                 }
-                tool_runtime::ToolStreamItem::Terminal(result) => {
+                xvora_tool_runtime::ToolStreamItem::Terminal(result) => {
                     assert!(terminal.is_none(), "exactly one terminal");
                     terminal = Some(result.expect("terminal should be Ok"));
                 }
@@ -3052,30 +3451,30 @@ mod tests {
             "no-terminal stub"
         }
     }
-    impl tool_runtime::Tool for NoTerminalStub {
+    impl xvora_tool_runtime::Tool for NoTerminalStub {
         type Args = serde_json::Value;
         type Output = String;
-        fn id(&self) -> tool_protocol::ToolId {
-            tool_protocol::ToolId::new("no_terminal_stub").expect("valid")
+        fn id(&self) -> xvora_tool_protocol::ToolId {
+            xvora_tool_protocol::ToolId::new("no_terminal_stub").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::tool_runtime::ListToolsContext,
-        ) -> tool_types::ToolDescription {
-            tool_types::ToolDescription::new("no_terminal_stub", "no-terminal stub")
+            _ctx: &::xvora_tool_runtime::ListToolsContext,
+        ) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new("no_terminal_stub", "no-terminal stub")
         }
         async fn run(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<String, tool_runtime::ToolError> {
+        ) -> Result<String, xvora_tool_runtime::ToolError> {
             Ok("unused".into())
         }
         async fn execute(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> tool_runtime::ToolStream<String> {
+        ) -> xvora_tool_runtime::ToolStream<String> {
             Box::pin(futures::stream::empty())
         }
     }
@@ -3103,7 +3502,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
-            tools: vec![ToolConfig::for_tool::<xvora::ReadFileTool>()],
+            tools: vec![ToolConfig::for_tool::<grok_build::ReadFileTool>()],
             behavior_preset: None,
         };
         let ctx = test_session_context(&tmp);
@@ -3112,7 +3511,7 @@ mod tests {
             .register_tool(
                 "no_terminal".to_string(),
                 NoTerminalStub,
-                Some(serde_json::json!({ "type" : "object", "properties" : {} })),
+                Some(serde_json::json!({"type": "object", "properties": {}})),
             )
             .unwrap();
         let err = toolset
@@ -3126,13 +3525,126 @@ mod tests {
         );
     }
     #[tokio::test]
+    async fn non_pi_finalized_contract_snapshot_is_unchanged() {
+        let tmp = TempDir::new().unwrap();
+        let toolset = ToolRegistryBuilder::new()
+            .finalize(
+                ToolServerConfig {
+                    tools: vec![
+                        ToolConfig::for_tool::<grok_build::TodoWriteTool>(),
+                        ToolConfig::for_tool::<opencode::OpenCodeWriteTool>(),
+                    ],
+                    behavior_preset: None,
+                },
+                test_session_context(&tmp),
+            )
+            .unwrap();
+        let mut contracts: Vec<serde_json::Value> = toolset
+            .tool_definitions()
+            .into_iter()
+            .map(|definition| {
+                serde_json::json!({
+                    "name": definition.function.name,
+                    "description": definition.function.description,
+                    "parameters": definition.function.parameters,
+                })
+            })
+            .collect();
+        contracts.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+        let expected: serde_json::Value = serde_json::from_str(
+                r##"
+        [
+          {
+            "name": "todo_write",
+            "description": "Create and manage a structured task list. The user sees this list live — it is your primary way to show progress.\n\nUse for any task with 3+ steps. Skip for trivial single-step work.",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "required": [
+                "todos"
+              ],
+              "type": "object",
+              "properties": {
+                "merge": {
+                  "description": "Optional. When true (default), merges the provided todos into the existing list by id — send only the items you are changing, and to flip status without changing content send just id + status. When false, the provided todos replace the existing list.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "todos": {
+                  "description": "Array of todo items to write to the workspace",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "Unique identifier for the todo item",
+                        "type": "string"
+                      },
+                      "content": {
+                        "description": "The description/content of the todo item",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "status": {
+                        "description": "The status of the todo item: pending, in_progress, completed, or cancelled",
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "pending",
+                          "in_progress",
+                          "completed",
+                          "cancelled",
+                          null
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "write",
+            "description": "Create or overwrite a file.\n\n- Writing to an existing path replaces the file.\n- Parent directories are created for you.",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "required": [
+                "file_path",
+                "content"
+              ],
+              "properties": {
+                "file_path": {
+                  "description": "The absolute path to the file to write.",
+                  "type": "string"
+                },
+                "content": {
+                  "description": "The full file content to write.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        ]
+"##,
+            )
+            .expect("checked-in snapshot parses");
+        assert_eq!(expected, serde_json::Value::Array(contracts));
+    }
+    #[tokio::test]
     async fn tool_definitions_builtins_only_hides_mcp_tools() {
         let tmp = TempDir::new().unwrap();
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
-                ToolConfig::for_tool::<xvora::ReadFileTool>(),
-                ToolConfig::for_tool::<xvora::GrepTool>(),
+                ToolConfig::for_tool::<grok_build::ReadFileTool>(),
+                ToolConfig::for_tool::<grok_build::GrepTool>(),
             ],
             behavior_preset: None,
         };
@@ -3144,7 +3656,7 @@ mod tests {
                 FakeMcpTool {
                     description: "Create or update a Linear issue".into(),
                 },
-                Some(serde_json::json!({ "type" : "object", "properties" : {} })),
+                Some(serde_json::json!({"type": "object", "properties": {}})),
             )
             .unwrap();
         assert_eq!(toolset.tool_definitions().len(), 3);
@@ -3165,7 +3677,7 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:task".to_string(),
+                id: "GrokBuild:task".to_string(),
                 params: None,
                 name_override: None,
                 params_name_overrides: None,
@@ -3181,9 +3693,9 @@ mod tests {
             "task tool should be rejected without get_task_output and kill_task"
         );
         assert!(
-            errors.iter().any(|e| e.tool == "Xvora:task"
-                && e.message.contains("Xvora:get_task_output")
-                && e.message.contains("Xvora:kill_task")),
+            errors.iter().any(|e| e.tool == "GrokBuild:task"
+                && e.message.contains("GrokBuild:get_task_output")
+                && e.message.contains("GrokBuild:kill_task")),
             "error should mention missing background task tools: {errors:?}",
         );
     }
@@ -3195,7 +3707,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:task".to_string(),
+                    id: "GrokBuild:task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3204,7 +3716,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:get_task_output".to_string(),
+                    id: "GrokBuild:get_task_output".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3219,7 +3731,7 @@ mod tests {
         assert!(
             errors
                 .iter()
-                .any(|e| e.tool == "Xvora:task" && e.message.contains("Xvora:kill_task")),
+                .any(|e| e.tool == "GrokBuild:task" && e.message.contains("GrokBuild:kill_task")),
             "task tool should be rejected without kill_task: {errors:?}",
         );
     }
@@ -3231,7 +3743,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:task".to_string(),
+                    id: "GrokBuild:task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3240,7 +3752,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:kill_task".to_string(),
+                    id: "GrokBuild:kill_task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3255,7 +3767,8 @@ mod tests {
         assert!(
             errors
                 .iter()
-                .any(|e| e.tool == "Xvora:task" && e.message.contains("Xvora:get_task_output")),
+                .any(|e| e.tool == "GrokBuild:task"
+                    && e.message.contains("GrokBuild:get_task_output")),
             "task tool should be rejected without get_task_output: {errors:?}",
         );
     }
@@ -3268,7 +3781,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:task".to_string(),
+                    id: "GrokBuild:task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3277,7 +3790,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:get_task_output".to_string(),
+                    id: "GrokBuild:get_task_output".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3286,7 +3799,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:kill_task".to_string(),
+                    id: "GrokBuild:kill_task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3311,16 +3824,16 @@ mod tests {
         assert!(task_def.is_some(), "task tool should be in definitions");
     }
     /// Verify that the task tool description renders correctly with the default
-    /// xvora agent config (all tools present) and that the new examples
+    /// grok-build agent config (all tools present) and that the new examples
     /// section is included with no unresolved template placeholders.
     #[tokio::test]
     async fn bash_definition_hides_is_background_when_disabled() {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:run_terminal_cmd".to_string(),
+                id: "GrokBuild:run_terminal_cmd".to_string(),
                 params: Some(
-                    serde_json::json!({ "enabled_background" : false })
+                    serde_json::json!({ "enabled_background": false })
                         .as_object()
                         .unwrap()
                         .clone(),
@@ -3369,9 +3882,9 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:run_terminal_cmd".to_string(),
+                    id: "GrokBuild:run_terminal_cmd".to_string(),
                     params: Some(
-                        serde_json::json!({ "enabled_background" : true })
+                        serde_json::json!({ "enabled_background": true })
                             .as_object()
                             .unwrap()
                             .clone(),
@@ -3383,7 +3896,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:get_task_output".to_string(),
+                    id: "GrokBuild:get_task_output".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3392,7 +3905,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:kill_task".to_string(),
+                    id: "GrokBuild:kill_task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3455,11 +3968,11 @@ mod tests {
         };
         let config = ToolServerConfig {
             tools: vec![
-                tool("Xvora:run_terminal_cmd"),
-                tool("Xvora:task"),
-                tool("Xvora:get_task_output"),
-                tool("Xvora:wait_tasks"),
-                tool("Xvora:kill_task"),
+                tool("GrokBuild:run_terminal_cmd"),
+                tool("GrokBuild:task"),
+                tool("GrokBuild:get_task_output"),
+                tool("GrokBuild:wait_tasks"),
+                tool("GrokBuild:kill_task"),
             ],
             behavior_preset: None,
         };
@@ -3502,6 +4015,22 @@ mod tests {
                 desc.contains("run_in_background"),
                 "`{name}` description must resolve params.task.run_in_background"
             );
+            let timeout = defs
+                .iter()
+                .find(|d| d.function.name == name)
+                .map(|d| &d.function.parameters["properties"]["timeout_ms"])
+                .unwrap_or_else(|| panic!("`{name}` should expose timeout_ms"));
+            assert!(
+                timeout.get("maximum").is_some(),
+                "`{name}`.timeout_ms must carry the resolved wait ceiling: {timeout}"
+            );
+            assert!(
+                !timeout["description"]
+                    .as_str()
+                    .unwrap_or("")
+                    .contains("{max_"),
+                "`{name}`.timeout_ms has an unresolved placeholder: {timeout}"
+            );
         }
     }
     #[test]
@@ -3509,13 +4038,12 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:run_terminal_cmd".to_string(),
+                id: "GrokBuild:run_terminal_cmd".to_string(),
                 params: Some(
-                    serde_json::json!({ "enabled_background" : false,
-                "auto_background_on_timeout" : true })
-                    .as_object()
-                    .unwrap()
-                    .clone(),
+                    serde_json::json!({ "enabled_background": false, "auto_background_on_timeout": true })
+                        .as_object()
+                        .unwrap()
+                        .clone(),
                 ),
                 name_override: None,
                 params_name_overrides: None,
@@ -3546,13 +4074,12 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:run_terminal_cmd".to_string(),
+                id: "GrokBuild:run_terminal_cmd".to_string(),
                 params: Some(
-                    serde_json::json!({ "enabled_background" : false,
-                "auto_background_on_timeout" : false })
-                    .as_object()
-                    .unwrap()
-                    .clone(),
+                    serde_json::json!({ "enabled_background": false, "auto_background_on_timeout": false })
+                        .as_object()
+                        .unwrap()
+                        .clone(),
                 ),
                 name_override: None,
                 params_name_overrides: None,
@@ -3592,13 +4119,12 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:run_terminal_cmd".to_string(),
+                id: "GrokBuild:run_terminal_cmd".to_string(),
                 params: Some(
-                    serde_json::json!({ "enabled_background" : false,
-                "auto_background_on_timeout" : false })
-                    .as_object()
-                    .unwrap()
-                    .clone(),
+                    serde_json::json!({ "enabled_background": false, "auto_background_on_timeout": false })
+                        .as_object()
+                        .unwrap()
+                        .clone(),
                 ),
                 name_override: None,
                 params_name_overrides: None,
@@ -3619,7 +4145,7 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:run_terminal_cmd".to_string(),
+                id: "GrokBuild:run_terminal_cmd".to_string(),
                 params: None,
                 name_override: None,
                 params_name_overrides: None,
@@ -3636,15 +4162,15 @@ mod tests {
             "expected one bash requirement error: {errors:?}"
         );
         let error = &errors[0];
-        assert_eq!(error.tool, "Xvora:run_terminal_cmd");
+        assert_eq!(error.tool, "GrokBuild:run_terminal_cmd");
         assert_eq!(error.category.as_deref(), Some("requirements"));
         assert_eq!(
             error.field_path.as_deref(),
             Some("params.enabled_background")
         );
         assert_eq!(error.bad_value, Some(serde_json::json!(true)));
-        assert!(error.message.contains("Xvora:get_task_output"));
-        assert!(error.message.contains("Xvora:kill_task"));
+        assert!(error.message.contains("GrokBuild:get_task_output"));
+        assert!(error.message.contains("GrokBuild:kill_task"));
         assert!(
             error
                 .expected
@@ -3658,7 +4184,7 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:task".to_string(),
+                id: "GrokBuild:task".to_string(),
                 params: None,
                 name_override: None,
                 params_name_overrides: None,
@@ -3675,9 +4201,9 @@ mod tests {
             "expected one task requirement error: {errors:?}"
         );
         let error = &errors[0];
-        assert_eq!(error.tool, "Xvora:task");
-        assert!(error.message.contains("Xvora:get_task_output"));
-        assert!(error.message.contains("Xvora:kill_task"));
+        assert_eq!(error.tool, "GrokBuild:task");
+        assert!(error.message.contains("GrokBuild:get_task_output"));
+        assert!(error.message.contains("GrokBuild:kill_task"));
         assert_eq!(error.field_path.as_deref(), Some("tools"));
     }
     #[test]
@@ -3685,7 +4211,7 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:get_task_output".to_string(),
+                id: "GrokBuild:get_task_output".to_string(),
                 params: None,
                 name_override: None,
                 params_name_overrides: None,
@@ -3702,17 +4228,17 @@ mod tests {
             "expected one get_task_output requirement error: {errors:?}"
         );
         let error = &errors[0];
-        assert_eq!(error.tool, "Xvora:get_task_output");
+        assert_eq!(error.tool, "GrokBuild:get_task_output");
         assert!(error.message.contains("background-capable bash tool"));
         assert!(error.message.contains("OpenCode:bash"));
-        assert!(error.message.contains("Xvora:task"));
+        assert!(error.message.contains("GrokBuild:task"));
     }
     #[test]
     fn search_replace_requirement_error_mentions_read_tool() {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:search_replace".to_string(),
+                id: "GrokBuild:search_replace".to_string(),
                 params: None,
                 name_override: None,
                 params_name_overrides: None,
@@ -3729,7 +4255,7 @@ mod tests {
         );
         let error = errors
             .iter()
-            .find(|error| error.tool == "Xvora:search_replace")
+            .find(|error| error.tool == "GrokBuild:search_replace")
             .expect("search_replace error should be present");
         assert!(error.message.contains("Read tool"));
         assert_eq!(
@@ -3744,7 +4270,7 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:ask_user_question".to_string(),
+                id: "GrokBuild:ask_user_question".to_string(),
                 params: None,
                 name_override: None,
                 params_name_overrides: None,
@@ -3766,7 +4292,7 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "Xvora:run_terminal_cmd".to_string(),
+                    id: "GrokBuild:run_terminal_cmd".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3775,7 +4301,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:read_file".to_string(),
+                    id: "GrokBuild:read_file".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3784,7 +4310,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:search_replace".to_string(),
+                    id: "GrokBuild:search_replace".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3793,7 +4319,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:list_dir".to_string(),
+                    id: "GrokBuild:list_dir".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3802,7 +4328,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:grep".to_string(),
+                    id: "GrokBuild:grep".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3811,7 +4337,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:web_search".to_string(),
+                    id: "GrokBuild:web_search".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3820,7 +4346,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:task".to_string(),
+                    id: "GrokBuild:task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3829,7 +4355,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:get_task_output".to_string(),
+                    id: "GrokBuild:get_task_output".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3838,7 +4364,7 @@ mod tests {
                     kind: None,
                 },
                 ToolConfig {
-                    id: "Xvora:kill_task".to_string(),
+                    id: "GrokBuild:kill_task".to_string(),
                     params: None,
                     name_override: None,
                     params_name_overrides: None,
@@ -3853,7 +4379,7 @@ mod tests {
         let ctx = test_session_context(&tmp);
         let toolset = builder
             .finalize(config, ctx)
-            .expect("finalize should succeed with default xvora tools");
+            .expect("finalize should succeed with default grok-build tools");
         let defs = toolset.tool_definitions();
         let task_def = defs
             .iter()
@@ -3885,15 +4411,21 @@ mod tests {
     fn hashline_tools_registered_in_builder() {
         let builder = ToolRegistryBuilder::new();
         assert!(
-            builder.tools.contains_key("XvoraHashline:hashline_read"),
+            builder
+                .tools
+                .contains_key("GrokBuildHashline:hashline_read"),
             "hashline_read should be registered"
         );
         assert!(
-            builder.tools.contains_key("XvoraHashline:hashline_edit"),
+            builder
+                .tools
+                .contains_key("GrokBuildHashline:hashline_edit"),
             "hashline_edit should be registered"
         );
         assert!(
-            builder.tools.contains_key("XvoraHashline:hashline_grep"),
+            builder
+                .tools
+                .contains_key("GrokBuildHashline:hashline_grep"),
             "hashline_grep should be registered"
         );
     }
@@ -3903,9 +4435,9 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
-                hashline_tool_config("XvoraHashline:hashline_read"),
-                hashline_tool_config("XvoraHashline:hashline_edit"),
-                hashline_tool_config("XvoraHashline:hashline_grep"),
+                hashline_tool_config("GrokBuildHashline:hashline_read"),
+                hashline_tool_config("GrokBuildHashline:hashline_edit"),
+                hashline_tool_config("GrokBuildHashline:hashline_grep"),
             ],
             behavior_preset: None,
         };
@@ -3928,9 +4460,9 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let standard_config = ToolServerConfig {
             tools: vec![
-                hashline_tool_config("Xvora:read_file"),
-                hashline_tool_config("Xvora:search_replace"),
-                hashline_tool_config("Xvora:grep"),
+                hashline_tool_config("GrokBuild:read_file"),
+                hashline_tool_config("GrokBuild:search_replace"),
+                hashline_tool_config("GrokBuild:grep"),
             ],
             behavior_preset: None,
         };
@@ -3941,9 +4473,9 @@ mod tests {
         let builder2 = ToolRegistryBuilder::new();
         let hashline_config = ToolServerConfig {
             tools: vec![
-                hashline_tool_config("XvoraHashline:hashline_read"),
-                hashline_tool_config("XvoraHashline:hashline_edit"),
-                hashline_tool_config("XvoraHashline:hashline_grep"),
+                hashline_tool_config("GrokBuildHashline:hashline_read"),
+                hashline_tool_config("GrokBuildHashline:hashline_edit"),
+                hashline_tool_config("GrokBuildHashline:hashline_grep"),
             ],
             behavior_preset: None,
         };
@@ -3958,9 +4490,9 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
-                hashline_tool_config("XvoraHashline:hashline_read"),
-                hashline_tool_config("XvoraHashline:hashline_edit"),
-                hashline_tool_config("XvoraHashline:hashline_grep"),
+                hashline_tool_config("GrokBuildHashline:hashline_read"),
+                hashline_tool_config("GrokBuildHashline:hashline_edit"),
+                hashline_tool_config("GrokBuildHashline:hashline_grep"),
             ],
             behavior_preset: None,
         };
@@ -3980,9 +4512,9 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
-                hashline_tool_config("Xvora:read_file"),
-                hashline_tool_config("XvoraHashline:hashline_edit"),
-                hashline_tool_config("Xvora:grep"),
+                hashline_tool_config("GrokBuild:read_file"),
+                hashline_tool_config("GrokBuildHashline:hashline_edit"),
+                hashline_tool_config("GrokBuild:grep"),
             ],
             behavior_preset: None,
         };
@@ -3999,8 +4531,8 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
-                ToolConfig::for_tool::<xvora::EnterPlanModeTool>(),
-                ToolConfig::for_tool::<xvora::ExitPlanModeTool>(),
+                ToolConfig::for_tool::<grok_build::EnterPlanModeTool>(),
+                ToolConfig::for_tool::<grok_build::ExitPlanModeTool>(),
             ],
             behavior_preset: None,
         };
@@ -4037,13 +4569,12 @@ mod tests {
         let config = ToolServerConfig {
             tools: vec![
                 ToolConfig {
-                    id: "XvoraHashline:hashline_read".to_owned(),
+                    id: "GrokBuildHashline:hashline_read".to_owned(),
                     params: Some(
-                        serde_json::json!({ "scheme" : "chunk", "hash_len" : 2, "chunk_size"
-                : 16 })
-                        .as_object()
-                        .unwrap()
-                        .clone(),
+                        serde_json::json!({"scheme": "chunk", "hash_len": 2, "chunk_size": 16})
+                            .as_object()
+                            .unwrap()
+                            .clone(),
                     ),
                     name_override: None,
                     params_name_overrides: None,
@@ -4051,9 +4582,9 @@ mod tests {
                     behavior_version: None,
                     kind: None,
                 },
-                ToolConfig::for_tool::<xvora_hashline::HashlineEditTool>(),
-                ToolConfig::for_tool::<xvora_hashline::HashlineGrepTool>(),
-                ToolConfig::for_tool::<xvora::ListDirTool>(),
+                ToolConfig::for_tool::<grok_build_hashline::HashlineEditTool>(),
+                ToolConfig::for_tool::<grok_build_hashline::HashlineGrepTool>(),
+                ToolConfig::for_tool::<grok_build::ListDirTool>(),
             ],
             behavior_preset: None,
         };
@@ -4077,9 +4608,9 @@ mod tests {
     }
     fn bash_config_with_background() -> ToolConfig {
         ToolConfig {
-            id: "Xvora:run_terminal_cmd".to_owned(),
+            id: "GrokBuild:run_terminal_cmd".to_owned(),
             params: Some(
-                serde_json::json!({ "enabled_background" : true })
+                serde_json::json!({ "enabled_background": true })
                     .as_object()
                     .unwrap()
                     .clone(),
@@ -4091,18 +4622,18 @@ mod tests {
             kind: None,
         }
     }
-    async fn xvora_bridge(tmp: &TempDir) -> crate::bridge::ToolBridge {
+    async fn grok_build_bridge(tmp: &TempDir) -> crate::bridge::ToolBridge {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
-                ToolConfig::for_tool::<xvora::ListDirTool>(),
-                ToolConfig::for_tool::<xvora::ReadFileTool>(),
-                ToolConfig::for_tool::<xvora::SearchReplaceTool>(),
+                ToolConfig::for_tool::<grok_build::ListDirTool>(),
+                ToolConfig::for_tool::<grok_build::ReadFileTool>(),
+                ToolConfig::for_tool::<grok_build::SearchReplaceTool>(),
                 bash_config_with_background(),
-                ToolConfig::for_tool::<xvora::TaskOutputTool>(),
-                ToolConfig::for_tool::<xvora::KillTaskTool>(),
-                ToolConfig::for_tool::<xvora::GrepTool>(),
-                ToolConfig::for_tool::<xvora::TodoWriteTool>(),
+                ToolConfig::for_tool::<grok_build::TaskOutputTool>(),
+                ToolConfig::for_tool::<grok_build::KillTaskTool>(),
+                ToolConfig::for_tool::<grok_build::GrepTool>(),
+                ToolConfig::for_tool::<grok_build::TodoWriteTool>(),
             ],
             behavior_preset: None,
         };
@@ -4115,11 +4646,11 @@ mod tests {
     async fn hub_dispatch_list_dir() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("hello.txt"), "world").unwrap();
-        let bridge = xvora_bridge(&tmp).await;
+        let bridge = grok_build_bridge(&tmp).await;
         let result = bridge
             .call(
                 "list_dir",
-                serde_json::json!({ "target_directory" : tmp.path().to_str().unwrap() }),
+                serde_json::json!({ "target_directory": tmp.path().to_str().unwrap() }),
                 "test-call-id",
             )
             .await
@@ -4138,10 +4669,8 @@ mod tests {
         let test_dir = tmp.path().join("testdir");
         std::fs::create_dir_all(&test_dir).unwrap();
         std::fs::write(test_dir.join("parity.txt"), "test").unwrap();
-        let args = serde_json::json!(
-            { "target_directory" : test_dir.to_str().unwrap() }
-        );
-        let hub_bridge = xvora_bridge(&tmp).await;
+        let args = serde_json::json!({ "target_directory": test_dir.to_str().unwrap() });
+        let hub_bridge = grok_build_bridge(&tmp).await;
         let hub_result = hub_bridge
             .call("list_dir", args.clone(), "hub-call")
             .await
@@ -4150,12 +4679,11 @@ mod tests {
         let legacy_test_dir = legacy_tmp.path().join("testdir");
         std::fs::create_dir_all(&legacy_test_dir).unwrap();
         std::fs::write(legacy_test_dir.join("parity.txt"), "test").unwrap();
-        let legacy_args = serde_json::json!(
-            { "target_directory" : legacy_test_dir.to_str().unwrap() }
-        );
+        let legacy_args =
+            serde_json::json!({ "target_directory": legacy_test_dir.to_str().unwrap() });
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
-            tools: vec![ToolConfig::for_tool::<xvora::ListDirTool>()],
+            tools: vec![ToolConfig::for_tool::<grok_build::ListDirTool>()],
             behavior_preset: None,
         };
         let legacy_toolset = Arc::new(
@@ -4182,11 +4710,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let file = tmp.path().join("editable.txt");
         std::fs::write(&file, "hello world").unwrap();
-        let bridge = xvora_bridge(&tmp).await;
+        let bridge = grok_build_bridge(&tmp).await;
         bridge
             .call(
                 "read_file",
-                serde_json::json!({ "target_file" : file.to_str().unwrap() }),
+                serde_json::json!({ "target_file": file.to_str().unwrap() }),
                 "read-call",
             )
             .await
@@ -4194,10 +4722,11 @@ mod tests {
         let result = bridge
             .call(
                 "search_replace",
-                serde_json::json!(
-                    { "file_path" : file.to_str().unwrap(), "old_string" : "hello",
-                    "new_string" : "goodbye" }
-                ),
+                serde_json::json!({
+                    "file_path": file.to_str().unwrap(),
+                    "old_string": "hello",
+                    "new_string": "goodbye"
+                }),
                 "edit-call",
             )
             .await
@@ -4214,14 +4743,14 @@ mod tests {
     #[tokio::test]
     async fn hub_dispatch_bash() {
         let tmp = TempDir::new().unwrap();
-        let bridge = xvora_bridge(&tmp).await;
+        let bridge = grok_build_bridge(&tmp).await;
         let result = bridge
             .call(
                 "run_terminal_cmd",
-                serde_json::json!(
-                    { "command" : "echo hub_dispatch_test_sentinel", "description" :
-                    "test" }
-                ),
+                serde_json::json!({
+                    "command": "echo hub_dispatch_test_sentinel",
+                    "description": "test"
+                }),
                 "bash-call",
             )
             .await
@@ -4236,7 +4765,7 @@ mod tests {
     #[tokio::test]
     async fn hub_dispatch_invalid_args() {
         let tmp = TempDir::new().unwrap();
-        let bridge = xvora_bridge(&tmp).await;
+        let bridge = grok_build_bridge(&tmp).await;
         let result = bridge.call("grep", serde_json::json!({}), "bad-call").await;
         assert!(
             result.is_err(),
@@ -4251,7 +4780,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
-            tools: vec![ToolConfig::for_tool::<xvora::ListDirTool>()],
+            tools: vec![ToolConfig::for_tool::<grok_build::ListDirTool>()],
             behavior_preset: None,
         };
         let toolset = builder
@@ -4285,8 +4814,8 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![
-                ToolConfig::for_tool::<xvora::ListDirTool>(),
-                ToolConfig::for_tool::<xvora::ReadFileTool>(),
+                ToolConfig::for_tool::<grok_build::ListDirTool>(),
+                ToolConfig::for_tool::<grok_build::ReadFileTool>(),
             ],
             behavior_preset: None,
         };
@@ -4341,14 +4870,54 @@ mod tests {
             assert_eq!(skills.0.len(), 2, "should have exactly 2 skills");
         }
     }
+    /// generate_schema strips the boilerplate root `title` (struct name) and
+    /// root `description` (struct doc "Input for the <canonical> tool") so the
+    /// canonical name can't leak via parameters.description after randomization
+    /// renames the tool. $schema and per-property descriptions are retained.
+    #[test]
+    fn generate_schema_strips_root_title_and_description() {
+        let schema = generate_schema::<crate::implementations::grok_build::bash::BashToolInput>();
+        assert!(
+            schema.get("title").is_none(),
+            "root title (struct name) must be stripped: {schema}"
+        );
+        assert!(
+            schema.get("description").is_none(),
+            "root description (leaks canonical tool name) must be stripped: {schema}"
+        );
+        assert!(schema.get("$schema").is_some(), "$schema must be retained");
+        assert!(
+            schema["properties"]
+                .as_object()
+                .is_some_and(|p| !p.is_empty()),
+            "per-property schema must be retained: {schema}"
+        );
+    }
+    #[test]
+    fn generate_schema_memoizes_per_type() {
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code)]
+        struct SchemaMemoProbe {
+            field: String,
+        }
+        let key = std::any::TypeId::of::<SchemaMemoProbe>();
+        let first = generate_schema_cached::<SchemaMemoProbe>();
+        let second = generate_schema_cached::<SchemaMemoProbe>();
+        assert_eq!(first, second);
+        assert_eq!(
+            schema_uncached_calls(key),
+            1,
+            "a type's schema must be generated at most once per process"
+        );
+    }
     fn toolset_with_viewer_ctx(
-        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
     ) -> (Arc<FinalizedToolset>, TempDir) {
         let tmp = TempDir::new().unwrap();
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:read_file".to_string(),
+                id: "GrokBuild:read_file".to_string(),
                 params: None,
                 name_override: None,
                 params_name_overrides: None,
@@ -4371,21 +4940,23 @@ mod tests {
     }
     #[tokio::test]
     async fn prepare_dispatch_stamps_workspace_viewer_ctx_when_present() {
-        let (toolset, _tmp) = toolset_with_viewer_ctx(Some(tool_runtime::WorkspaceViewerContext {
-            stream_tool_progress: true,
-        }));
+        let (toolset, _tmp) =
+            toolset_with_viewer_ctx(Some(xvora_tool_runtime::WorkspaceViewerContext {
+                stream_tool_progress: true,
+            }));
         let parts = toolset
             .prepare_dispatch(
                 "read_file",
-                serde_json::json!({ "target_file" : "noop" }),
+                serde_json::json!({"target_file": "noop"}),
                 "test-call",
+                None,
                 None,
             )
             .expect("prepare_dispatch succeeds");
         let wvc = parts
             .ctx
             .extensions
-            .get::<tool_runtime::WorkspaceViewerContext>()
+            .get::<xvora_tool_runtime::WorkspaceViewerContext>()
             .expect("WorkspaceViewerContext must be stamped on the ctx");
         assert!(wvc.stream_tool_progress);
     }
@@ -4395,8 +4966,9 @@ mod tests {
         let parts = toolset
             .prepare_dispatch(
                 "read_file",
-                serde_json::json!({ "target_file" : "noop" }),
+                serde_json::json!({"target_file": "noop"}),
                 "test-call",
+                None,
                 None,
             )
             .expect("prepare_dispatch succeeds");
@@ -4404,7 +4976,7 @@ mod tests {
             parts
                 .ctx
                 .extensions
-                .get::<tool_runtime::WorkspaceViewerContext>()
+                .get::<xvora_tool_runtime::WorkspaceViewerContext>()
                 .is_none(),
             "no extension must be stamped when workspace_viewer_ctx is None",
         );
@@ -4418,9 +4990,9 @@ mod tests {
         let builder = ToolRegistryBuilder::new();
         let config = ToolServerConfig {
             tools: vec![ToolConfig {
-                id: "Xvora:run_terminal_cmd".to_string(),
+                id: "GrokBuild:run_terminal_cmd".to_string(),
                 params: Some(
-                    serde_json::json!({ "enabled_background" : false })
+                    serde_json::json!({"enabled_background": false})
                         .as_object()
                         .unwrap()
                         .clone(),
@@ -4440,7 +5012,7 @@ mod tests {
                     config,
                     ctx,
                     crate::types::context::TruncationConfig::default(),
-                    Some(tool_runtime::WorkspaceViewerContext {
+                    Some(xvora_tool_runtime::WorkspaceViewerContext {
                         stream_tool_progress: true,
                     }),
                 )
@@ -4448,10 +5020,10 @@ mod tests {
         );
         let mut stream = toolset.call_streaming(
             "run_terminal_cmd",
-            serde_json::json!(
-                { "command" : "for i in 1 2 3; do echo $i; sleep 0.1; done",
-                "description" : "stream progress test" }
-            ),
+            serde_json::json!({
+                "command": "for i in 1 2 3; do echo $i; sleep 0.1; done",
+                "description": "stream progress test"
+            }),
             "test-call",
             None,
         );
@@ -4459,8 +5031,8 @@ mod tests {
         let mut got_terminal = false;
         while let Some(item) = stream.next().await {
             match item {
-                tool_runtime::ToolStreamItem::Progress(_) => progress_count += 1,
-                tool_runtime::ToolStreamItem::Terminal(r) => {
+                xvora_tool_runtime::ToolStreamItem::Progress(_) => progress_count += 1,
+                xvora_tool_runtime::ToolStreamItem::Terminal(r) => {
                     r.expect("terminal must succeed");
                     got_terminal = true;
                 }

@@ -7,14 +7,14 @@
 
 use futures::{SinkExt, StreamExt};
 use tokio_tungstenite::tungstenite::Message;
-use tool_protocol::{ConnectionKind, HelloAckMsg, HelloMsg};
+use xvora_tool_protocol::{ConnectionKind, HelloAckMsg, HelloMsg};
 
 use crate::error::ClientError;
 
 /// Wire-protocol version both ends speak. Re-exported from the
 /// protocol crate so the SDK and the IC service share one source of
 /// truth.
-pub use tool_protocol::PROTOCOL_VERSION;
+pub use xvora_tool_protocol::PROTOCOL_VERSION;
 
 /// Send the [`HelloMsg`] and wait for the matching [`HelloAckMsg`].
 ///
@@ -29,7 +29,7 @@ pub async fn send_hello<Si, St>(
     sink: &mut Si,
     stream: &mut St,
     kind: ConnectionKind,
-    server_id: Option<tool_protocol::ServerId>,
+    server_id: Option<xvora_tool_protocol::ServerId>,
     description: Option<String>,
     metadata: Option<serde_json::Value>,
 ) -> Result<HelloAckMsg, ClientError>

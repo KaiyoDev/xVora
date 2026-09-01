@@ -24,7 +24,7 @@ pub type TracedChannel = Trace<
 /// ```rust
 /// use tonic::transport::Endpoint;
 /// use std::str::FromStr;
-/// use tracing_util::traced_channel;
+/// use xvora_tracing::traced_channel;
 ///
 /// let channel = Endpoint::from_str("http://foo").unwrap();
 /// //let client = SomeClient::new(traced_channel(channel));
@@ -98,6 +98,25 @@ pub fn attach_trace_to_grpc_request_mut(metadata: &mut MetadataMap) {
         let context = Span::current().context();
         propagator.inject_context(&context, &mut MetadataInjector(metadata));
     });
+}
+
+/// The current span's W3C `traceparent`, for protocols that carry trace
+/// context in a message field instead of transport metadata; `None` when
+/// there is no valid span context.
+pub fn current_traceparent() -> Option<String> {
+    use opentelemetry::trace::TraceContextExt;
+    let context = Span::current().context();
+    let span_ref = context.span();
+    let span_context = span_ref.span_context();
+    if !span_context.is_valid() {
+        return None;
+    }
+    Some(format!(
+        "00-{}-{}-{:02x}",
+        span_context.trace_id(),
+        span_context.span_id(),
+        span_context.trace_flags() & opentelemetry::TraceFlags::SAMPLED,
+    ))
 }
 
 /// Trace context propagation: send the trace context by injecting it into the metadata of the given

@@ -1,12 +1,10 @@
-//! `x.ai/plugins/*` extension handlers.
-//!
-//! Provides the plugins list endpoint for the pager's hooks/plugins modal.
+//! `x.ai/plugins/*` extension handlers, backing the pager's hooks/plugins modal.
 
 use agent_client_protocol as acp;
-use hooks_plugins_types::{
+use serde::Deserialize;
+use xvora_hooks_plugins_types::{
     HookStatus, McpStatus, PluginInfo, PluginOrigin, PluginScope, PluginsListResponse,
 };
-use serde::Deserialize;
 
 use crate::agent::MvpAgent;
 
@@ -18,8 +16,7 @@ struct ListRequest {
     session_id: String,
 }
 
-/// Convert a `LoadedPlugin` to a `PluginInfo` DTO.
-pub fn loaded_plugin_to_info(plugin: &xvora_agent::plugins::LoadedPlugin) -> PluginInfo {
+pub(crate) fn loaded_plugin_to_info(plugin: &xvora_agent::plugins::LoadedPlugin) -> PluginInfo {
     use xvora_agent::plugins::discovery::PluginScope as AgentScope;
 
     let scope = match plugin.scope {
@@ -74,7 +71,6 @@ pub fn loaded_plugin_to_info(plugin: &xvora_agent::plugins::LoadedPlugin) -> Plu
     }
 }
 
-/// Map the agent-side origin to the wire DTO.
 fn origin_to_dto(origin: &xvora_agent::plugins::PluginOrigin) -> PluginOrigin {
     use xvora_agent::plugins::PluginOrigin as AgentOrigin;
     match origin {
@@ -100,9 +96,7 @@ fn origin_to_dto(origin: &xvora_agent::plugins::PluginOrigin) -> PluginOrigin {
     }
 }
 
-/// Derive the legacy `marketplace_source` label (older-pager compat) from the
-/// origin: marketplace display name, or a `git: owner/repo` label for direct
-/// git installs.
+/// Derive the legacy `marketplace_source` label kept for older pagers: the marketplace display name, or `git: owner/repo` for a direct git install.
 fn marketplace_source_label(origin: &PluginOrigin) -> Option<String> {
     match origin {
         PluginOrigin::MarketplaceInstall {
@@ -113,7 +107,7 @@ fn marketplace_source_label(origin: &PluginOrigin) -> Option<String> {
             source_name: None,
             git_url: Some(url),
         } => {
-            // Derive short name from URL: "https://github.com/obra/superpowers.git" → "obra/superpowers"
+            // Shorten the URL: "https://github.com/obra/superpowers.git" becomes "obra/superpowers"
             let label = url
                 .trim_end_matches(".git")
                 .rsplit("://")
@@ -135,9 +129,8 @@ pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
         "x.ai/plugins/list" => {
             let req: ListRequest = super::parse_params(args)?;
 
-            // A known session answers from its own registry, which includes
-            // `_meta.pluginDirs` plugins. Only an unknown session (a pull
-            // before any session exists) falls back to the shared snapshot.
+            // A known session answers from its own registry, which includes `_meta.pluginDirs` plugins
+            // Only an unknown session (a pull before any session exists) falls back to the shared snapshot
             let sid = acp::SessionId::new(req.session_id);
             let registry = match agent.session_handle_waiting_for_load(&sid).await {
                 Some(handle) => handle.plugins_list().await,
@@ -159,7 +152,7 @@ pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
             super::to_ext_response(Ok::<_, anyhow::Error>(response))
         }
         "x.ai/plugins/action" => {
-            let req: hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
+            let req: xvora_hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
             let sid = acp::SessionId::new(req.session_id);
 
             let result = agent

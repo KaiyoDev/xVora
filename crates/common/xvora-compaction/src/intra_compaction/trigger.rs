@@ -96,6 +96,11 @@ pub enum IntraCompactionError {
     #[error("compaction sampler error: {0}")]
     SamplerStream(String),
 
+    /// Size overflow of the compaction input. Deterministic and terminal —
+    /// intra has no input ladder.
+    #[error("compaction input exceeds size limits: {0}")]
+    ContextOverflow(String),
+
     /// `apply_steps_compaction` failed for a parser-specific reason
     /// (e.g. SglangEngine rebuild error).
     #[error("apply failed: {0}")]
@@ -111,7 +116,7 @@ pub enum IntraCompactionError {
 /// `min_steps_before_compact` remains on [`IntraCompactionConfig`] for every
 /// mode, but is **not** enforced when
 /// [`mode`](IntraCompactionConfig::mode) is
-/// [`IntraCompactionMode::FullReplace`] — that path matches xvora's
+/// [`IntraCompactionMode::FullReplace`] — that path matches grok-build's
 /// full-replace trigger (token threshold alone) so a large first-step prompt
 /// can still compact. Partial modes still gate on min steps.
 pub fn should_compact(
@@ -200,7 +205,7 @@ mod tests {
         assert_eq!(p.mode, IntraCompactionMode::FullReplace);
         assert_eq!(p.min_steps_before_compact, 3);
         // Field is present; FullReplace only uses the token threshold
-        // (parity with xvora auto-compact).
+        // (parity with grok-build auto-compact).
         let t = should_compact(&p, 90_000, 100_000, 0).expect("should trigger");
         assert_eq!(t.step, 0);
         assert!(should_compact(&p, 90_000, 100_000, 2).is_some());

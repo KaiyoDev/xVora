@@ -1,7 +1,5 @@
-//! grok.com chat-product model catalog (`POST /rest/modes`) — the models
-//! grok-web's chat picker shows, distinct from the CLI `/v1/models` build
-//! catalog. Transport only; cache + ACP mapping live in
-//! [`crate::agent::chat_modes`].
+//! The grok.com chat model catalog (`POST /rest/modes`): the models grok-web's chat picker shows, distinct from the CLI `/v1/models` build catalog.
+//! Transport only; the cache and the ACP mapping live in [`crate::agent::chat_modes`].
 
 use std::sync::Arc;
 
@@ -9,7 +7,7 @@ use serde::Deserialize;
 
 use crate::auth::AuthManager;
 
-const XVORA_WEB_URL: &str = "https://grok.com";
+const GROK_WEB_URL: &str = "https://grok.com";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,8 +71,7 @@ pub enum ChatModelsError {
     Parse(#[from] serde_json::Error),
 }
 
-/// Stateless transport for `POST /rest/modes`; caching lives in
-/// [`crate::agent::chat_modes::ChatModesManager`].
+/// Stateless transport for `POST /rest/modes`; caching lives in [`crate::agent::chat_modes::ChatModesManager`].
 pub struct ChatModelsClient {
     http: reqwest::Client,
     base_url: String,
@@ -83,20 +80,20 @@ pub struct ChatModelsClient {
 
 impl ChatModelsClient {
     pub fn new(auth: Arc<AuthManager>) -> Self {
-        let base_url = std::env::var("XVORA_MODES_BASE_URL")
+        let base_url = std::env::var("GROK_MODES_BASE_URL")
             .ok()
             .filter(|s| !s.is_empty())
             .or_else(|| {
-                std::env::var("XVORA_CONVERSATIONS_BASE_URL")
+                std::env::var("GROK_CONVERSATIONS_BASE_URL")
                     .ok()
                     .filter(|s| !s.is_empty())
             })
             .or_else(|| {
-                std::env::var("XVORA_CODE_WEB_URL")
+                std::env::var("GROK_CODE_WEB_URL")
                     .ok()
                     .filter(|s| !s.is_empty())
             })
-            .unwrap_or_else(|| XVORA_WEB_URL.to_string());
+            .unwrap_or_else(|| GROK_WEB_URL.to_string());
         Self {
             http: crate::http::shared_client(),
             base_url,
@@ -104,10 +101,12 @@ impl ChatModelsClient {
         }
     }
 
-    /// Gated only on a valid grok.com bearer — deliberately NOT `is_xai_auth()`
-    /// (unlike workspaces/conversations), since `/rest/modes` is the public chat
-    /// endpoint and that gate would exclude API-key / cached-token chat users.
-    pub async fn list_modes(&self, locale: &str) -> Result<ListModesResponse, ChatModelsError> {
+    /// Gated only on a valid grok.com bearer, not `is_xai_auth()` like workspaces/conversations.
+    /// `/rest/modes` is the public chat endpoint, and that gate would exclude API-key and cached-token chat users.
+    pub(crate) async fn list_modes(
+        &self,
+        locale: &str,
+    ) -> Result<ListModesResponse, ChatModelsError> {
         let auth = self
             .auth
             .auth()
@@ -139,7 +138,7 @@ impl ChatModelsClient {
         if let Some(email) = &auth.email {
             builder = builder.header("x-email", email);
         }
-        let builder = file_utils::trace_context::inject_trace_context_into_request(builder);
+        let builder = xvora_file_utils::trace_context::inject_trace_context_into_request(builder);
 
         let response = builder.send().await?;
         let status = response.status();
@@ -199,7 +198,7 @@ mod tests {
         assert!(m.title.is_empty());
         assert!(m.description.is_empty());
         assert!(m.badge_text.is_none());
-        // No availability field on the wire → not selectable.
+        // With no availability field on the wire, the mode is not selectable
         assert!(!m.is_available());
         assert!(resp.default_mode_id.is_empty());
     }

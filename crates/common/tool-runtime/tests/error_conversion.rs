@@ -2,8 +2,8 @@
 
 use serde_json::json;
 
-use tool_protocol::{ToolErrorWire, ToolId};
-use tool_runtime::error::{ToolError, ToolErrorKind};
+use xvora_tool_protocol::{ToolErrorWire, ToolId};
+use xvora_tool_runtime::error::{ToolError, ToolErrorKind};
 
 fn tid(name: &str) -> ToolId {
     ToolId::new(name).unwrap()

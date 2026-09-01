@@ -1,4 +1,4 @@
-//! Xvora tools library.
+//! Grok tools library.
 
 pub use xvora_version::VERSION;
 
@@ -12,7 +12,7 @@ pub const DEFAULT_TOOL_OUTPUT_CHARS: usize = 20_000;
 
 /// MCP inline tool-result cap (`MCP_MAX_OUTPUT_BYTES` and host/env helpers).
 pub use util::mcp_truncate::{
-    ENV_MAX_MCP_OUTPUT_BYTES, ENV_XVORA_MAX_MCP_OUTPUT_BYTES, MCP_MAX_OUTPUT_BYTES,
+    ENV_GROK_MAX_MCP_OUTPUT_BYTES, ENV_MAX_MCP_OUTPUT_BYTES, MCP_MAX_OUTPUT_BYTES,
     mcp_max_output_bytes, mcp_max_output_bytes_from_env, set_mcp_max_output_bytes,
 };
 
@@ -22,6 +22,8 @@ pub mod bridge;
 pub mod computer;
 pub mod gitignore;
 pub mod implementations;
+pub mod mcp_elicitation;
+pub mod media_gen_limits;
 pub mod normalization;
 pub mod notification;
 pub mod persistence;
@@ -34,5 +36,7 @@ pub mod util;
 pub mod versions;
 
 pub use attribution::{
-    Auth401AttributionCallback, SENT_BEARER_PREFIX_LEN, SharedAttributionCallback, ToolConsumer,
+    Auth401AttributionCallback, BEARER_SUFFIX_LEN, SharedAttributionCallback, ToolConsumer,
 };
+pub use implementations::grok_build::is_task_tool_id;
+pub use implementations::{SEARCH_TOOL_NAME, USE_TOOL_NAME};

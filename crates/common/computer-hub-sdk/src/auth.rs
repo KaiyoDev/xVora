@@ -40,7 +40,7 @@ use crate::error::ClientError;
 ///
 /// Clones are cheap (the secret material is at most a small number of
 /// owned strings). The server derives `user_id` from the credential at
-/// upgrade time and returns it in the [`tool_protocol::HelloAckMsg`].
+/// upgrade time and returns it in the [`xvora_tool_protocol::HelloAckMsg`].
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum AuthCredential {
     /// Bearer token attached as the `Authorization: Bearer …` header.
@@ -157,6 +157,15 @@ impl fmt::Debug for AuthCredential {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct PrincipalKey {
     fingerprint: String,
+}
+
+impl PrincipalKey {
+    /// Stable non-secret fingerprint (e.g. OIDC issuer+client); never tokens.
+    pub fn opaque(fingerprint: impl Into<String>) -> Self {
+        Self {
+            fingerprint: fingerprint.into(),
+        }
+    }
 }
 
 impl fmt::Debug for PrincipalKey {

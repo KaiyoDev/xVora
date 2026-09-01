@@ -1,43 +1,37 @@
 //! WebSocket relay connection management.
 //!
-//! This module provides a shared `RelayConnection` that handles the WebSocket
-//! connection to the grok.com relay server with automatic reconnection.
-//! It is used by both `run_headless` and `run_leader` modes to avoid code duplication.
+//! This module provides a shared `RelayConnection` that handles the WebSocket connection to the grok.com relay server with automatic reconnection.
+//! It is used by both `run_headless` and `run_leader` modes.
 use super::proxy;
-use crate::auth::{GrokComConfig, XaiAuth};
+use crate::auth::{GrokAuth, GrokComConfig};
 use crate::{teprintln, tprintln};
 use futures_util::{SinkExt as _, StreamExt as _};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::time::Duration;
 use tokio_tungstenite::{
-    connect_async,
+    connect_async_tls_with_config,
     tungstenite::{Message, Utf8Bytes, client::IntoClientRequest},
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 const KEEPALIVE_INTERVAL_SECS: u64 = 15;
-/// Read-side liveness deadline. The write half pings every
-/// `KEEPALIVE_INTERVAL_SECS`, and a healthy peer answers each ping with a
-/// pong, so a live connection delivers an inbound frame at least that often.
-/// If *nothing* arrives for this long the connection is treated as dead and
-/// the session is torn down so the reconnect loop can take over.
+/// Read-side liveness deadline.
+/// The write half pings every `KEEPALIVE_INTERVAL_SECS`, and a healthy peer answers each ping with a pong.
+/// A live connection thus delivers an inbound frame at least that often.
+/// If *nothing* arrives for this long the connection is treated as dead and the session is torn down so the reconnect loop can take over.
 ///
-/// Without this, a half-open TCP connection (e.g. the proxy/NAT leg still
-/// ACKing our tiny pings while the upstream relay leg is gone) blocks
-/// `ws_inbound.next()` forever and the agent never reconnects — sessions
-/// stay bricked until the process is killed (server sees a 1006 close, the
-/// client never notices).
+/// Without it, a half-open TCP connection blocks `ws_inbound.next()` forever and the agent never reconnects.
+/// (E.g. the proxy/NAT leg still ACKs our tiny pings while the upstream relay leg is gone.)
+/// Sessions stay bricked until the process is killed; the server sees a 1006 close, the client never notices.
 const READ_LIVENESS_TIMEOUT_SECS: u64 = 4 * KEEPALIVE_INTERVAL_SECS;
-/// Upper bound on a single auth-recovery attempt — a backstop against an
-/// indefinitely wedged relay loop, NOT a bound on a healthy refresh. It must
-/// stay comfortably above the refresh path's own internal worst case so it
-/// only fires when something is truly stuck: `refresh_chain` waits up to 45s
-/// for `auth.json.lock` (`REFRESH_LOCK_TIMEOUT`) before IdP IO, which has its
-/// own timeouts (30s external refresher; 10–15s per OIDC request with short
-/// retries). When this fires the recovery future is dropped (the file lock
-/// releases on drop) and the loop falls through to reconnect backoff, which
-/// retries recovery on the next 401.
+/// Upper bound on a single auth-recovery attempt: a backstop against an indefinitely wedged relay loop, NOT a bound on a healthy refresh.
+/// It must stay comfortably above the refresh path's own internal worst case so it only fires when something is truly stuck.
+/// `refresh_chain` waits up to 25s for `auth.json.lock` (`REFRESH_LOCK_TIMEOUT`) before IdP IO.
+/// Another 25s applies if the suspend-only revalidate re-acquires the lock.
+/// The IdP IO has its own timeouts (7s external refresher; 15s per OIDC request with short retries).
+/// When this fires the recovery future is dropped (the file lock releases on drop) and the loop falls through to reconnect backoff.
+/// Backoff retries recovery on the next 401.
 const AUTH_RECOVERY_TIMEOUT_SECS: u64 = 180;
 const BASE_DELAY_SECS: u64 = 1;
 const MAX_DELAY_SECS: u64 = 60;
@@ -45,25 +39,22 @@ const CONNECT_TIMEOUT_SECS: u64 = 30;
 /// JSON-RPC auth error code
 const AUTH_ERROR_CODE: i64 = -32000;
 use crate::auth::AuthManager;
-/// Config for the grok.com WebSocket relay. Fields are private so the only
-/// constructor is [`RelayConfig::for_session`] — "no relay without a session
-/// bearer" is a compile-time guarantee.
+/// Config for the grok.com WebSocket relay.
+/// Fields are private so the only constructor is [`RelayConfig::for_session`]: "no relay without a session bearer" is a compile-time guarantee.
 #[derive(Clone)]
 pub struct RelayConfig {
     ws_url: String,
     ws_origin: String,
     token_header: String,
-    auth: XaiAuth,
+    auth: GrokAuth,
     auth_manager: Option<Arc<AuthManager>>,
 }
 impl RelayConfig {
-    /// Session gate: builds only for a grok.com first-party session
-    /// (`is_xai_auth`: x.ai-issuer OIDC or external credential) with a
-    /// non-empty bearer. BYOK/ApiKey, non-x.ai issuers (enterprise OIDC,
-    /// third-party external providers), and deprecated WebLogin get `None`
-    /// (relay-off; the leader still serves clients over IPC).
+    /// Session gate: builds only for a grok.com first-party session (`is_xai_auth`: x.ai-issuer OIDC or external credential) with a non-empty bearer.
+    /// BYOK/ApiKey, non-x.ai issuers (enterprise OIDC, third-party external providers), and deprecated WebLogin get `None`.
+    /// With relay off, the leader still serves clients over IPC.
     pub(crate) fn for_session(
-        session: &XaiAuth,
+        session: &GrokAuth,
         ctx: &GrokComConfig,
         alpha_test_key: Option<String>,
         auth_manager: Option<Arc<AuthManager>>,
@@ -82,7 +73,7 @@ impl RelayConfig {
     }
 }
 /// Callback type for first connection event.
-pub type FirstConnectCallback = Box<dyn FnOnce() + Send + 'static>;
+pub(crate) type FirstConnectCallback = Box<dyn FnOnce() + Send + 'static>;
 /// Handle to a running relay connection.
 ///
 /// The relay maintains a persistent WebSocket connection to grok.com with
@@ -109,8 +100,7 @@ impl Drop for RelayHandle {
 /// Spawn a relay connection task that maintains a WebSocket connection.
 ///
 /// The task runs in the background, automatically reconnecting on disconnection.
-/// Messages from the relay are sent to `to_agent_tx`, and messages to send to
-/// the relay should be sent via the returned sender.
+/// Messages from the relay are sent to `to_agent_tx`, and messages to send to the relay should be sent via the returned sender.
 ///
 /// # Arguments
 /// * `config` - Relay connection configuration
@@ -128,9 +118,8 @@ pub fn spawn_relay_connection(
 }
 /// Spawn a relay connection with an optional first-connection callback.
 ///
-/// Same as `spawn_relay_connection` but allows providing a callback that will be
-/// called once when the first successful connection is established.
-pub fn spawn_relay_connection_with_callback(
+/// Same as `spawn_relay_connection` but allows providing a callback that will be called once when the first successful connection is established.
+pub(crate) fn spawn_relay_connection_with_callback(
     config: RelayConfig,
     to_agent_tx: mpsc::UnboundedSender<String>,
     parent_cancel: Option<CancellationToken>,
@@ -157,22 +146,19 @@ fn is_handshake_unauthorized(err: &anyhow::Error) -> bool {
     use tokio_tungstenite::tungstenite::Error as WsError;
     err.downcast_ref::<WsError>()
         .map(|ws_err| {
-            matches!(
-                ws_err, WsError::Http(resp) if resp.status() ==
-                reqwest::StatusCode::UNAUTHORIZED
-            )
+            matches!(ws_err, WsError::Http(resp) if resp.status() == reqwest::StatusCode::UNAUTHORIZED)
         })
         .unwrap_or(false)
 }
-/// Attempt auth recovery after a 401. Returns `true` to reconnect
-/// immediately, `false` to exit or fall through to backoff.
+/// Attempt auth recovery after a 401.
+/// Returns `true` to reconnect immediately, `false` to exit or fall through to backoff.
 async fn attempt_auth_recovery(
     config: &mut RelayConfig,
     cancel: &CancellationToken,
     context: &str,
 ) -> bool {
     let Some(ref am) = config.auth_manager else {
-        teprintln!("Authentication required. Run `xvora login` to re-authenticate.");
+        teprintln!("Authentication required. Run `grok login` to re-authenticate.");
         cancel.cancel();
         return false;
     };
@@ -196,10 +182,10 @@ async fn attempt_auth_recovery(
             xvora_telemetry::unified_log::warn(
                 "auth recovery: relay refresh timed out",
                 None,
-                Some(serde_json::json!(
-                    { "context" : context, "timeout_secs" :
-                    AUTH_RECOVERY_TIMEOUT_SECS, }
-                )),
+                Some(serde_json::json!({
+                    "context": context,
+                    "timeout_secs": AUTH_RECOVERY_TIMEOUT_SECS,
+                })),
             );
             return false;
         }
@@ -210,10 +196,10 @@ async fn attempt_auth_recovery(
             xvora_telemetry::unified_log::info(
                 "auth recovery: relay token unchanged, backing off",
                 None,
-                Some(serde_json::json!(
-                    { "context" : context, "key_prefix" : crate
-                    ::auth::token_suffix(& new_auth.key), }
-                )),
+                Some(serde_json::json!({
+                    "context": context,
+                    "key_prefix": xvora_auth::bearer_suffix(&new_auth.key),
+                })),
             );
             false
         }
@@ -222,10 +208,10 @@ async fn attempt_auth_recovery(
             xvora_telemetry::unified_log::info(
                 "auth recovery: relay recovered",
                 None,
-                Some(serde_json::json!(
-                    { "context" : context, "new_key_prefix" : crate
-                    ::auth::token_suffix(& new_auth.key), }
-                )),
+                Some(serde_json::json!({
+                    "context": context,
+                    "new_key_prefix": xvora_auth::bearer_suffix(&new_auth.key),
+                })),
             );
             config.auth = new_auth;
             true
@@ -235,17 +221,17 @@ async fn attempt_auth_recovery(
             xvora_telemetry::unified_log::warn(
                 "auth recovery: relay giving up (terminal)",
                 None,
-                Some(serde_json::json!({ "context" : context, "error" : format!("{e}") })),
+                Some(serde_json::json!({ "context": context, "error": format!("{e}") })),
             );
             cancel.cancel();
             false
         }
         Err(e) => {
-            warn!(error = % e, "auth recovery: relay {context}, refresh failed");
+            warn!(error = %e, "auth recovery: relay {context}, refresh failed");
             xvora_telemetry::unified_log::debug(
                 "auth recovery: relay refresh failed",
                 None,
-                Some(serde_json::json!({ "context" : context, "error" : format!("{e}") })),
+                Some(serde_json::json!({ "context": context, "error": format!("{e}") })),
             );
             false
         }
@@ -270,7 +256,8 @@ async fn run_relay_loop(
         .and_then(proxy::resolve_proxy_for_host);
     if let Some(ref url) = proxy_url {
         info!(
-            proxy = % url, target = target_host.as_deref().unwrap_or("unknown"),
+            proxy = %url,
+            target = target_host.as_deref().unwrap_or("unknown"),
             "Using HTTP CONNECT proxy for relay connections"
         );
     }
@@ -280,14 +267,17 @@ async fn run_relay_loop(
             break;
         }
         tracing::info!(
-            target : crate ::instrumentation::TARGET, event = "relay_connecting", ws_url
-            = % config.ws_url, attempt = reconnect_attempts,
+            target: crate::instrumentation::TARGET,
+            event = "relay_connecting",
+            ws_url = %config.ws_url,
+            attempt = reconnect_attempts,
         );
         match connect_to_relay(&config, proxy_url.as_deref(), &cancel).await {
             Ok(ws) => {
                 tracing::info!(
-                    target : crate ::instrumentation::TARGET, event = "relay_connected",
-                    ws_url = % config.ws_url,
+                    target: crate::instrumentation::TARGET,
+                    event = "relay_connected",
+                    ws_url = %config.ws_url,
                 );
                 reconnect_attempts = 0;
                 delay_secs = BASE_DELAY_SECS;
@@ -309,15 +299,16 @@ async fn run_relay_loop(
                         }
                     }
                     Err(e) => {
-                        warn!(error = ? e, "WebSocket session ended with error");
+                        warn!(error = ?e, "WebSocket session ended with error");
                     }
                 }
                 if cancel.is_cancelled() {
                     break;
                 }
                 tracing::info!(
-                    target : crate ::instrumentation::TARGET, event =
-                    "relay_disconnected", ws_url = % config.ws_url,
+                    target: crate::instrumentation::TARGET,
+                    event = "relay_disconnected",
+                    ws_url = %config.ws_url,
                 );
                 tprintln!("Disconnected from Grok WebSocket server");
                 info!("WebSocket disconnected, will reconnect");
@@ -325,8 +316,10 @@ async fn run_relay_loop(
             Err(e) => {
                 let handshake_401 = is_handshake_unauthorized(&e);
                 tracing::info!(
-                    target : crate ::instrumentation::TARGET, event =
-                    "relay_connection_failed", ws_url = % config.ws_url, error = % e,
+                    target: crate::instrumentation::TARGET,
+                    event = "relay_connection_failed",
+                    ws_url = %config.ws_url,
+                    error = %e,
                     handshake_401,
                 );
                 if handshake_401 {
@@ -334,7 +327,7 @@ async fn run_relay_loop(
                         continue;
                     }
                 } else {
-                    warn!(error = % e, "Failed to connect to WebSocket server");
+                    warn!(error = %e, "Failed to connect to WebSocket server");
                 }
             }
         }
@@ -350,8 +343,8 @@ async fn run_relay_loop(
             reconnect_attempts
         );
         tokio::select! {
-            _ = cancel.cancelled() => break, _ =
-            tokio::time::sleep(Duration::from_secs(delay_secs)) => {}
+            _ = cancel.cancelled() => break,
+            _ = tokio::time::sleep(Duration::from_secs(delay_secs)) => {}
         }
     }
 }
@@ -394,8 +387,8 @@ fn build_relay_request(config: &RelayConfig) -> anyhow::Result<axum::http::Reque
 }
 /// Attempt to connect to the relay WebSocket server.
 ///
-/// If `proxy_url` is `Some`, the connection is established through an HTTP
-/// CONNECT tunnel.  Otherwise, a direct connection is used.
+/// If `proxy_url` is `Some`, the connection is established through an HTTP CONNECT tunnel.
+/// Otherwise, a direct connection is used.
 async fn connect_to_relay(
     config: &RelayConfig,
     proxy_url: Option<&str>,
@@ -406,21 +399,45 @@ async fn connect_to_relay(
     let req = build_relay_request(config)?;
     let connect_timeout = Duration::from_secs(CONNECT_TIMEOUT_SECS);
     tokio::select! {
-        _ = cancel.cancelled() => { anyhow::bail!("Connection cancelled"); } result =
-        tokio::time::timeout(connect_timeout, async { if let Some(proxy_url) = proxy_url
-        { let target_host = req.uri().host().ok_or_else(||
-        anyhow::anyhow!("WebSocket URL has no host")) ?; let target_port = req.uri()
-        .port_u16().unwrap_or(443); let tunneled_stream =
-        proxy::connect_via_proxy(proxy_url, target_host, target_port,). await ?; let (ws,
-        resp) = tokio_tungstenite::client_async(req, tunneled_stream). await .map_err(| e
-        | anyhow::Error::from(e).context("WebSocket handshake via proxy failed")) ?;
-        Ok((ws, resp)) } else { connect_async(req). await .map_err(| e |
-        anyhow::Error::from(e).context("WebSocket connection failed")) } }) => { match
-        result { Ok(Ok((ws, resp))) => { if let Some(proto) = resp.headers()
-        .get("Sec-WebSocket-Protocol") { info!(subprotocol = ? proto,
-        "WS subprotocol negotiated"); } Ok(ws) } Ok(Err(e)) => Err(e), Err(_) =>
-        anyhow::bail!("WebSocket connection timed out after {} seconds",
-        CONNECT_TIMEOUT_SECS), } }
+        _ = cancel.cancelled() => {
+            anyhow::bail!("Connection cancelled");
+        }
+        result = tokio::time::timeout(connect_timeout, async {
+            if let Some(proxy_url) = proxy_url {
+                // Proxy path: open TCP to proxy, send CONNECT, then WS handshake.
+                let target_host = req.uri().host()
+                    .ok_or_else(|| anyhow::anyhow!("WebSocket URL has no host"))?;
+                let target_port = req.uri().port_u16().unwrap_or(443);
+                let tunneled_stream = proxy::connect_via_proxy(
+                    proxy_url,
+                    target_host,
+                    target_port,
+                ).await?;
+                // Perform the WebSocket handshake over the tunneled stream.
+                let (ws, resp) = tokio_tungstenite::client_async(req, tunneled_stream)
+                    .await
+                    .map_err(|e| anyhow::Error::from(e).context("WebSocket handshake via proxy failed"))?;
+                Ok((ws, resp))
+            } else {
+                // The default connector never sees the shared trust config.
+                let connector =
+                    tokio_tungstenite::Connector::Rustls(xvora_extra_ca::rustls_client_config());
+                connect_async_tls_with_config(req, None, false, Some(connector))
+                    .await
+                    .map_err(|e| anyhow::Error::from(e).context("WebSocket connection failed"))
+            }
+        }) => {
+            match result {
+                Ok(Ok((ws, resp))) => {
+                    if let Some(proto) = resp.headers().get("Sec-WebSocket-Protocol") {
+                        info!(subprotocol = ?proto, "WS subprotocol negotiated");
+                    }
+                    Ok(ws)
+                }
+                Ok(Err(e)) => Err(e),
+                Err(_) => anyhow::bail!("WebSocket connection timed out after {} seconds", CONNECT_TIMEOUT_SECS),
+            }
+        }
     }
 }
 /// Run a single WebSocket session, handling messages until disconnection.
@@ -442,8 +459,7 @@ where
     )
     .await
 }
-/// [`run_websocket_session`] with an explicit read-liveness window
-/// (separate entry point so tests can use a short deadline).
+/// [`run_websocket_session`] with an explicit read-liveness window (separate entry point so tests can use a short deadline).
 pub(crate) async fn run_websocket_session_with_liveness<S>(
     ws: tokio_tungstenite::WebSocketStream<S>,
     to_agent_tx: &mpsc::UnboundedSender<String>,
@@ -460,46 +476,107 @@ where
     let read_from_ws = async move {
         loop {
             tokio::select! {
-                _ = cancel_read.cancelled() => break, msg_res =
-                tokio::time::timeout(liveness, ws_inbound.next()) => { let Ok(msg_opt) =
-                msg_res else { tprintln!("ws_inbound::liveness_timeout");
-                warn!(timeout_secs = liveness.as_secs(),
-                "no WS traffic within liveness window, treating connection as dead");
-                xvora_telemetry::unified_log::warn("relay: read liveness timeout, reconnecting",
-                None, Some(serde_json::json!({ "timeout_secs" : liveness.as_secs(),
-                })),); break; }; let Some(msg) = msg_opt else { break }; match msg {
-                Ok(Message::Text(text)) => { let trimmed_end = text
-                .trim_end_matches(['\r', '\n']); if trimmed_end.is_empty() {
-                debug!("received empty/whitespace WS text frame - skipping"); continue; }
-                let json : serde_json::Value = match serde_json::from_str(trimmed_end) {
-                Ok(v) => v, Err(_) => { debug!("failed to parse WS message as JSON");
-                continue; } }; if let Some(err) = json.get("error") { let code = err
-                .get("code").and_then(| c | c.as_i64()).unwrap_or(0); if code ==
-                AUTH_ERROR_CODE { let _ = auth_error_tx.send(()). await; return (false,
-                true); } tracing::warn!(error_code = code, "Server error (skipping)");
-                continue; } match json.get("method").and_then(| m | m.as_str()) {
-                Some(method) => tprintln!("acp_inbound::{}", method), None =>
-                tprintln!("ws_inbound::text"), } debug!(bytes = trimmed_end.len(),
-                "received WS text -> agent"); if to_agent_tx.send(trimmed_end
-                .to_string()).is_err() {
-                warn!("Failed to forward message to agent - channel closed"); break; } }
-                Ok(Message::Binary(bin)) => { tprintln!("ws_inbound::binary"); if let
-                Ok(s) = std::str::from_utf8(& bin) { let s = s.trim_end_matches(['\r',
-                '\n']); if s.is_empty() {
-                debug!("received empty WS binary frame - skipping"); continue; }
-                debug!(bytes = s.len(), "received WS binary(utf8) -> agent"); if
-                to_agent_tx.send(s.to_string()).is_err() { break; } } else {
-                debug!("received non-utf8 WS binary frame - skipping"); } }
-                Ok(Message::Close(frame_opt)) => { tprintln!("ws_inbound::close"); if let
-                Some(frame) = frame_opt { info!(code = ? frame.code, reason = % frame
-                .reason, "WS close received"); } else {
-                info!("WS close received (no frame)"); } break; } Ok(Message::Ping(p)) =>
-                { tprintln!("ws_inbound::ping"); debug!(len = p.len(),
-                "received WS Ping"); } Ok(Message::Pong(p)) => {
-                tprintln!("ws_inbound::pong"); debug!(len = p.len(), "received WS Pong");
-                } Ok(Message::Frame(_)) => { tprintln!("ws_inbound::frame"); } Err(e) =>
-                { tprintln!("ws_inbound::error::{:?}", & e); warn!(error = ? e,
-                "WS read error"); break; } } }
+                _ = cancel_read.cancelled() => break,
+                msg_res = tokio::time::timeout(liveness, ws_inbound.next()) => {
+                    let Ok(msg_opt) = msg_res else {
+                        // No frame (not even a pong for our keepalive pings) within the liveness window: the connection is dead or half-open
+                        // Break so the session ends and the reconnect loop takes over
+                        tprintln!("ws_inbound::liveness_timeout");
+                        warn!(
+                            timeout_secs = liveness.as_secs(),
+                            "no WS traffic within liveness window, treating connection as dead"
+                        );
+                        xvora_telemetry::unified_log::warn(
+                            "relay: read liveness timeout, reconnecting",
+                            None,
+                            Some(serde_json::json!({
+                                "timeout_secs": liveness.as_secs(),
+                            })),
+                        );
+                        break;
+                    };
+                    let Some(msg) = msg_opt else { break };
+                    match msg {
+                        Ok(Message::Text(text)) => {
+                            let trimmed_end = text.trim_end_matches(['\r', '\n']);
+                            if trimmed_end.is_empty() {
+                                debug!("received empty/whitespace WS text frame - skipping");
+                                continue;
+                            }
+
+                            let json: serde_json::Value = match serde_json::from_str(trimmed_end) {
+                                Ok(v) => v,
+                                Err(_) => {
+                                    debug!("failed to parse WS message as JSON");
+                                    continue;
+                                }
+                            };
+
+                            if let Some(err) = json.get("error") {
+                                let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(0);
+                                if code == AUTH_ERROR_CODE {
+                                    // Signal auth error to the main loop
+                                    let _ = auth_error_tx.send(()).await;
+                                    return (false, true); // (normal_end, auth_error)
+                                }
+                                tracing::warn!(error_code = code, "Server error (skipping)");
+                                continue;
+                            }
+
+                            match json.get("method").and_then(|m| m.as_str()) {
+                                Some(method) => tprintln!("acp_inbound::{}", method),
+                                None => tprintln!("ws_inbound::text"),
+                            }
+                            debug!(bytes = trimmed_end.len(), "received WS text -> agent");
+
+                            if to_agent_tx.send(trimmed_end.to_string()).is_err() {
+                                warn!("Failed to forward message to agent - channel closed");
+                                break;
+                            }
+                        }
+                        Ok(Message::Binary(bin)) => {
+                            tprintln!("ws_inbound::binary");
+                            if let Ok(s) = std::str::from_utf8(&bin) {
+                                let s = s.trim_end_matches(['\r', '\n']);
+                                if s.is_empty() {
+                                    debug!("received empty WS binary frame - skipping");
+                                    continue;
+                                }
+                                debug!(bytes = s.len(), "received WS binary(utf8) -> agent");
+                                if to_agent_tx.send(s.to_string()).is_err() {
+                                    break;
+                                }
+                            } else {
+                                debug!("received non-utf8 WS binary frame - skipping");
+                            }
+                        }
+                        Ok(Message::Close(frame_opt)) => {
+                            tprintln!("ws_inbound::close");
+                            if let Some(frame) = frame_opt {
+                                info!(code = ?frame.code, reason = %frame.reason, "WS close received");
+                            } else {
+                                info!("WS close received (no frame)");
+                            }
+                            break;
+                        }
+                        Ok(Message::Ping(p)) => {
+                            tprintln!("ws_inbound::ping");
+                            debug!(len = p.len(), "received WS Ping");
+                        }
+                        Ok(Message::Pong(p)) => {
+                            tprintln!("ws_inbound::pong");
+                            debug!(len = p.len(), "received WS Pong");
+                        }
+                        Ok(Message::Frame(_)) => {
+                            tprintln!("ws_inbound::frame");
+                        }
+                        Err(e) => {
+                            tprintln!("ws_inbound::error::{:?}", &e);
+                            warn!(error = ?e, "WS read error");
+                            break;
+                        }
+                    }
+                }
             }
         }
         (true, false)
@@ -509,33 +586,69 @@ where
         let mut keepalive = tokio::time::interval(Duration::from_secs(KEEPALIVE_INTERVAL_SECS));
         loop {
             tokio::select! {
-                           _ = cancel_write.cancelled() => break, msg_opt = from_agent_rx.recv() =>
-                           { match msg_opt { Some(msg) => { if
-                           tracing::enabled!(tracing::Level::DEBUG) { if let Ok(json_val) =
-                           serde_json::from_str::< serde_json::Value > (& msg) { let method =
-                           json_val.get("method").and_then(| m | m.as_str()); let line_to_print =
-                           match method { Some("session/update") => { let params = json_val
-                           .get("params").unwrap_or(& serde_json::Value::Null);
-                           format!("acp_outbound::session/update::{params}") } Some(m) =>
-                           format!("acp_outbound::{m}"), None => "acp_outbound::response"
-                           .to_string(), }; debug!("{line_to_print}"); } else {
-                           debug!("acp_outbound::response"); } }
-            if ! msg.is_empty() && let Err(e) =
-                           ws_outbound.send(Message::Text(Utf8Bytes::from(msg))). await {
-                           warn!(error = ? e, "failed to send to WS"); break; } } None => {
-                           info!("Agent outbound channel closed"); break; } } } _ = keepalive.tick()
-                           => { tprintln!("ws::keep_alive_tick"); if let Err(e) = ws_outbound
-                           .send(Message::Ping(Vec::new().into())). await {
-                           tprintln!("ws::keep_alive::error::{:?}", & e); break; } }
-                       }
+                _ = cancel_write.cancelled() => break,
+                msg_opt = from_agent_rx.recv() => {
+                    match msg_opt {
+                        Some(msg) => {
+                            // Per-message logging is debug-only: at info level a streaming session mirrors every `session/update` delta here
+                            // The full JSON parse and params re-format produced over 100 MB of leader.log churn on dashboard-heavy machines
+                            // Skip the parse entirely unless debug logging is enabled
+                            if tracing::enabled!(tracing::Level::DEBUG) {
+                                if let Ok(json_val) =
+                                    serde_json::from_str::<serde_json::Value>(&msg)
+                                {
+                                    let method = json_val.get("method").and_then(|m| m.as_str());
+                                    let line_to_print = match method {
+                                        Some("session/update") => {
+                                            let params = json_val
+                                                .get("params")
+                                                .unwrap_or(&serde_json::Value::Null);
+                                            format!("acp_outbound::session/update::{params}")
+                                        }
+                                        Some(m) => format!("acp_outbound::{m}"),
+                                        None => "acp_outbound::response".to_string(),
+                                    };
+                                    debug!("{line_to_print}");
+                                } else {
+                                    debug!("acp_outbound::response");
+                                }
+                            }
+
+                            if !msg.is_empty()
+                                && let Err(e) = ws_outbound.send(Message::Text(Utf8Bytes::from(msg))).await
+                            {
+                                warn!(error = ?e, "failed to send to WS");
+                                break;
+                            }
+                        }
+                        None => {
+                            info!("Agent outbound channel closed");
+                            break;
+                        }
+                    }
+                }
+                _ = keepalive.tick() => {
+                    tprintln!("ws::keep_alive_tick");
+                    if let Err(e) = ws_outbound.send(Message::Ping(Vec::new().into())).await {
+                        tprintln!("ws::keep_alive::error::{:?}", &e);
+                        break;
+                    }
+                }
+            }
         }
         anyhow::Ok(())
     };
     tokio::select! {
         (_, auth_error) = read_from_ws => {
-        info!("WebSocket read task completed (connection closed)"); if auth_error {
-        return Ok(SessionEndReason::AuthError); } } res = write_to_ws => {
-        info!("WebSocket write task completed"); res ?; }
+            info!("WebSocket read task completed (connection closed)");
+            if auth_error {
+                return Ok(SessionEndReason::AuthError);
+            }
+        }
+        res = write_to_ws => {
+            info!("WebSocket write task completed");
+            res?;
+        }
     }
     if auth_error_rx.try_recv().is_ok() {
         return Ok(SessionEndReason::AuthError);
@@ -568,7 +681,8 @@ mod tests {
             .status(401)
             .body(None::<Vec<u8>>)
             .unwrap();
-        let err = anyhow::Error::from(WsError::Http(resp)).context("WebSocket connection failed");
+        let err = anyhow::Error::from(WsError::Http(Box::new(resp)))
+            .context("WebSocket connection failed");
         assert!(is_handshake_unauthorized(&err));
     }
     #[test]
@@ -578,7 +692,8 @@ mod tests {
             .status(403)
             .body(None::<Vec<u8>>)
             .unwrap();
-        let err = anyhow::Error::from(WsError::Http(resp)).context("WebSocket connection failed");
+        let err = anyhow::Error::from(WsError::Http(Box::new(resp)))
+            .context("WebSocket connection failed");
         assert!(!is_handshake_unauthorized(&err));
         let err = anyhow::anyhow!("some random error");
         assert!(!is_handshake_unauthorized(&err));
@@ -591,10 +706,11 @@ mod tests {
         let (_agent_out_tx, mut agent_out_rx) = mpsc::unbounded_channel::<String>();
         let cancel = CancellationToken::new();
         tokio::spawn(async move {
-            let auth_error = json!(
-                { "jsonrpc" : "2.0", "id" : 1, "error" : { "code" : - 32000, "message" :
-                "Authentication required" } }
-            );
+            let auth_error = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "error": { "code": -32000, "message": "Authentication required" }
+            });
             let _ = server_tx
                 .send(Message::Text(Utf8Bytes::from(auth_error.to_string())))
                 .await;
@@ -617,10 +733,11 @@ mod tests {
         let (_agent_out_tx, mut agent_out_rx) = mpsc::unbounded_channel::<String>();
         let cancel = CancellationToken::new();
         tokio::spawn(async move {
-            let other_error = json!(
-                { "jsonrpc" : "2.0", "id" : 1, "error" : { "code" : - 32600, "message" :
-                "Invalid Request" } }
-            );
+            let other_error = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "error": { "code": -32600, "message": "Invalid Request" }
+            });
             let _ = server_tx
                 .send(Message::Text(Utf8Bytes::from(other_error.to_string())))
                 .await;
@@ -686,7 +803,7 @@ mod tests {
         let cancel = CancellationToken::new();
         tokio::spawn(async move {
             for i in 0..12 {
-                let msg = json!({ "jsonrpc" : "2.0", "method" : "ping", "id" : i });
+                let msg = json!({ "jsonrpc": "2.0", "method": "ping", "id": i });
                 if server_tx
                     .send(Message::Text(Utf8Bytes::from(msg.to_string())))
                     .await
@@ -725,9 +842,12 @@ mod tests {
         let (to_agent_tx, mut to_agent_rx) = mpsc::unbounded_channel::<String>();
         let (_agent_out_tx, mut agent_out_rx) = mpsc::unbounded_channel::<String>();
         let cancel = CancellationToken::new();
-        let test_msg = json!(
-            { "jsonrpc" : "2.0", "id" : 1, "method" : "initialize", "params" : {} }
-        );
+        let test_msg = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {}
+        });
         let msg_str = test_msg.to_string();
         tokio::spawn(async move {
             let _ = server_tx
@@ -769,75 +889,72 @@ mod tests {
         .expect("session should not error");
         assert_eq!(result, SessionEndReason::Normal);
     }
-    /// Helper to create a test XaiAuth with the given key.
-    fn test_auth(key: &str) -> XaiAuth {
-        XaiAuth {
+    /// Helper to create a test GrokAuth with the given key.
+    fn test_auth(key: &str) -> GrokAuth {
+        GrokAuth {
             key: key.to_string(),
             refresh_token: Some("rt".to_string()),
-            ..XaiAuth::test_default()
+            ..GrokAuth::test_default()
         }
     }
     #[test]
     fn for_session_builds_only_for_xai_issuer() {
         use crate::auth::XAI_OAUTH2_ISSUER;
         let cfg = GrokComConfig::default();
-        let builds = |a: &XaiAuth| RelayConfig::for_session(a, &cfg, None, None).is_some();
-        let xai = XaiAuth {
+        let builds = |a: &GrokAuth| RelayConfig::for_session(a, &cfg, None, None).is_some();
+        let xvora = GrokAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
-            ..test_auth("xai-bearer")
+            ..test_auth("xvora-bearer")
         };
-        assert!(xai.is_xai_auth(), "precondition: is_xai_auth");
-        assert!(builds(&xai));
-        let external_xai = XaiAuth {
+        assert!(xvora.is_xai_auth(), "precondition: is_xai_auth");
+        assert!(builds(&xvora));
+        let external_xai = GrokAuth {
             auth_mode: AuthMode::External,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             ..test_auth("ext-bearer")
         };
         assert!(external_xai.is_xai_auth(), "precondition: is_xai_auth");
         assert!(builds(&external_xai));
-        assert!(!builds(&XaiAuth {
+        assert!(!builds(&GrokAuth {
             key: String::new(),
-            ..xai.clone()
+            ..xvora.clone()
         }));
-        assert!(!builds(&XaiAuth {
+        assert!(!builds(&GrokAuth {
             auth_mode: AuthMode::ApiKey,
             ..test_auth("k")
         }));
-        assert!(!builds(&XaiAuth {
+        assert!(!builds(&GrokAuth {
             auth_mode: AuthMode::External,
             ..test_auth("k")
         }));
-        assert!(!builds(&XaiAuth {
+        assert!(!builds(&GrokAuth {
             auth_mode: AuthMode::WebLogin,
             ..test_auth("k")
         }));
-        assert!(!builds(&XaiAuth {
+        assert!(!builds(&GrokAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some("https://login.acme-corp.example/oauth2".to_string()),
             ..test_auth("k")
         }));
-        assert!(!builds(&XaiAuth {
+        assert!(!builds(&GrokAuth {
             auth_mode: AuthMode::External,
             oidc_issuer: Some("https://login.acme-corp.example/oauth2".to_string()),
             ..test_auth("k")
         }));
     }
-    /// Helper: write a XaiAuth to disk under the given scope.
-    fn write_test_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &XaiAuth) {
+    /// Helper: write a GrokAuth to disk under the given scope.
+    fn write_test_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &GrokAuth) {
         let path = dir.join("auth.json");
         let mut map = crate::auth::read_auth_json(&path).unwrap_or_default();
         map.insert(scope.to_owned(), auth.clone());
         let json = serde_json::to_string_pretty(&map).unwrap();
         std::fs::write(&path, json).unwrap();
     }
-    /// Regression: `auth.json` vanishes (deleted/corrupt/externally
-    /// removed) while the process still holds an expired access token +
-    /// valid refresh token in `AuthManager` memory. Relay 401 recovery
-    /// must drive the full refresh chain — mint a fresh token via the
-    /// refresher and REWRITE `auth.json` — instead of dead-ending. A
-    /// relay holding a private, refresher-less `AuthManager` fails this:
-    /// it can only adopt sibling disk tokens, and there are none.
+    /// Regression: `auth.json` vanishes (deleted, corrupt, or externally removed).
+    /// The process still holds an expired access token and a valid refresh token in `AuthManager` memory.
+    /// Relay 401 recovery must drive the full refresh chain (mint a fresh token via the refresher and REWRITE `auth.json`) instead of dead-ending.
+    /// A relay holding a private, refresher-less `AuthManager` fails this: it can only adopt sibling disk tokens, and there are none.
     #[tokio::test]
     async fn auth_recovery_refreshes_and_heals_missing_auth_json() {
         use crate::auth::XAI_OAUTH2_ISSUER;
@@ -853,13 +970,13 @@ mod tests {
                 _reason: crate::auth::manager::RefreshReason,
             ) -> RefreshOutcome {
                 self.calls.fetch_add(1, Ordering::SeqCst);
-                RefreshOutcome::Success(Box::new(XaiAuth {
+                RefreshOutcome::Success(Box::new(GrokAuth {
                     key: "fresh-from-authority".into(),
                     auth_mode: AuthMode::Oidc,
                     oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
                     refresh_token: Some("rt-rotated".into()),
                     expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
-                    ..XaiAuth::test_default()
+                    ..GrokAuth::test_default()
                 }))
             }
         }
@@ -869,7 +986,7 @@ mod tests {
         let am = Arc::new(
             AuthManager::new(dir.path(), cfg.clone()).with_proxy_base_url("http://127.0.0.1:1"),
         );
-        let expired_session = XaiAuth {
+        let expired_session = GrokAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             refresh_token: Some("rt-valid-unconsumed".into()),
@@ -899,9 +1016,8 @@ mod tests {
         assert_eq!(healed.key, "fresh-from-authority");
         assert_eq!(healed.refresh_token.as_deref(), Some("rt-rotated"));
     }
-    /// Recovery returning the *unchanged* token (fresh-mint guard) must report
-    /// no recovery — the caller then backs off before reconnecting instead of
-    /// tight-looping — without cancelling the relay or touching the IdP.
+    /// Recovery returning the *unchanged* token (fresh-mint guard) must report no recovery, without cancelling the relay or touching the IdP.
+    /// The caller then backs off before reconnecting instead of tight-looping.
     #[tokio::test]
     async fn attempt_auth_recovery_same_key_backs_off_without_cancel() {
         use crate::auth::XAI_OAUTH2_ISSUER;
@@ -919,7 +1035,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cfg = crate::auth::GrokComConfig::default();
         let am = Arc::new(AuthManager::new(dir.path(), cfg.clone()));
-        let fresh_session = XaiAuth {
+        let fresh_session = GrokAuth {
             auth_mode: AuthMode::Oidc,
             oidc_issuer: Some(XAI_OAUTH2_ISSUER.to_string()),
             refresh_token: Some("rt-valid".into()),
@@ -955,10 +1071,11 @@ mod tests {
                     let (mut tx, _rx) = ws.split();
                     let n = count.fetch_add(1, Ordering::SeqCst);
                     if n == 0 {
-                        let auth_err = json!(
-                            { "jsonrpc" : "2.0", "id" : 1, "error" : { "code" : - 32000,
-                            "message" : "Token expired" } }
-                        );
+                        let auth_err = json!({
+                            "jsonrpc": "2.0",
+                            "id": 1,
+                            "error": { "code": -32000, "message": "Token expired" }
+                        });
                         let _ = tx
                             .send(Message::Text(Utf8Bytes::from(auth_err.to_string())))
                             .await;
@@ -1010,10 +1127,11 @@ mod tests {
                     };
                     let (mut tx, _rx) = ws.split();
                     count.fetch_add(1, Ordering::SeqCst);
-                    let auth_err = json!(
-                        { "jsonrpc" : "2.0", "id" : 1, "error" : { "code" : - 32000,
-                        "message" : "Token expired" } }
-                    );
+                    let auth_err = json!({
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "error": { "code": -32000, "message": "Token expired" }
+                    });
                     let _ = tx
                         .send(Message::Text(Utf8Bytes::from(auth_err.to_string())))
                         .await;

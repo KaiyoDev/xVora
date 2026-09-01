@@ -2,13 +2,362 @@
 
 use super::super::task_result::{
     X11_PRIMARY_PASTE_HINT, maybe_show_x11_primary_paste_hint, show_clipboard_failure,
+    wrap_host_image_request_eligible,
 };
 use super::*;
+use xvora_shell::session::helpers::session_compact::COMPACT_CANCELLED_MSG;
+use xvora_shell::session::unified_list::ListScope;
+
+fn doctor_target(app: &AppView, id: AgentId) -> crate::app::actions::DoctorFixTarget {
+    let agent = &app.agents[&id];
+    crate::app::actions::DoctorFixTarget {
+        agent_id: id,
+        session_id: agent.session.session_id.clone(),
+        session_binding_epoch: agent.session_binding_epoch,
+        cwd: agent.session.cwd.clone(),
+    }
+}
+
+#[test]
+fn doctor_planning_promotes_initial_session_binding() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    app.agents.get_mut(&id).unwrap().unbind_session_id();
+    let target = doctor_target(&app, id);
+    app.agents
+        .get_mut(&id)
+        .unwrap()
+        .bind_session_id("bound".into());
+    dispatch_task_result(
+        TaskResult::DoctorFixPlanned {
+            target,
+            result: Ok(crate::app::actions::DoctorPlanningOutcome::Plan(Box::new(
+                crate::diagnostics::test_fix_plan(temp.path()),
+            ))),
+        },
+        &mut app,
+    );
+    let Some(crate::views::question_view::LocalQuestionKind::DoctorFix { target, .. }) = app.agents
+        [&id]
+        .question_view
+        .as_ref()
+        .and_then(|question| question.local_kind.as_ref())
+    else {
+        panic!("planning must open the doctor modal");
+    };
+    assert_eq!(
+        target.session_id.as_ref().map(|id| id.0.as_ref()),
+        Some("bound")
+    );
+}
+
+#[test]
+fn doctor_planning_rejects_bind_replace_and_unbind_rebind() {
+    let temp = tempfile::tempdir().unwrap();
+    for replacement in ["bind-replace", "unbind-rebind"] {
+        let mut app = test_app_with_agent();
+        let id = AgentId(0);
+        app.agents.get_mut(&id).unwrap().unbind_session_id();
+        let target = doctor_target(&app, id);
+        let agent = app.agents.get_mut(&id).unwrap();
+        agent.bind_session_id("first".into());
+        if replacement == "bind-replace" {
+            agent.bind_session_id("second".into());
+        } else {
+            agent.unbind_session_id();
+            agent.bind_session_id("first".into());
+        }
+        dispatch_task_result(
+            TaskResult::DoctorFixPlanned {
+                target,
+                result: Ok(crate::app::actions::DoctorPlanningOutcome::Plan(Box::new(
+                    crate::diagnostics::test_fix_plan(temp.path()),
+                ))),
+            },
+            &mut app,
+        );
+        assert!(app.agents[&id].question_view.is_none(), "{replacement}");
+        assert!(
+            last_system_text(&app, id).contains("session changed"),
+            "{replacement}"
+        );
+    }
+}
+
+#[test]
+fn doctor_planning_opens_refuses_remote_and_rejects_stale_identity() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    let target = doctor_target(&app, id);
+
+    app.agents.get_mut(&id).unwrap().prompt.set_text("draft");
+    let scrollback_len = app.agents[&id].scrollback.len();
+    dispatch_task_result(
+        TaskResult::DoctorFixPlanned {
+            target: target.clone(),
+            result: Ok(crate::app::actions::DoctorPlanningOutcome::Plan(Box::new(
+                crate::diagnostics::test_fix_plan(temp.path()),
+            ))),
+        },
+        &mut app,
+    );
+    assert_eq!(app.agents[&id].prompt.text(), "");
+    assert_eq!(
+        app.agents[&id].scrollback.len(),
+        scrollback_len,
+        "the confirmation preview belongs only in the question modal"
+    );
+    let question = app.agents[&id]
+        .question_view
+        .as_ref()
+        .expect("doctor question")
+        .questions
+        .first()
+        .expect("doctor question contents");
+    assert!(
+        question.options[0]
+            .preview
+            .as_deref()
+            .is_some_and(|preview| preview.contains("Doctor Fix")),
+        "the modal must retain the exact fix preview"
+    );
+    app.agents.get_mut(&id).unwrap().question_view = None;
+
+    dispatch_task_result(
+        TaskResult::DoctorFixPlanned {
+            target: target.clone(),
+            result: Ok(crate::app::actions::DoctorPlanningOutcome::RunLocally(
+                "grok doctor fix ssh-wrap".to_owned(),
+            )),
+        },
+        &mut app,
+    );
+    assert!(
+        last_system_text(&app, id)
+            .contains("On your local computer, run: grok doctor fix ssh-wrap")
+    );
+
+    app.agents
+        .get_mut(&id)
+        .unwrap()
+        .bind_session_id("replacement".into());
+    dispatch_task_result(
+        TaskResult::DoctorFixPlanned {
+            target: target.clone(),
+            result: Ok(crate::app::actions::DoctorPlanningOutcome::Plan(Box::new(
+                crate::diagnostics::test_fix_plan(temp.path()),
+            ))),
+        },
+        &mut app,
+    );
+    assert!(app.agents[&id].question_view.is_none());
+    assert!(last_system_text(&app, id).contains("session changed"));
+}
+
+#[test]
+fn doctor_apply_completion_prefers_initiator_then_active_and_welcome_fallback() {
+    let mut app = three_agent_app();
+    let initiator = AgentId(0);
+    let active = AgentId(1);
+    app.active_view = ActiveView::Agent(active);
+    let target = doctor_target(&app, initiator);
+
+    dispatch_task_result(
+        TaskResult::DoctorFixApplied {
+            target: target.clone(),
+            result: Err("stale plan".to_owned()),
+        },
+        &mut app,
+    );
+    assert_eq!(
+        last_system_text(&app, initiator),
+        "Could not apply the fix: stale plan"
+    );
+
+    app.agents.shift_remove(&initiator);
+    dispatch_task_result(
+        TaskResult::DoctorFixApplied {
+            target: target.clone(),
+            result: Err("apply failed".to_owned()),
+        },
+        &mut app,
+    );
+    assert_eq!(
+        last_system_text(&app, active),
+        "Could not apply the fix: apply failed"
+    );
+
+    app.agents.clear();
+    app.active_view = ActiveView::Welcome;
+    dispatch_task_result(
+        TaskResult::DoctorFixApplied {
+            target,
+            result: Err("validator failed".to_owned()),
+        },
+        &mut app,
+    );
+    assert_eq!(
+        app.startup_warnings.last().unwrap().message,
+        "Could not apply the fix: validator failed"
+    );
+}
+
+#[test]
+fn doctor_apply_reload_success_does_not_claim_live_finding_disappeared() {
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    let target = doctor_target(&app, id);
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join(".tmux.conf");
+    dispatch_task_result(
+        TaskResult::DoctorFixApplied {
+            target,
+            result: Ok(crate::diagnostics::FixOutcome::new_for_test(
+                crate::diagnostics::TMUX_CLIPBOARD_ID,
+                crate::diagnostics::FixStatus::Applied,
+                path.clone(),
+                None,
+                crate::diagnostics::FixActivation::RequiresReload,
+                None,
+            )),
+        },
+        &mut app,
+    );
+    let output = last_system_text(&app, id);
+    assert!(
+        output.starts_with(&format!(
+            "Added `set -g set-clipboard on` to `{}`.",
+            path.display()
+        )),
+        "{output}"
+    );
+    assert!(
+        output.contains("Reload tmux with `tmux source-file"),
+        "{output}"
+    );
+    assert!(output.contains("Run /doctor again to verify"), "{output}");
+    assert!(!output.contains("0 issues"), "{output}");
+    assert!(!output.contains("Environment\n"), "{output}");
+}
+
+#[test]
+fn doctor_apply_success_only_renders_resolution_instructions() {
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    let target = doctor_target(&app, id);
+    let temp = tempfile::tempdir().unwrap();
+    dispatch_task_result(
+        TaskResult::DoctorFixApplied {
+            target,
+            result: Ok(crate::diagnostics::FixOutcome::new_for_test(
+                crate::diagnostics::SSH_WRAP_ID,
+                crate::diagnostics::FixStatus::Applied,
+                temp.path().join(".bashrc"),
+                None,
+                crate::diagnostics::FixActivation::SatisfiedNow,
+                Some(crate::diagnostics::ShellKind::Bash),
+            )),
+        },
+        &mut app,
+    );
+    let output = last_system_text(&app, id);
+    assert!(output.starts_with("Set up SSH wrapping in"), "{output}");
+    assert!(output.contains("Start a new shell"), "{output}");
+    assert!(!output.contains("Environment\n"), "{output}");
+    assert!(!output.contains("Findings\n"), "{output}");
+}
+
+#[test]
+fn stale_auth_copy_timeout_does_not_clear_newer_feedback() {
+    let mut app = test_app();
+    app.auth_state = AuthState::Authenticating {
+        request_seq: 1,
+        handle: None,
+        auth_url: Some("https://grok.com/auth".to_owned()),
+        mode: AuthMode::Command,
+    };
+
+    let first_effects = crate::app::dispatch::router::dispatch_copy_auth_url(&mut app, |_| {
+        crate::clipboard::ClipboardDelivery::Failed
+    });
+    let [
+        Effect::ScheduleClearAuthCopyFeedback {
+            generation: first_generation,
+        },
+    ] = first_effects.as_slice()
+    else {
+        panic!("first copy must schedule feedback clear");
+    };
+
+    let second_effects = crate::app::dispatch::router::dispatch_copy_auth_url(&mut app, |_| {
+        crate::clipboard::ClipboardDelivery::Confirmed
+    });
+    let [
+        Effect::ScheduleClearAuthCopyFeedback {
+            generation: second_generation,
+        },
+    ] = second_effects.as_slice()
+    else {
+        panic!("second copy must schedule feedback clear");
+    };
+    assert_ne!(first_generation, second_generation);
+    assert_eq!(
+        app.auth_clipboard_delivery,
+        Some(crate::clipboard::ClipboardDelivery::Confirmed)
+    );
+
+    dispatch_task_result(
+        TaskResult::AuthCopyFeedbackTimeout {
+            generation: *first_generation,
+        },
+        &mut app,
+    );
+    assert_eq!(
+        app.auth_clipboard_delivery,
+        Some(crate::clipboard::ClipboardDelivery::Confirmed),
+        "the first copy's stale timeout must preserve the second feedback"
+    );
+
+    dispatch_task_result(
+        TaskResult::AuthCopyFeedbackTimeout {
+            generation: *second_generation,
+        },
+        &mut app,
+    );
+    assert_eq!(app.auth_clipboard_delivery, None);
+}
+
+#[test]
+fn stale_workflows_result_does_not_repaint_replaced_session_modal() {
+    let mut app = test_app_with_agent();
+    app.agents.get_mut(&AgentId(0)).unwrap().extensions_modal =
+        Some(crate::views::extensions_modal::ExtensionsModalState::new(
+            crate::views::extensions_modal::ExtensionsTab::Skills,
+        ));
+    let _ = dispatch(
+        Action::TaskComplete(TaskResult::WorkflowsListLoaded {
+            agent_id: AgentId(0),
+            session_id: acp::SessionId::new("old-session"),
+            result: Ok(vec![]),
+        }),
+        &mut app,
+    );
+    assert!(matches!(
+        app.agents[&AgentId(0)]
+            .extensions_modal
+            .as_ref()
+            .unwrap()
+            .workflows_data,
+        crate::views::extensions_modal::TabDataState::Loading
+    ));
+}
 
 fn foreign_resume_hint(
-    tool: xvora_workspace::foreign_sessions::ForeignSessionTool,
-) -> xvora_workspace::foreign_sessions::RecentForeignSession {
-    xvora_workspace::foreign_sessions::RecentForeignSession {
+    tool: xvora_foreign_sessions::ForeignSessionTool,
+) -> xvora_foreign_sessions::RecentForeignSession {
+    xvora_foreign_sessions::RecentForeignSession {
         tool,
         native_id: "native-session".into(),
         age: std::time::Duration::from_secs(30),
@@ -18,11 +367,10 @@ fn foreign_resume_hint(
 #[test]
 fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
     let mut launch = test_app();
-    launch.foreign_session_compat =
-        xvora_workspace::foreign_sessions::EnabledForeignSessionSources {
-            cursor: true,
-            ..Default::default()
-        };
+    launch.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
+        cursor: true,
+        ..Default::default()
+    };
     let Effect::CanonicalizeForeignResumeCwd {
         requested_cwd,
         launch_token,
@@ -56,14 +404,14 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
             canonical_cwd: canonical_cwd.clone(),
             launch_token,
             hint: Some(foreign_resume_hint(
-                xvora_workspace::foreign_sessions::ForeignSessionTool::Cursor,
+                xvora_foreign_sessions::ForeignSessionTool::Cursor,
             )),
         }),
         &mut launch,
     );
     assert_eq!(
         launch.foreign_resume_hint().map(|hint| hint.tool),
-        Some(xvora_workspace::foreign_sessions::ForeignSessionTool::Cursor)
+        Some(xvora_foreign_sessions::ForeignSessionTool::Cursor)
     );
 
     let mut stale = test_app();
@@ -81,7 +429,7 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
             canonical_cwd: canonical_cwd.clone(),
             launch_token: launch_token + 1,
             hint: Some(foreign_resume_hint(
-                xvora_workspace::foreign_sessions::ForeignSessionTool::Codex,
+                xvora_foreign_sessions::ForeignSessionTool::Codex,
             )),
         }),
         &mut stale,
@@ -103,7 +451,7 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
 #[test]
 fn foreign_resume_result_rejects_startup_conflict_before_completion() {
     let mut app = test_app();
-    app.foreign_session_compat = xvora_workspace::foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -127,7 +475,7 @@ fn foreign_resume_result_rejects_startup_conflict_before_completion() {
             canonical_cwd,
             launch_token,
             hint: Some(foreign_resume_hint(
-                xvora_workspace::foreign_sessions::ForeignSessionTool::Cursor,
+                xvora_foreign_sessions::ForeignSessionTool::Cursor,
             )),
         }),
         &mut app,
@@ -146,6 +494,7 @@ fn x11_primary_hint_requires_canonical_full_miss_outcome() {
     let target = ClipboardPasteTarget::AgentPrompt {
         agent_id: AgentId(0),
         images_dir: None,
+        from_feedback_pane: false,
     };
 
     for completion in [
@@ -172,6 +521,34 @@ fn x11_primary_hint_requires_canonical_full_miss_outcome() {
 }
 
 #[test]
+fn wrap_host_image_request_eligible_covers_full_miss_and_attachment_error_only() {
+    use crate::app::actions::{ClipboardPasteCompletion, ClipboardPasteFailure};
+
+    // A clean empty miss and a remote read *error* both fall through to the wrap host-image request
+    // That request is how `grok wrap` pastes images over headless SSH
+    assert!(wrap_host_image_request_eligible(
+        ClipboardPasteCompletion::FullMiss
+    ));
+    assert!(wrap_host_image_request_eligible(
+        ClipboardPasteCompletion::Failed(ClipboardPasteFailure::AttachmentRead)
+    ));
+
+    // Every other outcome is a real dead end: it must keep toasting and never solicit the host image
+    for completion in [
+        ClipboardPasteCompletion::Handled,
+        ClipboardPasteCompletion::Dropped,
+        ClipboardPasteCompletion::Failed(ClipboardPasteFailure::TextRead),
+        ClipboardPasteCompletion::Failed(ClipboardPasteFailure::TargetInsertion),
+        ClipboardPasteCompletion::Failed(ClipboardPasteFailure::AlreadyReported),
+    ] {
+        assert!(
+            !wrap_host_image_request_eligible(completion),
+            "{completion:?} must not route to the wrap host-image request"
+        );
+    }
+}
+
+#[test]
 fn x11_primary_hint_routes_to_originating_agent() {
     let mut app = test_app_with_agent();
     let origin = AgentId(0);
@@ -183,6 +560,7 @@ fn x11_primary_hint_routes_to_originating_agent() {
     let target = crate::app::actions::ClipboardPasteTarget::AgentPrompt {
         agent_id: origin,
         images_dir: None,
+        from_feedback_pane: false,
     };
 
     maybe_show_x11_primary_paste_hint(
@@ -242,6 +620,7 @@ fn clipboard_failure_routes_to_originating_agent_without_duplicate() {
     let target = crate::app::actions::ClipboardPasteTarget::AgentPrompt {
         agent_id: origin,
         images_dir: None,
+        from_feedback_pane: false,
     };
 
     show_clipboard_failure(
@@ -304,15 +683,15 @@ fn marketplace_list_loaded_sanitizes_components_at_ingestion() {
         Some(ExtensionsModalState::new(ExtensionsTab::Marketplace));
 
     let mut entry = cta_entry("dirty", "not_installed");
-    entry.components = Some(hooks_plugins_types::PluginComponents {
-        skills: vec![hooks_plugins_types::ComponentItem {
+    entry.components = Some(xvora_hooks_plugins_types::PluginComponents {
+        skills: vec![xvora_hooks_plugins_types::ComponentItem {
             name: "evil\u{1b}[31mskill".into(),
             description: Some(format!("\u{7}{}", "d".repeat(300))),
         }],
         ..Default::default()
     });
-    let response = hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![hooks_plugins_types::MarketplaceScanResult {
+    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
             source_name: "s".into(),
             source_kind: "git".into(),
             source_url_or_path: "https://example.com/repo.git".into(),
@@ -353,13 +732,12 @@ fn plugins_action_success_sets_result_notice_and_autoreload_preserves_it() {
         app.agents.get_mut(&id).unwrap().extensions_modal = Some(modal);
     }
 
-    // A successful update surfaces its message as a row-anchored result notice
-    // (the fix for "I can't tell what happened after r/u"), non-covering.
+    // A successful update surfaces its message as a row-anchored, non-covering result notice, so the user can tell what happened after r/u
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "user/abcd1234/my-plugin: updated".into(),
                 requires_reload: true,
                 requires_restart: false,
@@ -377,13 +755,12 @@ fn plugins_action_success_sets_result_notice_and_autoreload_preserves_it() {
         assert_eq!(n.entry_index, Some(2), "anchored to the acted row");
     }
 
-    // The auto-reload chained from `requires_reload` returns a generic message;
-    // it must NOT clobber the specific update notice already on screen.
+    // The auto-reload chained from `requires_reload` returns a generic message; it must NOT clobber the specific update notice already on screen
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "Plugin registry rebuilt: 5 plugin(s).".into(),
                 requires_reload: false,
                 requires_restart: false,
@@ -415,8 +792,8 @@ fn tab_wide_action_success_sets_tab_wide_result_notice() {
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "Plugin registry rebuilt: 7 plugin(s).".into(),
                 requires_reload: false,
                 requires_restart: false,
@@ -438,9 +815,9 @@ fn uninstall_result_notice_is_footer_only_not_row_anchored() {
     let id = AgentId(0);
     {
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        // A row action was in flight, but it's an uninstall — the row goes away.
+        // A row action was in flight, but it's an uninstall, so the row goes away
         modal.pending_entry_index = Some(1);
-        modal.last_plugins_action = Some(hooks_plugins_types::PluginsAction::Uninstall {
+        modal.last_plugins_action = Some(xvora_hooks_plugins_types::PluginsAction::Uninstall {
             plugin_id: "user/ab12/gone".into(),
             confirmed: true,
         });
@@ -450,8 +827,8 @@ fn uninstall_result_notice_is_footer_only_not_row_anchored() {
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "Uninstalled repo \"user/ab12/gone\" (1 plugin(s): gone)".into(),
                 requires_reload: true,
                 requires_restart: false,
@@ -467,9 +844,65 @@ fn uninstall_result_notice_is_footer_only_not_row_anchored() {
     );
 }
 
-/// Regression (Bugbot): a failed `x.ai/subagent/cancel` RPC must NOT
-/// finalize the row — the subagent may still be running. Only a shell
-/// response of "nothing live" finalizes it.
+#[test]
+fn confirmation_required_builds_plugins_confirmation_with_confirmed_true() {
+    use crate::views::extensions_modal::{
+        ConfirmationAction, ExtensionsModalState, ExtensionsTab, ModalMessage,
+    };
+
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    {
+        let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
+        modal.picker_state.selected = 2;
+        modal.pending_entry_index = Some(3);
+        modal.last_plugins_action = Some(xvora_hooks_plugins_types::PluginsAction::Uninstall {
+            plugin_id: "user/ab12/gone".into(),
+            confirmed: false,
+        });
+        app.agents.get_mut(&id).unwrap().extensions_modal = Some(modal);
+    }
+
+    dispatch(
+        Action::TaskComplete(TaskResult::PluginsActionResult {
+            agent_id: id,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::ConfirmationRequired,
+                message: "Uninstalling removes 2 plugins from this repository.".into(),
+                requires_reload: false,
+                requires_restart: false,
+            }),
+        }),
+        &mut app,
+    );
+
+    let modal = app.agents[&id].extensions_modal.as_ref().unwrap();
+    match &modal.modal_message {
+        Some(ModalMessage::Confirmation {
+            message,
+            action,
+            pending_entry_index,
+        }) => {
+            // Server message only; footer owns y/cancel hints.
+            assert_eq!(
+                message,
+                "Uninstalling removes 2 plugins from this repository."
+            );
+            assert_eq!(*pending_entry_index, Some(3));
+            assert_eq!(
+                action,
+                &ConfirmationAction::Plugins(xvora_hooks_plugins_types::PluginsAction::Uninstall {
+                    plugin_id: "user/ab12/gone".into(),
+                    confirmed: true,
+                })
+            );
+        }
+        other => panic!("expected Confirmation overlay, got {other:?}"),
+    }
+}
+
+/// Regression: a failed `x.ai/subagent/cancel` RPC must NOT finalize the row; the subagent may still be running.
+/// Only a shell response of "nothing live" finalizes it.
 #[test]
 fn kill_rpc_failure_does_not_finalize_but_nothing_live_does() {
     let mut app = test_app_with_agent();
@@ -482,7 +915,7 @@ fn kill_rpc_failure_does_not_finalize_but_nothing_live_does() {
         agent.subagent_sessions.insert("child-1".into(), info);
     }
 
-    // RPC failed → leave the row (the subagent may still be running).
+    // The RPC failed, so leave the row (the subagent may still be running)
     dispatch_task_result(
         TaskResult::KillSubagentComplete {
             session_id: sid.clone(),
@@ -496,7 +929,7 @@ fn kill_rpc_failure_does_not_finalize_but_nothing_live_does() {
         "a failed cancel RPC must not finalize the row"
     );
 
-    // Nothing live → no finish coming, so the pager finalizes the row.
+    // Nothing live means no finish is coming, so the pager finalizes the row
     dispatch_task_result(
         TaskResult::KillSubagentComplete {
             session_id: sid,
@@ -511,8 +944,8 @@ fn kill_rpc_failure_does_not_finalize_but_nothing_live_does() {
     );
 }
 
-/// An already-finished orphan's real terminal status (`NothingLive { status:
-/// Some(..) }`) is forwarded to the finalized row, not flattened to "cancelled".
+/// An already-finished orphan's real terminal status (`NothingLive { status: Some(..) }`) is forwarded to the finalized row.
+/// It is not flattened to "cancelled".
 #[test]
 fn kill_nothing_live_with_status_stamps_real_terminal_status() {
     let mut app = test_app_with_agent();
@@ -587,9 +1020,7 @@ fn switch_model_complete_success_updates_model_and_pushes_message() {
         &mut app,
     );
 
-    // Pending flag cleared.
     assert!(!app.agents[&id].session.model_switch_pending);
-    // Current model updated.
     assert_eq!(
         app.agents[&id].session.models.current,
         Some(model_id.clone())
@@ -732,7 +1163,7 @@ fn switch_to_non_reasoning_model_clears_persisted_effort() {
         .available
         .insert(
             model_id.clone(),
-            acp::ModelInfo::new(model_id.clone(), "Xvora".to_string()),
+            acp::ModelInfo::new(model_id.clone(), "Grok Build".to_string()),
         );
     app.agents
         .get_mut(&id)
@@ -796,9 +1227,7 @@ fn switch_model_complete_failure_pushes_error_and_clears_pending() {
     );
 
     assert!(effects.is_empty());
-    // Pending flag cleared.
     assert!(!app.agents[&id].session.model_switch_pending);
-    // Current model unchanged.
     assert_eq!(app.agents[&id].session.models.current, old_current);
     // Error message pushed to scrollback.
     assert_eq!(app.agents[&id].scrollback.len(), initial_scrollback + 1);
@@ -819,7 +1248,7 @@ fn switch_model_incompatible_agent_shows_question_modal() {
 
     let err = xvora_shell::agent::config::ModelSwitchIncompatibleAgentError {
         code: "MODEL_SWITCH_INCOMPATIBLE_AGENT".into(),
-        active_agent_type: "xvora".into(),
+        active_agent_type: "grok-build".into(),
         required_agent_type: "cursor".into(),
         model_id: "cursor-model".into(),
         suggestion: "start_new_session".into(),
@@ -840,7 +1269,6 @@ fn switch_model_incompatible_agent_shows_question_modal() {
 
     // No effects emitted (modal is synchronous state).
     assert!(effects.is_empty());
-    // Pending flag cleared.
     assert!(!app.agents[&id].session.model_switch_pending);
     // Question modal is open.
     assert!(app.agents[&id].question_view.is_some());
@@ -855,9 +1283,8 @@ fn switch_model_incompatible_agent_shows_question_modal() {
 
 #[test]
 fn incompatible_agent_rollback_restores_previous_model() {
-    // When SetDefaultModel optimistically updates models.current and the
-    // shell rejects with IncompatibleAgent, the handler must roll back
-    // models.current to the prev_model_id.
+    // SetDefaultModel optimistically updates models.current
+    // When the shell rejects with IncompatibleAgent, the handler must roll back models.current to the prev_model_id
     let mut app = test_app_with_agent();
     let id = AgentId(0);
 
@@ -882,7 +1309,7 @@ fn incompatible_agent_rollback_restores_previous_model() {
 
     let err = xvora_shell::agent::config::ModelSwitchIncompatibleAgentError {
         code: "MODEL_SWITCH_INCOMPATIBLE_AGENT".into(),
-        active_agent_type: "xvora".into(),
+        active_agent_type: "grok-build".into(),
         required_agent_type: "cursor".into(),
         model_id: "cursor-model".into(),
         suggestion: "start_new_session".into(),
@@ -901,7 +1328,6 @@ fn incompatible_agent_rollback_restores_previous_model() {
         &mut app,
     );
 
-    // models.current must be rolled back to the previous model.
     assert_eq!(
         app.agents[&id].session.models.current,
         Some(prev_model),
@@ -928,7 +1354,7 @@ fn incompatible_agent_closes_active_modal() {
 
     let err = xvora_shell::agent::config::ModelSwitchIncompatibleAgentError {
         code: "MODEL_SWITCH_INCOMPATIBLE_AGENT".into(),
-        active_agent_type: "xvora".into(),
+        active_agent_type: "grok-build".into(),
         required_agent_type: "cursor".into(),
         model_id: "cursor-model".into(),
         suggestion: "start_new_session".into(),
@@ -947,12 +1373,10 @@ fn incompatible_agent_closes_active_modal() {
         &mut app,
     );
 
-    // Active modal must be closed.
     assert!(
         app.agents[&id].active_modal.is_none(),
         "active modal must be closed when IncompatibleAgent fires",
     );
-    // Question modal must be open.
     assert!(
         app.agents[&id].question_view.is_some(),
         "question modal must be open",
@@ -961,23 +1385,22 @@ fn incompatible_agent_closes_active_modal() {
 
 #[test]
 fn same_agent_type_switch_no_modal() {
-    // Switching between two models with the same (or no) agent type
-    // should succeed normally — no modal, no IncompatibleAgent error.
+    // Switching between two models with the same (or no) agent type succeeds normally: no modal, no IncompatibleAgent error
     let mut app = test_app_with_agent();
     let id = AgentId(0);
-    let model_a = acp::ModelId::new(std::sync::Arc::from("xvora-a"));
-    let model_b = acp::ModelId::new(std::sync::Arc::from("xvora-b"));
+    let model_a = acp::ModelId::new(std::sync::Arc::from("grok-build-a"));
+    let model_b = acp::ModelId::new(std::sync::Arc::from("grok-build-b"));
 
-    // Add both models to the catalog (no agentType → both use xvora).
+    // Add both models to the catalog (no agentType, so both use grok-build)
     let agent = app.agents.get_mut(&id).unwrap();
     agent.session.models.available.insert(
         model_a.clone(),
-        acp::ModelInfo::new(model_a.clone(), "Xvora A".to_string()),
+        acp::ModelInfo::new(model_a.clone(), "Grok Build A".to_string()),
     );
     agent.session.models.set_current(model_a, None);
     agent.session.models.available.insert(
         model_b.clone(),
-        acp::ModelInfo::new(model_b.clone(), "Xvora B".to_string()),
+        acp::ModelInfo::new(model_b.clone(), "Grok Build B".to_string()),
     );
     agent.session.model_switch_pending = true;
 
@@ -993,10 +1416,9 @@ fn same_agent_type_switch_no_modal() {
         &mut app,
     );
 
-    // Model should be switched, no modal.
+    // The model switched and no modal opened
     assert_eq!(app.agents[&id].session.models.current, Some(model_b));
     assert!(app.agents[&id].question_view.is_none());
-    // Should emit PersistPreferredModel.
     assert!(
         effects
             .iter()
@@ -1006,7 +1428,7 @@ fn same_agent_type_switch_no_modal() {
 
 #[test]
 fn switch_model_pending_lifecycle() {
-    // Full lifecycle: false -> dispatch SwitchModel -> true -> SwitchModelComplete -> false
+    // Full lifecycle: pending starts false, SwitchModel sets it true, SwitchModelComplete clears it
     let mut app = test_app_with_agent();
     let id = AgentId(0);
     let model_id = acp::ModelId::new(std::sync::Arc::from("grok-4.5"));
@@ -1040,8 +1462,7 @@ fn switch_model_pending_lifecycle() {
 
 #[test]
 fn no_deferred_switch_means_no_extra_effect() {
-    // When there is no deferred model switch, SessionCreated should
-    // not produce a SwitchModel effect.
+    // When there is no deferred model switch, SessionCreated must not produce a SwitchModel effect
     let mut app = test_app_with_agent();
     let id = AgentId(0);
 
@@ -1054,6 +1475,7 @@ fn no_deferred_switch_means_no_extra_effect() {
             agent_id: id,
             session_id: "new-session".into(),
             models: None,
+            scheduler_background_loops: None,
         }),
         &mut app,
     );
@@ -1065,6 +1487,62 @@ fn no_deferred_switch_means_no_extra_effect() {
             .any(|e| matches!(e, Effect::SwitchModel { .. }))
     );
     assert!(!app.agents[&id].session.model_switch_pending);
+}
+
+#[test]
+fn session_success_arms_finish_startup_obligation() {
+    xvora_telemetry::unified_log::redirect_to_temp_for_tests();
+    let id = AgentId(0);
+    let results = [
+        TaskResult::SessionCreated {
+            agent_id: id,
+            session_id: "new-session".into(),
+            models: None,
+            scheduler_background_loops: None,
+        },
+        TaskResult::SessionLoaded {
+            agent_id: id,
+            session_id: "resumed-session".into(),
+            models: None,
+            code_restored: false,
+            restore_summary: None,
+            restore_degree: None,
+            running_prompt_id: None,
+            scheduler_background_loops: None,
+        },
+        TaskResult::WorktreeSessionCreated {
+            agent_id: id,
+            session_id: "worktree-session".into(),
+            worktree_path: std::path::PathBuf::from("/tmp/wt"),
+            session_cwd: std::path::PathBuf::from("/tmp/wt"),
+            models: None,
+            scheduler_background_loops: None,
+        },
+        TaskResult::WorktreeForked {
+            agent_id: id,
+            session_id: "forked-session".into(),
+            worktree_path: std::path::PathBuf::from("/tmp/wt"),
+            session_cwd: std::path::PathBuf::from("/tmp/wt"),
+            code_restored: false,
+            restore_summary: None,
+            restore_degree: None,
+            resume_session_id: None,
+        },
+    ];
+
+    for result in results {
+        let mut app = test_app_with_agent();
+        app.agents.get_mut(&id).unwrap().session.session_id = None;
+        app.pending_startup = Some(xvora_telemetry::startup::PendingStartup::new());
+        let label = format!("{result:?}");
+
+        dispatch(Action::TaskComplete(result), &mut app);
+
+        assert!(
+            app.pending_startup.is_none(),
+            "a usable session must take the startup obligation: {label}",
+        );
+    }
 }
 
 #[test]
@@ -1258,13 +1736,18 @@ fn delete_session_complete_removes_only_matching_source_and_id() {
         .active_modal
         .as_mut()
     {
-        *pending_delete = Some(("local".into(), "s1".into(), "/r".into()));
+        *pending_delete = Some(crate::views::session_picker::PendingDelete {
+            source: "local".into(),
+            session_id: "s1".into(),
+            cwd: "/r".into(),
+        });
     }
 
     let _ = dispatch_task_result(
         TaskResult::DeleteSessionComplete {
             source: "local".into(),
             session_id: "s1".into(),
+            after: crate::app::actions::AfterSessionDelete::Stay,
         },
         &mut app,
     );
@@ -1334,17 +1817,18 @@ fn delete_both_session_clears_modal_and_welcome_content_hits() {
         .active_modal
         .as_mut()
     {
-        state.query = "shared".into();
+        state.set_query("shared");
         *content_results = Some(vec![hit.clone()]);
     }
     app.session_picker_entries = Some(vec![both, foreign]);
-    app.session_picker_state.query = "shared".into();
+    app.session_picker_state.set_query("shared");
     app.session_picker_content_results = Some(vec![hit]);
 
     let _ = dispatch_task_result(
         TaskResult::DeleteSessionComplete {
             source: "both".into(),
             session_id: "shared".into(),
+            after: crate::app::actions::AfterSessionDelete::Stay,
         },
         &mut app,
     );
@@ -1381,7 +1865,7 @@ fn delete_both_session_clears_modal_and_welcome_content_hits() {
             .iter()
             .any(|item| matches!(item, Some(PickerItem::Content { .. })))
     );
-    assert_eq!(modal_state.query.as_str(), "shared");
+    assert_eq!(modal_state.query(), "shared");
 
     let welcome_entries = app.session_picker_entries.as_deref().unwrap();
     let welcome_hits = app.session_picker_content_results.as_deref().unwrap();
@@ -1442,6 +1926,7 @@ fn delete_remote_session_clears_modal_and_welcome_content_hits() {
         TaskResult::DeleteSessionComplete {
             source: "remote".into(),
             session_id: "remote-only".into(),
+            after: crate::app::actions::AfterSessionDelete::Stay,
         },
         &mut app,
     );
@@ -1496,11 +1981,9 @@ fn delete_session_failed_keeps_all_entries() {
 
 #[test]
 fn rename_session_failed_keeps_local_display_name_and_pushes_system_block() {
-    // Pins the documented design decision: a failed on-disk rename
-    // does NOT roll back the local `display_name` cache (the cache
-    // is the source of truth for the modal's rendering and the
-    // disk write is best-effort). The user sees the failure via
-    // the system-block message instead.
+    // Pins the design decision: a failed on-disk rename does NOT roll back the local `display_name` cache
+    // The cache is the source of truth for the modal's rendering and the disk write is best-effort
+    // The user sees the failure via the system-block message instead
     let mut app = test_app_with_agent();
     // Seed the cache as the rename path would have done.
     if let Some(a) = app.agents.get_mut(&AgentId(0)) {
@@ -1516,7 +1999,6 @@ fn rename_session_failed_keeps_local_display_name_and_pushes_system_block() {
         &mut app,
     );
 
-    // No rollback.
     assert_eq!(
         app.agents[&AgentId(0)].display_name.as_deref(),
         Some("optimistic title"),
@@ -1540,12 +2022,137 @@ fn rename_session_failed_keeps_local_display_name_and_pushes_system_block() {
     );
 }
 
+#[test]
+fn reset_session_title_failed_restores_pin_and_pushes_system_block() {
+    let mut app = test_app_with_agent();
+    if let Some(a) = app.agents.get_mut(&AgentId(0)) {
+        a.display_name = Some("Manual".into());
+        a.generated_session_title = Some("Auto".into());
+    }
+    let _ = dispatch_reset_session_title(&mut app);
+    assert!(app.agents[&AgentId(0)].display_name.is_none());
+    assert_eq!(
+        app.agents[&AgentId(0)].generated_session_title.as_deref(),
+        Some("Auto")
+    );
+    let scrollback_len_before = app.agents[&AgentId(0)].scrollback.len();
+
+    let _effects = dispatch_task_result(
+        TaskResult::ResetSessionTitleFailed {
+            agent_id: AgentId(0),
+            error: "boom".into(),
+            previous_display_name: Some("Manual".into()),
+            previous_generated_title: Some("Auto".into()),
+        },
+        &mut app,
+    );
+
+    assert_eq!(
+        app.agents[&AgentId(0)].display_name.as_deref(),
+        Some("Manual"),
+        "failed unpin must restore the optimistic-cleared pin"
+    );
+    assert_eq!(
+        app.agents[&AgentId(0)].generated_session_title.as_deref(),
+        Some("Auto"),
+        "failed unpin must restore the pre-clear generated title"
+    );
+    let scrollback = &app.agents[&AgentId(0)].scrollback;
+    assert_eq!(
+        scrollback.len(),
+        scrollback_len_before + 1,
+        "system block must be appended"
+    );
+    let last = scrollback.entry(scrollback.len() - 1).expect("last entry");
+    let text = match &last.block {
+        crate::scrollback::block::RenderBlock::System(b) => b.text.clone(),
+        other => panic!("expected System block, got {other:?}"),
+    };
+    assert!(
+        text.contains("Couldn't reset session title: boom"),
+        "system block must surface the error; got: {text:?}"
+    );
+}
+
+#[test]
+fn reset_session_title_failed_does_not_restore_after_unpin_fanout() {
+    let mut app = test_app_with_agent();
+    if let Some(a) = app.agents.get_mut(&AgentId(0)) {
+        a.display_name = Some("Manual".into());
+        a.generated_session_title = Some("Auto".into());
+    }
+    let _ = dispatch_reset_session_title(&mut app);
+    if let Some(a) = app.agents.get_mut(&AgentId(0)) {
+        a.title_unpin_committed = true;
+        a.display_name = None;
+        a.generated_session_title = Some("Auto".into());
+    }
+
+    let _effects = dispatch_task_result(
+        TaskResult::ResetSessionTitleFailed {
+            agent_id: AgentId(0),
+            error: "transport dropped".into(),
+            previous_display_name: Some("Manual".into()),
+            previous_generated_title: Some("Auto".into()),
+        },
+        &mut app,
+    );
+
+    let agent = &app.agents[&AgentId(0)];
+    assert!(
+        agent.display_name.is_none(),
+        "dropped RPC after fan-out must not re-pin"
+    );
+    assert_eq!(agent.generated_session_title.as_deref(), Some("Auto"));
+    assert!(!agent.title_unpin_committed);
+    let last = agent
+        .scrollback
+        .entry(agent.scrollback.len() - 1)
+        .expect("last entry");
+    let text = match &last.block {
+        crate::scrollback::block::RenderBlock::System(b) => b.text.clone(),
+        other => panic!("expected System block, got {other:?}"),
+    };
+    assert!(
+        text.contains("Session title reset to auto"),
+        "committed unpin should confirm, not error; got: {text:?}"
+    );
+}
+
+#[test]
+fn reset_session_title_complete_pushes_system_block() {
+    let mut app = test_app_with_agent();
+    if let Some(a) = app.agents.get_mut(&AgentId(0)) {
+        a.display_name = None;
+        a.generated_session_title = None;
+    }
+    let scrollback_len_before = app.agents[&AgentId(0)].scrollback.len();
+
+    let _effects = dispatch_task_result(
+        TaskResult::ResetSessionTitleComplete {
+            agent_id: AgentId(0),
+        },
+        &mut app,
+    );
+
+    assert!(app.agents[&AgentId(0)].display_name.is_none());
+    let scrollback = &app.agents[&AgentId(0)].scrollback;
+    assert_eq!(scrollback.len(), scrollback_len_before + 1);
+    let last = scrollback.entry(scrollback.len() - 1).expect("last entry");
+    let text = match &last.block {
+        crate::scrollback::block::RenderBlock::System(b) => b.text.clone(),
+        other => panic!("expected System block, got {other:?}"),
+    };
+    assert!(
+        text.contains("Session title reset to auto"),
+        "got: {text:?}"
+    );
+}
+
 // ── GateRefreshed subscription flow ─────────────────────────────
 
-/// Regression: when the 30s gate poll detects the subscription gate has
-/// been lifted, it must emit `CheckSubscription` so the shell refreshes
-/// the JWT. Without this the auth token still lacks the subscription
-/// claim and all API calls return 403.
+/// Regression: when the 30s gate poll detects the subscription gate has been lifted, it must emit `CheckSubscription` so the shell refreshes the JWT.
+/// Until that refresh the auth token lacks the subscription claim and all API calls return 403.
 #[test]
 fn gate_refreshed_emits_check_subscription_on_gate_lift() {
     let mut app = test_app();
@@ -1570,7 +2177,6 @@ fn gate_refreshed_emits_check_subscription_on_gate_lift() {
     assert!(app.has_access(), "gate should be lifted");
     assert!(app.welcome_prompt_focused, "prompt should be focused");
 
-    // Must emit CheckSubscription to trigger shell-side JWT refresh.
     assert!(
         effects
             .iter()
@@ -1579,8 +2185,7 @@ fn gate_refreshed_emits_check_subscription_on_gate_lift() {
     );
 }
 
-/// When the gate poll returns settings that still have a gate, no
-/// effects should be emitted and the user stays blocked.
+/// When the gate poll returns settings that still have a gate, no effects are emitted and the user stays blocked.
 #[test]
 fn gate_refreshed_no_effect_when_still_gated() {
     let mut app = test_app();
@@ -1622,10 +2227,8 @@ fn gate_refreshed_no_effect_when_already_unblocked() {
     assert!(effects.is_empty(), "no effects when already unblocked");
 }
 
-/// A gate newly imposed by the 30s settings poll (possibly stale) must be
-/// deferred for live verification instead of painting the paywall directly:
-/// the gate is held out of `app.gate` and a `CheckSubscription` +
-/// verify-timeout pair is emitted.
+/// A gate newly imposed by the 30s settings poll (possibly stale) must be deferred for live verification instead of painting the paywall directly.
+/// The gate is held out of `app.gate`, and both `CheckSubscription` and a verify timeout are emitted.
 #[test]
 fn gate_refreshed_newly_blocked_defers_gate_for_verification() {
     let mut app = test_app();
@@ -1671,8 +2274,7 @@ fn test_gate() -> xvora_shell::auth::GateInfo {
     }
 }
 
-/// The live check confirmed access (meta without a gate): the deferred
-/// stale gate is dropped and the paywall never shows.
+/// The live check confirmed access (meta without a gate): the deferred stale gate is dropped and the paywall never shows.
 #[test]
 fn verify_check_with_meta_resolves_pending_gate() {
     let mut app = test_app();
@@ -1692,8 +2294,7 @@ fn verify_check_with_meta_resolves_pending_gate() {
     assert!(app.pending_gate_verification.is_none());
 }
 
-/// The live check confirmed the block (meta WITH a gate): the paywall
-/// shows with the authoritative gate.
+/// The live check confirmed the block (meta WITH a gate): the paywall shows with the authoritative gate.
 #[test]
 fn verify_check_with_gated_meta_shows_gate() {
     let mut app = test_app();
@@ -1716,8 +2317,7 @@ fn verify_check_with_gated_meta_shows_gate() {
     assert!(app.pending_gate_verification.is_none());
 }
 
-/// The verification's own check failed (meta None) while its stale gate
-/// was deferred: err on blocking — the deferred gate is promoted.
+/// The verification's own check failed (meta None) while its stale gate was deferred: err on blocking, so the deferred gate is promoted.
 #[test]
 fn verify_check_failure_promotes_pending_gate() {
     let mut app = test_app();
@@ -1741,10 +2341,9 @@ fn verify_check_failure_promotes_pending_gate() {
     );
 }
 
-/// A failed GENERIC check (watch / focus / paywall chain — no generation)
-/// must never promote a deferred gate: only the deferral's own
-/// generation-scoped check or timeout may (a superseded or unrelated check
-/// failing is not evidence about the current verification).
+/// A failed GENERIC check (the watch, focus, or paywall chain; no generation) must never promote a deferred gate.
+/// Only the deferral's own generation-scoped check or timeout may promote it.
+/// A superseded or unrelated check failing is not evidence about the current verification.
 #[test]
 fn check_subscription_complete_failure_leaves_pending_gate_untouched() {
     let mut app = test_app();
@@ -1769,8 +2368,7 @@ fn check_subscription_complete_failure_leaves_pending_gate_untouched() {
     );
 }
 
-/// A failed verification check from a SUPERSEDED deferral (older
-/// generation) must not promote the newer pending gate.
+/// A failed verification check from a SUPERSEDED deferral (older generation) must not promote the newer pending gate.
 #[test]
 fn verify_check_stale_generation_failure_is_ignored() {
     let mut app = test_app();
@@ -1795,8 +2393,7 @@ fn verify_check_stale_generation_failure_is_ignored() {
     assert!(app.pending_gate_verification.is_some());
 }
 
-/// A check failure with no deferred gate (the plain paywall-poller path)
-/// must not invent a gate.
+/// A check failure with no deferred gate (the plain paywall-poller path) must not invent a gate.
 #[test]
 fn check_subscription_complete_failure_without_pending_gate_is_noop() {
     let mut app = test_app();
@@ -1810,9 +2407,8 @@ fn check_subscription_complete_failure_without_pending_gate_is_noop() {
     assert!(app.has_access());
 }
 
-/// The verification window expired before the live check resolved:
-/// err on blocking — the deferred gate is promoted, and the freshly shown
-/// paywall gets the 5s auto-lift chain.
+/// The verification window expired before the live check resolved: err on blocking.
+/// The deferred gate is promoted, and the freshly shown paywall gets the 5s auto-lift chain.
 #[test]
 fn gate_verify_timeout_promotes_pending_gate() {
     let mut app = test_app();
@@ -1863,12 +2459,11 @@ fn gate_verify_timeout_noop_when_already_resolved() {
     );
 }
 
-/// A timeout from a SUPERSEDED verification (older generation) must not
-/// promote a newer deferred gate whose own live check is still in flight.
+/// A timeout from a SUPERSEDED verification (older generation) must not promote a newer deferred gate whose own live check is still in flight.
 #[test]
 fn gate_verify_timeout_stale_generation_is_ignored() {
     let mut app = test_app();
-    // First deferral resolves (access confirmed) ...
+    // First deferral resolves (access confirmed)
     let _effs = app.impose_gate(test_gate());
     let stale_gen = app.gate_verify_gen;
     let meta = serde_json::to_value(xvora_shell::auth::AuthMeta::default()).unwrap();
@@ -1879,12 +2474,11 @@ fn gate_verify_timeout_stale_generation_is_ignored() {
         },
         &mut app,
     );
-    // ... then a SECOND gate is deferred (check in flight).
+    // Then a SECOND gate is deferred (its check is in flight)
     let _effs = app.impose_gate(test_gate());
     assert!(app.has_access());
 
-    // The FIRST deferral's timer fires now — it must not promote the
-    // second deferral's pending gate.
+    // The FIRST deferral's timer fires now; it must not promote the second deferral's pending gate
     let effects = dispatch_task_result(
         TaskResult::GateVerifyTimeout {
             generation: stale_gen,
@@ -1903,9 +2497,8 @@ fn gate_verify_timeout_stale_generation_is_ignored() {
     );
 }
 
-/// A verified gate landing via `CheckSubscriptionComplete` (gated meta while
-/// ungated) must arm the 5s paywall auto-check chain — verify-before-paywall
-/// paths never went through the login-path chain start.
+/// A verified gate landing via `CheckSubscriptionComplete` (gated meta while ungated) must start the 5s paywall auto-check chain.
+/// Verify-before-paywall paths never went through the login-path chain start.
 #[test]
 fn verified_gate_via_check_complete_starts_paywall_chain() {
     let mut app = test_app();
@@ -1936,8 +2529,7 @@ fn verified_gate_via_check_complete_starts_paywall_chain() {
         "verified gate must schedule the 5s chain; got: {effects:?}"
     );
 
-    // Steady-state paywall-poller responses (already gated) must NOT fan
-    // out extra timers.
+    // Steady-state paywall-poller responses (already gated) must NOT fan out extra timers
     let meta = serde_json::to_value(xvora_shell::auth::AuthMeta {
         gate: Some(test_gate()),
         ..Default::default()
@@ -1956,11 +2548,10 @@ fn verified_gate_via_check_complete_starts_paywall_chain() {
     );
 }
 
-/// `GateRefreshed` with gate-free settings while a deferred gate awaits
-/// verification must drop the pending copy — the fresh settings are newer
-/// than the stale snapshot that produced it — and still run the lift
-/// bookkeeping (`CheckSubscription` for the JWT refresh), since the pending
-/// deferral means the user was conceptually blocked.
+/// `GateRefreshed` with gate-free settings while a deferred gate awaits verification must drop the pending copy.
+/// The fresh settings are newer than the stale snapshot that produced it.
+/// It must still run the lift bookkeeping (`CheckSubscription` for the JWT refresh).
+/// The pending deferral means the user was conceptually blocked.
 #[test]
 fn gate_refreshed_without_gate_clears_pending_verification() {
     let mut app = test_app();
@@ -2002,8 +2593,7 @@ fn logout_clears_pending_gate_verification() {
     assert!(app.last_subscription_check_at.is_none());
 }
 
-/// `apply_setting_rollback` on a known key reverts the in-memory
-/// cache without emitting any new effects.
+/// `apply_setting_rollback` on a known key reverts the in-memory cache without emitting any new effects.
 #[test]
 fn rollback_known_key_reverts_cache_and_no_effect() {
     use crate::settings::SettingValue;
@@ -2024,12 +2614,10 @@ fn rollback_known_key_reverts_cache_and_no_effect() {
         effects.is_empty(),
         "rollback path must NOT emit any new Effects (would loop)",
     );
-    // Cache is reverted.
     assert!(!app.current_ui.compact_mode);
 }
 
-/// `apply_setting_rollback` on an unknown key surfaces a tracing
-/// error and a secondary toast, but does not panic.
+/// `apply_setting_rollback` on an unknown key surfaces a tracing error and a secondary toast, but does not panic.
 #[test]
 fn rollback_unknown_key_does_not_panic() {
     use crate::settings::SettingValue;
@@ -2043,8 +2631,7 @@ fn rollback_unknown_key_does_not_panic() {
         &mut app,
     );
     assert!(effects.is_empty());
-    // No assertion on cache state (no arm to rollback through);
-    // the toast surfaces the inconsistency to the user.
+    // No assertion on cache state (no arm to rollback through); the toast surfaces the inconsistency to the user
 }
 
 #[test]
@@ -2065,15 +2652,14 @@ fn persist_failed_toast_contains_key_and_error() {
     assert!(toast.contains('\u{2717}'));
 }
 
-/// Rollback path must revert BOTH `app.current_ui` AND the
-/// thread-local cache — failing only on one is the bug class
-/// the inner/outer split exists to prevent.
+/// The rollback path must revert BOTH `app.current_ui` AND the thread-local cache.
+/// Failing only on one is the bug class the inner/outer split exists to prevent.
 #[test]
 fn rollback_reverts_thread_local_cache_too() {
     use crate::settings::SettingValue;
     std::thread::spawn(|| {
         let mut app = test_app_with_agent();
-        // Optimistic set: cache → true.
+        // Optimistic set: the cache becomes true
         let _ = dispatch(Action::SetCompactMode(true), &mut app);
         assert!(crate::appearance::cache::load());
 
@@ -2100,8 +2686,7 @@ fn rollback_reverts_thread_local_cache_too() {
     .unwrap();
 }
 
-/// `set_yolo_mode_inner` is the backstop: even a (stale) rollback
-/// value of "always-approve" must not re-enable yolo under the pin.
+/// `set_yolo_mode_inner` is the backstop: even a (stale) rollback value of "always-approve" must not re-enable yolo under the pin.
 #[test]
 fn rollback_to_always_approve_blocked_by_policy_pin() {
     use crate::settings::SettingValue;
@@ -2127,14 +2712,16 @@ fn rollback_to_always_approve_blocked_by_policy_pin() {
 
 // -- Degraded conversations lane (SessionListLoaded.partial) ----------
 
-/// A degraded conversations lane surfaces an actionable notice instead of
-/// the misleading "No sessions found" toast.
+/// A degraded conversations lane surfaces an actionable notice instead of the misleading "No sessions found" toast.
 #[test]
 fn session_list_partial_no_oauth_surfaces_login_hint() {
     let mut app = test_app_with_agent();
     open_session_picker_with(&mut app, vec![]);
     let _ = dispatch(
         Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation: modal_picker_generation(&app),
+            scope: ListScope::Cwd,
             sessions: vec![],
             partial: Some(crate::app::effects::ConversationsPartial::NoOauth),
             seq: 0,
@@ -2148,6 +2735,132 @@ fn session_list_partial_no_oauth_surfaces_login_hint() {
     );
 }
 
+/// The notice fires once per relaxed run; it survives search and comes back on a cwd-scoped browse.
+#[test]
+fn session_list_relax_surfaces_notice_once() {
+    let relax_response = |generation| {
+        Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation,
+            scope: ListScope::Repo,
+            sessions: vec![make_picker_entry("local-other-cwd-1", "/elsewhere")],
+            partial: None,
+            seq: 0,
+            query: None,
+        })
+    };
+
+    let mut app = test_app_with_agent();
+    open_session_picker_with(&mut app, vec![]);
+    let generation = modal_picker_generation(&app);
+    let _ = dispatch(relax_response(generation), &mut app);
+    assert!(
+        read_toast(&app).contains("this repo"),
+        "the relaxed scope must be explained"
+    );
+
+    app.agents.get_mut(&AgentId(0)).unwrap().toast = None;
+    let _ = dispatch(relax_response(generation), &mut app);
+    assert!(
+        app.agents[&AgentId(0)].toast.is_none(),
+        "the relax notice must not repeat while the scope is unchanged"
+    );
+
+    let _ = dispatch(
+        Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation,
+            scope: ListScope::Cwd,
+            sessions: vec![],
+            partial: None,
+            seq: 0,
+            query: Some("needle".into()),
+        }),
+        &mut app,
+    );
+    let _ = dispatch(relax_response(generation), &mut app);
+    assert!(
+        app.agents[&AgentId(0)].toast.is_none(),
+        "a search response must not re-arm the relax notice"
+    );
+
+    let _ = dispatch(
+        Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation,
+            scope: ListScope::Cwd,
+            sessions: vec![make_picker_entry("local-here-1", "/here")],
+            partial: None,
+            seq: 0,
+            query: None,
+        }),
+        &mut app,
+    );
+    let _ = dispatch(relax_response(generation), &mut app);
+    assert!(
+        read_toast(&app).contains("this repo"),
+        "a scope change back to relaxed must notify again"
+    );
+}
+
+/// Welcome view can't render toasts, so the one-shot notice must not latch there.
+#[test]
+fn session_list_relax_on_welcome_does_not_latch() {
+    let mut app = test_app();
+    assert!(matches!(app.active_view, ActiveView::Welcome));
+    let _ = dispatch(
+        Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::Welcome,
+            generation: app.session_picker_generation,
+            scope: ListScope::All,
+            sessions: vec![make_picker_entry("local-other-cwd-1", "/elsewhere")],
+            partial: None,
+            seq: 0,
+            query: None,
+        }),
+        &mut app,
+    );
+    assert!(
+        app.session_picker_relaxed_notified_for.is_none(),
+        "a notice that cannot render must not latch"
+    );
+}
+
+/// The notice is keyed by browse cwd: a different directory re-notifies even though the prior latch is set.
+#[test]
+fn session_list_relax_renotifies_when_cwd_changes() {
+    let relax = |generation| {
+        Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation,
+            scope: ListScope::Repo,
+            sessions: vec![make_picker_entry("local-other-cwd-1", "/elsewhere")],
+            partial: None,
+            seq: 0,
+            query: None,
+        })
+    };
+
+    let mut app = test_app_with_agent();
+    open_session_picker_with(&mut app, vec![]);
+    let generation = modal_picker_generation(&app);
+
+    app.cwd = std::path::PathBuf::from("/repo/a");
+    let _ = dispatch(relax(generation), &mut app);
+    assert!(
+        read_toast(&app).contains("this repo"),
+        "the first cwd must notify"
+    );
+
+    app.agents.get_mut(&AgentId(0)).unwrap().toast = None;
+    app.cwd = std::path::PathBuf::from("/repo/b");
+    let _ = dispatch(relax(generation), &mut app);
+    assert!(
+        read_toast(&app).contains("this repo"),
+        "a different cwd must re-notify even with the prior latch set"
+    );
+}
+
 /// Canary: an empty list without a degraded lane keeps the generic toast.
 #[test]
 fn session_list_empty_without_partial_keeps_generic_toast() {
@@ -2155,6 +2868,9 @@ fn session_list_empty_without_partial_keeps_generic_toast() {
     open_session_picker_with(&mut app, vec![]);
     let _ = dispatch(
         Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation: modal_picker_generation(&app),
+            scope: ListScope::Cwd,
             sessions: vec![],
             partial: None,
             seq: 0,
@@ -2165,14 +2881,16 @@ fn session_list_empty_without_partial_keeps_generic_toast() {
     assert!(read_toast(&app).contains("No sessions found"));
 }
 
-/// Non-empty degraded list under chat mode (welcome-fallback branch):
-/// entries land AND the retry notice surfaces; Build mode stays silent.
+/// Non-empty degraded list under chat mode (welcome-fallback branch): entries land AND the retry notice surfaces; Build mode stays silent.
 #[test]
 fn session_list_nonempty_partial_toasts_retry_in_chat_mode_only() {
     let mut app = test_app_with_agent();
     app.chat_mode = true;
     let _ = dispatch(
         Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::Welcome,
+            generation: app.session_picker_generation,
+            scope: ListScope::Cwd,
             sessions: vec![make_conversation_entry("conv-part-1")],
             partial: Some(crate::app::effects::ConversationsPartial::Timeout),
             seq: 0,
@@ -2193,6 +2911,9 @@ fn session_list_nonempty_partial_toasts_retry_in_chat_mode_only() {
     let mut app = test_app_with_agent();
     let _ = dispatch(
         Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::Welcome,
+            generation: app.session_picker_generation,
+            scope: ListScope::Cwd,
             sessions: vec![make_picker_entry("local-part-1", "/r")],
             partial: Some(crate::app::effects::ConversationsPartial::Timeout),
             seq: 0,
@@ -2206,8 +2927,7 @@ fn session_list_nonempty_partial_toasts_retry_in_chat_mode_only() {
     );
 }
 
-/// Modal variant of the non-empty degraded-lane notice: same chat-mode-only
-/// gating as the welcome-fallback branch.
+/// Modal variant of the non-empty degraded-lane notice: same chat-mode-only gating as the welcome-fallback branch.
 #[test]
 fn session_list_nonempty_partial_modal_toasts_in_chat_mode_only() {
     use crate::views::modal::ActiveModal;
@@ -2216,6 +2936,9 @@ fn session_list_nonempty_partial_modal_toasts_in_chat_mode_only() {
     open_session_picker_with(&mut app, vec![]);
     let _ = dispatch(
         Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation: modal_picker_generation(&app),
+            scope: ListScope::Cwd,
             sessions: vec![make_conversation_entry("conv-part-m1")],
             partial: Some(crate::app::effects::ConversationsPartial::Timeout),
             seq: 0,
@@ -2244,6 +2967,9 @@ fn session_list_nonempty_partial_modal_toasts_in_chat_mode_only() {
     open_session_picker_with(&mut app, vec![]);
     let _ = dispatch(
         Action::TaskComplete(TaskResult::SessionListLoaded {
+            host: SessionPickerHost::AgentModal,
+            generation: modal_picker_generation(&app),
+            scope: ListScope::Cwd,
             sessions: vec![make_picker_entry("local-part-m1", "/r")],
             partial: Some(crate::app::effects::ConversationsPartial::Timeout),
             seq: 0,
@@ -2254,5 +2980,179 @@ fn session_list_nonempty_partial_modal_toasts_in_chat_mode_only() {
     assert!(
         app.agents[&AgentId(0)].toast.is_none(),
         "Build-mode modal non-empty degraded list stays silent"
+    );
+}
+
+/// Drive `CompactComplete` with a wire error mapped exactly as the `Effect::Compact` arm maps it, and return the resulting session events.
+fn compact_complete_events_for(wire_error: acp::Error) -> Vec<SessionEvent> {
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    app.agents
+        .get_mut(&id)
+        .unwrap()
+        .session
+        .start_command(crate::app::agent::AgentCommand::Compact);
+    dispatch_task_result(
+        TaskResult::CompactComplete {
+            agent_id: id,
+            result: Err(crate::app::effects::compact_error(&wire_error)),
+        },
+        &mut app,
+    );
+    let agent = &app.agents[&id];
+    (0..agent.scrollback.len())
+        .filter_map(|i| match agent.scrollback.entry(i).map(|e| &e.block) {
+            Some(RenderBlock::SessionEvent(ev)) => Some(ev.event.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn compaction_failed_message(events: &[SessionEvent]) -> Option<String> {
+    events.iter().find_map(|ev| match ev {
+        SessionEvent::CompactionFailed { error } => Some(error.clone()),
+        _ => None,
+    })
+}
+
+fn routed_to_cancelled(events: &[SessionEvent]) -> bool {
+    events
+        .iter()
+        .any(|ev| matches!(ev, SessionEvent::CompactionCancelled))
+        && !events
+            .iter()
+            .any(|ev| matches!(ev, SessionEvent::CompactionFailed { .. }))
+}
+
+#[test]
+fn compact_complete_error_surfaces_real_error_in_scrollback() {
+    use xvora_shell::session::helpers::session_compact::{CompactErrorKind, compact_error_data};
+    // Real wire shape: typed data carrying the shell-normalized detail.
+    let events =
+        compact_complete_events_for(acp::Error::internal_error().data(compact_error_data(
+            CompactErrorKind::Failed,
+            "API error (status 400 Bad Request): invalid_image: too big",
+        )));
+    let error = compaction_failed_message(&events);
+    assert_eq!(
+        error.as_deref(),
+        Some("API error (status 400 Bad Request): invalid_image: too big"),
+        "manual /compact failure must surface the real error, not an empty string"
+    );
+    assert_eq!(
+        SessionEvent::CompactionFailed {
+            error: error.unwrap_or_default(),
+        }
+        .message(),
+        "Compaction failed - API error (status 400 Bad Request): invalid_image: too big"
+    );
+}
+
+#[test]
+fn compact_complete_typed_detail_between_the_two_caps_is_not_retruncated() {
+    use xvora_shell::session::helpers::session_compact::{CompactErrorKind, compact_error_data};
+    // 250 chars: over the pager sanitize cap, under the shell's 300-byte cap
+    // It must reach scrollback byte-identical, exactly as the auto path renders it
+    let detail = format!(
+        "API error (status 500 Internal Server Error): {}",
+        "y".repeat(204)
+    );
+    assert_eq!(detail.chars().count(), 250);
+    let events = compact_complete_events_for(
+        acp::Error::internal_error().data(compact_error_data(CompactErrorKind::Failed, &detail)),
+    );
+    assert_eq!(
+        compaction_failed_message(&events).as_deref(),
+        Some(detail.as_str()),
+        "shell-normalized detail must not be re-truncated or rewritten by the pager"
+    );
+}
+
+#[test]
+fn compact_complete_typed_cancellation_routes_to_cancelled() {
+    use xvora_shell::session::helpers::session_compact::{CompactErrorKind, compact_error_data};
+    let events = compact_complete_events_for(acp::Error::internal_error().data(
+        compact_error_data(CompactErrorKind::Cancelled, COMPACT_CANCELLED_MSG),
+    ));
+    assert!(
+        routed_to_cancelled(&events),
+        "typed cancel kind must route to CompactionCancelled, got {events:?}"
+    );
+}
+
+#[test]
+fn compact_complete_old_shell_string_cancel_still_routes_to_cancelled() {
+    // Old shells send bare strings with no kind; the text fallback still routes.
+    let events =
+        compact_complete_events_for(acp::Error::internal_error().data(COMPACT_CANCELLED_MSG));
+    assert!(
+        routed_to_cancelled(&events),
+        "old-shell string cancel must route to CompactionCancelled, got {events:?}"
+    );
+}
+
+#[test]
+fn compact_complete_typed_failure_echoing_cancel_phrase_stays_a_failure() {
+    use xvora_shell::session::helpers::session_compact::{CompactErrorKind, compact_error_data};
+    // An upstream echo of the cancel phrase must not reroute a typed failure.
+    let echoing = format!("upstream rejected input containing '{COMPACT_CANCELLED_MSG}' marker");
+    let events = compact_complete_events_for(
+        acp::Error::internal_error().data(compact_error_data(CompactErrorKind::Failed, &echoing)),
+    );
+    assert_eq!(
+        compaction_failed_message(&events).as_deref(),
+        Some(echoing.as_str()),
+        "typed failure must render as a failure with its text, got {events:?}"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|ev| matches!(ev, SessionEvent::CompactionCancelled)),
+        "an echoed cancel phrase must not misroute a typed failure"
+    );
+}
+
+#[test]
+fn compact_complete_renders_one_failure_line_per_completion() {
+    use xvora_shell::session::helpers::session_compact::{CompactErrorKind, compact_error_data};
+    // One /compact failure must paint exactly one line: `finish_command()` exits the compact state on the first completion
+    // A stray duplicate completion is dropped by the state guard instead of double-rendering
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    app.agents
+        .get_mut(&id)
+        .unwrap()
+        .session
+        .start_command(crate::app::agent::AgentCommand::Compact);
+    let wire_error = acp::Error::internal_error().data(compact_error_data(
+        CompactErrorKind::Failed,
+        "API error (status 500 Internal Server Error): should never be seen",
+    ));
+    for _ in 0..2 {
+        dispatch_task_result(
+            TaskResult::CompactComplete {
+                agent_id: id,
+                result: Err(crate::app::effects::compact_error(&wire_error)),
+            },
+            &mut app,
+        );
+    }
+    let agent = &app.agents[&id];
+    let failure_lines = (0..agent.scrollback.len())
+        .filter(|&i| {
+            matches!(
+                agent.scrollback.entry(i).map(|e| &e.block),
+                Some(RenderBlock::SessionEvent(ev))
+                    if matches!(ev.event, SessionEvent::CompactionFailed { .. })
+            )
+        })
+        .count();
+    assert_eq!(
+        failure_lines, 1,
+        "duplicate CompactComplete must not render a second failure line"
+    );
+    assert!(
+        agent.session.state.is_idle(),
+        "compact state must be exited after the first completion"
     );
 }

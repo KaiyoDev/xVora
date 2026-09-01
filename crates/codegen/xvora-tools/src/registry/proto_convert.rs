@@ -28,8 +28,11 @@ pub fn tool_config_from_entry(
         behavior_version,
         description_override,
     } = entry;
-    let params =
-        xvora_tools_api::config_validation::parse_params_json(index, &id, params_json.as_deref())?;
+    let params = xvora_tools_api::config_validation::parse_params_json(
+        index,
+        &id,
+        params_json.as_deref(),
+    )?;
     xvora_tools_api::config_validation::validate_name_override(
         index,
         &id,
@@ -86,8 +89,8 @@ mod tests {
 
     #[test]
     fn minimal_entry_converts_with_defaults() {
-        let cfg = tool_config_from_entry(0, entry("Xvora:read_file")).unwrap();
-        assert_eq!(cfg.id, "Xvora:read_file");
+        let cfg = tool_config_from_entry(0, entry("GrokBuild:read_file")).unwrap();
+        assert_eq!(cfg.id, "GrokBuild:read_file");
         assert_eq!(cfg.params, None);
         assert_eq!(cfg.name_override, None);
         assert_eq!(cfg.params_name_overrides, None);
@@ -98,7 +101,7 @@ mod tests {
 
     #[test]
     fn fully_populated_entry_converts_field_by_field() {
-        let mut e = entry("Xvora:grep");
+        let mut e = entry("GrokBuild:grep");
         e.params_json = Some(r#"{"max_results": 50}"#.to_owned());
         e.name_override = Some("search".to_owned());
         e.params_name_overrides =
@@ -130,11 +133,11 @@ mod tests {
 
     #[test]
     fn invalid_params_json_is_a_parse_error() {
-        let mut e = entry("Xvora:bash");
+        let mut e = entry("GrokBuild:bash");
         e.params_json = Some("{not json".to_owned());
         let err = tool_config_from_entry(3, e).unwrap_err();
         assert_eq!(err.index, 3);
-        assert_eq!(err.tool_id, "Xvora:bash");
+        assert_eq!(err.tool_id, "GrokBuild:bash");
         assert_eq!(err.field_path(), "tools[3].params_json");
         assert!(matches!(
             &err.kind,
@@ -144,7 +147,7 @@ mod tests {
 
     #[test]
     fn non_object_params_json_is_a_type_error() {
-        let mut e = entry("Xvora:bash");
+        let mut e = entry("GrokBuild:bash");
         e.params_json = Some("[1, 2]".to_owned());
         let err = tool_config_from_entry(1, e).unwrap_err();
         assert_eq!(
@@ -158,8 +161,8 @@ mod tests {
 
     #[test]
     fn name_override_valid_tool_id_charset_is_accepted() {
-        for name in ["search", "Xvora:grep", "a-b_C9"] {
-            let mut e = entry("Xvora:grep");
+        for name in ["search", "GrokBuild:grep", "a-b_C9"] {
+            let mut e = entry("GrokBuild:grep");
             e.name_override = Some(name.to_owned());
             let cfg = tool_config_from_entry(0, e).unwrap();
             assert_eq!(cfg.name_override.as_deref(), Some(name));
@@ -169,11 +172,11 @@ mod tests {
     #[test]
     fn name_override_outside_tool_id_charset_is_rejected() {
         for name in ["has space", "", "a:b:c", "emoji✨", "dot.name"] {
-            let mut e = entry("Xvora:grep");
+            let mut e = entry("GrokBuild:grep");
             e.name_override = Some(name.to_owned());
             let err = tool_config_from_entry(2, e).unwrap_err();
             assert_eq!(err.index, 2, "name={name:?}");
-            assert_eq!(err.tool_id, "Xvora:grep");
+            assert_eq!(err.tool_id, "GrokBuild:grep");
             assert_eq!(err.field_path(), "tools[2].name_override");
             assert!(
                 matches!(
@@ -188,7 +191,7 @@ mod tests {
 
     #[test]
     fn server_config_conversion_rejects_invalid_name_override_entry() {
-        let mut bad = entry("Xvora:grep");
+        let mut bad = entry("GrokBuild:grep");
         bad.name_override = Some("bad name".to_owned());
         let err = tool_server_config_from_entries(vec![entry("ok"), bad]).unwrap_err();
         assert_eq!(err.index, 1, "fails closed on the offending entry");
@@ -200,9 +203,9 @@ mod tests {
 
     #[test]
     fn server_config_conversion_preserves_valid_name_overrides() {
-        let mut a = entry("Xvora:grep");
+        let mut a = entry("GrokBuild:grep");
         a.name_override = Some("search".to_owned());
-        let cfg = tool_server_config_from_entries(vec![a, entry("Xvora:bash")]).unwrap();
+        let cfg = tool_server_config_from_entries(vec![a, entry("GrokBuild:bash")]).unwrap();
         assert_eq!(cfg.tools.len(), 2);
         assert_eq!(cfg.tools[0].name_override.as_deref(), Some("search"));
         assert_eq!(cfg.tools[1].name_override, None);

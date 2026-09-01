@@ -35,8 +35,8 @@ fn default_max_duration_ms() -> u64 {
 /// Low-level buffer for ACP text chunks (agent message/thought chunks).
 ///
 /// API:
-/// - `consume_chunk(...) -> Option<SessionNotification>` returns a notification that should be sent now
-///   (typically the previously buffered one), or `None` if we keep buffering.
+/// - `consume_chunk(...) -> Option<SessionNotification>` returns a notification to send now, typically the previously buffered one.
+///   `None` means keep buffering.
 /// - `flush() -> Option<SessionNotification>` returns any pending buffered notification to send.
 ///
 /// Example of session notification:
@@ -130,7 +130,7 @@ impl ReplayBuffer {
             .unwrap_or(true);
 
         if !session_id_matches {
-            // can't merge, we need to send both chunks immediately to preserve current chunk order.
+            // Can't merge; send both chunks immediately to preserve current chunk order
             match self.pending.take() {
                 Some(pending) => {
                     // No buffered item after this call.
@@ -145,7 +145,7 @@ impl ReplayBuffer {
         }
 
         if !incoming_notification_timestamp_in_range {
-            // need to pop previously pending notification and send it immediately
+            // Pop the previously pending notification and send it immediately
             let prev = self.pending.replace(incoming);
             if let Some(prev) = prev {
                 return Some((prev, None));
@@ -196,10 +196,9 @@ impl ReplayBuffer {
     }
 
     /// Two-by-two dispatch on protocol kind:
-    /// - Same kind on both sides → delegate to per-kind merge function.
-    /// - Different kinds → can't merge, force-flush prev and pass incoming through.
-    /// - No prev → buffer the incoming chunk if it's of a bufferable kind,
-    ///   force-send otherwise.
+    /// - Same kind on both sides: delegate to the per-kind merge function.
+    /// - Different kinds: can't merge, force-flush prev and pass incoming through.
+    /// - No prev: buffer the incoming chunk if it's of a bufferable kind, force-send otherwise.
     fn merge(
         &mut self,
         prev: Option<SessionNotification>,
@@ -482,7 +481,7 @@ fn merge_xai_chunks(
                 arguments_delta: new_args,
             },
         ) if same_tool_call(&prev_id, &new_id, prev_idx, new_idx) => {
-            // Merge: concat arguments_delta, prefer earlier id+name.
+            // Merge: concat arguments_delta, prefer the earlier id and name
             let merged_args = match (prev_args, new_args) {
                 (Some(mut a), Some(b)) => {
                     a.push_str(&b);
@@ -519,10 +518,8 @@ fn merge_xai_chunks(
     }
 }
 
-/// Two `ToolCallDeltaChunk`s belong to the same tool call if their ids
-/// match (when both present), otherwise if their `tool_index`es match.
-/// Continuation chunks omit the id, so the index fallback is what
-/// stitches them to the initial id+name chunk.
+/// Two `ToolCallDeltaChunk`s belong to the same tool call if their ids match (when both present), otherwise if their `tool_index`es match.
+/// Continuation chunks omit the id, so the index fallback is what stitches them to the initial chunk carrying the id and name.
 fn same_tool_call(
     prev_id: &Option<String>,
     new_id: &Option<String>,
@@ -997,7 +994,7 @@ mod tests {
     }
 
     #[test]
-    fn xai_same_id_deltas_merge_args_and_preserve_name() {
+    fn xvora_same_id_deltas_merge_args_and_preserve_name() {
         let mut buf = ReplayBuffer::new(Some(settings(100, 1_000_000)));
         let init = delta_chunk("s", Some("call_1"), 0, Some("read_file"), None);
         let d1 = delta_chunk("s", None, 0, None, Some("{\"path\":"));
@@ -1028,7 +1025,7 @@ mod tests {
     }
 
     #[test]
-    fn xai_different_tool_call_id_forces_flush() {
+    fn xvora_different_tool_call_id_forces_flush() {
         let mut buf = ReplayBuffer::new(Some(settings(100, 1_000_000)));
         let first = delta_chunk("s", Some("call_a"), 0, Some("grep"), Some("a-args"));
         let second = delta_chunk("s", Some("call_b"), 1, Some("read_file"), Some("b-args"));
@@ -1043,7 +1040,7 @@ mod tests {
     }
 
     #[test]
-    fn xai_tool_call_delta_is_bufferable() {
+    fn xvora_tool_call_delta_is_bufferable() {
         let mut buf = ReplayBuffer::new(Some(settings(100, 1_000_000)));
         let chunk = delta_chunk("s", Some("call_1"), 0, Some("bash"), Some("{\"cmd\":"));
 
@@ -1054,15 +1051,15 @@ mod tests {
     }
 
     #[test]
-    fn xai_after_acp_forces_flush() {
+    fn xvora_after_acp_forces_flush() {
         let mut buf = ReplayBuffer::new(Some(settings(100, 1_000_000)));
         let acp_chunk = msg_chunk("s", 1, "thinking...");
-        let xai_chunk = delta_chunk("s", Some("call_1"), 0, Some("bash"), Some("args"));
+        let xvora_chunk = delta_chunk("s", Some("call_1"), 0, Some("bash"), Some("args"));
 
         assert!(buf.consume_chunk(acp_chunk).is_none());
-        let (flushed, rest) = buf.consume_chunk(xai_chunk).expect("should force-flush");
+        let (flushed, rest) = buf.consume_chunk(xvora_chunk).expect("should force-flush");
 
-        // Both emitted immediately — different kinds can't merge.
+        // Both emitted immediately; different kinds can't merge
         assert!(matches!(flushed, SessionNotification::Acp(_)));
         assert!(matches!(rest, Some(SessionNotification::Xai(_))));
         assert!(buf.pending.is_none());

@@ -1,7 +1,6 @@
-//! Shared announcement types, persistence, and formatting for Xvora CLI apps.
+//! Shared announcement types, persistence, and formatting for Grok CLI apps.
 //!
-//! This crate provides the common logic used by `xvora-shell` and
-//! `xvora-pager` for handling announcements (banner notifications).
+//! This crate provides the common logic used by `xvora-shell` and `xvora-pager` for handling announcements (banner notifications).
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -38,10 +37,9 @@ pub struct RemoteAnnouncement {
     pub persistent: Option<bool>,
 }
 
-/// Optional call-to-action on an announcement (clients render it as a
-/// clickable link/button). The server only emits it with both fields
-/// non-empty and the url https; kept tolerant here like the parent struct.
-/// `caption` is optional dim helper text after the button; absent = none.
+/// Optional call-to-action on an announcement (clients render it as a clickable link/button).
+/// The server only emits it with both fields non-empty and the url https; parsing here stays tolerant like the parent struct.
+/// `caption` is optional dim helper text after the button; absent means none.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts", ts(export, optional_fields = nullable))]
@@ -72,10 +70,9 @@ pub struct AnnouncementsRefreshed {
 // Persistence
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Stable per-announcement hide key: the trimmed non-empty `id`, else a
-/// content-derived fallback so id-less items are still hideable. The fallback
-/// joins title/message with the unprintable unit separator (\x1f) so distinct
-/// title/message splits cannot collide and real ids cannot plausibly match.
+/// Stable per-announcement hide key: the trimmed non-empty `id`, else a content-derived fallback so id-less items are still hideable.
+/// The fallback joins title/message with the unprintable unit separator (\x1f), so distinct title/message splits cannot collide.
+/// Real ids cannot plausibly match the fallback.
 pub fn announcement_hide_key(a: &RemoteAnnouncement) -> String {
     match a.id.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         Some(id) => id.to_string(),
@@ -88,9 +85,9 @@ pub fn announcement_hide_key(a: &RemoteAnnouncement) -> String {
 }
 
 /// Parse persisted hidden state into a set of hidden announcement ids.
-/// Unknown fields are tolerated; malformed input yields an empty set. The
-/// legacy `{"hidden": bool}` shape carries no ids to migrate, so it decays to
-/// empty — the banner re-shows once and the next hide re-persists per-ID.
+/// Unknown fields are tolerated; malformed input yields an empty set.
+/// The legacy `{"hidden": bool}` shape carries no ids to migrate, so it decays to empty.
+/// The banner re-shows once and the next hide re-persists per-ID.
 pub fn parse_hidden_announcement_ids(s: &str) -> BTreeSet<String> {
     #[derive(Deserialize)]
     struct State {
@@ -103,8 +100,7 @@ pub fn parse_hidden_announcement_ids(s: &str) -> BTreeSet<String> {
 }
 
 /// Serialize hidden announcement ids (writes only the `hidden_ids` shape).
-/// `BTreeSet` is load-bearing: deterministic order keeps the on-disk file
-/// stable across writes.
+/// The `BTreeSet`'s deterministic order keeps the on-disk file stable across writes.
 pub fn serialize_hidden_announcement_ids(ids: &BTreeSet<String>) -> Option<String> {
     #[derive(Serialize)]
     struct State<'a> {
@@ -113,9 +109,8 @@ pub fn serialize_hidden_announcement_ids(ids: &BTreeSet<String>) -> Option<Strin
     serde_json::to_string(&State { hidden_ids: ids }).ok()
 }
 
-/// Drop hidden ids whose announcement is no longer active; returns whether the
-/// set changed (so callers can persist). Meant for real update paths only — a
-/// per-frame prune would churn on transient list states.
+/// Drop hidden ids whose announcement is no longer active; returns whether the set changed (so callers can persist).
+/// Call this from real update paths only: a per-frame prune would churn on transient list states.
 pub fn prune_hidden_announcement_ids(
     ids: &mut BTreeSet<String>,
     active: &[RemoteAnnouncement],
@@ -126,7 +121,7 @@ pub fn prune_hidden_announcement_ids(
     ids.len() != before
 }
 
-/// Read hidden announcement ids from `~/.xvora/announcements.json`.
+/// Read hidden announcement ids from `~/.grok/announcements.json`.
 /// Returns an empty set (everything visible) on missing or malformed file.
 pub async fn read_hidden_announcement_ids() -> BTreeSet<String> {
     let path = announcements_state_path();
@@ -136,7 +131,7 @@ pub async fn read_hidden_announcement_ids() -> BTreeSet<String> {
     }
 }
 
-/// Write hidden announcement ids to `~/.xvora/announcements.json`.
+/// Write hidden announcement ids to `~/.grok/announcements.json`.
 pub async fn write_hidden_announcement_ids(ids: &BTreeSet<String>) {
     let path = announcements_state_path();
     if let Some(s) = serialize_hidden_announcement_ids(ids) {
@@ -145,7 +140,7 @@ pub async fn write_hidden_announcement_ids(ids: &BTreeSet<String>) {
 }
 
 fn announcements_state_path() -> PathBuf {
-    xvora_tools::util::xvora_home::xvora_home().join("announcements.json")
+    xvora_tools::util::grok_home::grok_home().join("announcements.json")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -172,9 +167,8 @@ pub fn filter_expired(
     filter_expired_at(announcements, Utc::now())
 }
 
-/// [`filter_expired`] with an injectable clock, so expiry-crossing behavior
-/// (an item that was live at the last check and has since passed `expires_at`)
-/// is unit-testable.
+/// [`filter_expired`] with an injectable clock.
+/// The clock lets a unit test cross an expiry (an item live at the last check has since passed `expires_at`).
 pub fn filter_expired_at(
     announcements: impl IntoIterator<Item = RemoteAnnouncement>,
     now: DateTime<Utc>,
@@ -185,9 +179,9 @@ pub fn filter_expired_at(
         .collect()
 }
 
-/// Whether `expires_at` parses and is at/behind `now` (strict `dt > now` keeps
-/// an item live only before its expiry; missing/unparseable never expires).
-/// Allocation-free per call, so draw-time consumers can check every frame.
+/// Whether `expires_at` parses and is at/behind `now`; missing/unparseable never expires.
+/// Strict `dt > now` keeps an item live only before its expiry.
+/// Each call is allocation-free, so draw-time consumers can check every frame.
 pub fn is_expired_at(a: &RemoteAnnouncement, now: DateTime<Utc>) -> bool {
     if let Some(exp) = &a.expires_at
         && let Ok(dt) = DateTime::parse_from_rfc3339(exp)
@@ -201,18 +195,16 @@ pub fn is_expired_at(a: &RemoteAnnouncement, now: DateTime<Utc>) -> bool {
 // Startup resolution
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Resolve startup announcements.
-///
-/// Precedence: `XVORA_ANNOUNCEMENTS_OVERRIDE` env var (JSON override) → remote announcements.
+/// The `GROK_ANNOUNCEMENTS_OVERRIDE` env var (JSON) takes precedence over remote announcements.
 /// Invalid env var JSON is logged and ignored (falls back to remote).
 pub fn resolve_startup(
     remote_announcements: Option<Vec<RemoteAnnouncement>>,
 ) -> Option<Vec<RemoteAnnouncement>> {
-    if let Ok(raw) = std::env::var("XVORA_ANNOUNCEMENTS_OVERRIDE") {
+    if let Ok(raw) = std::env::var("GROK_ANNOUNCEMENTS_OVERRIDE") {
         match serde_json::from_str::<Vec<RemoteAnnouncement>>(&raw) {
             Ok(list) => return Some(list),
             Err(e) => {
-                tracing::warn!(error = %e, "invalid XVORA_ANNOUNCEMENTS_OVERRIDE JSON; ignoring override");
+                tracing::warn!(error = %e, "invalid GROK_ANNOUNCEMENTS_OVERRIDE JSON; ignoring override");
             }
         }
     }
@@ -225,9 +217,9 @@ mod bindings_export {
     use ts_rs::TS;
 
     /// Explicitly (re)generate every binding (the export-test pattern).
-    /// ts-rs also emits a hidden per-type test from `#[ts(export)]`; this is
-    /// the single entry point `generate.sh` drives, failing loudly if any
-    /// type can't export. Destination: `TS_RS_EXPORT_DIR`, default `bindings/`.
+    /// ts-rs also emits a hidden per-type test from `#[ts(export)]`.
+    /// This is the single entry point `generate.sh` drives, failing loudly if any type can't export.
+    /// Bindings land in `TS_RS_EXPORT_DIR` (default `bindings/`).
     #[test]
     fn export_all_bindings() {
         let cfg = ts_rs::Config::from_env();
@@ -264,8 +256,7 @@ mod tests {
         assert_eq!(filtered.len(), 2);
     }
 
-    /// The injected clock decides expiry: the same item is live before its
-    /// `expires_at` and dropped at/after it (`dt > now` is a strict compare).
+    /// The injected clock decides expiry: the same item is live before its `expires_at` and dropped at/after it (`dt > now` is a strict compare).
     #[test]
     fn filter_expired_at_honors_injected_clock() {
         let item = RemoteAnnouncement {
@@ -287,19 +278,19 @@ mod tests {
     fn resolve_startup_env_override() {
         // SAFETY: test-only, no concurrent access expected
         unsafe {
-            std::env::set_var("XVORA_ANNOUNCEMENTS_OVERRIDE", r#"[{"id":"test"}]"#);
+            std::env::set_var("GROK_ANNOUNCEMENTS_OVERRIDE", r#"[{"id":"test"}]"#);
         }
         let result = resolve_startup(None);
         assert!(result.is_some());
         assert_eq!(result.unwrap()[0].id.as_deref(), Some("test"));
         // SAFETY: test-only
         unsafe {
-            std::env::remove_var("XVORA_ANNOUNCEMENTS_OVERRIDE");
+            std::env::remove_var("GROK_ANNOUNCEMENTS_OVERRIDE");
         }
     }
 
-    /// The nested `cta` object is optional and per-field tolerant, matching
-    /// the parent struct's style (a partial cta parses instead of poisoning).
+    /// The nested `cta` object is optional and per-field tolerant, matching the parent struct's style.
+    /// A partial cta parses instead of failing the whole announcement.
     #[test]
     fn cta_parses_nested_partial_and_absent() {
         let full: RemoteAnnouncement = serde_json::from_str(
@@ -340,8 +331,7 @@ mod tests {
         assert!(parse_hidden_announcement_ids(&s).is_empty());
     }
 
-    /// The pre-per-ID file shape carried no ids, so it cannot say WHICH
-    /// announcement was hidden — both values decay to "nothing hidden".
+    /// The pre-per-ID file shape carried no ids, so it cannot say WHICH announcement was hidden; both values decay to "nothing hidden".
     #[test]
     fn parse_hidden_ids_discards_legacy_bool_shape() {
         assert!(parse_hidden_announcement_ids(r#"{"hidden":true}"#).is_empty());

@@ -31,7 +31,7 @@ pub struct NormalizedItem {
 }
 
 impl NormalizedItem {
-    pub fn from_merged(m: &MergedSession) -> Self {
+    pub(crate) fn from_merged(m: &MergedSession) -> Self {
         Self {
             kind: SessionKind::Build,
             cwd: m.cwd.clone(),
@@ -45,7 +45,7 @@ impl NormalizedItem {
         }
     }
 
-    pub fn from_conversation(c: &Conversation) -> Self {
+    pub(crate) fn from_conversation(c: &Conversation) -> Self {
         Self {
             kind: SessionKind::Chat,
             cwd: String::new(),
@@ -267,7 +267,7 @@ impl FacetRegistry {
             .find(|p| p.key() == key)
     }
 
-    pub fn extract_all(&self, item: &NormalizedItem) -> FacetMap {
+    pub(crate) fn extract_all(&self, item: &NormalizedItem) -> FacetMap {
         let mut facets = FacetMap::new();
         for provider in &self.providers {
             if provider.applies_to().contains(&item.kind)
@@ -279,7 +279,7 @@ impl FacetRegistry {
         facets
     }
 
-    pub fn apply_pushdown(
+    pub(crate) fn apply_pushdown(
         &self,
         filters: &BTreeMap<String, Vec<serde_json::Value>>,
         query: &mut SourceQuery,
@@ -322,7 +322,7 @@ impl FacetRegistry {
             .collect()
     }
 
-    pub fn summarize_window(&self, rows: &[UnifiedRow]) -> FacetSummary {
+    pub(crate) fn summarize_window(&self, rows: &[UnifiedRow]) -> FacetSummary {
         let mut acc: BTreeMap<String, BTreeMap<String, (serde_json::Value, usize)>> =
             BTreeMap::new();
         for row in rows {
@@ -402,7 +402,7 @@ mod tests {
             first_prompt: None,
             updated_at: "2026-06-01T00:00:00Z".into(),
             created_at: "2026-01-01T00:00:00Z".into(),
-            cwd: "/Users/me/xai".into(),
+            cwd: "/Users/me/xvora".into(),
             hostname: None,
             source: "local".into(),
             model_id: None,
@@ -414,6 +414,8 @@ mod tests {
             git_root_dir: None,
             git_remotes: Vec::new(),
             source_workspace_dir: None,
+            last_turn_summary: None,
+            last_recap: None,
             session_kind: None,
         };
         merged_session_to_row(m, &build_facet_registry())
@@ -474,11 +476,13 @@ mod tests {
             num_messages: 0,
             last_active_at: None,
             branch: Some("main".into()),
-            repo_name: Some("xai".into()),
+            repo_name: Some("xvora".into()),
             worktree_label: None,
             git_root_dir: None,
             git_remotes: Vec::new(),
             source_workspace_dir: None,
+            last_turn_summary: None,
+            last_recap: None,
             session_kind: None,
         });
         let lf = reg.extract_all(&local);
@@ -517,7 +521,7 @@ mod tests {
     fn project_filter_is_partition_aware_keeps_local_rows() {
         let reg = build_facet_registry();
         let rows = vec![
-            local_row("local-1", Some("xai"), Some("main")),
+            local_row("local-1", Some("xvora"), Some("main")),
             conv_row("conv-match", &["ws_9f3a"]),
             conv_row("conv-other", &["ws_zzz"]),
         ];
@@ -537,15 +541,15 @@ mod tests {
     fn repo_filter_is_partition_aware_keeps_conversation_rows() {
         let reg = build_facet_registry();
         let rows = vec![
-            local_row("local-xai", Some("xai"), Some("main")),
+            local_row("local-xvora", Some("xvora"), Some("main")),
             local_row("local-other", Some("other"), Some("main")),
             conv_row("conv-1", &["ws_9f3a"]),
         ];
         let mut filters = BTreeMap::new();
-        filters.insert(REPO_FACET_KEY.to_owned(), vec![serde_json::json!("xai")]);
+        filters.insert(REPO_FACET_KEY.to_owned(), vec![serde_json::json!("xvora")]);
         let kept = reg.apply_in_memory_filters(&filters, rows);
         let ids: Vec<&str> = kept.iter().map(|r| r.legacy.session_id.as_str()).collect();
-        assert!(ids.contains(&"local-xai"));
+        assert!(ids.contains(&"local-xvora"));
         assert!(!ids.contains(&"local-other"));
         assert!(ids.contains(&"conv-1"));
     }
@@ -606,6 +610,8 @@ mod tests {
             git_root_dir: None,
             git_remotes: Vec::new(),
             source_workspace_dir: None,
+            last_turn_summary: None,
+            last_recap: None,
             session_kind: None,
         });
         assert!(!reg.extract_all(&local).contains_key(STARRED_FACET_KEY));
@@ -615,7 +621,7 @@ mod tests {
     fn starred_filter_is_partition_aware_keeps_local_rows() {
         let reg = build_facet_registry();
         let rows = vec![
-            local_row("local-1", Some("xai"), Some("main")),
+            local_row("local-1", Some("xvora"), Some("main")),
             conv_row_starred("conv-starred", true),
             conv_row_starred("conv-plain", false),
         ];
@@ -639,18 +645,20 @@ mod tests {
             first_prompt: None,
             updated_at: "2026-06-01T00:00:00Z".into(),
             created_at: "2026-01-01T00:00:00Z".into(),
-            cwd: "/Users/me/xai".into(),
+            cwd: "/Users/me/xvora".into(),
             hostname: None,
             source: "local".into(),
             model_id: None,
             num_messages: 1,
             last_active_at: Some("2026-06-01T00:00:00Z".into()),
             branch: Some("main".into()),
-            repo_name: Some("xai".into()),
+            repo_name: Some("xvora".into()),
             worktree_label: None,
             git_root_dir: git_root.map(Into::into),
             git_remotes: Vec::new(),
             source_workspace_dir: source_ws.map(Into::into),
+            last_turn_summary: None,
+            last_recap: None,
             session_kind: None,
         };
         merged_session_to_row(m, &build_facet_registry())
@@ -674,22 +682,24 @@ mod tests {
             branch: None,
             repo_name: None,
             worktree_label: None,
-            git_root_dir: Some("/Users/me/xai".into()),
+            git_root_dir: Some("/Users/me/xvora".into()),
             git_remotes: Vec::new(),
-            source_workspace_dir: Some("/Users/me/xai-main".into()),
+            source_workspace_dir: Some("/Users/me/xvora-main".into()),
+            last_turn_summary: None,
+            last_recap: None,
             session_kind: Some("worktree".into()),
         });
         let f = reg.extract_all(&local);
         assert!(matches!(
             f.get(GIT_ROOT_FACET_KEY),
-            Some(FacetValue::One(serde_json::Value::String(s))) if s == "/Users/me/xai"
+            Some(FacetValue::One(serde_json::Value::String(s))) if s == "/Users/me/xvora"
         ));
         assert!(matches!(
             f.get(SOURCE_WORKSPACE_FACET_KEY),
-            Some(FacetValue::One(serde_json::Value::String(s))) if s == "/Users/me/xai-main"
+            Some(FacetValue::One(serde_json::Value::String(s))) if s == "/Users/me/xvora-main"
         ));
 
-        // Conversations carry no local git enrichment.
+        // Conversations carry no local git data
         let conv = NormalizedItem::from_conversation(&Conversation {
             conversation_id: "c1".into(),
             ..Conversation::default()
@@ -703,13 +713,13 @@ mod tests {
     fn git_root_filter_keeps_matching_local_rows() {
         let reg = build_facet_registry();
         let rows = vec![
-            local_row_with_git("a", Some("/Users/me/xai"), None),
+            local_row_with_git("a", Some("/Users/me/xvora"), None),
             local_row_with_git("b", Some("/Users/me/other"), None),
         ];
         let mut filters = BTreeMap::new();
         filters.insert(
             GIT_ROOT_FACET_KEY.to_owned(),
-            vec![serde_json::json!("/Users/me/xai")],
+            vec![serde_json::json!("/Users/me/xvora")],
         );
         let kept = reg.apply_in_memory_filters(&filters, rows);
         let ids: Vec<&str> = kept.iter().map(|r| r.legacy.session_id.as_str()).collect();

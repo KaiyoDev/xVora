@@ -3,7 +3,7 @@ license = "Apache-2.0"
 name = "xvora-compaction"
 version = "0.1.0"
 edition.workspace = true
-description = "Shared, transport-agnostic compaction engine for Grok chat and Xvora."
+description = "Shared, transport-agnostic compaction engine for Grok chat and Grok Build."
 
 [dependencies]
 anyhow = { workspace = true }

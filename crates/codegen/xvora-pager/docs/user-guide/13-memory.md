@@ -19,42 +19,28 @@ Memory is experimental and disabled by default.
 
 ## Enabling Memory
 
-### Per-Session Flag
-
-```bash
-grok --experimental-memory
-```
-
 ### Environment Variable
 
 ```bash
-export XVORA_MEMORY=1
+export GROK_MEMORY=1
 grok
 ```
 
 ### Config File (Persistent)
 
 ```toml
-# ~/.xvora/config.toml
+# ~/.grok/config.toml
 [memory]
 enabled = true
 ```
 
 ### Force-Disable
 
-To disable memory even when other settings enable it:
+To disable memory for the process even when TOML or remote settings enable it:
 
 ```bash
-grok --no-memory
+export GROK_MEMORY=0
 ```
-
-Or:
-
-```bash
-export XVORA_MEMORY=0
-```
-
-The `--no-memory` flag has absolute highest priority and always disables memory.
 
 ### Mid-Session Toggle
 
@@ -71,41 +57,41 @@ You can also toggle from inside the `/memory` modal by pressing `t`.
 
 ### Priority Order
 
-1. `--no-memory` CLI flag (always disables)
-2. `--experimental-memory` CLI flag (enables)
-3. `XVORA_MEMORY` env var: `1`/`true` enables, `0`/`false` disables
-4. `[memory]` section in config.toml
+1. Hidden deprecated compatibility flag, when supplied
+2. `GROK_MEMORY` env var: `1`/`true` enables, `0`/`false` disables
+3. `[memory]` section in effective TOML
+4. Managed remote settings
 5. Default: disabled
 
 ---
 
 ## How Memory Is Stored
 
-Memory is stored as Markdown files under `~/.xvora/memory/`:
+Memory is stored as Markdown files under `~/.grok/memory/`:
 
 | Location | Scope | Description |
 |----------|-------|-------------|
-| `~/.xvora/memory/MEMORY.md` | Global | Facts that apply across all your projects |
-| `~/.xvora/memory/<project-slug>-<hash8>/MEMORY.md` | Workspace | Project-specific conventions and context |
-| `~/.xvora/memory/<project-slug>-<hash8>/sessions/` | Sessions | Per-session summaries and logs |
+| `~/.grok/memory/MEMORY.md` | Global | Facts that apply across all your projects |
+| `~/.grok/memory/<project-slug>-<hash8>/MEMORY.md` | Workspace | Project-specific conventions and context |
+| `~/.grok/memory/<project-slug>-<hash8>/sessions/` | Sessions | Per-session summaries and logs |
 
 Grok suffixes each workspace directory with a short hash of the repository's identity. The identity is the `origin` remote in `org/repo` form when the directory is a Git repository with an `origin` remote, or the directory path otherwise. Because clones and worktrees of the same repository share an `origin` remote, they also share one memory directory.
 
-An SQLite index supports hybrid search across all memory files:
-- **FTS5** provides full-text search for keyword matching.
-- **vec0** provides vector search for semantic similarity. Vector search is optional and requires an embedding.
+An SQLite index supports search across all memory files:
+- **FTS5** provides the default full-text search for keyword matching.
+- **vec0** adds vector search for semantic similarity when an embedding model is configured.
 
 ---
 
 ## Automatic Saves
 
-When a session ends, Xvora saves a structured metadata summary to that session's daily log. The summary contains:
+When a session ends, Grok saves a structured metadata summary to that session's daily log. The summary contains:
 
 - Message counts (user, assistant, and tool results).
 - Topics: the first few substantive user prompts from the session, up to five.
 - The session date and time (UTC).
 
-Xvora builds the summary from conversation metadata without an LLM call, without added latency. Xvora skips the save for trivial sessions -- those with fewer than three substantive prompts, or fewer than 50 bytes of user text.
+Grok builds the summary from conversation metadata without an LLM call, without added latency. Grok skips the save for trivial sessions -- those with fewer than three substantive prompts, or fewer than 50 bytes of user text.
 
 The summary does not record tool usage, file paths, or shell commands. The session ID forms part of the log filename. To turn automatic saves off, set `session.save_on_end = false`. For richer capture of decisions, patterns, and reasoning, use `/flush`.
 
@@ -132,7 +118,7 @@ Use `/flush` when you want to preserve important context:
 
 ### Remember
 
-Ask Grok to remember something, and it appends the note to a `MEMORY.md` file -- the workspace file for project-specific items, or the global `~/.xvora/memory/MEMORY.md` for cross-project preferences:
+Ask Grok to remember something, and it appends the note to a `MEMORY.md` file -- the workspace file for project-specific items, or the global `~/.grok/memory/MEMORY.md` for cross-project preferences:
 
 ```
 > remember to always open PR links after pushing
@@ -146,7 +132,7 @@ You can also save a note directly with the `/remember` command:
 /remember always open PR links after pushing
 ```
 
-Run `/remember` with no text to enter remember mode, where the next line you type becomes the note. Either way, Grok opens a review panel showing the note (with an optional rewritten version you can toggle with `Tab`); the note is written only after you confirm. On save, Grok shows `Memory saved to ~/.xvora/memory/MEMORY.md`.
+Run `/remember` with no text to enter remember mode, where the next line you type becomes the note. Either way, Grok opens a review panel showing the note (with an optional rewritten version you can toggle with `Tab`); the note is written only after you confirm. On save, Grok shows `Memory saved to ~/.grok/memory/MEMORY.md`.
 
 ### Forget
 
@@ -156,7 +142,7 @@ Ask Grok to forget something, and it finds and removes the matching entry:
 > forget the snake_case convention
 ```
 
-Forget is best-effort: the model searches memory and removes entries that match. For guaranteed removal, edit the files under `~/.xvora/memory/` directly and delete the entry yourself. To locate a file, open the `/memory` browser and press `y` to copy its path.
+Forget is best-effort: the model searches memory and removes entries that match. For guaranteed removal, edit the files under `~/.grok/memory/` directly and delete the entry yourself. To locate a file, open the `/memory` browser and press `y` to copy its path.
 
 ### Recall
 
@@ -170,7 +156,7 @@ Grok searches across all memory files and summarizes what it knows, grouped by s
 
 ### Direct Editing
 
-You can edit memory files directly under `~/.xvora/memory/`. The file watcher reindexes your changes on the next memory search. Use `/flush` to save the current session now, and `/dream` to consolidate session logs into organized topics.
+You can edit memory files directly under `~/.grok/memory/`. The file watcher reindexes your changes on the next memory search. Use `/flush` to save the current session now, and `/dream` to consolidate session logs into organized topics.
 
 ---
 
@@ -215,7 +201,7 @@ You can also open `/memory` from the command palette.
 When you save a note with `/remember`, Grok confirms in the scrollback:
 
 ```
-Memory saved to ~/.xvora/memory/MEMORY.md
+Memory saved to ~/.grok/memory/MEMORY.md
 ```
 
 Background saves — flush, dream, and session-end — run silently and do not post a scrollback message. Use `/memory` at any time to browse what Grok has stored.
@@ -239,10 +225,9 @@ Dream also runs automatically. By default, Grok checks the consolidation gates w
 ```toml
 [memory.dream]
 enabled = true     # Run automatic consolidation (default: true)
-min_hours = 4      # Minimum hours between consolidations
-min_sessions = 3   # Minimum sessions since the last consolidation
-# check_interval_secs is unset by default, so Dream runs only at session end.
-# Set it to a positive number of seconds to also check on a periodic interval.
+min_hours = 24     # Minimum hours between consolidations
+min_sessions = 5   # Minimum sessions since the last consolidation
+check_interval_secs = 3600 # Also check the gates hourly
 ```
 
 ---
@@ -258,7 +243,7 @@ First-turn injection can be configured:
 ```toml
 [memory.initial_injection]
 enabled = true     # Enable or disable first-turn injection
-min_score = 0.0    # Optional score threshold; unset by default, which applies no filtering
+min_score = 0.9    # Score threshold for first-turn injection
 ```
 
 ### After Compaction
@@ -277,16 +262,12 @@ Read my workspace MEMORY.md
 ```
 
 The model has access to two memory tools:
-- `memory_search` -- Hybrid search across all memory (vector + full-text)
+- `memory_search` -- Search across all memory
 - `memory_get` -- Read a specific memory file by path
 
-### Hybrid Scoring
+### Search Scoring
 
-Memory search uses a weighted combination of:
-- **Vector similarity** (semantic) -- weight: 0.7
-- **BM25 text similarity** (keyword) -- weight: 0.3
-
-Results are filtered by a minimum score threshold (default: 0.35).
+The default embedding model is unset, so memory starts in full-text-only mode. If you configure an embedding model, search combines vector similarity (weight `0.7`) with BM25 text similarity (weight `0.3`). Results are filtered by a minimum score threshold (default: `0.7`).
 
 ### Source Weights
 
@@ -305,7 +286,7 @@ Session memories decay over time so recent sessions are prioritized:
 ```toml
 [memory.search.temporal_decay]
 enabled = true           # Enable time-based decay
-half_life_days = 7.0     # Score halves after this many days
+half_life_days = 30.0    # Score halves after this many days
 ```
 
 Only session chunks decay. Global and workspace memories are exempt since they contain curated long-term knowledge.
@@ -316,7 +297,7 @@ MMR re-ranking penalizes redundant results to improve diversity:
 
 ```toml
 [memory.search.mmr]
-enabled = false          # Opt-in diversity re-ranking
+enabled = true           # Enable diversity re-ranking
 lambda = 0.7             # 0.0 = max diversity, 1.0 = pure relevance
 ```
 
@@ -343,7 +324,7 @@ grok memory clear --all
 grok memory clear --yes
 ```
 
-To edit memory from the shell, open the files in your editor directly -- for example, `$EDITOR ~/.xvora/memory/MEMORY.md`.
+To edit memory from the shell, open the files in your editor directly -- for example, `$EDITOR ~/.grok/memory/MEMORY.md`.
 
 ---
 
@@ -355,7 +336,7 @@ To edit memory from the shell, open the files in your editor directly -- for exa
 |-----|---------|-------------|
 | `enabled` | `false` | Enable memory |
 | `session.save_on_end` | `true` | Write metadata summary on session end |
-| `watcher.enabled` | `true` | Watch `~/.xvora/memory/` for external edits and reindex |
+| `watcher.enabled` | `true` | Watch `~/.grok/memory/` for external edits and reindex |
 
 ### Index Settings (`[memory.index]`)
 
@@ -369,7 +350,7 @@ To edit memory from the shell, open the files in your editor directly -- for exa
 | Key | Default | Description |
 |-----|---------|-------------|
 | `provider` | `"api"` | Embedding provider (currently `"api"`) |
-| `model` | *(provider default)* | Embedding model name |
+| `model` | unset | Embedding model name. Unset or `""` uses full-text-only retrieval. |
 | `dimensions` | `1024` | Embedding vector dimensions |
 
 ### Search Settings (`[memory.search]`)
@@ -377,7 +358,7 @@ To edit memory from the shell, open the files in your editor directly -- for exa
 | Key | Default | Description |
 |-----|---------|-------------|
 | `max_results` | `6` | Maximum search results |
-| `min_score` | `0.35` | Minimum relevance score |
+| `min_score` | `0.7` | Minimum relevance score |
 | `vector_weight` | `0.7` | Weight for vector similarity |
 | `text_weight` | `0.3` | Weight for BM25 text similarity |
 
@@ -386,17 +367,17 @@ To edit memory from the shell, open the files in your editor directly -- for exa
 | Key | Default | Description |
 |-----|---------|-------------|
 | `enabled` | `true` | Enable first-turn memory injection |
-| `min_score` | unset | Score threshold for first-turn results. When unset, Grok applies no threshold, which is equivalent to `0.0`. |
+| `min_score` | `0.9` | Score threshold for first-turn results |
 
 ### Dream Settings (`[memory.dream]`)
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `enabled` | `true` | Enable automatic Dream consolidation |
-| `min_hours` | `4` | Minimum hours between consolidations |
-| `min_sessions` | `3` | Minimum sessions since the last consolidation |
+| `min_hours` | `24` | Minimum hours between consolidations |
+| `min_sessions` | `5` | Minimum sessions since the last consolidation |
 | `stale_lock_secs` | `3600` | Seconds before a stale consolidation lock is reclaimed |
-| `check_interval_secs` | unset | Periodic check interval in seconds. When unset, Dream runs only at session end. |
+| `check_interval_secs` | `3600` | Periodic Dream-gate check interval in seconds. Set `0` to disable periodic checks. |
 
 ### Flush Settings (`[compaction.memory_flush]`)
 
@@ -407,8 +388,8 @@ You configure flush under `[compaction]`, not `[memory]`, because it is a compac
 | `enabled` | `true` | Enable the pre-compaction memory flush |
 | `soft_threshold_tokens` | `4000` | Token headroom before the compact threshold that triggers a flush |
 | `max_flush_write_chars` | `8000` | Maximum characters the flush may write to memory |
-| `flush_model` | unset | Model for the flush turn. When unset, Grok uses the session's primary model. |
-| `idle_timeout_secs` | unset | Idle seconds before a background flush. When unset, flush runs only before compaction. |
+| `flush_model` | unset | Model for the flush turn. When unset or `""`, Grok uses the session's primary model. |
+| `idle_timeout_secs` | `300` | Idle seconds before a background flush. Set `0` to disable idle flushes. |
 | `semantic_dedup_threshold` | unset | Cosine-similarity threshold for de-duplicating flushed content. When unset, defaults to `0.92`. |
 
 ### Pruning Settings (`[compaction.pruning]`)
@@ -434,7 +415,7 @@ When a session memory is old, Grok attaches a staleness note to it in search res
 
 ## File Watcher
 
-By default, Grok watches `~/.xvora/memory/` for external file changes. If you edit memory files directly (e.g., in your editor), the changes are picked up automatically on the next memory search:
+By default, Grok watches `~/.grok/memory/` for external file changes. If you edit memory files directly (e.g., in your editor), the changes are picked up automatically on the next memory search:
 
 - Created or modified files are reindexed.
 - Deleted files have their stale chunks removed from the index.
@@ -450,9 +431,9 @@ enabled = true    # default
 
 ### Memory Not Working
 
-1. Verify memory is enabled: check `xvora inspect` output.
-2. Check the flag: `grok --experimental-memory` or `XVORA_MEMORY=1`.
-3. Check for `--no-memory` or `XVORA_MEMORY=0` overriding your config.
+1. Verify memory is enabled: check `grok inspect` output.
+2. Check `GROK_MEMORY` or `[memory] enabled` in effective TOML.
+3. Check for `GROK_MEMORY=0` or a deprecated compatibility flag overriding config.
 
 ### Memory Not Appearing in Sessions
 
@@ -463,14 +444,14 @@ Memory is injected on the first turn. If you started a session before enabling m
 Use `/memory` in the TUI to browse all memory files with a preview. You can also access them directly:
 
 ```bash
-ls ~/.xvora/memory/
-cat ~/.xvora/memory/MEMORY.md
-$EDITOR ~/.xvora/memory/MEMORY.md
+ls ~/.grok/memory/
+cat ~/.grok/memory/MEMORY.md
+$EDITOR ~/.grok/memory/MEMORY.md
 ```
 
 ### Debug Logging
 
 ```bash
-RUST_LOG=debug XVORA_LOG_FILE=/tmp/grok.log grok
+RUST_LOG=debug GROK_LOG_FILE=/tmp/grok.log grok
 grep "memory" /tmp/grok.log
 ```

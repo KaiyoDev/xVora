@@ -1,7 +1,5 @@
-//! gRPC transport coverage for the external OTEL stream. This mirrors the
-//! primary HTTP/protobuf wire test in `external_otlp.rs`, but must live in its
-//! own integration-test binary because the external telemetry registry is a
-//! process-global `OnceLock`.
+//! gRPC transport coverage for the external OTEL stream, mirroring the primary HTTP/protobuf wire test in `external_otlp.rs`.
+//! It lives in its own integration-test binary because the external telemetry registry is a process-global `OnceLock`.
 
 mod otlp_collector;
 
@@ -19,7 +17,7 @@ fn external_stream_grpc_end_to_end() {
 
     let mut cfg = xvora_telemetry::external::ExternalOtelConfig::resolve_with(
         |name| match name {
-            "XVORA_EXTERNAL_OTEL" => Some("1".into()),
+            "GROK_EXTERNAL_OTEL" => Some("1".into()),
             "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
             "OTEL_EXPORTER_OTLP_ENDPOINT" => Some(endpoint.clone()),
             "OTEL_EXPORTER_OTLP_PROTOCOL" => Some("grpc".into()),
@@ -48,9 +46,9 @@ fn external_stream_grpc_end_to_end() {
     });
     xvora_telemetry::log_event(xvora_telemetry::events::SessionHarness {
         session_id: "sess-grpc-1".into(),
-        client_identifier: Some("xvora-pager".into()),
+        client_identifier: Some("grok-pager".into()),
         model_id: "grok-4".into(),
-        agent_name: "xvora-plan".into(),
+        agent_name: "grok-build-plan".into(),
         permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![CANARY_MCP.into()],
         plugin_names: vec![],
@@ -59,6 +57,7 @@ fn external_stream_grpc_end_to_end() {
         hook_names: vec![],
         agents_md_dir_names: vec![],
         memory_enabled: false,
+        memory_retrieval_mode: xvora_telemetry::events::MemoryRetrievalMode::Disabled,
         is_git_repo: true,
         auto_update: None,
     });
@@ -77,6 +76,8 @@ fn external_stream_grpc_end_to_end() {
         completion_tokens: Some(7),
         reasoning_tokens: None,
         cached_prompt_tokens: None,
+        cache_creation_tokens: None,
+        cost_usd_ticks: None,
     });
 
     xvora_telemetry::external::flush();

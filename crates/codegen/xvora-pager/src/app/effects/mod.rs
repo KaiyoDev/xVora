@@ -1,29 +1,33 @@
 #![cfg_attr(rustfmt, rustfmt::skip)]
-//! Async effect execution.
-//!
-//! This module takes [`Effect`] values produced by [`super::dispatch`] and
-//! spawns them as async tasks on a [`JoinSet`].  When tasks complete,
-//! the event loop converts their output into [`TaskResult`] and feeds it
-//! back through dispatch.
+//! This module takes [`Effect`] values produced by [`super::dispatch`] and spawns them as async tasks on a [`JoinSet`].
+//! When tasks complete, the event loop converts their output into [`TaskResult`] and feeds it back through dispatch.
 mod helpers;
 use super::actions;
+use super::session_title_resolve::worktree_resume_failure_message;
 #[allow(unused_imports)]
 use super::{agent, dispatch};
-pub use helpers::ConversationsPartial;
-pub(super) use helpers::parse_session_load_running_prompt_id;
-pub(crate) use helpers::{
-    EffectMeta, RestoreProgressMsg, SessionFlags, persist_permission_mode_and_notify,
-    persist_setting, sanitize_user_error,
+pub use helpers::{CompactError, ConversationsPartial};
+pub(super) use helpers::{
+    parse_session_load_running_prompt_id, parse_session_scheduler_background_loops,
 };
+pub(crate) use helpers::{
+    EffectMeta, RestoreProgressMsg, SessionFlags, compact_error, is_disk_full_error,
+    persist_permission_mode_and_notify, persist_setting, sanitize_user_error,
+};
+#[cfg(feature = "local-workspace")]
+pub(crate) use helpers::reject_non_fs_only_advertised_tools;
 use helpers::*;
 use std::path::{Path, PathBuf};
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use acp_lib::{AcpAgentTx, acp_send};
+use xvora_acp_lib::{AcpAgentTx, acp_send};
+use xvora_telemetry::startup::{self, StartupPhase};
 use actions::{
     ClipboardPasteTarget, Effect, ProbedAttachment, SubagentKillOutcome,
-    SwitchModelError, TaskResult,
+    SwitchModelError, TaskResult, WorkspaceMemberUpsertFailure,
 };
+use actions::PermissionModeKind;
+use crate::views::usage_modal::SessionInfoField;
 #[cfg(test)]
 use actions::PermissionModePersist;
 #[cfg(test)]
@@ -31,6 +35,17 @@ use agent::AgentId;
 use crate::unified_log as ulog;
 use xvora_shell::sampling::error::http_status_from_error;
 use xvora_shell::session::{ExtMethodResult, SessionInfoResponse};
+fn apply_permission_mode_override(
+    meta: &mut Option<acp::Meta>,
+    permission_mode_override: Option<PermissionModeKind>,
+) {
+    let Some(mode) = permission_mode_override else {
+        return;
+    };
+    let meta = meta.get_or_insert_with(acp::Meta::new);
+    meta.insert("yoloMode".into(), serde_json::Value::Bool(mode.is_always_approve()));
+    meta.insert("autoMode".into(), serde_json::Value::Bool(mode.is_auto()));
+}
 pub(crate) fn execute(
     effect: Effect,
     tasks: &mut JoinSet<TaskResult>,
@@ -44,13 +59,13 @@ pub(crate) fn execute(
     match effect {
         Effect::RegisterActiveSession { session_id, cwd } => {
             crate::app::signal_handler::set_current_session_id(Some(session_id.clone()));
-            if let Err(e) = xvora_shell::active_sessions::register(xvora_shell::active_sessions::ActiveSession {
+            if let Err(e) = xvora_active_sessions::register(xvora_active_sessions::ActiveSession {
                 session_id,
                 pid: std::process::id(),
                 cwd,
                 opened_at: chrono::Utc::now(),
             }) {
-                tracing::warn!(? e, "Failed to register active session");
+                tracing::warn!(?e, "Failed to register active session");
             }
         }
         Effect::UnregisterActiveSession { session_id } => {
@@ -63,14 +78,26 @@ pub(crate) fn execute(
         }
         Effect::SetWorkingDir { path } => {
             if let Err(e) = std::env::set_current_dir(&path) {
-                tracing::warn!(error = % e, "project picker: failed to set_current_dir");
+                tracing::warn!(error = %e, "change location: failed to set_current_dir");
             }
         }
-        Effect::ScheduleClearAuthCopied => {
+        Effect::RunStatusLineCommand(run) => {
             tasks
-                .spawn(async {
+                .spawn(async move {
+                    let (id, outcome) = run.execute().await;
+                    TaskResult::StatusLineCommandFinished {
+                        id,
+                        outcome,
+                    }
+                });
+        }
+        Effect::ScheduleClearAuthCopyFeedback { generation } => {
+            tasks
+                .spawn(async move {
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                    TaskResult::AuthCopiedTimeout
+                    TaskResult::AuthCopyFeedbackTimeout {
+                        generation,
+                    }
                 });
         }
         Effect::Logout => {
@@ -80,6 +107,10 @@ pub(crate) fn execute(
                     send_logout(&tx).await;
                     TaskResult::LogoutComplete
                 });
+        }
+        Effect::CancelAuth { request_seq } => {
+            let tx = acp_tx.clone();
+            tasks.spawn(async move { send_auth_cancel(&tx, request_seq).await });
         }
         Effect::CheckSubscription { verify } => {
             let tx = acp_tx.clone();
@@ -120,6 +151,7 @@ pub(crate) fn execute(
             agent_id,
             cwd: session_cwd,
             model_id,
+            permission_mode_override,
             preferred_session_id,
             chat_kind,
         } => {
@@ -132,10 +164,9 @@ pub(crate) fn execute(
             let mcp_count = mcp_servers.len();
             #[allow(unused_mut)]
             let mut meta = session_flags.to_meta();
+            apply_permission_mode_override(&mut meta, permission_mode_override);
             let is_chat_path = chat_kind || session_flags.chat_mode;
-            if is_chat_path {
-                apply_chat_kind_meta(&mut meta);
-            }
+            finalize_chat_session_meta(&mut meta, is_chat_path, session_flags);
             if let Some(ref mid) = model_id {
                 meta.get_or_insert_with(acp::Meta::new)
                     .insert("modelId".into(), serde_json::json!(mid.0));
@@ -162,17 +193,19 @@ pub(crate) fn execute(
                             };
                         }
                     }
+                    let _phase = startup::phase_scope(StartupPhase::SessionCreate);
                     ulog::info(
                         "session.create.start",
                         None,
-                        Some(serde_json::json!({ "mcp_server_count" : mcp_count })),
+                        Some(serde_json::json!({"mcp_server_count": mcp_count})),
                     );
                     let create_start = std::time::Instant::now();
-                    let result = acp_send(
+                    let result = helpers::acp_send_bounded(
                             acp::NewSessionRequest::new(session_cwd.clone())
                                 .mcp_servers(mcp_servers)
                                 .meta(meta),
                             &tx,
+                            "Session creation",
                         )
                         .await;
                     let create_elapsed_ms = create_start.elapsed().as_millis() as u64;
@@ -182,16 +215,19 @@ pub(crate) fn execute(
                                 "session.create.done",
                                 Some(&resp.session_id.0),
                                 Some(
-                                    serde_json::json!(
-                                        { "elapsed_ms" : create_elapsed_ms, "mcp_server_count" :
-                                        mcp_count, }
-                                    ),
+                                    serde_json::json!({
+                                "elapsed_ms": create_elapsed_ms,
+                                "mcp_server_count": mcp_count,
+                            }),
                                 ),
                             );
                             TaskResult::SessionCreated {
                                 agent_id,
                                 session_id: resp.session_id,
                                 models: resp.models,
+                                scheduler_background_loops: parse_session_scheduler_background_loops(
+                                    resp.meta.as_ref(),
+                                ),
                             }
                         }
                         Err(e) => {
@@ -200,9 +236,10 @@ pub(crate) fn execute(
                                 "session.create.failed",
                                 None,
                                 Some(
-                                    serde_json::json!(
-                                        { "elapsed_ms" : create_elapsed_ms, "error" : & error, }
-                                    ),
+                                    serde_json::json!({
+                                "elapsed_ms": create_elapsed_ms,
+                                "error": &error,
+                            }),
                                 ),
                             );
                             TaskResult::SessionFailed {
@@ -219,19 +256,19 @@ pub(crate) fn execute(
             label,
             git_ref,
             model_id,
+            permission_mode_override,
             preferred_session_id,
             chat_kind,
         } => {
             let tx = acp_tx.clone();
             let cwd = cwd.to_path_buf();
             let mut meta = session_flags.to_meta();
-            if chat_kind || session_flags.chat_mode {
-                meta.get_or_insert_with(acp::Meta::new)
-                    .insert(
-                        "x.ai/session".into(),
-                        serde_json::json!({ "kind" : "chat" }),
-                    );
-            }
+            apply_permission_mode_override(&mut meta, permission_mode_override);
+            finalize_chat_session_meta(
+                &mut meta,
+                chat_kind || session_flags.chat_mode,
+                session_flags,
+            );
             if let Some(ref mid) = model_id {
                 meta.get_or_insert_with(acp::Meta::new)
                     .insert("modelId".into(), serde_json::json!(mid.0));
@@ -241,13 +278,19 @@ pub(crate) fn execute(
                     .insert("sessionId".into(), serde_json::json!(sid));
             }
             let restore_code = session_flags.restore_code;
+            let resume_local_miss = session_flags.resume_local_miss.clone();
             tracing::info!(
-                ? restore_code, ? load_session_id, ? git_ref,
+                ?restore_code,
+                ?load_session_id,
+                ?git_ref,
                 "CreateWorktreeSession: restore_code, load_session_id, git_ref"
             );
             tasks
                 .spawn(async move {
                     if let Some(sid) = load_session_id {
+                        let local_miss = resume_local_miss
+                            .as_deref()
+                            .filter(|t| *t == sid);
                         let resume_started = std::time::Instant::now();
                         let wt_type = xvora_shell::util::config::worktree_type();
                         let copy_mode = if git_ref.is_some() {
@@ -255,10 +298,12 @@ pub(crate) fn execute(
                         } else {
                             "dirty"
                         };
-                        let mut payload = serde_json::json!(
-                            { "sessionId" : sid, "sourceCwd" : cwd.to_string_lossy(),
-                            "copyMode" : copy_mode, "worktreeType" : wt_type, }
-                        );
+                        let mut payload = serde_json::json!({
+                        "sessionId": sid,
+                        "sourceCwd": cwd.to_string_lossy(),
+                        "copyMode": copy_mode,
+                        "worktreeType": wt_type,
+                    });
                         if let Some(rc) = restore_code {
                             payload["restoreCode"] = serde_json::Value::Bool(rc);
                         }
@@ -271,25 +316,34 @@ pub(crate) fn execute(
                                 .expect("serialize resume params")
                                 .into(),
                         );
-                        let ext_resp = match acp_send(ext_req, &tx).await {
+                        let _phase = startup::phase_scope(StartupPhase::SessionCreate);
+                        let ext_resp = match helpers::acp_send_bounded(
+                                ext_req,
+                                &tx,
+                                "Worktree session resume",
+                            )
+                            .await
+                        {
                             Ok(resp) => {
                                 tracing::info!(
-                                    session_id = % sid, elapsed_ms = resume_started.elapsed()
-                                    .as_millis() as u64,
-                                    "worktree resume_session: ACP call completed"
-                                );
+                                session_id = %sid,
+                                elapsed_ms = resume_started.elapsed().as_millis() as u64,
+                                "worktree resume_session: ACP call completed"
+                            );
                                 resp
                             }
                             Err(e) => {
                                 tracing::warn!(
-                                    session_id = % sid, elapsed_ms = resume_started.elapsed()
-                                    .as_millis() as u64, error = % e,
-                                    "worktree resume_session: ACP call failed"
-                                );
+                                session_id = %sid,
+                                elapsed_ms = resume_started.elapsed().as_millis() as u64,
+                                error = %e,
+                                "worktree resume_session: ACP call failed"
+                            );
                                 return TaskResult::WorktreeSessionFailed {
                                     agent_id,
-                                    error: sanitize_user_error(
-                                        &format!("couldn't resume worktree session: {e}"),
+                                    error: worktree_resume_failure_message(
+                                        local_miss,
+                                        &sanitize_user_error(&e.to_string()),
                                     ),
                                 };
                             }
@@ -301,8 +355,9 @@ pub(crate) fn execute(
                             Err(e) => {
                                 return TaskResult::WorktreeSessionFailed {
                                     agent_id,
-                                    error: sanitize_user_error(
-                                        &format!("couldn't resume worktree session: {e}"),
+                                    error: worktree_resume_failure_message(
+                                        local_miss,
+                                        &sanitize_user_error(&e.to_string()),
                                     ),
                                 };
                             }
@@ -317,8 +372,9 @@ pub(crate) fn execute(
                                 .unwrap_or_else(|| err.to_string());
                             return TaskResult::WorktreeSessionFailed {
                                 agent_id,
-                                error: sanitize_user_error(
-                                    &format!("couldn't resume worktree session: {msg}"),
+                                error: worktree_resume_failure_message(
+                                    local_miss,
+                                    &sanitize_user_error(&msg),
                                 ),
                             };
                         }
@@ -348,21 +404,20 @@ pub(crate) fn execute(
                             code_restored,
                             restore_summary,
                             restore_degree,
+                            resume_session_id: Some(sid),
                         };
                     }
                     let worktree_id = preferred_session_id
                         .clone()
                         .unwrap_or_else(|| {
-                            format!(
-                                "pager-{}", & uuid::Uuid::new_v4().simple().to_string()
-                                [..12]
-                            )
+                            format!("pager-{}", &uuid::Uuid::new_v4().simple().to_string()[..12])
                         });
                     let copy_mode = if git_ref.is_some() { "clean" } else { "dirty" };
-                    let mut params = serde_json::json!(
-                        { "sourceWorktreePath" : cwd.to_string_lossy(), "newSessionId" :
-                        worktree_id, "copyMode" : copy_mode, }
-                    );
+                    let mut params = serde_json::json!({
+                    "sourceWorktreePath": cwd.to_string_lossy(),
+                    "newSessionId": worktree_id,
+                    "copyMode": copy_mode,
+                });
                     if let Some(ref lbl) = label {
                         params["label"] = serde_json::Value::String(lbl.clone());
                     }
@@ -460,11 +515,13 @@ pub(crate) fn execute(
                         &session_cwd,
                         &xvora_tools::types::compat::CompatConfig::default(),
                     );
-                    let result = acp_send(
+                    let _phase = startup::phase_scope(StartupPhase::SessionCreate);
+                    let result = helpers::acp_send_bounded(
                             acp::NewSessionRequest::new(session_cwd.clone())
                                 .mcp_servers(mcp_servers)
                                 .meta(meta),
                             &tx,
+                            "Worktree session creation",
                         )
                         .await;
                     match result {
@@ -475,13 +532,18 @@ pub(crate) fn execute(
                                 worktree_path: worktree_root,
                                 session_cwd,
                                 models: resp.models,
+                                scheduler_background_loops: parse_session_scheduler_background_loops(
+                                    resp.meta.as_ref(),
+                                ),
                             }
                         }
                         Err(e) => {
                             TaskResult::WorktreeSessionFailed {
                                 agent_id,
                                 error: sanitize_user_error(
-                                    &format!("couldn't create session in worktree: {e}"),
+                                    &format!(
+                            "couldn't create session in worktree: {e}"
+                        ),
                                 ),
                             }
                         }
@@ -492,13 +554,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             let mut meta = session_flags.to_meta();
             let is_chat_path = chat_kind || session_flags.chat_mode;
-            if is_chat_path {
-                apply_chat_kind_meta(&mut meta);
-                scrub_chat_workspace_bind_meta(&mut meta);
-            }
-            if let Some(true) = session_flags.restore_code {
+            finalize_chat_session_meta(&mut meta, is_chat_path, session_flags);
+            if let Some(rc) = session_flags.restore_code {
                 meta.get_or_insert_with(acp::Meta::new)
-                    .insert("x.ai/restore_code".into(), serde_json::Value::Bool(true));
+                    .insert("x.ai/restore_code".into(), serde_json::Value::Bool(rc));
             }
             let cwd = session_cwd.unwrap_or_else(|| cwd.to_path_buf());
             let mcp_started = std::time::Instant::now();
@@ -507,15 +566,17 @@ pub(crate) fn execute(
                 &xvora_tools::types::compat::CompatConfig::default(),
             );
             tracing::info!(
-                elapsed_ms = mcp_started.elapsed().as_millis() as u64, server_count =
-                mcp_servers.len(), "load_session: mcp server discovery"
+                elapsed_ms = mcp_started.elapsed().as_millis() as u64,
+                server_count = mcp_servers.len(),
+                "load_session: mcp server discovery"
             );
             let acp_session_id = acp::SessionId::new(session_id);
             tasks
                 .spawn(async move {
+                    let _phase = startup::phase_scope(StartupPhase::SessionCreate);
                     ulog::info("session.load.start", Some(&acp_session_id.0), None);
                     let load_started = std::time::Instant::now();
-                    let result = acp_send(
+                    let result = helpers::acp_send_bounded(
                             acp::LoadSessionRequest::new(
                                     acp_session_id.clone(),
                                     cwd.clone(),
@@ -523,19 +584,22 @@ pub(crate) fn execute(
                                 .mcp_servers(mcp_servers.clone())
                                 .meta(meta.clone()),
                             &tx,
+                            "Session loading",
                         )
                         .await;
                     let load_elapsed_ms = load_started.elapsed().as_millis() as u64;
                     tracing::info!(
-                        session_id = % acp_session_id.0, elapsed_ms = load_elapsed_ms, ok
-                        = result.is_ok(), "load_session: acp load_session completed"
-                    );
+                    session_id = %acp_session_id.0,
+                    elapsed_ms = load_elapsed_ms,
+                    ok = result.is_ok(),
+                    "load_session: acp load_session completed"
+                );
                     match result {
                         Ok(resp) => {
                             ulog::info(
                                 "session.load.done",
                                 Some(&acp_session_id.0),
-                                Some(serde_json::json!({ "elapsed_ms" : load_elapsed_ms })),
+                                Some(serde_json::json!({"elapsed_ms": load_elapsed_ms})),
                             );
                             let (code_restored, restore_summary, restore_degree) = parse_session_load_restore_meta(
                                 resp.meta.as_ref(),
@@ -551,6 +615,9 @@ pub(crate) fn execute(
                                 restore_summary,
                                 restore_degree,
                                 running_prompt_id,
+                                scheduler_background_loops: parse_session_scheduler_background_loops(
+                                    resp.meta.as_ref(),
+                                ),
                             }
                         }
                         Err(e) => {
@@ -559,9 +626,7 @@ pub(crate) fn execute(
                                 "session.load.failed",
                                 Some(&acp_session_id.0),
                                 Some(
-                                    serde_json::json!(
-                                        { "elapsed_ms" : load_elapsed_ms, "error" : & error }
-                                    ),
+                                    serde_json::json!({"elapsed_ms": load_elapsed_ms, "error": &error}),
                                 ),
                             );
                             TaskResult::SessionLoadFailed {
@@ -573,7 +638,7 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::ScanForeignSessions { cwd, compat, xvora_home, coordinator, seq } => {
+        Effect::ScanForeignSessions { cwd, compat, grok_home, coordinator, seq } => {
             if coordinator.latest_seq() != seq {
                 return (false, meta);
             }
@@ -595,7 +660,7 @@ pub(crate) fn execute(
                     }
                     let enabled = crate::app::foreign_sessions::gated_sources_async(
                             compat,
-                            &xvora_home,
+                            &grok_home,
                         )
                         .await;
                     if latest_seq.load(std::sync::atomic::Ordering::Acquire) != seq
@@ -608,14 +673,14 @@ pub(crate) fn execute(
                     }
                     let summaries = tokio::task::spawn_blocking(move || {
                             let _permit = permit;
-                            xvora_workspace::foreign_sessions::scan_foreign_sessions(
+                            xvora_foreign_sessions::scan_foreign_sessions(
                                 &cwd,
                                 enabled,
                             )
                         })
                         .await
                         .unwrap_or_else(|error| {
-                            tracing::warn!(% error, "foreign session scan task failed");
+                            tracing::warn!(%error, "foreign session scan task failed");
                             Vec::new()
                         });
                     let entries = summaries
@@ -638,9 +703,7 @@ pub(crate) fn execute(
                         })
                         .await
                         .unwrap_or_else(|error| {
-                            tracing::warn!(
-                                % error, "foreign resume cwd canonicalization task failed"
-                            );
+                            tracing::warn!(%error, "foreign resume cwd canonicalization task failed");
                             None
                         });
                     TaskResult::ForeignResumeCwdCanonicalized {
@@ -653,7 +716,7 @@ pub(crate) fn execute(
         Effect::DetectForeignResumeHint {
             canonical_cwd,
             compat,
-            xvora_home,
+            grok_home,
             launch_token,
         } => {
             tasks
@@ -661,18 +724,16 @@ pub(crate) fn execute(
                     let cwd_for_scan = canonical_cwd.clone();
                     let recent = crate::app::foreign_sessions::with_gated_sources_async(
                             compat,
-                            &xvora_home,
+                            &grok_home,
                             |enabled| async move {
-                                tokio::task::spawn_blocking(move || xvora_workspace::foreign_sessions::most_recent_foreign_session(
+                                tokio::task::spawn_blocking(move || xvora_foreign_sessions::most_recent_foreign_session(
                                         &cwd_for_scan,
                                         enabled,
                                         crate::app::foreign_sessions::RESUME_HINT_WINDOW,
                                     ))
                                     .await
                                     .unwrap_or_else(|error| {
-                                        tracing::warn!(
-                                            % error, "foreign resume detection task failed"
-                                        );
+                                        tracing::warn!(%error, "foreign resume detection task failed");
                                         None
                                     })
                             },
@@ -686,16 +747,42 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::FetchSessionList { query, seq } => {
+        Effect::FetchSessionList {
+            host,
+            generation,
+            query,
+            seq,
+            kind_filter,
+            headless_policy,
+        } => {
             let tx = acp_tx.clone();
             let cwd = cwd.to_path_buf();
             tasks
                 .spawn(async move {
-                    let mut params = serde_json::json!(
-                        { "cwd" : cwd.to_string_lossy(), "limit" : 30, }
-                    );
+                    let mut params = serde_json::json!({
+                    "cwd": cwd.to_string_lossy(),
+                    "limit": 30,
+                    "headless": headless_policy.as_wire_str(),
+                });
                     if let Some(q) = &query {
                         params["query"] = serde_json::Value::String(q.clone());
+                    } else {
+                        params["allowRelax"] = serde_json::Value::Bool(true);
+                    }
+                    if let Some(kinds) = &kind_filter {
+                        params["_meta"] = serde_json::json!({
+                        "x.ai/facetFilters": { "kind": kinds },
+                    });
+                        tracing::info!(
+                        target: "grok.pager.workspace_mode",
+                        event = "session_list_fetch",
+                        kind_filter = ?kinds,
+                        query = ?query,
+                        ?host,
+                        generation,
+                        seq,
+                        "FetchSessionList with kind facet filter"
+                    );
                     }
                     let request = acp::ExtRequest::new(
                         "x.ai/session/list",
@@ -712,6 +799,8 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             if let Some(err) = wrapper.get("error") {
                                 return TaskResult::SessionListFailed {
+                                    host,
+                                    generation,
                                     error: err.as_str().unwrap_or("unknown error").to_string(),
                                     seq,
                                     query,
@@ -720,15 +809,21 @@ pub(crate) fn execute(
                             let payload = wrapper.get("result").unwrap_or(&wrapper);
                             let sessions = parse_session_picker_entries(payload);
                             let partial = parse_session_list_partial(payload);
+                            let scope = parse_session_list_scope(payload);
                             TaskResult::SessionListLoaded {
+                                host,
+                                generation,
                                 sessions,
                                 partial,
+                                scope,
                                 seq,
                                 query,
                             }
                         }
                         Err(e) => {
                             TaskResult::SessionListFailed {
+                                host,
+                                generation,
                                 error: sanitize_user_error(&format!("{e}")),
                                 seq,
                                 query,
@@ -737,7 +832,7 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::DebounceSessionSearch { query, seq } => {
+        Effect::DebounceSessionSearch { host, generation, query, seq } => {
             tasks
                 .spawn(async move {
                     tokio::time::sleep(
@@ -745,6 +840,8 @@ pub(crate) fn execute(
                         )
                         .await;
                     TaskResult::SessionSearchDebounceExpired {
+                        host,
+                        generation,
                         query,
                         seq,
                     }
@@ -772,9 +869,7 @@ pub(crate) fn execute(
                                     }
                                 }
                                 None => {
-                                    tracing::warn!(
-                                        "failed to parse x.ai/sessions/list response"
-                                    );
+                                    tracing::warn!("failed to parse x.ai/sessions/list response");
                                     TaskResult::RosterFailed {
                                         error: "parse error".to_string(),
                                     }
@@ -794,9 +889,12 @@ pub(crate) fn execute(
             let cwd = cwd.to_path_buf();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "cwd" : cwd.to_string_lossy(), "limit" : 30, }
-                    );
+                    let params = serde_json::json!({
+                    "cwd": cwd.to_string_lossy(),
+                    "limit": 30,
+                    "headless": xvora_shell::session::unified_list::HeadlessPolicy::Exclude
+                        .as_wire_str(),
+                });
                     let request = acp::ExtRequest::new(
                         "x.ai/session/list",
                         serde_json::value::to_raw_value(&params)
@@ -826,6 +924,86 @@ pub(crate) fn execute(
                         Err(_) => {
                             TaskResult::DashboardSessionsLoaded {
                                 sessions: vec![],
+                            }
+                        }
+                    }
+                });
+        }
+        Effect::LoadWorkspaceSnapshot { db_path } => {
+            tasks
+                .spawn(async move {
+                    match tokio::task::spawn_blocking(move || {
+                            let store = xvora_dashboard_store::WorkspaceStore::open(
+                                &db_path,
+                            )?;
+                            let snapshot = store.snapshot()?;
+                            Ok::<
+                                _,
+                                xvora_dashboard_store::StoreError,
+                            >((store, snapshot))
+                        })
+                        .await
+                    {
+                        Ok(Ok((store, snapshot))) => {
+                            TaskResult::WorkspaceSnapshotLoaded {
+                                store,
+                                snapshot,
+                            }
+                        }
+                        Ok(Err(error)) => {
+                            TaskResult::WorkspaceSnapshotFailed {
+                                error: error.to_string(),
+                            }
+                        }
+                        Err(error) => {
+                            TaskResult::WorkspaceSnapshotFailed {
+                                error: format!("workspace loader task failed: {error}"),
+                            }
+                        }
+                    }
+                });
+        }
+        Effect::UpsertWorkspaceMembers { store, members } => {
+            let db_path = store.path().to_path_buf();
+            tasks
+                .spawn(async move {
+                    match tokio::task::spawn_blocking(move || {
+                            let mut store = store;
+                            let mut failures = Vec::new();
+                            for member in members.iter().cloned() {
+                                let session_id = member.key.session_id.to_string();
+                                if let Err(error) = store.insert_member(member) {
+                                    let retryable = matches!(
+                                &error,
+                                xvora_dashboard_store::StoreError::Busy { .. }
+                            );
+                                    failures
+                                        .push(WorkspaceMemberUpsertFailure {
+                                            session_id,
+                                            error: error.to_string(),
+                                            retryable,
+                                        });
+                                }
+                            }
+                            let snapshot = store
+                                .snapshot()
+                                .map_err(|error| error.to_string());
+                            (store, snapshot, failures, members)
+                        })
+                        .await
+                    {
+                        Ok((store, snapshot, failures, attempted)) => {
+                            TaskResult::WorkspaceMembersUpserted {
+                                store,
+                                snapshot,
+                                failures,
+                                attempted,
+                            }
+                        }
+                        Err(error) => {
+                            TaskResult::WorkspaceMembersUpsertTaskFailed {
+                                db_path,
+                                error: format!("workspace writer task failed: {error}"),
                             }
                         }
                     }
@@ -861,13 +1039,14 @@ pub(crate) fn execute(
                         Some(auth_manager.clone()),
                         None,
                         Some(session_id.clone()),
-                        "xvora-pager",
+                        "grok-pager",
                     );
                     Some((auth_manager, registry, storage))
                 });
             tracing::info!(
-                elapsed_ms = setup_started.elapsed().as_millis() as u64, ok = setup
-                .is_some(), "restore: auth/client setup"
+                elapsed_ms = setup_started.elapsed().as_millis() as u64,
+                ok = setup.is_some(),
+                "restore: auth/client setup"
             );
             let target_cwd = cwd.to_path_buf();
             let ptx = progress_tx.clone();
@@ -894,9 +1073,9 @@ pub(crate) fn execute(
                                     (RestorePhase::Download, PhaseStep::End) => {
                                         Some(
                                             format!(
-                                                "Downloads finished ({}).", format_restore_elapsed(event
-                                                .elapsed),
-                                            ),
+                                "Downloads finished ({}).",
+                                format_restore_elapsed(event.elapsed),
+                            ),
                                         )
                                     }
                                     (RestorePhase::Codebase, PhaseStep::Start) => {
@@ -930,9 +1109,10 @@ pub(crate) fn execute(
                                         if elapsed_secs >= 60 {
                                             Some(
                                                 format!(
-                                                    "{status} ({}m{:02}s).", elapsed_secs / 60, elapsed_secs %
-                                                    60
-                                                ),
+                                        "{status} ({}m{:02}s).",
+                                        elapsed_secs / 60,
+                                        elapsed_secs % 60
+                                    ),
                                             )
                                         } else {
                                             Some(format!("{status} ({elapsed_secs}s)."))
@@ -956,8 +1136,11 @@ pub(crate) fn execute(
                             &storage_client,
                             &session_id,
                             &cwd_str,
-                            None,
-                            progress,
+                            xvora_shell::session::restore::RestoreSessionOpts {
+                                turn_override: None,
+                                progress,
+                                restore_code: true,
+                            },
                         )
                         .await
                     {
@@ -981,7 +1164,7 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::LoadCardDetail { source, session_id, cwd, generation } => {
+        Effect::LoadCardDetail { host, generation, source, session_id, cwd, seq } => {
             tasks
                 .spawn(async move {
                     use crate::app::app_view::CardDetail;
@@ -1013,9 +1196,11 @@ pub(crate) fn execute(
                             first_prompt_preview: String::new(),
                         });
                     TaskResult::CardDetailLoaded {
+                        host,
+                        generation,
                         source,
                         session_id: result_session_id,
-                        generation,
+                        seq,
                         detail,
                     }
                 });
@@ -1036,16 +1221,15 @@ pub(crate) fn execute(
                         "prompt.acp_send.start",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "kind" : "text", "len" : text.len(), "prompt_id" :
-                                prompt_id, }
-                            ),
+                            serde_json::json!({
+                        "kind": "text",
+                        "len": text.len(),
+                        "prompt_id": prompt_id,
+                    }),
                         ),
                     );
                     let send_start = std::time::Instant::now();
-                    let prompt = vec![
-                        plain_prompt_content_block(text, & skill_token_ranges)
-                    ];
+                    let prompt = vec![plain_prompt_content_block(text, &skill_token_ranges)];
                     let req = acp::PromptRequest::new(session_id.clone(), prompt)
                         .meta(
                             prompt_request_meta(&prompt_id, screen_mode)
@@ -1058,10 +1242,12 @@ pub(crate) fn execute(
                         "prompt.acp_send.done",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "kind" : "text", "elapsed_ms" : send_elapsed_ms, "ok" :
-                                result.is_ok(), "prompt_id" : prompt_id, }
-                            ),
+                            serde_json::json!({
+                        "kind": "text",
+                        "elapsed_ms": send_elapsed_ms,
+                        "ok": result.is_ok(),
+                        "prompt_id": prompt_id,
+                    }),
                         ),
                     );
                     log_prompt_result(&session_id, &result);
@@ -1090,10 +1276,11 @@ pub(crate) fn execute(
                         "prompt.acp_send.start",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "kind" : if send_now { "send_now" } else { "blocks" },
-                                "block_count" : blocks.len(), "prompt_id" : prompt_id, }
-                            ),
+                            serde_json::json!({
+                        "kind": if send_now { "send_now" } else { "blocks" },
+                        "block_count": blocks.len(),
+                        "prompt_id": prompt_id,
+                    }),
                         ),
                     );
                     let send_start = std::time::Instant::now();
@@ -1110,11 +1297,12 @@ pub(crate) fn execute(
                         "prompt.acp_send.done",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "kind" : if send_now { "send_now" } else { "blocks" },
-                                "elapsed_ms" : send_elapsed_ms, "ok" : result.is_ok(),
-                                "prompt_id" : prompt_id, }
-                            ),
+                            serde_json::json!({
+                        "kind": if send_now { "send_now" } else { "blocks" },
+                        "elapsed_ms": send_elapsed_ms,
+                        "ok": result.is_ok(),
+                        "prompt_id": prompt_id,
+                    }),
                         ),
                     );
                     log_prompt_result(&session_id, &result);
@@ -1143,6 +1331,7 @@ pub(crate) fn execute(
         Effect::SendBashCommand { agent_id, session_id, command, prompt_id } => {
             let tx = acp_tx.clone();
             let screen_mode = session_flags.screen_mode_label;
+            let is_api_key_auth = session_flags.is_api_key_auth;
             tasks
                 .spawn(async move {
                     use xvora_shell::extensions::prompt_meta::PromptBlockMeta;
@@ -1150,19 +1339,23 @@ pub(crate) fn execute(
                         "prompt.acp_send.start",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "kind" : "bash", "len" : command.len(), "prompt_id" :
-                                prompt_id, }
-                            ),
+                            serde_json::json!({
+                        "kind": "bash",
+                        "len": command.len(),
+                        "prompt_id": prompt_id,
+                    }),
                         ),
                     );
                     let send_start = std::time::Instant::now();
                     let meta = PromptBlockMeta::bash(&command);
-                    let prompt = vec![
-                        acp::ContentBlock::Text(acp::TextContent::new(command)
-                        .meta(serde_json::to_value(& meta)
-                        .expect("PromptBlockMeta serializes").as_object().cloned(),),)
-                    ];
+                    let prompt = vec![acp::ContentBlock::Text(
+                    acp::TextContent::new(command).meta(
+                        serde_json::to_value(&meta)
+                            .expect("PromptBlockMeta serializes")
+                            .as_object()
+                            .cloned(),
+                    ),
+                )];
                     let req = acp::PromptRequest::new(session_id.clone(), prompt)
                         .meta(
                             prompt_request_meta(&prompt_id, screen_mode)
@@ -1175,10 +1368,12 @@ pub(crate) fn execute(
                         "prompt.acp_send.done",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "kind" : "bash", "elapsed_ms" : send_elapsed_ms, "ok" :
-                                result.is_ok(), "prompt_id" : prompt_id, }
-                            ),
+                            serde_json::json!({
+                        "kind": "bash",
+                        "elapsed_ms": send_elapsed_ms,
+                        "ok": result.is_ok(),
+                        "prompt_id": prompt_id,
+                    }),
                         ),
                     );
                     log_prompt_result(&session_id, &result);
@@ -1188,7 +1383,8 @@ pub(crate) fn execute(
                         .and_then(http_status_from_error);
                     TaskResult::PromptResponse {
                         agent_id,
-                        result: result.map_err(|e| e.to_string()),
+                        result: result
+                            .map_err(|e| format_acp_error(&e, is_api_key_auth)),
                         http_status,
                         prompt_id: Some(prompt_id),
                     }
@@ -1198,7 +1394,7 @@ pub(crate) fn execute(
             session_id,
             cancel_subagents,
             trigger,
-            rewind_if_pristine,
+            rewind_prompt_id,
         } => {
             let tx = acp_tx.clone();
             let trigger_str = trigger.map(|t| t.as_wire_str());
@@ -1208,21 +1404,23 @@ pub(crate) fn execute(
                         "cancel.acp_send.start",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "cancel_subagents" : cancel_subagents, "trigger" :
-                                trigger_str, "rewind_if_pristine" : rewind_if_pristine, }
-                            ),
+                            serde_json::json!({
+                        "cancel_subagents": cancel_subagents,
+                        "trigger": trigger_str,
+                        "rewind_if_no_output": rewind_prompt_id.is_some(),
+                        "rewind_prompt_id": rewind_prompt_id.as_deref(),
+                    }),
                         ),
                     );
                     let send_start = std::time::Instant::now();
-                    let mut meta = serde_json::json!(
-                        { "cancelSubagents" : cancel_subagents }
-                    );
+                    let mut meta = serde_json::json!({ "cancelSubagents": cancel_subagents });
                     if let Some(t) = trigger_str {
-                        meta["cancelTrigger"] = t.into();
+                        meta[crate::app::turn_completion::CANCEL_TRIGGER_KEY] = t.into();
                     }
-                    if rewind_if_pristine {
+                    if let Some(pid) = rewind_prompt_id {
+                        meta["rewindIfNoOutput"] = true.into();
                         meta["rewindIfPristine"] = true.into();
+                        meta["promptId"] = pid.into();
                     }
                     let req = acp::CancelNotification::new(session_id.clone())
                         .meta(meta.as_object().cloned());
@@ -1231,10 +1429,10 @@ pub(crate) fn execute(
                         "cancel.acp_send.done",
                         Some(&session_id.0),
                         Some(
-                            serde_json::json!(
-                                { "ok" : result.is_ok(), "elapsed_ms" : send_start.elapsed()
-                                .as_millis() as u64, }
-                            ),
+                            serde_json::json!({
+                        "ok": result.is_ok(),
+                        "elapsed_ms": send_start.elapsed().as_millis() as u64,
+                    }),
                         ),
                     );
                     if let Err(e) = result {
@@ -1247,9 +1445,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let notification = acp::ExtNotification::new(
                         "x.ai/toggle_plan_mode",
                         serde_json::value::to_raw_value(&params)
@@ -1257,9 +1455,7 @@ pub(crate) fn execute(
                             .into(),
                     );
                     if let Err(e) = acp_send(notification, &tx).await {
-                        tracing::warn!(
-                            "Failed to send toggle_plan_mode notification: {e}"
-                        );
+                        tracing::warn!("Failed to send toggle_plan_mode notification: {e}");
                     }
                     TaskResult::CancelComplete
                 });
@@ -1268,10 +1464,11 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "id" : id,
-                        "expectedVersion" : expected_version, }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "id": id,
+                    "expectedVersion": expected_version,
+                });
                     let notification = acp::ExtNotification::new(
                         "x.ai/queue/remove",
                         serde_json::value::to_raw_value(&params)
@@ -1288,10 +1485,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "orderedIds" :
-                        ordered_ids, }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "orderedIds": ordered_ids,
+                });
                     let notification = acp::ExtNotification::new(
                         "x.ai/queue/reorder",
                         serde_json::value::to_raw_value(&params)
@@ -1308,9 +1505,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let notification = acp::ExtNotification::new(
                         "x.ai/queue/clear",
                         serde_json::value::to_raw_value(&params)
@@ -1327,10 +1524,11 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "id" : id, "newText" :
-                        new_text, }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "id": id,
+                    "newText": new_text,
+                });
                     let notification = acp::ExtNotification::new(
                         "x.ai/queue/edit",
                         serde_json::value::to_raw_value(&params)
@@ -1343,14 +1541,55 @@ pub(crate) fn execute(
                     TaskResult::CancelComplete
                 });
         }
+        Effect::QueueHoldEdit { session_id, id } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "id": id,
+                });
+                    let notification = acp::ExtNotification::new(
+                        "x.ai/queue/hold_edit",
+                        serde_json::value::to_raw_value(&params)
+                            .expect("serialize queue/hold_edit params")
+                            .into(),
+                    );
+                    if let Err(e) = acp_send(notification, &tx).await {
+                        tracing::warn!("Failed to send queue/hold_edit notification: {e}");
+                    }
+                    TaskResult::CancelComplete
+                });
+        }
+        Effect::QueueReleaseEdit { session_id, id } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "id": id,
+                });
+                    let notification = acp::ExtNotification::new(
+                        "x.ai/queue/release_edit",
+                        serde_json::value::to_raw_value(&params)
+                            .expect("serialize queue/release_edit params")
+                            .into(),
+                    );
+                    if let Err(e) = acp_send(notification, &tx).await {
+                        tracing::warn!("Failed to send queue/release_edit notification: {e}");
+                    }
+                    TaskResult::CancelComplete
+                });
+        }
         Effect::QueueInterject { session_id, id, expected_version, new_text } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let mut params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "id" : id,
-                        "expectedVersion" : expected_version, }
-                    );
+                    let mut params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "id": id,
+                    "expectedVersion": expected_version,
+                });
                     if let Some(new_text) = new_text {
                         params["newText"] = serde_json::Value::String(new_text);
                     }
@@ -1361,9 +1600,7 @@ pub(crate) fn execute(
                             .into(),
                     );
                     if let Err(e) = acp_send(notification, &tx).await {
-                        tracing::warn!(
-                            "Failed to send queue/interject notification: {e}"
-                        );
+                        tracing::warn!("Failed to send queue/interject notification: {e}");
                     }
                     TaskResult::CancelComplete
                 });
@@ -1402,11 +1639,9 @@ pub(crate) fn execute(
                     ulog::info(
                         "prompt submitted",
                         Some(&session_id.0),
-                        Some(serde_json::json!({ "len" : text.len() })),
+                        Some(serde_json::json!({"len": text.len()})),
                     );
-                    let prompt = vec![
-                        plain_prompt_content_block(text, & skill_token_ranges)
-                    ];
+                    let prompt = vec![plain_prompt_content_block(text, &skill_token_ranges)];
                     let req = acp::PromptRequest::new(session_id.clone(), prompt)
                         .meta(
                             prompt_request_meta(&prompt_id, screen_mode)
@@ -1432,9 +1667,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/compact_conversation",
                         serde_json::value::to_raw_value(&params)
@@ -1444,9 +1679,7 @@ pub(crate) fn execute(
                     let result = acp_send(req, &tx).await;
                     TaskResult::CompactComplete {
                         agent_id,
-                        result: result
-                            .map(|_| ())
-                            .map_err(|e| sanitize_user_error(&e.to_string())),
+                        result: result.map(|_| ()).map_err(|e| compact_error(&e)),
                     }
                 });
         }
@@ -1454,10 +1687,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "cwd" : cwd.to_string_lossy(), "filter_session_id" :
-                        session_id, }
-                    );
+                    let params = serde_json::json!({
+                    "cwd": cwd.to_string_lossy(),
+                    "filter_session_id": session_id,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/prompt_history",
                         serde_json::value::to_raw_value(&params)
@@ -1497,7 +1730,7 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::KillBgTask { session_id, task_id } => {
+        Effect::KillBgTask { session_id, task_id, source } => {
             let tx = acp_tx.clone();
             let sid = session_id.0.to_string();
             tasks
@@ -1505,6 +1738,7 @@ pub(crate) fn execute(
                     let params = xvora_shell::extensions::task::KillTaskRequest {
                         session_id: sid.clone(),
                         task_id: task_id.clone(),
+                        source,
                     };
                     let req = acp::ExtRequest::new(
                         "x.ai/task/kill",
@@ -1535,10 +1769,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "subagentId" : &
-                        subagent_id, }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "subagentId": &subagent_id,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/subagent/cancel",
                         serde_json::value::to_raw_value(&params)
@@ -1563,9 +1797,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "taskId" : task_id, }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "taskId": task_id,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/scheduler/delete",
                         serde_json::value::to_raw_value(&params)
@@ -1582,10 +1817,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "terminalId" :
-                        tool_call_id, }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "terminalId": tool_call_id,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/terminal/background",
                         serde_json::value::to_raw_value(&params)
@@ -1722,9 +1957,7 @@ pub(crate) fn execute(
                     {
                         Ok(Ok(pair)) => pair,
                         Ok(Err(e)) => {
-                            tracing::warn!(
-                                error = % e, "clipboard attachment probe task failed"
-                            );
+                            tracing::warn!(error = %e, "clipboard attachment probe task failed");
                             (ProbedAttachment::ProbeFailed, None)
                         }
                         Err(_elapsed) => {
@@ -1752,6 +1985,68 @@ pub(crate) fn execute(
                     TaskResult::PromptImagePreviewPrepared
                 });
         }
+        Effect::PlanDoctorFix { target, report, terminal, request } => {
+            tasks
+                .spawn(async move {
+                    let result = tokio::task::spawn_blocking(move || match request {
+                            crate::slash::command::DoctorRequest::ListFixes => {
+                                Ok(
+                                    actions::DoctorPlanningOutcome::Listing(
+                                        crate::diagnostics::format_applicable_automatic_fixes(
+                                            &report,
+                                            &terminal,
+                                        ),
+                                    ),
+                                )
+                            }
+                            crate::slash::command::DoctorRequest::Fix(id) => {
+                                match crate::diagnostics::select_fix_plan(
+                                    id,
+                                    &report,
+                                    &terminal,
+                                ) {
+                                    Ok(Some(plan)) => {
+                                        Ok(actions::DoctorPlanningOutcome::Plan(Box::new(plan)))
+                                    }
+                                    Ok(None) => {
+                                        Ok(
+                                            actions::DoctorPlanningOutcome::RunLocally(
+                                                crate::diagnostics::human_fix_command(id)
+                                                    .unwrap_or_else(|| id.to_string()),
+                                            ),
+                                        )
+                                    }
+                                    Err(error) => Err(error.to_string()),
+                                }
+                            }
+                            crate::slash::command::DoctorRequest::Report => {
+                                unreachable!("report does not enter the planning effect")
+                            }
+                        })
+                        .await
+                        .map_err(|error| format!("Could not prepare the fix: {error}"))
+                        .and_then(|result| result);
+                    TaskResult::DoctorFixPlanned {
+                        target,
+                        result,
+                    }
+                });
+        }
+        Effect::ApplyDoctorFix { target, plan } => {
+            tasks
+                .spawn(async move {
+                    let result = tokio::task::spawn_blocking(move || crate::diagnostics::apply_fix(
+                            *plan,
+                        ))
+                        .await
+                        .map_err(|error| format!("Could not apply the fix: {error}"))
+                        .and_then(|result| result.map_err(|error| error.to_string()));
+                    TaskResult::DoctorFixApplied {
+                        target,
+                        result,
+                    }
+                });
+        }
         Effect::FetchChangelog => {
             tasks
                 .spawn(async move {
@@ -1761,7 +2056,7 @@ pub(crate) fn execute(
                         })
                         .await
                         .unwrap_or_else(|e| {
-                            tracing::warn!(error = % e, "changelog fetch task failed");
+                            tracing::warn!(error = %e, "changelog fetch task failed");
                             xvora_shell::util::changelog::Changelog {
                                 markdown: None,
                                 entries: None,
@@ -1783,20 +2078,78 @@ pub(crate) fn execute(
                     }
                 });
         }
+        Effect::PersistPrivacyBannerAcked { acked_at } => {
+            tasks
+                .spawn(async move {
+                    if let Err(e) = xvora_shell::util::config::set_privacy_banner_acked(
+                            acked_at,
+                        )
+                        .await
+                    {
+                        tracing::warn!(error = %e, "failed to persist privacy_banner_acked");
+                    }
+                    TaskResult::CancelComplete
+                });
+        }
+        Effect::PersistConsentAnswer { account, notice_id, version, acked } => {
+            tasks
+                .spawn(async move {
+                    match xvora_shell::util::config::set_consent_answer(
+                            account,
+                            notice_id,
+                            version,
+                            acked,
+                        )
+                        .await
+                    {
+                        Ok(()) => TaskResult::CancelComplete,
+                        Err(e) if !acked => {
+                            TaskResult::ConsentPersistFailed {
+                                error: e.to_string(),
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = %e, "consent ack not persisted");
+                            TaskResult::CancelComplete
+                        }
+                    }
+                });
+        }
+        Effect::RecordConsentUpstream { notice_id, version } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    let request = acp::ExtRequest::new(
+                        "x.ai/consent/record",
+                        serde_json::value::to_raw_value(
+                                &serde_json::json!({
+                        "noticeId": notice_id,
+                        "version": version,
+                    }),
+                            )
+                            .expect("serialize params")
+                            .into(),
+                    );
+                    match acp_send(request, &tx).await {
+                        Ok(_) => {
+                            TaskResult::ConsentRecorded {
+                                notice_id,
+                                version,
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = %e, %notice_id, "consent record not filed");
+                            TaskResult::CancelComplete
+                        }
+                    }
+                });
+        }
         Effect::PersistMemoryFullscreen { fullscreen } => {
             persist_hint(
                 tasks,
                 "memory_modal_fullscreen",
                 fullscreen,
                 "memory fullscreen",
-            );
-        }
-        Effect::PersistProjectPickerDisabled { disabled } => {
-            persist_hint(
-                tasks,
-                "project_picker_disabled",
-                disabled,
-                "project picker opt-out",
             );
         }
         Effect::PersistDashboard(persisted) => {
@@ -1806,25 +2159,20 @@ pub(crate) fn execute(
                             if let Err(e) = crate::views::dashboard::state::write_persisted(
                                 &persisted,
                             ) {
-                                tracing::warn!(
-                                    error = % e, "failed to persist dashboard config"
-                                );
+                                tracing::warn!(error = %e, "failed to persist dashboard config");
                             }
                         })
                         .await;
                     if let Err(e) = result {
-                        tracing::warn!(
-                            error = % e, "failed to persist dashboard: join error"
-                        );
+                        tracing::warn!(error = %e, "failed to persist dashboard: join error");
                     }
                     TaskResult::CancelComplete
                 });
         }
         Effect::PersistWorktreeMode { mode, config_key } => {
             debug_assert!(
-                config_key == "fork_worktree_mode" || config_key ==
-                "new_session_worktree_mode",
-                "unexpected worktree config_key: {config_key}"
+                config_key == "fork_worktree_mode" || config_key == "new_session_worktree_mode",
+                "unexpected worktree config_key"
             );
             persist_hint(tasks, config_key, mode.as_config_str(), "worktree mode");
         }
@@ -1900,7 +2248,7 @@ pub(crate) fn execute(
         }
         Effect::PollAuthUrl { request_seq } => {
             let tx = acp_tx.clone();
-            tasks
+            let abort_handle = tasks
                 .spawn(async move {
                     let mut auth_url: Option<String> = None;
                     let mut external = false;
@@ -1944,12 +2292,13 @@ pub(crate) fn execute(
                         mode,
                     }
                 });
+            meta.auth_url_poll_handle = Some((request_seq, abort_handle));
         }
         Effect::SubmitAuthCode { request_seq, code } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!({ "code" : code });
+                    let params = serde_json::json!({ "code": code });
                     let req = acp::ExtRequest::new(
                         "x.ai/auth/submit_code",
                         serde_json::value::to_raw_value(&params)
@@ -1967,7 +2316,7 @@ pub(crate) fn execute(
                             ulog::error(
                                 "auth failed",
                                 None,
-                                Some(serde_json::json!({ "error" : & error })),
+                                Some(serde_json::json!({"error": &error})),
                             );
                             TaskResult::AuthFailed {
                                 request_seq,
@@ -1981,9 +2330,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), "cache" : cache, }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "cache": cache,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/mcp/list",
                         serde_json::value::to_raw_value(&params)
@@ -2006,7 +2356,9 @@ pub(crate) fn execute(
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't load server list: {e}"),
+                                    &format!(
+                        "couldn't load server list: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2021,10 +2373,10 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "session_id" : session_id.0.to_string(), "server_name" :
-                        server_name, }
-                    );
+                    let params = serde_json::json!({
+                    "session_id": session_id.0.to_string(),
+                    "server_name": server_name,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/mcp/auth_trigger",
                         serde_json::value::to_raw_value(&params)
@@ -2043,7 +2395,24 @@ pub(crate) fn execute(
                                 .and_then(|s| s.as_str())
                                 .unwrap_or("unknown");
                             if status == "authenticated" {
-                                Ok(())
+                                Ok(
+                                    crate::app::actions::McpAuthTriggerOutcome::Authenticated,
+                                )
+                            } else if status == "setup_required" {
+                                let setup = result_obj
+                                    .and_then(|r| r.get("setup"))
+                                    .cloned()
+                                    .and_then(|value| {
+                                        serde_json::from_value::<
+                                            crate::views::mcps_modal::McpSetupConfig,
+                                        >(value)
+                                            .ok()
+                                    })
+                                    .ok_or_else(|| "setup required".to_string());
+                                setup
+                                    .map(
+                                        crate::app::actions::McpAuthTriggerOutcome::SetupRequired,
+                                    )
                             } else {
                                 let detail = result_obj
                                     .and_then(|r| r.get("error"))
@@ -2066,13 +2435,59 @@ pub(crate) fn execute(
                     }
                 });
         }
+        Effect::McpSetupSubmit { agent_id, session_id, server_name, values } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                    "serverName": server_name,
+                    "values": values,
+                });
+                    let req = acp::ExtRequest::new(
+                        "x.ai/mcp/setup",
+                        serde_json::value::to_raw_value(&params)
+                            .expect("serialize mcp/setup params")
+                            .into(),
+                    );
+                    let result = match acp_send(req, &tx).await {
+                        Ok(resp) => {
+                            let wrapper: serde_json::Value = serde_json::from_str(
+                                    resp.0.get(),
+                                )
+                                .unwrap_or_default();
+                            let result_obj = wrapper.get("result");
+                            if result_obj
+                                .and_then(|r| r.get("ok"))
+                                .and_then(|ok| ok.as_bool())
+                                .unwrap_or(false)
+                            {
+                                Ok(())
+                            } else {
+                                let detail = result_obj
+                                    .and_then(|r| r.get("error"))
+                                    .and_then(|e| e.as_str())
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_else(|| "setup failed".to_string());
+                                Err(detail)
+                            }
+                        }
+                        Err(e) => Err(sanitize_user_error(&format!("setup failed: {e}"))),
+                    };
+                    TaskResult::McpSetupSubmitDone {
+                        agent_id,
+                        server_name,
+                        result,
+                    }
+                });
+        }
         Effect::FetchHooksList { agent_id, session_id } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/hooks/list",
                         serde_json::value::to_raw_value(&params)
@@ -2087,7 +2502,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::HooksListResponse,
+                                xvora_hooks_plugins_types::HooksListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load hooks".to_string())
                         }
@@ -2107,9 +2522,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/plugins/list",
                         serde_json::value::to_raw_value(&params)
@@ -2124,7 +2539,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::PluginsListResponse,
+                                xvora_hooks_plugins_types::PluginsListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load plugins".to_string())
                         }
@@ -2144,7 +2559,7 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::HooksActionRequest {
+                    let req_body = xvora_hooks_plugins_types::HooksActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -2162,14 +2577,16 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|_| "couldn't complete hooks action".to_string())
                         }
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't complete hooks action: {e}"),
+                                    &format!(
+                        "couldn't complete hooks action: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2184,7 +2601,7 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::PluginsActionRequest {
+                    let req_body = xvora_hooks_plugins_types::PluginsActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -2202,14 +2619,16 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|_| "couldn't complete plugins action".to_string())
                         }
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't complete plugins action: {e}"),
+                                    &format!(
+                        "couldn't complete plugins action: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2224,9 +2643,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/marketplace/list",
                         serde_json::value::to_raw_value(&params)
@@ -2241,14 +2660,16 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::MarketplaceListResponse,
+                                xvora_hooks_plugins_types::MarketplaceListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load marketplace".to_string())
                         }
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't load marketplace: {e}"),
+                                    &format!(
+                        "couldn't load marketplace: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2263,9 +2684,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/marketplace/list",
                         serde_json::value::to_raw_value(&params)
@@ -2280,14 +2701,16 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::MarketplaceListResponse,
+                                xvora_hooks_plugins_types::MarketplaceListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load marketplace".to_string())
                         }
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't load marketplace: {e}"),
+                                    &format!(
+                        "couldn't load marketplace: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2302,7 +2725,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!({ "cwd" : "." });
+                    let params = serde_json::json!({
+                    "cwd": "."
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/skills/list",
                         serde_json::value::to_raw_value(&params)
@@ -2335,13 +2760,57 @@ pub(crate) fn execute(
                     }
                 });
         }
+        Effect::FetchWorkflowsList { agent_id, session_id } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    let params = serde_json::json!({
+                    "sessionId": session_id
+                });
+                    let req = acp::ExtRequest::new(
+                        "x.ai/workflows/list",
+                        serde_json::value::to_raw_value(&params)
+                            .expect("serialize workflows/list params")
+                            .into(),
+                    );
+                    let result = match acp_send(req, &tx).await {
+                        Ok(resp) => {
+                            let wrapper: serde_json::Value = serde_json::from_str(
+                                    resp.0.get(),
+                                )
+                                .unwrap_or_default();
+                            let inner = wrapper.get("result").unwrap_or(&wrapper);
+                            serde_json::from_value::<
+                                Vec<crate::views::extensions_modal::WorkflowInfo>,
+                            >(inner.get("workflows").cloned().unwrap_or_default())
+                                .map_err(|_| "couldn't load workflows".to_string())
+                        }
+                        Err(e) => {
+                            Err(
+                                sanitize_user_error(
+                                    &format!(
+                        "couldn't load workflows: {e}"
+                    ),
+                                ),
+                            )
+                        }
+                    };
+                    TaskResult::WorkflowsListLoaded {
+                        agent_id,
+                        session_id,
+                        result,
+                    }
+                });
+        }
         Effect::ToggleSkill { agent_id, session_id: _, skill_name, enabled } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "name" : skill_name, "enabled" : enabled, "cwd" : ".", }
-                    );
+                    let params = serde_json::json!({
+                    "name": skill_name,
+                    "enabled": enabled,
+                    "cwd": ".",
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/skills/toggle",
                         serde_json::value::to_raw_value(&params)
@@ -2388,9 +2857,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "sessionId" : session_id.0.to_string(), }
-                    );
+                    let params = serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                });
                     let list_req = acp::ExtRequest::new(
                         "x.ai/marketplace/list",
                         serde_json::value::to_raw_value(&params)
@@ -2405,7 +2874,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::MarketplaceListResponse,
+                                xvora_hooks_plugins_types::MarketplaceListResponse,
                             >(inner.clone())
                                 .ok()
                                 .map(|r| {
@@ -2444,11 +2913,11 @@ pub(crate) fn execute(
                     }
                     let mut succeeded = Vec::new();
                     for (name, old, new, source_url, rel_path) in outdated {
-                        let action = hooks_plugins_types::MarketplaceAction::Update {
+                        let action = xvora_hooks_plugins_types::MarketplaceAction::Update {
                             source_url_or_path: source_url.clone(),
                             plugin_relative_path: rel_path.clone(),
                         };
-                        let req_body = hooks_plugins_types::MarketplaceActionRequest {
+                        let req_body = xvora_hooks_plugins_types::MarketplaceActionRequest {
                             session_id: session_id.0.to_string(),
                             action,
                         };
@@ -2466,7 +2935,7 @@ pub(crate) fn execute(
                                     .unwrap_or_default();
                                 let inner = wrapper.get("result").unwrap_or(&wrapper);
                                 serde_json::from_value::<
-                                    hooks_plugins_types::ActionOutcome,
+                                    xvora_hooks_plugins_types::ActionOutcome,
                                 >(inner.clone())
                                     .is_ok_and(|outcome| marketplace_outcome_succeeded(
                                         &outcome,
@@ -2479,10 +2948,10 @@ pub(crate) fn execute(
                         }
                     }
                     if !succeeded.is_empty() {
-                        let notify_params = serde_json::json!(
-                            { "sessionId" : session_id.0.to_string(), "updates" :
-                            succeeded, }
-                        );
+                        let notify_params = serde_json::json!({
+                        "sessionId": session_id.0.to_string(),
+                        "updates": succeeded,
+                    });
                         let notify_req = acp::ExtRequest::new(
                             "x.ai/plugins/notify-updates",
                             serde_json::value::to_raw_value(&notify_params)
@@ -2501,7 +2970,7 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::MarketplaceActionRequest {
+                    let req_body = xvora_hooks_plugins_types::MarketplaceActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -2519,19 +2988,19 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|e| {
-                                    tracing::debug!(
-                                        "failed to parse marketplace action response: {e}"
-                                    );
+                                    tracing::debug!("failed to parse marketplace action response: {e}");
                                     "couldn't complete marketplace action".to_string()
                                 })
                         }
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't complete marketplace action: {e}"),
+                                    &format!(
+                        "couldn't complete marketplace action: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2556,11 +3025,11 @@ pub(crate) fn execute(
                         .next()
                         .unwrap_or(plugin_relative_path.as_str())
                         .to_string();
-                    let action = hooks_plugins_types::MarketplaceAction::Install {
+                    let action = xvora_hooks_plugins_types::MarketplaceAction::Install {
                         source_url_or_path,
                         plugin_relative_path,
                     };
-                    let req_body = hooks_plugins_types::MarketplaceActionRequest {
+                    let req_body = xvora_hooks_plugins_types::MarketplaceActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -2578,19 +3047,19 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|e| {
-                                    tracing::debug!(
-                                        "failed to parse marketplace action response: {e}"
-                                    );
+                                    tracing::debug!("failed to parse marketplace action response: {e}");
                                     "couldn't complete marketplace action".to_string()
                                 })
                         }
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't complete marketplace action: {e}"),
+                                    &format!(
+                        "couldn't complete marketplace action: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2606,9 +3075,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::PluginsActionRequest {
+                    let req_body = xvora_hooks_plugins_types::PluginsActionRequest {
                         session_id: session_id.0.to_string(),
-                        action: hooks_plugins_types::PluginsAction::Reload,
+                        action: xvora_hooks_plugins_types::PluginsAction::Reload,
                     };
                     let req = acp::ExtRequest::new(
                         "x.ai/plugins/action",
@@ -2624,14 +3093,16 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|_| "couldn't complete plugins action".to_string())
                         }
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't complete plugins action: {e}"),
+                                    &format!(
+                        "couldn't complete plugins action: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2698,7 +3169,9 @@ pub(crate) fn execute(
                         Err(e) => {
                             Err(
                                 sanitize_user_error(
-                                    &format!("couldn't save server config: {e}"),
+                                    &format!(
+                        "couldn't save server config: {e}"
+                    ),
                                 ),
                             )
                         }
@@ -2747,10 +3220,11 @@ pub(crate) fn execute(
             let is_api_key_auth = session_flags.is_api_key_auth;
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "session_id" : session_id.0.to_string(), "server_name" :
-                        server_name, "enabled" : enabled, }
-                    );
+                    let params = serde_json::json!({
+                    "session_id": session_id.0.to_string(),
+                    "server_name": server_name,
+                    "enabled": enabled,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/mcp/toggle",
                         serde_json::value::to_raw_value(&params)
@@ -2777,10 +3251,12 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "session_id" : session_id.0.to_string(), "server_name" :
-                        server_name, "tool_name" : tool_name, "enabled" : enabled, }
-                    );
+                    let params = serde_json::json!({
+                    "session_id": session_id.0.to_string(),
+                    "server_name": server_name,
+                    "tool_name": tool_name,
+                    "enabled": enabled,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/mcp/toggle_tool",
                         serde_json::value::to_raw_value(&params)
@@ -2882,26 +3358,71 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::ShowSessionInfo { agent_id, session_id, show_resolved_model } => {
+        Effect::ShowSessionInfo { agent_id, session_id, show_resolved_model, nonce } => {
+            let is_api_key_auth = session_flags.is_api_key_auth;
+            let api_key_env_set = xvora_shell::agent::auth_method::has_xai_api_key_env();
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
                     match fetch_session_info(&session_id, &tx).await {
                         Ok(info) => {
-                            let title = lookup_session_title(&session_id).await;
+                            let title = lookup_session_title(&session_id, &info.cwd)
+                                .await;
                             let text = format_session_info(
+                                &info,
+                                title.as_deref(),
+                                show_resolved_model,
+                                is_api_key_auth,
+                                api_key_env_set,
+                            );
+                            let fields = session_info_fields(
                                 &info,
                                 title.as_deref(),
                                 show_resolved_model,
                             );
                             TaskResult::SessionInfoComplete {
                                 agent_id,
+                                session_id,
                                 info: Box::new(info),
                                 text,
+                                fields,
+                                nonce,
                             }
                         }
                         Err(error) => {
                             TaskResult::SessionInfoFailed {
+                                agent_id,
+                                session_id,
+                                error,
+                                nonce,
+                            }
+                        }
+                    }
+                });
+        }
+        Effect::RenameSession { agent_id, session_id, title, cwd, kind } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    match session_rename_rpc(
+                            &tx,
+                            actions::RenameSessionRequest::for_rename(
+                                session_id.0.to_string(),
+                                title.clone(),
+                                cwd.to_string_lossy().to_string(),
+                                kind,
+                            ),
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            TaskResult::RenameSessionComplete {
+                                agent_id,
+                                title,
+                            }
+                        }
+                        Err(error) => {
+                            TaskResult::RenameSessionFailed {
                                 agent_id,
                                 error,
                             }
@@ -2909,65 +3430,44 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::RenameSession { agent_id, session_id, title, cwd } => {
+        Effect::ResetSessionTitle {
+            agent_id,
+            session_id,
+            cwd,
+            kind,
+            previous_display_name,
+            previous_generated_title,
+        } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    #[derive(serde::Serialize)]
-                    #[serde(rename_all = "camelCase")]
-                    struct RenameRequest {
-                        session_id: String,
-                        title: String,
-                        cwd: String,
-                    }
-                    let request = acp::ExtRequest::new(
-                        "x.ai/session/rename",
-                        serde_json::value::to_raw_value(
-                                &RenameRequest {
-                                    session_id: session_id.0.to_string(),
-                                    title: title.clone(),
-                                    cwd: cwd.to_string_lossy().to_string(),
-                                },
-                            )
-                            .expect("serialize rename params")
-                            .into(),
-                    );
-                    match acp_send(request, &tx).await {
-                        Ok(resp) => {
-                            let wrapper: serde_json::Value = serde_json::from_str(
-                                    resp.0.get(),
-                                )
-                                .unwrap_or_default();
-                            if let Some(err) = wrapper
-                                .get("error")
-                                .filter(|v| !v.is_null())
-                            {
-                                let msg = err
-                                    .as_str()
-                                    .map(String::from)
-                                    .unwrap_or_else(|| err.to_string());
-                                return TaskResult::RenameSessionFailed {
-                                    agent_id,
-                                    error: msg,
-                                };
-                            }
-                            TaskResult::RenameSessionComplete {
+                    match session_rename_rpc(
+                            &tx,
+                            actions::RenameSessionRequest::for_reset(
+                                session_id.0.to_string(),
+                                cwd.to_string_lossy().to_string(),
+                                kind,
+                            ),
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            TaskResult::ResetSessionTitleComplete {
                                 agent_id,
-                                title,
                             }
                         }
-                        Err(e) => {
-                            TaskResult::RenameSessionFailed {
+                        Err(error) => {
+                            TaskResult::ResetSessionTitleFailed {
                                 agent_id,
-                                error: sanitize_user_error(
-                                    &format!("couldn't rename session: {e}"),
-                                ),
+                                error,
+                                previous_display_name,
+                                previous_generated_title,
                             }
                         }
                     }
                 });
         }
-        Effect::DeleteSession { source, session_id, cwd } => {
+        Effect::DeleteSession { source, session_id, cwd, after } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
@@ -3011,6 +3511,7 @@ pub(crate) fn execute(
                             TaskResult::DeleteSessionComplete {
                                 source,
                                 session_id,
+                                after,
                             }
                         }
                         Err(e) => {
@@ -3025,16 +3526,19 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::SetCodingDataSharing { agent_id, opted_in, rollback_to_opted_in } => {
+        Effect::SetCodingDataSharing {
+            agent_id,
+            opted_in,
+            rollback_to_opted_in,
+            seq,
+        } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
                     let request = acp::ExtRequest::new(
                         "x.ai/privacy/setCodingDataRetention",
                         serde_json::value::to_raw_value(
-                                &serde_json::json!(
-                                    { "codingDataRetentionOptOut" : ! opted_in }
-                                ),
+                                &serde_json::json!({ "codingDataRetentionOptOut": !opted_in }),
                             )
                             .expect("serialize params")
                             .into(),
@@ -3050,6 +3554,7 @@ pub(crate) fn execute(
                                         agent_id,
                                         error: format!("malformed response: {e}"),
                                         rollback_to_opted_in,
+                                        seq,
                                     };
                                 }
                             };
@@ -3065,6 +3570,7 @@ pub(crate) fn execute(
                                     agent_id,
                                     error: msg,
                                     rollback_to_opted_in,
+                                    seq,
                                 };
                             }
                             let confirmed_opted_in = wrapper
@@ -3075,6 +3581,7 @@ pub(crate) fn execute(
                             TaskResult::CodingDataSharingUpdated {
                                 agent_id,
                                 opted_in: confirmed_opted_in,
+                                seq,
                             }
                         }
                         Err(e) => {
@@ -3082,12 +3589,13 @@ pub(crate) fn execute(
                                 agent_id,
                                 error: format!("{e}"),
                                 rollback_to_opted_in,
+                                seq,
                             }
                         }
                     }
                 });
         }
-        Effect::ShowContextInfo { agent_id, session_id } => {
+        Effect::ShowContextInfo { agent_id, session_id, nonce } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
@@ -3095,19 +3603,47 @@ pub(crate) fn execute(
                         Ok(info) => {
                             TaskResult::ContextInfoComplete {
                                 agent_id,
+                                session_id,
                                 info: Box::new(info),
+                                nonce,
                             }
                         }
                         Err(error) => {
                             TaskResult::ContextInfoFailed {
                                 agent_id,
+                                session_id,
                                 error,
+                                nonce,
                             }
                         }
                     }
                 });
         }
-        Effect::SendFeedback { agent_id, session_id, feedback_text } => {
+        Effect::FetchSessionUsage { agent_id, session_id, nonce } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    match fetch_session_usage(&session_id, &tx).await {
+                        Ok(usage) => {
+                            TaskResult::SessionUsageComplete {
+                                agent_id,
+                                session_id,
+                                usage: Box::new(usage),
+                                nonce,
+                            }
+                        }
+                        Err(error) => {
+                            TaskResult::SessionUsageFailed {
+                                agent_id,
+                                session_id,
+                                error,
+                                nonce,
+                            }
+                        }
+                    }
+                });
+        }
+        Effect::SendFeedback { agent_id, session_id, feedback_text, images } => {
             use xvora_shell::session::ClientType;
             use xvora_shell::session::acp_types::ClientFeedbackInput;
             let terminal_info = Some(
@@ -3121,7 +3657,8 @@ pub(crate) fn execute(
                         client_type: ClientType::Tui,
                         rating_type: None,
                         rating_value: None,
-                        feedback_text: Some(feedback_text),
+                        feedback_text: Some(feedback_text.clone()),
+                        images,
                         feedback_categories: vec![],
                         context_type: None,
                         turn_number: None,
@@ -3136,7 +3673,9 @@ pub(crate) fn execute(
                             return TaskResult::FeedbackFailed {
                                 agent_id,
                                 error: sanitize_user_error(
-                                    &format!("couldn't serialize feedback: {e}"),
+                                    &format!(
+                                "couldn't serialize feedback: {e}"
+                            ),
                                 ),
                             };
                         }
@@ -3162,6 +3701,62 @@ pub(crate) fn execute(
                     }
                 });
         }
+        Effect::UploadFeedbackTrace { agent_id, session_id } => {
+            let tx = acp_tx.clone();
+            tasks
+                .spawn(async move {
+                    let raw_params = match serde_json::value::to_raw_value(
+                        &serde_json::json!({
+                    "sessionId": session_id.0.to_string(),
+                }),
+                    ) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            return TaskResult::FeedbackTraceUploaded {
+                                agent_id,
+                                error: Some(
+                                    sanitize_user_error(
+                                        &format!(
+                                "couldn't serialize trace upload: {e}"
+                            ),
+                                    ),
+                                ),
+                            };
+                        }
+                    };
+                    let request = acp::ExtRequest::new(
+                        "x.ai/feedback/upload-trace",
+                        raw_params.into(),
+                    );
+                    match tokio::time::timeout(
+                            std::time::Duration::from_millis(
+                                crate::app::dispatch::FEEDBACK_TRACE_UPLOAD_TIMEOUT_MS,
+                            ),
+                            acp_send(request, &tx),
+                        )
+                        .await
+                    {
+                        Ok(Ok(_)) => {
+                            TaskResult::FeedbackTraceUploaded {
+                                agent_id,
+                                error: None,
+                            }
+                        }
+                        Ok(Err(e)) => {
+                            TaskResult::FeedbackTraceUploaded {
+                                agent_id,
+                                error: Some(sanitize_user_error(&format!("{e}"))),
+                            }
+                        }
+                        Err(_) => {
+                            TaskResult::FeedbackTraceUploaded {
+                                agent_id,
+                                error: Some("trace upload timed out".to_string()),
+                            }
+                        }
+                    }
+                });
+        }
         Effect::RewriteMemoryNote {
             agent_id,
             session_id,
@@ -3175,10 +3770,11 @@ pub(crate) fn execute(
                     let request = acp::ExtRequest::new(
                         "x.ai/memory/rewrite",
                         serde_json::value::to_raw_value(
-                                &serde_json::json!(
-                                    { "sessionId" : session_id.0.to_string(), "rawText" :
-                                    raw_text, "contextSummary" : context_summary, }
-                                ),
+                                &serde_json::json!({
+                        "sessionId": session_id.0.to_string(),
+                        "rawText": raw_text,
+                        "contextSummary": context_summary,
+                    }),
                             )
                             .expect("serialize memory/rewrite params")
                             .into(),
@@ -3235,17 +3831,18 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::SendBtw { agent_id, session_id, question } => {
+        Effect::SendBtw { agent_id, session_id, question, minimal_request_id } => {
             let tx = acp_tx.clone();
+            let is_api_key_auth = session_flags.is_api_key_auth;
             tasks
                 .spawn(async move {
                     let request = acp::ExtRequest::new(
                         "x.ai/btw",
                         serde_json::value::to_raw_value(
-                                &serde_json::json!(
-                                    { "sessionId" : session_id.0.to_string(), "question" :
-                                    question, }
-                                ),
+                                &serde_json::json!({
+                        "sessionId": session_id.0.to_string(),
+                        "question": question,
+                    }),
                             )
                             .expect("serialize btw params")
                             .into(),
@@ -3265,14 +3862,14 @@ pub(crate) fn execute(
                             TaskResult::BtwResponse {
                                 agent_id,
                                 result: Ok(answer),
+                                minimal_request_id,
                             }
                         }
                         Err(e) => {
                             TaskResult::BtwResponse {
                                 agent_id,
-                                result: Err(
-                                    sanitize_user_error(&format!("side question failed: {e}")),
-                                ),
+                                result: Err(format_acp_error(&e, is_api_key_auth)),
+                                minimal_request_id,
                             }
                         }
                     }
@@ -3285,9 +3882,10 @@ pub(crate) fn execute(
                     let request = acp::ExtRequest::new(
                         "x.ai/recap",
                         serde_json::value::to_raw_value(
-                                &serde_json::json!(
-                                    { "sessionId" : session_id.0.to_string(), "auto" : auto, }
-                                ),
+                                &serde_json::json!({
+                        "sessionId": session_id.0.to_string(),
+                        "auto": auto,
+                    }),
                             )
                             .expect("serialize recap params")
                             .into(),
@@ -3355,7 +3953,7 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!({ "kind" : kind, "name" : name });
+                    let params = serde_json::json!({ "kind": kind, "name": name });
                     let request = acp::ExtRequest::new(
                         "x.ai/bundle/entry/get",
                         serde_json::value::to_raw_value(&params)
@@ -3389,9 +3987,7 @@ pub(crate) fn execute(
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::debug!(
-                                        "failed to parse catalog entry response: {e}"
-                                    );
+                                    tracing::debug!("failed to parse catalog entry response: {e}");
                                     TaskResult::CatalogEntryFailed {
                                         error: "couldn't load entry".to_string(),
                                     }
@@ -3466,11 +4062,11 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::RefreshAvailableCommands { agent_id, cwd } => {
+        Effect::RefreshAvailableCommands { agent_id, session_id } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!({ "cwd" : cwd });
+                    let params = serde_json::json!({ "sessionId": session_id });
                     let req = acp::ExtRequest::new(
                         "x.ai/commands/list",
                         serde_json::value::to_raw_value(&params)
@@ -3510,9 +4106,9 @@ pub(crate) fn execute(
                     let request = acp::ExtRequest::new(
                         "x.ai/rewind/points",
                         serde_json::value::to_raw_value(
-                                &serde_json::json!(
-                                    { "sessionId" : session_id.0.to_string() }
-                                ),
+                                &serde_json::json!({
+                        "sessionId": session_id.0.to_string()
+                    }),
                             )
                             .expect("serialize rewind/points params")
                             .into(),
@@ -3562,71 +4158,16 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::RewindPreview { agent_id, session_id, target_prompt_index, mode } => {
+        Effect::RewindExecute { agent_id, session_id, target_prompt_index } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
                     let request = acp::ExtRequest::new(
                         "x.ai/rewind/execute",
                         serde_json::value::to_raw_value(
-                                &serde_json::json!(
-                                    { "sessionId" : session_id.0.to_string(),
-                                    "targetPromptIndex" : target_prompt_index, "force" : false,
-                                    "mode" : mode.wire_value(), }
-                                ),
-                            )
-                            .expect("serialize rewind/execute preview params")
-                            .into(),
-                    );
-                    match acp_send(request, &tx).await {
-                        Ok(resp) => {
-                            let wrapper: serde_json::Value = serde_json::from_str(
-                                    resp.0.get(),
-                                )
-                                .unwrap_or_default();
-                            let result_val = wrapper
-                                .get("result")
-                                .cloned()
-                                .unwrap_or(wrapper.clone());
-                            match serde_json::from_value::<
-                                crate::views::rewind::RewindResponse,
-                            >(result_val) {
-                                Ok(r) => {
-                                    TaskResult::RewindPreviewComplete {
-                                        agent_id,
-                                        response: r,
-                                        target_prompt_index,
-                                        mode,
-                                    }
-                                }
-                                Err(e) => {
-                                    TaskResult::RewindPreviewFailed {
-                                        agent_id,
-                                        error: format!("invalid response: {e}"),
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            TaskResult::RewindPreviewFailed {
-                                agent_id,
-                                error: sanitize_user_error(&e.to_string()),
-                            }
-                        }
-                    }
-                });
-        }
-        Effect::RewindExecute { agent_id, session_id, target_prompt_index, mode } => {
-            let tx = acp_tx.clone();
-            tasks
-                .spawn(async move {
-                    let request = acp::ExtRequest::new(
-                        "x.ai/rewind/execute",
-                        serde_json::value::to_raw_value(
-                                &serde_json::json!(
-                                    { "sessionId" : session_id.0.to_string(),
-                                    "targetPromptIndex" : target_prompt_index, "force" : true,
-                                    "mode" : mode.wire_value(), }
+                                &rewind_execute_params(
+                                    session_id.0.as_ref(),
+                                    target_prompt_index,
                                 ),
                             )
                             .expect("serialize rewind/execute params")
@@ -3668,7 +4209,7 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::DeepSearchSessions { query, seq } => {
+        Effect::DeepSearchSessions { host, generation, query, seq, headless_policy } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
@@ -3677,9 +4218,12 @@ pub(crate) fn execute(
                     let retry_interval = std::time::Duration::from_secs(3);
                     let mut results = Vec::new();
                     loop {
-                        let params = serde_json::json!(
-                            { "query" : query, "limit" : 20, "includeContent" : true, }
-                        );
+                        let params = serde_json::json!({
+                        "query": query,
+                        "limit": 20,
+                        "includeContent": true,
+                        "headless": headless_policy.as_wire_str(),
+                    });
                         let request = acp::ExtRequest::new(
                             "x.ai/session/search",
                             serde_json::value::to_raw_value(&params)
@@ -3731,6 +4275,8 @@ pub(crate) fn execute(
                         tokio::time::sleep(retry_interval).await;
                     }
                     TaskResult::DeepSearchResults {
+                        host,
+                        generation,
                         results,
                         seq,
                     }
@@ -3790,6 +4336,7 @@ pub(crate) fn execute(
                                         agent_id,
                                         new_session_id: acp::SessionId::new(sid),
                                         cwd: parent_cwd,
+                                        parent_session_id,
                                     }
                                 }
                                 None => {
@@ -3809,7 +4356,12 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::HydrateSessionTitleFromDisk { agent_id, session_id, cwd } => {
+        Effect::HydrateSessionMetaFromDisk {
+            agent_id,
+            session_id,
+            cwd,
+            last_turn_summary_gen,
+        } => {
             tasks
                 .spawn(async move {
                     let info = xvora_shell::session::info::Info {
@@ -3818,8 +4370,9 @@ pub(crate) fn execute(
                     };
                     let path = xvora_shell::session::persistence::session_dir(&info)
                         .join("summary.json");
-                    let title = tokio::task::spawn_blocking(move || -> Option<
-                            (String, bool),
+                    type DiskTitle = (Option<(String, bool)>, Option<String>);
+                    let (title, last_turn_summary) = tokio::task::spawn_blocking(move || -> Option<
+                            DiskTitle,
                         > {
                             let raw = std::fs::read_to_string(path).ok()?;
                             let summary: xvora_shell::session::persistence::Summary = serde_json::from_str(
@@ -3828,19 +4381,24 @@ pub(crate) fn execute(
                                 .ok()?;
                             let manual = summary.manual_title_opt();
                             let is_manual = manual.is_some();
-                            let title = manual.or_else(|| summary.display_title_opt())?;
-                            Some((title, is_manual))
+                            let title = manual
+                                .or_else(|| summary.display_title_opt())
+                                .map(|t| (t, is_manual));
+                            Some((title, summary.last_turn_summary))
                         })
                         .await
                         .ok()
-                        .flatten();
-                    TaskResult::SessionTitleFromDisk {
+                        .flatten()
+                        .unwrap_or((None, None));
+                    TaskResult::SessionMetaFromDisk {
                         agent_id,
                         title,
+                        last_turn_summary,
+                        last_turn_summary_gen,
                     }
                 });
         }
-        Effect::FetchBilling { agent_id, silent } => {
+        Effect::FetchBilling { agent_id, silent, nonce } => {
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
@@ -3867,6 +4425,7 @@ pub(crate) fn execute(
                                 agent_id,
                                 error: sanitize_user_error(&format!("{e}")),
                                 silent,
+                                nonce,
                             };
                         }
                     };
@@ -3877,6 +4436,7 @@ pub(crate) fn execute(
                                 agent_id,
                                 error: format!("Parse error: {e}"),
                                 silent,
+                                nonce,
                             };
                         }
                     };
@@ -3893,6 +4453,7 @@ pub(crate) fn execute(
                         silent,
                         subscription_tier,
                         autotopup,
+                        nonce,
                     }
                 });
         }
@@ -3903,9 +4464,9 @@ pub(crate) fn execute(
                             if !xvora_shell::util::config::resolve_remote_fetch_enabled() {
                                 return None;
                             }
-                            let xvora_home = xvora_shell::util::xvora_home::xvora_home();
+                            let grok_home = xvora_shell::util::grok_home::grok_home();
                             let store = xvora_shell::auth::read_auth_json(
-                                    &xvora_home.join("auth.json"),
+                                    &grok_home.join("auth.json"),
                                 )
                                 .ok()?;
                             let scope = xvora_shell::auth::GrokComConfig::default()
@@ -3915,17 +4476,18 @@ pub(crate) fn execute(
                                 &scope,
                             )?;
                             let proxy_base = std::env::var(
-                                    "XVORA_CLI_CHAT_PROXY_BASE_URL",
+                                    "GROK_CLI_CHAT_PROXY_BASE_URL",
                                 )
                                 .unwrap_or_else(|_| {
                                     xvora_shell::agent::config::CLI_CHAT_PROXY_BASE_URL_DEFAULT
                                         .to_owned()
                                 });
                             xvora_shell::remote::fetch_settings_blocking(
-                                &proxy_base,
-                                &auth,
-                                None,
-                            )
+                                    &proxy_base,
+                                    &auth,
+                                    None,
+                                )
+                                .into_option()
                         })
                         .await
                         .ok()
@@ -4003,7 +4565,7 @@ pub(crate) fn execute(
         Effect::DebouncePluginCta { agent_id, generation } => {
             tasks
                 .spawn(async move {
-                    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     TaskResult::PluginCtaDebounceExpired {
                         agent_id,
                         generation,
@@ -4025,12 +4587,18 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "text" : & text, "cursor" : cursor, "cwd" : cwd, "includeAi" :
-                        include_ai, "aiModel" : ai_model, "sessionId" : session_id,
-                        "limit" : limit, "generation" : generation, "tokenOnly" :
-                        token_only, }
-                    );
+                    let params = serde_json::json!({
+                    // By reference: echoed back below as `request_text`.
+                    "text": &text,
+                    "cursor": cursor,
+                    "cwd": cwd,
+                    "includeAi": include_ai,
+                    "aiModel": ai_model,
+                    "sessionId": session_id,
+                    "limit": limit,
+                    "generation": generation,
+                    "tokenOnly": token_only,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/suggest",
                         serde_json::value::to_raw_value(&params)
@@ -4066,10 +4634,11 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let params = serde_json::json!(
-                        { "generation" : generation, "model" : model, "sessionId" :
-                        session_id, }
-                    );
+                    let params = serde_json::json!({
+                    "generation": generation,
+                    "model": model,
+                    "sessionId": session_id,
+                });
                     let req = acp::ExtRequest::new(
                         "x.ai/suggestPrompt",
                         serde_json::value::to_raw_value(&params)
@@ -4106,7 +4675,9 @@ async fn fetch_session_info(
     let request = acp::ExtRequest::new(
         "x.ai/session/info",
         serde_json::value::to_raw_value(
-                &serde_json::json!({ "sessionId" : session_id.0.to_string() }),
+                &serde_json::json!({
+            "sessionId": session_id.0.to_string()
+        }),
             )
             .expect("serialize session/info params")
             .into(),
@@ -4127,26 +4698,132 @@ async fn fetch_session_info(
     }
     envelope.result.ok_or_else(|| "session info response missing result".to_string())
 }
-/// Look up the session title/summary from local persistence.
-async fn lookup_session_title(session_id: &acp::SessionId) -> Option<String> {
-    let summaries = xvora_shell::session::persistence::list_summaries(None)
+/// Fetch [`PromptUsage`] via `x.ai/session/usage` (bare response, no envelope).
+async fn fetch_session_usage(
+    session_id: &acp::SessionId,
+    tx: &AcpAgentTx,
+) -> Result<xvora_shell::extensions::notification::PromptUsage, String> {
+    let request = acp::ExtRequest::new(
+        "x.ai/session/usage",
+        serde_json::value::to_raw_value(
+                &serde_json::json!({
+            "sessionId": session_id.0.to_string()
+        }),
+            )
+            .expect("serialize session/usage params")
+            .into(),
+    );
+    let resp = acp_send(request, tx)
         .await
-        .ok()?;
-    summaries
-        .into_iter()
-        .find(|s| s.info.id == *session_id)
+        .map_err(|e| {
+            if i32::from(e.code) == i32::from(acp::Error::method_not_found().code) {
+                "not supported by this agent version".to_string()
+            } else {
+                sanitize_user_error(&e.to_string())
+            }
+        })?;
+    let parsed: xvora_shell::extensions::usage::SessionUsageResponse = serde_json::from_str(
+            resp.0.get(),
+        )
+        .map_err(|e| {
+            tracing::debug!("session usage deser failed: {e}");
+            "invalid session usage response".to_string()
+        })?;
+    Ok(parsed.usage)
+}
+/// Shared `x.ai/session/rename` RPC for rename and `/rename --auto`.
+async fn session_rename_rpc(
+    tx: &AcpAgentTx,
+    request: actions::RenameSessionRequest,
+) -> Result<(), String> {
+    let verb = if request.reset_to_auto {
+        "reset session title"
+    } else {
+        "rename session"
+    };
+    let ext = acp::ExtRequest::new(
+        "x.ai/session/rename",
+        serde_json::value::to_raw_value(&request)
+            .expect("serialize rename params")
+            .into(),
+    );
+    match acp_send(ext, tx).await {
+        Ok(resp) => {
+            let wrapper: serde_json::Value = serde_json::from_str(resp.0.get())
+                .unwrap_or_default();
+            if let Some(err) = wrapper.get("error").filter(|v| !v.is_null()) {
+                let msg = err
+                    .as_str()
+                    .map(String::from)
+                    .unwrap_or_else(|| err.to_string());
+                return Err(msg);
+            }
+            Ok(())
+        }
+        Err(e) => Err(sanitize_user_error(&format!("couldn't {verb}: {e}"))),
+    }
+}
+/// Session title from local persistence: loads only this session's summary, never the all-sessions list.
+/// `cwd` comes from the `x.ai/session/info` response.
+async fn lookup_session_title(session_id: &acp::SessionId, cwd: &str) -> Option<String> {
+    lookup_session_title_in(
+            xvora_shell::util::grok_home::grok_home(),
+            session_id,
+            cwd,
+        )
+        .await
+}
+/// [`lookup_session_title`] against an explicit root, for tests.
+async fn lookup_session_title_in(
+    root: std::path::PathBuf,
+    session_id: &acp::SessionId,
+    cwd: &str,
+) -> Option<String> {
+    use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
+    let info = xvora_shell::session::info::Info {
+        id: session_id.clone(),
+        cwd: cwd.to_string(),
+    };
+    JsonlStorageAdapter::with_root(root)
+        .load_summary(&info)
+        .await
+        .ok()
         .and_then(|s| s.display_title_opt())
 }
 /// Format session info into a human-readable string.
 ///
 /// Mirrors the TUI's `render_session_info` for pager display.
-fn format_session_info(
+/// Structured `/session-info` rows: the single source of truth for both the formatted string ([`format_session_info`]) and the modal.
+/// Neither has to re-parse the other.
+/// Auth is not a field here; it is prose the string appends on its own.
+/// `compact` marks the dense model/runtime group the modal renders as `Label: value` on one line.
+fn session_info_fields(
     info: &SessionInfoResponse,
     title: Option<&str>,
     show_resolved_model: bool,
-) -> String {
-    let session_id = &info.session_id;
-    let cwd = &info.cwd;
+) -> Vec<SessionInfoField> {
+    let mut fields = Vec::new();
+    let mut push = |label: &'static str, value: String, compact: bool| {
+        fields
+            .push(SessionInfoField {
+                label,
+                value,
+                compact,
+            });
+    };
+    if let Some(t) = title {
+        push("Title", t.to_string(), false);
+    }
+    push(
+        "Shell version",
+        xvora_version::display_version(xvora_update::channel_label()),
+        false,
+    );
+    push("Session ID", info.session_id.to_string(), false);
+    if let Some(id) = info.data.conversation_id.as_deref().filter(|id| !id.is_empty()) {
+        push("Conversation ID", id.to_string(), false);
+    }
+    push("Working directory", info.cwd.to_string(), false);
     let model = info.data.model.as_deref().unwrap_or("unknown");
     let model_display = xvora_shell::session::model_display_name(
         info.data.model_display_name.as_deref(),
@@ -4154,68 +4831,76 @@ fn format_session_info(
         info.data.resolved_model_id.as_deref(),
         show_resolved_model,
     );
+    push("Model", model_display.to_string(), true);
+    if info.data.show_model_fingerprint
+        && let Some(fp) = info.data.model_fingerprint.as_deref()
+    {
+        push("Model Hash", fp.to_string(), true);
+    }
+    if let Some(b) = info.data.api_backend.as_deref() {
+        push("API Backend", b.to_string(), true);
+    }
+    if let Some(profile) = xvora_sandbox::profile_name() {
+        push("Sandbox", profile.to_string(), true);
+    }
+    push("Turn", info.data.turn_index.to_string(), true);
     let ctx = &info.data.context;
-    let used = ctx.used;
-    let total = ctx.total;
-    let pct = ctx.usage_pct;
-    let title_line = match title {
-        Some(t) => format!("  Title: {t}\n"),
-        None => String::new(),
-    };
-    let model_hash_line = if xvora_shell::session::should_show_model_fingerprint(
-        info.data.show_model_fingerprint,
-        model,
-    ) {
-        info.data
-            .model_fingerprint
-            .as_deref()
-            .map(|fp| format!("\n  Model Hash: {fp}"))
-            .unwrap_or_default()
-    } else {
-        String::new()
-    };
-    let backend_line = info
-        .data
-        .api_backend
-        .as_deref()
-        .map(|b| format!("\n  API Backend: {b}"))
-        .unwrap_or_default();
-    let sandbox_line = match xvora_sandbox::profile_name() {
-        Some(profile) => {
-            let net = if xvora_sandbox::should_restrict_child_network() {
-                " (network: restricted)"
-            } else {
-                ""
-            };
-            format!("\n  Sandbox: {profile}{net}")
-        }
-        None => String::new(),
-    };
-    let turn_line = format!("\n  Turn: {}", info.data.turn_index);
-    let conversation_line = info
-        .data
-        .conversation_id
-        .as_deref()
-        .filter(|id| !id.is_empty())
-        .map(|id| format!("\n  Conversation ID: {id}"))
-        .unwrap_or_default();
-    let version_display = xvora_version::display_version(
-        xvora_update::channel_label(),
+    push(
+        "Context",
+        format!("{} / {} tokens ({}%)", ctx.used, ctx.total, ctx.usage_pct),
+        true,
     );
-    format!(
-        "{title_line}  Shell version: {version_display}\n  Session ID: {session_id}{conversation_line}\n  Working directory: {cwd}\n  Model: {model_display}{model_hash_line}{backend_line}{sandbox_line}{turn_line}\n  Context: {used} / {total} tokens ({pct}%)"
-    )
+    fields
+}
+/// The `/session-info` block as a plain string for minimal-mode scrollback.
+/// Built from [`session_info_fields`] (one `  Label: value` line each) with the auth prose spliced in after the shell version.
+/// That keeps it a single source of truth with the modal.
+fn format_session_info(
+    info: &SessionInfoResponse,
+    title: Option<&str>,
+    show_resolved_model: bool,
+    is_api_key_auth: bool,
+    api_key_env_set: bool,
+) -> String {
+    let auth_lines = format_auth_lines(is_api_key_auth, api_key_env_set);
+    let mut out = String::new();
+    for field in session_info_fields(info, title, show_resolved_model) {
+        out.push_str("  ");
+        out.push_str(field.label);
+        out.push_str(": ");
+        out.push_str(&field.value);
+        out.push('\n');
+        if field.label == "Shell version" {
+            out.push_str(&auth_lines);
+        }
+    }
+    out.truncate(out.trim_end_matches('\n').len());
+    out
+}
+/// Auth section for `/session-info`: active login method.
+///
+/// This reflects the process login / ACP auth method, not per-model sampling credentials (a model `api_key`/`env_key` can still own the turn).
+fn format_auth_lines(is_api_key_auth: bool, api_key_env_set: bool) -> String {
+    if is_api_key_auth {
+        let method = if api_key_env_set {
+            "  Auth method: API key (XAI_API_KEY)\n"
+        } else {
+            "  Auth method: API key\n"
+        };
+        return format!(
+            "{method}  Run `grok login` to use your SuperGrok subscription instead.\n"
+        );
+    }
+    String::from("  Auth method: OAuth\n")
 }
 /// Build the single text content block for a plain `Effect::SendPrompt`.
 ///
-/// Non-empty `skill_token_ranges` are stamped into the block `_meta` as
-/// `skillTokenRanges: [[start, end], …]` so session replay restyles the echo
-/// exactly like the composer highlighted it at submit time. Contract: the
-/// offsets index this block's `text`, which is displayed verbatim — this
-/// producer never combines them with a `displayText` override, and the
-/// tracker ignores them when one is present. Empty ranges keep `meta: None`
-/// — the legacy wire shape stays byte-identical. Extracted from the spawn
-/// for testability.
+/// Non-empty `skill_token_ranges` are stamped into the block `_meta` as `skillTokenRanges: [[start, end], …]`.
+/// Session replay then restyles the echo exactly like the composer highlighted it at submit time.
+/// Contract: the offsets index this block's `text`, which is displayed verbatim.
+/// This producer never combines them with a `displayText` override, and the tracker ignores them when one is present.
+/// Empty ranges keep `meta: None`, so the legacy wire shape stays byte-identical.
+/// Extracted from the spawn for testability.
 fn plain_prompt_content_block(
     text: String,
     skill_token_ranges: &[std::ops::Range<usize>],
@@ -4236,12 +4921,10 @@ fn plain_prompt_content_block(
     };
     acp::ContentBlock::Text(acp::TextContent::new(text).meta(meta))
 }
-/// Build the `PromptRequest._meta` payload: `promptId` for notification /
-/// response correlation, plus `screenMode` (`fullscreen` | `inline` |
-/// `minimal`; headless stamps `"headless"` in its own path) so the shell can
-/// attribute `prompt_submitted` telemetry to minimal vs. regular usage.
-/// `screen_mode` is `None` only under `SessionFlags::default()` (tests); the
-/// key is omitted then, keeping the legacy wire shape byte-identical.
+/// Build the `PromptRequest._meta` payload: `promptId` for notification / response correlation, plus `screenMode`.
+/// `screenMode` is `fullscreen` | `inline` | `minimal` (headless stamps `"headless"` in its own path).
+/// The shell uses it to attribute `prompt_submitted` telemetry to minimal vs. regular usage.
+/// `screen_mode` is `None` only under `SessionFlags::default()` (tests); the key is omitted then, keeping the legacy wire shape byte-identical.
 /// Extracted from the spawns for testability.
 fn prompt_request_meta(
     prompt_id: &str,
@@ -4254,19 +4937,32 @@ fn prompt_request_meta(
     }
     serde_json::Value::Object(map)
 }
-/// Build the `x.ai/interject` params. The optional structured `content`
-/// (text + images) is omitted ENTIRELY when `None` so the legacy wire
-/// shape stays byte-identical. Extracted from the spawn for testability.
+pub(crate) const REWIND_MODE_WIRE: &str = "conversation_only";
+pub(crate) fn rewind_execute_params(
+    session_id: &str,
+    target_prompt_index: usize,
+) -> serde_json::Value {
+    serde_json::json!({
+        "sessionId": session_id,
+        "targetPromptIndex": target_prompt_index,
+        "force": true,
+        "mode": REWIND_MODE_WIRE,
+    })
+}
+/// Build the `x.ai/interject` params.
+/// The optional structured `content` (text and images) is omitted ENTIRELY when `None` so the legacy wire shape stays byte-identical.
+/// Extracted from the spawn for testability.
 fn build_interject_params(
     session_id: &acp::SessionId,
     text: &str,
     interjection_id: &str,
     blocks: Option<&[acp::ContentBlock]>,
 ) -> serde_json::Value {
-    let mut params = serde_json::json!(
-        { "sessionId" : session_id.0.to_string(), "text" : text, "interjectionId" :
-        interjection_id, }
-    );
+    let mut params = serde_json::json!({
+        "sessionId": session_id.0.to_string(),
+        "text": text,
+        "interjectionId": interjection_id,
+    });
     if let Some(blocks) = blocks {
         params["content"] = serde_json::to_value(blocks)
             .expect("serialize interject content");

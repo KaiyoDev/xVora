@@ -1,7 +1,7 @@
 [
   {
     "category": "features",
-    "description": "**`xvora login`** now defaults to device code flow, which works reliably in SSH, WSL, VPN, and browser-restricted environments.",
+    "description": "**`grok login`** now defaults to device code flow, which works reliably in SSH, WSL, VPN, and browser-restricted environments.",
     "breaking_change": true
   },
   {

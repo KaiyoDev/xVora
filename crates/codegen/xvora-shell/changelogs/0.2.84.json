@@ -41,7 +41,7 @@
   },
   {
     "category": "fixes",
-    "description": "**Tool result previews** no longer paint opaque panels in `xvora --minimal`.",
+    "description": "**Tool result previews** no longer paint opaque panels in `grok --minimal`.",
     "breaking_change": false
   },
   {

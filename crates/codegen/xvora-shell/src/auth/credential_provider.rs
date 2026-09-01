@@ -1,21 +1,45 @@
 use crate::auth::AuthManager;
-use crate::util::xvora_auth_credentials::XvoraAuthCredentials;
+use crate::auth::backend::{ActiveAuthBackend, AuthBackend};
+use crate::util::grok_auth_credentials::GrokAuthCredentials;
 use reqwest::RequestBuilder;
 use std::sync::Arc;
 use xvora_auth::{
     AuthCredentialProvider, CredentialSnapshot, HttpAuth, StaticAuthCredentialProvider,
 };
-/// `api_key.id` for the active credential: hash the stable API key, never the
-/// OIDC bearer (which rotates). `None` for non-API-key auth.
-fn api_key_id_for(auth: Option<&crate::auth::XaiAuth>) -> Option<String> {
+/// `api_key.id` for the active credential: hash the stable API key, never the OIDC bearer (which rotates).
+/// `None` for non-API-key auth.
+fn api_key_id_for(auth: Option<&crate::auth::GrokAuth>) -> Option<String> {
     auth.filter(|a| matches!(a.auth_mode, crate::auth::AuthMode::ApiKey))
         .map(|a| xvora_telemetry::config::deployment_id_from_key(&a.key))
 }
-/// Production impl: wraps the live `AuthManager`. 401 recovery
-/// delegates to `AuthManager::unauthorized_recovery`.
-pub struct ShellAuthCredentialProvider {
+/// Sampler [`BearerResolver`](xvora_sampler::BearerResolver) over a live [`AuthManager`].
+/// Wire-valid only: it never stamps a hard-expired access token (the client auth contract).
+/// Shared by the session sampler and subagent configs so the contract can't drift between them.
+pub(crate) struct WireValidBearerResolver(pub(crate) Arc<AuthManager>);
+impl WireValidBearerResolver {
+    /// The one constructor both the session sampler and subagent configs use, so the wire-valid contract cannot drift between the call sites.
+    pub(crate) fn shared(auth_manager: Arc<AuthManager>) -> xvora_sampler::SharedBearerResolver {
+        Arc::new(Self(auth_manager))
+    }
+}
+impl std::fmt::Debug for WireValidBearerResolver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WireValidBearerResolver").finish()
+    }
+}
+impl xvora_sampler::BearerResolver for WireValidBearerResolver {
+    fn current_bearer(&self) -> Option<String> {
+        if !ActiveAuthBackend::default().is_xai_authority() {
+            return None;
+        }
+        self.0.current_wire_valid().map(|a| a.key)
+    }
+}
+/// Production impl: wraps the live `AuthManager`.
+/// 401 recovery delegates to `AuthManager::unauthorized_recovery`.
+pub(crate) struct ShellAuthCredentialProvider {
     auth_manager: Arc<AuthManager>,
-    static_credentials: XvoraAuthCredentials,
+    static_credentials: GrokAuthCredentials,
 }
 impl ShellAuthCredentialProvider {
     pub(crate) fn new(
@@ -23,7 +47,7 @@ impl ShellAuthCredentialProvider {
         deployment_key: Option<String>,
         alpha_test_key: Option<String>,
     ) -> Self {
-        let mut static_credentials = XvoraAuthCredentials::new(None);
+        let mut static_credentials = GrokAuthCredentials::new(None);
         static_credentials.deployment_key = deployment_key;
         static_credentials.alpha_test_key = alpha_test_key;
         Self {
@@ -43,7 +67,8 @@ impl HttpAuth for ShellAuthCredentialProvider {
     fn apply(&self, builder: RequestBuilder, base_url: &str) -> RequestBuilder {
         let mut creds = self.static_credentials.clone();
         if creds.deployment_key.is_none()
-            && let Some(auth) = self.auth_manager.current_or_expired()
+            && ActiveAuthBackend::default().is_xai_authority()
+            && let Some(auth) = self.auth_manager.current_wire_valid()
         {
             creds.user_token = Some(auth.key);
         }
@@ -60,12 +85,15 @@ impl AuthCredentialProvider for ShellAuthCredentialProvider {
                 ..Default::default()
             };
         }
-        let auth = self.auth_manager.current_or_expired();
-        let user_id = auth.as_ref().map(|a| a.user_id.clone());
-        let team_id = auth.as_ref().and_then(|a| a.team_id.clone());
-        let organization_id = auth.as_ref().and_then(|a| a.organization_id.clone());
-        let api_key_id = api_key_id_for(auth.as_ref());
-        let token = auth.map(|a| a.key);
+        let identity = self.auth_manager.current_or_expired();
+        let user_id = identity.as_ref().map(|a| a.user_id.clone());
+        let team_id = identity.as_ref().and_then(|a| a.team_id.clone());
+        let organization_id = identity.as_ref().and_then(|a| a.organization_id.clone());
+        let api_key_id = api_key_id_for(identity.as_ref());
+        let token = ActiveAuthBackend::default()
+            .is_xai_authority()
+            .then(|| self.auth_manager.current_wire_valid().map(|a| a.key))
+            .flatten();
         CredentialSnapshot {
             token,
             user_id,
@@ -87,37 +115,42 @@ impl AuthCredentialProvider for ShellAuthCredentialProvider {
         self.static_credentials.deployment_key.is_none()
     }
 }
-/// Build a `StorageClient` for proxy uploads (including the high-volume
-/// `batch_upload` used for repo context / `repo_changes_dedup`).
+/// Resolves the embedding credentials for `embed_base_url`, attaching the xAI session credential only to xAI-operated endpoints over `https`.
+pub(crate) fn embedding_session_credentials(
+    embed_base_url: &str,
+    auth_manager: Option<&Arc<AuthManager>>,
+    api_key_provider: Option<xvora_tools::types::SharedApiKeyProvider>,
+) -> xvora_memory::EndpointScopedCredentials {
+    let auth_credentials = auth_manager.map(|am| {
+        Arc::new(ShellAuthCredentialProvider::new(am.clone(), None, None))
+            as Arc<dyn AuthCredentialProvider>
+    });
+    xvora_memory::EndpointScopedCredentials::for_endpoint(
+        embed_base_url,
+        crate::util::is_xai_api_bearer_url,
+        auth_credentials,
+        api_key_provider,
+    )
+}
+/// Build a `StorageClient` for proxy uploads, including the high-volume `batch_upload` used for repo context and `repo_changes_dedup`.
 ///
-/// ### Client Identity (Important)
+/// Every call site must pass the correct `client_identifier` so the API proxy and the telemetry and metrics backends can attribute requests:
 ///
-/// Every call site **must** pass the correct `client_identifier` so that
-/// the API proxy (and telemetry / metrics backends) can properly attribute requests:
+/// - `"grok-shell"`: classic Grok CLI / TUI (xvora-shell)
+/// - `"grok-pager"`: new Grok Pager / TUI (xvora-pager)
+/// - `"grok-desktop"`: Grok Desktop app
+/// - `"grok-extension"`: VS Code / browser extension
 ///
-/// - `"xvora-shell"`   — classic Xvora CLI / TUI (xvora-shell)
-/// - `"xvora-pager"`   — new Grok Pager / TUI (xvora-pager)
-/// - `"grok-desktop"` — Grok Desktop app
-/// - `"grok-extension"` — VS Code / browser extension
+/// The factory forwards both `x-grok-client-version` (e.g. "0.1.210-alpha.5 (279ffacddb)") and `x-grok-client-identifier`.
+/// They reach the underlying `xvora-file-utils::StorageClient` via `.with_client_identity(...)` and attribute requests in error logs.
 ///
-/// The factory forwards both:
-/// - `x-grok-client-version`   (e.g. "0.1.210-alpha.5 (279ffacddb)")
-/// - `x-grok-client-identifier`
-///
-/// to the underlying `file-utils::StorageClient` via
-/// `.with_client_identity(...)`. This is what powers the improved error
-/// logging on the request-attribution path.
-///
-/// - When `auth_manager` is `Some`, uses the live `ShellAuthCredentialProvider`
-///   (OIDC refresh, proactive refresh, 401 recovery via `unauthorized_recovery`).
+/// - When `auth_manager` is `Some`, uses the live `ShellAuthCredentialProvider` (OIDC refresh, proactive refresh, 401 recovery).
 /// - When `auth_manager` is `None`, falls back to a static token:
-///   - `user_token` (normal OIDC users via com scope) → sends Bearer + `X-XAI-Token-Auth`
-///   - `deployment_key` (enterprise) → sends bare Bearer
-///   - the optional extra access key is added only for matching hosts when
-///     the non-production feature is enabled.
+///   - `user_token` (normal OIDC users via com scope) sends Bearer plus `X-XAI-Token-Auth`
+///   - `deployment_key` (enterprise) sends a bare Bearer
+///   - the optional extra access key is added only for matching hosts when the non-production feature is enabled.
 ///
-/// `user_token` is only for AuthManager-less one-shots; live paths (incl. pager
-/// restore) pass the AuthManager plus an optional deployment key.
+/// `user_token` is only for AuthManager-less one-shots; live paths (including pager restore) pass the AuthManager plus an optional deployment key.
 pub fn build_storage_client_for_proxy(
     proxy_base_url: &str,
     deployment_key: Option<String>,
@@ -126,7 +159,7 @@ pub fn build_storage_client_for_proxy(
     user_token: Option<String>,
     session_id: Option<String>,
     client_identifier: &str,
-) -> file_utils::storage_client::StorageClient {
+) -> xvora_file_utils::storage_client::StorageClient {
     let http_client = crate::http::shared_upload_client();
     if let Some(am) = auth_manager {
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(ShellAuthCredentialProvider::new(
@@ -134,9 +167,9 @@ pub fn build_storage_client_for_proxy(
             deployment_key,
             alpha_test_key,
         ));
-        let bridge: Arc<dyn file_utils::storage_client::Auth401AttributionCallback> =
+        let bridge: Arc<dyn xvora_file_utils::storage_client::Auth401AttributionCallback> =
             Arc::new(StorageClientAttributionBridge::new(am, session_id));
-        file_utils::storage_client::StorageClient::with_provider(
+        xvora_file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
@@ -145,7 +178,7 @@ pub fn build_storage_client_for_proxy(
         .with_client_mode(crate::http::process_client_mode())
         .with_attribution(bridge)
     } else {
-        let mut creds = XvoraAuthCredentials::new(user_token);
+        let mut creds = GrokAuthCredentials::new(user_token);
         creds.deployment_key = deployment_key;
         creds.alpha_test_key = alpha_test_key;
         let wire_bearer = creds
@@ -155,7 +188,7 @@ pub fn build_storage_client_for_proxy(
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(
             StaticAuthCredentialProvider::new(Box::new(creds), wire_bearer),
         );
-        file_utils::storage_client::StorageClient::with_provider(
+        xvora_file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
@@ -164,10 +197,8 @@ pub fn build_storage_client_for_proxy(
         .with_client_mode(crate::http::process_client_mode())
     }
 }
-/// Bridge that lets `StorageClient` (which lives in file-utils)
-/// emit shell's 401-attribution event without the data-collector crate
-/// having a direct dependency on shell. Holds a reference to the live
-/// `AuthManager` so attribution events carry the correct user_id.
+/// Lets `StorageClient` (in xvora-file-utils) emit shell's 401-attribution event without xvora-file-utils depending on shell.
+/// Holds the live `AuthManager` so attribution events carry the correct user_id.
 pub(crate) struct StorageClientAttributionBridge {
     auth_manager: Arc<AuthManager>,
     session_id: Option<String>,
@@ -186,7 +217,7 @@ impl StorageClientAttributionBridge {
         }
     }
 }
-impl file_utils::storage_client::Auth401AttributionCallback for StorageClientAttributionBridge {
+impl xvora_file_utils::storage_client::Auth401AttributionCallback for StorageClientAttributionBridge {
     fn record_401(&self, operation: &str, sent_bearer_prefix: Option<&str>) {
         crate::auth::attribution::record_consumer_401(
             self.auth_manager.as_ref(),
@@ -199,18 +230,15 @@ impl file_utils::storage_client::Auth401AttributionCallback for StorageClientAtt
 }
 /// Credential provider for the OTel layer's `RefreshableSpanExporter`.
 ///
-/// Starts with a bootstrap `AuthManager` (disk-read-only, no refresher)
-/// and can be upgraded to the agent's live `Arc<AuthManager>` once the
-/// agent is initialized. After upgrade:
+/// Starts with a bootstrap `AuthManager` (disk-read-only, no refresher).
+/// [`Self::set_live`] upgrades it to the agent's live `Arc<AuthManager>` once the agent is initialized.
 ///
-/// - `snapshot()` reads from the live manager's in-memory cache (kept
-///   hot by the proactive refresh task) instead of re-reading disk.
-/// - `refresh_after_unauthorized()` routes through
-///   `unauthorized_recovery` for active OIDC/external-binary refresh.
+/// After upgrade:
+/// - `snapshot()` reads from the live manager's in-memory cache (kept hot by the proactive refresh task) instead of re-reading disk.
+/// - `refresh_after_unauthorized()` routes through `unauthorized_recovery` for active OIDC or external-binary refresh.
 ///
-/// Before upgrade, the bootstrap manager provides disk-read-only
-/// behavior (equivalent to the pre-consolidation OTel path).
-pub struct OtelAuthCredentialProvider {
+/// Before upgrade, the bootstrap manager only reads from disk.
+pub(crate) struct OtelAuthCredentialProvider {
     /// Bootstrap manager used before the live one is available.
     bootstrap: Arc<AuthManager>,
     /// Swapped to the agent's live `AuthManager` via `set_live()`.
@@ -227,17 +255,15 @@ impl OtelAuthCredentialProvider {
             deployment_key: arc_swap::ArcSwap::from_pointee(None),
         }
     }
-    /// Upgrade to the agent's live `AuthManager`. After this call,
-    /// `snapshot()` reads from the live manager (proactive refresh
-    /// keeps it hot) and `refresh_after_unauthorized()` drives the
-    /// full recovery state machine.
-    pub fn set_live(&self, auth_manager: Arc<AuthManager>) {
+    /// Upgrade to the agent's live `AuthManager`.
+    /// After this call, `snapshot()` reads from the live manager and `refresh_after_unauthorized()` drives the full recovery state machine.
+    pub(crate) fn set_live(&self, auth_manager: Arc<AuthManager>) {
         self.live.store(Arc::new(Some(auth_manager)));
     }
-    pub fn set_deployment_key(&self, key: String) {
+    pub(crate) fn set_deployment_key(&self, key: String) {
         self.deployment_key.store(Arc::new(Some(key)));
     }
-    /// Single-load snapshot of the live/bootstrap state.
+    /// Loads `live` once, returning the live manager when set, else the bootstrap.
     fn load_state(&self) -> (Arc<AuthManager>, bool) {
         let guard = self.live.load();
         match guard.as_ref() {
@@ -256,8 +282,12 @@ impl std::fmt::Debug for OtelAuthCredentialProvider {
 }
 impl HttpAuth for OtelAuthCredentialProvider {
     fn apply(&self, builder: RequestBuilder, base_url: &str) -> RequestBuilder {
+        if self.deployment_key.load().is_none() && !ActiveAuthBackend::default().is_xai_authority()
+        {
+            return builder;
+        }
         let snapshot = self.snapshot_inner();
-        let mut creds = XvoraAuthCredentials::new(None);
+        let mut creds = GrokAuthCredentials::new(None);
         if self.deployment_key.load().is_some() {
             creds.deployment_key = snapshot.token;
         } else {
@@ -298,11 +328,18 @@ impl OtelAuthCredentialProvider {
 #[async_trait::async_trait]
 impl AuthCredentialProvider for OtelAuthCredentialProvider {
     fn snapshot(&self) -> CredentialSnapshot {
+        if self.deployment_key.load().is_none() && !ActiveAuthBackend::default().is_xai_authority()
+        {
+            return CredentialSnapshot::default();
+        }
         self.snapshot_inner()
     }
     fn has_usable_credential(&self) -> bool {
         if self.deployment_key.load().is_some() {
             return true;
+        }
+        if !ActiveAuthBackend::default().is_xai_authority() {
+            return false;
         }
         self.load_state().0.has_usable_token()
     }
@@ -320,39 +357,28 @@ impl AuthCredentialProvider for OtelAuthCredentialProvider {
 }
 /// Process-wide OTel credential provider handle.
 ///
-/// This is one of two acceptable process-wide statics in this crate
-/// (the other is `TRACER_PROVIDER` in `otel_layer.rs`). It's set
-/// once at tracing init (before any `AuthManager` exists) and holds
-/// a bootstrap-mode provider. The `ArcSwap` *inside* the provider
-/// handles the runtime auth state swap — the `OnceLock` itself is
-/// never re-written.
+/// This is one of two acceptable process-wide statics in this crate (the other is `TRACER_PROVIDER` in `otel_layer.rs`).
+/// It is set once at tracing init, before any `AuthManager` exists, and holds a bootstrap-mode provider.
+/// The `ArcSwap` inside the provider handles the runtime auth state swap; the `OnceLock` itself is never re-written.
 ///
-/// Why not thread it? `build_default_otel_layer_config` is called
-/// from 15+ `init_tracing*` sites across 3 binaries. Threading a
-/// handle through all of them to the agent init site (where the
-/// live `AuthManager` is constructed) would touch ~20 files for a
-/// single-purpose plumbing change. The `OnceLock` holds a
-/// container, not auth state; the auth state lives behind `ArcSwap`
-/// and changes at runtime.
+/// A static beats passing a handle: `build_default_otel_layer_config` is called from 15+ `init_tracing*` sites across 3 binaries.
+/// Passing a handle from all of them to the agent init site, where the live `AuthManager` is constructed, would touch ~20 files.
 static OTEL_PROVIDER: std::sync::OnceLock<Arc<OtelAuthCredentialProvider>> =
     std::sync::OnceLock::new();
-/// Upgrade the OTel credential provider to use the agent's live
-/// `AuthManager`. Call this once after the main `AuthManager` is
-/// constructed and has its refresher configured. No-ops if the OTel
-/// layer was never initialized (e.g. `InstrumentationMode::Disabled`).
-pub fn wire_otel_auth_manager(auth_manager: Arc<AuthManager>) {
+/// Upgrade the OTel credential provider to use the agent's live `AuthManager`.
+/// Call this once after the main `AuthManager` is constructed and has its refresher configured.
+/// No-ops if the OTel layer was never initialized (e.g. `InstrumentationMode::Disabled`).
+pub(crate) fn wire_otel_auth_manager(auth_manager: Arc<AuthManager>) {
     if let Some(provider) = OTEL_PROVIDER.get() {
         provider.set_live(auth_manager);
         tracing::debug!("otel: upgraded credential provider to live AuthManager");
     }
     sync_external_otel_identity();
 }
-/// Push the current identity *attributes* (never the token) to the external
-/// OTEL stream. Reads the same `CredentialSnapshot` the internal layer
-/// stamps per-export, so both pipelines attribute identically. No-op when
-/// the OTel provider was never initialized or the external stream is
-/// dormant.
-pub fn sync_external_otel_identity() {
+/// Push the current identity attributes (never the token) to the external OTEL stream.
+/// Reads the same `CredentialSnapshot` the internal layer stamps per export, so both pipelines attribute identically.
+/// No-op when the OTel provider was never initialized or the external stream is dormant.
+pub(crate) fn sync_external_otel_identity() {
     if let Some(provider) = OTEL_PROVIDER.get() {
         let snapshot = provider.snapshot();
         xvora_telemetry::external::set_identity(
@@ -361,19 +387,17 @@ pub fn sync_external_otel_identity() {
     }
 }
 /// No-ops if the OTel layer was never initialized.
-pub fn wire_otel_deployment_key(key: String) {
+pub(crate) fn wire_otel_deployment_key(key: String) {
     if let Some(provider) = OTEL_PROVIDER.get() {
         provider.set_deployment_key(key);
         tracing::debug!("otel: set deployment key on credential provider");
         sync_external_otel_identity();
     }
 }
-/// Bootstrap helper: build the full [`OtelLayerConfig`] that both
-/// `xvora-pager` and `xvora-tui` need at tracing init time.
+/// Bootstrap helper: build the full [`OtelLayerConfig`] that both `xvora-pager` and `xvora-tui` need at tracing init time.
 ///
 /// The credential provider starts in bootstrap mode (disk-read-only).
-/// Call [`wire_otel_auth_manager`] after agent init to upgrade to the
-/// live `AuthManager` with active refresh.
+/// Call [`wire_otel_auth_manager`] after agent init to upgrade to the live `AuthManager` with active refresh.
 pub fn build_default_otel_layer_config() -> xvora_telemetry::otel_layer::OtelLayerConfig {
     let endpoints = crate::agent::config::EndpointsConfig::default();
     let grok_com_config = crate::auth::GrokComConfig::default();
@@ -386,8 +410,8 @@ pub fn build_default_otel_layer_config() -> xvora_telemetry::otel_layer::OtelLay
             && !crate::agent::config::is_telemetry_explicitly_disabled_sync(),
     };
     let token_header_value = grok_com_config.token_header.clone();
-    let xvora_home = crate::util::xvora_home::xvora_home();
-    let bootstrap = Arc::new(AuthManager::new(&xvora_home, grok_com_config));
+    let grok_home = crate::util::grok_home::grok_home();
+    let bootstrap = Arc::new(AuthManager::new(&grok_home, grok_com_config));
     let provider = Arc::new(OtelAuthCredentialProvider::new(bootstrap));
     let _ = OTEL_PROVIDER.set(provider.clone());
     xvora_telemetry::otel_layer::OtelLayerConfig {
@@ -400,19 +424,16 @@ pub fn build_default_otel_layer_config() -> xvora_telemetry::otel_layer::OtelLay
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::GrokAuth;
     use crate::auth::GrokComConfig;
-    use crate::auth::XaiAuth;
     use crate::auth::manager::AuthManager;
     use chrono::{Duration as ChronoDuration, Utc};
     use std::sync::Mutex;
     use xvora_auth::AuthCredentialProvider;
-    /// Serializes tests that pin `XVORA_AUTH_EARLY_INVALIDATION_SECS`, since
-    /// env vars are process-global and parallel tests would race.
+    /// Serializes tests that pin `GROK_AUTH_EARLY_INVALIDATION_SECS`, since env vars are process-global and parallel tests would race.
     static EARLY_INVALIDATION_LOCK: Mutex<()> = Mutex::new(());
-    /// RAII guard: pins `XVORA_AUTH_EARLY_INVALIDATION_SECS` to the production
-    /// default (300s) while held, restoring the previous value on drop.
-    /// Acquires `EARLY_INVALIDATION_LOCK` so concurrent test runners can't
-    /// observe a half-mutated env.
+    /// RAII guard: pins `GROK_AUTH_EARLY_INVALIDATION_SECS` to the production default (300s) while held, restoring the previous value on drop.
+    /// Acquires `EARLY_INVALIDATION_LOCK` so concurrent test runners can't observe a half-mutated env.
     struct EarlyInvalidationGuard {
         _lock: std::sync::MutexGuard<'static, ()>,
         previous: Option<String>,
@@ -422,8 +443,8 @@ mod tests {
             let lock = EARLY_INVALIDATION_LOCK
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let previous = std::env::var("XVORA_AUTH_EARLY_INVALIDATION_SECS").ok();
-            unsafe { std::env::set_var("XVORA_AUTH_EARLY_INVALIDATION_SECS", "300") };
+            let previous = std::env::var("GROK_AUTH_EARLY_INVALIDATION_SECS").ok();
+            unsafe { std::env::set_var("GROK_AUTH_EARLY_INVALIDATION_SECS", "300") };
             Self {
                 _lock: lock,
                 previous,
@@ -434,32 +455,63 @@ mod tests {
         fn drop(&mut self) {
             unsafe {
                 match self.previous.take() {
-                    Some(prev) => std::env::set_var("XVORA_AUTH_EARLY_INVALIDATION_SECS", prev),
-                    None => std::env::remove_var("XVORA_AUTH_EARLY_INVALIDATION_SECS"),
+                    Some(prev) => std::env::set_var("GROK_AUTH_EARLY_INVALIDATION_SECS", prev),
+                    None => std::env::remove_var("GROK_AUTH_EARLY_INVALIDATION_SECS"),
                 }
             }
         }
     }
-    fn make_auth(key: &str, expires_in: ChronoDuration) -> XaiAuth {
-        XaiAuth {
+    fn make_auth(key: &str, expires_in: ChronoDuration) -> GrokAuth {
+        GrokAuth {
             key: key.to_string(),
             user_id: "test-user".to_string(),
             create_time: Utc::now(),
             expires_at: Some(Utc::now() + expires_in),
-            ..XaiAuth::test_default()
+            ..GrokAuth::test_default()
         }
     }
-    /// Build an `AuthManager` rooted at `dir`. Caller keeps `dir` alive for
-    /// the duration of the test so the `TempDir` `Drop` actually cleans up.
-    fn make_manager(dir: &tempfile::TempDir, initial: Option<XaiAuth>) -> Arc<AuthManager> {
+    /// Build an `AuthManager` rooted at `dir`.
+    /// The caller keeps `dir` alive for the duration of the test so the `TempDir` `Drop` actually cleans up.
+    fn make_manager(dir: &tempfile::TempDir, initial: Option<GrokAuth>) -> Arc<AuthManager> {
         let mgr = AuthManager::new(dir.path(), GrokComConfig::default());
         if let Some(auth) = initial {
             mgr.hot_swap(auth);
         }
         Arc::new(mgr)
     }
-    /// `apply()` and `snapshot()` agree (snapshot==wire invariant) when the
-    /// in-memory token is fresh.
+    /// The shell half of the subagent-401 contract; the sampler half is pinned in xvora-sampler's resolver tests.
+    /// Over a real `AuthManager` the resolver returns `None` when hard-expired (fail-closed).
+    /// It returns the token inside the early-invalidation buffer (still proxy-accepted), and the fresh token after a rotation.
+    /// The same resolver serves all three states without a client rebuild.
+    #[test]
+    fn wire_valid_resolver_tracks_manager_across_expiry_and_refresh() {
+        use xvora_sampler::BearerResolver;
+        let _guard = EarlyInvalidationGuard::pin_to_default();
+        let dir = tempfile::tempdir().unwrap();
+        let mgr = make_manager(
+            &dir,
+            Some(make_auth("hard-expired-token", ChronoDuration::hours(-1))),
+        );
+        let resolver = WireValidBearerResolver(mgr.clone());
+        assert_eq!(
+            resolver.current_bearer(),
+            None,
+            "a hard-expired token must never ride the wire"
+        );
+        mgr.hot_swap(make_auth("buffer-window-token", ChronoDuration::minutes(4)));
+        assert_eq!(
+            resolver.current_bearer().as_deref(),
+            Some("buffer-window-token"),
+            "inside the early-invalidation buffer the token is still wire-valid"
+        );
+        mgr.hot_swap(make_auth("fresh-token", ChronoDuration::hours(1)));
+        assert_eq!(
+            resolver.current_bearer().as_deref(),
+            Some("fresh-token"),
+            "the same resolver must serve the rotated token without a rebuild"
+        );
+    }
+    /// `apply()` and `snapshot()` agree when the in-memory token is fresh: what snapshot reports is what goes on the wire.
     #[test]
     fn apply_and_snapshot_agree_on_live_token() {
         let _guard = EarlyInvalidationGuard::pin_to_default();
@@ -473,12 +525,10 @@ mod tests {
         assert_eq!(snap.token.as_deref(), Some("live-token"));
         assert_eq!(snap.user_id.as_deref(), Some("test-user"));
     }
-    /// During the 5-minute pre-refresh buffer window, `auth_manager.current()`
-    /// returns `None` (the token is treated as expired-soon for refresh
-    /// scheduling), but the token is still valid at the proxy. The provider
-    /// must fall back to `expired_auth()` so the in-memory token gets sent
-    /// instead of nothing -- which is the fix for the bulk of the
-    /// `POST /v1/storage` 401s observed in production.
+    /// During the 5-minute pre-refresh buffer window, `auth_manager.current()` returns `None`, but the token is still valid at the proxy.
+    /// The manager treats such a token as expiring soon for refresh scheduling.
+    /// The provider must fall back to `expired_auth()` so the in-memory token gets sent instead of nothing.
+    /// Sending nothing here caused the bulk of the `POST /v1/storage` 401s observed in production.
     #[test]
     fn falls_back_to_expired_auth_during_buffer_window() {
         let _guard = EarlyInvalidationGuard::pin_to_default();
@@ -498,8 +548,7 @@ mod tests {
         );
         assert_eq!(snap.user_id.as_deref(), Some("test-user"));
     }
-    /// When `auth_manager` has nothing at all (no in-memory auth, expired
-    /// or otherwise), `snapshot()` returns `None` for the user-token branch.
+    /// When `auth_manager` has nothing at all (no in-memory auth, expired or otherwise), `snapshot()` returns `None` for the user-token branch.
     /// `apply()` would then send no Authorization header.
     #[test]
     fn no_token_when_auth_manager_is_empty() {
@@ -514,8 +563,7 @@ mod tests {
         );
         assert!(snap.user_id.is_none());
     }
-    /// 401 recovery routes through `unauthorized_recovery` (pre-fix
-    /// it no-oped because the refresher arg was hardcoded `None`).
+    /// 401 recovery routes through `unauthorized_recovery` and actually runs the configured refresher.
     #[tokio::test]
     async fn refresh_after_unauthorized_drives_recovery_state_machine() {
         let _guard = EarlyInvalidationGuard::pin_to_default();
@@ -524,14 +572,14 @@ mod tests {
             dir.path(),
             crate::auth::GrokComConfig::default(),
         ));
-        mgr.hot_swap(XaiAuth {
+        mgr.hot_swap(GrokAuth {
             key: "stale".into(),
             auth_mode: crate::auth::AuthMode::Oidc,
             create_time: chrono::Utc::now() - ChronoDuration::hours(2),
             user_id: "u".into(),
             refresh_token: Some("rt-stale".into()),
             expires_at: Some(chrono::Utc::now() - ChronoDuration::hours(1)),
-            ..XaiAuth::test_default()
+            ..GrokAuth::test_default()
         });
         struct OkRefresher {
             calls: Arc<std::sync::atomic::AtomicU32>,
@@ -543,14 +591,14 @@ mod tests {
                 _r: crate::auth::manager::RefreshReason,
             ) -> crate::auth::refresh::RefreshOutcome {
                 self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
+                crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
                     key: "fresh".into(),
                     auth_mode: crate::auth::AuthMode::Oidc,
                     create_time: chrono::Utc::now(),
                     user_id: "u".into(),
                     refresh_token: Some("rt-new".into()),
                     expires_at: Some(chrono::Utc::now() + ChronoDuration::hours(1)),
-                    ..XaiAuth::test_default()
+                    ..GrokAuth::test_default()
                 }))
             }
         }
@@ -567,6 +615,31 @@ mod tests {
             Some("fresh"),
             "snapshot must reflect refreshed token for subsequent apply() calls"
         );
+    }
+    #[test]
+    fn embedding_session_credentials_scopes_to_first_party() {
+        let _guard = EarlyInvalidationGuard::pin_to_default();
+        let dir = tempfile::tempdir().unwrap();
+        let mgr = make_manager(
+            &dir,
+            Some(make_auth("xvora-session-token", ChronoDuration::hours(1))),
+        );
+        let api_key_provider: xvora_tools::types::SharedApiKeyProvider =
+            Arc::new(crate::auth::manager::SharedAuthKeyProvider(mgr.clone()));
+        for denied in ["https://byok.attacker.example/v1", "http://api.x.ai/v1"] {
+            let resolved =
+                embedding_session_credentials(denied, Some(&mgr), Some(api_key_provider.clone()));
+            assert!(
+                resolved.is_empty(),
+                "session credentials must not reach {denied}"
+            );
+        }
+        let resolved = embedding_session_credentials(
+            "https://api.x.ai/v1",
+            Some(&mgr),
+            Some(api_key_provider),
+        );
+        assert!(!resolved.is_empty());
     }
     /// Deployment-key path has no recovery (operator owns the bearer).
     #[tokio::test]
@@ -585,20 +658,20 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let dep = ShellAuthCredentialProvider::new(
             make_manager(&dir, None),
-            Some("xai-token-EX".into()),
+            Some("xvora-token-EX".into()),
             None,
         )
         .snapshot();
         assert_eq!(
             dep.deployment_id.as_deref(),
-            Some(deployment_id_from_key("xai-token-EX").as_str())
+            Some(deployment_id_from_key("xvora-token-EX").as_str())
         );
         assert!(dep.api_key_id.is_none());
-        let api_auth = XaiAuth {
+        let api_auth = GrokAuth {
             key: "sk-apikey-xyz".into(),
             auth_mode: crate::auth::AuthMode::ApiKey,
             expires_at: Some(Utc::now() + ChronoDuration::hours(1)),
-            ..XaiAuth::test_default()
+            ..GrokAuth::test_default()
         };
         let api = ShellAuthCredentialProvider::new(make_manager(&dir, Some(api_auth)), None, None)
             .snapshot();
@@ -618,8 +691,7 @@ mod tests {
         .snapshot();
         assert!(oidc.deployment_id.is_none() && oidc.api_key_id.is_none());
     }
-    /// Bootstrap mode: `snapshot()` re-reads disk so sibling-rotated
-    /// tokens are picked up without a live AuthManager.
+    /// Bootstrap mode: `snapshot()` re-reads disk, so a token rotated by a sibling process is picked up without a live AuthManager.
     #[test]
     fn otel_bootstrap_snapshot_picks_up_disk_writes() {
         let _guard = EarlyInvalidationGuard::pin_to_default();
@@ -647,9 +719,8 @@ mod tests {
             "must pick up sibling-rotated tokens from disk"
         );
     }
-    /// After `set_live()`, `snapshot()` reads from the live manager's
-    /// in-memory cache (no disk re-read) and `refresh_after_unauthorized()`
-    /// drives the recovery state machine.
+    /// After `set_live()`, `snapshot()` reads from the live manager's in-memory cache with no disk re-read.
+    /// `refresh_after_unauthorized()` then drives the recovery state machine.
     #[tokio::test]
     async fn otel_live_mode_uses_shared_auth_manager() {
         let _guard = EarlyInvalidationGuard::pin_to_default();
@@ -688,14 +759,14 @@ mod tests {
             live_dir.path(),
             crate::auth::GrokComConfig::default(),
         ));
-        live_mgr.hot_swap(XaiAuth {
+        live_mgr.hot_swap(GrokAuth {
             key: "stale".into(),
             auth_mode: crate::auth::AuthMode::Oidc,
             create_time: chrono::Utc::now() - ChronoDuration::hours(2),
             user_id: "u".into(),
             refresh_token: Some("rt-stale".into()),
             expires_at: Some(chrono::Utc::now() - ChronoDuration::hours(1)),
-            ..XaiAuth::test_default()
+            ..GrokAuth::test_default()
         });
         struct OkRefresher;
         #[async_trait::async_trait]
@@ -704,14 +775,14 @@ mod tests {
                 &self,
                 _r: crate::auth::manager::RefreshReason,
             ) -> crate::auth::refresh::RefreshOutcome {
-                crate::auth::refresh::RefreshOutcome::Success(Box::new(XaiAuth {
+                crate::auth::refresh::RefreshOutcome::Success(Box::new(GrokAuth {
                     key: "refreshed".into(),
                     auth_mode: crate::auth::AuthMode::Oidc,
                     create_time: chrono::Utc::now(),
                     user_id: "u".into(),
                     refresh_token: Some("rt-new".into()),
                     expires_at: Some(chrono::Utc::now() + ChronoDuration::hours(1)),
-                    ..XaiAuth::test_default()
+                    ..GrokAuth::test_default()
                 }))
             }
         }
@@ -797,11 +868,10 @@ mod tests {
             "static deployment key is always usable"
         );
     }
-    /// A token inside the early-invalidation buffer is still accepted by the
-    /// proxy (the buffer is a client-side pre-refresh margin, not a wire
-    /// expiry), and the sender puts it on the wire via `current_or_expired()`.
-    /// The export gate must therefore keep it usable even though `current()`
-    /// reports `None`. Regression for the buffer-window export drop.
+    /// A token inside the early-invalidation buffer is still accepted by the proxy.
+    /// The buffer is a client-side pre-refresh margin, not a wire expiry, and the sender puts the token on the wire via `current_or_expired()`.
+    /// The export gate must therefore keep it usable even though `current()` reports `None`.
+    /// Regression test: exports used to stop during the buffer window.
     #[test]
     fn has_usable_credential_true_inside_early_invalidation_buffer() {
         let _guard = EarlyInvalidationGuard::pin_to_default();
@@ -820,10 +890,8 @@ mod tests {
             "a buffer-window token is still wire-valid, so the gate keeps it usable"
         );
     }
-    /// A configured `deployment_key` always wins over the AuthManager-resolved
-    /// user token, matching the precedence in `XvoraAuthCredentials::apply`.
-    /// The snapshot must report the deployment key (not the user token) so
-    /// the 401-attribution prefix matches the wire bytes.
+    /// A configured `deployment_key` always wins over the AuthManager-resolved user token, matching the precedence in `GrokAuthCredentials::apply`.
+    /// The snapshot must report the deployment key so the 401-attribution prefix matches the wire bytes.
     #[test]
     fn deployment_key_wins_over_resolved_user_token() {
         let _guard = EarlyInvalidationGuard::pin_to_default();

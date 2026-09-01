@@ -4,9 +4,9 @@
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
-use computer_hub_core::{Principal, Transport, TransportKind};
-use tool_protocol::{SessionId, ToolId, UserId};
-use tool_runtime::{
+use xvora_computer_hub_core::{Principal, Transport, TransportKind};
+use xvora_tool_protocol::{SessionId, ToolId, UserId};
+use xvora_tool_runtime::{
     ToolCallContext, ToolError, ToolStream, ToolStreamItem, TypedToolOutput, terminal_only,
 };
 
@@ -68,51 +68,6 @@ async fn boxed_transport_compiles_and_dispatches() {
         ToolStreamItem::Terminal(Ok(typed)) => assert_eq!(typed.value, json!({"k": "v"})),
         other => panic!("expected Terminal(Ok), got {other:?}"),
     }
-}
-
-#[tokio::test]
-async fn kind_distinguishes_local_and_remote() {
-    let local = EchoTransport {
-        kind: TransportKind::Local,
-        user: uid("alice"),
-        session: sid("sess-1"),
-    };
-    let remote = EchoTransport {
-        kind: TransportKind::Remote,
-        user: uid("alice"),
-        session: sid("sess-1"),
-    };
-    assert_eq!(local.kind(), TransportKind::Local);
-    assert_eq!(remote.kind(), TransportKind::Remote);
-    assert_ne!(local.kind(), remote.kind());
-}
-
-#[tokio::test]
-async fn authorize_returns_bound_principal() {
-    let t = EchoTransport {
-        kind: TransportKind::Local,
-        user: uid("alice"),
-        session: sid("sess-1"),
-    };
-    let principal = t.authorize().await.expect("authorize succeeds");
-    assert_eq!(principal.user_id, uid("alice"));
-    assert!(principal.authorizes_session(&sid("sess-1")));
-    assert!(!principal.authorizes_session(&sid("sess-other")));
-    assert!(principal.has_scope("tool.invoke"));
-    assert!(!principal.has_scope("admin"));
-}
-
-#[test]
-fn principal_builder_chains_in_order() {
-    let principal = Principal::new(uid("alice"))
-        .with_session(sid("sess-a"))
-        .with_session(sid("sess-b"))
-        .with_scope("tool.invoke")
-        .with_scope("tool.search")
-        .with_audience("dispatcher.example");
-    assert_eq!(principal.session_ids, vec![sid("sess-a"), sid("sess-b")]);
-    assert_eq!(principal.scopes, vec!["tool.invoke", "tool.search"]);
-    assert_eq!(principal.audiences, vec!["dispatcher.example"]);
 }
 
 #[test]

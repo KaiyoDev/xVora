@@ -14,7 +14,6 @@ use std::fs::File as StdFile;
 // Positional read traits live in different modules per platform; the
 // methods we use (read_at on Unix, seek_read on Windows) have the same
 // signature, so the call site cfg-branches on the method name only.
-use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome};
 #[cfg(unix)]
 use std::os::unix::fs::FileExt;
 #[cfg(windows)]
@@ -27,6 +26,7 @@ use tokio::sync::Semaphore;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
+use xvora_circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 use xvora_auth::AuthCredentialProvider;
 
 use crate::circuit_breaker_observer::TracingObserver;
@@ -35,7 +35,7 @@ use crate::circuit_breaker_observer::TracingObserver;
 // Storage Circuit Breaker policy
 // ============================================================================
 // `StorageClient`'s session-wide breaker uses the shared
-// `circuit_breaker::BreakerConfig::client()` preset
+// `xvora_circuit_breaker::BreakerConfig::client()` preset
 // (sliding-window-with-min-samples: 5 samples / 60s window / 60s open
 // duration / failure code = 401). The observer name "storage_breaker"
 // is surfaced as a structured field on every tracing event so existing
@@ -206,7 +206,7 @@ impl std::error::Error for HttpUploadError {}
 
 /// Result of checking if an HTTP response should be retried.
 struct ResponseCheck {
-    /// Whether the error is retryable (429, 5xx).
+    /// Whether the error is retryable (edge rule — see `is_retryable_status`).
     pub is_retryable: bool,
     /// Retry-After header value if present.
     pub retry_after: Option<Duration>,
@@ -337,26 +337,42 @@ fn parse_retry_after(response: &reqwest::Response) -> Option<Duration> {
     None
 }
 
-/// Determine if an HTTP status code is retryable.
+/// Whether an HTTP status is retryable. Proxy-mode uploads cross the same
+/// Cloudflare edge as sampling, so they share its rule (429 + 5xx, minus
+/// origin-TLS 525/526).
 #[inline]
 fn is_retryable_status(status: u16) -> bool {
-    matches!(status, 429 | 500 | 502 | 503 | 504)
+    RetryPolicy::edge_client().should_retry(status)
+}
+
+#[cfg(test)]
+mod retry_status_tests {
+    use super::is_retryable_status;
+
+    /// Pins the upload path to the edge rule; the exhaustive per-status
+    /// matrix lives in `xvora-circuit-breaker`'s `edge_client` tests.
+    #[test]
+    fn uploads_use_the_edge_retry_rule() {
+        assert!(is_retryable_status(522));
+        assert!(!is_retryable_status(525));
+        assert!(!is_retryable_status(413));
+    }
 }
 
 /// Static credentials for the proxy-mode upload path when no `AuthManager`
 /// is available (bins, tests, bare `TraceExportConfig` with no auth wrap).
 ///
 /// SAFETY: only hit by bins/tests/no-AuthManager paths; the refresh-aware
-/// path uses the obfuscated shell impl (`XvoraAuthCredentials::apply` via
+/// path uses the obfuscated shell impl (`GrokAuthCredentials::apply` via
 /// `ShellAuthCredentialProvider`). A future reader should not innocently
 /// make the static provider the production default -- the obfuscated
 /// routing + obfstr-protected literals only live in the shell impl.
-pub struct StaticXaiAuth {
+pub struct StaticGrokAuth {
     pub user_token: Option<String>,
     pub deployment_key: Option<String>,
 }
 
-impl StaticXaiAuth {
+impl StaticGrokAuth {
     pub fn new(user_token: Option<String>) -> Self {
         Self {
             user_token,
@@ -374,7 +390,7 @@ impl StaticXaiAuth {
     }
 }
 
-impl xvora_auth::HttpAuth for StaticXaiAuth {
+impl xvora_auth::HttpAuth for StaticGrokAuth {
     fn apply(&self, builder: reqwest::RequestBuilder, _base_url: &str) -> reqwest::RequestBuilder {
         if let Some(ref key) = self.deployment_key {
             builder.header("Authorization", format!("Bearer {}", key))
@@ -390,17 +406,17 @@ impl xvora_auth::HttpAuth for StaticXaiAuth {
 
 #[cfg(test)]
 mod static_grok_auth_tests {
-    use super::StaticXaiAuth;
+    use super::StaticGrokAuth;
 
     /// Deployment key must win over the user token (incl. the empty one the
     /// deployment-key path supplies); falls back to the user token otherwise.
     #[test]
     fn wire_bearer_prefers_deployment_key_then_falls_back_to_user_token() {
-        let mut deployment = StaticXaiAuth::new(Some(String::new()));
+        let mut deployment = StaticGrokAuth::new(Some(String::new()));
         deployment.deployment_key = Some("deploy-key".to_string());
         assert_eq!(deployment.wire_bearer().as_deref(), Some("deploy-key"));
 
-        let oauth = StaticXaiAuth::new(Some("oauth-token".to_string()));
+        let oauth = StaticGrokAuth::new(Some("oauth-token".to_string()));
         assert_eq!(oauth.wire_bearer().as_deref(), Some("oauth-token"));
     }
 }
@@ -409,7 +425,9 @@ mod static_grok_auth_tests {
 /// production callers should instead pass a tuned client (e.g. shell's
 /// `crate::http::shared_upload_client()`) to `with_provider`.
 fn default_upload_client() -> Client {
-    Client::new()
+    #[expect(clippy::expect_used)]
+    xvora_extra_ca::build_reqwest_client(|builder| builder)
+        .expect("default reqwest client builds")
 }
 
 /// Client for uploading files to GCS via cli-chat-proxy.
@@ -456,7 +474,7 @@ impl StorageClient {
     /// * `proxy_base_url` - Base URL for the proxy (e.g., "https://cli-chat-proxy.grok.com/v1")
     /// * `user_token` - User's grok.com auth token
     pub fn new(proxy_base_url: &str, user_token: &str) -> Self {
-        let creds = StaticXaiAuth::new(Some(user_token.to_owned()));
+        let creds = StaticGrokAuth::new(Some(user_token.to_owned()));
         let bearer = creds.wire_bearer();
         let provider = Arc::new(xvora_auth::StaticAuthCredentialProvider::new(
             Box::new(creds),
@@ -525,7 +543,7 @@ impl StorageClient {
     fn with_breaker_for_testing(
         mut self,
         open_duration: Duration,
-        observer: std::sync::Arc<dyn circuit_breaker::Observer>,
+        observer: std::sync::Arc<dyn xvora_circuit_breaker::Observer>,
     ) -> Self {
         let mut config = storage_breaker_config();
         config.open_duration = open_duration;
@@ -545,8 +563,8 @@ impl StorageClient {
     ///
     /// These become the headers:
     ///   - `x-grok-client-version`
-    ///   - `x-grok-client-identifier` (one of "xvora-shell", "xvora-pager",
-    ///     "grok-desktop", "grok-extension")
+    ///   - `x-grok-client-identifier` (one of "grok-shell", "grok-pager",
+    ///     "grok-desktop", "grok-extension", "grok-agent-sdk")
     ///
     /// Server-side logs in `cli-chat-proxy` and analytics queries now
     /// surface these values, making it easy to attribute 400/403 errors to
@@ -1097,7 +1115,7 @@ impl StorageClient {
     ) -> reqwest_middleware::RequestBuilder {
         // Prefer caller-provided identity (from shell/pager/etc.) so that
         // cli-chat-proxy logs and metrics see the real end-user client
-        // (e.g. "0.1.210-alpha.5", "xvora-shell" / "xvora-pager").
+        // (e.g. "0.1.210-alpha.5", "grok-shell" / "grok-pager").
         // Falls back to the library's own version for bins/tests.
         let version = self
             .client_version

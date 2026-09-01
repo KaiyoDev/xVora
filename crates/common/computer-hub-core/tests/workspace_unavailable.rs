@@ -1,21 +1,27 @@
 //! `is_workspace_unavailable` recognizer coverage, pinned against the real
 //! wire decode path (`error_from_envelope` / `tool_error_from_wire`).
 
-use computer_hub_core::{error_from_envelope, is_workspace_unavailable, tool_error_from_wire};
 use serde_json::json;
-use tool_protocol::{
+use xvora_computer_hub_core::{error_from_envelope, is_workspace_unavailable, tool_error_from_wire};
+use xvora_tool_protocol::{
     JsonRpcError, ToolErrorWire, WORKSPACE_UNAVAILABLE_SUBCODE, WorkspaceGonePhase,
     WorkspaceGoneReason, WorkspaceUnavailableDetails, workspace_unavailable_wire,
 };
-use tool_runtime::{ToolError, ToolErrorKind};
+use xvora_tool_runtime::{ToolError, ToolErrorKind};
 
-const REASONS: [WorkspaceGoneReason; 5] = [
+const REASONS: [WorkspaceGoneReason; 6] = [
     WorkspaceGoneReason::IdleTimeout,
     WorkspaceGoneReason::Disconnect,
     WorkspaceGoneReason::Shutdown,
     WorkspaceGoneReason::NotBound,
     WorkspaceGoneReason::InstanceGone,
+    WorkspaceGoneReason::Hibernated,
 ];
+
+fn expected_retryable(reason: WorkspaceGoneReason, phase: WorkspaceGonePhase) -> bool {
+    !(matches!(reason, WorkspaceGoneReason::Hibernated)
+        && matches!(phase, WorkspaceGonePhase::RouteMissing))
+}
 const PHASES: [WorkspaceGonePhase; 2] = [
     WorkspaceGonePhase::InFlightCancelled,
     WorkspaceGonePhase::RouteMissing,
@@ -54,7 +60,7 @@ fn round_trip_through_envelope_is_recognized_for_every_reason_and_phase() {
                     code: WORKSPACE_UNAVAILABLE_SUBCODE.to_owned(),
                     reason,
                     phase,
-                    retryable: true,
+                    retryable: expected_retryable(reason, phase),
                 },
             );
         }
@@ -191,7 +197,7 @@ fn non_custom_error_with_matching_code_is_not_recognized() {
 #[test]
 fn non_custom_decoded_error_is_not_recognized() {
     let wire = ToolErrorWire::ToolNotFound {
-        tool_id: tool_protocol::ToolId::new("ns:tool").unwrap(),
+        tool_id: xvora_tool_protocol::ToolId::new("ns:tool").unwrap(),
     };
     let err = error_from_envelope(envelope_for(&wire));
     assert_ne!(err.kind, ToolErrorKind::Custom);

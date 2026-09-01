@@ -1,17 +1,12 @@
-//! Telemetry-engine configuration.
+//! These types live here so the data-collector engine can construct a [`TelemetryClient`](crate::client::TelemetryClient) without depending on shell.
 //!
-//! Extracted from `xvora-shell::agent::config` so the data-collector
-//! engine can construct a [`TelemetryClient`](crate::client::TelemetryClient)
-//! without a build-time dependency on the shell.
-//!
-//! Shell still re-exports these types from their original paths so existing
-//! call sites (and `Config` derive impls) compile unchanged.
+//! Shell still re-exports these types from their original paths so existing call sites (and `Config` derive impls) compile unchanged.
 use serde::{Deserialize, Serialize};
 /// Telemetry mode: `true`/`false` (legacy bool) or `"session_metrics"` (string).
 ///
-/// - `Disabled` -- nothing sent (enterprise default)
-/// - `SessionMetrics` -- metadata-only lifecycle events, no content
-/// - `Enabled` -- full product telemetry (events + Mixpanel)
+/// - `Disabled`: nothing sent (enterprise default)
+/// - `SessionMetrics`: metadata-only lifecycle events, no content
+/// - `Enabled`: full product telemetry (events and Mixpanel)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TelemetryMode {
     #[default]
@@ -36,6 +31,26 @@ impl TelemetryMode {
             "0" | "false" | "no" | "off" | "disabled" => Some(Self::Disabled),
             "session-metrics" | "session_metrics" => Some(Self::SessionMetrics),
             _ => None,
+        }
+    }
+}
+#[cfg(test)]
+mod telemetry_mode_tests {
+    use super::TelemetryMode;
+    /// A parent process hands its resolved mode to spawned children via `GROK_TELEMETRY_ENABLED={mode}` (Display).
+    /// Every Display output must parse back to the same mode.
+    #[test]
+    fn display_round_trips_through_parse() {
+        for mode in [
+            TelemetryMode::Enabled,
+            TelemetryMode::Disabled,
+            TelemetryMode::SessionMetrics,
+        ] {
+            assert_eq!(
+                TelemetryMode::parse(&mode.to_string()),
+                Some(mode),
+                "Display value for {mode:?} must parse back to itself"
+            );
         }
     }
 }
@@ -75,7 +90,7 @@ impl<'de> serde::Deserialize<'de> for TelemetryMode {
             TelemetryModeValue::Bool(b) => Ok(Self::from(b)),
             TelemetryModeValue::Str(s) => Ok(Self::parse(&s).unwrap_or_else(|| {
                 tracing::warn!(
-                    value = % s,
+                    value = %s,
                     "TELEMETRY_MODE_UNKNOWN: unrecognized telemetry mode; treating as disabled",
                 );
                 Self::Disabled
@@ -98,9 +113,9 @@ pub struct TelemetryConfig {
     pub events_api_key: Option<String>,
     pub mixpanel_token: Option<String>,
     pub mixpanel_enabled: bool,
-    /// `None` = inherit from `[features] telemetry`. `Some(false)` = disable GCS uploads only.
+    /// `None` inherits from `[features] telemetry`; `Some(false)` disables GCS uploads only.
     pub trace_upload: Option<bool>,
-    /// External OTEL master switch (`= XVORA_EXTERNAL_OTEL`, env wins).
+    /// External OTEL master switch (env `GROK_EXTERNAL_OTEL` wins).
     pub otel_enabled: Option<bool>,
     /// External OTEL metrics exporter: `otlp` | `console` | `none`.
     pub otel_metrics_exporter: Option<String>,
@@ -111,6 +126,9 @@ pub struct TelemetryConfig {
     /// External OTLP transport: `http/protobuf` | `grpc`.
     #[serde(alias = "otel_transport")]
     pub otel_protocol: Option<String>,
+    pub otel_certificate: Option<String>,
+    pub otel_client_certificate: Option<String>,
+    pub otel_client_key: Option<String>,
     /// External OTEL content gate (admins can pin to `false` via requirements).
     pub otel_log_user_prompts: Option<bool>,
     /// External OTEL content gate (admins can pin to `false` via requirements).
@@ -128,9 +146,9 @@ fn build_env_default(value: Option<&'static str>) -> Option<String> {
 impl Default for TelemetryConfig {
     fn default() -> Self {
         let (baked_url, baked_key, baked_token, baked_enabled) = internal_defaults();
-        let build_url = build_env_default(option_env!("XVORA_TELEMETRY_BUILD_EVENTS_URL"));
-        let build_key = build_env_default(option_env!("XVORA_TELEMETRY_BUILD_EVENTS_API_KEY"));
-        let build_token = build_env_default(option_env!("XVORA_TELEMETRY_BUILD_MIXPANEL_TOKEN"));
+        let build_url = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_URL"));
+        let build_key = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_API_KEY"));
+        let build_token = build_env_default(option_env!("GROK_TELEMETRY_BUILD_MIXPANEL_TOKEN"));
         let mixpanel_enabled = baked_enabled || build_token.is_some();
         let (events_url, events_api_key, mixpanel_token) = (
             build_url.or(baked_url),
@@ -149,6 +167,9 @@ impl Default for TelemetryConfig {
             otel_logs_exporter: None,
             otel_endpoint: None,
             otel_protocol: None,
+            otel_certificate: None,
+            otel_client_certificate: None,
+            otel_client_key: None,
             otel_log_user_prompts: None,
             otel_log_tool_details: None,
         }
@@ -157,19 +178,19 @@ impl Default for TelemetryConfig {
 impl TelemetryConfig {
     pub fn apply_env_overrides(&mut self) {
         self.normalize();
-        if let Some(value) = Self::env_override("XVORA_TELEMETRY_EVENTS_URL") {
+        if let Some(value) = Self::env_override("GROK_TELEMETRY_EVENTS_URL") {
             self.events_url = value;
         }
-        if let Some(value) = Self::env_override("XVORA_TELEMETRY_EVENTS_API_KEY") {
+        if let Some(value) = Self::env_override("GROK_TELEMETRY_EVENTS_API_KEY") {
             self.events_api_key = value;
         }
-        if let Some(value) = Self::env_override("XVORA_TELEMETRY_MIXPANEL_TOKEN") {
+        if let Some(value) = Self::env_override("GROK_TELEMETRY_MIXPANEL_TOKEN") {
             self.mixpanel_token = value;
         }
-        if let Some(value) = env_bool("XVORA_TELEMETRY_MIXPANEL_ENABLED") {
+        if let Some(value) = env_bool("GROK_TELEMETRY_MIXPANEL_ENABLED") {
             self.mixpanel_enabled = value;
         }
-        if let Some(value) = env_bool("XVORA_TELEMETRY_TRACE_UPLOAD") {
+        if let Some(value) = env_bool("GROK_TELEMETRY_TRACE_UPLOAD") {
             self.trace_upload = Some(value);
         }
     }
@@ -197,9 +218,8 @@ impl TelemetryConfig {
 }
 /// Parse an env var as a boolean. Returns `None` if unset or unrecognized.
 ///
-/// Local copy of `xvora_shell::agent::config::env_bool` so this crate
-/// stays free of a shell back-edge. Shell keeps its own copy for callers
-/// outside the telemetry config path.
+/// Local copy of `xvora_shell::agent::config::env_bool` so this crate does not depend back on shell.
+/// Shell keeps its own copy for callers outside the telemetry config path.
 fn env_bool(name: &str) -> Option<bool> {
     let value = std::env::var(name).ok()?;
     match value.trim().to_ascii_lowercase().as_str() {
@@ -226,9 +246,9 @@ mod tests {
     #[test]
     fn default_is_build_env_layer_when_feature_off() {
         let cfg = TelemetryConfig::default();
-        let url = build_env_default(option_env!("XVORA_TELEMETRY_BUILD_EVENTS_URL"));
-        let key = build_env_default(option_env!("XVORA_TELEMETRY_BUILD_EVENTS_API_KEY"));
-        let token = build_env_default(option_env!("XVORA_TELEMETRY_BUILD_MIXPANEL_TOKEN"));
+        let url = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_URL"));
+        let key = build_env_default(option_env!("GROK_TELEMETRY_BUILD_EVENTS_API_KEY"));
+        let token = build_env_default(option_env!("GROK_TELEMETRY_BUILD_MIXPANEL_TOKEN"));
         assert_eq!(cfg.mixpanel_enabled, token.is_some());
         assert_eq!(cfg.events_url, url);
         assert_eq!(cfg.events_api_key, key);

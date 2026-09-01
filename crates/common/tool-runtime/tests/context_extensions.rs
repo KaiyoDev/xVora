@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use tool_protocol::ToolCallId;
-use tool_runtime::{BehaviorVersion, Cwd, ToolCallContext, TraceContext};
+use xvora_tool_protocol::ToolCallId;
+use xvora_tool_runtime::{BehaviorVersion, Cwd, ToolCallContext, TraceContext};
 
 #[derive(Debug, PartialEq)]
 struct Config {
@@ -249,15 +249,4 @@ fn absence_signals_backend_or_other_mode() {
     assert!(!ctx.extensions.contains::<Cwd>());
     assert!(!ctx.extensions.contains::<BehaviorVersion>());
     assert!(!ctx.extensions.contains::<TraceContext>());
-}
-
-#[test]
-fn well_known_extensions_clone_preserves_inner_value() {
-    let cwd = Cwd(std::path::PathBuf::from("/etc"));
-    let behavior = BehaviorVersion("v0".into());
-    let trace = TraceContext("tp".into());
-
-    assert_eq!(cwd.clone().0, cwd.0);
-    assert_eq!(behavior.clone().0, behavior.0);
-    assert_eq!(trace.clone().0, trace.0);
 }

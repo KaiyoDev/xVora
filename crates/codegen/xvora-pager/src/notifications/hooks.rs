@@ -1,4 +1,5 @@
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::notifications::NotificationEvent;
@@ -14,56 +15,84 @@ fn execute_hook(
     let mut cmd = Command::new("sh");
     cmd.arg("-c")
         .arg(command)
-        .env("XVORA_EVENT", event_str)
-        .env("XVORA_MESSAGE", message)
+        .env("GROK_EVENT", event_str)
+        .env("GROK_MESSAGE", message)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     if let Some(sid) = session_id {
-        cmd.env("XVORA_SESSION_ID", sid);
+        cmd.env("GROK_SESSION_ID", sid);
     }
 
-    // Create a new process group so we can kill the entire tree on timeout,
-    // preventing orphaned subprocesses from accumulating.
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        // SAFETY: setsid is async-signal-safe per POSIX and does not
-        // allocate or take locks. Called between fork and exec.
-        unsafe {
-            cmd.pre_exec(|| {
-                nix::unistd::setsid().ok();
-                Ok(())
-            });
+    xvora_tty_utils::detach_std_command(&mut cmd);
+    xvora_sandbox::child_net::restrict_child_network_std(&mut cmd);
+
+    #[allow(clippy::disallowed_methods)] // Enrolled below, once the child exists
+    let mut child = match cmd.spawn() {
+        Ok(child) => child,
+        Err(e) => {
+            tracing::debug!(error = %e, command, "hook spawn failed");
+            return;
         }
-    }
+    };
 
-    match cmd.spawn() {
-        Ok(mut child) => {
-            use wait_timeout::ChildExt;
-            match child.wait_timeout(timeout) {
-                Ok(Some(_)) => {}
-                Ok(None) => {
-                    // Kill the entire process group, not just the direct child.
-                    #[cfg(unix)]
-                    {
-                        let pid = child.id() as i32;
-                        let _ = nix::sys::signal::killpg(
-                            nix::unistd::Pid::from_raw(pid),
-                            nix::sys::signal::Signal::SIGKILL,
-                        );
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        let _ = child.kill();
-                    }
-                    let _ = child.wait();
-                    tracing::warn!("hook timed out");
-                }
-                Err(e) => tracing::debug!(error = %e, command, "hook wait failed"),
+    let group = match xvora_tty_utils::global_process_scope().enroll_std(&child) {
+        Ok(group) => group,
+        Err(error) => {
+            tracing::debug!(error = %error, command, "hook process group enrollment failed");
+            let _ = child.kill();
+            if !matches!(
+                xvora_tty_utils::wait_child_bounded(&mut child, xvora_tty_utils::KILL_REAP_TIMEOUT,),
+                Ok(Some(_))
+            ) && let Err((error, child, _)) =
+                xvora_tty_utils::spawn_child_reaper("notification-hook-reaper", child, None)
+            {
+                tracing::error!(error = %error, command, child_id = child.id(), "hook cleanup bounded abandonment after enrollment failure");
             }
+            return;
         }
-        Err(e) => tracing::debug!(error = %e, command, "hook spawn failed"),
+    };
+
+    match xvora_tty_utils::wait_child_bounded(&mut child, timeout) {
+        Ok(Some(_)) => drop(group),
+        Ok(None) => {
+            tracing::warn!(command, "hook timed out");
+            kill_tree_and_reap(child, group, command);
+        }
+        Err(error) if xvora_tty_utils::is_child_wait_identity_uncertain(&error) => {
+            tracing::error!(error = %error, command, "hook wait lost child identity; numeric cleanup forbidden");
+            // After ECHILD the child may already be reaped and its pid or group id reused, so killing by id now or later is unsafe
+            drop(group);
+            abandon_child(child, None, command);
+        }
+        Err(error) => {
+            tracing::debug!(error = %error, command, "hook wait failed");
+            kill_tree_and_reap(child, group, command);
+        }
+    }
+}
+
+fn kill_tree_and_reap(mut child: Child, group: Arc<xvora_tty_utils::ProcessGroup>, command: &str) {
+    if let Err(group_error) = group.kill()
+        && let Err(child_error) = child.kill()
+    {
+        tracing::warn!(error = %group_error, fallback_error = %child_error, command, "hook group and direct-child kill failed");
+    }
+    match xvora_tty_utils::wait_child_bounded(&mut child, xvora_tty_utils::KILL_REAP_TIMEOUT) {
+        Ok(Some(_)) => drop(group),
+        Ok(None) => abandon_child(child, Some(group), command),
+        Err(error) => {
+            tracing::warn!(error = %error, command, "hook bounded reap failed");
+            abandon_child(child, Some(group), command);
+        }
+    }
+}
+
+fn abandon_child(child: Child, group: Option<Arc<xvora_tty_utils::ProcessGroup>>, command: &str) {
+    if let Err((error, child, group)) =
+        xvora_tty_utils::spawn_child_reaper("notification-hook-reaper", child, group)
+    {
+        tracing::error!(error = %error, command, child_id = child.id(), has_group = group.is_some(), "hook cleanup bounded abandonment: reaper thread spawn failed");
     }
 }
 
@@ -105,8 +134,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let out = dir.path().join("env.txt");
         let command = format!(
-            "printf 'XVORA_EVENT=%s\\nXVORA_MESSAGE=%s\\nXVORA_SESSION_ID=%s\\n' \
-             \"$XVORA_EVENT\" \"$XVORA_MESSAGE\" \"$XVORA_SESSION_ID\" > {}",
+            "printf 'GROK_EVENT=%s\\nGROK_MESSAGE=%s\\nGROK_SESSION_ID=%s\\n' \
+             \"$GROK_EVENT\" \"$GROK_MESSAGE\" \"$GROK_SESSION_ID\" > {}",
             out.display()
         );
 
@@ -120,16 +149,16 @@ mod tests {
 
         let content = std::fs::read_to_string(&out).unwrap();
         assert!(
-            content.contains("XVORA_EVENT=Turn complete"),
-            "missing XVORA_EVENT: {content}"
+            content.contains("GROK_EVENT=Turn complete"),
+            "missing GROK_EVENT: {content}"
         );
         assert!(
-            content.contains("XVORA_MESSAGE=hello world"),
-            "missing XVORA_MESSAGE: {content}"
+            content.contains("GROK_MESSAGE=hello world"),
+            "missing GROK_MESSAGE: {content}"
         );
         assert!(
-            content.contains("XVORA_SESSION_ID=sess-42"),
-            "missing XVORA_SESSION_ID: {content}"
+            content.contains("GROK_SESSION_ID=sess-42"),
+            "missing GROK_SESSION_ID: {content}"
         );
     }
 
@@ -149,26 +178,28 @@ mod tests {
 
         let content = std::fs::read_to_string(&out).unwrap();
         assert!(
-            !content.contains("XVORA_SESSION_ID"),
-            "XVORA_SESSION_ID should not be set: {content}"
+            !content.contains("GROK_SESSION_ID"),
+            "GROK_SESSION_ID should not be set: {content}"
         );
     }
 
     #[test]
-    fn kills_on_timeout() {
-        let start = Instant::now();
+    fn kills_descendants_on_timeout() {
+        let dir = tempfile::tempdir().unwrap();
+        let marker = dir.path().join("descendant-finished");
+        let command = format!("(sleep 2; touch {}) & wait", marker.display());
         execute_hook(
-            "sleep 100",
+            &command,
             "Turn complete",
             "msg",
             None,
-            Duration::from_secs(1),
+            Duration::from_millis(100),
         );
-        let elapsed = start.elapsed();
-        assert!(
-            elapsed < Duration::from_secs(3),
-            "should return within timeout, took {elapsed:?}"
-        );
+        let deadline = Instant::now() + Duration::from_millis(2300);
+        while Instant::now() < deadline {
+            assert!(!marker.exists(), "timeout must kill hook descendants");
+            std::thread::sleep(Duration::from_millis(50));
+        }
     }
 
     #[test]
@@ -230,21 +261,18 @@ mod tests {
             command: format!("sleep 100; touch {}", marker.display()),
             events: vec![],
             only_unfocused: false,
-            timeout_secs: 0, // exercises the .max(1) clamp inside run_hook
+            timeout_secs: 0, // Exercises the .max(1) clamp inside run_hook
         };
         let start = Instant::now();
         run_hook(&hook, &test_event());
-        // Wait for the spawned thread to finish (clamp turns 0 -> 1s timeout)
+        // Wait for the spawned thread to finish (the clamp turns 0 into a 1s timeout)
         std::thread::sleep(Duration::from_millis(2500));
         let elapsed = start.elapsed();
-        // The hook should have been killed by the 1s timeout, so the marker
-        // file should NOT exist (sleep 100 never completes).
         assert!(
             !marker.exists(),
             "hook should have been killed by timeout before creating marker"
         );
-        // Sanity: the whole thing completed well under 10s, confirming the
-        // timeout was ~1s (clamped) not 0s (instant) or unbounded.
+        // Sanity: the whole thing completed well under 10s, confirming the timeout was ~1s (clamped) not 0s (instant) or unbounded
         assert!(
             elapsed < Duration::from_secs(5),
             "should complete within a few seconds, took {elapsed:?}"
@@ -257,8 +285,8 @@ mod tests {
         let out = dir.path().join("env.txt");
         let hook = NotificationHook {
             command: format!(
-                "printf 'XVORA_EVENT=%s\\nXVORA_MESSAGE=%s\\nXVORA_SESSION_ID=%s\\n' \
-                 \"$XVORA_EVENT\" \"$XVORA_MESSAGE\" \"$XVORA_SESSION_ID\" > {}",
+                "printf 'GROK_EVENT=%s\\nGROK_MESSAGE=%s\\nGROK_SESSION_ID=%s\\n' \
+                 \"$GROK_EVENT\" \"$GROK_MESSAGE\" \"$GROK_SESSION_ID\" > {}",
                 out.display()
             ),
             events: vec![],
@@ -268,8 +296,7 @@ mod tests {
         let event = test_event();
         run_hook(&hook, &event);
 
-        // Poll for the output file instead of a fixed sleep — the spawned
-        // thread + fork/exec may take variable time on loaded systems.
+        // Poll for the output file instead of a fixed sleep: the spawned thread and the fork/exec may take variable time on loaded systems
         let deadline = Instant::now() + Duration::from_secs(5);
         let content = loop {
             if let Ok(c) = std::fs::read_to_string(&out) {
@@ -281,8 +308,8 @@ mod tests {
             );
             std::thread::sleep(Duration::from_millis(50));
         };
-        assert!(content.contains("XVORA_EVENT=Turn complete"));
-        assert!(content.contains("XVORA_MESSAGE=test body payload"));
-        assert!(content.contains("XVORA_SESSION_ID=test-session-123"));
+        assert!(content.contains("GROK_EVENT=Turn complete"));
+        assert!(content.contains("GROK_MESSAGE=test body payload"));
+        assert!(content.contains("GROK_SESSION_ID=test-session-123"));
     }
 }

@@ -2,9 +2,8 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// Regression guard: a reasoning model with NO server `reasoning_efforts` list
-/// falls back to today's built-in `/effort` rows (with their descriptions), so
-/// the feature is a no-op until a server opts in.
+/// Regression guard: a reasoning model with NO server `reasoning_efforts` list falls back to today's built-in `/effort` rows, descriptions included.
+/// The feature is a no-op until a server opts in.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn reasoning_efforts_fallback_menu_matches_builtin() {
@@ -31,15 +30,14 @@ async fn reasoning_efforts_fallback_menu_matches_builtin() {
         .expect("turn rendered");
 
     inject_keys_paced(&mut harness, b"/effort ");
-    // Assert the full built-in row set (all four levels, keyed by their unique
-    // descriptions) renders — not just a couple, so this genuinely pins
-    // "fallback == today".
+    // Assert the full built-in row set (all four levels, keyed by their unique descriptions) renders
+    // Asserting all four, not just a couple, proves the fallback matches today's built-in menu
     harness
-        .wait_for_text("Maximum reasoning", Duration::from_secs(10))
+        .wait_for_text("Extended reasoning", Duration::from_secs(10))
         .expect("built-in xhigh row");
     let screen = harness.screen_contents();
     for description in [
-        "Maximum reasoning",         // xhigh
+        "Extended reasoning",        // xhigh
         "Heavy reasoning",           // high
         "Balanced reasoning",        // medium
         "Faster, lighter reasoning", // low

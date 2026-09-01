@@ -20,14 +20,12 @@
 //! through a `ConnectionBorrow` (crate-internal) that
 //! both ends share.
 
+use std::collections::HashSet;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
-use computer_hub_core::{
-    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
-    tool_error_from_wire,
-};
 use dashmap::DashMap;
 use futures::FutureExt;
 use futures::Stream;
@@ -36,20 +34,24 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
-use tool_protocol::notification_wire::{WireCustomNotification, WireToolNotification};
-use tool_protocol::session_event::{SessionEvent, ToolCallOutcome};
-use tool_protocol::{
+use url::Url;
+use xvora_computer_hub_core::{
+    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
+    tool_error_from_wire,
+};
+use xvora_tool_protocol::notification_wire::{WireCustomNotification, WireToolNotification};
+use xvora_tool_protocol::session_event::{SessionEvent, ToolCallOutcome};
+use xvora_tool_protocol::{
     ConnectionKind, JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     JsonRpcVersion, Method, RequestId, ResponseOutcome, SessionId, ToolCallId, ToolCallParams,
     ToolCallProgressFrame, ToolId, ToolNotificationFrame, ToolServerLifecycleStatus,
     WorkspaceGonePhase, WorkspaceGoneReason, workspace_unavailable_wire,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     BehaviorVersion, Cwd, ListToolsContext, Tool, ToolCallContext, ToolError, ToolStream,
     ToolStreamItem, TypedToolOutput, terminal_only,
 };
-use tool_types::ToolDescription;
-use url::Url;
+use xvora_tool_types::ToolDescription;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::connection::{HubConnection, ReconnectCallback, ReconnectEvent};
@@ -62,13 +64,13 @@ pub type TraceContextProvider = Arc<dyn Fn() -> Option<String> + Send + Sync>;
 
 /// Host-registered sink for inbound reverse-direction hook requests
 /// (server → harness); invoked by the inbox loop with the decoded
-/// [`HookFrame`](tool_protocol::HookFrame), answered via
+/// [`HookFrame`](xvora_tool_protocol::HookFrame), answered via
 /// [`ToolHarness::send_hook_reply`].
-type HookRequestHandler = Arc<dyn Fn(tool_protocol::HookFrame) + Send + Sync>;
+type HookRequestHandler = Arc<dyn Fn(xvora_tool_protocol::HookFrame) + Send + Sync>;
 
-/// Well-known [`HookEvent::Custom`](tool_protocol::HookEvent::Custom) kind
+/// Well-known [`HookEvent::Custom`](xvora_tool_protocol::HookEvent::Custom) kind
 /// for a server → harness permission request. Sibling of
-/// [`tool_protocol::turn_hook::TURN_HOOK_KIND`].
+/// [`xvora_tool_protocol::turn_hook::TURN_HOOK_KIND`].
 pub const PERMISSION_REQUEST_KIND: &str = "permission_request";
 
 /// Buffer size for the per-call progress channel. Picked to absorb a
@@ -86,11 +88,11 @@ const PROGRESS_BUFFER: usize = 64;
 pub struct CancelOnDrop(pub bool);
 
 pub type ModelOutputExtractor =
-    Arc<dyn Fn(&Value) -> Option<Vec<tool_runtime::ContentBlock>> + Send + Sync>;
+    Arc<dyn Fn(&Value) -> Option<Vec<xvora_tool_runtime::ContentBlock>> + Send + Sync>;
 
 pub fn extractor_for<T>() -> ModelOutputExtractor
 where
-    T: tool_runtime::ToolOutput + serde::de::DeserializeOwned + 'static,
+    T: xvora_tool_runtime::ToolOutput + serde::de::DeserializeOwned + 'static,
 {
     Arc::new(|value: &Value| {
         serde_json::from_value::<T>(value.clone())
@@ -219,11 +221,11 @@ impl LocalRegistry {
     /// [`register`](Self::register).
     pub fn register_dyn(
         &self,
-        tool: Arc<dyn tool_runtime::ToolDyn>,
+        tool: Arc<dyn xvora_tool_runtime::ToolDyn>,
     ) -> Option<Arc<dyn ToolHandle>> {
         let id = tool.id();
         // ToolDyn already implements ToolHandle via the blanket impl
-        // in computer-hub-core (ErasedTool). We wrap it in a thin
+        // in xvora-computer-hub-core (ErasedTool). We wrap it in a thin
         // adapter that delegates execute → ToolDyn::execute.
         let handle: Arc<dyn ToolHandle> = Arc::new(DynToolAdapter(tool));
         self.inner.entries.write().insert(id, handle)
@@ -237,7 +239,7 @@ impl LocalRegistry {
     pub fn register_with_model_output<T>(&self, tool: T) -> Option<Arc<dyn ToolHandle>>
     where
         T: Tool + std::fmt::Debug + 'static,
-        T::Output: tool_runtime::ToolOutput + serde::de::DeserializeOwned + 'static,
+        T::Output: xvora_tool_runtime::ToolOutput + serde::de::DeserializeOwned + 'static,
     {
         let id = tool.id();
         self.inner
@@ -259,7 +261,7 @@ impl LocalRegistry {
         &self,
         tool_id: &ToolId,
         output: &Value,
-    ) -> Option<Vec<tool_runtime::ContentBlock>> {
+    ) -> Option<Vec<xvora_tool_runtime::ContentBlock>> {
         self.inner
             .extractors
             .get(tool_id)
@@ -286,7 +288,7 @@ impl LocalRegistry {
 ///
 /// `ToolDyn::execute` returns `ToolStream<TypedToolOutput>` which matches
 /// `ToolHandle::execute`, so the adapter is a trivial delegation.
-struct DynToolAdapter(Arc<dyn tool_runtime::ToolDyn>);
+struct DynToolAdapter(Arc<dyn xvora_tool_runtime::ToolDyn>);
 
 impl std::fmt::Debug for DynToolAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -304,7 +306,7 @@ impl ToolHandle for DynToolAdapter {
     fn description(&self, ctx: &ListToolsContext) -> ToolDescription {
         self.0.description(ctx)
     }
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
         self.0.capabilities()
     }
     fn should_list(&self, ctx: &ListToolsContext) -> bool {
@@ -314,7 +316,7 @@ impl ToolHandle for DynToolAdapter {
         &self,
         ctx: ToolCallContext,
         args: Value,
-    ) -> ToolStream<tool_runtime::TypedToolOutput> {
+    ) -> ToolStream<xvora_tool_runtime::TypedToolOutput> {
         self.0.execute(ctx, args).await
     }
 }
@@ -327,7 +329,7 @@ pub struct ToolHarnessBuilder {
     auth: Option<Arc<dyn AuthProvider>>,
     session: Option<SessionId>,
     local_registry: LocalRegistry,
-    default_extensions: Option<tool_runtime::TypedExtensions>,
+    default_extensions: Option<xvora_tool_runtime::TypedExtensions>,
     trace_context_provider: Option<TraceContextProvider>,
     on_reconnect: Option<Arc<ReconnectCallback>>,
     /// Sampler label for `hub_harness_connect_total` metric
@@ -338,7 +340,7 @@ pub struct ToolHarnessBuilder {
     /// Resume the build-time `session.open`; default `false`. Does not affect
     /// the transport auto-reconnect loop, which always uses `resume: false`.
     resume: bool,
-    last_seq: Option<tool_protocol::LastSeq>,
+    last_seq: Option<xvora_tool_protocol::LastSeq>,
 }
 
 impl ToolHarnessBuilder {
@@ -403,7 +405,7 @@ impl ToolHarnessBuilder {
     }
 
     /// Default extensions merged into every `ToolCallContext` before dispatch.
-    pub fn default_extensions(mut self, extensions: tool_runtime::TypedExtensions) -> Self {
+    pub fn default_extensions(mut self, extensions: xvora_tool_runtime::TypedExtensions) -> Self {
         self.default_extensions = Some(extensions);
         self
     }
@@ -442,7 +444,7 @@ impl ToolHarnessBuilder {
     }
 
     /// Last-seen `(connection_id, seq)` paired with [`Self::resume`] for replay dedup.
-    pub fn last_seq(mut self, last_seq: tool_protocol::LastSeq) -> Self {
+    pub fn last_seq(mut self, last_seq: xvora_tool_protocol::LastSeq) -> Self {
         self.last_seq = Some(last_seq);
         self
     }
@@ -476,6 +478,7 @@ impl ToolHarnessBuilder {
             self.on_reconnect.clone(),
             None, // on_disconnect (unused for harness connections)
             None, // on_connect (unused for harness connections)
+            None, // on_terminal_close (unused for harness connections)
             None,
             None,
             None,
@@ -504,23 +507,25 @@ impl ToolHarnessBuilder {
         {
             let connection = borrow.connection();
             let request_id = connection.try_alloc_request_id()?;
-            let req = tool_protocol::JsonRpcRequest {
-                jsonrpc: tool_protocol::JsonRpcVersion,
-                id: tool_protocol::JsonRpcId::from_request_id(&request_id),
+            let req = xvora_tool_protocol::JsonRpcRequest {
+                jsonrpc: xvora_tool_protocol::JsonRpcVersion,
+                id: xvora_tool_protocol::JsonRpcId::from_request_id(&request_id),
                 session_id: Some(session.clone()),
-                method: tool_protocol::Method::SessionOpen.as_wire_str().to_owned(),
-                params: tool_protocol::SessionOpenParams {
+                method: xvora_tool_protocol::Method::SessionOpen
+                    .as_wire_str()
+                    .to_owned(),
+                params: xvora_tool_protocol::SessionOpenParams {
                     resume: self.resume,
                     last_seq: self.last_seq,
                 },
             };
-            connection
-                .call_request(request_id, &req)
-                .await
-                .map_err(|e| {
-                    tracing::warn!(error = %e, "session_open failed during harness build");
-                    e
-                })?;
+            if let Err(e) = connection.call_request(request_id, &req).await {
+                // Roll back the local track so a later successful harness for
+                // this session can still reach the last-borrower untrack edge.
+                let _ = connection.untrack_session(&session);
+                tracing::warn!(error = %e, "session_open failed during harness build");
+                return Err(e);
+            }
         }
 
         let inner = Arc::new(ToolHarnessInner {
@@ -532,6 +537,7 @@ impl ToolHarnessBuilder {
             remote_tools: arc_swap::ArcSwap::from_pointee(Vec::new()),
             last_bind_report: arc_swap::ArcSwapOption::empty(),
             discovery_handle: parking_lot::Mutex::new(None),
+            session_inbox_tx: parking_lot::Mutex::new(None),
             pending_bind: None,
             hook_request_handler: Arc::new(parking_lot::Mutex::new(None)),
         });
@@ -549,16 +555,37 @@ pub struct SessionBindReport {
     /// Server-stated reason the toolset resolution failed closed (the bind
     /// advertises no model-facing tools by design when set).
     pub resolve_error: Option<String>,
+    /// Advisory image capability tokens from the bind reply. Empty means
+    /// unknown, as does any set lacking
+    /// [`xvora_tool_protocol::IMAGE_CAPABILITIES_V1`].
+    pub image_capabilities: Vec<String>,
+    /// Tool names the bind ack advertised. In-process projection of
+    /// [`xvora_tool_protocol::SessionBindServerResult::tools`], not a wire field.
+    pub advertised_tool_names: Vec<String>,
+}
+
+impl From<&xvora_tool_protocol::SessionBindServerResult> for SessionBindReport {
+    /// Canonical projection of a bind reply onto its report fields; every
+    /// bind-contract field is copied here and nowhere else.
+    fn from(result: &xvora_tool_protocol::SessionBindServerResult) -> Self {
+        Self {
+            binary_version: result.binary_version.clone(),
+            unserved_tool_ids: result.unserved_tool_ids.clone(),
+            resolve_error: result.resolve_error.clone(),
+            image_capabilities: result.image_capabilities.clone(),
+            advertised_tool_names: result.tools.iter().map(|t| t.name.clone()).collect(),
+        }
+    }
 }
 
 /// Harness attached to a pooled [`HubConnection`].
 ///
-/// `ToolHarness` is `Clone`-cheap (`Arc` bump). Cooperative teardown
-/// via [`Self::shutdown`] is preferred; the `Drop` impl schedules a
-/// best-effort asynchronous cleanup as a fallback when no explicit
-/// shutdown ran. Cleanup fires at most once across all clones — the
-/// first drop (or shutdown) to flip the underlying `torn_down` flag
-/// wins; subsequent drops no-op.
+/// `ToolHarness` is `Clone`-cheap (`Arc` bump). Cooperative teardown via
+/// [`Self::shutdown`] is preferred. Cleanup is **synchronous** and runs at
+/// most once across all clones via a shared CAS: `shutdown()`, wrapper
+/// `Drop` (best-effort while other clones exist), and `ToolHarnessInner::Drop`
+/// (at true refcount-zero) all call the same path. No Tokio runtime is
+/// required for Drop teardown.
 pub struct ToolHarness {
     inner: Arc<ToolHarnessInner>,
 }
@@ -578,7 +605,7 @@ fn spawn_pending_bind<F>(bind: F) -> PendingBind
 where
     F: std::future::Future<Output = Result<ToolHarness, Arc<str>>> + Send + 'static,
 {
-    let task = tokio::spawn(bind);
+    let task = xvora_tracing::tokio::spawn_traced(bind);
     async move {
         match task.await {
             Ok(result) => result,
@@ -628,12 +655,17 @@ struct ToolHarnessInner {
     local_registry: LocalRegistry,
     session: SessionId,
     /// Default extensions merged into every `ToolCallContext` before dispatch.
-    default_extensions: tool_runtime::TypedExtensions,
+    default_extensions: xvora_tool_runtime::TypedExtensions,
     /// See [`ToolHarnessBuilder::trace_context_provider`].
     trace_context_provider: Option<TraceContextProvider>,
     remote_tools: arc_swap::ArcSwap<Vec<ToolDescription>>,
     last_bind_report: arc_swap::ArcSwapOption<SessionBindReport>,
     discovery_handle: parking_lot::Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// Weak handle to the demux session-inbox sender this harness registered.
+    /// Identity-guarded unregister uses this without holding a strong sender
+    /// that would keep the inbox alive after a peer rebind replaces it.
+    session_inbox_tx:
+        parking_lot::Mutex<Option<tokio::sync::mpsc::WeakSender<crate::demux::InboundFrame>>>,
     /// Deferred server bind (prompt-before-bind): set when this local-only harness
     /// resolves to a server-connected one once the bind completes. Eager variant
     /// races sampling; lazy variant defers provisioning to the first remote
@@ -641,7 +673,8 @@ struct ToolHarnessInner {
     pending_bind: Option<DeferredBind>,
     /// Optional sink for inbound reverse-direction hook requests. Held in
     /// its own `Arc` so the inbox loop can clone this slot — not the whole
-    /// `inner` — keeping the `Drop` strong-count teardown gate intact.
+    /// `inner` — a long-lived `inner` clone would pin the harness forever and
+    /// prevent both the wrapper Drop gate and `ToolHarnessInner::Drop`.
     hook_request_handler: Arc<parking_lot::Mutex<Option<HookRequestHandler>>>,
 }
 
@@ -673,33 +706,130 @@ impl ToolHarnessInner {
         }
     }
 
-    async fn refresh_remote_tools(&self) -> Result<Vec<ToolDescription>, ClientError> {
+    async fn refresh_remote_tools(
+        &self,
+    ) -> Result<xvora_tool_protocol::ToolsListResult, ClientError> {
         let borrow = self.borrow.as_ref().ok_or_else(|| {
             ClientError::InvalidConfig("local-only harness has no server connection".to_owned())
         })?;
-        let connection = borrow.connection();
-        let request_id = connection.try_alloc_request_id()?;
-        let params = tool_protocol::ToolsListParams {
-            session_id: self.session.clone(),
-            mode: tool_protocol::ToolDefinitionMode::Full,
+        let mut result = list_remote_tools(borrow.connection().as_ref(), &self.session).await?;
+        result.tools = merge_discovered_remote_tools(
+            self.remote_tools.load().as_ref(),
+            result.tools,
+            self.last_bind_report.load_full().as_deref(),
+        );
+        self.remote_tools.store(Arc::new(result.tools.clone()));
+        Ok(result)
+    }
+
+    fn apply_discovered_remote_tools(&self, incoming: Vec<ToolDescription>) {
+        let merged = merge_discovered_remote_tools(
+            self.remote_tools.load().as_ref(),
+            incoming,
+            self.last_bind_report.load_full().as_deref(),
+        );
+        self.remote_tools.store(Arc::new(merged));
+    }
+
+    /// Wins `begin_teardown` then runs cleanup. Idempotent. Synchronous so
+    /// Drop cannot strand cleanup on an unpolled spawn.
+    fn finish_teardown(&self) {
+        let Some(borrow) = self.borrow.as_ref() else {
+            return;
         };
-        let req = JsonRpcRequest {
-            jsonrpc: JsonRpcVersion,
-            id: JsonRpcId::from_request_id(&request_id),
-            session_id: Some(self.session.clone()),
-            method: Method::ToolsList.as_wire_str().to_owned(),
-            params,
-        };
-        let resp = connection.call_request(request_id, &req).await?;
-        match resp.outcome {
-            ResponseOutcome::Result(value) => {
-                let result: tool_protocol::ToolsListResult =
-                    serde_json::from_value(value).map_err(|e| ClientError::Serde(e.to_string()))?;
-                self.remote_tools.store(Arc::new(result.tools.clone()));
-                Ok(result.tools)
-            }
-            ResponseOutcome::Error(err) => Err(ClientError::from_jsonrpc_error(err)),
+        if !borrow.begin_teardown() {
+            return;
         }
+        if let Some(h) = self.discovery_handle.lock().take() {
+            h.abort();
+        }
+        borrow.shutdown_token().cancel();
+        let inbox_tx = self.session_inbox_tx.lock().take();
+        release_session_binding(borrow.connection(), &self.session, inbox_tx.as_ref());
+    }
+}
+
+/// Merge a `tools.list` refresh into the cache. After a successful bind
+/// (`resolve_error` unset), tools the ack advertised are not dropped just
+/// because this refresh is a strict subset.
+fn merge_discovered_remote_tools(
+    current: &[ToolDescription],
+    incoming: Vec<ToolDescription>,
+    report: Option<&SessionBindReport>,
+) -> Vec<ToolDescription> {
+    let Some(report) = report else {
+        return incoming;
+    };
+    if report.resolve_error.is_some() || report.advertised_tool_names.is_empty() {
+        return incoming;
+    }
+    let incoming_names: HashSet<String> = incoming.iter().map(|t| t.name.clone()).collect();
+    let ack: HashSet<&str> = report
+        .advertised_tool_names
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let mut merged = incoming;
+    for tool in current {
+        if incoming_names.contains(&tool.name) {
+            continue;
+        }
+        if ack.contains(tool.name.as_str()) {
+            merged.push(tool.clone());
+        }
+    }
+    merged
+}
+
+/// Bound `tools.list` so discovery cannot pin a connection on a hung RPC.
+const TOOLS_LIST_TIMEOUT: Duration = Duration::from_secs(30);
+
+async fn list_remote_tools(
+    connection: &HubConnection,
+    session: &SessionId,
+) -> Result<xvora_tool_protocol::ToolsListResult, ClientError> {
+    let request_id = connection.try_alloc_request_id()?;
+    let params = xvora_tool_protocol::ToolsListParams {
+        session_id: session.clone(),
+        mode: xvora_tool_protocol::ToolDefinitionMode::Full,
+    };
+    let req = JsonRpcRequest {
+        jsonrpc: JsonRpcVersion,
+        id: JsonRpcId::from_request_id(&request_id),
+        session_id: Some(session.clone()),
+        method: Method::ToolsList.as_wire_str().to_owned(),
+        params,
+    };
+    let resp = connection
+        .call_request_with_timeout(request_id, &req, TOOLS_LIST_TIMEOUT)
+        .await?;
+    match resp.outcome {
+        ResponseOutcome::Result(value) => {
+            serde_json::from_value(value).map_err(|e| ClientError::Serde(e.to_string()))
+        }
+        ResponseOutcome::Error(err) => Err(ClientError::from_jsonrpc_error(err)),
+    }
+}
+
+/// Untrack; if last borrower, identity-unregister our inbox only.
+fn release_session_binding(
+    connection: &HubConnection,
+    session: &SessionId,
+    inbox_tx: Option<&tokio::sync::mpsc::WeakSender<crate::demux::InboundFrame>>,
+) {
+    if connection.untrack_session(session) != Some(0) {
+        return;
+    }
+    if let Some(weak) = inbox_tx {
+        let _ = connection
+            .demux()
+            .unregister_session_inbox_if_weak(session, weak);
+    }
+}
+
+impl Drop for ToolHarnessInner {
+    fn drop(&mut self) {
+        self.finish_teardown();
     }
 }
 
@@ -730,7 +860,7 @@ impl ToolHarness {
     pub fn local_only_with(
         registry: LocalRegistry,
         session: SessionId,
-        default_extensions: tool_runtime::TypedExtensions,
+        default_extensions: xvora_tool_runtime::TypedExtensions,
     ) -> Self {
         let inner = Arc::new(ToolHarnessInner {
             borrow: None,
@@ -741,6 +871,7 @@ impl ToolHarness {
             remote_tools: arc_swap::ArcSwap::from_pointee(Vec::new()),
             last_bind_report: arc_swap::ArcSwapOption::empty(),
             discovery_handle: parking_lot::Mutex::new(None),
+            session_inbox_tx: parking_lot::Mutex::new(None),
             pending_bind: None,
             hook_request_handler: Arc::new(parking_lot::Mutex::new(None)),
         });
@@ -754,7 +885,7 @@ impl ToolHarness {
     pub fn local_with_pending_bind<F>(
         registry: LocalRegistry,
         session: SessionId,
-        default_extensions: tool_runtime::TypedExtensions,
+        default_extensions: xvora_tool_runtime::TypedExtensions,
         bind: F,
     ) -> Self
     where
@@ -770,6 +901,7 @@ impl ToolHarness {
             remote_tools: arc_swap::ArcSwap::from_pointee(Vec::new()),
             last_bind_report: arc_swap::ArcSwapOption::empty(),
             discovery_handle: parking_lot::Mutex::new(None),
+            session_inbox_tx: parking_lot::Mutex::new(None),
             pending_bind: Some(DeferredBind::Eager(pending)),
             hook_request_handler: Arc::new(parking_lot::Mutex::new(None)),
         });
@@ -786,7 +918,7 @@ impl ToolHarness {
     pub fn local_with_lazy_bind<F>(
         registry: LocalRegistry,
         session: SessionId,
-        default_extensions: tool_runtime::TypedExtensions,
+        default_extensions: xvora_tool_runtime::TypedExtensions,
         bind: F,
     ) -> Self
     where
@@ -805,6 +937,7 @@ impl ToolHarness {
             remote_tools: arc_swap::ArcSwap::from_pointee(Vec::new()),
             last_bind_report: arc_swap::ArcSwapOption::empty(),
             discovery_handle: parking_lot::Mutex::new(None),
+            session_inbox_tx: parking_lot::Mutex::new(None),
             pending_bind: Some(DeferredBind::Lazy(lazy)),
             hook_request_handler: Arc::new(parking_lot::Mutex::new(None)),
         });
@@ -866,7 +999,7 @@ impl ToolHarness {
         &self,
         tool_id: &ToolId,
         output: &Value,
-    ) -> Option<Vec<tool_runtime::ContentBlock>> {
+    ) -> Option<Vec<xvora_tool_runtime::ContentBlock>> {
         self.inner.local_registry.model_output(tool_id, output)
     }
 
@@ -883,20 +1016,22 @@ impl ToolHarness {
     }
 
     /// Discover available tool servers for the current user.
-    pub async fn list_servers(&self) -> Result<Vec<tool_protocol::ServerInfo>, ClientError> {
+    pub async fn list_servers(&self) -> Result<Vec<xvora_tool_protocol::ServerInfo>, ClientError> {
         let connection = self.require_connection()?;
         let request_id = connection.try_alloc_request_id()?;
         let req = JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(self.inner.session.clone()),
-            method: tool_protocol::Method::ServersList.as_wire_str().to_owned(),
-            params: tool_protocol::ServersListParams {},
+            method: xvora_tool_protocol::Method::ServersList
+                .as_wire_str()
+                .to_owned(),
+            params: xvora_tool_protocol::ServersListParams {},
         };
         let resp = connection.call_request(request_id, &req).await?;
         match resp.outcome {
             ResponseOutcome::Result(value) => {
-                let result: tool_protocol::ServersListResult =
+                let result: xvora_tool_protocol::ServersListResult =
                     serde_json::from_value(value).map_err(|e| ClientError::Serde(e.to_string()))?;
                 Ok(result.servers)
             }
@@ -917,13 +1052,13 @@ impl ToolHarness {
     pub async fn session_open_with(
         &self,
         resume: bool,
-        last_seq: Option<tool_protocol::LastSeq>,
+        last_seq: Option<xvora_tool_protocol::LastSeq>,
     ) -> Result<(), ClientError> {
         let start = std::time::Instant::now();
         let result: Result<(), ClientError> = async {
             let connection = self.require_connection()?;
             let request_id = connection.try_alloc_request_id()?;
-            let params = tool_protocol::SessionOpenParams { resume, last_seq };
+            let params = xvora_tool_protocol::SessionOpenParams { resume, last_seq };
             let req = JsonRpcRequest {
                 jsonrpc: JsonRpcVersion,
                 id: JsonRpcId::from_request_id(&request_id),
@@ -963,20 +1098,20 @@ impl ToolHarness {
     }
 
     /// [`Self::session_bind`], returning the full bind result including the
-    /// server's bind report (`binary_version`, `unserved_tool_ids`).
+    /// server's bind report.
     pub async fn session_bind_with_report(
         &self,
         server_id: &str,
         cwd: Option<&str>,
         metadata: Option<serde_json::Value>,
-    ) -> Result<tool_protocol::SessionBindServerResult, ClientError> {
+    ) -> Result<xvora_tool_protocol::SessionBindServerResult, ClientError> {
         let start = std::time::Instant::now();
-        let result: Result<tool_protocol::SessionBindServerResult, ClientError> = async {
+        let result: Result<xvora_tool_protocol::SessionBindServerResult, ClientError> = async {
             let connection = self.require_connection()?;
             let request_id = connection.try_alloc_request_id()?;
-            let parsed_server_id = tool_protocol::ServerId::new(server_id)
+            let parsed_server_id = xvora_tool_protocol::ServerId::new(server_id)
                 .map_err(|e| ClientError::InvalidConfig(format!("invalid server_id: {e}")))?;
-            let params = tool_protocol::SessionBindServerParams {
+            let params = xvora_tool_protocol::SessionBindServerParams {
                 server_id: parsed_server_id,
                 cwd: cwd.map(String::from),
                 metadata,
@@ -991,18 +1126,14 @@ impl ToolHarness {
             let resp = connection.call_request(request_id, &req).await?;
             match resp.outcome {
                 ResponseOutcome::Result(value) => {
-                    let bind_result: tool_protocol::SessionBindServerResult =
+                    let bind_result: xvora_tool_protocol::SessionBindServerResult =
                         serde_json::from_value(value)
                             .map_err(|e| ClientError::Serde(e.to_string()))?;
                     let arc = Arc::new(bind_result.tools.clone());
                     self.inner.remote_tools.store(arc);
                     self.inner
                         .last_bind_report
-                        .store(Some(Arc::new(SessionBindReport {
-                            binary_version: bind_result.binary_version.clone(),
-                            unserved_tool_ids: bind_result.unserved_tool_ids.clone(),
-                            resolve_error: bind_result.resolve_error.clone(),
-                        })));
+                        .store(Some(Arc::new(SessionBindReport::from(&bind_result))));
                     Ok(bind_result)
                 }
                 ResponseOutcome::Error(err) => Err(ClientError::from_jsonrpc_error(err)),
@@ -1036,18 +1167,18 @@ impl ToolHarness {
         &self,
         server_id: Option<&str>,
         caller: &str,
-    ) -> Result<tool_protocol::SessionAttachServerResult, ClientError> {
+    ) -> Result<xvora_tool_protocol::SessionAttachServerResult, ClientError> {
         let start = std::time::Instant::now();
-        let result: Result<tool_protocol::SessionAttachServerResult, ClientError> = async {
+        let result: Result<xvora_tool_protocol::SessionAttachServerResult, ClientError> = async {
             let connection = self.require_connection()?;
             let request_id = connection.try_alloc_request_id()?;
             let parsed_server_id = server_id
                 .map(|s| {
-                    tool_protocol::ServerId::new(s)
+                    xvora_tool_protocol::ServerId::new(s)
                         .map_err(|e| ClientError::InvalidConfig(format!("invalid server_id: {e}")))
                 })
                 .transpose()?;
-            let params = tool_protocol::SessionAttachServerParams {
+            let params = xvora_tool_protocol::SessionAttachServerParams {
                 server_id: parsed_server_id,
                 caller: Some(caller.to_owned()),
             };
@@ -1061,7 +1192,7 @@ impl ToolHarness {
             let resp = connection.call_request(request_id, &req).await?;
             match resp.outcome {
                 ResponseOutcome::Result(value) => {
-                    let attach_result: tool_protocol::SessionAttachServerResult =
+                    let attach_result: xvora_tool_protocol::SessionAttachServerResult =
                         serde_json::from_value(value)
                             .map_err(|e| ClientError::Serde(e.to_string()))?;
                     self.inner
@@ -1085,9 +1216,9 @@ impl ToolHarness {
     pub async fn session_unbind(&self, server_id: &str) -> Result<(), ClientError> {
         let connection = self.require_connection()?;
         let request_id = connection.try_alloc_request_id()?;
-        let parsed_server_id = tool_protocol::ServerId::new(server_id)
+        let parsed_server_id = xvora_tool_protocol::ServerId::new(server_id)
             .map_err(|e| ClientError::InvalidConfig(format!("invalid server_id: {e}")))?;
-        let params = tool_protocol::SessionUnbindServerParams {
+        let params = xvora_tool_protocol::SessionUnbindServerParams {
             server_id: parsed_server_id,
         };
         let req = JsonRpcRequest {
@@ -1116,7 +1247,7 @@ impl ToolHarness {
     pub async fn session_close(&self) -> Result<(), ClientError> {
         let connection = self.require_connection()?;
         let request_id = connection.try_alloc_request_id()?;
-        let params = tool_protocol::SessionCloseParams { reason: None };
+        let params = xvora_tool_protocol::SessionCloseParams { reason: None };
         let req = JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
@@ -1156,6 +1287,12 @@ impl ToolHarness {
         self.inner.remote_tools.store(Arc::new(tools));
     }
 
+    /// Test-only: whether `start_tool_discovery` installed a background task.
+    #[doc(hidden)]
+    pub fn discovery_task_started_for_tests(&self) -> bool {
+        self.inner.discovery_handle.lock().is_some()
+    }
+
     /// Tool descriptions from the local registry only.
     pub fn list_local_tools(&self, ctx: &ListToolsContext) -> Vec<ToolDescription> {
         self.inner.local_registry.list_tools(ctx)
@@ -1180,6 +1317,13 @@ impl ToolHarness {
     /// Test-only: seed the bind report.
     pub fn seed_bind_report_for_tests(&self, report: SessionBindReport) {
         self.inner.last_bind_report.store(Some(Arc::new(report)));
+    }
+
+    /// Test-only: apply a `tools.list` / `ToolsChanged` refresh through the
+    /// same merge as discovery.
+    #[doc(hidden)]
+    pub fn apply_discovered_remote_tools_for_tests(&self, tools: Vec<ToolDescription>) {
+        self.inner.apply_discovered_remote_tools(tools);
     }
 
     /// Dispatch a tool call.
@@ -1212,7 +1356,7 @@ impl ToolHarness {
         tool_id: ToolId,
         args: Value,
         mut ctx: ToolCallContext,
-    ) -> ToolStream<tool_runtime::TypedToolOutput> {
+    ) -> ToolStream<xvora_tool_runtime::TypedToolOutput> {
         // Merge harness-level default extensions (SharedState, AgentState, etc.)
         // into the per-call context. Per-call values take priority.
         ctx.extensions
@@ -1231,7 +1375,7 @@ impl ToolHarness {
         // `ObservedToolStream` wrapper.
         let observed_call_id = ctx.call_id.clone();
 
-        let raw_stream: ToolStream<tool_runtime::TypedToolOutput> =
+        let raw_stream: ToolStream<xvora_tool_runtime::TypedToolOutput> =
             if let Some(handle) = self.inner.local_registry.find(&tool_id) {
                 handle.execute(ctx, args).await
             } else if let Some(ref borrow) = self.inner.borrow {
@@ -1305,7 +1449,7 @@ impl ToolHarness {
     /// surfaced to the caller.
     pub async fn send_notification(
         &self,
-        notification: tool_protocol::ToolNotificationFrame,
+        notification: xvora_tool_protocol::ToolNotificationFrame,
     ) -> Result<(), ClientError> {
         self.send_fire_and_forget(Method::ToolNotify, notification)
             .await
@@ -1320,18 +1464,21 @@ impl ToolHarness {
     /// outbound message is queued, without waiting for a server ack.
     /// Server-side errors (e.g. unknown tool, invalid session) are not
     /// surfaced to the caller.
-    pub async fn send_hook(&self, mut hook: tool_protocol::HookFrame) -> Result<(), ClientError> {
+    pub async fn send_hook(
+        &self,
+        mut hook: xvora_tool_protocol::HookFrame,
+    ) -> Result<(), ClientError> {
         if hook.trace_context.is_none()
             && let Some(provider) = &self.inner.trace_context_provider
         {
             hook.trace_context = provider();
         }
         let hook_type = match &hook.event {
-            tool_protocol::HookEvent::Cancel => "cancel",
-            tool_protocol::HookEvent::Pause => "pause",
-            tool_protocol::HookEvent::Resume => "resume",
-            tool_protocol::HookEvent::SessionEnded => "session_ended",
-            tool_protocol::HookEvent::Custom { .. } => "custom",
+            xvora_tool_protocol::HookEvent::Cancel => "cancel",
+            xvora_tool_protocol::HookEvent::Pause => "pause",
+            xvora_tool_protocol::HookEvent::Resume => "resume",
+            xvora_tool_protocol::HookEvent::SessionEnded => "session_ended",
+            xvora_tool_protocol::HookEvent::Custom { .. } => "custom",
         };
         crate::metrics::hook_send(hook_type);
         self.send_fire_and_forget(Method::Hook, hook).await
@@ -1339,7 +1486,7 @@ impl ToolHarness {
 
     /// Cancel an in-flight remote call.
     ///
-    /// Sends the call-scoped `Cancel` [`HookFrame`](tool_protocol::HookFrame)
+    /// Sends the call-scoped `Cancel` [`HookFrame`](xvora_tool_protocol::HookFrame)
     /// over the fire-and-forget [`Self::send_hook`] path. Idempotent: the
     /// server routes it to the owning tool server, which hard-cancels a live
     /// call or tombstones an unknown / already-completed `call_id`. `Ok`
@@ -1350,7 +1497,7 @@ impl ToolHarness {
         tool_id: &ToolId,
         call_id: &ToolCallId,
     ) -> Result<(), ClientError> {
-        let hook = tool_protocol::HookFrame::cancel(
+        let hook = xvora_tool_protocol::HookFrame::cancel(
             self.inner.session.clone(),
             tool_id.clone(),
             call_id.clone(),
@@ -1365,11 +1512,11 @@ impl ToolHarness {
     /// the hook via `ToolServerHandler::handle_hook`.
     pub async fn send_before_turn_hook(
         &self,
-        payload: tool_protocol::turn_hook::BeforeTurnPayload,
+        payload: xvora_tool_protocol::turn_hook::BeforeTurnPayload,
     ) -> Result<(), ClientError> {
-        let hook = tool_protocol::HookFrame::custom(
+        let hook = xvora_tool_protocol::HookFrame::custom(
             self.session().clone(),
-            tool_protocol::turn_hook::BEFORE_TURN_KIND.to_owned(),
+            xvora_tool_protocol::turn_hook::BEFORE_TURN_KIND.to_owned(),
             serde_json::to_value(&payload).map_err(|e| ClientError::Serde(e.to_string()))?,
         );
         self.send_hook(hook).await
@@ -1382,11 +1529,11 @@ impl ToolHarness {
     /// the hook via `ToolServerHandler::handle_hook`.
     pub async fn send_after_turn_hook(
         &self,
-        payload: tool_protocol::turn_hook::AfterTurnPayload,
+        payload: xvora_tool_protocol::turn_hook::AfterTurnPayload,
     ) -> Result<(), ClientError> {
-        let hook = tool_protocol::HookFrame::custom(
+        let hook = xvora_tool_protocol::HookFrame::custom(
             self.session().clone(),
-            tool_protocol::turn_hook::AFTER_TURN_KIND.to_owned(),
+            xvora_tool_protocol::turn_hook::AFTER_TURN_KIND.to_owned(),
             serde_json::to_value(&payload).map_err(|e| ClientError::Serde(e.to_string()))?,
         );
         self.send_hook(hook).await
@@ -1400,8 +1547,8 @@ impl ToolHarness {
     /// (not a tool); any error is treated as a no-op by the caller.
     pub async fn request_turn_hook(
         &self,
-        request: &tool_protocol::turn_hook::TurnHookRequest,
-    ) -> Result<tool_protocol::turn_hook::HookReply, ClientError> {
+        request: &xvora_tool_protocol::turn_hook::TurnHookRequest,
+    ) -> Result<xvora_tool_protocol::turn_hook::HookReply, ClientError> {
         self.request_turn_hook_with_timeout(request, Self::TURN_HOOK_TIMEOUT)
             .await
     }
@@ -1410,17 +1557,17 @@ impl ToolHarness {
     /// (the responder's own watchdog must stay below it).
     pub async fn request_turn_hook_with_timeout(
         &self,
-        request: &tool_protocol::turn_hook::TurnHookRequest,
+        request: &xvora_tool_protocol::turn_hook::TurnHookRequest,
         timeout: std::time::Duration,
-    ) -> Result<tool_protocol::turn_hook::HookReply, ClientError> {
+    ) -> Result<xvora_tool_protocol::turn_hook::HookReply, ClientError> {
         let connection = self.require_connection()?;
         let payload = serde_json::to_value(request).map_err(ClientError::from)?;
         // hook_id keys the server's parked-request table — must be globally unique.
-        let hook_id = tool_protocol::ToolCallId::new_v7().to_string();
-        let hook = tool_protocol::HookFrame::custom_request(
+        let hook_id = xvora_tool_protocol::ToolCallId::new_v7().to_string();
+        let hook = xvora_tool_protocol::HookFrame::custom_request(
             self.inner.session.clone(),
             hook_id,
-            tool_protocol::turn_hook::TURN_HOOK_KIND.to_owned(),
+            xvora_tool_protocol::turn_hook::TURN_HOOK_KIND.to_owned(),
             payload,
         )
         .with_trace_context(
@@ -1457,7 +1604,7 @@ impl ToolHarness {
         }
     }
 
-    /// Answer a reverse-direction request/response [`HookFrame`](tool_protocol::HookFrame)
+    /// Answer a reverse-direction request/response [`HookFrame`](xvora_tool_protocol::HookFrame)
     /// (one whose `hook_id` is set).
     ///
     /// Sent as a fire-and-forget `hook_reply` notification (not a JSON-RPC
@@ -1465,7 +1612,7 @@ impl ToolHarness {
     /// `Ok` once the frame is queued on the outbound channel.
     pub async fn send_hook_reply(
         &self,
-        reply: tool_protocol::HookReplyFrame,
+        reply: xvora_tool_protocol::HookReplyFrame,
     ) -> Result<(), ClientError> {
         let connection = self.require_connection()?;
         let notif = build_hook_reply_notification(&self.inner.session, reply);
@@ -1484,7 +1631,7 @@ impl ToolHarness {
     /// full, which best-effort teardown does not need.
     pub fn try_send_hook_reply(
         &self,
-        reply: tool_protocol::HookReplyFrame,
+        reply: xvora_tool_protocol::HookReplyFrame,
     ) -> Result<(), ClientError> {
         let connection = self.require_connection()?;
         let notif = build_hook_reply_notification(&self.inner.session, reply);
@@ -1505,7 +1652,7 @@ impl ToolHarness {
     /// frame is dropped and the loop continues), but should still be avoided.
     pub fn set_hook_request_handler<F>(&self, handler: F)
     where
-        F: Fn(tool_protocol::HookFrame) + Send + Sync + 'static,
+        F: Fn(xvora_tool_protocol::HookFrame) + Send + Sync + 'static,
     {
         *self.inner.hook_request_handler.lock() = Some(Arc::new(handler));
     }
@@ -1538,11 +1685,34 @@ impl ToolHarness {
         &self,
     ) -> Result<mpsc::Receiver<crate::notification::HubNotification>, ClientError> {
         let connection = self.require_connection()?;
+        if self.inner.borrow.as_ref().is_some_and(|b| b.is_torn_down()) {
+            return Err(ClientError::InvalidConfig(
+                "harness already torn down".to_owned(),
+            ));
+        }
 
         let (inbox_tx, mut inbox_rx) = mpsc::channel::<crate::demux::InboundFrame>(64);
+        // Weak only — a strong clone would keep the channel open after a peer
+        // rebind replaces the demux entry and would block the prior discovery
+        // task from seeing EOF. Keep a stack-local weak for undo: concurrent
+        // finish_teardown may take the mutex slot without demux-unregistering
+        // (non-last untrack), so undo must not rely on that take.
+        let inbox_weak = inbox_tx.downgrade();
         connection
             .demux()
             .register_session_inbox(self.inner.session.clone(), inbox_tx);
+        *self.inner.session_inbox_tx.lock() = Some(inbox_weak.clone());
+
+        // Teardown may have won between the check and register — undo.
+        if self.inner.borrow.as_ref().is_some_and(|b| b.is_torn_down()) {
+            let _ = connection
+                .demux()
+                .unregister_session_inbox_if_weak(&self.inner.session, &inbox_weak);
+            *self.inner.session_inbox_tx.lock() = None;
+            return Err(ClientError::InvalidConfig(
+                "harness already torn down".to_owned(),
+            ));
+        }
 
         let (event_tx, event_rx) = mpsc::channel::<crate::notification::HubNotification>(64);
         // Clone only the handler slot (a standalone `Arc`), never `inner`:
@@ -1570,39 +1740,73 @@ impl ToolHarness {
     }
 
     /// Query the server for remote tool descriptions via `tools.list` RPC
-    /// and store the result in the in-memory cache. Returns the
-    /// discovered tools.
-    pub async fn query_remote_tools(&self) -> Result<Vec<ToolDescription>, ClientError> {
+    /// and merge them into the in-memory cache. After a successful bind,
+    /// a strictly smaller list does not drop tools the bind ack advertised.
+    /// Returns the full list payload, including workspace-boundness.
+    pub async fn query_remote_tools(
+        &self,
+    ) -> Result<xvora_tool_protocol::ToolsListResult, ClientError> {
         self.inner.refresh_remote_tools().await
     }
 
-    /// Start background tool discovery: populate the cache, then
-    /// re-query on every `ToolsChanged` notification.
+    /// Start background tool discovery: populate the cache if a bind has
+    /// not already stored the ack, then re-query on every `ToolsChanged`
+    /// notification.
     pub async fn start_tool_discovery(&self) {
+        if self.inner.borrow.as_ref().is_some_and(|b| b.is_torn_down()) {
+            return;
+        }
+
         let Ok(mut rx) = self.subscribe_notifications().await else {
             tracing::warn!("tool discovery: failed to subscribe to notifications");
             return;
         };
+        // Local weak for post-install undo if finish_teardown steals the mutex.
+        let inbox_weak = self.inner.session_inbox_tx.lock().clone();
 
-        if let Err(e) = self.query_remote_tools().await {
+        let cache_already_has_bind_ack = !self.inner.remote_tools.load().is_empty()
+            && self.inner.last_bind_report.load().is_some();
+        if !cache_already_has_bind_ack && let Err(e) = self.query_remote_tools().await {
             tracing::warn!(error = %e, "tool discovery: initial query failed");
         }
 
-        // Clone only the inner Arc, not a full ToolHarness — dropping
-        // a ToolHarness triggers begin_teardown which unregisters sessions.
-        let inner = self.inner.clone();
+        // Capture a Weak so the discovery task never pins ToolHarnessInner
+        // (a strong Arc would form a cycle via demux inbox → task → Arc →
+        // ConnectionBorrow → HubConnection → demux and defeat Drop teardown).
+        let weak = Arc::downgrade(&self.inner);
         let handle = tokio::spawn(async move {
             while let Some(notification) = rx.recv().await {
+                let Some(inner) = weak.upgrade() else {
+                    break; // harness gone — exit without extending its lifetime
+                };
                 match notification {
                     crate::notification::HubNotification::ToolsChanged { .. } => {
-                        if let Err(e) = inner.refresh_remote_tools().await {
-                            tracing::warn!(error = %e, "tool discovery: refresh after ToolsChanged failed");
+                        // Drop the strong Arc before awaiting so stuck RPCs
+                        // cannot re-form the pin cycle and block Inner Drop.
+                        let (connection, session) = match inner.borrow.as_ref() {
+                            Some(b) => (b.connection().clone(), inner.session.clone()),
+                            None => continue,
+                        };
+                        drop(inner);
+                        match list_remote_tools(connection.as_ref(), &session).await {
+                            Ok(result) => {
+                                if let Some(inner) = weak.upgrade() {
+                                    inner.apply_discovered_remote_tools(result.tools);
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    error = %e,
+                                    "tool discovery: refresh after ToolsChanged failed"
+                                );
+                            }
                         }
                     }
                     crate::notification::HubNotification::ToolServerStatusChanged {
                         session_id,
                         status,
                     } if status.status == ToolServerLifecycleStatus::Disconnected => {
+                        // Sync path — Arc is released at end of match arm.
                         inner.fail_inflight_calls_on_disconnect(&session_id);
                     }
                     _ => {}
@@ -1610,18 +1814,29 @@ impl ToolHarness {
             }
         });
         *self.inner.discovery_handle.lock() = Some(handle);
+
+        // Teardown may have won between subscribe and handle install: abort
+        // the handle we just published (finish_teardown would have missed it).
+        if self.inner.borrow.as_ref().is_some_and(|b| b.is_torn_down()) {
+            if let Some(h) = self.inner.discovery_handle.lock().take() {
+                h.abort();
+            }
+            if let (Some(borrow), Some(weak)) = (self.inner.borrow.as_ref(), inbox_weak.as_ref()) {
+                let _ = borrow
+                    .connection()
+                    .demux()
+                    .unregister_session_inbox_if_weak(&self.inner.session, weak);
+            }
+            *self.inner.session_inbox_tx.lock() = None;
+        }
     }
 
-    /// Cooperatively release the harness's session refcount.
+    /// Cooperatively tear down this harness's connection borrow.
     ///
-    /// Marks the harness as torn down (atomic `compare_exchange` on the
-    /// shared `torn_down` flag) and refcount-decrements the bound
-    /// session through the underlying [`HubConnection`]. The wire-level
-    /// `unregister_session` only fires when this is the LAST borrower
-    /// of the session id; otherwise the binding stays live for the
-    /// remaining peers. Idempotent across all clones — the first
-    /// caller wins the `compare_exchange`; later callers return
-    /// `Ok(())` without sending any frames.
+    /// Shared with both Drop paths via an at-most-once CAS inside
+    /// `finish_teardown`. Aborts tool discovery, cancels the borrow token,
+    /// untracks the session, and identity-unregisters this harness's demux
+    /// inbox when last borrower. Idempotent across clones.
     ///
     /// **In-flight `call(...)` futures are NOT cancelled** by
     /// `shutdown`. The harness owns no run-loop — the underlying
@@ -1632,17 +1847,7 @@ impl ToolHarness {
     /// and surfaces every parked waiter as `NetworkError`) or drop
     /// the per-call stream.
     pub async fn shutdown(&self) -> Result<(), ClientError> {
-        let Some(ref borrow) = self.inner.borrow else {
-            return Ok(()); // local-only: nothing to tear down
-        };
-        if !borrow.begin_teardown() {
-            return Ok(());
-        }
-        if let Some(h) = self.inner.discovery_handle.lock().take() {
-            h.abort();
-        }
-        borrow.shutdown_token().cancel();
-        borrow.connection().untrack_session(&self.inner.session);
+        self.inner.finish_teardown();
         Ok(())
     }
 }
@@ -1666,18 +1871,19 @@ fn build_session_event_frame(event: &SessionEvent) -> ToolNotificationFrame {
 }
 
 /// Classify an inbound `Request` frame as a reverse-direction permission-request
-/// hook, returning the decoded [`HookFrame`](tool_protocol::HookFrame) or `None`.
-fn parse_permission_request_hook(value: &Value) -> Option<tool_protocol::HookFrame> {
+/// hook, returning the decoded [`HookFrame`](xvora_tool_protocol::HookFrame) or `None`.
+fn parse_permission_request_hook(value: &Value) -> Option<xvora_tool_protocol::HookFrame> {
     let method = value.get("method").and_then(Value::as_str)?;
     if method != Method::Hook.as_wire_str() {
         return None;
     }
     let hook =
-        <tool_protocol::HookFrame as serde::Deserialize>::deserialize(value.get("params")?).ok()?;
+        <xvora_tool_protocol::HookFrame as serde::Deserialize>::deserialize(value.get("params")?)
+            .ok()?;
     // Only request/response hooks (those with a reply leg) qualify.
     hook.hook_id.as_ref()?;
     match &hook.event {
-        tool_protocol::HookEvent::Custom { kind, .. } if kind == PERMISSION_REQUEST_KIND => {
+        xvora_tool_protocol::HookEvent::Custom { kind, .. } if kind == PERMISSION_REQUEST_KIND => {
             Some(hook)
         }
         _ => None,
@@ -1715,11 +1921,11 @@ fn dispatch_inbound_hook_request(
 
 /// Build the `hook_reply` notification answering a reverse-direction hook,
 /// correlated to the request by
-/// [`HookReplyFrame::hook_id`](tool_protocol::HookReplyFrame::hook_id).
+/// [`HookReplyFrame::hook_id`](xvora_tool_protocol::HookReplyFrame::hook_id).
 fn build_hook_reply_notification(
     session_id: &SessionId,
-    mut reply: tool_protocol::HookReplyFrame,
-) -> JsonRpcNotification<tool_protocol::HookReplyFrame> {
+    mut reply: xvora_tool_protocol::HookReplyFrame,
+) -> JsonRpcNotification<xvora_tool_protocol::HookReplyFrame> {
     // Pin the frame's session id to the harness's bound session so params can
     // never disagree with the envelope; callers supply only hook_id + result.
     reply.session_id = session_id.clone();
@@ -1759,7 +1965,7 @@ struct EmissionState {
 /// `poll_next` and `Drop` are synchronous. The matching
 /// `ToolCallStarted` was emitted by `call` before the stream was built.
 struct ObservedToolStream {
-    inner: ToolStream<tool_runtime::TypedToolOutput>,
+    inner: ToolStream<xvora_tool_runtime::TypedToolOutput>,
     /// `Some` until the `ToolCallCompleted` event is scheduled, then
     /// `None` so neither a subsequent `poll_next` nor `Drop` double-emits.
     emission: Option<EmissionState>,
@@ -1767,7 +1973,7 @@ struct ObservedToolStream {
 
 impl ObservedToolStream {
     fn new(
-        inner: ToolStream<tool_runtime::TypedToolOutput>,
+        inner: ToolStream<xvora_tool_runtime::TypedToolOutput>,
         harness: ToolHarness,
         tool_call_id: ToolCallId,
         tool_id: ToolId,
@@ -1809,7 +2015,7 @@ impl ObservedToolStream {
 }
 
 impl Stream for ObservedToolStream {
-    type Item = ToolStreamItem<tool_runtime::TypedToolOutput>;
+    type Item = ToolStreamItem<xvora_tool_runtime::TypedToolOutput>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let poll = self.inner.as_mut().poll_next(cx);
@@ -1837,38 +2043,14 @@ impl Drop for ObservedToolStream {
 
 impl Drop for ToolHarness {
     fn drop(&mut self) {
-        let Some(ref borrow) = self.inner.borrow else {
-            return; // local-only: nothing to tear down
-        };
-        // Skip teardown when other ToolHarness clones still exist. The
-        // harness is cloned into ObservedToolStream by `call()`; that
-        // internal clone's Drop must NOT race the user-held harness
-        // into begin_teardown (which is at-most-once and would cause a
-        // premature unregister_session while the user is still calling).
-        // strong_count == 1 means this is the last Arc reference.
+        // Best-effort fast path: skip while other ToolHarness clones still
+        // exist (e.g. ObservedToolStream's internal clone during `call`).
+        // Correctness does not depend on this gate — `ToolHarnessInner::Drop`
+        // runs the same cleanup at true refcount-zero if this path skips.
         if Arc::strong_count(&self.inner) > 1 {
             return;
         }
-        if !borrow.begin_teardown() {
-            return;
-        }
-        // Abort the discovery loop (matches shutdown() behavior).
-        // Lock is safe: only held briefly for take(); no async work under lock.
-        if let Some(h) = self.inner.discovery_handle.lock().take() {
-            h.abort();
-        }
-        let inner = self.inner.clone();
-        if tokio::runtime::Handle::try_current().is_ok() {
-            tokio::spawn(async move {
-                // Best-effort cleanup; a closed server WebSocket will
-                // surface as an error here — that is expected and
-                // must not panic.
-                if let Some(ref borrow) = inner.borrow {
-                    borrow.shutdown_token().cancel();
-                    borrow.connection().untrack_session(&inner.session);
-                }
-            });
-        }
+        self.inner.finish_teardown();
     }
 }
 
@@ -2055,7 +2237,7 @@ impl RemoteCallStream {
     /// drops it (the connection is already winding down / abandoning the
     /// call), matching the heartbeat-pong drop discipline.
     fn try_emit_cancel_on_drop(&self, session_id: &SessionId, tool_id: &ToolId) {
-        let hook = tool_protocol::HookFrame::cancel(
+        let hook = xvora_tool_protocol::HookFrame::cancel(
             session_id.clone(),
             tool_id.clone(),
             self.call_id.clone(),
@@ -2174,7 +2356,7 @@ impl Stream for RemoteCallStream {
 // The `tool_call_result` success-body decode (`decode_call_result`),
 // the progress-frame mapping (`progress_from_frame`), and the JSON-RPC
 // envelope / `ToolErrorWire` error projections are all canonical in
-// `computer_hub_core::remote`. Routing the harness through the same
+// `xvora_computer_hub_core::remote`. Routing the harness through the same
 // functions as the core remote proxy keeps both wire-decoding paths
 // identical, so a future variant addition lands in one place.
 
@@ -2214,7 +2396,7 @@ mod tests {
     use super::*;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-    use tool_types::ToolDescription;
+    use xvora_tool_types::ToolDescription;
 
     #[derive(Debug)]
     struct EchoTool {
@@ -2230,7 +2412,7 @@ mod tests {
     struct EchoOut {
         echoed: String,
     }
-    impl tool_runtime::ToolOutput for EchoOut {}
+    impl xvora_tool_runtime::ToolOutput for EchoOut {}
 
     impl Tool for EchoTool {
         type Args = EchoArgs;
@@ -2252,12 +2434,12 @@ mod tests {
 
     #[tokio::test]
     async fn request_turn_hook_errors_without_hub_connection() {
-        use tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
+        use xvora_tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
 
         let harness = ToolHarness::local_only_with(
             LocalRegistry::new(),
             SessionId::new("test-session").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
         );
         let req = TurnHookRequest::After(AfterTurnPayload {
             turn_number: 1,
@@ -2276,7 +2458,7 @@ mod tests {
         ToolHarness::local_only_with(
             LocalRegistry::new(),
             SessionId::new("pending-bind-test").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
         )
     }
 
@@ -2293,7 +2475,7 @@ mod tests {
         let harness = ToolHarness::local_with_pending_bind(
             LocalRegistry::new(),
             SessionId::new("twin").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
             async move { Ok(pending_bind_test_harness()) },
         );
         assert!(harness.has_pending_bind());
@@ -2306,7 +2488,7 @@ mod tests {
         let harness = ToolHarness::local_with_pending_bind(
             LocalRegistry::new(),
             SessionId::new("twin").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
             async { Err(Arc::<str>::from("boom")) },
         );
         let err = harness.await_bound().await.expect_err("bind failed");
@@ -2319,7 +2501,7 @@ mod tests {
         let harness = ToolHarness::local_with_pending_bind(
             LocalRegistry::new(),
             SessionId::new("twin").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
             async move {
                 let _ = rx.await;
                 Ok(pending_bind_test_harness())
@@ -2336,7 +2518,7 @@ mod tests {
         let harness = ToolHarness::local_with_pending_bind(
             LocalRegistry::new(),
             SessionId::new("twin").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
             async move { Ok(pending_bind_test_harness()) },
         );
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -2361,7 +2543,7 @@ mod tests {
         let harness = ToolHarness::local_with_lazy_bind(
             LocalRegistry::new(),
             SessionId::new("lazy").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
             async move {
                 started_in_fut.store(true, std::sync::atomic::Ordering::SeqCst);
                 Ok(pending_bind_test_harness())
@@ -2395,22 +2577,11 @@ mod tests {
         let harness = ToolHarness::local_with_lazy_bind(
             LocalRegistry::new(),
             SessionId::new("lazy").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
             async { Err(Arc::<str>::from("boom")) },
         );
         let err = harness.await_bound().await.expect_err("bind failed");
         assert!(err.contains("boom"));
-    }
-
-    #[test]
-    fn local_registry_starts_empty() {
-        let registry = LocalRegistry::new();
-        assert_eq!(registry.len(), 0);
-        assert!(registry.is_empty());
-        let id = ToolId::new("missing").expect("valid");
-        assert!(!registry.contains(&id));
-        assert!(registry.find(&id).is_none());
-        assert!(!registry.unregister(&id));
     }
 
     #[test]
@@ -2422,7 +2593,7 @@ mod tests {
         let harness = ToolHarness::local_only_with(
             registry,
             SessionId::new("remote-cache-session").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
         );
 
         assert!(!harness.has_remote_tool("bash"));
@@ -2440,6 +2611,83 @@ mod tests {
         // Cleared on unbind.
         harness.seed_remote_tools_for_tests(Vec::new());
         assert!(!harness.has_remote_tool("bash"));
+    }
+
+    /// After a successful bind stores N tools, a ToolsChanged refresh that
+    /// returns N-1 must not shrink the cache below the last bind-ack set.
+    #[test]
+    fn tools_changed_does_not_shrink_below_last_bind_ack() {
+        let harness = ToolHarness::local_only_with(
+            LocalRegistry::new(),
+            SessionId::new("bind-ack-shrink").expect("valid session"),
+            xvora_tool_runtime::TypedExtensions::default(),
+        );
+        harness.seed_remote_tools_for_tests(vec![
+            ToolDescription::new("read_file", "read a file"),
+            ToolDescription::new("get_terminal_command_output", "read terminal output"),
+        ]);
+        harness.seed_bind_report_for_tests(SessionBindReport {
+            advertised_tool_names: vec![
+                "read_file".to_owned(),
+                "get_terminal_command_output".to_owned(),
+            ],
+            ..Default::default()
+        });
+
+        harness.apply_discovered_remote_tools_for_tests(vec![ToolDescription::new(
+            "read_file",
+            "read a file",
+        )]);
+
+        let names: Vec<String> = harness
+            .list_remote_tools()
+            .into_iter()
+            .map(|t| t.name)
+            .collect();
+        assert!(
+            names.contains(&"read_file".to_owned())
+                && names.contains(&"get_terminal_command_output".to_owned()),
+            "discovery shrink must not drop a bind-ack tool, got {names:?}"
+        );
+    }
+
+    /// A fail-closed bind (`resolve_error` set) is authoritative: a smaller
+    /// refresh replaces the cache.
+    #[test]
+    fn tools_changed_replace_is_allowed_when_resolve_error_is_set() {
+        let harness = ToolHarness::local_only_with(
+            LocalRegistry::new(),
+            SessionId::new("bind-ack-fail-closed").expect("valid session"),
+            xvora_tool_runtime::TypedExtensions::default(),
+        );
+        harness.seed_remote_tools_for_tests(vec![ToolDescription::new("read_file", "read a file")]);
+        harness.seed_bind_report_for_tests(SessionBindReport {
+            advertised_tool_names: vec!["read_file".to_owned()],
+            resolve_error: Some("missing_tool_config".to_owned()),
+            ..Default::default()
+        });
+
+        harness.apply_discovered_remote_tools_for_tests(Vec::new());
+        assert!(
+            harness.list_remote_tools().is_empty(),
+            "fail-closed bind must allow the refresh to replace the cache"
+        );
+    }
+
+    #[test]
+    fn session_bind_report_projects_ack_tool_names() {
+        let result = xvora_tool_protocol::SessionBindServerResult {
+            tools: vec![
+                ToolDescription::new("read_file", "read a file"),
+                ToolDescription::new("get_terminal_command_output", "read terminal output"),
+            ],
+            ..Default::default()
+        };
+        let report = SessionBindReport::from(&result);
+        assert_eq!(
+            report.advertised_tool_names,
+            vec!["read_file", "get_terminal_command_output"]
+        );
     }
 
     #[test]
@@ -2713,26 +2961,8 @@ mod tests {
         assert!(saw_terminal_ok, "local echo must yield Terminal(Ok)");
     }
 
-    #[tokio::test]
-    async fn local_only_emit_session_event_is_noop() {
-        // No server borrow → `emit_session_event` must short-circuit before
-        // building a frame. The test passes if the call returns without
-        // touching `send_notification` (no panic from a missing
-        // connection actor).
-        let harness = ToolHarness::local_only_with(
-            LocalRegistry::new(),
-            SessionId::new("test-no-hub").expect("valid"),
-            Default::default(),
-        );
-        harness
-            .emit_session_event(SessionEvent::PhaseChanged {
-                phase: tool_protocol::session_event::SessionPhase::Idle,
-            })
-            .await;
-    }
-
-    /// Wrap a [`HookFrame`](tool_protocol::HookFrame) in the JSON-RPC `Request` envelope.
-    fn inbound_hook_request_frame(hook: &tool_protocol::HookFrame) -> Value {
+    /// Wrap a [`HookFrame`](xvora_tool_protocol::HookFrame) in the JSON-RPC `Request` envelope.
+    fn inbound_hook_request_frame(hook: &xvora_tool_protocol::HookFrame) -> Value {
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": "h1",
@@ -2744,7 +2974,7 @@ mod tests {
 
     #[test]
     fn parse_permission_request_hook_matches_request_response_hook() {
-        let hook = tool_protocol::HookFrame::custom_request(
+        let hook = xvora_tool_protocol::HookFrame::custom_request(
             SessionId::new("s1").expect("valid"),
             "hook-7".to_owned(),
             PERMISSION_REQUEST_KIND.to_owned(),
@@ -2754,7 +2984,7 @@ mod tests {
             .expect("permission request matches");
         assert_eq!(parsed.hook_id.as_deref(), Some("hook-7"));
         match parsed.event {
-            tool_protocol::HookEvent::Custom { kind, payload } => {
+            xvora_tool_protocol::HookEvent::Custom { kind, payload } => {
                 assert_eq!(kind, PERMISSION_REQUEST_KIND);
                 assert_eq!(payload, serde_json::json!({ "tool_call_id": "call-1" }));
             }
@@ -2764,10 +2994,10 @@ mod tests {
 
     #[test]
     fn parse_permission_request_hook_rejects_other_custom_kind() {
-        let hook = tool_protocol::HookFrame::custom_request(
+        let hook = xvora_tool_protocol::HookFrame::custom_request(
             SessionId::new("s1").expect("valid"),
             "hook-7".to_owned(),
-            tool_protocol::turn_hook::TURN_HOOK_KIND.to_owned(),
+            xvora_tool_protocol::turn_hook::TURN_HOOK_KIND.to_owned(),
             serde_json::json!({}),
         );
         assert!(parse_permission_request_hook(&inbound_hook_request_frame(&hook)).is_none());
@@ -2775,7 +3005,7 @@ mod tests {
 
     #[test]
     fn parse_permission_request_hook_rejects_missing_hook_id() {
-        let hook = tool_protocol::HookFrame::custom(
+        let hook = xvora_tool_protocol::HookFrame::custom(
             SessionId::new("s1").expect("valid"),
             PERMISSION_REQUEST_KIND.to_owned(),
             serde_json::json!({}),
@@ -2786,12 +3016,12 @@ mod tests {
 
     #[test]
     fn parse_permission_request_hook_rejects_non_custom_event() {
-        let hook = tool_protocol::HookFrame {
+        let hook = xvora_tool_protocol::HookFrame {
             session_id: SessionId::new("s1").expect("valid"),
             tool_id: None,
             call_id: None,
             hook_id: Some("hook-7".to_owned()),
-            event: tool_protocol::HookEvent::Pause,
+            event: xvora_tool_protocol::HookEvent::Pause,
             trace_context: None,
         };
         assert!(parse_permission_request_hook(&inbound_hook_request_frame(&hook)).is_none());
@@ -2799,7 +3029,7 @@ mod tests {
 
     #[test]
     fn parse_permission_request_hook_rejects_non_hook_method() {
-        let hook = tool_protocol::HookFrame::custom_request(
+        let hook = xvora_tool_protocol::HookFrame::custom_request(
             SessionId::new("s1").expect("valid"),
             "hook-7".to_owned(),
             PERMISSION_REQUEST_KIND.to_owned(),
@@ -2815,18 +3045,18 @@ mod tests {
         let harness = ToolHarness::local_only_with(
             LocalRegistry::new(),
             SessionId::new("s1").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
         );
-        let (tx, mut rx) = mpsc::channel::<tool_protocol::HookFrame>(4);
+        let (tx, mut rx) = mpsc::channel::<xvora_tool_protocol::HookFrame>(4);
         harness.set_hook_request_handler(move |hook| {
             tx.try_send(hook).expect("handler channel has capacity");
         });
         let slot = &harness.inner.hook_request_handler;
 
-        let other = tool_protocol::HookFrame::custom_request(
+        let other = xvora_tool_protocol::HookFrame::custom_request(
             SessionId::new("s1").expect("valid"),
             "hook-0".to_owned(),
-            tool_protocol::turn_hook::TURN_HOOK_KIND.to_owned(),
+            xvora_tool_protocol::turn_hook::TURN_HOOK_KIND.to_owned(),
             serde_json::json!({}),
         );
         dispatch_inbound_hook_request(&inbound_hook_request_frame(&other), slot);
@@ -2835,7 +3065,7 @@ mod tests {
             "non-permission request must be dropped"
         );
 
-        let perm = tool_protocol::HookFrame::custom_request(
+        let perm = xvora_tool_protocol::HookFrame::custom_request(
             SessionId::new("s1").expect("valid"),
             "hook-7".to_owned(),
             PERMISSION_REQUEST_KIND.to_owned(),
@@ -2856,7 +3086,7 @@ mod tests {
             parking_lot::Mutex::new(Some(Arc::new(move |_hook| {
                 counter.fetch_add(1, Ordering::SeqCst);
             })));
-        let perm = tool_protocol::HookFrame::custom_request(
+        let perm = xvora_tool_protocol::HookFrame::custom_request(
             SessionId::new("s1").expect("valid"),
             "hook-7".to_owned(),
             PERMISSION_REQUEST_KIND.to_owned(),
@@ -2879,7 +3109,7 @@ mod tests {
     #[test]
     fn hook_reply_notification_has_correct_wire_shape() {
         let session = SessionId::new("s1").expect("valid");
-        let reply = tool_protocol::HookReplyFrame {
+        let reply = xvora_tool_protocol::HookReplyFrame {
             session_id: session.clone(),
             hook_id: "hook-7".to_owned(),
             result: serde_json::json!({ "outcome": "approve" }),
@@ -2905,9 +3135,9 @@ mod tests {
         let harness = ToolHarness::local_only_with(
             LocalRegistry::new(),
             SessionId::new("test-session").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
         );
-        let reply = tool_protocol::HookReplyFrame {
+        let reply = xvora_tool_protocol::HookReplyFrame {
             session_id: harness.session().clone(),
             hook_id: "hook-7".to_owned(),
             result: Value::Null,
@@ -2920,13 +3150,443 @@ mod tests {
         let harness = ToolHarness::local_only_with(
             LocalRegistry::new(),
             SessionId::new("test-session").expect("valid session"),
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
         );
-        let reply = tool_protocol::HookReplyFrame {
+        let reply = xvora_tool_protocol::HookReplyFrame {
             session_id: harness.session().clone(),
             hook_id: "hook-7".to_owned(),
             result: Value::Null,
         };
         assert!(harness.try_send_hook_reply(reply).is_err());
+    }
+
+    // --- discovery / teardown lifecycle (connection-leak regression) ---
+
+    use std::net::SocketAddr;
+    use std::time::Duration;
+
+    use axum::Router;
+    use axum::extract::WebSocketUpgrade;
+    use axum::extract::ws::{Message, WebSocket};
+    use axum::routing::get;
+    use serde_json::json;
+    use tokio::net::TcpListener;
+
+    use crate::auth::AuthCredential;
+    use crate::pool::HubConnectionPool;
+
+    async fn spawn_discovery_mock_hub() -> SocketAddr {
+        spawn_tools_list_mock_hub(json!({ "tools": [] })).await
+    }
+
+    async fn spawn_tools_list_mock_hub(list_result: Value) -> SocketAddr {
+        let list_result = Arc::new(list_result);
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind ephemeral");
+        let addr = listener.local_addr().expect("local addr");
+        tokio::spawn(async move {
+            let app = Router::new().route(
+                "/v1/tools",
+                get({
+                    let list_result = Arc::clone(&list_result);
+                    move |ws: WebSocketUpgrade| {
+                        let list_result = Arc::clone(&list_result);
+                        async move {
+                            ws.on_upgrade(move |socket| list_handle_socket(socket, list_result))
+                        }
+                    }
+                }),
+            );
+            let _ = axum::serve(listener, app.into_make_service()).await;
+        });
+        tokio::task::yield_now().await;
+        addr
+    }
+
+    async fn list_handle_socket(mut socket: WebSocket, list_result: Arc<Value>) {
+        let _ = socket.recv().await;
+        let ack = json!({
+            "connection_id": "discovery-mock",
+            "user_id": "test",
+            "computer_hub_version": "test",
+            "supported_protocol_versions": ["1.0.0"],
+        });
+        let _ = socket.send(Message::Text(ack.to_string().into())).await;
+        // Ignore WS Ping/Pong/Close: keepalive fires immediately after hello.
+        while let Some(Ok(msg)) = socket.recv().await {
+            let Message::Text(text) = msg else { continue };
+            let Ok(value) = serde_json::from_str::<Value>(text.as_ref()) else {
+                continue;
+            };
+            let method = value.get("method").and_then(Value::as_str).unwrap_or("");
+            let id = value.get("id").cloned().unwrap_or(Value::Null);
+            match method {
+                "session_open" => {
+                    let resp = json!({ "jsonrpc": "2.0", "id": id, "result": {} });
+                    let _ = socket.send(Message::Text(resp.to_string().into())).await;
+                }
+                "tools.list" => {
+                    let resp = json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "result": list_result.as_ref(),
+                    });
+                    let _ = socket.send(Message::Text(resp.to_string().into())).await;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    async fn build_connected_harness(
+        session: &str,
+    ) -> (ToolHarness, Arc<HubConnectionPool>, Arc<HubConnection>) {
+        let addr = spawn_discovery_mock_hub().await;
+        let url = Url::parse(&format!("ws://{addr}/v1/tools")).expect("valid url");
+        let pool = HubConnectionPool::new();
+        let harness = ToolHarnessBuilder::default()
+            .pool(pool.clone())
+            .url(url)
+            .auth(AuthCredential::bearer("ignored"))
+            .session(SessionId::new(session).expect("valid"))
+            .build()
+            .await
+            .expect("build harness");
+        let conn = harness.connection().expect("connected").clone();
+        (harness, pool, conn)
+    }
+
+    async fn poll_until(mut pred: impl FnMut() -> bool, label: &str) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while std::time::Instant::now() < deadline {
+            if pred() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        panic!("timed out waiting for: {label}");
+    }
+
+    #[tokio::test]
+    async fn query_remote_tools_keeps_omitted_workspace_bound() {
+        let (harness, _pool, _conn) = build_connected_harness("list-bound-flag").await;
+        let listed = harness
+            .query_remote_tools()
+            .await
+            .expect("tools.list must succeed");
+        assert_eq!(listed.workspace_bound, None);
+        assert!(listed.tools.is_empty());
+    }
+
+    #[tokio::test]
+    async fn query_remote_tools_preserves_workspace_bound_from_wire() {
+        for bound in [true, false] {
+            let addr = spawn_tools_list_mock_hub(json!({
+                "tools": [{"name": "listed", "description": "d"}],
+                "workspace_bound": bound,
+            }))
+            .await;
+            let url = Url::parse(&format!("ws://{addr}/v1/tools")).expect("valid url");
+            let pool = HubConnectionPool::new();
+            let harness = ToolHarnessBuilder::default()
+                .pool(pool)
+                .url(url)
+                .auth(AuthCredential::bearer("ignored"))
+                .session(SessionId::new(format!("list-bound-{bound}")).expect("valid"))
+                .build()
+                .await
+                .expect("build harness");
+            let listed = harness
+                .query_remote_tools()
+                .await
+                .expect("tools.list must succeed");
+            assert_eq!(listed.workspace_bound, Some(bound));
+            assert_eq!(listed.tools.len(), 1);
+            assert_eq!(listed.tools[0].name, "listed");
+        }
+    }
+
+    #[tokio::test]
+    async fn discovery_task_exits_when_inbox_closes_after_drop() {
+        let (harness, _pool, conn) = build_connected_harness("weak-exit-eof").await;
+        harness.start_tool_discovery().await;
+        assert!(harness.discovery_task_started_for_tests());
+
+        // Steal the JoinHandle before Drop aborts it so we can observe exit.
+        let handle = harness
+            .inner
+            .discovery_handle
+            .lock()
+            .take()
+            .expect("discovery handle installed");
+
+        drop(harness);
+        poll_until(
+            || conn.bound_session_count() == 0,
+            "session untracked after harness drop",
+        )
+        .await;
+
+        // Last-borrower unregister closes the demux inbox → event rx EOF.
+        let join = tokio::time::timeout(Duration::from_secs(5), handle).await;
+        assert!(
+            join.is_ok(),
+            "discovery task must complete once harness strong refs are gone"
+        );
+    }
+
+    #[tokio::test]
+    async fn discovery_task_exits_on_weak_upgrade_failure() {
+        let (harness, _pool, conn) = build_connected_harness("weak-upgrade-exit").await;
+        let session = harness.session().clone();
+        harness.start_tool_discovery().await;
+        assert!(harness.discovery_task_started_for_tests());
+
+        // Steal handle so Drop's abort cannot complete the task for us.
+        let handle = harness
+            .inner
+            .discovery_handle
+            .lock()
+            .take()
+            .expect("discovery handle installed");
+
+        // Extra session track so Drop is not last → does not unregister inbox.
+        // Discovery keeps waiting on a live rx with only a dead Weak.
+        conn.track_session(session.clone());
+        drop(harness);
+        assert_eq!(
+            conn.bound_session_count(),
+            1,
+            "peer track keeps the session binding (and demux inbox) alive"
+        );
+
+        // Force the upgrade-failure branch (not EOF): deliver a notification
+        // while no strong ToolHarnessInner remains.
+        let frame = json!({
+            "jsonrpc": "2.0",
+            "session_id": session.as_str(),
+            "method": "tools_changed",
+            "params": {
+                "session_id": session.as_str(),
+                "added": [],
+                "removed": [],
+            }
+        });
+        let outcome = conn.demux().route(frame);
+        assert!(
+            matches!(outcome, crate::demux::RouteOutcome::Session),
+            "notification must reach the still-registered session inbox, got {outcome:?}"
+        );
+
+        let join = tokio::time::timeout(Duration::from_secs(5), handle).await;
+        assert!(
+            join.is_ok(),
+            "discovery task must exit via weak.upgrade() == None on a post-drop notification"
+        );
+
+        let _ = conn.untrack_session(&session);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn inner_drop_teardown_runs_under_racing_clones() {
+        let (harness, pool, conn) = build_connected_harness("race-drop").await;
+        harness.start_tool_discovery().await;
+
+        // Peer track: a double-untrack regression would zero this out.
+        let peer_session = SessionId::new("race-drop-peer").expect("valid");
+        conn.track_session(peer_session.clone());
+        assert_eq!(conn.bound_session_count(), 2);
+
+        let n = 16;
+        let barrier = Arc::new(tokio::sync::Barrier::new(n));
+        let mut handles = Vec::with_capacity(n);
+        for _ in 0..n {
+            let clone = harness.clone();
+            let barrier = barrier.clone();
+            handles.push(tokio::spawn(async move {
+                barrier.wait().await;
+                drop(clone);
+            }));
+        }
+        drop(harness);
+        for h in handles {
+            h.await.expect("join dropper");
+        }
+
+        poll_until(
+            || conn.bound_session_count() == 1,
+            "harness session untracked; peer track remains",
+        )
+        .await;
+        assert_eq!(
+            conn.untrack_session(&peer_session),
+            Some(0),
+            "peer track must still be exactly 1 after racing drops (no double-untrack)"
+        );
+
+        let weak = Arc::downgrade(&conn);
+        drop(conn);
+        poll_until(
+            || pool.sweep_idle(Duration::ZERO) == 1 || weak.upgrade().is_none(),
+            "connection becomes pool-evictable",
+        )
+        .await;
+        // Either sweep already took it, or a second sweep is a no-op once gone.
+        let _ = pool.sweep_idle(Duration::ZERO);
+        assert!(
+            weak.upgrade().is_none(),
+            "connection must be fully released after racing clone drops"
+        );
+    }
+
+    #[tokio::test]
+    async fn transient_inner_upgrade_does_not_skip_teardown() {
+        let (harness, pool, conn) = build_connected_harness("transient-upgrade").await;
+        harness.start_tool_discovery().await;
+
+        // Hold a transient strong Arc of the inner (simulates discovery
+        // upgrade mid-notification) while dropping every ToolHarness.
+        let transient = harness.inner.clone();
+        drop(harness);
+
+        // Wrapper Drop sees strong_count > 1 and skips; cleanup must still
+        // run when the transient ref drops (ToolHarnessInner::Drop).
+        assert_eq!(
+            conn.bound_session_count(),
+            1,
+            "session still tracked while transient inner Arc is held"
+        );
+        drop(transient);
+
+        poll_until(
+            || conn.bound_session_count() == 0,
+            "session untracked after transient inner drop",
+        )
+        .await;
+
+        let weak = Arc::downgrade(&conn);
+        drop(conn);
+        poll_until(
+            || {
+                let _ = pool.sweep_idle(Duration::ZERO);
+                weak.upgrade().is_none()
+            },
+            "connection released after transient upgrade race",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn same_session_rebind_replaces_prior_inbox() {
+        let addr = spawn_discovery_mock_hub().await;
+        let url = Url::parse(&format!("ws://{addr}/v1/tools")).expect("valid url");
+        let pool = HubConnectionPool::new();
+        let session = SessionId::new("rebind-session").expect("valid");
+        let cred = AuthCredential::bearer("ignored");
+
+        let first = ToolHarnessBuilder::default()
+            .pool(pool.clone())
+            .url(url.clone())
+            .auth(cred.clone())
+            .session(session.clone())
+            .build()
+            .await
+            .expect("first harness");
+        first.start_tool_discovery().await;
+        let first_handle = first
+            .inner
+            .discovery_handle
+            .lock()
+            .take()
+            .expect("first discovery handle");
+
+        let second = ToolHarnessBuilder::default()
+            .pool(pool.clone())
+            .url(url)
+            .auth(cred)
+            .session(session)
+            .build()
+            .await
+            .expect("second harness");
+        second.start_tool_discovery().await;
+        assert!(second.discovery_task_started_for_tests());
+
+        // register_session_inbox replaces the prior sender → first rx EOFs.
+        let join = tokio::time::timeout(Duration::from_secs(5), first_handle).await;
+        assert!(
+            join.is_ok(),
+            "first discovery task must exit when second harness rebinds the inbox"
+        );
+
+        // Last-borrower gate: dropping first must not unregister second's inbox.
+        let conn = second.connection().expect("connected").clone();
+        let second_session = second.session().clone();
+        drop(first);
+        let frame = json!({
+            "jsonrpc": "2.0",
+            "session_id": second_session.as_str(),
+            "method": "tools_changed",
+            "params": {
+                "session_id": second_session.as_str(),
+                "added": [],
+                "removed": [],
+            }
+        });
+        let outcome = conn.demux().route(frame);
+        assert!(
+            matches!(outcome, crate::demux::RouteOutcome::Session),
+            "second's demux inbox must remain after first drop, got {outcome:?}"
+        );
+        assert!(
+            !second
+                .inner
+                .discovery_handle
+                .lock()
+                .as_ref()
+                .expect("second discovery handle still installed")
+                .is_finished(),
+            "second discovery must survive first harness drop"
+        );
+
+        drop(second);
+        poll_until(
+            || conn.bound_session_count() == 0,
+            "session fully released after last harness drop",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn shutdown_unregisters_session_inbox() {
+        let (harness, pool, conn) = build_connected_harness("shutdown-inbox").await;
+        let session = harness.session().clone();
+        harness.start_tool_discovery().await;
+        assert_eq!(conn.bound_session_count(), 1);
+
+        harness.shutdown().await.expect("shutdown");
+        assert_eq!(conn.bound_session_count(), 0);
+
+        let frame = json!({
+            "jsonrpc": "2.0",
+            "session_id": session.as_str(),
+            "method": "tools_changed",
+            "params": {
+                "session_id": session.as_str(),
+                "added": [],
+                "removed": [],
+            }
+        });
+        let outcome = conn.demux().route(frame);
+        assert!(
+            !matches!(outcome, crate::demux::RouteOutcome::Session),
+            "shutdown must unregister the demux inbox, got {outcome:?}"
+        );
+
+        let weak = Arc::downgrade(&conn);
+        drop(harness);
+        drop(conn);
+        assert_eq!(pool.sweep_idle(Duration::ZERO), 1);
+        assert!(weak.upgrade().is_none());
     }
 }

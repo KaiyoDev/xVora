@@ -1,24 +1,20 @@
-//! AcpFsAdapter: implements `xvora-tools::AsyncFileSystem` using ACP gateway calls.
-//!
-//! This adapter enables file tool execution over ACP (remote filesystem).
-//! It translates xvora-tools' `AsyncFileSystem` trait into ACP protocol calls:
+//! This adapter translates xvora-tools' `AsyncFileSystem` trait into ACP protocol calls:
 //!   `read_file()` → read_text_file
 //!   `write_file()` → write_text_file
 //!   `delete_file()` → not supported by ACP (returns error)
 //!
-//! Mirrors the pattern of `AcpTerminalAdapter` for terminal execution.
+//! It mirrors the pattern of `AcpTerminalAdapter` for terminal execution.
 
 use std::path::Path;
 
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_tools::computer::types::{AsyncFileSystem, ComputerError};
 
 /// Wraps xvora-shell's ACP gateway to satisfy xvora-tools' AsyncFileSystem.
 ///
-/// When a client advertises `clientCapabilities.fs.readTextFile` and `writeTextFile`,
-/// file operations from tools (read_file, search_replace, etc.) are routed through
-/// the ACP gateway back to the client instead of hitting the local disk directly.
+/// When a client advertises `clientCapabilities.fs.readTextFile` and `writeTextFile`, tools stop hitting the local disk directly.
+/// File operations (read_file, search_replace, etc.) are routed through the ACP gateway back to the client.
 pub struct AcpFsAdapter {
     gateway: GatewaySender,
     session_id: acp::SessionId,

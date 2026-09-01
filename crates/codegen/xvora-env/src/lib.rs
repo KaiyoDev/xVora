@@ -5,79 +5,58 @@
     unreachable_code,
     dead_code
 )]
-//! Backend environment presets for the Xvora CLI crate family: endpoint URL
-//! defaults, environment selection, and env-var test support.
+//! Backend environment presets for the Grok CLI crate family: endpoint URL defaults, environment selection, and env-var test support.
 //!
-//! ## Multi-provider note
-//!
-//! Product defaults for **first-party xAI** live under [`xai_provider`].
-//! Other providers (OpenAI, Ollama, custom) use per-model `base_url` / keys —
-//! they do not inherit these URLs as "the product host".
-
-/// xAI provider production endpoints (not product identity).
-pub mod xai_provider;
-
-/// The endpoint set for one backend environment (legacy shape).
-///
-/// Values are currently the **xAI provider** production set. Prefer
-/// [`xai_provider::PRODUCTION`] when writing new code.
+//! Public builds expose production endpoints.
+//! Values resolve as a `GROK_*` env-var override when set, else the compiled production default.
+/// The endpoint set for one backend environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct XvoraEndpoints {
+pub struct GrokBuildEndpoints {
     pub cli_chat_proxy_base_url: &'static str,
     pub asset_server_url: &'static str,
     pub relay_ws_url: &'static str,
     pub gateway_ws_url: &'static str,
     pub ws_origin: &'static str,
 }
-
-const PRODUCTION_ENDPOINTS: XvoraEndpoints = XvoraEndpoints {
-    cli_chat_proxy_base_url: xai_provider::CLI_CHAT_PROXY_BASE_URL,
-    asset_server_url: xai_provider::ASSET_SERVER_URL,
-    relay_ws_url: xai_provider::RELAY_WS_URL,
-    gateway_ws_url: xai_provider::GATEWAY_WS_URL,
-    ws_origin: xai_provider::WS_ORIGIN,
+const PRODUCTION_ENDPOINTS: GrokBuildEndpoints = GrokBuildEndpoints {
+    cli_chat_proxy_base_url: "https://cli-chat-proxy.grok.com/v1",
+    asset_server_url: "https://assets.grok.com",
+    relay_ws_url: "wss://code.grok.com/ws/code-agent",
+    gateway_ws_url: "wss://grok.com/ws/gw/",
+    ws_origin: "https://grok.com",
 };
-
-/// Alias: xAI provider cli-chat-proxy (legacy name kept for callers).
-pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = xai_provider::CLI_CHAT_PROXY_BASE_URL;
-/// Alias: xAI provider asset server.
-pub const PROD_ASSET_SERVER_URL: &str = xai_provider::ASSET_SERVER_URL;
-/// Alias: xAI provider relay WebSocket.
-pub const PROD_RELAY_WS_URL: &str = xai_provider::RELAY_WS_URL;
-/// Alias: xAI provider cloud gateway WebSocket.
-pub const PROD_GATEWAY_WS_URL: &str = xai_provider::GATEWAY_WS_URL;
-/// Alias: xAI provider WS origin.
-pub const PROD_WS_ORIGIN: &str = xai_provider::WS_ORIGIN;
-/// Alias: xAI provider public API base (`https://api.x.ai/v1`).
-pub const PROD_XAI_API_BASE_URL: &str = xai_provider::API_BASE_URL;
-
+pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = PRODUCTION_ENDPOINTS.cli_chat_proxy_base_url;
+pub const PROD_ASSET_SERVER_URL: &str = PRODUCTION_ENDPOINTS.asset_server_url;
+pub const PROD_RELAY_WS_URL: &str = PRODUCTION_ENDPOINTS.relay_ws_url;
+pub const PROD_GATEWAY_WS_URL: &str = PRODUCTION_ENDPOINTS.gateway_ws_url;
+pub const PROD_WS_ORIGIN: &str = PRODUCTION_ENDPOINTS.ws_origin;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum XvoraEnvironment {
+pub enum GrokBuildEnvironment {
     #[default]
     Production,
 }
-impl XvoraEnvironment {
+impl GrokBuildEnvironment {
     pub fn from_flags(_dev: bool, _staging: bool) -> Self {
-        XvoraEnvironment::Production
+        GrokBuildEnvironment::Production
     }
     /// Indicator string for display; `None` for Production.
     pub fn indicator(&self) -> Option<&'static str> {
         match self {
-            XvoraEnvironment::Production => None,
+            GrokBuildEnvironment::Production => None,
         }
     }
     pub fn is_production(&self) -> bool {
-        matches!(self, XvoraEnvironment::Production)
+        matches!(self, GrokBuildEnvironment::Production)
     }
     fn env_prefix(&self) -> &'static str {
         match self {
-            XvoraEnvironment::Production => "XVORA_PRODUCTION",
+            GrokBuildEnvironment::Production => "GROK_PRODUCTION",
         }
     }
-    /// Compiled endpoint set for this environment (xAI provider production).
-    pub fn endpoints(&self) -> XvoraEndpoints {
+    /// Compiled endpoint set for this environment (production by default).
+    pub fn endpoints(&self) -> GrokBuildEndpoints {
         match self {
-            XvoraEnvironment::Production => PRODUCTION_ENDPOINTS,
+            GrokBuildEnvironment::Production => PRODUCTION_ENDPOINTS,
         }
     }
     /// Env-var override when set, else the compiled endpoint.
@@ -97,91 +76,121 @@ impl XvoraEnvironment {
     pub fn asset_server_url(&self) -> String {
         self.resolve("_ASSET_SERVER_URL", self.endpoints().asset_server_url)
     }
-    /// The relay WebSocket URL (web UI driving a local agent). Not the
-    /// cloud-sandbox gateway ([`Self::gateway_ws_url`]); different protocols.
+    /// The relay WebSocket URL (Web Frontend at `grok.com/code` driving a local agent).
+    /// Not the cloud-sandbox gateway ([`Self::gateway_ws_url`]); the two speak different protocols.
     pub fn relay_ws_url(&self) -> String {
         self.resolve("_WS_URL", self.endpoints().relay_ws_url)
     }
     /// The gateway WebSocket URL for `/cloud new` sandboxes. The shell's
-    /// `XVORA_GATEWAY_URL` opt-in takes precedence.
+    /// `GROK_GATEWAY_URL` opt-in takes precedence.
     pub fn gateway_ws_url(&self) -> String {
         self.resolve("_GATEWAY_WS_URL", self.endpoints().gateway_ws_url)
     }
 }
-impl std::fmt::Display for XvoraEnvironment {
+impl std::fmt::Display for GrokBuildEnvironment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            XvoraEnvironment::Production => write!(f, "production"),
+            GrokBuildEnvironment::Production => write!(f, "production"),
         }
     }
 }
 /// Serializes env-var mutation across tests; `std::env` is process-global.
-///
-/// Always available (not `cfg(test)` only) so dependent crates' test
-/// targets can use it — `cfg(test)` on a dependency is off when that
-/// dependency is built as a library for a parent package's tests.
+#[cfg(any(test, feature = "test-support"))]
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-    ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner())
+#[cfg(any(test, feature = "test-support"))]
+thread_local! {
+    /// Set while this thread owns [`ENV_LOCK`].
+    /// `ENV_LOCK` is not reentrant, so without this a second guard on one thread blocks forever on the first guard's lock.
+    static ENV_LOCK_HELD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
-/// RAII env-var override for tests: constructors snapshot the prior value
-/// under [`ENV_LOCK`], `Drop` restores it, panics included.
+#[cfg(any(test, feature = "test-support"))]
+fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+    assert!(
+        !ENV_LOCK_HELD.get(),
+        "EnvVarGuard: this thread already holds a live guard. Stacking guards \
+         self-deadlocks on the non-reentrant ENV_LOCK; chain the extra keys \
+         onto the first guard with `and_set`/`and_remove` instead."
+    );
+    let lock = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    ENV_LOCK_HELD.set(true);
+    lock
+}
+/// RAII env-var override for tests: constructors snapshot the prior value under [`ENV_LOCK`], `Drop` restores it, panics included.
+///
+/// A guard owns [`ENV_LOCK`] for its whole lifetime, so one thread can only ever hold one.
+/// To override several keys at once, chain [`Self::and_set`] / [`Self::and_remove`] onto a single guard.
+#[cfg(any(test, feature = "test-support"))]
 pub struct EnvVarGuard {
+    /// The constructor's key; [`Self::set_value`] targets it.
     key: &'static str,
-    prev: Option<String>,
+    /// Every overridden key with its pre-guard value, restored in reverse.
+    restore: Vec<(&'static str, Option<String>)>,
     _lock: std::sync::MutexGuard<'static, ()>,
 }
+#[cfg(any(test, feature = "test-support"))]
 impl EnvVarGuard {
     pub fn set(key: &'static str, value: &str) -> Self {
-        let lock = env_lock();
-        let prev = std::env::var(key).ok();
-        unsafe { std::env::set_var(key, value) };
-        Self {
-            key,
-            prev,
-            _lock: lock,
-        }
+        Self::acquire(key).override_var(key, Some(value))
     }
     pub fn remove(key: &'static str) -> Self {
-        let lock = env_lock();
-        let prev = std::env::var(key).ok();
-        unsafe { std::env::remove_var(key) };
+        Self::acquire(key).override_var(key, None)
+    }
+    /// Override a further key under this guard's existing lock.
+    #[must_use]
+    pub fn and_set(self, key: &'static str, value: &str) -> Self {
+        self.override_var(key, Some(value))
+    }
+    /// Unset a further key under this guard's existing lock.
+    #[must_use]
+    pub fn and_remove(self, key: &'static str) -> Self {
+        self.override_var(key, None)
+    }
+    fn acquire(key: &'static str) -> Self {
         Self {
             key,
-            prev,
-            _lock: lock,
+            restore: Vec::new(),
+            _lock: env_lock(),
         }
+    }
+    fn override_var(mut self, key: &'static str, value: Option<&str>) -> Self {
+        self.restore.push((key, std::env::var(key).ok()));
+        match value {
+            Some(value) => unsafe { std::env::set_var(key, value) },
+            None => unsafe { std::env::remove_var(key) },
+        }
+        self
     }
     /// Update the value while still holding the env lock.
     pub fn set_value(&self, value: &str) {
         unsafe { std::env::set_var(self.key, value) };
     }
 }
+#[cfg(any(test, feature = "test-support"))]
 impl Drop for EnvVarGuard {
     fn drop(&mut self) {
-        match self.prev.take() {
-            Some(prev) => unsafe { std::env::set_var(self.key, prev) },
-            None => unsafe { std::env::remove_var(self.key) },
+        for (key, prev) in self.restore.drain(..).rev() {
+            match prev {
+                Some(prev) => unsafe { std::env::set_var(key, prev) },
+                None => unsafe { std::env::remove_var(key) },
+            }
         }
+        ENV_LOCK_HELD.set(false);
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     /// The env-var prefixes are an operator interface; do not rename.
     #[test]
     fn test_env_prefix() {
         assert_eq!(
-            XvoraEnvironment::Production.env_prefix(),
-            "XVORA_PRODUCTION"
+            GrokBuildEnvironment::Production.env_prefix(),
+            "GROK_PRODUCTION"
         );
     }
-
     #[test]
     fn env_var_guard_set_value_updates_then_restores_on_drop() {
-        const KEY: &str = "XVORA_ENV_VAR_GUARD_SET_VALUE_PROBE";
+        const KEY: &str = "XAI_GROK_ENV_VAR_GUARD_SET_VALUE_PROBE";
         let before = std::env::var(KEY).ok();
         {
             let guard = EnvVarGuard::set(KEY, "initial");
@@ -199,38 +208,45 @@ mod tests {
             "Drop must restore the pre-guard snapshot (was {before:?})"
         );
     }
-
-    /// Guards against conflating the relay and gateway endpoints (a relay
-    /// loop mistakenly connecting to `wss://grok.com/ws/gw/`).
+    #[test]
+    fn env_var_guard_chains_keys_under_one_lock_and_restores_all() {
+        const A: &str = "XAI_GROK_ENV_VAR_GUARD_CHAIN_A_PROBE";
+        const B: &str = "XAI_GROK_ENV_VAR_GUARD_CHAIN_B_PROBE";
+        {
+            let _guard = EnvVarGuard::set(A, "first")
+                .and_set(B, "b")
+                .and_set(A, "second")
+                .and_remove(B);
+            assert_eq!(std::env::var(A).ok().as_deref(), Some("second"));
+            assert!(std::env::var(B).is_err());
+        }
+        assert!(
+            std::env::var(A).is_err(),
+            "a re-overridden key must restore to its pre-guard value, not to `first`"
+        );
+        assert!(std::env::var(B).is_err());
+    }
+    /// Stacking two guards on one thread used to block forever on the non-reentrant `ENV_LOCK`, which surfaced only as a CI test timeout.
+    #[test]
+    #[should_panic(expected = "this thread already holds a live guard")]
+    fn env_var_guard_rejects_a_second_guard_on_the_same_thread() {
+        const KEY: &str = "XAI_GROK_ENV_VAR_GUARD_REENTRANCY_PROBE";
+        let _first = EnvVarGuard::set(KEY, "first");
+        let _second = EnvVarGuard::set(KEY, "second");
+    }
+    /// Guards against conflating the relay and gateway endpoints (a relay loop mistakenly connecting to `wss://grok.com/ws/gw/`).
     #[test]
     fn relay_and_gateway_urls_are_distinct() {
         assert_ne!(
-            XvoraEnvironment::Production.relay_ws_url(),
-            XvoraEnvironment::Production.gateway_ws_url(),
+            GrokBuildEnvironment::Production.relay_ws_url(),
+            GrokBuildEnvironment::Production.gateway_ws_url(),
         );
     }
-
     #[test]
     fn test_from_flags() {
         assert_eq!(
-            XvoraEnvironment::from_flags(false, false),
-            XvoraEnvironment::Production
-        );
-    }
-
-    #[test]
-    fn prod_aliases_match_xai_provider() {
-        assert_eq!(
-            PROD_CLI_CHAT_PROXY_BASE_URL,
-            xai_provider::CLI_CHAT_PROXY_BASE_URL
-        );
-        assert_eq!(PROD_XAI_API_BASE_URL, xai_provider::API_BASE_URL);
-        assert_eq!(PROD_ASSET_SERVER_URL, xai_provider::ASSET_SERVER_URL);
-        assert_eq!(
-            XvoraEnvironment::Production
-                .endpoints()
-                .cli_chat_proxy_base_url,
-            xai_provider::PRODUCTION.cli_chat_proxy_base_url
+            GrokBuildEnvironment::from_flags(false, false),
+            GrokBuildEnvironment::Production
         );
     }
 }

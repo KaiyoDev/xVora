@@ -18,11 +18,11 @@ use dashmap::DashMap;
 use serde_json::Value;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::time::Instant;
-use tool_protocol::{
+use xvora_tool_protocol::{
     JsonRpcError, JsonRpcId, JsonRpcResponse, JsonRpcVersion, ResponseOutcome, SessionId,
 };
 
-/// Numeric JSON-RPC code for overload rejection (`tool-protocol`
+/// Numeric JSON-RPC code for overload rejection (`xvora-tool-protocol`
 /// `error_codes.rs`: `-32016` "tool_busy").
 pub(crate) const TOOL_BUSY_CODE: i32 = -32016;
 

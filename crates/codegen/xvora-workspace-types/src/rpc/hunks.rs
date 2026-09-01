@@ -5,10 +5,9 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::WorkspaceRpc;
+use super::{RpcActivityClass, WorkspaceRpc};
 
-/// Wire-safe hunk action enum. Maps to `hunk_tracker::types::HunkAction`
-/// but carries `Serialize + Deserialize` for RPC transport.
+/// Wire-safe hunk action enum. Maps to `xvora_hunk_tracker::types::HunkAction` but carries `Serialize + Deserialize` for RPC transport.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HunkActionKind {
@@ -16,8 +15,7 @@ pub enum HunkActionKind {
     Reject,
 }
 
-/// Single-hunk action payload, nested inside [`HunkSingleActionReq`]
-/// (which owns the `workspace.hunk_action` wire contract).
+/// Single-hunk action payload, nested inside [`HunkSingleActionReq`] (which owns the `workspace.hunk_action` wire contract).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HunkActionReq {
     pub hunk_id: String,
@@ -32,6 +30,7 @@ pub struct HunkSingleActionReq {
 
 impl WorkspaceRpc for HunkSingleActionReq {
     const METHOD: &'static str = "workspace.hunk_action";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Mutation;
     type Response = HunkActionResponse;
 }
 
@@ -43,6 +42,7 @@ pub struct HunkFileActionReq {
 
 impl WorkspaceRpc for HunkFileActionReq {
     const METHOD: &'static str = "workspace.hunk_file_action";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Mutation;
     type Response = BulkHunkActionResponse;
 }
 
@@ -54,6 +54,7 @@ pub struct HunkTurnActionReq {
 
 impl WorkspaceRpc for HunkTurnActionReq {
     const METHOD: &'static str = "workspace.hunk_turn_action";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Mutation;
     type Response = BulkHunkActionResponse;
 }
 
@@ -64,37 +65,33 @@ pub struct HunkAllActionReq {
 
 impl WorkspaceRpc for HunkAllActionReq {
     const METHOD: &'static str = "workspace.hunk_all_action";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Mutation;
     type Response = BulkHunkActionResponse;
 }
 
-/// Get staged file paths.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HunkGetStagedFilesReq {}
 
 impl WorkspaceRpc for HunkGetStagedFilesReq {
     const METHOD: &'static str = "workspace.hunk_get_staged_files";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = Vec<String>;
 }
 
-/// Get per-file hunk summaries.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HunkGetFileSummariesReq {}
 
 impl WorkspaceRpc for HunkGetFileSummariesReq {
     const METHOD: &'static str = "workspace.hunk_get_file_summaries";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = Vec<FileSummary>;
 }
 
-/// Response for a single-hunk action (accept/reject).
-///
-/// The hub handler returns `null` on success; this struct provides a typed
-/// alternative for `WorkspaceOp` dispatch.
+/// The hub handler returns `null` on success; this struct provides a typed alternative for `WorkspaceOp` dispatch.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HunkActionResponse {}
 
 /// Response for bulk hunk actions (file-level, turn-level, all-hunks).
-///
-/// Contains the IDs of all hunks that were affected by the action.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BulkHunkActionResponse {
     pub affected: Vec<String>,
@@ -109,38 +106,36 @@ pub struct FileSummary {
 }
 
 // =========================================================================
-// Request types whose responses reference `hunk_tracker` types (which pull
-// in `gix`), so those responses are mirrored below as wire structs.
+// Request types whose responses reference `xvora_hunk_tracker` types (which pull in `gix`), so those responses are mirrored below as wire structs
 // =========================================================================
 
-/// Get all tracked hunks.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HunkGetAllHunksReq {}
 
 impl WorkspaceRpc for HunkGetAllHunksReq {
     const METHOD: &'static str = "workspace.get_all_hunks";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = Vec<HunkWire>;
 }
 
-/// Get every tracked file's baseline + current content.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HunkGetAllFileContentsReq {}
 
 impl WorkspaceRpc for HunkGetAllFileContentsReq {
     const METHOD: &'static str = "workspace.hunk_get_all_file_contents";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = Vec<FileContentEntryWire>;
 }
 
-/// Get the session-level hunk summary.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HunkGetSessionSummaryReq {}
 
 impl WorkspaceRpc for HunkGetSessionSummaryReq {
     const METHOD: &'static str = "workspace.get_session_summary";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = SessionSummaryWire;
 }
 
-/// Get hunks filtered by path and/or source.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HunkGetFilteredHunksReq {
     #[serde(default)]
@@ -151,15 +146,15 @@ pub struct HunkGetFilteredHunksReq {
 
 impl WorkspaceRpc for HunkGetFilteredHunksReq {
     const METHOD: &'static str = "workspace.hunk_get_filtered_hunks";
+    const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = FilteredHunksResponse;
 }
 
 // =========================================================================
-// Wire mirrors of `hunk_tracker` response types
+// Wire mirrors of `xvora_hunk_tracker` response types
 // =========================================================================
 
-/// Wire mirror of `hunk_tracker::types::Hunk` (the `selected` field is
-/// `#[serde(skip)]` upstream and so is omitted here).
+/// Wire mirror of `xvora_hunk_tracker::types::Hunk` (the `selected` field is `#[serde(skip)]` upstream and so is omitted here).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HunkWire {
@@ -173,7 +168,7 @@ pub struct HunkWire {
     pub created_at: DateTime<Utc>,
 }
 
-/// Wire mirror of `hunk_tracker::types::HunkLineInfo`.
+/// Wire mirror of `xvora_hunk_tracker::types::HunkLineInfo`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HunkLineInfoWire {
@@ -183,12 +178,10 @@ pub struct HunkLineInfoWire {
     pub new_count: usize,
 }
 
-/// Wire mirror of `hunk_tracker::types::HunkSource`.
+/// Wire mirror of `xvora_hunk_tracker::types::HunkSource`.
 ///
-/// `Unknown` (`#[serde(other)]`) keeps decoding forward-tolerant: an
-/// unrecognized `type` tag from a newer server decodes here instead of failing
-/// the whole structured response. The server only ever produces the known
-/// variants.
+/// An unrecognized `type` tag from a newer server decodes to `Unknown` (`#[serde(other)]`) instead of failing the whole structured response.
+/// The server only ever produces the known variants.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum HunkSourceWire {
@@ -201,13 +194,11 @@ pub enum HunkSourceWire {
     Unknown,
 }
 
-/// Wire mirror of `hunk_tracker::types::FileContentStatus`.
+/// Wire mirror of `xvora_hunk_tracker::types::FileContentStatus`.
 ///
-/// `Deserialize` is hand-written so an unrecognized status from a newer server
-/// decodes to [`Unknown`](Self::Unknown) rather than failing the whole
-/// structured response. A plain string enum cannot use `#[serde(other)]` (only
-/// allowed on internally/adjacently tagged enums), hence the manual impl. The
-/// server only produces the known variants.
+/// `Deserialize` is hand-written: a plain string enum cannot use `#[serde(other)]` (only allowed on internally/adjacently tagged enums).
+/// An unrecognized status from a newer server decodes to [`Unknown`](Self::Unknown) rather than failing the whole structured response.
+/// The server only produces the known variants.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FileContentStatusWire {
@@ -232,13 +223,12 @@ impl<'de> Deserialize<'de> for FileContentStatusWire {
             "lfsPointer" => Self::LfsPointer,
             "symlink" => Self::Symlink,
             "full" => Self::Full,
-            // Forward-tolerant: an unknown status decodes here.
             _ => Self::Unknown,
         })
     }
 }
 
-/// Wire mirror of `hunk_tracker::types::FileContentView`.
+/// Wire mirror of `xvora_hunk_tracker::types::FileContentView`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileContentViewWire {
@@ -249,7 +239,7 @@ pub struct FileContentViewWire {
     pub content: Option<String>,
 }
 
-/// Wire mirror of `hunk_tracker::types::FileContentEntry`.
+/// Wire mirror of `xvora_hunk_tracker::types::FileContentEntry`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileContentEntryWire {
@@ -260,7 +250,7 @@ pub struct FileContentEntryWire {
     pub staged: bool,
 }
 
-/// Wire mirror of `hunk_tracker::types::SessionStats`.
+/// Wire mirror of `xvora_hunk_tracker::types::SessionStats`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionStatsWire {
@@ -272,7 +262,7 @@ pub struct SessionStatsWire {
     pub rejected_lines_removed: usize,
 }
 
-/// Wire mirror of `hunk_tracker::types::TurnSummary`.
+/// Wire mirror of `xvora_hunk_tracker::types::TurnSummary`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TurnSummaryWire {
@@ -283,7 +273,7 @@ pub struct TurnSummaryWire {
     pub lines_removed: usize,
 }
 
-/// Wire mirror of `hunk_tracker::types::SessionSummary`.
+/// Wire mirror of `xvora_hunk_tracker::types::SessionSummary`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionSummaryWire {
@@ -297,8 +287,7 @@ pub struct SessionSummaryWire {
     pub unattributed_pending: usize,
 }
 
-/// Response containing a filtered set of hunks. Mirrors the server-side
-/// `FilteredHunksResponse` shape (no `rename_all`).
+/// Wire mirror of the server-side `FilteredHunksResponse` shape (no `rename_all`).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FilteredHunksResponse {
     pub hunks: Vec<HunkWire>,
@@ -340,14 +329,12 @@ mod tests {
 
     #[test]
     fn hunk_wire_round_trips_server_json() {
-        // A representative server-side `Hunk` serialization (camelCase, no
-        // `selected` field).
+        // A representative server-side `Hunk` serialization (camelCase, no `selected` field)
         let json = serde_json::json!({
             "id": "hunk-1",
             "path": "/repo/src/main.rs",
             "lineInfo": { "oldStart": 1, "oldCount": 2, "newStart": 1, "newCount": 3 },
-            // enum-level `rename_all` renames the variant (`agentEdit`) but NOT
-            // struct-variant fields, so `prompt_index` stays snake_case.
+            // enum-level `rename_all` renames the variant (`agentEdit`) but NOT struct-variant fields, so `prompt_index` stays snake_case
             "source": { "type": "agentEdit", "prompt_index": 4 },
             "oldText": "old\n",
             "newText": "new\n",
@@ -385,8 +372,7 @@ mod tests {
 
     #[test]
     fn hunk_source_wire_unknown_type_decodes_tolerantly() {
-        // An unrecognized `type` tag from a newer server decodes to Unknown
-        // rather than erroring.
+        // An unrecognized `type` tag from a newer server decodes to Unknown rather than erroring
         let src: HunkSourceWire =
             serde_json::from_value(serde_json::json!({ "type": "futureSource" })).unwrap();
         assert!(matches!(src, HunkSourceWire::Unknown));
@@ -398,8 +384,7 @@ mod tests {
         let status: FileContentStatusWire =
             serde_json::from_value(serde_json::json!("futureStatus")).unwrap();
         assert_eq!(status, FileContentStatusWire::Unknown);
-        // Embedded in a FileContentEntryWire, the whole structured response still
-        // decodes.
+        // Embedded in a FileContentEntryWire, the whole structured response still decodes
         let entry: FileContentEntryWire = serde_json::from_value(serde_json::json!({
             "path": "/x.rs",
             "baseline": { "status": "futureStatus" },

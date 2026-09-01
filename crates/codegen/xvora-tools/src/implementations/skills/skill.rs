@@ -34,7 +34,7 @@ pub struct SkillOutput {
 }
 
 // Old `SkillToolImpl` + `impl Tool` deleted.
-// New implementation is in `xvora/skill/`.
+// New implementation is in `grok_build/skill/`.
 
 /// Build the formatted skill message shown to the model.
 ///
@@ -247,8 +247,8 @@ pub struct SubstitutionContext<'a> {
 /// | `$N` | | Shorthand for `$ARGUMENTS[N]` (no upper bound) |
 /// | `${SKILL_DIR}` | `${CLAUDE_SKILL_DIR}` | Directory containing the SKILL.md |
 /// | `${SESSION_ID}` | `${CLAUDE_SESSION_ID}` | Current session ID |
-/// | `${XVORA_PLUGIN_ROOT}` | `${CLAUDE_PLUGIN_ROOT}` | Plugin root dir (plugin-backed skills) |
-/// | `${XVORA_PLUGIN_DATA}` | `${CLAUDE_PLUGIN_DATA}` | Plugin data dir (plugin-backed skills) |
+/// | `${GROK_PLUGIN_ROOT}` | `${CLAUDE_PLUGIN_ROOT}` | Plugin root dir (plugin-backed skills) |
+/// | `${GROK_PLUGIN_DATA}` | `${CLAUDE_PLUGIN_DATA}` | Plugin data dir (plugin-backed skills) |
 ///
 /// The body is treated as argument-aware only when it contains an *argument*
 /// token (`$ARGUMENTS`, `$ARGUMENTS[N]`, or `$N`); in that case the args are
@@ -444,7 +444,7 @@ pub fn resolve_skill_internal_links(body: &str, skill_dir: &std::path::Path) -> 
         return body.to_string();
     }
 
-    edits.sort_by(|a, b| b.0.start.cmp(&a.0.start));
+    edits.sort_by_key(|b| std::cmp::Reverse(b.0.start));
     let mut result = body.to_string();
     for (range, replacement) in edits {
         result.replace_range(range, &replacement);
@@ -478,9 +478,21 @@ pub fn extract_skill_body(content: &str) -> String {
 ///
 /// Public entrypoint for the shell crate to load skill content at
 /// prompt-assembly time (the new zero-round-trip path). The private
-/// `load_skill_content` in `xvora/skill/mod.rs` is a duplicate
+/// `load_skill_content` in `grok_build/skill/mod.rs` is a duplicate
 /// of this.
 pub async fn load_skill_content(skill: &SkillInfo) -> Result<String, String> {
+    // Producers strip frontmatter before setting `body`. Re-strip would drop a
+    // leading Markdown HR (`---`) and skip link resolution for disk skills.
+    if let Some(body) = skill.body.as_ref().filter(|b| !b.is_empty()) {
+        return Ok(body.clone());
+    }
+    // Synthetic product paths are never on disk; empty body is authoritative.
+    if skill.path.contains("://") {
+        return Err(format!(
+            "Skill '{}' has no preloaded body (path '{}')",
+            skill.name, skill.path
+        ));
+    }
     let path = std::path::Path::new(&skill.path);
     match tokio::fs::read_to_string(path).await {
         Ok(content) => {
@@ -542,6 +554,75 @@ It has multiple lines."#;
         let content = "Just some content without frontmatter";
         let body = extract_skill_body(content);
         assert_eq!(body, content);
+    }
+
+    #[tokio::test]
+    async fn load_skill_content_trusts_preloaded_body_with_leading_hr() {
+        let skill = SkillInfo {
+            name: "hr-body".to_string(),
+            display_name: None,
+            description: "test".to_string(),
+            short_description: None,
+            author: None,
+            argument_hint: None,
+            path: "chat-product://hr-body".to_string(),
+            scope: SkillScope::User,
+            config_source: None,
+            plugin_name: None,
+            plugin_version: None,
+            plugin_root: None,
+            plugin_data: None,
+            allowed_tools: None,
+            license: None,
+            compatibility: None,
+            metadata: None,
+            model: None,
+            effort: None,
+            user_invocable: true,
+            disable_model_invocation: false,
+            when_to_use: None,
+            has_user_specified_description: true,
+            paths: None,
+            enabled: true,
+            body: Some("---\n\nParagraph after a markdown HR.".to_string()),
+        };
+        let loaded = load_skill_content(&skill).await.unwrap();
+        assert_eq!(loaded, "---\n\nParagraph after a markdown HR.");
+    }
+
+    #[tokio::test]
+    async fn load_skill_content_rejects_synthetic_path_without_body() {
+        let skill = SkillInfo {
+            name: "pdf".to_string(),
+            display_name: None,
+            description: "test".to_string(),
+            short_description: None,
+            author: None,
+            argument_hint: None,
+            path: "chat-product://pdf".to_string(),
+            scope: SkillScope::Server,
+            config_source: None,
+            plugin_name: None,
+            plugin_version: None,
+            plugin_root: None,
+            plugin_data: None,
+            allowed_tools: None,
+            license: None,
+            compatibility: None,
+            metadata: None,
+            model: None,
+            effort: None,
+            user_invocable: true,
+            disable_model_invocation: false,
+            when_to_use: None,
+            has_user_specified_description: true,
+            paths: None,
+            enabled: true,
+            body: None,
+        };
+        let err = load_skill_content(&skill).await.unwrap_err();
+        assert!(err.contains("no preloaded body"), "{err}");
+        assert!(err.contains("chat-product://pdf"), "{err}");
     }
 
     #[test]
@@ -655,7 +736,7 @@ It has multiple lines."#;
             short_description: None,
             author: None,
             argument_hint: None,
-            path: "/home/user/.xvora/skills/commit/SKILL.md".to_string(),
+            path: "/home/user/.grok/skills/commit/SKILL.md".to_string(),
             scope: SkillScope::User,
             config_source: None,
             plugin_name: None,
@@ -683,7 +764,7 @@ It has multiple lines."#;
         // Assert the exact output so this breaks if any field or structural
         // detail changes (attribute order, newlines, tags).
         let expected = "\
-<skill name=\"commit\" description=\"Create a git commit\" path=\"/home/user/.xvora/skills/commit/SKILL.md\">
+<skill name=\"commit\" description=\"Create a git commit\" path=\"/home/user/.grok/skills/commit/SKILL.md\">
 # Git Commit Skill
 
 You are helping the user create a commit.
@@ -736,7 +817,7 @@ Deploy instructions.
         let skill = SkillInfo {
             name: "review".to_string(),
             description: "Review code".to_string(),
-            path: "/repo/.xvora/skills/review/SKILL.md".to_string(),
+            path: "/repo/.grok/skills/review/SKILL.md".to_string(),
             ..SkillInfo::default()
         };
 
@@ -744,7 +825,7 @@ Deploy instructions.
         let message = build_skill_message(&skill, content);
 
         let expected = "\
-<skill name=\"review\" description=\"Review code\" path=\"/repo/.xvora/skills/review/SKILL.md\">
+<skill name=\"review\" description=\"Review code\" path=\"/repo/.grok/skills/review/SKILL.md\">
 # Code Review
 
 Step 1: Read the diff.
@@ -799,13 +880,13 @@ Step 2: Check for bugs.
             &mut content,
             None,
             &SubstitutionContext {
-                skill_dir: Some("/home/user/.xvora/skills/deploy"),
+                skill_dir: Some("/home/user/.grok/skills/deploy"),
                 ..Default::default()
             },
         );
         assert_eq!(
             content,
-            "Config at /home/user/.xvora/skills/deploy/config.json"
+            "Config at /home/user/.grok/skills/deploy/config.json"
         );
     }
 
@@ -911,7 +992,7 @@ Step 2: Check for bugs.
 
     #[test]
     fn test_grok_plugin_aliases_substitution() {
-        let mut content = "Root ${XVORA_PLUGIN_ROOT}, data ${XVORA_PLUGIN_DATA}".to_string();
+        let mut content = "Root ${GROK_PLUGIN_ROOT}, data ${GROK_PLUGIN_DATA}".to_string();
         apply_substitutions(
             &mut content,
             None,
@@ -1189,15 +1270,17 @@ Review code.
         let blocks = vec![build_skill_block("commit", "fix typo", "Body here.")];
         let refs = vec![SkillRef {
             name: "commit",
-            path: "/home/user/.xvora/skills/commit/SKILL.md",
+            path: "/home/user/.grok/skills/commit/SKILL.md",
         }];
         let result = build_skill_information(&blocks, &refs);
         assert!(result.starts_with("<skill_information>\n"));
         assert!(result.ends_with("\n</skill_information>"));
         assert!(result.contains("<skills_referenced>\n"));
-        assert!(result.contains(
-            "<skill name=\"commit\" path=\"/home/user/.xvora/skills/commit/SKILL.md\"/>"
-        ));
+        assert!(
+            result.contains(
+                "<skill name=\"commit\" path=\"/home/user/.grok/skills/commit/SKILL.md\"/>"
+            )
+        );
         assert!(result.contains("<skill name=\"commit\" args=\"fix typo\">"));
     }
 
@@ -1210,11 +1293,11 @@ Review code.
         let refs = vec![
             SkillRef {
                 name: "review",
-                path: "/project/.xvora/skills/review/SKILL.md",
+                path: "/project/.grok/skills/review/SKILL.md",
             },
             SkillRef {
                 name: "lint",
-                path: "/project/.xvora/skills/lint/SKILL.md",
+                path: "/project/.grok/skills/lint/SKILL.md",
             },
         ];
         let result = build_skill_information(&blocks, &refs);

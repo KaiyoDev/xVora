@@ -1,10 +1,10 @@
-//! Parse marketplace sources from `~/.xvora/config.toml`.
+//! Parse marketplace sources from `~/.grok/config.toml`.
 //!
 //! Expected format:
 //! ```toml
 //! [[marketplace.sources]]
 //! name = "xAI Official"
-//! git = "https://github.com/KaiyoDev/xai-plugin-marketplace.git"
+//! git = "https://github.com/xvora-org/xvora-plugin-marketplace.git"
 //!
 //! [[marketplace.sources]]
 //! name = "Local Dev"
@@ -17,7 +17,6 @@ use serde::Deserialize;
 
 use crate::types::{MarketplaceSource, SourceKind};
 
-/// Raw TOML source entry.
 #[derive(Debug, serde::Deserialize)]
 struct RawSource {
     name: String,
@@ -27,6 +26,22 @@ struct RawSource {
     git: Option<String>,
     #[serde(default)]
     branch: Option<String>,
+}
+
+/// Whether remote plugin installs/updates must pin a full commit sha.
+/// Tighten-only: either `[marketplace] require_sha = true` in config.toml or `GROK_MARKETPLACE_REQUIRE_SHA=1` enables it; neither can turn it off.
+/// Defaults off so existing unpinned catalogs keep installing.
+pub fn load_require_sha(config: &toml::Value) -> bool {
+    env_require_sha()
+        || config
+            .get("marketplace")
+            .and_then(|m| m.get("require_sha"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+}
+
+pub fn env_require_sha() -> bool {
+    xvora_config::env_bool("GROK_MARKETPLACE_REQUIRE_SHA").unwrap_or(false)
 }
 
 /// Reads `[marketplace].sources` array. Returns empty vec if not configured.
@@ -66,7 +81,7 @@ pub fn load_sources(config: &toml::Value) -> Vec<MarketplaceSource> {
             } else if let Some(path_str) = raw.path {
                 // Expand ~ to home directory.
                 let expanded = if let Some(rest) = path_str.strip_prefix('~') {
-                    dirs::home_dir()
+                    xvora_dirs::home_dir()
                         .map(|h| {
                             h.join(rest.strip_prefix('/').unwrap_or(rest))
                                 .to_string_lossy()
@@ -114,7 +129,7 @@ struct SettingsEntry {
     source: SettingsSource,
 }
 
-/// Extract marketplace entries from a JSON object map (name -> config).
+/// Extract marketplace entries from a JSON object map of marketplace name to config.
 fn extract_marketplace_entries(
     marketplaces: &serde_json::Map<String, serde_json::Value>,
     seen_urls: &mut std::collections::HashSet<String>,
@@ -141,7 +156,7 @@ fn extract_marketplace_entries(
             }
             SettingsSource::Local { path: path_str } => {
                 let expanded = if let Some(rest) = path_str.strip_prefix('~') {
-                    dirs::home_dir()
+                    xvora_dirs::home_dir()
                         .map(|h| {
                             h.join(rest.strip_prefix('/').unwrap_or(rest))
                                 .to_string_lossy()
@@ -163,11 +178,11 @@ fn extract_marketplace_entries(
     }
 }
 /// Loads additional marketplace sources from `settings.json` (`extraKnownMarketplaces`)
-/// and `known_marketplaces.json` files under `~/.xvora/` and `~/.claude/`.
+/// and `known_marketplaces.json` files under `~/.grok/` and `~/.claude/`.
 pub fn load_extra_sources_from_settings(existing: &[MarketplaceSource]) -> Vec<MarketplaceSource> {
     let roots: Vec<PathBuf> = [
-        xvora_config::user_xvora_home(),
-        dirs::home_dir().map(|h| h.join(".claude")),
+        xvora_config::user_grok_home(),
+        xvora_dirs::home_dir().map(|h| h.join(".claude")),
     ]
     .into_iter()
     .flatten()
@@ -176,7 +191,7 @@ pub fn load_extra_sources_from_settings(existing: &[MarketplaceSource]) -> Vec<M
 }
 
 /// Like [`load_extra_sources_from_settings`] but reads from explicit `roots`
-/// instead of `~/.xvora`/`~/.claude`. Each root is checked for
+/// instead of `~/.grok`/`~/.claude`. Each root is checked for
 /// `settings.local.json`, `settings.json` (`extraKnownMarketplaces` key), and
 /// `plugins/known_marketplaces.json`. Lets callers (e.g. first-run auto-register
 /// tests) stay isolated from the developer's real home dir.
@@ -194,9 +209,9 @@ pub fn load_extra_sources_from_settings_in(
         })
         .collect();
 
-    // Order matters: all settings files across roots, then all
-    // known_marketplaces.json across roots — preserves the first-wins URL dedup
-    // in extract_marketplace_entries. Don't reorder without auditing UI impact.
+    // Order matters: all settings files across roots, then all known_marketplaces.json across roots
+    // That order preserves the first-wins URL dedup in extract_marketplace_entries
+    // Don't reorder without auditing UI impact
     for root in roots {
         for settings_name in ["settings.local.json", "settings.json"] {
             let path = root.join(settings_name);
@@ -234,8 +249,7 @@ pub fn load_extra_sources_from_settings_in(
                 continue;
             }
         };
-        // known_marketplaces.json is a top-level object with the same shape as
-        // extraKnownMarketplaces (map of name → { source, ... }).
+        // known_marketplaces.json is a top-level object with the same shape as extraKnownMarketplaces: a map of name to { source, ... }.
         let Some(marketplaces) = json.as_object() else {
             continue;
         };
@@ -248,6 +262,9 @@ pub fn load_extra_sources_from_settings_in(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Serializes every test that touches the process-global `GROK_MARKETPLACE_REQUIRE_SHA`, so they cannot race each other.
+    static REQUIRE_SHA_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn parse_local_source() {
@@ -273,7 +290,7 @@ mod tests {
             r#"
             [[marketplace.sources]]
             name = "xAI Official"
-            git = "https://github.com/KaiyoDev/xai-plugin-marketplace.git"
+            git = "https://github.com/xvora-org/xvora-plugin-marketplace.git"
             branch = "main"
             "#,
         )
@@ -282,7 +299,7 @@ mod tests {
         assert_eq!(sources.len(), 1);
         assert_eq!(sources[0].name, "xAI Official");
         assert!(
-            matches!(&sources[0].kind, SourceKind::Git { url, branch } if url.contains("xai-org") && branch.as_deref() == Some("main"))
+            matches!(&sources[0].kind, SourceKind::Git { url, branch } if url.contains("xvora-org") && branch.as_deref() == Some("main"))
         );
     }
 
@@ -308,6 +325,51 @@ mod tests {
     fn empty_config_returns_empty() {
         let config: toml::Value = toml::from_str("").unwrap();
         assert!(load_sources(&config).is_empty());
+    }
+
+    /// Exercises config alone, env alone, and the tighten-only rule (a falsy env cannot relax config-set true).
+    #[test]
+    fn require_sha_policy_composition() {
+        let _guard = REQUIRE_SHA_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+
+        let empty: toml::Value = toml::from_str("").unwrap();
+        let enabled: toml::Value = toml::from_str("[marketplace]\nrequire_sha = true\n").unwrap();
+
+        // SAFETY: single-threaded within the lock; restored before release.
+        unsafe { std::env::remove_var("GROK_MARKETPLACE_REQUIRE_SHA") };
+        assert!(!load_require_sha(&empty), "absent everywhere → off");
+        assert!(load_require_sha(&enabled), "config alone can enable");
+
+        unsafe { std::env::set_var("GROK_MARKETPLACE_REQUIRE_SHA", "1") };
+        assert!(load_require_sha(&empty), "env alone can enable");
+
+        unsafe { std::env::set_var("GROK_MARKETPLACE_REQUIRE_SHA", "0") };
+        assert!(
+            load_require_sha(&enabled),
+            "a falsy env must not relax config-set policy (tighten-only)"
+        );
+
+        unsafe { std::env::remove_var("GROK_MARKETPLACE_REQUIRE_SHA") };
+    }
+
+    #[test]
+    fn overlay_cannot_loosen_require_sha() {
+        let _guard = REQUIRE_SHA_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        unsafe { std::env::remove_var("GROK_MARKETPLACE_REQUIRE_SHA") };
+
+        let layers = xvora_config::ConfigLayers {
+            user: toml::from_str("[marketplace]\nrequire_sha = true\n").unwrap(),
+            env_overlay: Some(toml::from_str("[marketplace]\nrequire_sha = false\n").unwrap()),
+            ..Default::default()
+        };
+        assert!(load_require_sha(
+            &layers.effective_config_base_without_overlay()
+        ));
+        assert!(!load_require_sha(&layers.effective_config_base()));
     }
 
     #[test]

@@ -1,8 +1,7 @@
 // Per-test-case module for the `pty_e2e` integration test crate.
 //
-// Plugins-tab footer shows contextual Space enable/disable (not "toggle")
-// and freeform `a install` (not `a add`). Run with `--nocapture` to dump
-// screen contents when debugging failures.
+// The Plugins-tab footer shows contextual Space enable/disable (not "toggle") and freeform `a install` (not `a add`)
+// Run with `--nocapture` to dump screen contents when debugging failures
 #[allow(unused_imports)]
 use super::common::*;
 
@@ -10,8 +9,8 @@ const ENABLED_PLUGIN: &str = "copy-enabled";
 const DISABLED_PLUGIN: &str = "copy-disabled";
 
 fn seed_plugins_for_copy_hints(content: &ContentController) {
-    let xvora_home = content.home().join(".xvora");
-    let plugins_dir = xvora_home.join("plugins");
+    let grok_home = content.home().join(".grok");
+    let plugins_dir = grok_home.join("plugins");
     for name in [ENABLED_PLUGIN, DISABLED_PLUGIN] {
         let dir = plugins_dir.join(name);
         std::fs::create_dir_all(&dir).expect("create plugin dir");
@@ -23,12 +22,12 @@ fn seed_plugins_for_copy_hints(content: &ContentController) {
         )
         .expect("write plugin.json");
     }
-    std::fs::create_dir_all(&xvora_home).expect("create .grok");
+    std::fs::create_dir_all(&grok_home).expect("create .grok");
     // User plugins default to disabled unless listed under enabled.
     let config = format!(
         "[plugins]\nenabled = [\"{ENABLED_PLUGIN}\"]\ndisabled = [\"{DISABLED_PLUGIN}\"]\n"
     );
-    std::fs::write(xvora_home.join("config.toml"), config).expect("write config.toml");
+    std::fs::write(grok_home.join("config.toml"), config).expect("write config.toml");
 }
 
 fn dump_screen(label: &str, harness: &PtyHarness) {
@@ -39,10 +38,7 @@ fn dump_screen(label: &str, harness: &PtyHarness) {
 }
 
 /// True when the screen shows the Space footer verb we asked for.
-///
-/// Important: `space enable` is a substring of the fallback
-/// `space enable/disable`, so a naive `contains("space enable")` would
-/// pass while the contextual hint is still the combined form.
+/// `space enable` is a substring of the fallback `space enable/disable`, so a naive contains check passes while the hint is still the combined form.
 fn screen_has_space_verb(screen: &str, verb: &str) -> bool {
     match verb {
         "enable/disable" => screen.contains("space enable/disable"),

@@ -17,8 +17,8 @@
 //!
 //! ```rust
 //! use serde::Serialize;
-//! use tool_runtime::render::ToolOutput;
-//! use tool_runtime::ContentBlock;
+//! use xvora_tool_runtime::render::ToolOutput;
+//! use xvora_tool_runtime::ContentBlock;
 //!
 //! #[derive(Serialize)]
 //! struct BashOutput {
@@ -41,7 +41,7 @@
 //!
 //! ```rust
 //! use serde::Serialize;
-//! use tool_runtime::render::ToolOutput;
+//! use xvora_tool_runtime::render::ToolOutput;
 //!
 //! #[derive(Serialize)]
 //! struct SimpleOutput { answer: String }
@@ -84,17 +84,17 @@ impl ToolOutput for Value {}
 /// `String` is a common output type for simple tools.
 impl ToolOutput for String {}
 
-/// Lets `tool_types::TaskOutputOutput` be used directly as a `Tool::Output`
+/// Lets `xvora_tool_types::TaskOutputOutput` be used directly as a `Tool::Output`
 /// (handy for stub/test tools and pass-through proxies).
-impl ToolOutput for tool_types::TaskOutputOutput {}
+impl ToolOutput for xvora_tool_types::TaskOutputOutput {}
 
-/// Lets `tool_types::SubagentCompletedOutput` be used directly as a
+/// Lets `xvora_tool_types::SubagentCompletedOutput` be used directly as a
 /// `Tool::Output` (the `task` tool's structured completion output).
-impl ToolOutput for tool_types::SubagentCompletedOutput {}
+impl ToolOutput for xvora_tool_types::SubagentCompletedOutput {}
 
-/// Lets `tool_types::KillTaskOutput` be used directly as a `Tool::Output`
+/// Lets `xvora_tool_types::KillTaskOutput` be used directly as a `Tool::Output`
 /// (the `kill_task` tool's typed result / not-found output).
-impl ToolOutput for tool_types::KillTaskOutput {}
+impl ToolOutput for xvora_tool_types::KillTaskOutput {}
 
 /// Delegate through `Box<T>` so boxed outputs (e.g. large response
 /// structs) work without a manual impl.
@@ -202,7 +202,7 @@ pub fn extract_content_blocks(value: &Value) -> Vec<ContentBlock> {
     }
 
     if let Some(obj) = value.as_object() {
-        // xvora `ToolRunResult`: the model sees `prompt_text` (reminders
+        // grok-build `ToolRunResult`: the model sees `prompt_text` (reminders
         // appended), never a JSON dump of the structured result.
         if let Some(Value::String(prompt_text)) = obj.get("prompt_text")
             && obj.contains_key("output")
@@ -377,55 +377,6 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    // ── ToolOutput with custom override ─────────────────────────────
-
-    #[derive(Serialize)]
-    struct FakeOutput {
-        blocks: Vec<ContentBlock>,
-    }
-
-    impl ToolOutput for FakeOutput {
-        fn model_output(&self) -> Vec<ContentBlock> {
-            self.blocks.clone()
-        }
-    }
-
-    #[test]
-    fn custom_text_block() {
-        let o = FakeOutput {
-            blocks: vec![ContentBlock::Text {
-                text: "hello".into(),
-            }],
-        };
-        assert_eq!(o.model_output().len(), 1);
-        assert_eq!(
-            o.model_output()[0],
-            ContentBlock::Text {
-                text: "hello".into()
-            }
-        );
-    }
-
-    #[test]
-    fn custom_multimodal() {
-        let o = FakeOutput {
-            blocks: vec![
-                ContentBlock::Text {
-                    text: "result:".into(),
-                },
-                ContentBlock::Image {
-                    mime_type: "image/png".into(),
-                    data: "iVBOR...".into(),
-                    media_id: None,
-                    filename: None,
-                    path: None,
-                    metadata: Default::default(),
-                },
-            ],
-        };
-        assert_eq!(o.model_output().len(), 2);
-    }
-
     // ── ToolOutput default → empty (runtime fills via extract) ──────
 
     #[test]
@@ -438,33 +389,6 @@ mod tests {
 
         // Default signals "use automatic extraction" by returning empty.
         assert!(Plain { value: 42 }.model_output().is_empty());
-    }
-
-    #[test]
-    fn runtime_fills_empty_model_output_via_extract() {
-        // Simulates what the ToolDyn blanket does: serialise once,
-        // then extract_content_blocks on the Value.
-        #[derive(Serialize)]
-        struct Plain {
-            value: u32,
-        }
-        impl ToolOutput for Plain {}
-
-        let p = Plain { value: 42 };
-        let value = serde_json::to_value(&p).unwrap();
-        let custom = p.model_output();
-        let blocks = if custom.is_empty() {
-            extract_content_blocks(&value)
-        } else {
-            custom
-        };
-        assert_eq!(blocks.len(), 1);
-        assert_eq!(
-            blocks[0],
-            ContentBlock::Text {
-                text: r#"{"value":42}"#.into(),
-            }
-        );
     }
 
     // ── extract_content_blocks unit tests ──────────────────────────

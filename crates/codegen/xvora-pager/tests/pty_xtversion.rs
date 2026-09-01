@@ -13,8 +13,7 @@ const WELCOME_SCREEN_SENTINEL: &str = "Quit";
 /// The XTVERSION query bytes the pager emits at startup.
 const XTVERSION_QUERY: &[u8] = b"\x1b[>0q";
 
-/// Forces brand detection to `Unknown` regardless of the runner's own
-/// terminal; empty values are treated as absent by the pager's `env_get`.
+/// Forces brand detection to `Unknown` regardless of the runner's own terminal; empty values are treated as absent by the pager's `env_get`.
 const UNKNOWN_BRAND_ENV: &[(&str, &str)] = &[
     ("TERM_PROGRAM", ""),
     ("TERM_PROGRAM_VERSION", ""),
@@ -36,8 +35,7 @@ const UNKNOWN_BRAND_ENV: &[(&str, &str)] = &[
     ("ZELLIJ_SESSION_NAME", ""),
 ];
 
-/// Headline safety property: a mishandled probe/reply must never render
-/// as typed garbage on screen.
+/// Headline safety property: a mishandled probe/reply must never render as typed garbage on screen.
 fn assert_no_probe_garbage_on_screen(harness: &PtyHarness) {
     for fragment in [">|PtyHarnessTerm", "[?62", "[>0q"] {
         assert!(
@@ -63,14 +61,14 @@ fn wait_for_raw_bytes(harness: &mut PtyHarness, needle: &[u8], timeout: Duration
     false
 }
 
-/// Unknown brand → probe fires; the harness's scripted reply is surfaced
-/// in `/terminal-setup`, never as screen garbage.
+/// With an unknown brand the probe fires; the harness's scripted reply shows up in `/doctor`, never as screen garbage.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn unknown_brand_probe_round_trip() {
     let binary = pager_binary().expect("resolve pager binary");
     let mut harness =
-        PtyHarness::new(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV).expect("spawn pager");
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV, None)
+            .expect("spawn pager");
 
     assert!(
         wait_for_raw_bytes(&mut harness, XTVERSION_QUERY, WELCOME_TIMEOUT),
@@ -87,28 +85,26 @@ async fn unknown_brand_probe_round_trip() {
         .expect("welcome text");
     assert_no_probe_garbage_on_screen(&harness);
 
-    // Surface check: /terminal-setup shows the probed identity.
-    harness
-        .inject_keys(b"/terminal-setup\r")
-        .expect("run /terminal-setup");
+    // Surface check: /doctor shows the probed identity.
+    harness.inject_keys(b"/doctor\r").expect("run /doctor");
     harness
         .wait_for_text("PtyHarnessTerm 9.9", Duration::from_secs(10))
-        .expect("XTVERSION identity shown in /terminal-setup");
+        .expect("XTVERSION identity shown in /doctor");
 
     assert!(!harness.contains_text("panicked"));
     harness.quit().expect("clean quit");
 }
 
-/// Allowlisted brand (`TERM_PROGRAM=WezTerm`) → query written, reply
-/// surfaced. Env scrub + override so the runner's own markers can't flip
-/// the gate.
+/// With an allowlisted brand (`TERM_PROGRAM=WezTerm`) the query is written and the reply shows up.
+/// The env is scrubbed and overridden so the runner's own markers can't flip the gate.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn allowlisted_brand_probe_fires() {
     let binary = pager_binary().expect("resolve pager binary");
     let mut env = UNKNOWN_BRAND_ENV.to_vec();
     env.push(("TERM_PROGRAM", "WezTerm"));
-    let mut harness = PtyHarness::new(&binary, ROWS, COLS, &[], &env).expect("spawn pager");
+    let mut harness =
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], &env, None).expect("spawn pager");
 
     assert!(
         wait_for_raw_bytes(&mut harness, XTVERSION_QUERY, WELCOME_TIMEOUT),
@@ -123,9 +119,7 @@ async fn allowlisted_brand_probe_fires() {
         .expect("welcome text");
     assert_no_probe_garbage_on_screen(&harness);
 
-    harness
-        .inject_keys(b"/terminal-setup\r")
-        .expect("run /terminal-setup");
+    harness.inject_keys(b"/doctor\r").expect("run /doctor");
     harness
         .wait_for_text("PtyHarnessTerm 9.9", Duration::from_secs(10))
         .expect("XTVERSION identity shown for an allowlisted brand");
@@ -134,14 +128,20 @@ async fn allowlisted_brand_probe_fires() {
     harness.quit().expect("clean quit");
 }
 
-/// Non-allowlisted brand (`TERM_PROGRAM=vscode`) → no query written,
-/// regardless of whatever else is in the runner's env (deliberately no scrub).
+/// A non-allowlisted brand (`TERM_PROGRAM=vscode`) writes no query, regardless of whatever else is in the runner's env (deliberately no scrub).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn non_allowlisted_brand_skips_probe() {
     let binary = pager_binary().expect("resolve pager binary");
-    let mut harness = PtyHarness::new(&binary, ROWS, COLS, &[], &[("TERM_PROGRAM", "vscode")])
-        .expect("spawn pager");
+    let mut harness = PtyHarness::new_inherited_env(
+        &binary,
+        ROWS,
+        COLS,
+        &[],
+        &[("TERM_PROGRAM", "vscode")],
+        None,
+    )
+    .expect("spawn pager");
 
     harness
         .wait_for_text(WELCOME_SCREEN_SENTINEL, WELCOME_TIMEOUT)
@@ -155,9 +155,9 @@ async fn non_allowlisted_brand_skips_probe() {
     harness.quit().expect("clean quit");
 }
 
-/// Multiplexer detected (TMUX set) → no query written: the innermost
-/// layer would answer as itself, which the multiplexer field already
-/// records. Later env entries override the UNKNOWN_BRAND_ENV scrub.
+/// With a multiplexer detected (TMUX set) no query is written: the innermost layer would answer as itself, which the multiplexer field already
+/// records.
+/// Later env entries override the UNKNOWN_BRAND_ENV scrub.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn multiplexer_skips_probe() {
@@ -165,7 +165,8 @@ async fn multiplexer_skips_probe() {
     let mut env = UNKNOWN_BRAND_ENV.to_vec();
     env.push(("TMUX", "/tmp/tmux-1000/default,12345,0"));
     env.push(("TMUX_PANE", "%0"));
-    let mut harness = PtyHarness::new(&binary, ROWS, COLS, &[], &env).expect("spawn pager");
+    let mut harness =
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], &env, None).expect("spawn pager");
 
     harness
         .wait_for_text(WELCOME_SCREEN_SENTINEL, WELCOME_TIMEOUT)
@@ -179,14 +180,14 @@ async fn multiplexer_skips_probe() {
     harness.quit().expect("clean quit");
 }
 
-/// Silent terminal (no XTVERSION, no DA1) → clean startup after the
-/// deadline, no hang, no xtversion line.
+/// A silent terminal (no XTVERSION, no DA1) still starts cleanly after the deadline: no hang, no xtversion line.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn unknown_brand_no_reply_starts_cleanly() {
     let binary = pager_binary().expect("resolve pager binary");
     let mut harness =
-        PtyHarness::new(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV).expect("spawn pager");
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV, None)
+            .expect("spawn pager");
 
     harness
         .wait_for_text(WELCOME_SCREEN_SENTINEL, WELCOME_TIMEOUT)
@@ -195,13 +196,11 @@ async fn unknown_brand_no_reply_starts_cleanly() {
     assert!(!harness.contains_text("panicked"));
     assert_no_probe_garbage_on_screen(&harness);
 
-    // /terminal-setup must omit the xtversion line entirely.
-    harness
-        .inject_keys(b"/terminal-setup\r")
-        .expect("run /terminal-setup");
+    // /doctor must omit the xtversion line entirely.
+    harness.inject_keys(b"/doctor\r").expect("run /doctor");
     harness
         .wait_for_text("Environment", Duration::from_secs(10))
-        .expect("terminal-setup output");
+        .expect("doctor output");
     assert!(
         !harness.contains_text("xtversion"),
         "xtversion line should be absent when the terminal never replied"
@@ -210,14 +209,14 @@ async fn unknown_brand_no_reply_starts_cleanly() {
     harness.quit().expect("clean quit");
 }
 
-/// Unterminated DCS reply + DA1 → stalled fragment dropped by the event
-/// filter, no identity, no garbage.
+/// An unterminated DCS reply and DA1: the event filter drops the stalled fragment, no identity, no garbage.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn unknown_brand_malformed_reply_is_discarded() {
     let binary = pager_binary().expect("resolve pager binary");
     let mut harness =
-        PtyHarness::new(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV).expect("spawn pager");
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV, None)
+            .expect("spawn pager");
 
     assert!(
         wait_for_raw_bytes(&mut harness, XTVERSION_QUERY, WELCOME_TIMEOUT),
@@ -235,12 +234,10 @@ async fn unknown_brand_malformed_reply_is_discarded() {
     assert!(!harness.contains_text("panicked"));
     assert_no_probe_garbage_on_screen(&harness);
 
-    harness
-        .inject_keys(b"/terminal-setup\r")
-        .expect("run /terminal-setup");
+    harness.inject_keys(b"/doctor\r").expect("run /doctor");
     harness
         .wait_for_text("Environment", Duration::from_secs(10))
-        .expect("terminal-setup output");
+        .expect("doctor output");
     assert!(
         !harness.contains_text("xtversion"),
         "malformed reply must not produce an xtversion line"
@@ -249,23 +246,22 @@ async fn unknown_brand_malformed_reply_is_discarded() {
     harness.quit().expect("clean quit");
 }
 
-/// Late reply (~1s after startup, well past any blocking window) → still
-/// swallowed by the event filter and recorded, never rendered.
+/// A late reply (~1s after startup, well past any blocking window) is still swallowed by the event filter and recorded, never rendered.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn unknown_brand_late_reply_swallowed_and_recorded() {
     let binary = pager_binary().expect("resolve pager binary");
     let mut harness =
-        PtyHarness::new(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV).expect("spawn pager");
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV, None)
+            .expect("spawn pager");
 
     assert!(
         wait_for_raw_bytes(&mut harness, XTVERSION_QUERY, WELCOME_TIMEOUT),
         "pager never emitted the XTVERSION query for an unknown terminal"
     );
 
-    // Answer ~1s after the query — far past any blocking read, inside the
-    // filter's arm window (anchored on query emission: welcome render can
-    // exceed the window under parallel-test load).
+    // Answer ~1s after the query: far past any blocking read, still inside the window where the filter accepts a reply
+    // That window is anchored on query emission; welcome render can exceed it under parallel-test load
     harness.update(Duration::from_millis(1000));
     harness
         .inject_keys(b"\x1bP>|PtyHarnessTerm 9.9\x1b\\")
@@ -276,12 +272,10 @@ async fn unknown_brand_late_reply_swallowed_and_recorded() {
         .expect("welcome text");
     assert_no_probe_garbage_on_screen(&harness);
 
-    harness
-        .inject_keys(b"/terminal-setup\r")
-        .expect("run /terminal-setup");
+    harness.inject_keys(b"/doctor\r").expect("run /doctor");
     harness
         .wait_for_text("PtyHarnessTerm 9.9", Duration::from_secs(10))
-        .expect("late XTVERSION identity shown in /terminal-setup");
+        .expect("late XTVERSION identity shown in /doctor");
 
     assert!(!harness.contains_text("panicked"));
     harness.quit().expect("clean quit");
@@ -293,15 +287,16 @@ async fn unknown_brand_late_reply_swallowed_and_recorded() {
 async fn unknown_brand_keystrokes_interleaved_with_reply() {
     let binary = pager_binary().expect("resolve pager binary");
     let mut harness =
-        PtyHarness::new(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV).expect("spawn pager");
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV, None)
+            .expect("spawn pager");
 
     assert!(
         wait_for_raw_bytes(&mut harness, XTVERSION_QUERY, WELCOME_TIMEOUT),
         "pager never emitted the XTVERSION query for an unknown terminal"
     );
 
-    // Interleave right after the query so the filter is provably armed
-    // (welcome render can exceed the arm window under parallel-test load).
+    // Interleave right after the query so the filter is provably still accepting the reply
+    // Welcome render can exceed the acceptance window under parallel-test load
     harness.inject_keys(b"he").expect("type before reply");
     harness.update(Duration::from_millis(50));
     harness
@@ -319,13 +314,14 @@ async fn unknown_brand_keystrokes_interleaved_with_reply() {
     harness.quit().expect("clean quit");
 }
 
-/// Reply split across writes (slow trickling link) → still detected.
+/// A reply split across writes (slow trickling link) is still detected.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn unknown_brand_split_reply_round_trip() {
     let binary = pager_binary().expect("resolve pager binary");
     let mut harness =
-        PtyHarness::new(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV).expect("spawn pager");
+        PtyHarness::new_inherited_env(&binary, ROWS, COLS, &[], UNKNOWN_BRAND_ENV, None)
+            .expect("spawn pager");
 
     assert!(
         wait_for_raw_bytes(&mut harness, XTVERSION_QUERY, WELCOME_TIMEOUT),
@@ -345,12 +341,10 @@ async fn unknown_brand_split_reply_round_trip() {
         .expect("welcome text");
     assert_no_probe_garbage_on_screen(&harness);
 
-    harness
-        .inject_keys(b"/terminal-setup\r")
-        .expect("run /terminal-setup");
+    harness.inject_keys(b"/doctor\r").expect("run /doctor");
     harness
         .wait_for_text("PtyHarnessTerm 9.9", Duration::from_secs(10))
-        .expect("split XTVERSION reply shown in /terminal-setup");
+        .expect("split XTVERSION reply shown in /doctor");
 
     assert!(!harness.contains_text("panicked"));
     harness.quit().expect("clean quit");

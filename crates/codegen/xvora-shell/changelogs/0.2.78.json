@@ -41,7 +41,7 @@
   },
   {
     "category": "performance",
-    "description": "**`xvora update`** downloads have a longer timeout.",
+    "description": "**`grok update`** downloads have a longer timeout.",
     "breaking_change": false
   }
 ]

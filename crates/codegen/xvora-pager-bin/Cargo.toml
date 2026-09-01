@@ -1,18 +1,18 @@
 [package]
 name = "xvora-pager-bin"
-version = "0.2.0"
+version = "1.0.13"
 edition.workspace = true
 license = "Apache-2.0"
-authors = ["KaiyoDev"]
-default-run = "xvora"
+authors = ["xAI"]
+default-run = "xvora-pager"
 
-# Composition-root binary for the personal xvora build. The artifact is named
-# `xvora`. This package exists so the binary can link both the pager
+# Composition-root binary for the Grok Build TUI. The artifact is still named
+# `xvora-pager`. This package exists so the binary can link both the pager
 # library and the optional `xvora-pager-minimal` render mode: `minimal`
 # depends on `xvora-pager`, so the pager library cannot depend back on it
 # (cargo cycle). The binary installs the minimal-mode IoC hooks at startup.
 [[bin]]
-name = "xvora"
+name = "xvora-pager"
 path = "src/main.rs"
 
 [dependencies]
@@ -27,7 +27,7 @@ xvora-update = { path = "../xvora-update" }
 xvora-version = { workspace = true }
 xvora-telemetry = { workspace = true }
 xvora-workspace = { workspace = true }
-crash-handler = { path = "../crash-handler" }
+crash-handler = { path = "../xvora-crash-handler" }
 acp-lib = { workspace = true }
 
 # Async runtime + misc.
@@ -48,18 +48,17 @@ serde_json = { workspace = true }
 dunce = { workspace = true }
 semver = { workspace = true }
 tty-utils = { workspace = true }
+# `collect_crashed()` for the startup crash notice.
+xvora-active-sessions = { workspace = true }
 xvora-config = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-rustls = { version = "0.23", default-features = false, features = [
-    "ring",
-    "logging",
-    "std",
-    "tls12",
-] }
+xvora-extra-ca = { workspace = true }
 
 # Binary hardening: compile-time string + control-flow obfuscation.
 obfstr = { workspace = true }
 cryptify = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
@@ -81,6 +80,7 @@ serial_test = { workspace = true }
 # `PagerArgs::try_parse_from` in the CLI-parsing unit tests (needs the
 # `clap::Parser` trait in scope).
 clap = { workspace = true, features = ["derive"] }
+tempfile = { workspace = true }
 
 [features]
 default = [
@@ -90,8 +90,12 @@ default = [
 default-bazel = [
     "jemalloc",
     "sandbox-enforce",
+    "local-workspace",
     ]
 jemalloc = ["dep:tikv-jemallocator", "dep:tikv-jemalloc-sys", "dep:tikv-jemalloc-ctl"]
-# Forward the sandbox-enforcement feature to the library.
-sandbox-enforce = ["xvora-pager/sandbox-enforce"]
-release-dist = ["xvora-pager/release-dist"]
+# xvora-workspace no longer enables sandbox-enforce by default, so enable it here.
+sandbox-enforce = ["xvora-pager/sandbox-enforce", "xvora-workspace/sandbox-enforce"]
+local-workspace = ["xvora-pager/local-workspace"]
+release-dist = [
+    "xvora-pager/release-dist",
+    ]

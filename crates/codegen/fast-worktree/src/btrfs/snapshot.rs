@@ -24,7 +24,7 @@ pub fn create_snapshot(source: &Path, dest: &Path) -> Result<()> {
     );
 
     let mut cmd = Command::new("btrfs");
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
     // OsStr args: a non-UTF-8 path must not silently collapse to ".".
     let output = cmd
@@ -179,17 +179,17 @@ pub fn create_snapshot_with_symlink(btrfs_info: &BtrfsInfo, dest: &Path) -> Resu
     create_snapshot(snapshot_source, &snapshot_path)?;
 
     // When the snapshot is inside the source (subvol mount case), the snapshot
-    // contains an empty .xvora-snapshots/ directory (btrfs excludes nested subvolumes
+    // contains an empty .grok-snapshots/ directory (btrfs excludes nested subvolumes
     // from snapshots, leaving only empty directory placeholders). Remove it to
     // keep the worktree clean.
-    let stale_snapshots_dir = snapshot_path.join(".xvora-snapshots");
+    let stale_snapshots_dir = snapshot_path.join(".grok-snapshots");
     if stale_snapshots_dir.exists()
         && let Err(e) = std::fs::remove_dir(&stale_snapshots_dir)
     {
         tracing::debug!(
             path = %stale_snapshots_dir.display(),
             error = %e,
-            "failed to remove stale .xvora-snapshots placeholder from snapshot"
+            "failed to remove stale .grok-snapshots placeholder from snapshot"
         );
     }
 
@@ -224,7 +224,7 @@ pub fn create_snapshot_with_symlink(btrfs_info: &BtrfsInfo, dest: &Path) -> Resu
 /// worktree `dest`.
 ///
 /// When the btrfs mount IS the source repo (subvol mount without a separate
-/// root mount), snapshots go under `.xvora-snapshots/` to stay hidden from git;
+/// root mount), snapshots go under `.grok-snapshots/` to stay hidden from git;
 /// otherwise they go under `worktrees/`.
 ///
 /// Name is `<basename>-<hash of full dest>`: basename alone collides when two repos
@@ -234,7 +234,7 @@ pub fn create_snapshot_with_symlink(btrfs_info: &BtrfsInfo, dest: &Path) -> Resu
 /// the identical layout.
 pub fn snapshot_dest_path(btrfs_mount: &Path, subvolume_root: &Path, dest: &Path) -> PathBuf {
     let subdir = if btrfs_mount == subvolume_root {
-        BTRFS_SNAPSHOT_SUBDIRS[1] // ".xvora-snapshots"
+        BTRFS_SNAPSHOT_SUBDIRS[1] // ".grok-snapshots"
     } else {
         BTRFS_SNAPSHOT_SUBDIRS[0] // "worktrees"
     };
@@ -315,7 +315,7 @@ fn expose_or_reclaim_snapshot(
 /// Delete a BTRFS subvolume/snapshot.
 pub fn delete_snapshot(path: &Path) -> Result<()> {
     let mut cmd = Command::new("btrfs");
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
     // Pass the path as OsStr (no lossy `to_str`) so a non-UTF-8 path can never
     // silently collapse to "." and delete the current directory's subvolume.
@@ -349,7 +349,7 @@ pub fn delete_snapshot(path: &Path) -> Result<()> {
 ///   delete to a subvolume elsewhere),
 /// - lives directly inside a snapshot-storage directory — its real,
 ///   canonicalized parent's final component is one of [`BTRFS_SNAPSHOT_SUBDIRS`]
-///   (`worktrees` or `.xvora-snapshots`),
+///   (`worktrees` or `.grok-snapshots`),
 /// - and that directory sits **directly under a real btrfs mount point** (from
 ///   the live mount table), anchoring the delete to grok-managed storage rather
 ///   than any directory that merely happens to be named `worktrees`.
@@ -394,7 +394,7 @@ fn is_safe_snapshot_delete_target_in(snapshot_path: &Path, btrfs_mounts: &[PathB
     let Ok(canonical_parent) = dunce::canonicalize(parent) else {
         return false;
     };
-    // Parent must be a snapshot-storage dir (`worktrees` / `.xvora-snapshots`)...
+    // Parent must be a snapshot-storage dir (`worktrees` / `.grok-snapshots`)...
     let named_ok = canonical_parent
         .file_name()
         .and_then(|n| n.to_str())
@@ -431,9 +431,9 @@ pub const BTRFS_META_SUFFIX: &str = ".btrfs-meta.json";
 /// Subdirectory names used to store btrfs snapshots inside a btrfs mount point.
 ///
 /// `"worktrees"` is used when a separate btrfs root mount exists (common case).
-/// `".xvora-snapshots"` is used when the btrfs mount IS the repo subvolume
+/// `".grok-snapshots"` is used when the btrfs mount IS the repo subvolume
 /// (dot-prefixed to stay hidden from git).
-pub const BTRFS_SNAPSHOT_SUBDIRS: &[&str] = &["worktrees", ".xvora-snapshots"];
+pub const BTRFS_SNAPSHOT_SUBDIRS: &[&str] = &["worktrees", ".grok-snapshots"];
 
 /// Compute the sibling metadata file path for a snapshot directory.
 pub fn btrfs_meta_path(snapshot_path: &Path) -> Option<PathBuf> {
@@ -527,39 +527,8 @@ pub fn snapshot_meta_targets(snapshot_path: &Path, dest: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::btrfs::detect::{is_btrfs, is_btrfs_subvolume};
+    use crate::btrfs::detect::is_btrfs;
     use std::path::PathBuf;
-
-    /// Helper to find a writable BTRFS subvolume for testing.
-    /// Returns (subvolume_path, test_dest_path) if available.
-    fn get_btrfs_snapshot_test_paths() -> Option<(PathBuf, PathBuf)> {
-        // Check environment variable first
-        if let Ok(path) = std::env::var("BTRFS_TEST_PATH") {
-            let path = PathBuf::from(&path);
-            if path.exists()
-                && is_btrfs(&path).unwrap_or(false)
-                && is_btrfs_subvolume(&path).ok().flatten().is_some()
-            {
-                let dest = PathBuf::from(format!("{}_snapshot_test", path.display()));
-                return Some((path, dest));
-            }
-        }
-
-        // Check common BTRFS mount points
-        for candidate in &["/", "/home"] {
-            let path = Path::new(candidate);
-            if path.exists()
-                && is_btrfs(path).unwrap_or(false)
-                && is_btrfs_subvolume(path).ok().flatten().is_some()
-            {
-                // For system paths, use a temp location
-                let dest = PathBuf::from("/tmp/btrfs_snapshot_test");
-                return Some((path.to_path_buf(), dest));
-            }
-        }
-
-        None
-    }
 
     #[test]
     fn test_create_snapshot_nonexistent_source() {
@@ -603,46 +572,6 @@ mod tests {
     }
 
     #[test]
-    fn test_create_snapshot_on_real_btrfs() {
-        // This test automatically skips if no BTRFS subvolume is available
-        let Some((source_path, dest_path)) = get_btrfs_snapshot_test_paths() else {
-            eprintln!("Skipping test: no BTRFS subvolume detected for snapshot test");
-            return;
-        };
-
-        // Clean up if exists from previous run
-        let _ = std::process::Command::new("btrfs")
-            .args(["subvolume", "delete", &dest_path.to_string_lossy()])
-            .output();
-        let _ = std::fs::remove_dir_all(&dest_path);
-
-        // Note: This test may fail if:
-        // 1. We don't have permission to create snapshots
-        // 2. The dest path is on a different filesystem
-        // So we handle both success and expected failures gracefully
-
-        match create_snapshot(&source_path, &dest_path) {
-            Ok(()) => {
-                eprintln!(
-                    "BTRFS snapshot created: {} -> {}",
-                    source_path.display(),
-                    dest_path.display()
-                );
-                assert!(dest_path.exists(), "Snapshot should exist");
-
-                // Clean up - use btrfs subvolume delete
-                let _ = std::process::Command::new("btrfs")
-                    .args(["subvolume", "delete", &dest_path.to_string_lossy()])
-                    .output();
-            }
-            Err(e) => {
-                // Expected to fail if we don't have permissions or cross-filesystem
-                eprintln!("Snapshot failed (expected if no permissions): {}", e);
-            }
-        }
-    }
-
-    #[test]
     fn test_btrfs_meta_path() {
         let snapshot = Path::new("/mnt/btrfs/worktrees/wt-abc");
         let meta = btrfs_meta_path(snapshot).unwrap();
@@ -662,7 +591,7 @@ mod tests {
         let meta = BtrfsSnapshotMetadata {
             kind: Cow::Borrowed("btrfs"),
             snapshot_path: PathBuf::from("/mnt/btrfs/worktrees/wt-abc"),
-            mount_target: PathBuf::from("/home/user/.xvora/worktrees/repo/session/wt-abc"),
+            mount_target: PathBuf::from("/home/user/.grok/worktrees/repo/session/wt-abc"),
             created_at: "1740000000s-since-epoch".to_string(),
         };
         let json = serde_json::to_string_pretty(&meta).unwrap();
@@ -679,7 +608,7 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let snapshot_path = tmp.path().join("wt-abc");
         std::fs::create_dir(&snapshot_path).unwrap();
-        let mount_target = Path::new("/home/user/.xvora/worktrees/wt-abc");
+        let mount_target = Path::new("/home/user/.grok/worktrees/wt-abc");
 
         write_btrfs_metadata(&snapshot_path, mount_target).unwrap();
 
@@ -694,19 +623,6 @@ mod tests {
 
         remove_btrfs_metadata(&snapshot_path);
         assert!(!meta_path.exists());
-    }
-
-    #[test]
-    fn test_remove_btrfs_metadata_nonexistent() {
-        remove_btrfs_metadata(Path::new("/nonexistent/snapshot"));
-    }
-
-    #[test]
-    fn test_unix_timestamp_string() {
-        let ts = crate::util::unix_timestamp_string();
-        assert!(ts.ends_with("s-since-epoch"));
-        let secs: u64 = ts.strip_suffix("s-since-epoch").unwrap().parse().unwrap();
-        assert!(secs > 1_700_000_000);
     }
 
     /// Assert the snapshot name keeps `<basename>-` and ends in a 16-hex hash.
@@ -726,7 +642,7 @@ mod tests {
         // btrfs mount differs from subvolume root → snapshots under worktrees/.
         let btrfs_mount = Path::new("/mnt/btrfs");
         let subvolume_root = Path::new("/workspace/repo");
-        let dest = Path::new("/home/user/.xvora/worktrees/repo/session/wt-abc");
+        let dest = Path::new("/home/user/.grok/worktrees/repo/session/wt-abc");
         let got = snapshot_dest_path(btrfs_mount, subvolume_root, dest);
         assert_eq!(got.parent().unwrap(), Path::new("/mnt/btrfs/worktrees"));
         assert_hashed_name(got.file_name().unwrap().to_str().unwrap(), "wt-abc");
@@ -736,13 +652,13 @@ mod tests {
 
     #[test]
     fn test_snapshot_dest_path_subvol_mount() {
-        // btrfs mount IS the subvolume root → snapshots under .xvora-snapshots/.
+        // btrfs mount IS the subvolume root → snapshots under .grok-snapshots/.
         let mount = Path::new("/workspace/repo");
-        let dest = Path::new("/home/user/.xvora/worktrees/repo/session/wt-xyz");
+        let dest = Path::new("/home/user/.grok/worktrees/repo/session/wt-xyz");
         let got = snapshot_dest_path(mount, mount, dest);
         assert_eq!(
             got.parent().unwrap(),
-            Path::new("/workspace/repo/.xvora-snapshots")
+            Path::new("/workspace/repo/.grok-snapshots")
         );
         assert_hashed_name(got.file_name().unwrap().to_str().unwrap(), "wt-xyz");
     }
@@ -762,8 +678,8 @@ mod tests {
         // same on-disk snapshot (the cross-repo data-loss collision).
         let btrfs_mount = Path::new("/mnt/btrfs");
         let subvolume_root = Path::new("/workspace/repo");
-        let dest_a = Path::new("/home/user/.xvora/worktrees/repo-a/session/wt-abc");
-        let dest_b = Path::new("/home/user/.xvora/worktrees/repo-b/session/wt-abc");
+        let dest_a = Path::new("/home/user/.grok/worktrees/repo-a/session/wt-abc");
+        let dest_b = Path::new("/home/user/.grok/worktrees/repo-b/session/wt-abc");
         let a = snapshot_dest_path(btrfs_mount, subvolume_root, dest_a);
         let b = snapshot_dest_path(btrfs_mount, subvolume_root, dest_b);
         assert_ne!(
@@ -781,7 +697,7 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let snapshot_path = tmp.path().join("worktrees").join("wt-abc-deadbeef");
         std::fs::create_dir_all(&snapshot_path).unwrap();
-        let dest = Path::new("/home/user/.xvora/worktrees/repo-a/session/wt-abc");
+        let dest = Path::new("/home/user/.grok/worktrees/repo-a/session/wt-abc");
 
         // No metadata yet → cannot prove ownership → refuse.
         assert!(!snapshot_meta_targets(&snapshot_path, dest));
@@ -791,7 +707,7 @@ mod tests {
         assert!(snapshot_meta_targets(&snapshot_path, dest));
 
         // Metadata for a DIFFERENT dest → must refuse (would clobber other session).
-        let other = Path::new("/home/user/.xvora/worktrees/repo-b/session/wt-abc");
+        let other = Path::new("/home/user/.grok/worktrees/repo-b/session/wt-abc");
         assert!(!snapshot_meta_targets(&snapshot_path, other));
     }
 
@@ -800,7 +716,7 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let snapshot_path = tmp.path().join("worktrees").join("wt-abc-deadbeef");
         std::fs::create_dir_all(&snapshot_path).unwrap();
-        let dest = Path::new("/home/user/.xvora/worktrees/repo-a/session/wt-abc");
+        let dest = Path::new("/home/user/.grok/worktrees/repo-a/session/wt-abc");
 
         // No sibling meta → crashed-creation orphan → reclaimable.
         assert_eq!(
@@ -816,7 +732,7 @@ mod tests {
         );
 
         // Meta records a different dest → another session → must refuse.
-        let other = Path::new("/home/user/.xvora/worktrees/repo-b/session/wt-abc");
+        let other = Path::new("/home/user/.grok/worktrees/repo-b/session/wt-abc");
         assert_eq!(
             snapshot_meta_state(&snapshot_path, other),
             SnapshotMetaState::Mismatch

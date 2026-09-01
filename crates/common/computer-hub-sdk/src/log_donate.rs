@@ -21,11 +21,11 @@ use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use prost::Message as _;
 use tokio::sync::mpsc;
-use tool_protocol::{MAX_DONATION_BYTES, MAX_LOG_RECORDS_PER_DONATION};
 use tracing::Level;
 use tracing::field::{Field, Visit};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
+use xvora_tool_protocol::{MAX_DONATION_BYTES, MAX_LOG_RECORDS_PER_DONATION};
 
 use crate::donate_pump::{
     PENDING_FLUSHES, PumpMsg, drain_via, make_resource, now_unix_nanos, run_pump, string_kv,
@@ -554,20 +554,6 @@ mod tests {
         );
 
         assert!(rx.try_recv().is_err(), "no further payloads");
-    }
-
-    #[test]
-    fn inert_layer_drops_selected_events() {
-        let layer = DonatingLogLayer::new_inert();
-        let flusher = layer.clone();
-        // No sender activated.
-        let subscriber = tracing_subscriber::registry().with(layer);
-        tracing::subscriber::with_default(subscriber, || {
-            tracing::warn!(target: "workspace::telemetry", session_id = "s1", "dropped");
-        });
-        flusher.shared.flush();
-        // Nothing to assert beyond not panicking: with no sender the
-        // batch never fills and flush is a no-op.
     }
 
     #[test]

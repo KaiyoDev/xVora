@@ -6,7 +6,7 @@
   },
   {
     "category": "fixes",
-    "description": "**--minimal** flag now shows in `xvora --help`.",
+    "description": "**--minimal** flag now shows in `grok --help`.",
     "breaking_change": false
   },
   {

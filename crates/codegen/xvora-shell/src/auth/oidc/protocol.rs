@@ -1,10 +1,9 @@
-//! Pure OIDC protocol mechanics: PKCE, discovery, token exchange,
-//! refresh_tokens, JWT validation, principal extraction.
+//! Pure OIDC protocol mechanics: PKCE, discovery, token exchange, refresh_tokens, JWT validation, principal extraction.
 //!
-//! No `AuthManager` mutation here. The login orchestration is in
-//! [`super::login`]; refresh primitives are in [`super::refresh`].
+//! No `AuthManager` mutation here.
+//! The login orchestration is in [`super::login`]; refresh primitives are in [`super::refresh`].
 use super::super::config::{ForceLoginTeam, GrokComConfig, OAuth2ProviderConfig, OidcAuthConfig};
-use super::super::{AuthMode, XaiAuth};
+use super::super::{AuthMode, GrokAuth};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{Duration, Utc};
@@ -85,8 +84,7 @@ const ALLOWED_ID_TOKEN_ALGS: &[jsonwebtoken::Algorithm] = &[
     jsonwebtoken::Algorithm::ES384,
     jsonwebtoken::Algorithm::EdDSA,
 ];
-/// Optionally attach an extra access header when the optional non-production
-/// feature is enabled and the request targets a matching first-party host.
+/// Optionally attach an extra access header when the optional non-production feature is enabled and the request targets a matching first-party host.
 pub(crate) fn with_alpha_test_key(
     builder: reqwest::RequestBuilder,
     url: &str,
@@ -94,19 +92,16 @@ pub(crate) fn with_alpha_test_key(
     let _ = url;
     builder
 }
-pub fn is_configured(config: &GrokComConfig) -> bool {
+pub(crate) fn is_configured(config: &GrokComConfig) -> bool {
     config.oidc.is_some()
 }
-/// Peek at the unverified access token JWT to extract the `principal_type`
-/// and `principal_id` chosen during the consent screen.
+/// Peek at the unverified access token JWT to extract the `principal_type` and `principal_id` chosen during the consent screen.
 ///
-/// When the user picks "Team" on the consent screen, the server strips
-/// user-only scopes (`openid`, `email`) and issues the token with
-/// `principal_type=Team`. The shell's config doesn't know which principal
-/// the user picked, so we peek at the token to find out.
+/// When the user picks "Team" on the consent screen, the server strips user-only scopes (`openid`, `email`).
+/// It then issues the token with `principal_type=Team`.
+/// The shell's config doesn't know which principal the user picked, so we peek at the token to find out.
 ///
-/// Returns `(principal_type, principal_id)` or `None` if the token is not
-/// a JWT or the claims can't be extracted.
+/// Returns `(principal_type, principal_id)` or `None` if the token is not a JWT or the claims can't be extracted.
 pub(crate) fn peek_access_token_principal(
     access_token: &str,
 ) -> Option<(String, String, Option<String>)> {
@@ -129,13 +124,11 @@ pub(crate) fn peek_access_token_principal(
     let tid = token_data.claims.team_id.filter(|s| !s.is_empty());
     Some((pt, pid, tid))
 }
-/// Extract just the `principal_id` claim for `force_login_team_uuid` matching,
-/// regardless of whether `principal_type` is present. A token can carry the
-/// team id in `principal_id` without a `principal_type`; the pin must still
-/// match it. Matching the id alone is safe because a user id never collides
-/// with a team uuid (distinct id spaces), and the server re-validates the
-/// signed token anyway. Returns `None` only when no non-empty `principal_id`
-/// is present (which `enforce_login_principal` treats as fail-closed).
+/// Extract just the `principal_id` claim for `force_login_team_uuid` matching, regardless of whether `principal_type` is present.
+/// A token can carry the team id in `principal_id` without a `principal_type`; the pin must still match it.
+/// Matching the id alone is safe: a user id never collides with a team uuid (distinct id spaces).
+/// The server re-validates the signed token anyway.
+/// Returns `None` only when no non-empty `principal_id` is present (which `enforce_login_principal` treats as fail-closed).
 pub(crate) fn peek_access_token_principal_id(access_token: &str) -> Option<String> {
     #[derive(serde::Deserialize)]
     struct PrincipalIdClaim {
@@ -148,11 +141,10 @@ pub(crate) fn peek_access_token_principal_id(access_token: &str) -> Option<Strin
         .principal_id
         .filter(|s| !s.is_empty())
 }
-/// Resolved allowed-team set from the dedicated `force_login_team_uuid` lockdown
-/// knob, or `None` (unrestricted). The legacy `oauth2.principal_id` is
-/// intentionally NOT an enforcement gate — it only pre-selects the team on the
-/// consent page — so deployments that set it for pre-selection keep letting
-/// users pick a team (no surprise login failures on upgrade). Pure for testing.
+/// Resolved allowed-team set from the dedicated `force_login_team_uuid` lockdown knob, or `None` (unrestricted).
+/// The legacy `oauth2.principal_id` is intentionally NOT an enforcement gate; it only pre-selects the team on the consent page.
+/// Deployments that set it for pre-selection therefore keep letting users pick a team (no surprise login failures on upgrade).
+/// This function is pure for testing.
 pub(crate) fn resolve_login_principal_policy(
     force_login_team_uuid: Option<&ForceLoginTeam>,
 ) -> Option<ForceLoginTeam> {
@@ -161,15 +153,12 @@ pub(crate) fn resolve_login_principal_policy(
 pub(crate) fn login_principal_policy(cfg: &GrokComConfig) -> Option<ForceLoginTeam> {
     resolve_login_principal_policy(cfg.force_login_team_uuid.as_ref())
 }
-/// Reject a token whose principal isn't allowed, BEFORE persisting (no partial
-/// state). A restriction also rejects a token with no principal (else picking
-/// "personal" on the consent page defeats it); an empty `AnyOf` fails closed.
+/// Reject a token whose principal isn't allowed, BEFORE persisting (no partial state).
+/// A restriction also rejects a token with no principal (else picking "personal" on the consent page defeats it); an empty `AnyOf` fails closed.
 ///
-/// The `actual` principal comes from the access-token claim
-/// (`peek_access_token_principal`, an unverified `insecure_decode`). This
-/// client-side check is fail-fast UX / defense-in-depth — NOT the security
-/// boundary: the server re-validates the signed token on every API call and
-/// is authoritative, so a locally tampered token still cannot reach the API.
+/// The `actual` principal comes from the access-token claim (`peek_access_token_principal`, an unverified `insecure_decode`).
+/// This client-side check is fail-fast UX and defense-in-depth, NOT the security boundary.
+/// The server re-validates the signed token on every API call and is authoritative, so a locally tampered token still cannot reach the API.
 pub(crate) fn enforce_login_principal(
     policy: Option<&ForceLoginTeam>,
     actual: Option<&str>,
@@ -194,7 +183,8 @@ pub(crate) fn enforce_login_principal(
         format!("one of teams: {}", allowed.join(", "))
     };
     tracing::warn!(
-        expected = % expected, actual = ? actual,
+        expected = %expected,
+        actual = ?actual,
         "OIDC: login principal does not satisfy required policy; rejecting"
     );
     Err(anyhow::Error::new(OidcError::PinnedPrincipalMismatch {
@@ -221,14 +211,14 @@ pub(super) struct OidcUserInfo {
     pub(super) team_blocked_reasons: Vec<String>,
     pub(super) coding_data_retention_opt_out: bool,
 }
-pub(super) fn build_xai_auth(
+pub(super) fn build_grok_auth(
     tokens: TokenResponse,
     user_info: OidcUserInfo,
     issuer: &str,
     client_id: &str,
-) -> XaiAuth {
+) -> GrokAuth {
     let now = Utc::now();
-    XaiAuth {
+    GrokAuth {
         key: tokens.access_token,
         auth_mode: AuthMode::Oidc,
         create_time: now,
@@ -264,14 +254,12 @@ pub(super) struct Discovery {
     #[serde(default)]
     pub(super) id_token_signing_alg_values_supported: Option<Vec<String>>,
 }
-/// RFC 8414 says discovery clients SHOULD cache. 1h is short enough
-/// that an endpoint move propagates within an agent session, long
-/// enough that a discovery-endpoint outage no longer blocks token
-/// refresh once the doc is cached.
+/// RFC 8414 says discovery clients SHOULD cache.
+/// 1h is short enough that an endpoint move propagates within an agent session.
+/// It is long enough that a discovery-endpoint outage no longer blocks token refresh once the doc is cached.
 const DISCOVERY_CACHE_TTL: StdDuration = StdDuration::from_secs(3600);
-/// Per-issuer cache of `(Discovery, fetched_at)`. Process-global
-/// because the discovery doc is identity-free; multiple AuthManagers
-/// pointed at the same IdP share one entry.
+/// Per-issuer cache of `(Discovery, fetched_at)`.
+/// Process-global because the discovery doc is identity-free; multiple AuthManagers pointed at the same IdP share one entry.
 static DISCOVERY_CACHE: LazyLock<RwLock<HashMap<String, (Discovery, Instant)>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 pub(super) async fn discover(issuer: &str) -> anyhow::Result<Discovery> {
@@ -303,7 +291,7 @@ fn discovery_retry_policy() -> backon::ExponentialBuilder {
 }
 async fn discover_once(issuer_key: &str) -> anyhow::Result<Discovery> {
     let url = format!("{issuer_key}/.well-known/openid-configuration");
-    tracing::debug!(url = % url, "OIDC: fetching discovery document");
+    tracing::debug!(url = %url, "OIDC: fetching discovery document");
     let resp = with_alpha_test_key(
         crate::http::shared_client()
             .get(&url)
@@ -320,9 +308,11 @@ async fn discover_once(issuer_key: &str) -> anyhow::Result<Discovery> {
     }
     let doc: Discovery = resp.json().await?;
     tracing::debug!(
-        authorization_endpoint = % doc.authorization_endpoint, token_endpoint = % doc
-        .token_endpoint, jwks_uri = ? doc.jwks_uri, id_token_algs = ? doc
-        .id_token_signing_alg_values_supported, "OIDC: discovery complete"
+        authorization_endpoint = %doc.authorization_endpoint,
+        token_endpoint = %doc.token_endpoint,
+        jwks_uri = ?doc.jwks_uri,
+        id_token_algs = ?doc.id_token_signing_alg_values_supported,
+        "OIDC: discovery complete"
     );
     Ok(doc)
 }
@@ -330,11 +320,11 @@ async fn discover_once(issuer_key: &str) -> anyhow::Result<Discovery> {
 pub(super) fn clear_discovery_cache() {
     DISCOVERY_CACHE.write().clear();
 }
-pub(super) struct Pkce {
-    pub(super) code_verifier: String,
-    pub(super) code_challenge: String,
+pub(in crate::auth) struct Pkce {
+    pub(in crate::auth) code_verifier: String,
+    pub(in crate::auth) code_challenge: String,
 }
-pub(super) fn generate_pkce() -> Pkce {
+pub(in crate::auth) fn generate_pkce() -> Pkce {
     let random_bytes: [u8; 32] = rand::random();
     let code_verifier = URL_SAFE_NO_PAD.encode(random_bytes);
     let code_challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(code_verifier.as_bytes()));
@@ -384,7 +374,7 @@ pub(super) fn build_authorize_url(
     let referrer = oauth2
         .and_then(|o| o.referrer.as_deref())
         .filter(|r| !r.is_empty())
-        .unwrap_or("xvora");
+        .unwrap_or("grok-build");
     url.push_str(&format!("&referrer={}", urlencoding::encode(referrer)));
     url
 }
@@ -405,9 +395,7 @@ pub(super) async fn exchange_code(
     client_id: &str,
     code_verifier: &str,
 ) -> anyhow::Result<TokenResponse> {
-    tracing::debug!(
-        token_endpoint = % token_endpoint, "OIDC: exchanging code for tokens"
-    );
+    tracing::debug!(token_endpoint = %token_endpoint, "OIDC: exchanging code for tokens");
     let resp = with_alpha_test_key(
         crate::http::shared_client()
             .post(token_endpoint)
@@ -434,10 +422,9 @@ pub(super) async fn exchange_code(
     }
     Ok(resp.json().await?)
 }
-/// Retry gate for `refresh_tokens`. Defers to `classify_terminal` (the single
-/// source of truth): only a recognized terminal code (`invalid_grant`,
-/// `invalid_client`) stops retries. Everything else (5xx, 429, bare 4xx, or an
-/// unrecognized/RFC-transient code) is retried.
+/// Retry gate for `refresh_tokens`.
+/// Defers to `classify_terminal` (the single source of truth): only a recognized terminal code (`invalid_grant`, `invalid_client`) stops retries.
+/// Everything else (5xx, 429, bare 4xx, or an unrecognized/RFC-transient code) is retried.
 fn is_transient_refresh_error(err: &anyhow::Error) -> bool {
     let Some(OidcError::TokenRefreshHttp { status, body }) = err.downcast_ref::<OidcError>() else {
         return true;
@@ -453,9 +440,8 @@ fn is_transient_refresh_error(err: &anyhow::Error) -> bool {
         .and_then(super::refresh::classify_terminal)
         .is_none()
 }
-/// Up to 3 attempts (1 + 2 retries), 200ms-2s jittered exponential
-/// backoff. Bounded so a hard outage still surfaces to the user
-/// promptly via the existing `RefreshOutcome::TransientFailure` path.
+/// Up to 3 attempts (1 + 2 retries), 200ms-2s jittered exponential backoff.
+/// Bounded so a hard outage still surfaces to the user promptly via the existing `RefreshOutcome::TransientFailure` path.
 fn refresh_retry_policy() -> backon::ExponentialBuilder {
     backon::ExponentialBuilder::default()
         .with_max_times(2)
@@ -472,9 +458,12 @@ pub(super) async fn refresh_tokens(
 ) -> anyhow::Result<TokenResponse> {
     use backon::Retryable;
     tracing::debug!(
-        token_endpoint = % token_endpoint, principal_type = ? principal_type,
-        principal_id = ? principal_id, "OIDC: refreshing token"
+        token_endpoint = %token_endpoint,
+        principal_type = ?principal_type,
+        principal_id = ?principal_id,
+        "OIDC: refreshing token"
     );
+    let probe = super::refresh::SuspendProbe::start();
     (|| {
         refresh_tokens_once(
             token_endpoint,
@@ -485,12 +474,27 @@ pub(super) async fn refresh_tokens(
         )
     })
     .retry(refresh_retry_policy())
-    .when(is_transient_refresh_error)
+    .when(move |err: &anyhow::Error| {
+        if !is_transient_refresh_error(err) {
+            return false;
+        }
+        if probe.straddled_past_grace() {
+            crate::unified_log::warn(
+                "auth.refresh.retry_suppressed_suspend",
+                None,
+                Some(serde_json::json!({
+                    "suspended_ms": probe.suspended_ms(),
+                    "error": err.to_string(),
+                })),
+            );
+            return false;
+        }
+        true
+    })
     .await
 }
-/// One unretried POST to `token_endpoint`. Errors carry the typed
-/// `OidcError::TokenRefreshHttp` so the retry classifier can read the
-/// status code and OAuth2 `error` field without re-parsing.
+/// One unretried POST to `token_endpoint`.
+/// Errors carry the typed `OidcError::TokenRefreshHttp` so the retry classifier can read the status code and OAuth2 `error` field without re-parsing.
 async fn refresh_tokens_once(
     token_endpoint: &str,
     refresh_token: &str,
@@ -525,9 +529,12 @@ async fn refresh_tokens_once(
             .ok()
             .and_then(|v| v.get("error")?.as_str().map(str::to_owned));
         tracing::warn!(
-            http_status = status, oauth2_error = ? error_code, rt_prefix = crate
-            ::auth::token_suffix(refresh_token), client_id = % client_id, principal_type
-            = ? principal_type, "OIDC: token refresh HTTP error"
+            http_status = status,
+            oauth2_error = ?error_code,
+            rt_prefix = xvora_auth::bearer_suffix(refresh_token),
+            client_id = %client_id,
+            principal_type = ?principal_type,
+            "OIDC: token refresh HTTP error"
         );
         return Err(anyhow::Error::new(OidcError::TokenRefreshHttp {
             status,
@@ -566,14 +573,12 @@ pub(super) fn aud_matches(aud: &serde_json::Value, expected: &str) -> bool {
 }
 pub(super) fn validate_state(expected: &str, received: &str) -> anyhow::Result<()> {
     if received != expected {
-        tracing::warn!(
-            expected = % expected, received = % received, "OIDC: state mismatch"
-        );
+        tracing::warn!(expected = %expected, received = %received, "OIDC: state mismatch");
         return Err(anyhow::Error::new(OidcError::StateMismatch));
     }
     Ok(())
 }
-/// Explicit JWA name mapping — avoids coupling to `jsonwebtoken::Algorithm`'s `Debug` repr.
+/// Explicit JWA name mapping, so nothing couples to `jsonwebtoken::Algorithm`'s `Debug` repr.
 pub(super) fn alg_to_jwa_name(alg: jsonwebtoken::Algorithm) -> &'static str {
     match alg {
         jsonwebtoken::Algorithm::RS256 => "RS256",
@@ -689,7 +694,7 @@ pub(super) async fn validate_and_extract_user_info(
         organization_role: None,
         user_blocked_reason: None,
         team_blocked_reasons: vec![],
-        coding_data_retention_opt_out: false,
+        coding_data_retention_opt_out: crate::auth::default_coding_data_retention_opt_out(),
     })
 }
 pub(super) async fn extract_user_info(
@@ -720,7 +725,7 @@ pub(super) async fn extract_user_info(
             organization_role: None,
             user_blocked_reason: None,
             team_blocked_reasons: vec![],
-            coding_data_retention_opt_out: false,
+            coding_data_retention_opt_out: crate::auth::default_coding_data_retention_opt_out(),
         });
     }
     let token = id_token.ok_or_else(|| anyhow::Error::new(OidcError::MissingIdToken))?;
@@ -771,6 +776,8 @@ mod tests {
             code_verifier: "v".into(),
             code_challenge: "c".into(),
         };
+        let nonce = test_nonce();
+        let nonce_q = format!("nonce={nonce}");
         let url = build_authorize_url(
             &config,
             None,
@@ -778,7 +785,7 @@ mod tests {
             "http://127.0.0.1:9999/callback",
             &pkce,
             "state123",
-            "nonce123",
+            &nonce,
         );
         for required in [
             "response_type=code",
@@ -786,10 +793,10 @@ mod tests {
             "code_challenge=c",
             "code_challenge_method=S256",
             "state=state123",
-            "nonce=nonce123",
+            nonce_q.as_str(),
             "scope=openid",
             "audience=api",
-            "referrer=xvora",
+            "referrer=grok-build",
         ] {
             assert!(url.contains(required), "missing param: {required}");
         }
@@ -813,7 +820,7 @@ mod tests {
             scopes: vec!["offline_access".into(), "grok-cli:access".into()],
             principal_type: Some("Team".into()),
             principal_id: Some("team-123".into()),
-            referrer: Some("xvora".into()),
+            referrer: Some("grok-build".into()),
         };
         let discovery = Discovery {
             authorization_endpoint: "https://auth.x.ai/authorize".into(),
@@ -832,11 +839,11 @@ mod tests {
             "http://127.0.0.1:9999/callback",
             &pkce,
             "state123",
-            "nonce123",
+            &test_nonce(),
         );
         assert!(url.contains("principal_type=Team"));
         assert!(url.contains("principal_id=team-123"));
-        assert!(url.contains("referrer=xvora"));
+        assert!(url.contains("referrer=grok-build"));
         assert_eq!(
             url.matches("referrer=").count(),
             1,
@@ -876,10 +883,10 @@ mod tests {
             "http://127.0.0.1:9999/callback",
             &pkce,
             "state123",
-            "nonce123",
+            &test_nonce(),
         );
         assert!(url.contains("referrer=grok-desktop"));
-        assert!(!url.contains("referrer=xvora"));
+        assert!(!url.contains("referrer=grok-build"));
         assert_eq!(
             url.matches("referrer=").count(),
             1,
@@ -899,7 +906,7 @@ mod tests {
             &discovery,
             "https://example.okta.com",
             "test-client",
-            "nonce123",
+            &test_nonce(),
             Some("Team"),
             Some("team-123"),
             None,
@@ -963,7 +970,7 @@ mod tests {
             &discovery,
             &issuer,
             "wrong-client",
-            TEST_NONCE,
+            &test_nonce(),
             None,
             None,
             None,
@@ -993,28 +1000,35 @@ mod tests {
             )
             .unwrap()
         }
-        let team_jwt = make_jwt(serde_json::json!(
-            { "sub" : "user-42", "iss" : "https://auth.x.ai", "aud" : "test-client",
-            "exp" : 9999999999u64, "iat" : 1000000000u64, "scope" :
-            "offline_access grok-cli:access api:access", "principal_type" : "Team",
-            "principal_id" : "team-abc-123", "client_id" : "test-client", "jti" :
-            "token-1", }
-        ));
+        let team_jwt = make_jwt(serde_json::json!({
+            "sub": "user-42",
+            "iss": "https://auth.x.ai",
+            "aud": "test-client",
+            "exp": 9999999999u64,
+            "iat": 1000000000u64,
+            "scope": "offline_access grok-cli:access api:access",
+            "principal_type": "Team",
+            "principal_id": "team-abc-123",
+            "client_id": "test-client",
+            "jti": "token-1",
+        }));
         let (pt, pid, tid) = peek_access_token_principal(&team_jwt).expect("team principal");
         assert_eq!(pt, "Team");
         assert_eq!(pid, "team-abc-123");
         assert_eq!(tid, None);
         assert!(peek_access_token_principal("not-a-jwt-token").is_none());
         assert!(peek_access_token_principal("").is_none());
-        let no_principal = make_jwt(serde_json::json!(
-            { "sub" : "user-42", "iss" : "https://auth.x.ai", "aud" : "test-client",
-            "exp" : 9999999999u64, "iat" : 1000000000u64, }
-        ));
+        let no_principal = make_jwt(serde_json::json!({
+            "sub": "user-42",
+            "iss": "https://auth.x.ai",
+            "aud": "test-client",
+            "exp": 9999999999u64,
+            "iat": 1000000000u64,
+        }));
         assert!(peek_access_token_principal(&no_principal).is_none());
     }
-    /// `peek_access_token_principal_id` extracts the id even when
-    /// `principal_type` is absent, where the stricter
-    /// `peek_access_token_principal` returns `None`.
+    /// `peek_access_token_principal_id` extracts the id even when `principal_type` is absent.
+    /// The stricter `peek_access_token_principal` returns `None` there.
     #[test]
     fn peek_access_token_principal_id_does_not_require_type() {
         ensure_crypto_provider();
@@ -1026,7 +1040,7 @@ mod tests {
             )
             .unwrap()
         }
-        let id_only = make_jwt(serde_json::json!({ "principal_id" : "team-abc", "sub" : "u" }));
+        let id_only = make_jwt(serde_json::json!({ "principal_id": "team-abc", "sub": "u" }));
         assert_eq!(
             peek_access_token_principal_id(&id_only).as_deref(),
             Some("team-abc"),
@@ -1035,12 +1049,11 @@ mod tests {
             peek_access_token_principal(&id_only).is_none(),
             "the strict peek still needs principal_type",
         );
-        let none = make_jwt(serde_json::json!({ "sub" : "u" }));
+        let none = make_jwt(serde_json::json!({ "sub": "u" }));
         assert!(peek_access_token_principal_id(&none).is_none());
         assert!(peek_access_token_principal_id("not-a-jwt").is_none());
     }
-    /// Enforcement matrix: None passes; Single/AnyOf require a match (and reject
-    /// a no-principal token); empty AnyOf fails closed.
+    /// Enforcement matrix: None passes; Single/AnyOf require a match (and reject a no-principal token); empty AnyOf fails closed.
     #[test]
     fn enforce_login_principal_matrix() {
         assert!(enforce_login_principal(None, None).is_ok());
@@ -1075,9 +1088,8 @@ mod tests {
              list, so no team is permitted to sign in",
         );
     }
-    /// Only the dedicated `force_login_team_uuid` knob produces an enforcement
-    /// policy; the legacy `oauth2.principal_id` is pre-select-only and never an
-    /// enforcement gate (regression guard for the upgrade-behavior concern).
+    /// Only the dedicated `force_login_team_uuid` knob produces an enforcement policy.
+    /// The legacy `oauth2.principal_id` is pre-select-only and never an enforcement gate.
     #[test]
     fn resolve_login_principal_policy_uses_force_login_team_only() {
         assert_eq!(resolve_login_principal_policy(None), None);
@@ -1093,10 +1105,9 @@ mod tests {
             Some(ForceLoginTeam::AnyOf(vec!["a".into(), "b".into()])),
         );
     }
-    /// Discovery is cached for `DISCOVERY_CACHE_TTL`: the second call
-    /// to `discover()` for the same issuer hits the cache and does not
-    /// fetch over HTTP. Without this, every refresh pays a discovery
-    /// round-trip and a discovery-endpoint blip blocks token refresh.
+    /// Discovery is cached for `DISCOVERY_CACHE_TTL`.
+    /// The second call to `discover()` for the same issuer hits the cache and does not fetch over HTTP.
+    /// Without the cache, every refresh pays a discovery round-trip and a discovery-endpoint blip blocks token refresh.
     #[tokio::test]
     async fn discover_uses_cache_within_ttl() {
         use std::sync::atomic::{AtomicU32, Ordering};
@@ -1113,10 +1124,10 @@ mod tests {
                 let counter = hits_for_handler.clone();
                 async move {
                     counter.fetch_add(1, Ordering::SeqCst);
-                    axum::Json(serde_json::json!(
-                        { "authorization_endpoint" : format!("{b}/authorize"),
-                        "token_endpoint" : format!("{b}/token"), }
-                    ))
+                    axum::Json(serde_json::json!({
+                        "authorization_endpoint": format!("{b}/authorize"),
+                        "token_endpoint": format!("{b}/token"),
+                    }))
                 }
             }),
         );
@@ -1131,9 +1142,8 @@ mod tests {
         );
         server.abort();
     }
-    /// `refresh_tokens` retries on a transient 503 and succeeds on the
-    /// next attempt. Without backon, a single IdP blip during refresh
-    /// surfaces to the user as a chat failure.
+    /// `refresh_tokens` retries on a transient 503 and succeeds on the next attempt.
+    /// Without backon, a single IdP blip during refresh surfaces to the user as a chat failure.
     #[tokio::test]
     async fn refresh_tokens_retries_on_transient_5xx() {
         use std::sync::atomic::{AtomicU32, Ordering};
@@ -1174,10 +1184,9 @@ mod tests {
         );
         server.abort();
     }
-    /// Terminal OAuth2 errors (`invalid_grant`, `invalid_client`) MUST
-    /// NOT be retried -- retrying a revoked grant just wastes time and
-    /// risks rate-limit. Verifies `is_transient_refresh_error` correctly
-    /// classifies typed 4xx as terminal.
+    /// Terminal OAuth2 errors (`invalid_grant`, `invalid_client`) MUST NOT be retried.
+    /// Retrying a revoked grant just wastes time and risks rate-limit.
+    /// Verifies `is_transient_refresh_error` correctly classifies typed 4xx as terminal.
     #[tokio::test]
     async fn refresh_tokens_does_not_retry_terminal_invalid_grant() {
         use std::sync::atomic::{AtomicU32, Ordering};
@@ -1215,10 +1224,8 @@ mod tests {
         );
         server.abort();
     }
-    /// A 4xx carrying an OAuth2 code that is NOT a recognized terminal one
-    /// (e.g. RFC 6749 `temporarily_unavailable`) must be retried, not given up
-    /// on. The retry gate defers to `classify_terminal`, so only the recognized
-    /// terminal codes stop retries; everything else is transient.
+    /// A 4xx carrying an OAuth2 code that is NOT a recognized terminal one (e.g. RFC 6749 `temporarily_unavailable`) must be retried.
+    /// The retry gate defers to `classify_terminal`, so only the recognized terminal codes stop retries; everything else is transient.
     #[tokio::test]
     async fn refresh_tokens_retries_on_coded_transient_error() {
         use std::sync::atomic::{AtomicU32, Ordering};

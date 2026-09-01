@@ -1,9 +1,7 @@
-//! Reproducible harness for benchmarking clipboard attachment reads
-//! (the paste hot path).
+//! Reproducible harness for benchmarking clipboard attachment reads (the paste hot path).
 //!
-//! Runs one `get_attachments()` — the same unified probe the pager's paste
-//! pipeline executes — and prints the outcome plus wall time. Benchmark the
-//! native in-process read against the `osascript` fallback with hyperfine:
+//! Runs one `get_attachments()`, the same probe the pager's paste pipeline executes, and prints the outcome plus wall time.
+//! Benchmark the native in-process read against the `osascript` fallback with hyperfine:
 //!
 //! ```text
 //! # put an image on the pasteboard first, e.g.:
@@ -11,11 +9,10 @@
 //! cargo build --release -p xvora-shared --example clipboard_probe
 //! hyperfine --warmup 2 \
 //!   -n native './target/release/examples/clipboard_probe' \
-//!   -n osascript 'XVORA_CLIPBOARD_NO_NATIVE_READ=1 ./target/release/examples/clipboard_probe'
+//!   -n osascript 'GROK_CLIPBOARD_NO_NATIVE_READ=1 ./target/release/examples/clipboard_probe'
 //! ```
 //!
-//! Exits non-zero when the read errors so hyperfine aborts loudly instead of
-//! averaging failures.
+//! Exits non-zero when the read errors so hyperfine aborts loudly instead of averaging failures.
 
 fn main() -> anyhow::Result<()> {
     let started = std::time::Instant::now();

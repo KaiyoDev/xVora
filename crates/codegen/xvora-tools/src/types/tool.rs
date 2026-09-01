@@ -1,6 +1,6 @@
 //! Tool types and post-execution reminders.
 //!
-//! The tool runtime contract (`Tool` trait) lives in `tool_runtime`.
+//! The tool runtime contract (`Tool` trait) lives in `xvora_tool_runtime`.
 //! Tool metadata (kind, namespace, fingerprinting, etc.) lives in
 //! `crate::types::tool_metadata::ToolMetadata`.
 //!
@@ -12,11 +12,11 @@ use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::resources::SharedResources;
 /// The toolset a tool belongs to.
 ///
-/// Serializes to snake_case (`xvora`, `mcp`, …) for the
+/// Serializes to snake_case (`grok_build`, `mcp`, …) for the
 /// canonical tool `_meta` wire contract. PascalCase aliases are accepted on
 /// deserialize so legacy persisted/manifest values still parse. The
 /// `Display` impl remains PascalCase for existing qualified id strings
-/// (e.g. `"Xvora:read_file"`); only the serde form goes on the wire.
+/// (e.g. `"GrokBuild:read_file"`); only the serde form goes on the wire.
 #[derive(
     Debug,
     Clone,
@@ -31,12 +31,12 @@ use crate::types::resources::SharedResources;
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ToolNamespace {
-    #[serde(alias = "Xvora")]
-    Xvora,
-    #[serde(alias = "XvoraConcise")]
-    XvoraConcise,
-    #[serde(alias = "XvoraHashline")]
-    XvoraHashline,
+    #[serde(alias = "GrokBuild")]
+    GrokBuild,
+    #[serde(alias = "GrokBuildConcise")]
+    GrokBuildConcise,
+    #[serde(alias = "GrokBuildHashline")]
+    GrokBuildHashline,
     #[serde(alias = "Codex")]
     Codex,
     #[serde(rename = "opencode", alias = "OpenCode", alias = "open_code")]
@@ -88,6 +88,7 @@ pub enum ToolKind {
     MemorySearch,
     MemoryGet,
     Task,
+    ActiveAgentMessage,
     EnterPlan,
     ExitPlan,
     AskUser,
@@ -96,10 +97,12 @@ pub enum ToolKind {
     ImageToVideo,
     ReferenceToVideo,
     DeployApp,
+    InitOrUpdateApp,
     SearchTool,
     UseTool,
     Monitor,
     GoalUpdate,
+    Workflow,
     #[serde(other)]
     Other,
 }

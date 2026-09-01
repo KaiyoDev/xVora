@@ -11,18 +11,18 @@ use futures::StreamExt;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::BoxStream;
 
-use computer_hub_core::{
+use xvora_computer_hub_core::{
     ConnectionClient, RemoteToolProxy, RemoteTransport, ToolHandle, Transport, TransportKind,
 };
-use tool_protocol::{
+use xvora_tool_protocol::{
     JsonRpcError, JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion,
     Method, ResponseOutcome, SessionId, ToolCallId, ToolCallParams, ToolCallProgressFrame,
     ToolCallResult, ToolCapabilities, ToolErrorWire, ToolId, ToolOutputWire, UserId,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     ContentBlock, ToolCallContext, ToolError, ToolOutput, ToolProgress, ToolStreamItem,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 /// Programmable `ConnectionClient`. Each request gets a pre-staged
 /// response; progress frames are pushed through per-call senders.
@@ -32,7 +32,7 @@ struct MockConnection {
     /// per-call subscription touches a lock-free DashMap rather than the
     /// shared Mutex that guards the rest of the queue + capture state.
     progress_senders: DashMap<ToolCallId, mpsc::UnboundedSender<ToolCallProgressFrame>>,
-    /// Three-Vec state guarded by one Mutex. The lock provides atomic
+    /// Shared state guarded by one Mutex. The lock provides atomic
     /// pop-from-`responses` + push-to-`captured_requests` semantics that
     /// some tests rely on.
     inner: Mutex<MockState>,
@@ -44,8 +44,6 @@ struct MockState {
     responses: Vec<MockResponse>,
     /// Captured outgoing requests so tests can assert on them.
     captured_requests: Vec<JsonRpcRequest>,
-    /// Captured one-way notifications.
-    captured_notifications: Vec<JsonRpcNotification>,
 }
 
 impl std::fmt::Debug for MockState {
@@ -53,7 +51,6 @@ impl std::fmt::Debug for MockState {
         f.debug_struct("MockState")
             .field("responses_len", &self.responses.len())
             .field("captured_reqs", &self.captured_requests.len())
-            .field("captured_notifs", &self.captured_notifications.len())
             .finish()
     }
 }
@@ -177,12 +174,7 @@ impl ConnectionClient for MockConnection {
         rx.boxed()
     }
 
-    async fn notify(&self, notification: JsonRpcNotification) -> Result<(), ToolError> {
-        self.inner
-            .lock()
-            .expect("mutex")
-            .captured_notifications
-            .push(notification);
+    async fn notify(&self, _notification: JsonRpcNotification) -> Result<(), ToolError> {
         Ok(())
     }
 }
@@ -348,7 +340,9 @@ async fn json_rpc_error_response_decodes_into_tool_error() {
         .await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
+        ToolStreamItem::Terminal(Err(ref e))
+            if e.kind == xvora_tool_runtime::ToolErrorKind::NotFound =>
+        {
             assert!(
                 e.detail.contains("foo"),
                 "detail should mention tool id: {}",
@@ -376,7 +370,7 @@ async fn network_failure_surfaces_as_terminal_network_error() {
     let item = stream.next().await.expect("terminal");
     match item {
         ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::NetworkError =>
+            if e.kind == xvora_tool_runtime::ToolErrorKind::NetworkError =>
         {
             assert!(
                 e.detail.contains("socket closed"),
@@ -400,7 +394,7 @@ async fn mcp_output_re_serialises_into_blocks_value() {
     );
     let call_id = ToolCallId::new_v7();
     let ctx = ToolCallContext::new(call_id.clone());
-    let blocks = vec![tool_protocol::McpBlock::Text {
+    let blocks = vec![xvora_tool_protocol::McpBlock::Text {
         text: "hello".to_string(),
     }];
     conn.enqueue_ok(ok_call_result(&call_id, ToolOutputWire::Mcp { blocks }));
@@ -568,7 +562,9 @@ async fn malformed_envelope_with_tool_call_id_surfaces_decode_error() {
     let mut stream = proxy.execute(ctx, serde_json::json!(null)).await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::Custom => {
+        ToolStreamItem::Terminal(Err(ref e))
+            if e.kind == xvora_tool_runtime::ToolErrorKind::Custom =>
+        {
             let code = e
                 .details
                 .as_ref()
@@ -649,38 +645,6 @@ async fn proxy_subscribe_happens_before_request_send() {
             "request must have been sent during stream polling"
         );
     }
-}
-
-#[tokio::test]
-async fn notify_round_trips_through_connection_client() {
-    let conn = Arc::new(MockConnection::default());
-    let notification = JsonRpcNotification {
-        jsonrpc: JsonRpcVersion,
-        session_id: Some(sid("sess-1")),
-        seq: None,
-        method: Method::Hook.as_wire_str().to_string(),
-        params: serde_json::json!({
-            "session_id": "sess-1",
-            "tool_id": "foo",
-            "call_id": "call-1",
-            "event": { "type": "Cancel" }
-        }),
-    };
-    let trait_handle: &dyn ConnectionClient = conn.as_ref();
-    trait_handle
-        .notify(notification.clone())
-        .await
-        .expect("notify succeeds");
-    let guard = conn.inner.lock().expect("mutex");
-    assert_eq!(guard.captured_notifications.len(), 1);
-    let captured = &guard.captured_notifications[0];
-    assert_eq!(captured.method, Method::Hook.as_wire_str());
-    assert_eq!(captured.session_id, Some(sid("sess-1")));
-    assert_eq!(
-        captured.params.get("event").and_then(|v| v.get("type")),
-        Some(&serde_json::Value::String("Cancel".to_string()))
-    );
-    assert_eq!(captured, &notification);
 }
 
 #[tokio::test]

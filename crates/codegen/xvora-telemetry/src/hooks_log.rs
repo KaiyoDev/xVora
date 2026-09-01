@@ -1,21 +1,18 @@
-//! Hooks and plugins tracing target and optional file-based logging layer.
-//!
 //! A dedicated tracing target for hooks and plugins subsystems with an optional
-//! file logger that writes to `~/.xvora/logs/hooks.log`.
+//! file logger that writes to `~/.grok/logs/hooks.log`.
 //!
 //! ## When to use
 //!
-//! Use regular `tracing::info!` / `tracing::debug!` / `tracing::warn!` with
-//! targets `xvora_hooks` or `xvora_agent::plugins` at key lifecycle
-//! points — discovery, dispatch, execution, errors.
+//! Use regular `tracing::info!` / `tracing::debug!` / `tracing::warn!` with targets `xvora_hooks` or `xvora_agent::plugins`.
+//! Log at discovery, dispatch, execution, and error points.
 //!
 //! ## Enabling
 //!
 //! ```bash
-//! XVORA_HOOKS_LOG=1 grok              # enable, write to ~/.xvora/logs/hooks.log
-//! XVORA_HOOKS_LOG=/tmp/h.log grok     # write to custom path
-//! XVORA_HOOKS_LOG=0 grok              # explicitly disable
-//! tail -f ~/.xvora/logs/hooks.log     # watch in another terminal
+//! GROK_HOOKS_LOG=1 grok              # enable, write to ~/.grok/logs/hooks.log
+//! GROK_HOOKS_LOG=/tmp/h.log grok     # write to custom path
+//! GROK_HOOKS_LOG=0 grok              # explicitly disable
+//! tail -f ~/.grok/logs/hooks.log     # watch in another terminal
 //! ```
 
 use std::fmt;
@@ -30,9 +27,9 @@ use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::registry::LookupSpan;
 
-use xvora_config::xvora_home;
+use xvora_config::grok_home;
 
-const ENV_HOOKS_LOG: &str = "XVORA_HOOKS_LOG";
+const ENV_HOOKS_LOG: &str = "GROK_HOOKS_LOG";
 
 static LOG_GUARD: std::sync::OnceLock<Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>> =
     std::sync::OnceLock::new();
@@ -57,11 +54,9 @@ impl FormatTime for UptimeTimer {
     }
 }
 
-/// Build the hooks/plugins log layer.
-///
-/// Writes to `~/.xvora/logs/hooks.log` (or custom path via `XVORA_HOOKS_LOG`).
+/// Writes to `~/.grok/logs/hooks.log` (or custom path via `GROK_HOOKS_LOG`).
 /// Filters to hooks (`xvora_hooks`) and plugins (`xvora_agent::plugins`) targets.
-/// Set `XVORA_HOOKS_LOG=0` to disable, `XVORA_HOOKS_LOG=/path` to redirect.
+/// Set `GROK_HOOKS_LOG=0` to disable, `GROK_HOOKS_LOG=/path` to redirect.
 pub fn layer<S>() -> Option<impl Layer<S>>
 where
     S: Subscriber + for<'span> LookupSpan<'span>,
@@ -90,9 +85,9 @@ where
         *slot = Some(guard);
     }
 
-    // Filter for both hooks and plugins targets at debug level
-    let filter =
-        tracing_subscriber::filter::EnvFilter::new("xvora_hooks=debug,xvora_agent::plugins=debug");
+    let filter = tracing_subscriber::filter::EnvFilter::new(
+        "xvora_hooks=debug,xvora_agent::plugins=debug",
+    );
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
         .with_ansi(false)
@@ -109,7 +104,7 @@ where
 }
 
 fn resolve_log_path() -> Option<PathBuf> {
-    let default_path = || xvora_home().join("logs").join("hooks.log");
+    let default_path = || grok_home().join("logs").join("hooks.log");
     let raw = match std::env::var(ENV_HOOKS_LOG) {
         Ok(val) => val,
         Err(_) => return None, // opt-in only

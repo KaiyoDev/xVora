@@ -1,27 +1,38 @@
-//! Shared environment helpers: binary resolution, git workdirs, env var setup.
+//! Binary resolution, serial env guards, and git sandbox creation.
 
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tempfile::TempDir;
+use crate::sandbox::TestSandbox;
 
-/// RAII guard for a single environment variable in `#[serial]` tests: snapshots
-/// the prior value on construction, applies the change, then restores the prior
-/// value (or unsets it) on drop — even if an assertion panics. Restoring rather
-/// than always unsetting avoids clobbering vars a parent process/harness set
-/// (e.g. `RUST_LOG`).
+/// Parse env var `key` into `T`, falling back to `default` when it is unset or present-but-unparseable (warning in the latter case).
+pub fn env_parse<T: std::str::FromStr>(key: &str, default: T) -> T {
+    let Ok(raw) = std::env::var(key) else {
+        return default;
+    };
+    match raw.parse() {
+        Ok(value) => value,
+        Err(_) => {
+            eprintln!("[test-support] ignoring unparseable {key}={raw:?}; using default");
+            default
+        }
+    }
+}
+
+/// RAII guard for a single environment variable in `#[serial]` tests.
+/// It snapshots the prior value, applies the change, and restores the prior value (or unsets it) on drop, even if an assertion panics.
+/// Restoring rather than always unsetting avoids clobbering vars a parent process/harness set (e.g. `RUST_LOG`).
 ///
-/// Callers MUST be `#[serial_test::serial]`: the `unsafe` `set_var`/`remove_var`
-/// are sound only when no other thread accesses the environment concurrently.
+/// Callers MUST be `#[serial_test::serial]`.
+/// The `unsafe` `set_var`/`remove_var` are sound only when no other thread accesses the environment concurrently.
 pub struct EnvGuard {
     key: &'static str,
     prior: Option<OsString>,
 }
 
 impl EnvGuard {
-    /// Set `key` to `value` for the guard's lifetime. Accepts `&str`, `&Path`,
-    /// `String`, etc. via `AsRef<OsStr>`.
+    /// Set `key` to `value` for the guard's lifetime.
     pub fn set(key: &'static str, value: impl AsRef<OsStr>) -> Self {
         let prior = std::env::var_os(key);
         // SAFETY: callers are `#[serial]`, so no other thread touches the env.
@@ -44,6 +55,37 @@ impl Drop for EnvGuard {
         match self.prior.take() {
             Some(v) => unsafe { std::env::set_var(self.key, v) },
             None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
+
+/// # Safety
+/// No other thread may access the environment concurrently; call before any other thread exists.
+pub unsafe fn isolate_grok_env(home: &Path) {
+    // SAFETY: forwarded to the caller.
+    unsafe {
+        std::env::set_var("GROK_HOME", home);
+        std::env::set_var("GROK_TELEMETRY_ENABLED", "false");
+        std::env::set_var("GROK_FEEDBACK_ENABLED", "false");
+        std::env::set_var("GROK_TRACE_UPLOAD", "false");
+        for var in [
+            "GROK_DEPLOYMENT_KEY",
+            "GROK_MANAGED_CONFIG",
+            "GROK_CONFIG",
+            "GROK_CONFIG_PATH",
+            "GROK_CLI_CHAT_PROXY_BASE_URL",
+            "GROK_MODELS_BASE_URL",
+            "GROK_MODELS_LIST_URL",
+            "XAI_API_KEY",
+            "GROK_API_KEY",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+        ] {
+            std::env::remove_var(var);
         }
     }
 }
@@ -75,9 +117,19 @@ fn ensure_local_grok_binary(binary: &Path) {
     }
 
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
-    let output = Command::new(&cargo)
-        .current_dir(workspace_root())
-        .args(["build", "-p", "xvora-pager", "--bin", "xvora-pager"])
+    let mut cmd = Command::new(&cargo);
+    cmd.current_dir(workspace_root())
+        .args([
+            "build",
+            "-p",
+            "xvora-pager-bin",
+            "--bin",
+            "xvora-pager",
+        ])
+        .stdin(std::process::Stdio::null())
+        .envs(xvora_tty_utils::pager_env());
+    xvora_tty_utils::detach_std_command(&mut cmd);
+    let output = cmd
         .output()
         .unwrap_or_else(|e| panic!("failed to spawn {cargo} to build xvora-pager: {e}"));
 
@@ -95,15 +147,17 @@ fn ensure_local_grok_binary(binary: &Path) {
     );
 }
 
-/// Resolve grok binary: `XVORA_BINARY` env (CI) or a locally built `xvora-pager` binary.
+/// Resolve grok binary: `GROK_BINARY` env (CI) or a locally built `xvora-pager` binary.
 pub fn grok_binary() -> PathBuf {
-    if let Ok(path) = std::env::var("XVORA_BINARY") {
+    if let Ok(path) = std::env::var("GROK_BINARY") {
         let p = PathBuf::from(path);
-        assert!(p.exists(), "XVORA_BINARY does not exist: {}", p.display());
-        return p;
+        assert!(p.exists(), "GROK_BINARY does not exist: {}", p.display());
+        // Bazel's GROK_BINARY is runfiles-relative; the harness spawns the child with a different cwd
+        // Absolutize against the (runfiles-root) cwd now
+        return std::path::absolute(&p).unwrap_or(p);
     }
 
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_xvora-pager") {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_xai-grok-pager") {
         let p = PathBuf::from(path);
         if p.exists() {
             return p;
@@ -115,63 +169,6 @@ pub fn grok_binary() -> PathBuf {
     binary
 }
 
-/// Temp dir with a git repo + one committed file.
-/// Forces libgit2 to fully init (the codepath that breaks with bad OpenSSL linking).
-pub fn git_workdir() -> TempDir {
-    let dir = TempDir::new().expect("create temp dir");
-    let path = dir.path();
-
-    fn run_git(args: &[&str], dir: &Path) {
-        let output = Command::new("git")
-            .args(args)
-            .current_dir(dir)
-            .output()
-            .unwrap_or_else(|e| panic!("failed to spawn git {}: {e}", args.join(" ")));
-        assert!(
-            output.status.success(),
-            "git {} failed (exit {:?}):\n{}",
-            args.join(" "),
-            output.status.code(),
-            String::from_utf8_lossy(&output.stderr),
-        );
-    }
-
-    run_git(&["init"], path);
-    // Configure git user for commits (required in CI where no global config exists)
-    run_git(&["config", "user.email", "test@test.com"], path);
-    run_git(&["config", "user.name", "Test"], path);
-
-    std::fs::write(path.join("README.md"), "test file\n").expect("write test file");
-
-    run_git(&["add", "-A"], path);
-    run_git(&["commit", "-m", "init", "--no-gpg-sign"], path);
-
-    dir
-}
-
-/// Point grok at the mock server with a fake API key and telemetry disabled.
-pub fn test_env_cmd_tokio(
-    cmd: &mut tokio::process::Command,
-    mock_url: &str,
-    home: &std::path::Path,
-) {
-    cmd.env("HOME", home)
-        // HOME alone does not sandbox grok on Windows: the product resolves
-        // `~` via `USERPROFILE`/Known Folders (`std::env::home_dir()`), so
-        // without an explicit XVORA_HOME every spawned child shares the real
-        // `%USERPROFILE%\.xvora` — test 1's models_cache.json (which embeds
-        // its per-test mock-server URL) then poisons every later test's
-        // prompt (the windows-x86_64 lifecycle "prompt timed out" failure).
-        // Mirrors `leader.rs` and the pty-harness `env_for_pager`.
-        .env("XVORA_HOME", home.join(".xvora"))
-        .env("XVORA_CLI_CHAT_PROXY_BASE_URL", mock_url)
-        .env("XVORA_XAI_API_BASE_URL", mock_url)
-        .env("XAI_API_KEY", "test-key-for-ci")
-        .env("XVORA_TELEMETRY_ENABLED", "false")
-        .env("XVORA_FEEDBACK_ENABLED", "false")
-        .env("XVORA_TRACE_UPLOAD", "false")
-        .env("XVORA_INSTRUMENTATION", "disabled")
-        // Release binaries (CI lifecycle tests) otherwise spawn a background
-        // update check that hits the network and can add latency under Rosetta.
-        .env("XVORA_DISABLE_AUTOUPDATER", "1");
+pub fn git_workdir() -> TestSandbox {
+    TestSandbox::builder().git().build()
 }

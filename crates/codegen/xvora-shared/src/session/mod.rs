@@ -4,10 +4,9 @@ pub mod info;
 
 pub use info::Info;
 
-// Re-export shared feedback wire types used by downstream crates
-// (e.g. xvora-pager-render).
+// Re-export shared feedback wire types used by downstream crates (e.g. xvora-pager-render).
 pub use prod_mc_cli_chat_proxy_types::feedback_types::FeedbackTerminalInfo;
 
 pub fn session_dir(info: &Info) -> PathBuf {
-    xvora_tools::util::xvora_home::sessions_cwd_dir(&info.cwd).join(info.id.to_string())
+    xvora_tools::util::grok_home::sessions_cwd_dir(&info.cwd).join(info.id.to_string())
 }

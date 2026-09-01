@@ -3,7 +3,7 @@
 //! The shared compaction algorithms operate over a sequence of *items*
 //! (turns/messages) without knowing the concrete harness type. The chat
 //! harness implements [`CompactionItem`] for its `GrokTurn`;
-//! xvora implements it for `xvora_sampling_types::ConversationItem`.
+//! grok-build implements it for `xvora_sampling_types::ConversationItem`.
 //!
 //! Keeping the contract minimal is deliberate: the algorithms only need
 //! enough structure to (a) classify roles, (b) read text, and (c) preserve
@@ -20,7 +20,7 @@
 /// Harness-agnostic role of a single conversation item.
 ///
 /// This is the common denominator of `GrokRole` (Grok chat) and the
-/// `ConversationItem` variants (xvora).
+/// `ConversationItem` variants (grok-build).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompactionRole {
     /// System prompt.
@@ -52,7 +52,7 @@ pub struct CompactionFileRef {
 ///
 /// Implementors:
 /// - Grok chat: `GrokTurn`
-/// - xvora: `ConversationItem`
+/// - grok-build: `ConversationItem`
 pub trait CompactionItem {
     /// The harness-agnostic role of this item.
     fn role(&self) -> CompactionRole;
@@ -116,22 +116,34 @@ pub trait CompactionItemBuilder: CompactionItem + Clone {
     /// it for other roles, but implementations should return
     /// `Some(self.clone())` for them to keep the contract total.
     fn strip_tool_content(&self) -> Option<Self>;
+
+    /// Truncate this item's payload for **summarizer input** to roughly
+    /// `max_tokens` (grok-build style: `max_bytes = max_tokens * 4`, prefix
+    /// clip). Used by FullReplace fit for oversized tool results and
+    /// emergency tail shrink. Default: clone unchanged.
+    ///
+    /// Prefer tool-result text; keep structural fields (ids, names). Drop
+    /// large sidecars when present.
+    fn truncate_payload_for_compaction(&self, max_tokens: u32) -> Self {
+        let _ = max_tokens;
+        self.clone()
+    }
 }
 
 /// Write seam for the full-replace **assembler**
 /// ([`crate::code_compaction::assemble::assemble_compacted_history`]):
-/// constructs the typed harness items that make up xvora's rebuilt
+/// constructs the typed harness items that make up grok-build's rebuilt
 /// history.
 ///
 /// This is a sibling of [`CompactionItemBuilder`], not a part of it, on
 /// purpose. `CompactionItemBuilder` is already implemented by Grok chat's
 /// `GrokTurn`; adding these constructors to it as required methods would break
-/// that impl. They are also xvora-specific (Grok chat's tail-keep path
+/// that impl. They are also grok-build-specific (Grok chat's tail-keep path
 /// has no `user_meta` / `project_instructions` / `system_reminder` carrier
 /// concept), so they live in their own seam that only the full-replace
 /// assembler depends on.
 ///
-/// The xvora implementor (`ConversationItem`) maps each constructor to the
+/// The grok-build implementor (`ConversationItem`) maps each constructor to the
 /// matching factory so the `SyntheticReason` tags the replay / spawn-time
 /// idempotence guards rely on are preserved.
 pub trait CompactionItemFactory: Sized {
@@ -179,5 +191,8 @@ impl<T: CompactionItemBuilder> CompactionItemBuilder for std::sync::Arc<T> {
     }
     fn strip_tool_content(&self) -> Option<Self> {
         (**self).strip_tool_content().map(std::sync::Arc::new)
+    }
+    fn truncate_payload_for_compaction(&self, max_tokens: u32) -> Self {
+        std::sync::Arc::new((**self).truncate_payload_for_compaction(max_tokens))
     }
 }

@@ -1,12 +1,7 @@
-//! Server-proxied workspace utilities.
+//! Helper functions for consuming server tool streams and extracting typed notifications from server notification frames.
+//! These are used by both the workspace crate (hub_server) and the shell crate (proxy-mode session actors) to interact with the server.
 //!
-//! Helper functions for consuming server tool streams and extracting typed
-//! notifications from server notification frames. These are used by both
-//! the workspace crate (hub_server) and the shell crate (proxy-mode
-//! session actors) to interact with the server.
-//!
-//! The `HubWorkspaceChannel` struct that previously lived here has been
-//! removed. Sessions now call the server harness directly via `ToolContext`.
+//! Despite the name, no channel type lives here; sessions call the server harness directly through `ToolContext`.
 
 use xvora_tools::notification::types::ToolNotification;
 use xvora_workspace_types::WorkspaceEvent;
@@ -17,9 +12,9 @@ pub use xvora_workspace_client::consume_stream_terminal;
 
 /// Extract a `WorkspaceEvent` from a custom `ToolNotificationFrame`.
 pub fn extract_workspace_event(
-    frame: &tool_protocol::ToolNotificationFrame,
+    frame: &xvora_tool_protocol::ToolNotificationFrame,
 ) -> Option<WorkspaceEvent> {
-    use tool_protocol::WireToolNotification;
+    use xvora_tool_protocol::WireToolNotification;
     match &frame.notification {
         WireToolNotification::Custom(c) => serde_json::from_value(c.payload.clone()).ok(),
         _ => None,
@@ -30,9 +25,9 @@ pub fn extract_workspace_event(
 ///
 /// Currently has no producer; kept for a future per-session `tool.notify` path.
 pub fn extract_tool_notification(
-    frame: &tool_protocol::ToolNotificationFrame,
+    frame: &xvora_tool_protocol::ToolNotificationFrame,
 ) -> Option<ToolNotification> {
-    use tool_protocol::WireToolNotification;
+    use xvora_tool_protocol::WireToolNotification;
     match &frame.notification {
         WireToolNotification::Custom(c) => {
             serde_json::from_value::<ToolNotification>(c.payload.clone()).ok()
@@ -48,7 +43,7 @@ pub fn extract_tool_notification(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tool_protocol::{ToolId, ToolNotificationFrame, WireToolNotification};
+    use xvora_tool_protocol::{ToolId, ToolNotificationFrame, WireToolNotification};
 
     #[test]
     fn extract_workspace_event_custom_valid() {

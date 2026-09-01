@@ -1,22 +1,19 @@
-//! MCP integration for the workspace server.
-//!
-//! Bridges [`McpClient`] to the server's [`McpTransport`] trait and wraps
-//! tool handlers with qualified `server__tool` names.
+//! Bridges [`McpClient`] to the server's [`McpTransport`] trait and wraps tool handlers with qualified `server__tool` names.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use computer_hub_mcp_adapter::{
+use serde_json::Value;
+use xvora_computer_hub_mcp_adapter::{
     McpBridgeConfig, McpCallResult, McpContent, McpServerInfo, McpToolDefinition, McpToolHandler,
     McpTransport,
 };
-use computer_hub_sdk::ToolServerHandler;
-use serde_json::Value;
-use tool_protocol::ToolId;
-use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
-use tool_types::ToolDescription;
+use xvora_computer_hub_sdk::ToolServerHandler;
 use xvora_mcp::rmcp;
-use xvora_mcp::servers::McpClient;
+use xvora_mcp::servers::{McpClient, parse_mcp_qualified_name};
+use xvora_tool_protocol::ToolId;
+use xvora_tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
+use xvora_tool_types::ToolDescription;
 
 /// Adapts [`McpClient`] to the [`McpTransport`] trait for [`McpBridge`].
 pub(crate) struct McpClientTransportAdapter {
@@ -31,14 +28,14 @@ impl McpClientTransportAdapter {
 
 #[async_trait]
 impl McpTransport for McpClientTransportAdapter {
-    async fn initialize(&self) -> Result<McpServerInfo, computer_hub_mcp_adapter::McpError> {
+    async fn initialize(&self) -> Result<McpServerInfo, xvora_computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
         let info = service.peer_info().ok_or_else(|| {
-            computer_hub_mcp_adapter::McpError::Transport("no peer info after init".into())
+            xvora_computer_hub_mcp_adapter::McpError::Transport("no peer info after init".into())
         })?;
         Ok(McpServerInfo {
             name: info.server_info.name.clone(),
@@ -49,12 +46,12 @@ impl McpTransport for McpClientTransportAdapter {
 
     async fn list_tools(
         &self,
-    ) -> Result<Vec<McpToolDefinition>, computer_hub_mcp_adapter::McpError> {
+    ) -> Result<Vec<McpToolDefinition>, xvora_computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
         let mut all_tools = Vec::new();
         let mut cursor: Option<String> = None;
@@ -64,7 +61,7 @@ impl McpTransport for McpClientTransportAdapter {
                     rmcp::model::PaginatedRequestParams::default().with_cursor(cursor.clone()),
                 ))
                 .await
-                .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+                .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
             all_tools.extend(result.tools.into_iter().map(|t| McpToolDefinition {
                 name: t.name.to_string(),
@@ -85,12 +82,12 @@ impl McpTransport for McpClientTransportAdapter {
         &self,
         name: &str,
         arguments: Value,
-    ) -> Result<McpCallResult, computer_hub_mcp_adapter::McpError> {
+    ) -> Result<McpCallResult, xvora_computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
         // MCP spec requires arguments to be an object; coerce if needed.
         let args_object = match arguments {
             Value::Object(map) => Some(map),
@@ -108,7 +105,7 @@ impl McpTransport for McpClientTransportAdapter {
                 params
             })
             .await
-            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
         Ok(McpCallResult {
             content: result
@@ -129,7 +126,7 @@ impl McpTransport for McpClientTransportAdapter {
         })
     }
 
-    async fn close(&self) -> Result<(), computer_hub_mcp_adapter::McpError> {
+    async fn close(&self) -> Result<(), xvora_computer_hub_mcp_adapter::McpError> {
         // No-op: cleanup happens when McpClient is dropped.
         Ok(())
     }
@@ -143,15 +140,14 @@ pub(crate) struct QualifiedMcpToolHandler {
 }
 
 impl QualifiedMcpToolHandler {
-    /// Returns `None` if the qualified name is not a valid `ToolId`.
+    /// Returns `None` if the qualified name is invalid or ambiguous.
     pub fn try_new(qualified_name: String, inner: Arc<McpToolHandler>) -> Option<Self> {
-        let qualified_id = match ToolId::new(&qualified_name) {
-            Ok(id) => id,
-            Err(err) => {
+        let qualified_id = match parse_mcp_qualified_name(&qualified_name) {
+            Some((id, _, _)) => id,
+            None => {
                 tracing::warn!(
-                    qualified_name = %qualified_name,
-                    error = %err,
-                    "skipping MCP tool: qualified name is not a valid ToolId"
+                    qualified_name,
+                    "skipping MCP tool: qualified name is invalid or ambiguous"
                 );
                 return None;
             }
@@ -189,32 +185,84 @@ impl ToolServerHandler for QualifiedMcpToolHandler {
 pub struct McpStartResult {
     /// Server names that started successfully.
     pub started: Vec<String>,
-    /// Servers that failed to start.
     pub failed: Vec<McpStartFailure>,
 }
 
-/// A single MCP server startup failure.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct McpStartFailure {
-    /// Server name.
     pub name: String,
     /// Human-readable error description.
     pub error: String,
 }
 
-/// Extract a server name from an [`McpError`](xvora_mcp::servers::McpError),
-/// falling back to `"unknown"`.
+/// Extract a server name from an [`McpError`](xvora_mcp::servers::McpError), falling back to `"unknown"`.
 pub(crate) fn server_name_from_mcp_error(e: &xvora_mcp::servers::McpError) -> &str {
     e.server_name().unwrap_or("unknown")
 }
 
-/// Bridge config factory for MCP bridge connections.
 pub(crate) fn make_bridge_config(
-    session_id: tool_protocol::SessionId,
+    session_id: xvora_tool_protocol::SessionId,
     server_name: &str,
 ) -> McpBridgeConfig {
     McpBridgeConfig {
         session_id,
         namespace: Some(server_name.to_owned()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use xvora_computer_hub_mcp_adapter::{McpBridge, McpError};
+    use xvora_tool_protocol::SessionId;
+
+    struct TestTransport;
+
+    #[async_trait]
+    impl McpTransport for TestTransport {
+        async fn initialize(&self) -> Result<McpServerInfo, McpError> {
+            Ok(McpServerInfo {
+                name: "test".to_owned(),
+                version: "1".to_owned(),
+                capabilities: Value::Null,
+            })
+        }
+
+        async fn list_tools(&self) -> Result<Vec<McpToolDefinition>, McpError> {
+            Ok(vec![McpToolDefinition {
+                name: "tool".to_owned(),
+                description: None,
+                input_schema: None,
+            }])
+        }
+
+        async fn call_tool(
+            &self,
+            _name: &str,
+            _arguments: Value,
+        ) -> Result<McpCallResult, McpError> {
+            unreachable!("constructor test does not call the tool")
+        }
+
+        async fn close(&self) -> Result<(), McpError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn qualified_handler_rejects_ambiguous_name() {
+        let bridge = McpBridge::connect(
+            Arc::new(TestTransport),
+            &make_bridge_config(SessionId::new("session").unwrap(), "test"),
+        )
+        .await
+        .unwrap()
+        .bridge;
+        let inner = bridge.handlers()[0].clone();
+
+        let valid = QualifiedMcpToolHandler::try_new("123__lookup".to_owned(), inner.clone())
+            .expect("valid qualified ToolId");
+        assert_eq!(valid.tool_id().as_str(), "123__lookup");
+        assert!(QualifiedMcpToolHandler::try_new("foo___bar".to_owned(), inner).is_none());
     }
 }

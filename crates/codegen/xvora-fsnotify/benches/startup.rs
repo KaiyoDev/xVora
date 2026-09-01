@@ -16,9 +16,9 @@
 //!   dirs are gitignored *below* the top level: per-dir mode (Linux default)
 //!   prunes them; fan-out mode pays for them on emulated-recursion backends.
 //!
-//! Run with `cargo bench -p fsnotify --bench startup`. Medians land in
+//! Run with `cargo bench -p xvora-fsnotify --bench startup`. Medians land in
 //! `target/criterion/watcher_startup/<scenario>/new/estimates.json`.
-//! `XVORA_FSNOTIFY_PER_DIR=0|1` pins the strategy for A/B runs.
+//! `GROK_FSNOTIFY_PER_DIR=0|1` pins the strategy for A/B runs.
 
 use std::fs;
 use std::path::Path;

@@ -3,23 +3,18 @@ license = "Apache-2.0"
 name = "xvora-shell-session-support"
 version = "0.1.0"
 edition.workspace = true
-description = "Session-support modules for the grok shell crate family: managed MCP credential/catalog caching and file-access tracking."
+description = "Session-support modules for the grok shell crate family: managed MCP gateway catalog/call caching and file-access tracking."
 
 [dependencies]
-agent-client-protocol = { workspace = true }
-chrono = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "time", "macros"] }
-tokio-util = { workspace = true }
 tracing = { workspace = true }
-file-utils = { path = "../file-utils", optional = true }
+file-utils = { path = "../xvora-file-utils", optional = true }
 xvora-http = { workspace = true }
-xvora-shell-base = { workspace = true }
 xvora-version = { workspace = true }
-xvora-workspace = { workspace = true }
 
 [features]
 default-bazel = []

@@ -1,43 +1,41 @@
-//! Subscription check for paywall gate lift.
+//! Checks the live subscription tier so the paywall gate can lift.
 //!
-//! Provides `single_check()` which queries `GET /user?include=subscription`
-//! for the live subscription tier from the backend, independent of the JWT.
-//! If a qualifying tier is detected, does a best-effort JWT refresh and
-//! settings re-fetch, then returns an `UnblockResult` so the agent can
-//! lift the gate.
+//! `single_check()` queries `GET /user?include=subscription` on the backend for the live tier, independent of the JWT.
+//! On a qualifying tier it does a best-effort JWT refresh and returns an `UnblockResult`.
+//! The agent then re-fetches settings and lifts the gate itself.
 //!
-//! The pager drives the polling via `x.ai/auth/check_subscription`: the 5s
-//! paywall chain, the free-tier watch, the refocus check, and
-//! verify-before-paywall gate deferral (see the pager's `app::subscription`
-//! module).
+//! The pager drives the polling via `x.ai/auth/check_subscription`.
+//! The callers are the 5s paywall chain, the free-tier watch, the refocus check, and the gate deferral that verifies before showing the paywall.
+//! See the pager's `app::subscription` module.
 use crate::auth::AuthManager;
 use crate::auth::UserInfo;
-use crate::auth::manager::RefreshReason;
+use crate::auth::manager::{BEST_EFFORT_REFRESH_TIMEOUT, BoundedRefresh, RefreshReason};
 use crate::auth::token_type::TokenType;
 use std::sync::Arc;
 use std::time::Duration;
-/// Subscription tiers that qualify for Xvora access.
-/// Any active subscription qualifies -- the access gate in remote settings
-/// controls which tiers are actually allowed.
-const QUALIFYING_TIERS: &[&str] = &[
-    "SuperGrokPro",
-    "GrokPro",
-    "SuperGrokLite",
-    "XPremiumPlus",
-    "XPremium",
-    "XBasic",
-];
-/// Successful subscription check result: confirmed qualifying tier +
-/// optionally refreshed settings.
+/// Any active subscription qualifies: the proxy only returns a tier when an active subscription exists (`None` otherwise).
+/// The access gate in remote settings controls which tiers are actually allowed.
+/// The `"Free"` guard is defense-in-depth should the proxy ever start stamping free users explicitly.
+fn is_qualifying_tier(tier: &str) -> bool {
+    !tier.is_empty() && tier != "Free"
+}
+/// Returned only when the check confirmed a qualifying tier.
 pub(crate) struct UnblockResult {
     pub(crate) new_tier: String,
-    pub(crate) settings: Option<crate::util::config::RemoteSettings>,
+    /// The `userId` from the `/user` response that confirmed the tier, resolved with the live bearer so it names the account the check started with.
+    /// The caller's identity guard accepts it alongside the started user_id.
+    /// The mint below spawns a `/user` enrichment that can rewrite a seeded or stale user_id to this canonical value mid-check.
+    /// That rewrite is not an account switch.
+    pub(crate) canonical_user_id: String,
+    /// True when the best-effort refresh below hit its bounded deadline with the exchange still running (detached, not dropped).
+    /// The caller must not force a second mint then: it would only queue behind the detached exchange for up to another full budget.
+    /// That would hold the gate lift past the single budget while the subscription is already confirmed.
+    pub(crate) refresh_deadline_hit: bool,
 }
-/// Fetch `/user?include=subscription` and return the parsed `UserInfo`.
 async fn fetch_user_info(
     http_client: &reqwest::Client,
     url: &str,
-    auth: &crate::auth::XaiAuth,
+    auth: &crate::auth::GrokAuth,
     auth_manager: &AuthManager,
     alpha_test_key: Option<&str>,
 ) -> Result<UserInfo, &'static str> {
@@ -64,13 +62,11 @@ async fn fetch_user_info(
         Err(_) => Err("transport"),
     }
 }
-/// Single-shot subscription check. Called by the pager every 5s while
-/// the paywall is shown (`x.ai/auth/check_subscription`).
+/// Called by the pager every 5s while the paywall is shown (`x.ai/auth/check_subscription`).
 ///
-/// Queries `/user?include=subscription` for the live tier. If a qualifying
-/// tier is found, does a best-effort JWT refresh + settings re-fetch and
-/// returns `Some(UnblockResult)`. Returns `None` if no qualifying
-/// subscription exists or the request fails.
+/// Queries `/user?include=subscription` for the live tier.
+/// On a qualifying tier it does a best-effort JWT refresh and returns `Some(UnblockResult)`.
+/// Returns `None` when no qualifying subscription exists or the request fails.
 #[tracing::instrument(name = "paywall_check", skip_all, fields(user_id = %user_id))]
 pub(crate) async fn single_check(
     auth_manager: Arc<AuthManager>,
@@ -78,6 +74,10 @@ pub(crate) async fn single_check(
     alpha_test_key: Option<&str>,
     user_id: &str,
 ) -> Option<UnblockResult> {
+    use crate::auth::backend::{ActiveAuthBackend, AuthBackend};
+    if !ActiveAuthBackend::default().is_xai_authority() {
+        return None;
+    }
     let user_url = format!("{}/user?include=subscription", proxy_base_url);
     let http_client = crate::http::shared_client();
     let auth = auth_manager.current()?;
@@ -95,7 +95,7 @@ pub(crate) async fn single_check(
             xvora_telemetry::unified_log::warn(
                 "paywall_check_error",
                 None,
-                Some(serde_json::json!({ "user_id" : user_id, "kind" : kind })),
+                Some(serde_json::json!({ "user_id": user_id, "kind": kind })),
             );
             return None;
         }
@@ -103,89 +103,92 @@ pub(crate) async fn single_check(
     xvora_telemetry::unified_log::info(
         "paywall_check_result",
         None,
-        Some(serde_json::json!(
-            { "user_id" : user_id, "subscription_tier" : user_info.subscription_tier,
-            }
-        )),
+        Some(serde_json::json!({
+            "user_id": user_id,
+            "subscription_tier": user_info.subscription_tier,
+        })),
     );
     let new_tier = match &user_info.subscription_tier {
         Some(tier) if !tier.is_empty() => tier.clone(),
         _ => return None,
     };
-    if !QUALIFYING_TIERS.contains(&new_tier.as_str()) {
+    if !is_qualifying_tier(&new_tier) {
         return None;
     }
     xvora_telemetry::unified_log::info(
         "paywall_check_subscription_detected",
         None,
-        Some(serde_json::json!({ "user_id" : user_id, "new_tier" : new_tier, })),
+        Some(serde_json::json!({
+            "user_id": user_id,
+            "new_tier": new_tier,
+        })),
     );
-    if let Err(e) = auth_manager
-        .refresh_chain(TokenType::OidcSession, RefreshReason::ServerRejected)
+    let refresh_deadline_hit = match auth_manager
+        .refresh_chain_bounded_outcome(
+            TokenType::OidcSession,
+            RefreshReason::ServerRejected,
+            BEST_EFFORT_REFRESH_TIMEOUT,
+        )
         .await
     {
-        xvora_telemetry::unified_log::warn(
-            "paywall_check_error",
-            None,
-            Some(serde_json::json!(
-                { "user_id" : user_id, "kind" : "refresh_failed", "detail" : e
-                .to_string(), }
-            )),
-        );
-    }
-    let settings = if crate::util::config::resolve_remote_fetch_enabled() {
-        let base_url = proxy_base_url.to_string();
-        let auth_for_settings = auth_manager.current().unwrap_or(auth);
-        let atk = alpha_test_key.map(str::to_string);
-        tokio::task::spawn_blocking(move || {
-            crate::remote::fetch_settings_blocking(&base_url, &auth_for_settings, atk.as_deref())
-        })
-        .await
-        .ok()
-        .flatten()
-    } else {
-        None
+        BoundedRefresh::Resolved(result) => {
+            if let Err(e) = *result {
+                xvora_telemetry::unified_log::warn(
+                    "paywall_check_error",
+                    None,
+                    Some(serde_json::json!({
+                        "user_id": user_id,
+                        "kind": "refresh_failed",
+                        "detail": e.to_string(),
+                    })),
+                );
+            }
+            false
+        }
+        BoundedRefresh::DeadlineElapsed => {
+            xvora_telemetry::unified_log::warn(
+                "paywall_check_error",
+                None,
+                Some(serde_json::json!({
+                    "user_id": user_id,
+                    "kind": "refresh_deadline",
+                    "detail": "bounded refresh deadline elapsed; mint continues in background",
+                })),
+            );
+            true
+        }
     };
     xvora_telemetry::unified_log::info(
         "paywall_check_unblocked",
         None,
-        Some(serde_json::json!({ "user_id" : user_id, "new_tier" : new_tier })),
+        Some(serde_json::json!({ "user_id": user_id, "new_tier": new_tier })),
     );
-    Some(UnblockResult { new_tier, settings })
+    Some(UnblockResult {
+        new_tier,
+        canonical_user_id: user_info.user_id,
+        refresh_deadline_hit,
+    })
 }
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn qualifying_tiers_includes_all_paid_tiers() {
+    fn all_paid_tiers_qualify() {
         for tier in &[
             "SuperGrokPro",
+            "SuperGrokPlus",
             "GrokPro",
             "SuperGrokLite",
             "XPremiumPlus",
             "XPremium",
             "XBasic",
         ] {
-            assert!(
-                QUALIFYING_TIERS.contains(tier),
-                "{tier} must be in QUALIFYING_TIERS"
-            );
+            assert!(is_qualifying_tier(tier), "{tier} must qualify");
         }
     }
     #[test]
-    fn free_tier_is_not_qualifying() {
-        assert!(!QUALIFYING_TIERS.contains(&"Free"));
-    }
-    #[test]
-    fn empty_tier_is_not_qualifying() {
-        assert!(!QUALIFYING_TIERS.contains(&""));
-    }
-    /// The subscription check only returns `Some` when `/user` reports a
-    /// qualifying tier. Verify the tier matching is exact (no prefix match).
-    #[test]
-    fn partial_tier_name_is_not_qualifying() {
-        assert!(!QUALIFYING_TIERS.contains(&"Super"));
-        assert!(!QUALIFYING_TIERS.contains(&"Grok"));
-        assert!(!QUALIFYING_TIERS.contains(&"XPremium+"));
+    fn free_and_empty_tiers_are_not_qualifying() {
+        assert!(!is_qualifying_tier("Free"));
+        assert!(!is_qualifying_tier(""));
     }
 }

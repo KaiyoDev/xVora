@@ -1,15 +1,14 @@
-//! Unit tests for [`super::oidc_refresher::OidcRefresher`]. Extracted
-//! from `oidc_refresher.rs` so the implementation reads top-to-bottom;
-//! wired in via `#[path = "oidc_refresher_tests.rs"] mod tests;`.
+//! Unit tests for [`super::oidc_refresher::OidcRefresher`].
+//! They were extracted from `oidc_refresher.rs` so the implementation reads top-to-bottom.
+//! The module is wired in via `#[path = "oidc_refresher_tests.rs"] mod tests;`.
 
 use super::*;
-use crate::auth::{GrokComConfig, XaiAuth};
+use crate::auth::{GrokAuth, GrokComConfig};
 use chrono::{Duration, Utc};
 
 // ── OIDC refresh E2E with mock IdP ─────────────────────────────────
 
-/// Start a mock server that handles OIDC discovery, token refresh, and
-/// the proxy /user endpoint (called by AuthManager::update).
+/// Start a mock server that handles OIDC discovery, token refresh, and the proxy /user endpoint (called by AuthManager::update).
 async fn start_mock_oidc_and_proxy() -> (String, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
@@ -65,7 +64,7 @@ async fn start_mock_oidc_and_proxy() -> (String, tokio::task::JoinHandle<()>) {
     (base, handle)
 }
 
-fn write_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &XaiAuth) {
+fn write_auth_to_disk(dir: &std::path::Path, scope: &str, auth: &GrokAuth) {
     let path = dir.join("auth.json");
     let mut map = crate::auth::read_auth_json(&path).unwrap_or_default();
     map.insert(scope.to_owned(), auth.clone());
@@ -82,7 +81,7 @@ async fn oidc_refresher_e2e_full_refresh_cycle() {
     );
 
     // Seed an expired OIDC token with all required fields.
-    let expired = XaiAuth {
+    let expired = GrokAuth {
         key: "old-expired-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -91,7 +90,7 @@ async fn oidc_refresher_e2e_full_refresh_cycle() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -121,7 +120,7 @@ async fn oidc_refresher_e2e_proactive_returns_cached_when_valid() {
     );
 
     // Seed a valid (not expired) OIDC token.
-    let valid = XaiAuth {
+    let valid = GrokAuth {
         key: "still-valid-token".into(),
         user_id: "user-42".into(),
         email: Some("test@corp.com".into()),
@@ -129,13 +128,12 @@ async fn oidc_refresher_e2e_proactive_returns_cached_when_valid() {
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(valid);
 
     let refresher = OidcRefresher::new(mgr.clone());
-    // PreRequest with a valid token: the refresher finds no expired_auth
-    // (token is valid) and no disk token, so it returns TransientFailure.
+    // PreRequest with a valid token: the refresher finds no expired_auth (token is valid) and no disk token, so it returns TransientFailure
     // The PreRequest fast-path is handled by refresh_chain (not the refresher).
     let result = refresher.refresh(RefreshReason::PreRequest).await;
     assert!(
@@ -154,11 +152,10 @@ async fn oidc_refresher_e2e_force_refreshes_locally_valid_token() {
         AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base_url),
     );
 
-    // Seed a valid (not yet expired) OIDC token. force=true simulates
-    // the reactive 401 path — server rejected the token even though it
-    // looks locally valid (e.g. clock skew, server-side revocation).
+    // Seed a valid (not yet expired) OIDC token
+    // force=true simulates the reactive 401 path: the server rejected a token that looks locally valid (e.g. clock skew, server-side revocation).
     // The refresher should still attempt an OIDC refresh.
-    let valid = XaiAuth {
+    let valid = GrokAuth {
         key: "still-valid-token".into(),
         user_id: "user-42".into(),
         email: Some("test@corp.com".into()),
@@ -166,7 +163,7 @@ async fn oidc_refresher_e2e_force_refreshes_locally_valid_token() {
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(valid);
 
@@ -187,11 +184,8 @@ async fn oidc_refresher_e2e_force_refreshes_locally_valid_token() {
 
 // ── Near-expiry (5-minute buffer) refresh scenarios ──────────────
 
-/// Regression test for token-expiry-window bug: when the token is within
-/// the 5-minute early-invalidation buffer, current() returns None but
-/// expired_auth() returns the token. The OidcRefresher must successfully
-/// refresh it via the refresh_token grant — the exact path exercised by
-/// initialize() in mvp_agent/mod.rs.
+/// Regression test: when the token is within the 5-minute early-invalidation buffer, current() returns None but expired_auth() returns the token.
+/// The OidcRefresher must successfully refresh it via the refresh_token grant, the exact path exercised by initialize() in mvp_agent/mod.rs.
 #[tokio::test]
 async fn oidc_refresher_e2e_near_expiry_within_buffer_refreshes() {
     let (base_url, server) = start_mock_oidc_and_proxy().await;
@@ -200,9 +194,9 @@ async fn oidc_refresher_e2e_near_expiry_within_buffer_refreshes() {
         AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base_url),
     );
 
-    // Token expires in 3 minutes — inside the 5-minute buffer.
+    // Token expires in 3 minutes, inside the 5-minute buffer
     // current() will return None, but expired_auth() will return it.
-    let near_expiry = XaiAuth {
+    let near_expiry = GrokAuth {
         key: "about-to-expire-token".into(),
         user_id: "user-42".into(),
         email: Some("test@corp.com".into()),
@@ -210,7 +204,7 @@ async fn oidc_refresher_e2e_near_expiry_within_buffer_refreshes() {
         expires_at: Some(Utc::now() + Duration::minutes(3)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(near_expiry);
 
@@ -251,8 +245,81 @@ async fn oidc_refresher_e2e_near_expiry_within_buffer_refreshes() {
     server.abort();
 }
 
-/// When the near-expiry token has a refresh_token but the IdP rejects
-/// the refresh (e.g. refresh_token revoked), silent refresh must fail.
+/// Contract: on `invalid_grant`, `OidcRefresher` must report **which refresh token it spent**, not just the access-token key.
+///
+/// `refresh_chain` uses `tried_refresh_token` to tell a lost rotation race apart from a revoked session.
+/// An unattributed outcome silently disables that check and turns any concurrent-refresh race into a machine-wide logout.
+/// The earlier demotion tests hand-built outcomes with `tried_key: None`, a shape this refresher never emits.
+/// They passed while production was unprotected; this test asserts the real shape.
+#[tokio::test]
+async fn oidc_refresher_attributes_the_refresh_token_it_spent_on_invalid_grant() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base_url = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
+    let base_for_discovery = base_url.clone();
+
+    let app = axum::Router::new()
+        .route(
+            "/.well-known/openid-configuration",
+            axum::routing::get(move || {
+                let b = base_for_discovery.clone();
+                async move {
+                    axum::Json(serde_json::json!({
+                        "authorization_endpoint": format!("{b}/authorize"),
+                        "token_endpoint": format!("{b}/token"),
+                    }))
+                }
+            }),
+        )
+        .route(
+            "/token",
+            axum::routing::post(|| async {
+                (
+                    axum::http::StatusCode::BAD_REQUEST,
+                    axum::Json(serde_json::json!({"error": "invalid_grant"})),
+                )
+            }),
+        );
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+    let dir = tempfile::tempdir().unwrap();
+    let mgr = Arc::new(
+        AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base_url),
+    );
+    mgr.hot_swap(GrokAuth {
+        key: "spent-access-token".into(),
+        user_id: "user-42".into(),
+        refresh_token: Some("rt-spent".into()),
+        expires_at: Some(Utc::now() - Duration::minutes(1)),
+        oidc_issuer: Some(base_url.clone()),
+        oidc_client_id: Some("test-client".into()),
+        ..GrokAuth::test_default()
+    });
+
+    let outcome = OidcRefresher::new(mgr.clone())
+        .refresh(crate::auth::manager::RefreshReason::PreRequest)
+        .await;
+
+    match outcome {
+        RefreshOutcome::PermanentFailure {
+            tried_key,
+            tried_refresh_token,
+            ..
+        } => {
+            assert_eq!(
+                tried_refresh_token.as_deref(),
+                Some("rt-spent"),
+                "the RT actually sent to the IdP must be reported so \
+                 refresh_chain can detect a sibling rotation",
+            );
+            assert_eq!(tried_key.as_deref(), Some("spent-access-token"));
+        }
+        other => panic!("expected PermanentFailure, got: {other:?}"),
+    }
+
+    server.abort();
+}
+
+/// When the near-expiry token has a refresh_token but the IdP rejects the refresh (e.g. refresh_token revoked), silent refresh must fail.
 #[tokio::test]
 async fn oidc_refresher_e2e_near_expiry_idp_rejects_refresh() {
     // Start a mock that rejects refresh requests with 401
@@ -290,37 +357,40 @@ async fn oidc_refresher_e2e_near_expiry_idp_rejects_refresh() {
         AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base_url),
     );
 
-    let near_expiry = XaiAuth {
+    let near_expiry = GrokAuth {
         key: "about-to-expire-token".into(),
         user_id: "user-42".into(),
         refresh_token: Some("rt-revoked".into()),
         expires_at: Some(Utc::now() + Duration::minutes(3)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(near_expiry);
 
-    // auth() dispatches to refresh_chain -> OidcRefresher -> invalid_grant.
-    // Because the token is still within real expires_at (3 min from now),
-    // the grace path returns the cached token as a fallback.
+    // Permanent invalid_grant discards both the access and refresh tokens (no grace re-serve of the pre-refresh snapshot)
+    // Grace remains for *transient* refresh failures only
     mgr.set_refresher(std::sync::Arc::new(OidcRefresher::new(mgr.clone())));
-    let refreshed = mgr.auth().await;
+    let err = mgr.auth().await.unwrap_err();
     assert!(
-        refreshed.is_ok(),
-        "grace path should return the cached token while within real expires_at"
+        matches!(
+            err,
+            crate::auth::AuthError::Refresh(crate::auth::RefreshTokenError::Permanent(_))
+        ),
+        "permanent invalid_grant must not grace-serve the pre-refresh AT, got: {err:?}",
     );
-    assert_eq!(refreshed.unwrap().key, "about-to-expire-token");
+    assert!(
+        mgr.current_or_expired().is_none(),
+        "permanent invalid_grant must clear credentials",
+    );
 
     server.abort();
 }
 
-/// On `invalid_client` (client_id rotated, soft-deleted, or disabled), the
-/// credential is retained and a permanent-failure verdict cached. Verdict + TTL
-/// stop the retry loop; the bearer drops only on explicit logout, so a
-/// transient client-rotation blip self-heals without a fleet re-login.
+/// On `invalid_client` (client_id rotated, soft-deleted, or disabled) with a hard-expired access token, permanent failure retains the tokens.
+/// Only invalid_grant discards credentials.
 #[tokio::test]
-async fn oidc_refresher_e2e_invalid_client_caches_verdict_and_retains_credentials() {
+async fn oidc_refresher_e2e_invalid_client_retains_credentials() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base_url = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
     let base_for_discovery = base_url.clone();
@@ -358,7 +428,7 @@ async fn oidc_refresher_e2e_invalid_client_caches_verdict_and_retains_credential
         AuthManager::new(dir.path(), GrokComConfig::default()).with_proxy_base_url(&base_url),
     );
 
-    let expired = XaiAuth {
+    let expired = GrokAuth {
         key: "old-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -366,47 +436,36 @@ async fn oidc_refresher_e2e_invalid_client_caches_verdict_and_retains_credential
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("deleted-client-id".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(expired);
 
     mgr.set_refresher(std::sync::Arc::new(OidcRefresher::new(mgr.clone())));
-    let refreshed = mgr.auth().await.ok();
+    let err = mgr.auth().await.unwrap_err();
     assert!(
-        refreshed.is_none(),
-        "refresh should fail when client is unknown"
+        matches!(
+            err,
+            crate::auth::AuthError::Refresh(crate::auth::RefreshTokenError::Permanent(_))
+        ),
+        "refresh should fail permanently when client is unknown, got: {err:?}",
     );
-
-    // Credential retained (not cleared) — the bearer may be fine; the client
-    // credential isn't.
+    assert_eq!(
+        mgr.current_or_expired()
+            .and_then(|a| a.refresh_token)
+            .as_deref(),
+        Some("rt-valid"),
+        "invalid_client must retain RT for TTL-gated retry after client rotation",
+    );
     assert!(
-        mgr.expired_auth().is_some(),
-        "credentials must be retained after invalid_client",
+        mgr.read_disk_auth().is_some() || mgr.current_or_expired().is_some(),
+        "invalid_client must not clear credentials",
     );
-    // The verdict is cached, scoped to the retained credential, and carries
-    // the non-sticky `ClientRejected` reason (so it ages out, not stuck-forever).
-    match mgr.permanent_failure() {
-        Some(crate::auth::AuthError::Refresh(crate::auth::RefreshTokenError::Permanent(e))) => {
-            assert_eq!(
-                e.reason,
-                crate::auth::RefreshTokenFailedReason::ClientRejected,
-                "invalid_client must map to ClientRejected",
-            );
-            assert!(
-                !e.reason.is_sticky(),
-                "ClientRejected must age out past the TTL, not stick forever",
-            );
-        }
-        other => panic!("invalid_client must cache a permanent-failure verdict, got {other:?}"),
-    }
 
     server.abort();
 }
 
-/// When the IdP would return `invalid_client` but disk auth.json already holds
-/// a valid token with a different client_id (a sibling re-authenticated during
-/// a client rotation), `auth()` adopts the sibling's disk token instead of
-/// failing.
+/// The IdP would return `invalid_client`, but disk auth.json already holds a valid token with a different client_id.
+/// That means a sibling re-authenticated during a client rotation, so `auth()` adopts the sibling's disk token instead of failing.
 #[tokio::test]
 async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -446,16 +505,15 @@ async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
     let scope = cfg.auth_scope();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    // Pre-populate disk with auth that has a *different* client_id,
-    // simulating another process having re-authenticated.
-    let disk_auth = XaiAuth {
+    // Pre-populate disk with auth that has a *different* client_id, simulating another process having re-authenticated
+    let disk_auth = GrokAuth {
         key: "disk-fresh-token".into(),
         user_id: "user-42".into(),
         refresh_token: Some("rt-disk".into()),
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("rotated-new-client-id".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     let mut store = std::collections::BTreeMap::new();
     store.insert(scope, disk_auth);
@@ -463,7 +521,7 @@ async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
     std::fs::write(dir.path().join("auth.json"), json).unwrap();
 
     // In-memory auth has the OLD client_id that the server rejects.
-    let expired = XaiAuth {
+    let expired = GrokAuth {
         key: "old-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -471,14 +529,11 @@ async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("deleted-client-id".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(expired);
 
-    // auth() picks up the valid disk token via try_use_disk_token
-    // (disk has a different, unexpired entry from a sibling process).
-    // This is BETTER than the old try_refresh path which ignored
-    // the valid disk token and hit the IdP.
+    // auth() picks up the valid disk token via try_use_disk_token (disk has a different, unexpired entry from a sibling process)
     mgr.set_refresher(std::sync::Arc::new(OidcRefresher::new(mgr.clone())));
     let refreshed = mgr.auth().await;
     assert!(
@@ -494,21 +549,12 @@ async fn oidc_refresher_e2e_invalid_client_adopts_valid_sibling_disk_token() {
     server.abort();
 }
 
-// The standalone `try_refresh_session_token` helper that previously
-// lived in this module was removed when refresh was centralized in
-// `AuthManager`. Its call sites now go through `AuthManager::auth()`
-// / `AuthManager::unauthorized_recovery()`, both of which have their
-// own coverage in `manager.rs`. The historical regression tests for
-// the helper (`try_refresh_respects_auth_type`,
-// `auth_type_must_be_session_token_after_session_key_set`) were
-// dropped along with the function. The `resolve_credentials`
-// invariant they also pinned remains covered by
-// `agent::config::tests::{resolve_credentials_sets_auth_type,
-// resolve_credentials_no_session_key_returns_api_key}`.
+// The standalone `try_refresh_session_token` helper once tested here was removed when refresh was centralized in `AuthManager`
+// Its call sites now go through `AuthManager::auth()` / `AuthManager::unauthorized_recovery()`, both covered in `manager.rs`
+// The `resolve_credentials` invariant its regression tests pinned remains covered by the `resolve_credentials_*` tests in `agent::config::tests`
 
-/// When another process has already refreshed and written a valid token
-/// to auth.json, `refresh_chain` (via `auth()`) should pick it up from
-/// disk instead of hitting the IdP.
+/// Another process has already refreshed and written a valid token to auth.json.
+/// `refresh_chain` (via `auth()`) should pick it up from disk instead of hitting the IdP.
 #[tokio::test]
 async fn oidc_refresh_picks_up_valid_disk_token() {
     let dir = tempfile::tempdir().unwrap();
@@ -517,7 +563,7 @@ async fn oidc_refresh_picks_up_valid_disk_token() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url("http://127.0.0.1:1"));
 
     // Seed in-memory with an expired token (stale refresh_token).
-    let expired = XaiAuth {
+    let expired = GrokAuth {
         key: "old-expired-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -525,12 +571,12 @@ async fn oidc_refresh_picks_up_valid_disk_token() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some("https://idp.example.com".into()),
         oidc_client_id: Some("client-1".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(expired);
 
     // Simulate another process writing a valid token to disk.
-    let fresh_on_disk = XaiAuth {
+    let fresh_on_disk = GrokAuth {
         key: "fresh-from-other-process".into(),
         user_id: "user-42".into(),
         email: Some("user@test.com".into()),
@@ -538,7 +584,7 @@ async fn oidc_refresh_picks_up_valid_disk_token() {
         expires_at: Some(Utc::now() + Duration::hours(1)),
         oidc_issuer: Some("https://idp.example.com".into()),
         oidc_client_id: Some("client-1".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &fresh_on_disk);
 
@@ -557,12 +603,10 @@ async fn oidc_refresh_picks_up_valid_disk_token() {
     );
 }
 
-/// When the disk token is also expired but has a newer refresh_token,
-/// the OIDC refresher should use the disk's RT for the IdP call.
+/// When the disk token is also expired but has a newer refresh_token, the OIDC refresher should use the disk's RT for the IdP call.
 #[tokio::test]
 async fn oidc_refresh_uses_disk_refresh_token() {
-    // Custom mock that captures the submitted refresh_token so we can
-    // assert the disk RT was sent, not the stale in-memory one.
+    // Custom mock that captures the submitted refresh_token so we can assert the disk RT was sent, not the stale in-memory one
     let captured_rt = std::sync::Arc::new(parking_lot::Mutex::new(None::<String>));
     let captured_for_handler = captured_rt.clone();
 
@@ -613,7 +657,7 @@ async fn oidc_refresh_uses_disk_refresh_token() {
     let scope = cfg.auth_scope();
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    mgr.hot_swap(XaiAuth {
+    mgr.hot_swap(GrokAuth {
         key: "old-mem-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -622,13 +666,13 @@ async fn oidc_refresh_uses_disk_refresh_token() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     });
 
     write_auth_to_disk(
         dir.path(),
         &scope,
-        &XaiAuth {
+        &GrokAuth {
             key: "old-disk-token".into(),
             create_time: Utc::now() - Duration::hours(2),
             user_id: "user-42".into(),
@@ -637,7 +681,7 @@ async fn oidc_refresh_uses_disk_refresh_token() {
             expires_at: Some(Utc::now() - Duration::hours(1)),
             oidc_issuer: Some(base_url.clone()),
             oidc_client_id: Some("test-client".into()),
-            ..XaiAuth::test_default()
+            ..GrokAuth::test_default()
         },
     );
 
@@ -654,10 +698,8 @@ async fn oidc_refresh_uses_disk_refresh_token() {
     server.abort();
 }
 
-/// When the lock file is held by another process (simulated), the
-/// refresher should fall through and still attempt the refresh.
-/// (Lock is now managed by refresh_chain, but the refresher itself
-/// should still succeed without a lock.)
+/// When the lock file is held by another process (simulated), the refresher should fall through and still attempt the refresh.
+/// (The lock is managed by refresh_chain, but the refresher itself should still succeed without a lock.)
 #[tokio::test]
 async fn lock_timeout_falls_through_to_refresh() {
     let (base_url, server) = start_mock_oidc_and_proxy().await;
@@ -666,7 +708,7 @@ async fn lock_timeout_falls_through_to_refresh() {
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
     // Seed with expired token that has a valid refresh_token.
-    let expired = XaiAuth {
+    let expired = GrokAuth {
         key: "old-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -675,7 +717,7 @@ async fn lock_timeout_falls_through_to_refresh() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     mgr.hot_swap(expired);
 
@@ -693,8 +735,12 @@ async fn lock_timeout_falls_through_to_refresh() {
 
     // Use a very short timeout so the test doesn't wait 30s.
     let _lock = mgr
-        .try_lock_auth_file_async(std::time::Duration::from_millis(100))
-        .await;
+        .try_lock_auth_file_async(
+            std::time::Duration::from_millis(100),
+            crate::auth::manager::lock::Heartbeat::Skip,
+        )
+        .await
+        .into_guard();
     assert!(_lock.is_none(), "lock should timeout");
 
     // The refresh should still succeed (refresher doesn't need the lock).
@@ -715,10 +761,9 @@ async fn lock_timeout_falls_through_to_refresh() {
 
 // ── Disk-token retry on invalid_grant ──────────────────────
 
-/// Mock IdP. `success_rts`: RT -> (access_token, new_rt).
-/// `rotation_targets`: RT -> new disk RT written as a side effect
-/// on `invalid_grant` (simulates sibling rotation). `attempts`
-/// counts every POST so tests can assert one-shot.
+/// Mock IdP. `success_rts` maps an RT to the (access_token, new_rt) it earns.
+/// `rotation_targets` maps an RT to the new disk RT written as a side effect on `invalid_grant` (simulates sibling rotation).
+/// `attempts` counts every POST so tests can assert the retry fires exactly once.
 async fn start_mock_oidc_with_disk_rotation(
     success_rts: std::collections::HashMap<&'static str, (&'static str, &'static str)>,
     rotation_targets: std::collections::HashMap<&'static str, &'static str>,
@@ -808,8 +853,8 @@ async fn start_mock_oidc_with_disk_rotation(
     (base, handle)
 }
 
-/// Sibling-rotation race: tried RT -> invalid_grant + sibling rotates disk;
-/// retry with disk RT must succeed without surfacing failure.
+/// Sibling-rotation race: the tried RT gets invalid_grant while a sibling rotates the disk RT.
+/// The retry with the disk RT must succeed without reporting a failure.
 #[tokio::test]
 async fn refresher_retries_with_disk_token_after_invalid_grant() {
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -835,9 +880,8 @@ async fn refresher_retries_with_disk_token_after_invalid_grant() {
 
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    // Disk and memory both have rt-stale; mock rotates disk on
-    // the first invalid_grant so the retry sees the fresh RT.
-    let stale = XaiAuth {
+    // Disk and memory both have rt-stale; the mock rotates disk on the first invalid_grant so the retry sees the fresh RT
+    let stale = GrokAuth {
         key: "stale-access-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -845,7 +889,7 @@ async fn refresher_retries_with_disk_token_after_invalid_grant() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &stale);
     mgr.hot_swap(stale);
@@ -876,8 +920,8 @@ async fn refresher_retries_with_disk_token_after_invalid_grant() {
     server.abort();
 }
 
-/// invalid_grant -> retry uses sibling-rotated disk RT -> invalid_client.
-/// Both ATs expired: PermanentFailure is recorded (not demoted).
+/// The first call gets invalid_grant, then the retry uses the sibling-rotated disk RT and gets invalid_client.
+/// Both access tokens are expired: PermanentFailure is recorded (not demoted).
 #[tokio::test]
 async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_disk() {
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -924,7 +968,7 @@ async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_
                         .map(|(_, v)| v.as_str())
                         .unwrap_or("");
                     if n == 0 {
-                        // First call: invalid_grant + sibling rotates disk.
+                        // First call: invalid_grant; the sibling rotates disk
                         assert_eq!(rt, "rt-stale");
                         let mut map = crate::auth::read_auth_json(&auth_path).unwrap_or_default();
                         if let Some(entry) = map.get_mut(&scope) {
@@ -943,7 +987,7 @@ async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_
                         )
                             .into_response();
                     }
-                    // Retry uses the sibling's RT -> invalid_client.
+                    // The retry uses the sibling's RT and gets invalid_client
                     assert_eq!(rt, "rt-sibling");
                     (
                         axum::http::StatusCode::UNAUTHORIZED,
@@ -961,7 +1005,7 @@ async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_
 
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    let stale = XaiAuth {
+    let stale = GrokAuth {
         key: "stale-access".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -969,7 +1013,7 @@ async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("client-stale".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &stale);
     mgr.hot_swap(stale);
@@ -990,22 +1034,17 @@ async fn refresher_disk_retry_invalid_client_with_different_client_id_preserves_
         other => panic!("expected PermanentFailure, got: {other:?}"),
     }
 
-    // Credential retained; the cached verdict (scoped to it) stops the storm.
+    // Disk-retry already tried the sibling RT and got invalid_client; permanent is recorded, but ClientRejected retains credentials
     assert!(
-        mgr.current_or_expired().is_some(),
-        "credential must be retained on permanent failure"
-    );
-    assert!(
-        mgr.permanent_failure().is_some(),
-        "verdict must be cached to stop the retry storm"
+        mgr.current_or_expired().is_some() || mgr.read_disk_auth().is_some(),
+        "invalid_client permanent must retain credentials (only invalid_grant discards)"
     );
     assert_eq!(attempts.load(Ordering::SeqCst), 2, "no recursion");
 
     server.abort();
 }
 
-/// Both RTs revoked: retry is strictly one-shot (no third call);
-/// refresh_chain's disk-RT-differs guard preserves disk creds.
+/// Both RTs revoked: retry is strictly one-shot (no third call).
 #[tokio::test]
 async fn refresher_disk_retry_is_one_shot() {
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -1016,8 +1055,7 @@ async fn refresher_disk_retry_is_one_shot() {
     let auth_path = dir.path().join("auth.json");
 
     let attempts = Arc::new(AtomicU32::new(0));
-    // Empty success_rts; disk rotates after the first attempt
-    // so the retry fires but also fails -- exhausts cleanly.
+    // Empty success_rts; disk rotates after the first attempt so the retry fires but also fails, exhausting cleanly
     let success_rts: std::collections::HashMap<&str, (&str, &str)> =
         std::collections::HashMap::new();
     let rotation_targets = std::collections::HashMap::from([("rt-stale", "rt-also-revoked")]);
@@ -1031,7 +1069,7 @@ async fn refresher_disk_retry_is_one_shot() {
 
     let mgr = Arc::new(AuthManager::new(dir.path(), cfg).with_proxy_base_url(&base_url));
 
-    let stale = XaiAuth {
+    let stale = GrokAuth {
         key: "stale-access-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -1039,7 +1077,7 @@ async fn refresher_disk_retry_is_one_shot() {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.clone()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     };
     write_auth_to_disk(dir.path(), &scope, &stale);
     mgr.hot_swap(stale);
@@ -1060,7 +1098,7 @@ async fn refresher_disk_retry_is_one_shot() {
         "exactly two IdP calls — disk-token retry must NOT recurse"
     );
 
-    // Disk auth must still be present (the refresher never clears).
+    // This test calls the refresher directly (not refresh_chain); disk is unchanged because refresh_chain is responsible for the permanent clear
     assert!(
         mgr.read_disk_auth().is_some(),
         "refresher must not touch disk; clearing is refresh_chain's responsibility"
@@ -1071,8 +1109,7 @@ async fn refresher_disk_retry_is_one_shot() {
 
 // ── Sleep-gate E2E (real OidcRefresher + mock IdP) ─────────────────
 
-/// Mock IdP that counts `/token` POSTs so a test can prove a deferred refresh
-/// suppressed the network call rather than just changing the return value.
+/// Mock IdP that counts `/token` POSTs so a test can prove a deferred refresh suppressed the network call rather than just changing the return value.
 async fn start_counting_mock_oidc(
     token_hits: Arc<std::sync::atomic::AtomicU32>,
 ) -> (String, tokio::task::JoinHandle<()>) {
@@ -1118,8 +1155,8 @@ async fn start_counting_mock_oidc(
     (base, handle)
 }
 
-fn expired_oidc_for(base_url: &str) -> XaiAuth {
-    XaiAuth {
+fn expired_oidc_for(base_url: &str) -> GrokAuth {
+    GrokAuth {
         key: "old-expired-token".into(),
         create_time: Utc::now() - Duration::hours(2),
         user_id: "user-42".into(),
@@ -1128,13 +1165,12 @@ fn expired_oidc_for(base_url: &str) -> XaiAuth {
         expires_at: Some(Utc::now() - Duration::hours(1)),
         oidc_issuer: Some(base_url.to_owned()),
         oidc_client_id: Some("test-client".into()),
-        ..XaiAuth::test_default()
+        ..GrokAuth::test_default()
     }
 }
 
-/// While sleep is imminent, `auth()` defers and never reaches the IdP; after
-/// wake it recovers via a real OIDC refresh. Exercises the production
-/// `OidcRefresher` against a mock IdP, not a stub.
+/// While sleep is imminent, `auth()` defers and never reaches the IdP; after wake it recovers via a real OIDC refresh.
+/// Exercises the production `OidcRefresher` against a mock IdP, not a stub.
 #[tokio::test]
 async fn sleep_gate_e2e_defers_then_recovers_on_wake() {
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -1175,11 +1211,9 @@ async fn sleep_gate_e2e_defers_then_recovers_on_wake() {
     server.abort();
 }
 
-/// A refresh already in flight when sleep becomes imminent runs to completion
-/// and persists its rotated token (no abort), proven through the real
-/// `OidcRefresher` by holding the mock `/token` open until after the gate is
-/// raised. The refresh token has already reached the IdP at that point, so
-/// aborting would discard the rotated successor — the failure we guard against.
+/// A refresh already in flight when sleep becomes imminent runs to completion and persists its rotated token (no abort).
+/// This is proven through the real `OidcRefresher` by holding the mock `/token` open until after the gate is raised.
+/// The refresh token has already reached the IdP at that point, so aborting would discard the rotated successor, the failure we guard against.
 #[tokio::test]
 async fn sleep_gate_e2e_in_flight_refresh_completes_across_imminent_sleep() {
     let idp_hit = Arc::new(tokio::sync::Notify::new());
@@ -1209,8 +1243,7 @@ async fn sleep_gate_e2e_in_flight_refresh_completes_across_imminent_sleep() {
                 let idp_hit = idp_hit_h.clone();
                 let release = release_h.clone();
                 async move {
-                    // Signal that the RT has reached the IdP, then block until
-                    // released — this span is the in-flight window.
+                    // Signal that the RT has reached the IdP, then block until released; this span is the in-flight window
                     idp_hit.notify_one();
                     release.notified().await;
                     axum::Json(serde_json::json!({
@@ -1241,9 +1274,8 @@ async fn sleep_gate_e2e_in_flight_refresh_completes_across_imminent_sleep() {
 
     idp_hit.notified().await;
 
-    // `set_system_sleep_imminent` now holds the OS sleep ack until the in-flight
-    // refresh drains. Drive it off the runtime (as the real OS power-listener
-    // thread does) so the runtime can complete the refresh while it waits.
+    // `set_system_sleep_imminent` holds the OS sleep ack until the in-flight refresh drains
+    // Drive it off the runtime (as the real OS power-listener thread does) so the runtime can complete the refresh while it waits
     let sleeper = mgr.clone();
     let ack = std::thread::spawn(move || sleeper.set_system_sleep_imminent(true));
     release.notify_one();
@@ -1266,17 +1298,16 @@ async fn sleep_gate_e2e_in_flight_refresh_completes_across_imminent_sleep() {
 
 // ── Transient-blip budget is per-credential ─────────────────────────
 
-/// Minimal `AuthSnapshot` for exercising `record_transient_failure` in
-/// isolation (it never reads credential state).
+/// Minimal `AuthSnapshot` for exercising `record_transient_failure` in isolation (it never reads credential state).
 struct EmptySnapshot;
 impl AuthSnapshot for EmptySnapshot {
-    fn current(&self) -> Option<XaiAuth> {
+    fn current(&self) -> Option<GrokAuth> {
         None
     }
-    fn expired_auth(&self) -> Option<XaiAuth> {
+    fn expired_auth(&self) -> Option<GrokAuth> {
         None
     }
-    fn read_disk_auth(&self) -> Option<XaiAuth> {
+    fn read_disk_auth(&self) -> Option<GrokAuth> {
         None
     }
     fn is_expired(&self) -> bool {
@@ -1284,9 +1315,8 @@ impl AuthSnapshot for EmptySnapshot {
     }
 }
 
-/// A fresh credential (e.g. after re-login on this long-lived refresher) must
-/// get the full blip budget instead of inheriting a dead credential's count,
-/// so a valid token is never escalated to a permanent failure early.
+/// A fresh credential (after re-login on this long-lived refresher) must get the full blip budget instead of inheriting a dead credential's count.
+/// Otherwise a valid token could be escalated to a permanent failure early.
 #[test]
 fn transient_blip_budget_is_scoped_to_the_credential() {
     let refresher = OidcRefresher::new(Arc::new(EmptySnapshot));
@@ -1295,7 +1325,7 @@ fn transient_blip_budget_is_scoped_to_the_credential() {
     // Accrue blips up to just under the escalation threshold on credential A.
     for _ in 0..MAX_CONSECUTIVE_TRANSIENT_FAILURES - 1 {
         assert!(matches!(
-            refresher.record_transient_failure("blip".into(), key_a.clone()),
+            refresher.record_transient_failure("blip".into(), key_a.clone(), false),
             RefreshOutcome::TransientFailure { .. }
         ));
     }
@@ -1303,9 +1333,44 @@ fn transient_blip_budget_is_scoped_to_the_credential() {
     // Credential B's first blip must stay transient, not escalate to permanent.
     assert!(
         matches!(
-            refresher.record_transient_failure("blip".into(), Some("cred-b".to_owned())),
+            refresher.record_transient_failure("blip".into(), Some("cred-b".to_owned()), false),
             RefreshOutcome::TransientFailure { .. }
         ),
         "a fresh credential must not inherit a prior credential's blip count",
+    );
+}
+
+/// Network-unreachable failures (DNS/connect/timeout, the post-wake offline window) must never consume the escalation budget.
+/// No amount of them may produce a `PermanentFailure` ("Run `grok login`") verdict, because they prove nothing about the credential.
+/// Counted failures accrued before or after are unaffected (the budget is neither consumed nor reset).
+#[test]
+fn network_unreachable_blips_never_escalate() {
+    let refresher = OidcRefresher::new(Arc::new(EmptySnapshot));
+    let key = Some("cred-a".to_owned());
+
+    // Far more unreachable blips than the budget: all stay transient.
+    for _ in 0..MAX_CONSECUTIVE_TRANSIENT_FAILURES * 3 {
+        assert!(
+            matches!(
+                refresher.record_transient_failure("wifi down".into(), key.clone(), true),
+                RefreshOutcome::TransientFailure { .. }
+            ),
+            "a network-unreachable failure must never escalate to permanent",
+        );
+    }
+
+    // The budget was not consumed: counted (IdP-reaching) blips still get the full threshold before escalating
+    for _ in 0..MAX_CONSECUTIVE_TRANSIENT_FAILURES - 1 {
+        assert!(matches!(
+            refresher.record_transient_failure("5xx".into(), key.clone(), false),
+            RefreshOutcome::TransientFailure { .. }
+        ));
+    }
+    assert!(
+        matches!(
+            refresher.record_transient_failure("5xx".into(), key.clone(), false),
+            RefreshOutcome::PermanentFailure { .. }
+        ),
+        "counted blips must still escalate at the threshold",
     );
 }

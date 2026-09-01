@@ -7,8 +7,6 @@ description = "Shared prompt-queue wire types for xvora-shell and xvora-pager"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
-
-[dev-dependencies]
 serde_json = { workspace = true }
 
 [lints]

@@ -440,7 +440,7 @@ mod tests {
 
     use super::*;
     use crate::computer::local::LocalFs;
-    use crate::implementations::xvora::read_file::{
+    use crate::implementations::grok_build::read_file::{
         ReadFileInput, ReadFileParams, ReadFileTool as GrokReadFileTool,
     };
     use crate::notification::types::ToolNotificationHandle;
@@ -695,7 +695,7 @@ mod tests {
             format: None,
         };
 
-        let first = tool_runtime::Tool::run(&GrokReadFileTool, test_ctx(shared), input)
+        let first = xvora_tool_runtime::Tool::run(&GrokReadFileTool, test_ctx(shared), input)
             .await
             .unwrap();
         let ReadFileOutput::FileContent(first) = first else {

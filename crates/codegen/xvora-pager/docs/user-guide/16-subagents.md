@@ -14,10 +14,10 @@ Agents and personas both customize behavior, but they operate at different level
 |---|---|---|
 | **What they configure** | The whole session: model, tools, prompt mode, system prompt | A behavioral overlay added to a subagent's prompt |
 | **Scope** | Primary session or subagent | Subagents only |
-| **How you set them** | At startup, or with agent definitions (`.md` files in `.xvora/agents/` or `~/.xvora/agents/`) | In `config.toml` (`[subagents.personas]`) or `.toml` files under `.xvora/personas/`; applied during subagent resolution |
+| **How you set them** | At startup, or with agent definitions (`.md` files in `.grok/agents/` or `~/.grok/agents/`) | In `config.toml` (`[subagents.personas]`) or `.toml` files under `.grok/personas/`; applied during subagent resolution |
 | **What they control** | Model, tool availability, prompt body, skills | Tone, output format, task focus, and input/output contracts |
 | **Who edits them** | You -- create, delete, or toggle them in the agents modal or by editing files | You -- define custom personas in config or files; bundled personas are read-only |
-| **Examples** | `xvora`, `explore`, `plan` | `researcher`, `concise` |
+| **Examples** | `grok-build`, `explore`, `plan` | `researcher`, `concise` |
 
 An agent defines the session itself. A persona shapes how a subagent behaves within a session. A subagent always runs as an agent type (for example, `general-purpose`), and resolution can layer a persona on top.
 
@@ -30,11 +30,11 @@ Manage both in the agents modal. Open it with `/config-agents` (alias `/agents`)
 Disable subagents with an environment variable or the config file:
 
 ```bash
-export XVORA_SUBAGENTS=0              # Environment variable
+export GROK_SUBAGENTS=0              # Environment variable
 ```
 
 ```toml
-# ~/.xvora/config.toml
+# ~/.grok/config.toml
 [subagents]
 enabled = false
 ```
@@ -79,17 +79,17 @@ instructions = "You are a thorough researcher. Always cite specific file paths."
 description = "Deep investigator."
 ```
 
-Xvora discovers file-based personas from these locations, in priority order:
+Grok Build discovers file-based personas from these locations, in priority order:
 
-- `.xvora/personas/*.toml` (project)
-- `~/.xvora/personas/*.toml` (user)
+- `.grok/personas/*.toml` (project)
+- `~/.grok/personas/*.toml` (user)
 - The bundled personas directory (lowest priority)
 
 Each file defines one persona, and the file name (without the extension) becomes the persona name. Inline `config.toml` personas take precedence over files. Only `.toml` files are discovered.
 
 Manage personas in the Personas tab of the agents modal (`/personas`). Bundled personas are read-only; personas you define are editable.
 
-> **Note:** Xvora applies personas through subagent resolution and roles, not through a `spawn_subagent` parameter. The main agent does not pass a persona name when it spawns a child.
+> **Note:** Grok Build applies personas through subagent resolution and roles, not through a `spawn_subagent` parameter. The main agent does not pass a persona name when it spawns a child.
 
 ### Persona Fields
 
@@ -125,7 +125,7 @@ Each field has a `name`, an `io_type` (defaults to `file`), a `required` flag, a
 
 ### Persona Resolution
 
-When a persona applies, Xvora resolves the effective model and reasoning effort in this order, highest priority first:
+When a persona applies, Grok Build resolves the effective model and reasoning effort in this order, highest priority first:
 
 1. Explicit spawn-time override
 2. Role default
@@ -148,7 +148,6 @@ The main agent calls the `spawn_subagent` tool. Its parameters:
 | `description`     | A short label for the task (3-5 words).                          |
 | `subagent_type`   | The agent type to launch. Defaults to `general-purpose`.         |
 | `background`       | Run the subagent in the background and return immediately with a subagent ID. Defaults to `false`. |
-| `capability_mode` | Restrict the subagent's tools: `read-only`, `read-write`, `execute`, or `all`. |
 | `isolation`       | `none` (shared workspace, the default) or `worktree` (isolated git worktree). |
 | `resume_from`     | Continue a completed subagent's conversation. Pass its subagent ID. |
 | `cwd`             | Working directory for the subagent. Mutually exclusive with `isolation: worktree`; ignored when `resume_from` is set (the resumed child inherits its source's directory). |
@@ -159,16 +158,14 @@ When you run a subagent in the background, retrieve its result later with `get_c
 
 ## Capability Modes
 
-A capability mode is an optional, coarse filter on a subagent's tools:
+Capability mode is not a spawn argument. A child's tools come from its **agent type** and any **role / definition default**. `general-purpose` is unrestricted (`all`). The built-in `explore` and `plan` types read, search, and run shell commands but cannot edit files.
 
 | Mode         | Read | Write | Execute | Description                                  |
 | ------------ | ---- | ----- | ------- | -------------------------------------------- |
 | `read-only`  | Yes  | No    | No      | Read, search, and inspect (also web search and LSP); no file edits or shell. |
 | `read-write` | Yes  | Yes   | No      | Read, plus create, edit, delete, and move files. No shell. |
 | `execute`    | Yes  | No    | Yes     | Read, plus run shell commands and background tasks. No file edits. |
-| `all`        | Yes  | Yes   | Yes     | Unrestricted tool access.                    |
-
-If you omit `capability_mode`, the subagent uses its agent type's toolset. The built-in `explore` and `plan` types read, search, and run shell commands but cannot edit files; `general-purpose` ships the full toolset.
+| `all`        | Yes  | Yes   | Yes     | Unrestricted tool access. Default for `general-purpose`. |
 
 ---
 
@@ -183,6 +180,40 @@ The `resume_from` parameter lets a new subagent continue where a completed subag
 
 The new subagent inherits the source's transcript, tool state, and model; its system prompt and tools are re-rendered from the current agent definition. The source must be completed (not running), belong to the current session, and use the same agent type.
 
+### MCP inheritance
+
+Subagents inherit the parent session’s **already-connected** MCP servers by default. That includes local stdio/HTTP servers and plugin-sourced agents (for example `my-plugin:reviewer`). The child discovers and calls those tools with `search_tool` / `use_tool` the same way the parent does.
+
+Control inheritance with agent frontmatter `mcpInheritance`:
+
+| Value | Effect |
+| ----- | ------ |
+| `all` (default if omitted) | Inherit every parent-connected MCP server |
+| `none` | Inherit no parent MCP servers |
+| `named: [server, …]` | Inherit only the listed server names |
+| `except: [server, …]` | Inherit all parent servers except the listed names |
+
+Example:
+
+```yaml
+---
+name: research-only
+description: Read MCP tools but not internal connectors
+tools: search_tool, use_tool, Read
+mcpInheritance:
+  except:
+    - internal-tools
+---
+```
+
+**Plugin agents** inherit parent MCP the same way. For security they still cannot:
+
+- Declare their own `mcpServers` in agent frontmatter (ignored with a warning)
+- Declare hooks in agent frontmatter
+- Set `permissionMode: bypassPermissions`
+
+Plugin-bundled MCP servers (plugin `.mcp.json`) still attach to the **parent/session** after the plugin is trusted — they are not a child-only frontmatter declaration. See [Plugins](09-plugins.md) and [MCP Servers](07-mcp-servers.md).
+
 ---
 
 ## Isolation: Worktree Mode
@@ -193,7 +224,7 @@ For tasks that modify files, run a subagent in an isolated git worktree with `is
 - Its changes stay isolated from the parent until you merge them.
 - The subagent's result includes the worktree path.
 
-Xvora manages worktrees through the `x.ai/git/worktree/*` extension methods, including an apply operation that merges changes back into the main working directory.
+Grok Build manages worktrees through the `x.ai/git/worktree/*` extension methods, including an apply operation that merges changes back into the main working directory.
 
 ---
 
@@ -209,7 +240,7 @@ explore = true                       # default -- omit to keep enabled
 plan = false                         # disable the plan subagent
 
 [subagents.models]
-explore = "xvora"               # route explore to a specific model
+explore = "grok-4.6"                 # route explore to a specific model
 ```
 
 Per-type model overrides apply for any parent. Without an override, a subagent inherits the parent's model.
@@ -222,8 +253,8 @@ Define custom roles with their own capability and model defaults:
 [subagents.roles.researcher]
 description = "Deep research agent"
 default_capability_mode = "read-only"
-model = "xvora"
-prompt_file = ".xvora/prompts/researcher.md"
+model = "grok-4.6"
+prompt_file = ".grok/prompts/researcher.md"
 ```
 
 Define custom personas with behavioral instructions:
@@ -231,18 +262,18 @@ Define custom personas with behavioral instructions:
 ```toml
 [subagents.personas.concise]
 instructions = "Be concise. No filler words."
-# instructions_file = ".xvora/personas/concise.md"  # or load from a file
+# instructions_file = ".grok/personas/concise.md"  # or load from a file
 ```
 
-Xvora also discovers roles from `.xvora/roles/*.toml` and personas from `.xvora/personas/*.toml`. Inline `config.toml` definitions take precedence over files.
+Grok Build also discovers roles from `.grok/roles/*.toml` and personas from `.grok/personas/*.toml`. Inline `config.toml` definitions take precedence over files.
 
 ---
 
 ## The Tasks Pane (TUI)
 
-Xvora shows running and finished work in side panes on the agent screen:
+Grok Build shows running and finished work in side panes on the agent screen:
 
-- Press `Ctrl+B` to toggle the tasks pane, which lists active and completed subagents and background commands with their status.
+- Press `Ctrl+G` to toggle the tasks pane, which lists active and completed subagents and background commands with their status.
 - Press `Ctrl+T` to toggle the separate todo pane.
 
 To view the available agent types and personas, open the command palette with `Ctrl+P` and choose **Manage Agents** (`/config-agents`).
@@ -259,7 +290,7 @@ Subagents appear in several places in the interactive TUI:
 
 When a subagent is spawned, a compact lifecycle block is added to the *parent's* scrollback:
 
-- `Subagent running: "do the thing" (Implementer · grok-3) — Thinking`
+- `Subagent running: "do the thing" (Implementer · grok-4.6) · Thinking`
 - Or for background subagents: `Subagent started: "..."`
 
 While running, the block shows a live activity suffix (e.g. "Running: cargo test", "Compacting", "Retrying (2/3)") pulled from the child's turn tracker. The bullet animates (or is colored) according to state.
@@ -268,7 +299,7 @@ Press **Enter** (or Ctrl-F) on the block to open the subagent's full transcript.
 
 For blocking subagents the single entry updates its bullet color when the child finishes. For background ones, a follow-up `Subagent completed/failed/cancelled in Xs: "..."` block is appended.
 
-### Tasks pane (Ctrl+B)
+### Tasks pane (Ctrl+G)
 
 As noted above — grouped under "Subagents", with spinners, elapsed times, and quick access to kill or inspect.
 

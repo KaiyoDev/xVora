@@ -1,26 +1,20 @@
-//! Todo types — re-exported from `xvora-tools` with ACP conversion helpers.
-//!
-//! Types are canonical in `xvora-tools`. This module adds ACP ↔ TodoItem
-//! conversions since `xvora-tools` is protocol-agnostic.
+//! Types are canonical in `xvora-tools`.
+//! This module adds conversions between ACP plan entries and `TodoItem` since `xvora-tools` is protocol-agnostic.
 
-pub use xvora_tools::implementations::xvora::todo::TodoId;
-pub use xvora_tools::implementations::xvora::todo::TodoItem;
-pub use xvora_tools::implementations::xvora::todo::TodoPriority;
-pub use xvora_tools::implementations::xvora::todo::TodoState;
-pub use xvora_tools::implementations::xvora::todo::TodoStatus;
+pub use xvora_tools::implementations::grok_build::todo::TodoId;
+pub use xvora_tools::implementations::grok_build::todo::TodoItem;
+pub use xvora_tools::implementations::grok_build::todo::TodoPriority;
+pub use xvora_tools::implementations::grok_build::todo::TodoState;
+pub use xvora_tools::implementations::grok_build::todo::TodoStatus;
 
 use agent_client_protocol as acp;
 
-/// Convert an ACP `PlanEntry` to a `TodoItem`.
-///
-/// Handles the cancelled state: ACP has no `Cancelled` status, so cancelled
-/// items are stored as `Completed` with `{"cancelled": true}` in meta.
+/// ACP has no `Cancelled` status, so cancelled items are stored as `Completed` with `{"cancelled": true}` in meta.
 pub fn todo_item_from_plan_entry(entry: acp::PlanEntry) -> TodoItem {
     let status = match entry.status {
         acp::PlanEntryStatus::Pending => TodoStatus::Pending,
         acp::PlanEntryStatus::InProgress => TodoStatus::InProgress,
         acp::PlanEntryStatus::Completed => {
-            // Check if this is actually a cancelled item
             if entry
                 .meta
                 .as_ref()
@@ -50,10 +44,8 @@ pub fn todo_item_from_plan_entry(entry: acp::PlanEntry) -> TodoItem {
     }
 }
 
-/// Convert a `TodoItem` to an ACP `PlanEntry`.
-///
 /// Cancelled items become `Completed` with `{"cancelled": true}` in meta.
-pub fn plan_entry_from_todo_item(item: TodoItem) -> acp::PlanEntry {
+pub(crate) fn plan_entry_from_todo_item(item: TodoItem) -> acp::PlanEntry {
     let status = match item.status {
         TodoStatus::Pending => acp::PlanEntryStatus::Pending,
         TodoStatus::InProgress => acp::PlanEntryStatus::InProgress,

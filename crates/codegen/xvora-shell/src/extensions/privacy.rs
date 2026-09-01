@@ -1,7 +1,7 @@
 //! `x.ai/privacy/setCodingDataRetention` extension handler.
 //!
-//! PUTs the new opt-out flag to cli-chat-proxy and updates local auth state
-//! to match. The local update is fire-and-forget (best-effort cache refresh).
+//! PUTs the new opt-out flag to cli-chat-proxy and updates local auth state to match.
+//! The local update only refreshes the cached copy, so its errors are ignored.
 
 use agent_client_protocol as acp;
 use serde::Deserialize;
@@ -29,7 +29,7 @@ async fn handle_set(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     let auth = agent.auth_manager.auth().await.map_err(|e| {
         tracing::warn!(error = %e, "privacy: auth resolution failed");
         acp::Error::auth_required()
-            .data("Authentication required. Run `xvora login` to re-authenticate.")
+            .data("Authentication required. Run `grok login` to re-authenticate.")
     })?;
 
     let proxy_url = agent.cfg.borrow().endpoints.proxy_url();
@@ -78,9 +78,8 @@ async fn handle_set(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     }
 
     // Update local auth state to reflect the change.
-    // Use save_without_enrichment to avoid a race: update() spawns a
-    // background GET /user enrichment that may read stale ACL state
-    // and overwrite the opt-out flag back to its previous value.
+    // Use save_without_enrichment to avoid a race
+    // update() spawns a background GET /user enrichment that may read stale ACL state and overwrite the opt-out flag back to its previous value
     let mut updated = auth.clone();
     updated.coding_data_retention_opt_out = params.coding_data_retention_opt_out;
     let _ = agent.auth_manager.save_without_enrichment(updated).await;

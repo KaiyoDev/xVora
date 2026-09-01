@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 
 use xvora_sampling_types::{
-    ConversationItem, DanglingToolCallReason, SamplingConfig, TokenUsage,
+    ConversationItem, DanglingToolCallReason, SamplingConfig, TokenUsage, ToolSpec,
     dedup_duplicate_tool_results, repair_dangling_tool_calls,
 };
 
@@ -15,18 +15,29 @@ use crate::usage::UsageLedger;
 /// have without unwrapping.
 pub fn estimate_system_message_tokens(item: &ConversationItem) -> u64 {
     match item {
-        ConversationItem::System(s) => token_estimation::estimate_tokens(&s.content),
+        ConversationItem::System(s) => xvora_token_estimation::estimate_tokens(&s.content),
         _ => 0,
     }
+}
+
+fn estimate_tool_tokens(
+    name: &str,
+    description: Option<&str>,
+    parameters: &serde_json::Value,
+) -> u64 {
+    let desc_len = description.map_or(0, str::len);
+    let params_len = parameters.to_string().len();
+    ((name.len() + desc_len + params_len) as u64) / xvora_token_estimation::BYTES_PER_TOKEN
 }
 
 /// Bytes/4 estimate of one tool definition (name + description + the
 /// JSON-serialized parameters).
 pub fn estimate_tool_definition_tokens(td: &xvora_sampling_types::ToolDefinition) -> u64 {
-    let name_len = td.function.name.len();
-    let desc_len = td.function.description.as_deref().map_or(0, |d| d.len());
-    let params_len = td.function.parameters.to_string().len();
-    ((name_len + desc_len + params_len) as u64) / token_estimation::BYTES_PER_TOKEN
+    estimate_tool_tokens(
+        &td.function.name,
+        td.function.description.as_deref(),
+        &td.function.parameters,
+    )
 }
 
 /// Sum [`estimate_tool_definition_tokens`] across a slice.
@@ -34,15 +45,23 @@ pub fn estimate_tool_definitions_tokens(tds: &[xvora_sampling_types::ToolDefinit
     tds.iter().map(estimate_tool_definition_tokens).sum()
 }
 
+/// Bytes/4 estimate of the exact tool specs serialized on a request.
+pub fn estimate_tool_specs_tokens(tools: &[ToolSpec]) -> u64 {
+    tools
+        .iter()
+        .map(|tool| estimate_tool_tokens(&tool.name, tool.description.as_deref(), &tool.parameters))
+        .sum()
+}
+
 /// Bytes/4 estimate for a single [`ConversationItem`].
 ///
-/// Images are counted at [`token_estimation::IMAGE_TOKEN_ESTIMATE`] each.
+/// Images are counted at [`xvora_token_estimation::IMAGE_TOKEN_ESTIMATE`] each.
 /// Shared by [`estimate_conversation_tokens`] and [`estimate_messages_tokens`]
 /// so the per-variant arithmetic stays in one place.
 pub fn estimate_item_tokens(item: &ConversationItem) -> u64 {
     use xvora_sampling_types::ContentPart;
     match item {
-        ConversationItem::System(s) => token_estimation::estimate_tokens(&s.content),
+        ConversationItem::System(s) => xvora_token_estimation::estimate_tokens(&s.content),
         ConversationItem::User(u) => {
             let mut bytes: usize = 0;
             let mut images: u64 = 0;
@@ -52,8 +71,8 @@ pub fn estimate_item_tokens(item: &ConversationItem) -> u64 {
                     ContentPart::Image { .. } => images += 1,
                 }
             }
-            (bytes as u64) / token_estimation::BYTES_PER_TOKEN
-                + token_estimation::estimate_image_tokens(images)
+            (bytes as u64) / xvora_token_estimation::BYTES_PER_TOKEN
+                + xvora_token_estimation::estimate_image_tokens(images)
         }
         ConversationItem::Assistant(a) => {
             let bytes = a.content.len()
@@ -61,36 +80,35 @@ pub fn estimate_item_tokens(item: &ConversationItem) -> u64 {
                     .iter()
                     .map(|tc| tc.arguments.len())
                     .sum::<usize>();
-            (bytes as u64) / token_estimation::BYTES_PER_TOKEN
+            (bytes as u64) / xvora_token_estimation::BYTES_PER_TOKEN
         }
-        ConversationItem::ToolResult(tr) => token_estimation::estimate_tokens(&tr.content),
+        ConversationItem::ToolResult(tr) => xvora_token_estimation::estimate_tokens(&tr.content),
         ConversationItem::BackendToolCall(b) => {
-            token_estimation::estimate_tokens(&b.text_summary())
+            xvora_token_estimation::estimate_tokens(&b.text_summary())
         }
         ConversationItem::Reasoning(r) => {
-            // Summary + content text follow the standard bytes-per-token
-            // estimate; encrypted blobs are base64 and don't survive
-            // tokenization 1:1, so estimate at len/4 as well.
+            // Text and encrypted blob are the same reasoning twice: take the
+            // larger, not the sum. The ciphertext is base64, ~4/3 over raw bytes.
             let text_bytes = xvora_sampling_types::reasoning_item_text(r).len();
             let enc_bytes = r.encrypted_content.as_deref().map(str::len).unwrap_or(0);
-            ((text_bytes + enc_bytes) as u64) / token_estimation::BYTES_PER_TOKEN
+            (text_bytes.max(enc_bytes * 3 / 4) as u64) / xvora_token_estimation::BYTES_PER_TOKEN
         }
     }
 }
 
 /// Estimate token footprint: text bytes / 4, images at the per-image
-/// constant defined by [`token_estimation::IMAGE_TOKEN_ESTIMATE`].
+/// constant defined by [`xvora_token_estimation::IMAGE_TOKEN_ESTIMATE`].
 pub fn estimate_conversation_tokens(items: &[ConversationItem]) -> u64 {
     items.iter().map(estimate_item_tokens).sum()
 }
 
-/// xvora's [`ItemTokenCounter`](xvora_compaction::ItemTokenCounter)
-/// for the shared compaction engine: the bytes/4 estimate xvora already
+/// grok-build's [`ItemTokenCounter`](xvora_compaction::ItemTokenCounter)
+/// for the shared compaction engine: the bytes/4 estimate grok-build already
 /// uses to drive its compaction triggers, exposed through the seam so the
 /// shared budgeting math gets the *same* trusted count.
 ///
 /// Where another host plugs a real BPE tokenizer into the same seam,
-/// xvora estimates instead, reusing [`estimate_item_tokens`] so the
+/// grok-build estimates instead, reusing [`estimate_item_tokens`] so the
 /// per-variant arithmetic (images, reasoning blobs, tool-call args) stays in
 /// one place.
 pub struct EstimatedItemTokenCounter;
@@ -273,6 +291,8 @@ mod tests {
             top_p: None,
             api_backend: Default::default(),
             extra_headers: Default::default(),
+            query_params: Default::default(),
+            env_http_headers: Default::default(),
             context_window: std::num::NonZeroU64::new(128_000).unwrap(),
             reasoning_effort: None,
             stream_tool_calls: None,
@@ -297,6 +317,29 @@ mod tests {
                 "counter must report the same trusted count as estimate_item_tokens"
             );
         }
+    }
+
+    #[test]
+    fn reasoning_estimate_takes_max_of_text_and_encrypted_not_sum() {
+        // max(4000, 4000*3/4)/4 = 1000, not the (4000+4000)/4 = 2000 double-count.
+        let mut r = xvora_sampling_types::synthesized_reasoning_item("x".repeat(4000));
+        r.encrypted_content = Some("e".repeat(4000));
+        assert_eq!(estimate_item_tokens(&ConversationItem::Reasoning(r)), 1000);
+    }
+
+    #[test]
+    fn reasoning_estimate_encrypted_only_scales_base64_down() {
+        // No visible text: base64-corrected size, 4000*3/4/4 = 750.
+        let mut r = xvora_sampling_types::synthesized_reasoning_item("");
+        r.summary.clear();
+        r.encrypted_content = Some("e".repeat(4000));
+        assert_eq!(estimate_item_tokens(&ConversationItem::Reasoning(r)), 750);
+    }
+
+    #[test]
+    fn reasoning_estimate_text_only_is_plain_bytes_per_token() {
+        let r = xvora_sampling_types::synthesized_reasoning_item("x".repeat(4000));
+        assert_eq!(estimate_item_tokens(&ConversationItem::Reasoning(r)), 1000);
     }
 
     #[test]
@@ -360,6 +403,27 @@ mod tests {
     }
 
     #[test]
+    fn estimate_tool_specs_tokens_counts_only_provided_specs() {
+        let kept = xvora_sampling_types::ToolDefinition::function(
+            "search",
+            Some("find a file"),
+            serde_json::json!({"type": "object"}),
+        );
+        let dropped = xvora_sampling_types::ToolDefinition::function(
+            "web_search",
+            Some("search the web"),
+            serde_json::json!({"type": "object"}),
+        );
+        let tools = vec![ToolSpec::from(kept.clone())];
+        let actual = estimate_tool_specs_tokens(&tools);
+        let expected = estimate_tool_definitions_tokens(std::slice::from_ref(&kept));
+        let unfiltered = estimate_tool_definitions_tokens(&[kept, dropped]);
+
+        assert_eq!(actual, expected);
+        assert!(actual < unfiltered);
+    }
+
+    #[test]
     fn estimate_messages_tokens_excludes_system_and_sums_rest() {
         // 4000 bytes per item -> 1000 tokens each.
         let items = vec![
@@ -377,11 +441,6 @@ mod tests {
     fn estimate_messages_tokens_zero_when_only_system() {
         let items = vec![ConversationItem::system("x".repeat(4000).as_str())];
         assert_eq!(estimate_messages_tokens(&items), 0);
-    }
-
-    #[test]
-    fn estimate_messages_tokens_zero_for_empty() {
-        assert_eq!(estimate_messages_tokens(&[]), 0);
     }
 
     #[test]

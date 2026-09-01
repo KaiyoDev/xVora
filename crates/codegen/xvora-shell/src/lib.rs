@@ -5,21 +5,26 @@
     unreachable_code,
     dead_code
 )]
-pub use tracing_macros::{teprintln, timed, tprintln};
+#![warn(unreachable_pub)]
+#[cfg(all(test, feature = "dhat-heap"))]
+#[global_allocator]
+static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
 pub(crate) use xvora_telemetry::unified_log;
-pub mod active_sessions;
+pub use xvora_tracing_macros::{teprintln, timed, tprintln};
 pub mod agent;
 pub mod auth;
 pub mod builtin;
-pub mod bundle;
+pub use xvora_bundle as bundle;
 pub mod claude_import;
 pub mod claude_import_state;
 pub mod cli_models;
 pub mod config;
+#[cfg(all(test, feature = "config-docs"))]
+pub mod config_docs;
 pub use xvora_shell_base::cpu_profile;
 pub use xvora_shell_base::env;
 pub mod extensions;
-pub use xvora_workspace::foreign_sessions;
+pub use xvora_foreign_sessions as foreign_sessions;
 pub mod heap_profile;
 pub use xvora_http as http;
 pub mod inspect;
@@ -33,11 +38,12 @@ pub mod relay;
 pub mod remote;
 pub mod sampling;
 pub mod session;
-pub mod terminal;
+pub use xvora_shell_terminal as terminal;
 #[cfg(test)]
 pub(crate) mod test_support;
 pub mod tier;
 pub mod tools;
-pub mod trace_classifier;
 pub mod upload;
 pub mod util;
+#[doc(hidden)]
+pub mod waterfall;

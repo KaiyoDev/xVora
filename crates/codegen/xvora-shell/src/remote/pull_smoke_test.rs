@@ -1,26 +1,26 @@
-//! Push → pull round-trip smoke test against the live backend.
+//! Round-trip test against the live backend: pushes one session, then pulls it back.
 //!
 //! Run with: `cargo test -p xvora-shell -- pull_smoke --ignored --nocapture`
 
 #[cfg(test)]
 mod tests {
-    use crate::auth::XaiAuth;
+    use crate::auth::GrokAuth;
     use crate::remote::client::BackendClient;
     use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};
     use std::collections::BTreeMap;
     use std::sync::Arc;
 
-    fn load_prod_auth() -> Option<XaiAuth> {
-        let path = crate::util::xvora_home::xvora_home().join("auth.json");
+    fn load_prod_auth() -> Option<GrokAuth> {
+        let path = crate::util::grok_home::grok_home().join("auth.json");
         let contents = std::fs::read_to_string(&path).ok()?;
-        let store: BTreeMap<String, XaiAuth> = serde_json::from_str(&contents).ok()?;
+        let store: BTreeMap<String, GrokAuth> = serde_json::from_str(&contents).ok()?;
         let scope = crate::auth::GrokComConfig::default().auth_scope();
         crate::auth::lookup_auth(&store, &scope)
     }
 
-    /// Full round-trip using the real RemoteSync production code path:
-    /// create RemoteSync → queue ACP notifications → flush → verify on
-    /// backend → pull back → verify local hydration + storage adapter load.
+    /// Full round trip through the real production `RemoteSync` path.
+    /// Creates a `RemoteSync`, queues ACP notifications, flushes, and verifies the backend row.
+    /// Then pulls the session back and verifies local hydration and the storage adapter load.
     #[tokio::test]
     #[ignore]
     async fn smoke_push_pull_round_trip() {
@@ -30,9 +30,9 @@ mod tests {
             ContentBlock, ContentChunk, SessionNotification, SessionUpdate, TextContent,
         };
 
-        let auth = load_prod_auth().expect("No auth.json — Run `xvora login`");
+        let auth = load_prod_auth().expect("No auth.json — run `grok login`");
         let am = Arc::new(crate::auth::AuthManager::new(
-            &crate::util::xvora_home::xvora_home(),
+            &crate::util::grok_home::grok_home(),
             crate::auth::GrokComConfig::default(),
         ));
         am.hot_swap(auth);
@@ -57,6 +57,7 @@ mod tests {
             subagent_role: None,
             fork_context_source: None,
             subagent_depth: None,
+            title_is_manual: None,
         };
 
         let sync = RemoteSync::new(

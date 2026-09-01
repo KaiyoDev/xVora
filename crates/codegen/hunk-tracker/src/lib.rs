@@ -1,8 +1,8 @@
-//! hunk-tracker - Track file hunks (diffs) with agent/external attribution.
+//! xvora-hunk-tracker - Track file hunks (diffs) with agent/external attribution.
 //!
 //! This crate provides:
 //! - Actor-based hunk tracking with source attribution (Agent vs External)
-//! - Integration with xvora-shell sessions
+//! - Integration with grok-shell sessions
 //!
 //! ## Actor Pattern
 //!
@@ -29,7 +29,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use hunk_tracker::{HunkTrackerActor, HunkEvent, TrackingMode, HunkAction};
+//! use xvora_hunk_tracker::{HunkTrackerActor, HunkEvent, TrackingMode, HunkAction};
 //! use tokio::sync::mpsc;
 //!
 //! // Create event channel

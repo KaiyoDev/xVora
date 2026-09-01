@@ -4,16 +4,16 @@ use std::sync::Arc;
 use std::time::Duration as StdDuration;
 
 use super::AuthManager;
-use super::lock::try_lock_auth_file_async;
+use super::lock::{Heartbeat, try_lock_auth_file_async};
 use crate::auth::manager::AUTH_LOCK_TIMEOUT;
-use crate::auth::model::{UserInfo, XaiAuth, lookup_auth};
+use crate::auth::model::{GrokAuth, UserInfo, lookup_auth};
 use crate::auth::storage::{read_auth_json, write_auth_json};
 
-/// `/user` fetch budget, shared by the inline (login) and background paths.
+/// Timeout for the `/user` fetch, shared by the inline (login) and background paths.
 const USER_FETCH_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 
-/// Logs `auth update enrichment dropped` if the task is cancelled
-/// mid-flight. Disarmed on normal completion.
+/// Logs `auth update enrichment dropped` if the task is cancelled before it finishes.
+/// Normal completion calls `disarm` first, which suppresses the log.
 pub(super) struct EnrichmentExitGuard {
     pub(super) started: std::time::Instant,
     pub(super) armed: bool,
@@ -40,7 +40,7 @@ impl Drop for EnrichmentExitGuard {
     }
 }
 
-pub(super) fn spawn(manager: Arc<AuthManager>, auth: XaiAuth) {
+pub(super) fn spawn(manager: Arc<AuthManager>, auth: GrokAuth) {
     tokio::spawn(async move {
         let mut exit_guard = EnrichmentExitGuard {
             started: std::time::Instant::now(),
@@ -123,15 +123,15 @@ async fn fetch_user_info(manager: &AuthManager, key: &str, log_label: &str) -> O
     }
 }
 
-/// Blocking login-time enrichment: merge `/user` fields before the first save.
-pub(super) async fn enrich_inline(manager: &AuthManager, auth: &mut XaiAuth) {
+/// Blocking enrichment at login: merges `/user` fields into `auth` before the first save.
+pub(super) async fn enrich_inline(manager: &AuthManager, auth: &mut GrokAuth) {
     let Some(ui) = fetch_user_info(manager, &auth.key, "auth login enrichment").await else {
         return;
     };
     apply_user_info_enrichment(auth, ui);
 }
 
-async fn run_user_info_enrichment(manager: &AuthManager, auth: XaiAuth) {
+async fn run_user_info_enrichment(manager: &AuthManager, auth: GrokAuth) {
     let started = std::time::Instant::now();
     let Some(user_info) = fetch_user_info(manager, &auth.key, "auth update enrichment").await
     else {
@@ -139,14 +139,26 @@ async fn run_user_info_enrichment(manager: &AuthManager, auth: XaiAuth) {
     };
     let user_elapsed_ms = started.elapsed().as_millis() as u64;
 
-    // R-M-W file lock. On timeout, fall through to an unlocked write
-    // rather than drop the enrichment.
+    // Read-modify-write under the file lock. On timeout, skip the write rather than proceed unlocked.
+    // An unlocked read-modify-write can silently revert a freshly rotated access or refresh token on disk
+    // A rolled-back refresh token later fails with `invalid_grant` and forces a re-login
+    // Enrichment is cosmetic; it re-runs on the next refresh
     let lock_started = std::time::Instant::now();
-    let lock_guard = try_lock_auth_file_async(&manager.path, AUTH_LOCK_TIMEOUT).await;
+    let lock_guard = try_lock_auth_file_async(&manager.path, AUTH_LOCK_TIMEOUT, Heartbeat::Skip)
+        .await
+        .into_guard();
     let lock_wait_ms = lock_started.elapsed().as_millis() as u64;
-    if lock_guard.is_none() {
-        tracing::warn!("auth: enrichment proceeding without auth.json.lock");
-    }
+    let Some(_lock_guard) = lock_guard else {
+        xvora_telemetry::unified_log::warn(
+            "auth update enrichment skipped",
+            None,
+            Some(serde_json::json!({
+                "reason": "lock_timeout",
+                "lock_wait_ms": lock_wait_ms,
+            })),
+        );
+        return;
+    };
 
     let Ok(mut map) = read_auth_json(&manager.path) else {
         xvora_telemetry::unified_log::warn(
@@ -164,26 +176,18 @@ async fn run_user_info_enrichment(manager: &AuthManager, auth: XaiAuth) {
         );
         return;
     };
-    // Sibling-stomp guard. If either the access token or refresh
-    // token on disk differs from the one we wrote, a sibling process
-    // rotated tokens since our update(). Skip enrichment to avoid
-    // writing stale profile data over the sibling's fresher entry.
-    //
-    // OR logic (not AND): a single-field rotation (key changes, RT
-    // stays) is the common case during concurrent refresh. The old
-    // AND logic required ALL three fields to differ, letting
-    // single-field rotations through.
-    //
-    // Team-login transitions (placeholder→real user_id) don't rotate
-    // tokens, so OR correctly allows enrichment for that case.
+    // If the access token or the refresh token on disk differs from the one we wrote, a sibling process rotated tokens since our update()
+    // Skip enrichment then, so stale profile data never overwrites the sibling's fresher entry
+    // OR, not AND: during a concurrent refresh usually only the key changes while the refresh token stays
+    // Team-login transitions (a placeholder user_id becoming real) rotate no tokens, so they still pass this check and get enriched
     if disk.key != auth.key || disk.refresh_token != auth.refresh_token {
         xvora_telemetry::unified_log::info(
             "auth update enrichment skipped",
             None,
             Some(serde_json::json!({
                 "reason": "sibling_rotated",
-                "written_key_prefix": crate::auth::token_suffix(&auth.key),
-                "disk_key_prefix": crate::auth::token_suffix(&disk.key),
+                "written_key_prefix": xvora_auth::bearer_suffix(&auth.key),
+                "disk_key_prefix": xvora_auth::bearer_suffix(&disk.key),
             })),
         );
         return;
@@ -220,7 +224,7 @@ async fn run_user_info_enrichment(manager: &AuthManager, auth: XaiAuth) {
 }
 
 /// Merge enrichment fields into disk auth. Does not touch token fields.
-pub(super) fn apply_user_info_enrichment(disk: &mut XaiAuth, user_info: UserInfo) {
+pub(super) fn apply_user_info_enrichment(disk: &mut GrokAuth, user_info: UserInfo) {
     disk.user_id = user_info.user_id;
     disk.first_name = user_info.first_name.or(disk.first_name.take());
     disk.last_name = user_info.last_name.or(disk.last_name.take());

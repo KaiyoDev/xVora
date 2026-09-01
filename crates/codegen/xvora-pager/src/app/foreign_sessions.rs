@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 use tokio::sync::Semaphore;
-use xvora_workspace::foreign_sessions::{
+use xvora_foreign_sessions::{
     EnabledForeignSessionSources, ForeignSessionSummary, ForeignSessionTool, RecentForeignSession,
 };
 
@@ -306,15 +306,15 @@ impl ForeignPickerSource {
         format!("/{} {native_id}", self.skill_name())
     }
 
-    fn skill_paths(self, xvora_home: &Path) -> [PathBuf; 2] {
+    fn skill_paths(self, grok_home: &Path) -> [PathBuf; 2] {
         let skill = self.skill_name();
         [
-            xvora_home
+            grok_home
                 .join("bundled")
                 .join("skills")
                 .join(skill)
                 .join("SKILL.md"),
-            xvora_home.join("skills").join(skill).join("SKILL.md"),
+            grok_home.join("skills").join(skill).join("SKILL.md"),
         ]
     }
 }
@@ -339,7 +339,7 @@ pub(crate) fn foreign_tool_display_label(tool: ForeignSessionTool) -> &'static s
 
 pub(crate) async fn gated_sources_async_with<F, Fut>(
     compat: EnabledForeignSessionSources,
-    xvora_home: &Path,
+    grok_home: &Path,
     mut metadata_exists: F,
 ) -> EnabledForeignSessionSources
 where
@@ -352,7 +352,7 @@ where
             continue;
         }
         let mut available = false;
-        for path in source.skill_paths(xvora_home) {
+        for path in source.skill_paths(grok_home) {
             if metadata_exists(path).await {
                 available = true;
                 break;
@@ -367,9 +367,9 @@ where
 
 pub(crate) async fn gated_sources_async(
     compat: EnabledForeignSessionSources,
-    xvora_home: &Path,
+    grok_home: &Path,
 ) -> EnabledForeignSessionSources {
-    gated_sources_async_with(compat, xvora_home, |path| async move {
+    gated_sources_async_with(compat, grok_home, |path| async move {
         tokio::fs::metadata(path).await.is_ok()
     })
     .await
@@ -377,7 +377,7 @@ pub(crate) async fn gated_sources_async(
 
 pub(crate) async fn with_gated_sources_async_with<F, Fut, W, WorkFut, T>(
     compat: EnabledForeignSessionSources,
-    xvora_home: &Path,
+    grok_home: &Path,
     metadata_exists: F,
     work: W,
 ) -> Option<T>
@@ -387,7 +387,7 @@ where
     W: FnOnce(EnabledForeignSessionSources) -> WorkFut,
     WorkFut: Future<Output = T>,
 {
-    let enabled = gated_sources_async_with(compat, xvora_home, metadata_exists).await;
+    let enabled = gated_sources_async_with(compat, grok_home, metadata_exists).await;
     if !(enabled.claude || enabled.codex || enabled.cursor) {
         return None;
     }
@@ -396,7 +396,7 @@ where
 
 pub(crate) async fn with_gated_sources_async<W, WorkFut, T>(
     compat: EnabledForeignSessionSources,
-    xvora_home: &Path,
+    grok_home: &Path,
     work: W,
 ) -> Option<T>
 where
@@ -405,7 +405,7 @@ where
 {
     with_gated_sources_async_with(
         compat,
-        xvora_home,
+        grok_home,
         |path| async move { tokio::fs::metadata(path).await.is_ok() },
         work,
     )
@@ -415,7 +415,7 @@ where
 pub(crate) fn scan_effect(
     cwd: &Path,
     compat: EnabledForeignSessionSources,
-    xvora_home: &Path,
+    grok_home: &Path,
     coordinator: ForeignScanCoordinator,
     seq: u64,
 ) -> Option<Effect> {
@@ -423,7 +423,7 @@ pub(crate) fn scan_effect(
     (compat.claude || compat.codex || compat.cursor).then(|| Effect::ScanForeignSessions {
         cwd: cwd.to_path_buf(),
         compat,
-        xvora_home: xvora_home.to_path_buf(),
+        grok_home: grok_home.to_path_buf(),
         coordinator,
         seq,
     })
@@ -447,6 +447,9 @@ pub(crate) fn map_summary(summary: ForeignSessionSummary) -> SessionPickerEntry 
         branch: summary.branch,
         repo_name: crate::views::session_picker::repo_name_from_cwd(&cwd),
         worktree_label: None,
+        last_turn_summary: None,
+        last_recap: None,
+        session_kind: None,
         card_detail: None,
     }
 }
@@ -518,7 +521,7 @@ mod tests {
     use std::cell::RefCell;
     use std::time::{Duration, UNIX_EPOCH};
 
-    use xvora_workspace::foreign_sessions::ForeignSessionSource;
+    use xvora_foreign_sessions::ForeignSessionSource;
 
     use super::*;
 
@@ -556,6 +559,9 @@ mod tests {
             branch: None,
             repo_name: "repo".into(),
             worktree_label: None,
+            last_turn_summary: None,
+            last_recap: None,
+            session_kind: None,
             card_detail: None,
         }
     }

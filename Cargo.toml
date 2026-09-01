@@ -55,6 +55,10 @@ members = [
     "crates/codegen/xvora-workspace",
     "crates/codegen/xvora-workspace-client",
     "crates/codegen/xvora-workspace-types",
+    "crates/codegen/xvora-gboom",
+    "crates/codegen/xvora-pager-diff",
+    "crates/codegen/xvora-workspace-daemon",
+    "crates/codegen/xvora-workflow",
     "crates/codegen/hooks-plugins-types",
     "crates/codegen/hunk-tracker",
     "crates/codegen/xvora-mixpanel",
@@ -82,6 +86,8 @@ members = [
     "third_party/graphlib_rust",
     "third_party/mermaid-to-svg",
     "third_party/ordered_hashmap",
+    "crates/codegen/xvora-compaction-transcript",
+    "crates/codegen/xvora-dirs",
 ]
 
 [workspace.package]
@@ -322,6 +328,36 @@ tty-utils = { path = "crates/codegen/tty-utils" }
 zbus = { version = "5" }
 zstd = "0.13"
 
+ptyctl = { path = "crates/codegen/ptyctl" }
+ptyctl-cli = { path = "crates/codegen/ptyctl-cli" }
+chat-state = { path = "crates/codegen/chat-state" }
+codebase-graph = { path = "crates/codegen/codebase-graph" }
+xvora-compaction-transcript = { path = "crates/codegen/xvora-compaction-transcript" }
+computer-hub-mcp-adapter = { path = "crates/common/computer-hub-mcp-adapter" }
+crash-handler = { path = "crates/codegen/crash-handler" }
+xvora-dirs = { path = "crates/codegen/xvora-dirs" }
+fast-worktree = { path = "crates/codegen/fast-worktree" }
+file-utils = { path = "crates/codegen/file-utils" }
+xvora-compaction = { path = "crates/common/xvora-compaction" }
+xvora-hooks = { path = "crates/codegen/xvora-hooks" }
+xvora-pager = { path = "crates/codegen/xvora-pager" }
+xvora-pager-bin = { path = "crates/codegen/xvora-pager-bin" }
+xvora-pager-minimal = { path = "crates/codegen/xvora-pager-minimal" }
+xvora-pager-pty-harness = { path = "crates/codegen/xvora-pager-pty-harness" }
+xvora-pager-render = { path = "crates/codegen/xvora-pager-render" }
+xvora-paths = { path = "crates/codegen/xvora-paths" }
+xvora-plugin-marketplace = { path = "crates/codegen/xvora-plugin-marketplace" }
+xvora-sampling-types = { path = "crates/codegen/xvora-sampling-types" }
+xvora-sandbox = { path = "crates/codegen/xvora-sandbox" }
+xvora-subagent-resolution = { path = "crates/codegen/xvora-subagent-resolution" }
+xvora-update = { path = "crates/codegen/xvora-update" }
+xvora-voice = { path = "crates/codegen/xvora-voice" }
+xvora-workspace-client = { path = "crates/codegen/xvora-workspace-client" }
+hunk-tracker = { path = "crates/codegen/hunk-tracker" }
+xvora-workflow = { path = "crates/codegen/xvora-workflow" }
+xvora-workspace-daemon = { path = "crates/codegen/xvora-workspace-daemon" }
+xvora-pager-diff = { path = "crates/codegen/xvora-pager-diff" }
+xvora-gboom = { path = "crates/codegen/xvora-gboom" }
 [profile.release]
 incremental = true
 panic = "abort"

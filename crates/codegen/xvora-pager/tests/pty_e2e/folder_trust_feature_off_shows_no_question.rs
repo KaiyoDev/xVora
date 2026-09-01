@@ -2,23 +2,22 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// 15. **Feature off => no trust question.**
-/// With `XVORA_FOLDER_TRUST=0` (explicit opt-out) the feature is off, so the repo
-/// boots straight to the welcome (the default is now on).
+/// 15. **Feature off means no trust question.**
+/// With `GROK_FOLDER_TRUST=0` (explicit opt-out) the feature is off, so booting in the repo goes straight to the welcome (the default is on).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn folder_trust_feature_off_shows_no_question() {
     let content = ContentController::start().await.expect("start content");
     let repo = git_repo_with_mcp_json();
-    let env = trust_env(&content, false);
-    let env_refs: Vec<(&str, &str)> = env.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let env_refs = trust_env(false);
     let cwd = repo.path().to_str().expect("utf8 repo path");
 
     let binary = pager_binary().expect("resolve pager binary");
-    let mut harness = PtyHarness::new(
+    let mut harness = PtyHarness::spawn_with_content_env(
         &binary,
         DEFAULT_ROWS,
         DEFAULT_COLS,
+        &content,
         &["--cwd", cwd],
         &env_refs,
     )

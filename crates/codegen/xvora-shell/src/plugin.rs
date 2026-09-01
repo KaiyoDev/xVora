@@ -1,7 +1,7 @@
-//! Shared plugin lifecycle operations (output-agnostic).
+//! Shared plugin install, uninstall, update, and marketplace operations (output-agnostic).
 //!
-//! Called by the CLI (`plugin_cmd.rs`). The in-session slash commands
-//! (`acp_session.rs`) currently inline similar logic and should migrate here.
+//! Called by the CLI (`plugin_cmd.rs`).
+//! The in-session slash commands (`acp_session.rs`) currently inline similar logic and should migrate here.
 //!
 //! Callers own output formatting and telemetry.
 
@@ -37,23 +37,23 @@ pub struct InstallOutcome {
     pub is_local: bool,
 }
 
-/// Parse, clone/symlink, register, and enable a plugin. Does not emit telemetry.
-/// Classify an install source as local (filesystem) vs git (remote) without
-/// installing — used for telemetry `install_kind` on the failure path, where no
-/// [`InstallOutcome`] is available.
-pub fn install_source_is_local(source: &str, cwd: &Path) -> bool {
+/// Classify an install source as local (filesystem) vs git (remote) without installing.
+/// Used for telemetry `install_kind` on the failure path, where no [`InstallOutcome`] is available.
+pub(crate) fn install_source_is_local(source: &str, cwd: &Path) -> bool {
     matches!(
         git_install::parse_install_source(source, cwd),
         git_install::InstallSource::Local { .. }
     )
 }
 
+/// Parse, clone/symlink, register, and enable a plugin. Does not emit telemetry.
 pub fn install_plugin(source: &str, cwd: &Path) -> Result<InstallOutcome, InstallError> {
     let install_source = git_install::parse_install_source(source, cwd);
     let is_local = matches!(install_source, git_install::InstallSource::Local { .. });
     let mut registry = InstallRegistry::load();
 
-    let result = git_install::install_from_source(&install_source, &registry)?;
+    let result =
+        git_install::install_from_source(&install_source, &registry, marketplace_require_sha())?;
 
     let repo = git_install::build_installed_repo(&result, &install_source);
     registry.insert(result.repo_key.clone(), repo);
@@ -119,7 +119,7 @@ impl std::fmt::Display for UninstallError {
 }
 
 /// Find, remove, clean up, and deregister a plugin.
-/// When `keep_data` is true, `~/.xvora/plugin-data/<id>/` is preserved.
+/// When `keep_data` is true, `~/.grok/plugin-data/<id>/` is preserved.
 pub fn uninstall_plugin(
     name: &str,
     confirm: bool,
@@ -157,7 +157,7 @@ pub fn uninstall_plugin(
 
     if !keep_data {
         // Plugins under $HOME are user-scope; everything else is config-path scope.
-        let scope = match dirs::home_dir() {
+        let scope = match xvora_dirs::home_dir() {
             Some(home) if repo.path.starts_with(&home) => PluginScope::User,
             _ => PluginScope::ConfigPath,
         };
@@ -281,11 +281,13 @@ fn update_marketplace_repo(
             name: provenance.plugin_subdir.clone(),
         })?;
 
+    let require_sha = crate::plugin::marketplace_require_sha();
     installer::update_from_marketplace_entry_transactional(
         &marketplace_root.path,
         &entry,
         provenance,
         registry,
+        require_sha,
     )
 }
 
@@ -343,7 +345,7 @@ pub fn update_plugins(name: Option<&str>) -> Result<Vec<RepoUpdateOutcome>, Upda
     update_plugins_by_selector(name.map(|name| PluginUpdateSelector::PluginName(name.to_string())))
 }
 
-pub fn update_plugins_by_selector(
+pub(crate) fn update_plugins_by_selector(
     selector: Option<PluginUpdateSelector>,
 ) -> Result<Vec<RepoUpdateOutcome>, UpdateError> {
     let mut registry = InstallRegistry::load();
@@ -398,7 +400,7 @@ pub fn update_plugins_by_selector(
                 },
             }
         } else {
-            match git_install::update_repo(repo_key, repo) {
+            match git_install::update_repo(repo_key, repo, marketplace_require_sha()) {
                 Ok(UpdateStatus::Updated(result)) if result.changed => {
                     apply_update_to_registry(&mut registry, repo_key, &result);
                     RepoUpdateOutcome::Updated {
@@ -465,8 +467,7 @@ pub fn name_from_path(path: &Path) -> String {
         .unwrap_or_else(|| "marketplace".to_string())
 }
 
-/// A `marketplace add` input, split into the two source kinds the config
-/// supports (`git = "..."` vs `path = "..."`).
+/// A `marketplace add` input, split into the two source kinds the config supports (`git = "..."` vs `path = "..."`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MarketplaceAddInput {
     /// Local directory. Tilde-expanded and absolutized against the caller's cwd.
@@ -477,12 +478,10 @@ pub enum MarketplaceAddInput {
 
 /// Classify a `marketplace add` input as a local directory or a git URL.
 ///
-/// The explicit path indicators (leading `/`, `.`, `~`, `\`, or a Windows
-/// drive prefix) mirror `is_github_shorthand`'s path checks in
-/// `git_install::parse_install_source`. Unlike `plugin install`, unmarked
-/// inputs (`foo`, `a/b/c`) keep the legacy git-URL normalization for
-/// back-compat. Without this split, a path input would be mangled into
-/// `https://github.com/<path>.git` and only fail after network clone attempts.
+/// The explicit path indicators are a leading `/`, `.`, `~`, `\`, or a Windows drive prefix.
+/// They mirror `is_github_shorthand`'s path checks in `git_install::parse_install_source`.
+/// Unlike `plugin install`, unmarked inputs (`foo`, `a/b/c`) keep the legacy git-URL normalization for back-compat.
+/// Without this split, a path input would be mangled into `https://github.com/<path>.git` and only fail after network clone attempts.
 pub fn classify_marketplace_add_input(input: &str, cwd: &Path) -> MarketplaceAddInput {
     if !looks_like_local_path(input) {
         return MarketplaceAddInput::GitUrl(normalize_git_url(input));
@@ -493,17 +492,15 @@ pub fn classify_marketplace_add_input(input: &str, cwd: &Path) -> MarketplaceAdd
         let p = PathBuf::from(input);
         if p.is_relative() { cwd.join(p) } else { p }
     };
-    // Lexical cleanup only (`.` segments, trailing slashes; `..` is kept — no
-    // symlink resolution): keeps the stored string canonical enough for the
-    // writer's raw-string idempotency check to match the loader's PathBuf one.
+    // Lexical cleanup only (`.` segments, trailing slashes; `..` is kept, no symlink resolution)
+    // It keeps the stored string canonical enough for the writer's raw-string idempotency check to match the loader's PathBuf one
     MarketplaceAddInput::LocalPath(path.components().collect())
 }
 
-/// Expand a leading `~` to the home directory — the same expansion the
-/// marketplace loader applies to `path =` config entries.
+/// Expand a leading `~` to the home directory, the same expansion the marketplace loader applies to `path =` config entries.
 fn expand_tilde(input: &str) -> PathBuf {
     match input.strip_prefix('~') {
-        Some(rest) => dirs::home_dir()
+        Some(rest) => xvora_dirs::home_dir()
             .map(|h| h.join(rest.strip_prefix('/').unwrap_or(rest)))
             .unwrap_or_else(|| PathBuf::from(input)),
         None => PathBuf::from(input),
@@ -527,6 +524,7 @@ pub fn classify_install_error(err: &InstallError) -> String {
         InstallError::Json { .. } => "json",
         InstallError::PluginNotFound { .. } => "not_found",
         InstallError::ShaMismatch { .. } => "sha_mismatch",
+        InstallError::UnpinnedRemoteRefused { .. } => "unpinned_remote_refused",
         InstallError::InstallFailed { .. } => "install_failed",
     }
     .to_string()
@@ -579,8 +577,7 @@ pub enum MarketplaceInstallError {
 }
 
 impl MarketplaceInstallError {
-    /// Stable telemetry category, reusing [`classify_install_error`] for the
-    /// underlying install failure.
+    /// Stable telemetry category, reusing [`classify_install_error`] for the underlying install failure.
     pub fn category(&self) -> String {
         match self {
             Self::UnknownQualifier { .. } => "unknown_marketplace".to_string(),
@@ -699,8 +696,23 @@ fn bullet_list(items: &[String]) -> String {
         .join("\n")
 }
 
-/// Marketplace sources from config.toml + settings JSON, unfiltered.
-pub fn load_marketplace_sources() -> Vec<MarketplaceSource> {
+/// The require-sha pin policy for remote plugin code. Disk-only config and env, both tighten-only.
+/// Neither a remote campaign nor the `GROK_CONFIG` / `GROK_CONFIG_PATH` overlay must be able to relax a local security policy.
+/// An unreadable config falls back to the env setting.
+/// Read from the overlay-free layer merge (the overlay-free contract in `ConfigLayers::env_overlay`).
+/// That way an overlay `require_sha = false` cannot defeat a disk-set `true`.
+pub(crate) fn marketplace_require_sha() -> bool {
+    xvora_config::ConfigLayers::load()
+        .map(|layers| {
+            xvora_plugin_marketplace::load_require_sha(
+                &layers.effective_config_base_without_overlay(),
+            )
+        })
+        .unwrap_or_else(|_| xvora_plugin_marketplace::env_require_sha())
+}
+
+/// Marketplace sources from config.toml and settings JSON, unfiltered.
+pub(crate) fn load_marketplace_sources() -> Vec<MarketplaceSource> {
     let config = crate::config::load_effective_config()
         .ok()
         .unwrap_or(toml::Value::Table(toml::map::Map::new()));
@@ -709,10 +721,9 @@ pub fn load_marketplace_sources() -> Vec<MarketplaceSource> {
     sources
 }
 
-/// Like [`load_marketplace_sources`] but drops git sources blocked by the
-/// managed `marketplace_allowlist`. Install paths must use this so policy
-/// cannot be bypassed.
-pub fn load_filtered_marketplace_sources() -> Vec<MarketplaceSource> {
+/// Like [`load_marketplace_sources`] but drops git sources blocked by the managed `marketplace_allowlist`.
+/// Install paths must use this so policy cannot be bypassed.
+pub(crate) fn load_filtered_marketplace_sources() -> Vec<MarketplaceSource> {
     let allowlist =
         &xvora_workspace::permission::resolution::managed_settings().marketplace_allowlist;
     filter_sources_by_allowlist(load_marketplace_sources(), allowlist)
@@ -795,8 +806,8 @@ struct InstallPlan {
     skipped_sources: Vec<String>,
 }
 
-/// Map a marketplace ref to the source + entry to install, or a typed error.
-/// Pure over `sources` + the `scan` closure so it is unit-testable.
+/// Map a marketplace ref to the source and entry to install, or a typed error.
+/// Pure over `sources` and the `scan` closure so it is unit-testable.
 fn plan_install(
     sources: &[MarketplaceSource],
     name: &str,
@@ -911,9 +922,8 @@ fn plan_install(
     }
 }
 
-/// Install a plugin by marketplace name, optionally pinned via `qualifier`
-/// (`owner/repo` or `local/<slug>`). Loads allowlist-filtered sources and
-/// delegates selection to [`plan_install`].
+/// Install a plugin by marketplace name, optionally pinned via `qualifier` (`owner/repo` or `local/<slug>`).
+/// Loads allowlist-filtered sources and delegates selection to [`plan_install`].
 pub fn install_marketplace_plugin(
     name: &str,
     qualifier: Option<&str>,
@@ -1059,6 +1069,7 @@ fn install_marketplace_entry(
     };
 
     let result = if let Some(remote_url) = entry.remote_url.as_deref() {
+        let require_sha = crate::plugin::marketplace_require_sha();
         installer::install_from_remote_url(
             remote_url,
             entry.remote_ref.as_deref(),
@@ -1067,6 +1078,7 @@ fn install_marketplace_entry(
             &plugin_subdir,
             provenance,
             registry,
+            require_sha,
         )
     } else {
         installer::install_from_marketplace(marketplace_root, &plugin_subdir, provenance, registry)
@@ -1113,7 +1125,7 @@ pub fn uninstall_marketplace_source_plugins(source_identity: &str) -> Vec<String
         if let Err(e) = git_install::remove_repo_path(path) {
             tracing::warn!("failed to remove plugin dir for {key}: {e}");
         }
-        let scope = match dirs::home_dir() {
+        let scope = match xvora_dirs::home_dir() {
             Some(home) if path.starts_with(&home) => PluginScope::User,
             _ => PluginScope::ConfigPath,
         };
@@ -1144,8 +1156,7 @@ pub fn remove_toml_marketplace_block(content: &str, source_identity: &str) -> Op
             return git.trim_end_matches(".git") == identity_normalized;
         }
         if let Some(path) = entry.get("path").and_then(|v| v.as_str()) {
-            // The identity comes from a loaded source, whose `~` was expanded —
-            // match hand-written `path = "~/x"` entries by expanding them too.
+            // The identity comes from a loaded source, whose `~` was expanded; match hand-written `path = "~/x"` entries by expanding them too
             return path == source_identity || expand_tilde(path) == Path::new(source_identity);
         }
         false
@@ -1153,9 +1164,9 @@ pub fn remove_toml_marketplace_block(content: &str, source_identity: &str) -> Op
 
     sources.remove(idx);
 
-    // Keep other `[marketplace]` keys (the sticky official_marketplace_auto_installed
-    // flag) when `sources` empties; drop the table only when fully empty. Else
-    // removing an unrelated source wipes the flag and auto-register re-adds it.
+    // Keep other `[marketplace]` keys (the sticky official_marketplace_auto_installed flag) when `sources` empties
+    // Drop the table only when fully empty
+    // Otherwise removing an unrelated source wipes the flag and auto-register re-adds it
     let sources_now_empty = doc
         .get("marketplace")
         .and_then(|m| m.get("sources"))
@@ -1174,13 +1185,12 @@ pub fn remove_toml_marketplace_block(content: &str, source_identity: &str) -> Op
 }
 
 /// Try removing a source from `settings.json` / `known_marketplaces.json` under
-/// `~/.xvora/` and `~/.claude/`. Returns `true` if removed from at least one file.
+/// `~/.grok/` and `~/.claude/`. Returns `true` if removed from at least one file.
 pub fn try_remove_source_from_json_files(source_url_or_path: &str) -> bool {
-    // Resolve user grok via user_xvora_home() (None when no home resolves) and
-    // home separately, so removal still runs from $XVORA_HOME when no home dir
-    // exists, and never touches a cwd-relative .grok.
-    let home = dirs::home_dir();
-    let grok = xvora_config::user_xvora_home();
+    // Resolve user grok via user_grok_home() (None when no home resolves) and home separately
+    // Removal then still runs from $GROK_HOME when no home dir exists, and never touches a cwd-relative .grok
+    let home = xvora_dirs::home_dir();
+    let grok = xvora_config::user_grok_home();
 
     let mut settings_candidates: Vec<std::path::PathBuf> = Vec::new();
     if let Some(ref grok) = grok {
@@ -1318,7 +1328,7 @@ mod tests {
             normalize_git_url("user/repo"),
             "https://github.com/user/repo.git"
         );
-        // .git suffix not doubled
+        // The .git suffix is not doubled
         assert_eq!(
             normalize_git_url("user/repo.git"),
             "https://github.com/user/repo.git"
@@ -1366,7 +1376,7 @@ mod tests {
             MarketplaceAddInput::LocalPath(PathBuf::from("/work/../plugins"))
         );
         // Tilde expands to home.
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = xvora_dirs::home_dir() {
             assert_eq!(
                 classify_marketplace_add_input("~/plugins", cwd),
                 MarketplaceAddInput::LocalPath(home.join("plugins"))
@@ -1396,13 +1406,13 @@ mod tests {
 
     #[test]
     fn name_from_url_edge_cases() {
-        assert_eq!(name_from_url("https://github.com/org/repo/"), "repo"); // trailing slash bug fix
+        assert_eq!(name_from_url("https://github.com/org/repo/"), "repo"); // trailing slash is trimmed
         assert_eq!(name_from_url(""), "marketplace"); // empty fallback
     }
 
     #[test]
     fn classify_error_strings_match_canonical() {
-        // Must match acp_session.rs::classify_install_error exactly — prevents telemetry drift.
+        // Must match acp_session.rs::classify_install_error exactly; that prevents telemetry drift
         assert_eq!(
             classify_install_error(&InstallError::AlreadyInstalled { key: "k".into() }),
             "already_installed"
@@ -1428,6 +1438,13 @@ mod tests {
                 actual: "b".into()
             }),
             "sha_mismatch"
+        );
+        assert_eq!(
+            classify_install_error(&InstallError::UnpinnedRemoteRefused {
+                plugin: "p".into(),
+                url: "u".into()
+            }),
+            "unpinned_remote_refused"
         );
         assert_eq!(
             classify_install_error(&InstallError::InstallFailed { detail: "x".into() }),
@@ -1462,7 +1479,7 @@ mod tests {
             plugins: HashMap::new(),
             marketplace: None,
         };
-        let status = git_install::update_repo("local", &repo).unwrap();
+        let status = git_install::update_repo("local", &repo, false).unwrap();
         assert!(matches!(status, UpdateStatus::LiveLocal));
     }
 
@@ -1482,9 +1499,8 @@ mod tests {
 
     #[test]
     fn remove_toml_matches_tilde_path_entry_by_expanded_identity() {
-        // Loaded sources carry expanded paths, so removal by identity must
-        // still find a hand-written `path = "~/x"` entry.
-        let Some(home) = dirs::home_dir() else {
+        // Loaded sources carry expanded paths, so removal by identity must still find a hand-written `path = "~/x"` entry
+        let Some(home) = xvora_dirs::home_dir() else {
             return;
         };
         let content = "[[marketplace.sources]]\nname = \"dev\"\npath = \"~/dev/plugins\"\n";
@@ -1563,9 +1579,9 @@ mod tests {
         assert_eq!(
             registered_source_label(&git_source(
                 "xAI Official",
-                "https://github.com/KaiyoDev/plugin-marketplace.git"
+                "https://github.com/xvora-org/plugin-marketplace.git"
             )),
-            "xAI Official (KaiyoDev/plugin-marketplace)"
+            "xAI Official (xvora-org/plugin-marketplace)"
         );
         assert_eq!(
             registered_source_label(&local_source("Local Dev", "/tmp/p")),
@@ -1587,11 +1603,11 @@ mod tests {
             candidate_label(
                 &git_source(
                     "xAI Official",
-                    "https://github.com/KaiyoDev/plugin-marketplace.git"
+                    "https://github.com/xvora-org/plugin-marketplace.git"
                 ),
                 "sentry"
             ),
-            "xAI Official (pin: sentry@KaiyoDev/plugin-marketplace)"
+            "xAI Official (pin: sentry@xvora-org/plugin-marketplace)"
         );
         assert_eq!(
             candidate_label(&local_source("Local Dev", "/tmp/p"), "sentry"),
@@ -1604,14 +1620,14 @@ mod tests {
         let err = MarketplaceInstallError::UnknownQualifier {
             qualifier: "acme/repo".into(),
             registered: vec![
-                "xAI Official (KaiyoDev/plugin-marketplace)".into(),
+                "xAI Official (xvora-org/plugin-marketplace)".into(),
                 "Local Dev (local/local-dev)".into(),
             ],
         };
         let msg = err.to_string();
         assert!(msg.contains("Unknown marketplace \"acme/repo\""), "{msg}");
         assert!(
-            msg.contains("  - xAI Official (KaiyoDev/plugin-marketplace)"),
+            msg.contains("  - xAI Official (xvora-org/plugin-marketplace)"),
             "{msg}"
         );
         assert!(msg.contains("  - Local Dev (local/local-dev)"), "{msg}");
@@ -1620,7 +1636,7 @@ mod tests {
     #[test]
     fn ambiguous_qualifier_error_lists_source_names() {
         let err = MarketplaceInstallError::AmbiguousQualifier {
-            qualifier: "KaiyoDev/plugin-marketplace".into(),
+            qualifier: "xvora-org/plugin-marketplace".into(),
             sources: vec!["Mirror A".into(), "Mirror B".into()],
         };
         let msg = err.to_string();
@@ -1662,7 +1678,7 @@ mod tests {
     fn name_ambiguous_error_lists_candidates_and_pin_hint() {
         let err = MarketplaceInstallError::NameAmbiguous {
             name: "sentry".into(),
-            candidates: vec!["xAI Official (pin: sentry@KaiyoDev/plugin-marketplace)".into()],
+            candidates: vec!["xAI Official (pin: sentry@xvora-org/plugin-marketplace)".into()],
         };
         let msg = err.to_string();
         assert!(
@@ -1670,7 +1686,7 @@ mod tests {
             "{msg}"
         );
         assert!(
-            msg.contains("  - xAI Official (pin: sentry@KaiyoDev/plugin-marketplace)"),
+            msg.contains("  - xAI Official (pin: sentry@xvora-org/plugin-marketplace)"),
             "{msg}"
         );
         assert!(
@@ -1768,7 +1784,7 @@ mod tests {
         }
     }
 
-    const OFFICIAL_URL: &str = "https://github.com/KaiyoDev/plugin-marketplace.git";
+    const OFFICIAL_URL: &str = "https://github.com/xvora-org/plugin-marketplace.git";
 
     #[test]
     fn plan_install_qualifier_unknown_lists_registered_labels() {
@@ -1787,7 +1803,7 @@ mod tests {
                 assert_eq!(
                     registered,
                     vec![
-                        "xAI Official (KaiyoDev/plugin-marketplace)".to_string(),
+                        "xAI Official (xvora-org/plugin-marketplace)".to_string(),
                         "Local Dev (local/local-dev)".to_string(),
                     ]
                 );
@@ -1800,18 +1816,18 @@ mod tests {
     fn plan_install_qualifier_ambiguous_lists_source_names() {
         let sources = [
             git_source("Mirror A", OFFICIAL_URL),
-            git_source("Mirror B", "git@github.com:KaiyoDev/plugin-marketplace.git"),
+            git_source("Mirror B", "git@github.com:xvora-org/plugin-marketplace.git"),
         ];
         let err = plan_install(
             &sources,
             "sentry",
-            Some("KaiyoDev/plugin-marketplace"),
+            Some("xvora-org/plugin-marketplace"),
             |_| Ok(Vec::new()),
         )
         .expect_err("two sources share the owner/repo");
         match err {
             MarketplaceInstallError::AmbiguousQualifier { qualifier, sources } => {
-                assert_eq!(qualifier, "KaiyoDev/plugin-marketplace");
+                assert_eq!(qualifier, "xvora-org/plugin-marketplace");
                 assert_eq!(
                     sources,
                     vec!["Mirror A".to_string(), "Mirror B".to_string()]
@@ -1827,7 +1843,7 @@ mod tests {
         let err = plan_install(
             &sources,
             "sentry",
-            Some("KaiyoDev/plugin-marketplace"),
+            Some("xvora-org/plugin-marketplace"),
             |_| Ok(vec![mp_entry("other")]),
         )
         .expect_err("source has no plugin named sentry");
@@ -1849,7 +1865,7 @@ mod tests {
         let err = plan_install(
             &sources,
             "sentry",
-            Some("KaiyoDev/plugin-marketplace"),
+            Some("xvora-org/plugin-marketplace"),
             |_| Err("network down".to_string()),
         )
         .expect_err("sync failed");
@@ -1874,7 +1890,7 @@ mod tests {
         let plan = plan_install(
             &sources,
             "SeNtRy",
-            Some("KaiyoDev/plugin-marketplace"),
+            Some("xvora-org/plugin-marketplace"),
             |_| Ok(vec![mp_entry("sentry")]),
         )
         .expect("resolves the official source");
@@ -2173,14 +2189,14 @@ mod tests {
         let sources = vec![
             git_source(
                 "xAI Official",
-                "https://github.com/KaiyoDev/plugin-marketplace.git",
+                "https://github.com/xvora-org/plugin-marketplace.git",
             ),
             git_source(
                 "Internal",
                 "https://github.com/example/plugin-marketplace-internal.git",
             ),
         ];
-        let name = resolve_qualified_source_name_with(&sources, "KaiyoDev/plugin-marketplace")
+        let name = resolve_qualified_source_name_with(&sources, "xvora-org/plugin-marketplace")
             .expect("qualifier should match the official source");
         assert_eq!(name, "xAI Official");
     }
@@ -2200,7 +2216,7 @@ mod tests {
     fn resolve_qualified_source_name_with_unknown_qualifier_errors() {
         let sources = vec![git_source(
             "xAI Official",
-            "https://github.com/KaiyoDev/plugin-marketplace.git",
+            "https://github.com/xvora-org/plugin-marketplace.git",
         )];
         let err = resolve_qualified_source_name_with(&sources, "bogus/repo")
             .expect_err("unknown qualifier should error");

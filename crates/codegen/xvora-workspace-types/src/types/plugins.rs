@@ -1,13 +1,11 @@
-//! Discovery shapes for plugins and hooks surfaced by `OpsChunk::Plugins`,
-//! `OpsChunk::Plugin`, `WorkspaceEvent::PluginsChanged`, and
-//! `WorkspaceEvent::HooksChanged`.
+//! Discovery shapes for plugins and hooks.
+//! They appear in `OpsChunk::Plugins`, `OpsChunk::Plugin`, `WorkspaceEvent::PluginsChanged`, and `WorkspaceEvent::HooksChanged`.
 //!
 //! TODO(workspace): align with the canonical types in
-//! `hooks-plugins-types` and `xvora-plugin-marketplace`.
+//! `xvora-hooks-plugins-types` and `xvora-plugin-marketplace`.
 
 use serde::{Deserialize, Serialize};
 
-/// Plugin metadata.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginInfo {
     /// Stable identifier.
@@ -29,7 +27,6 @@ pub struct PluginInfo {
     pub enabled: bool,
 }
 
-/// Hook metadata.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HookInfo {
     /// Stable identifier (e.g. `"pre-tool-call"`).
@@ -40,7 +37,7 @@ pub struct HookInfo {
     /// Hook event the script attaches to (e.g. `"PreToolUse"`).
     ///
     /// TODO(workspace): the event field will become a typed enum once
-    /// aligned with `hooks_plugins_types::HookEvent` -- right
+    /// aligned with `xvora_hooks_plugins_types::HookEvent` -- right
     /// now it's a free-form string for placeholder convenience, which
     /// allows typos through.
     #[serde(default)]

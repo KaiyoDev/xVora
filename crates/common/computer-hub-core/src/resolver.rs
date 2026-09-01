@@ -14,12 +14,12 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde_json::Value;
 
-use tool_protocol::{SessionId, ToolCapabilities, ToolId, ToolRegistration};
-use tool_runtime::{
+use xvora_tool_protocol::{SessionId, ToolCapabilities, ToolId, ToolRegistration};
+use xvora_tool_runtime::{
     ListToolsContext, Tool, ToolCallContext, ToolError, ToolOutput, ToolStream, ToolStreamItem,
     TypedToolOutput, terminal_only,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 use crate::registry::ToolRegistry;
 
@@ -180,7 +180,7 @@ where
                 Ok(value) => {
                     let custom = out.model_output();
                     let model_output = if custom.is_empty() {
-                        tool_runtime::extract_content_blocks(&value)
+                        xvora_tool_runtime::extract_content_blocks(&value)
                     } else {
                         custom
                     };

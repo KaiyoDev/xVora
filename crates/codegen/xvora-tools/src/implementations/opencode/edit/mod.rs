@@ -19,8 +19,8 @@
 use std::sync::Arc;
 
 use crate::computer::types::AsyncFileSystem;
-use crate::implementations::xvora::search_replace::CONTEXT_LINES;
-use crate::implementations::xvora::search_replace::helpers::{
+use crate::implementations::grok_build::search_replace::CONTEXT_LINES;
+use crate::implementations::grok_build::search_replace::helpers::{
     build_edit_details, render_snippet, replace_using_positions,
 };
 use crate::notification::types::FileWritten;
@@ -42,15 +42,18 @@ use crate::types::tool::{ToolKind, ToolNamespace};
 // Description
 // ───────────────────────────────────────────────────────────────────────────
 
+// NOTE: OpenCode's `EditInput` serializes camelCase (`oldString`, `newString`,
+// `replaceAll`), so param refs must use the camelCase schema property names —
+// the snake_case `params.edit.old_string` keys of the grok_build twin resolve
+// to "" here (the kind-params map is keyed by schema property names).
 const DESCRIPTION: &str = r#"Performs exact string replacements in files.
 
-Usage:
-- You must use your `${{ tools.by_kind.read }}` tool at least once in the conversation before editing.
-- When editing text from ${{ tools.by_kind.read }} tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: line number + →. Everything after that → separator is the actual file content to match. Never include any part of the line number prefix in the ${{ params.edit.old_string }} or ${{ params.edit.new_string }}.
+Usage:${%- if tools.by_kind.read %}
+- When editing text from ${{ tools.by_kind.read }} tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: line number + ": ". Everything after that ": " separator is the actual file content to match. Never include any part of the line number prefix in the ${{ params.edit.oldString }} or ${{ params.edit.newString }}.${%- endif %}
 - ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
-- The edit will FAIL if `${{ params.edit.old_string }}` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `${{ params.edit.replace_all }}` to change every instance of `${{ params.edit.old_string }}`.
-- Use `${{ params.edit.replace_all }}` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.
-- To create a new file, set ${{ params.edit.old_string }} to an empty string.
+- The edit will FAIL if `${{ params.edit.oldString }}` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use `${{ params.edit.replaceAll }}` to change every instance of `${{ params.edit.oldString }}`.
+- Use `${{ params.edit.replaceAll }}` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.
+- To create a new file, set ${{ params.edit.oldString }} to an empty string.
 - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked."#;
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -70,39 +73,48 @@ pub struct EditInput {
     pub old_string: String,
 
     /// The replacement text (must differ from old_string).
-    #[schemars(description = "The text to replace it with (must be different from old_string)")]
+    #[schemars(
+        description = "The text to replace it with (must be different from ${{ params.edit.oldString }})"
+    )]
     pub new_string: String,
 
-    /// When true, replace every occurrence of `old_string` (default false).
+    /// When true, replace every occurrence of `old_string`.
     #[serde(
         default,
-        deserialize_with = "crate::types::schema::deserialize_lenient_option_bool"
+        deserialize_with = "crate::types::schema::deserialize_lenient_bool"
     )]
-    #[schemars(description = "Replace all occurrences of old_string (default false)")]
-    pub replace_all: Option<bool>,
+    #[schemars(description = "Replace all occurrences of ${{ params.edit.oldString }}")]
+    pub replace_all: bool,
 }
-
-// ───────────────────────────────────────────────────────────────────────────
-// ToolInput conversions (via Dynamic variant)
-// ───────────────────────────────────────────────────────────────────────────
 
 impl TryFrom<crate::types::tool_io::ToolInput> for EditInput {
     type Error = String;
     fn try_from(value: crate::types::tool_io::ToolInput) -> Result<Self, Self::Error> {
         match value {
+            crate::types::tool_io::ToolInput::SearchReplace(sr) => Ok(Self {
+                file_path: sr.file_path,
+                old_string: sr.old_string,
+                new_string: sr.new_string,
+                replace_all: sr.replace_all,
+            }),
             crate::types::tool_io::ToolInput::Dynamic(v) => {
                 serde_json::from_value(v).map_err(|e| format!("EditInput: {e}"))
             }
-            _ => Err("expected Dynamic variant for EditInput".into()),
+            _ => Err("expected SearchReplace or Dynamic variant for EditInput".into()),
         }
     }
 }
 
+// Prefer SearchReplace over Dynamic so AccessKind maps to Edit(path).
 impl From<EditInput> for crate::types::tool_io::ToolInput {
     fn from(value: EditInput) -> Self {
-        crate::types::tool_io::ToolInput::Dynamic(
-            serde_json::to_value(value).expect("EditInput serializes to JSON"),
-        )
+        crate::implementations::grok_build::search_replace::SearchReplaceInput {
+            file_path: value.file_path,
+            old_string: value.old_string,
+            new_string: value.new_string,
+            replace_all: value.replace_all,
+        }
+        .into()
     }
 }
 
@@ -136,25 +148,28 @@ impl crate::types::tool_metadata::ToolMetadata for EditTool {
     }
 }
 
-impl tool_runtime::Tool for EditTool {
+impl xvora_tool_runtime::Tool for EditTool {
     type Args = EditInput;
     type Output = SearchReplaceOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("edit").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("edit").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "edit",
-            crate::types::tool_metadata::ToolMetadata::description_template(self),
+            crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -169,9 +184,9 @@ impl tool_runtime::Tool for EditTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: EditInput,
-    ) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+    ) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::{resolve_cwd, shared_resources};
         let resources = shared_resources(&ctx)?;
         let cwd = resolve_cwd(&ctx, &resources).await?;
@@ -186,7 +201,7 @@ impl tool_runtime::Tool for EditTool {
         };
         let tool_call_id = ctx.call_id.as_str().to_owned();
 
-        let replace_all = input.replace_all.unwrap_or(false);
+        let replace_all = input.replace_all;
 
         // Resolve the model-provided path.
         let path = resolve_model_path(&cwd, display_cwd.as_deref(), &input.file_path);
@@ -226,13 +241,13 @@ impl tool_runtime::Tool for EditTool {
 // ───────────────────────────────────────────────────────────────────────────
 
 /// Create parent directories for a file path if they don't exist.
-async fn ensure_parent_dirs(path: &std::path::Path) -> Result<(), tool_runtime::ToolError> {
+async fn ensure_parent_dirs(path: &std::path::Path) -> Result<(), xvora_tool_runtime::ToolError> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
     {
         tokio::fs::create_dir_all(parent).await.map_err(|e| {
-            tool_runtime::ToolError::execution(
-                tool_protocol::ToolId::new("edit").expect("valid"),
+            xvora_tool_runtime::ToolError::execution(
+                xvora_tool_protocol::ToolId::new("edit").expect("valid"),
                 e.to_string(),
             )
         })?;
@@ -247,7 +262,7 @@ async fn handle_new_file_creation(
     notification_handle: &crate::notification::types::ToolNotificationHandle,
     tool_call_id: &str,
     path: &std::path::Path,
-) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
     // Check if file already exists and is non-empty.
     let file_exists = match fs.read_file(path).await {
         Ok(bytes) => !bytes.is_empty(),
@@ -267,8 +282,8 @@ async fn handle_new_file_creation(
     fs.write_file(path, input.new_string.as_bytes())
         .await
         .map_err(|e| {
-            tool_runtime::ToolError::execution(
-                tool_protocol::ToolId::new("edit").expect("valid"),
+            xvora_tool_runtime::ToolError::execution(
+                xvora_tool_protocol::ToolId::new("edit").expect("valid"),
                 e.to_string(),
             )
         })?;
@@ -331,7 +346,7 @@ async fn handle_replacement(
     tool_call_id: &str,
     path: &std::path::Path,
     replace_all: bool,
-) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
     // Read current file content.
     let bytes = match fs.read_file(path).await {
         Ok(bytes) => bytes,
@@ -342,8 +357,8 @@ async fn handle_replacement(
             )));
         }
         Err(e) => {
-            return Err(tool_runtime::ToolError::execution(
-                tool_protocol::ToolId::new("edit").expect("valid"),
+            return Err(xvora_tool_runtime::ToolError::execution(
+                xvora_tool_protocol::ToolId::new("edit").expect("valid"),
                 e.to_string(),
             ));
         }
@@ -370,7 +385,7 @@ async fn handle_replacement(
     if positions.len() > 1 && !replace_all {
         let replace_all_name = crate::types::template_renderer::TemplateRenderer::resolve(
             &resources,
-            "${{ params.edit.replace_all }}",
+            "${{ params.edit.replaceAll }}",
         )
         .await?;
         return Ok(SearchReplaceOutput::MultipleMatchesFound(format!(
@@ -398,8 +413,8 @@ async fn handle_replacement(
     fs.write_file(path, new_text.as_bytes())
         .await
         .map_err(|e| {
-            tool_runtime::ToolError::execution(
-                tool_protocol::ToolId::new("edit").expect("valid"),
+            xvora_tool_runtime::ToolError::execution(
+                xvora_tool_protocol::ToolId::new("edit").expect("valid"),
                 e.to_string(),
             )
         })?;
@@ -464,8 +479,8 @@ async fn handle_replacement(
 }
 
 // Note: `replace_at_positions`, `render_snippet`, and `build_edit_details`
-// are imported from `xvora::search_replace::helpers` — shared across
-// both the xvora and opencode edit tools.
+// are imported from `grok_build::search_replace::helpers` — shared across
+// both the grok_build and opencode edit tools.
 
 // ───────────────────────────────────────────────────────────────────────────
 // Tests
@@ -490,10 +505,12 @@ mod tests {
         resources.insert(FileSystem(Arc::new(LocalFs)));
         resources.insert(NotificationHandle(ToolNotificationHandle::noop()));
 
+        // Keys mirror finalize-time seeding: schema property names, which are
+        // camelCase for OpenCode's EditInput.
         let edit_params = std::collections::HashMap::from([
-            ("old_string".to_string(), "old_string".to_string()),
-            ("new_string".to_string(), "new_string".to_string()),
-            ("replace_all".to_string(), "replaceAll".to_string()),
+            ("oldString".to_string(), "oldString".to_string()),
+            ("newString".to_string(), "newString".to_string()),
+            ("replaceAll".to_string(), "replaceAll".to_string()),
         ]);
         resources.insert(TemplateRenderer::new(
             std::collections::HashMap::from([(ToolKind::Read, "read_file".to_string())]),
@@ -508,8 +525,43 @@ mod tests {
             file_path: file_path.to_string(),
             old_string: old_string.to_string(),
             new_string: new_string.to_string(),
-            replace_all: None,
+            replace_all: false,
         }
+    }
+
+    #[test]
+    fn tool_input_roundtrip_is_search_replace() {
+        use crate::types::tool_io::ToolInput;
+        let input = make_input("/tmp/denied.txt", "old", "new");
+        let tool_input = ToolInput::from(input.clone());
+        assert!(matches!(
+            tool_input,
+            ToolInput::SearchReplace(ref sr) if sr.file_path == "/tmp/denied.txt"
+        ));
+        let back = EditInput::try_from(tool_input).expect("SearchReplace converts back");
+        assert_eq!(back.file_path, "/tmp/denied.txt");
+        assert_eq!(back.old_string, "old");
+        assert_eq!(back.new_string, "new");
+    }
+
+    #[test]
+    fn replace_all_defaults_false_and_schema_is_boolean() {
+        let missing: EditInput =
+            serde_json::from_str(r#"{"filePath":"/f","oldString":"a","newString":"b"}"#).unwrap();
+        assert!(!missing.replace_all);
+
+        let nullv: EditInput = serde_json::from_str(
+            r#"{"filePath":"/f","oldString":"a","newString":"b","replaceAll":null}"#,
+        )
+        .unwrap();
+        assert!(!nullv.replace_all);
+
+        let schema = serde_json::to_value(schemars::schema_for!(EditInput)).unwrap();
+        // rename_all = camelCase → replaceAll
+        let p = &schema["properties"]["replaceAll"];
+        assert_eq!(p["type"], "boolean", "schema: {schema}");
+        assert_eq!(p["default"], false, "schema: {schema}");
+        assert!(p.get("anyOf").is_none(), "schema: {schema}");
     }
 
     // ── Tool metadata ───────────────────────────────────────────────
@@ -518,19 +570,9 @@ mod tests {
     fn tool_id_and_kind() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = EditTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "edit");
+        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "edit");
         assert_eq!(tool.kind(), ToolKind::Edit);
         assert!(matches!(tool.tool_namespace(), ToolNamespace::OpenCode));
-    }
-
-    #[test]
-    fn description_contains_edit_guidance() {
-        use crate::types::tool_metadata::ToolMetadata;
-        let tool = EditTool;
-        assert!(
-            tool.description_template()
-                .contains("exact string replacements")
-        );
     }
 
     // ── Input deserialization ───────────────────────────────────────
@@ -547,7 +589,7 @@ mod tests {
         assert_eq!(input.file_path, "src/main.rs");
         assert_eq!(input.old_string, "hello");
         assert_eq!(input.new_string, "goodbye");
-        assert_eq!(input.replace_all, Some(true));
+        assert!(input.replace_all);
     }
 
     #[test]
@@ -559,7 +601,7 @@ mod tests {
         });
         let input: EditInput = serde_json::from_value(json).unwrap();
         assert_eq!(input.file_path, "test.txt");
-        assert_eq!(input.replace_all, None);
+        assert!(!input.replace_all);
     }
 
     // ── Validation ──────────────────────────────────────────────────
@@ -571,7 +613,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "same", "same");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -592,7 +634,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("subdir", "old", "new");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -615,7 +657,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -640,7 +682,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("new_file.txt", "", "new content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -665,7 +707,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("existing.txt", "", "new content");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -686,7 +728,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("nonexistent.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -709,7 +751,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "xyz", "abc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -733,7 +775,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "aaa", "ccc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -762,15 +804,17 @@ mod tests {
             std::collections::HashMap::from([(ToolKind::Read, "file_reader".to_string())]),
             std::collections::HashMap::from([(
                 ToolKind::Edit,
+                // Keyed by the camelCase schema property name (finalize seeds
+                // kind params from schema properties).
                 std::collections::HashMap::from([(
-                    "replace_all".to_string(),
+                    "replaceAll".to_string(),
                     "replaceEverything".to_string(),
                 )]),
             )]),
         ));
 
         let input = make_input("test.txt", "aaa", "ccc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -801,9 +845,9 @@ mod tests {
             file_path: "test.txt".to_string(),
             old_string: "aaa".to_string(),
             new_string: "ccc".to_string(),
-            replace_all: Some(true),
+            replace_all: true,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -833,7 +877,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "line2\nline3\n", "replaced_a\nreplaced_b\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -857,7 +901,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "last", "end");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -886,7 +930,7 @@ mod tests {
             "old_line\n",
             "new_line_1\nnew_line_2\nnew_line_3\n",
         );
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -911,7 +955,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("a/b/c/new.txt", "", "nested content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -940,7 +984,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "beta", "BETA");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -975,9 +1019,9 @@ mod tests {
             file_path: "test.txt".to_string(),
             old_string: "foo".to_string(),
             new_string: "qux".to_string(),
-            replace_all: Some(true),
+            replace_all: true,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -1008,7 +1052,7 @@ mod tests {
 
         // old_string="" on an empty file should succeed (treated as creation).
         let input = make_input("empty.txt", "", "new content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -1036,7 +1080,7 @@ mod tests {
 
         // Pass a relative path — should resolve against Cwd.
         let input = make_input("src/lib.rs", "fn main() {}", "fn main() { /* edited */ }");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -1063,7 +1107,7 @@ mod tests {
 
         // Replace the middle line.
         let input = make_input("test.txt", "line3\n", "REPLACED\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 

@@ -1,24 +1,21 @@
-//! Memory system tracing target and optional file-based logging layer.
-//!
-//! Provides a dedicated tracing target (`xai_memory`) with an optional
-//! file logger that writes to `~/.xvora/logs/memory.log`.
+//! Provides a dedicated tracing target (`xvora_memory`) with an optional
+//! file logger that writes to `~/.grok/logs/memory.log`.
 //!
 //! ## When to use
 //!
-//! Use `tracing::info!(target: memory_log::TARGET, ...)` at memory system
-//! lifecycle points — config resolution, storage init, flush, search, etc.
+//! Use `tracing::info!(target: memory_log::TARGET, ...)` at memory system points such as config resolution, storage init, flush, and search.
 //! These events are always emitted (zero cost when the layer is absent).
 //!
 //! ## Enabling (debug builds)
 //!
 //! ```bash
 //! # build with memory logging enabled, then:
-//! XVORA_MEMORY_LOG=0 grok                # disable even when enabled
-//! tail -f ~/.xvora/logs/memory.log      # watch in another terminal
+//! GROK_MEMORY_LOG=0 grok                # disable even when enabled
+//! tail -f ~/.grok/logs/memory.log      # watch in another terminal
 //! ```
 
 /// Tracing target for all memory system operations.
-pub const TARGET: &str = "xai_memory";
+pub const TARGET: &str = "xvora_memory";
 
 #[cfg(feature = "memory-log")]
 mod inner {
@@ -35,9 +32,9 @@ mod inner {
     use tracing_subscriber::registry::LookupSpan;
 
     use super::TARGET;
-    use xvora_config::xvora_home;
+    use xvora_config::grok_home;
 
-    const ENV_MEMORY_LOG: &str = "XVORA_MEMORY_LOG";
+    const ENV_MEMORY_LOG: &str = "GROK_MEMORY_LOG";
 
     static LOG_GUARD: std::sync::OnceLock<
         Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>,
@@ -63,10 +60,8 @@ mod inner {
         }
     }
 
-    /// Build the memory log layer.
-    ///
-    /// Writes to `~/.xvora/logs/memory.log`. Filters to `xai_memory=trace`.
-    /// Set `XVORA_MEMORY_LOG=0` to disable, `XVORA_MEMORY_LOG=/path` to redirect.
+    /// Writes to `~/.grok/logs/memory.log`. Filters to `xvora_memory=trace`.
+    /// Set `GROK_MEMORY_LOG=0` to disable, `GROK_MEMORY_LOG=/path` to redirect.
     pub fn layer<S>() -> Option<impl Layer<S>>
     where
         S: Subscriber + for<'span> LookupSpan<'span>,
@@ -109,7 +104,7 @@ mod inner {
     }
 
     fn resolve_log_path() -> Option<PathBuf> {
-        let default_path = || xvora_home().join("logs").join("memory.log");
+        let default_path = || grok_home().join("logs").join("memory.log");
         let raw = match std::env::var(ENV_MEMORY_LOG) {
             Ok(val) => val,
             Err(_) => return Some(default_path()),

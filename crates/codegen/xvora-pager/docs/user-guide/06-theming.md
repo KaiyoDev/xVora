@@ -1,17 +1,17 @@
 # Theming and Appearance Customization
 
-Xvora draws all TUI colors from a central theme. You can switch themes while Xvora is running, follow your operating system's light or dark appearance, and adjust scrollback layout, animations, and block styling through configuration files.
+Grok Build draws all TUI colors from a central theme. You can switch themes while Grok is running, follow your operating system's light or dark appearance, and adjust scrollback layout, animations, and block styling through configuration files.
 
 ---
 
 ## Available Themes
 
-xVora includes five built-in themes, plus an `auto` option that follows your system appearance:
+Grok includes five built-in themes, plus an `auto` option that follows your system appearance:
 
 | Theme | Config Names | Description | Truecolor Required |
 |-------|-------------|-------------|--------------------|
-| **XvoraNight** | `xvoranight`, `xvora-night`, `dark` | Neutral dark base with a magenta accent. Default theme. Survives quantization cleanly on 256-color and 16-color terminals. | No |
-| **XvoraDay** | `xvoraday`, `xvora-day`, `light`, `day` | Light theme for bright terminal backgrounds. | No |
+| **GrokNight** | `groknight`, `grok-night`, `dark` | Neutral dark base with a magenta accent. Default theme. Survives quantization cleanly on 256-color and 16-color terminals. | No |
+| **GrokDay** | `grokday`, `grok-day`, `light`, `day` | Light theme for bright terminal backgrounds. | No |
 | **TokyoNight** | `tokyonight`, `tokyo-night`, `tokyo` | Dark, blue-tinted backgrounds from the Tokyo Night palette. Loses its character when quantized. | Yes |
 | **RosePineMoon** | `rosepine`, `rose-pine`, `rosepine-moon`, `rose-pine-moon` | Muted dark palette with mauve accents, from the Rosé Pine family. | Yes |
 | **OscuraMidnight** | `oscura`, `oscura-midnight` | Deep dark base with purple accents. | Yes |
@@ -22,13 +22,15 @@ Theme names are case-insensitive. The `auto` option (alias `system`) is document
 
 **Minimal mode** (`--minimal`) always renders with a single fixed terminal-native palette and ignores the `theme` settings entirely (they still apply to the full TUI). Minimal draws directly on your terminal's own background, so it uses your terminal's default foreground/background plus its 16-color ANSI palette — the same colors `git` or `ls` use — which stays readable on any light or dark terminal profile without detection or configuration. `/theme` and the theme rows in `/settings` are unavailable in minimal mode.
 
+Syntax highlighting in minimal mode does **not** switch between light and dark theme files (polarity detection is intentionally avoided). Near-gray tokens inherit the terminal default foreground; chromatic tokens use base ANSI accents (red/green/yellow/blue/magenta/cyan) so read-file output and fenced code stay legible on both light and dark profiles.
+
 ---
 
 ## Switching Themes
 
 ### In the TUI
 
-Run the `/theme` slash command (alias `/t`) to open the theme picker. As you move through the list with the arrow keys, xVora previews each theme in real time. Press Enter to apply and save your choice, or press Escape to revert.
+Run the `/theme` slash command (alias `/t`) to open the theme picker. As you move through the list with the arrow keys, Grok previews each theme in real time. Press Enter to apply and save your choice, or press Escape to revert.
 
 To switch without the picker, pass a name directly:
 
@@ -40,7 +42,7 @@ Submitting `/theme` on its own -- without choosing from the picker -- cycles to 
 
 ### Via Config File
 
-Set the theme in `~/.xvora/config.toml`:
+Set the theme in `~/.grok/config.toml`:
 
 ```toml
 [ui]
@@ -51,20 +53,20 @@ theme = "tokyonight"
 
 ## Auto Theme (System Appearance)
 
-Set `theme = "auto"` to have xVora follow your operating system's light/dark appearance and switch themes automatically:
+Set `theme = "auto"` to have Grok follow your operating system's light/dark appearance and switch themes automatically:
 
 ```toml
 [ui]
 theme = "auto"
 ```
 
-By default, dark mode maps to **XvoraNight** and light mode maps to **XvoraDay**. Override either mapping with `auto_dark_theme` and `auto_light_theme`:
+By default, dark mode maps to **GrokNight** and light mode maps to **GrokDay**. Override either mapping with `auto_dark_theme` and `auto_light_theme`:
 
 ```toml
 [ui]
 theme = "auto"
 auto_dark_theme = "tokyonight"
-auto_light_theme = "xvoraday"
+auto_light_theme = "grokday"
 ```
 
 `theme = "system"` is an alias for `theme = "auto"`.
@@ -76,9 +78,11 @@ auto_light_theme = "xvoraday"
 | **macOS** | Reads `AppleInterfaceStyle` system preference |
 | **Linux** | Queries XDG Desktop Portal (`org.freedesktop.appearance.color-scheme`) |
 | **Windows** | Reads the system personalization registry |
-| **SSH / headless** | Falls back to an OSC 11 terminal background query at startup |
+| **SSH / tmux / headless** | `GROK_APPEARANCE` or `LC_GROK_APPEARANCE` (`dark`/`light`), then `COLORFGBG`, then a startup OSC 11 background query. `grok wrap ssh …` stamps `LC_GROK_APPEARANCE` from the local OS theme so it survives SSH into the login shell. New tmux sessions inherit it only if the tmux server/session was created with that env (or `update-environment` includes it). OSC 11 is DCS-wrapped for tmux ≥ 3.3 when tmux is the immediate terminal (not an editor `:terminal`); reaching the outer emulator also needs `allow-passthrough`, and replies are best-effort. |
 
-Once running, xVora polls for appearance changes every 5 seconds. Toggling your OS between light and dark mode takes effect within seconds without restarting.
+Once running, Grok polls desktop APIs and env hints every 5 seconds. Toggling your OS between light and dark mode on a local desktop takes effect within seconds without restarting. Over SSH the wrap-stamped env is fixed for that hop.
+
+You can also set `GROK_THEME` (or `LC_GROK_THEME`) to force a theme or `auto` without editing `config.toml`.
 
 ### Via the Settings Pane
 
@@ -88,7 +92,7 @@ Run `/settings` (alias `/config`) and open the **Appearance** category to set th
 
 ## Color Support Detection
 
-On startup, xVora detects your terminal's color capability level:
+On startup, Grok detects your terminal's color capability level:
 
 | Level | Description | Detection |
 |-------|-------------|-----------|
@@ -96,19 +100,19 @@ On startup, xVora detects your terminal's color capability level:
 | **256-color** | Indexed palette. RGB values are mapped to the nearest palette entry. | Standard xterm-256color |
 | **16-color** | ANSI names only. Colors are mapped to the closest ANSI color. | Basic terminal support |
 
-When you set `NO_COLOR`, xVora emits no color and renders in monochrome.
+When you set `NO_COLOR`, Grok emits no color and renders in monochrome.
 
-Run `/terminal-setup` to see the detected level (`color` row) and which themes the picker offers on this terminal (`themes` row). When truecolor is missing, the issues section explains how to enable it (or that Terminal.app cannot).
+Run `/doctor` to see the detected color level and the themes available on this terminal. If truecolor is unavailable, Doctor shows the relevant setup steps or explains the terminal limitation.
 
 ### Automatic Quantization
 
-Every theme is defined using full RGB values. At startup, xVora quantizes all colors to match the detected capability level. This means:
+Every theme is defined using full RGB values. At startup, Grok quantizes all colors to match the detected capability level. This means:
 
 - On **truecolor** terminals, colors pass through unchanged.
 - On **256-color** terminals, each RGB value is mapped to the nearest indexed palette entry.
 - On **16-color** terminals, colors map to ANSI names.
 
-XvoraNight and XvoraDay use neutral grays that quantize cleanly. TokyoNight, RosePineMoon, and OscuraMidnight use distinctive tinted backgrounds that lose their character when quantized, which is why the theme picker hides them on non-truecolor terminals.
+GrokNight and GrokDay use neutral grays that quantize cleanly. TokyoNight, RosePineMoon, and OscuraMidnight use distinctive tinted backgrounds that lose their character when quantized, which is why the theme picker hides them on non-truecolor terminals.
 
 ### Runtime-Generated Colors
 
@@ -118,7 +122,7 @@ Colors generated at runtime (syntax highlighting, background blending) are also 
 
 ## Cursor Color
 
-xVora sets your terminal cursor to the current theme's `accent_user` color using the OSC 12 escape sequence, to indicate an active xVora session. The cursor color is:
+Grok sets your terminal cursor to the current theme's `accent_user` color using the OSC 12 escape sequence, to indicate an active Grok session. The cursor color is:
 
 - Applied on startup and on theme switch.
 - Reset to the terminal's default on exit via OSC 112.
@@ -135,7 +139,7 @@ Toggle compact mode with the `/compact-mode` slash command. Compact mode:
 - Reduces horizontal padding to the minimum (1 column).
 - Reduces top padding in the prompt area and info blocks.
 
-The setting is persisted in `~/.xvora/config.toml` under `[ui].compact_mode` and survives restarts.
+The setting is persisted in `~/.grok/config.toml` under `[ui].compact_mode` and survives restarts.
 
 Use compact mode on small screens to maximize content area.
 
@@ -143,19 +147,19 @@ Use compact mode on small screens to maximize content area.
 
 ## Syntax Highlighting
 
-xVora bundles three `.tmTheme` files for code-block syntax highlighting and selects one based on the active theme:
+Grok bundles three `.tmTheme` files for code-block syntax highlighting and selects one based on the active theme:
 
-- `xvora-night.tmTheme` -- XvoraNight, RosePineMoon, and OscuraMidnight
-- `xvora-day.tmTheme` -- XvoraDay
+- `grok-night.tmTheme` -- GrokNight, RosePineMoon, and OscuraMidnight
+- `grok-day.tmTheme` -- GrokDay
 - `tokyo-night.tmTheme` -- TokyoNight
 
-xVora selects the matching file automatically when you switch themes. The `.tmTheme` files are built into the binary, so you cannot replace them with your own.
+Grok selects the matching file automatically when you switch themes. The `.tmTheme` files are built into the binary, so you cannot replace them with your own.
 
 ---
 
 ## Deep Customization with pager.toml
 
-For fine-grained control over the TUI appearance, create `~/.xvora/pager.toml`. This file controls scrollback layout, block styling, animations, and more. All settings have defaults; specify only the values you override. (Dev builds generate this file as a template with every default commented out — uncomment a line to override it; commented values keep tracking future defaults.)
+For fine-grained control over the TUI appearance, create `~/.grok/pager.toml`. This file controls scrollback layout, block styling, animations, and more. All settings have defaults; specify only the values you override. (Dev builds generate this file as a template with every default commented out — uncomment a line to override it; commented values keep tracking future defaults.)
 
 ### Layout
 
@@ -187,7 +191,7 @@ gap_right = 0           # Gap between scrollbar and screen edge (0 = at edge)
 [scrollback.scroll]
 margin = 0                  # Context lines above/below selected entry (0 = edge)
 min_page_fraction = 0       # Minimum scroll as % of viewport (0-100)
-follow_indicator = "center" # "center" = show down-arrow, "none" = hidden
+follow_indicator = "center" # "center" = show the ▼/▲ scroll arrows, "none" = hidden
 follow_auto_select = true   # Auto-select latest entry when following
 follow_by_overscroll = true # Scrolling past bottom engages follow mode
 anchor_on_fold = true       # Keep block header at same screen position when folding
@@ -292,13 +296,6 @@ mouse_hover = true           # Show hover highlight on mouse over
 show_prefix = true           # Show the prompt prefix character
 ```
 
-### Todo Badges
-
-```toml
-[todo]
-badge_format = "default"   # "default" = 2/5 (done/total), "colon" = [▶:1 □:4 ✓:3 ✗:2], "comma" = [1 ▶, 4 □, 3 ✓, 2 ✗]
-```
-
 ### Terminal Behavior
 
 ```toml
@@ -325,7 +322,7 @@ Each theme defines the following color slots that are used throughout the TUI:
 
 **Backgrounds:** `bg_base`, `bg_light`, `bg_dark`, `bg_highlight`, `bg_hover`, `bg_terminal`, `bg_visual`
 
-**Accents:** `accent_user`, `accent_assistant`, `accent_thinking`, `accent_tool`, `accent_system`, `accent_error`, `accent_success`, `accent_running`, `accent_skill`, `accent_plan`, `accent_verify`, `accent_feedback`, `accent_remember`, `accent_model`
+**Accents:** `accent_user`, `accent_assistant`, `accent_thinking`, `accent_tool`, `accent_system`, `accent_error`, `accent_success`, `accent_running`, `accent_skill`, `accent_plan`, `accent_verify`, `accent_remember`, `accent_model`
 
 **Text:** `text_primary`, `text_secondary`
 

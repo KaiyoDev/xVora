@@ -6,6 +6,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use xvora_sampling_types::{ConversationItem, SamplingConfig};
 
+use crate::StrictAppendAck;
 use crate::actor::ChatStateActor;
 use crate::events::ChatStateEvent;
 use crate::persistence::{MockChatPersistence, MockPersistenceReceiver, PersistenceRecord};
@@ -24,6 +25,8 @@ fn test_config_with_window(context_window: u64) -> SamplingConfig {
         top_p: None,
         api_backend: Default::default(),
         extra_headers: Default::default(),
+        query_params: Default::default(),
+        env_http_headers: Default::default(),
         context_window: NonZeroU64::new(context_window)
             .expect("test context_window must be non-zero"),
         reasoning_effort: None,
@@ -54,11 +57,23 @@ impl TestHarness {
 
     fn with_config(items: Vec<ConversationItem>, config: SamplingConfig) -> Self {
         let (mock, persistence_rx) = MockChatPersistence::new();
+        Self::with_persistence(items, config, mock, persistence_rx)
+    }
+
+    fn with_manual_persistence_ack(items: Vec<ConversationItem>) -> Self {
+        let (mock, persistence_rx) = MockChatPersistence::new_with_manual_persistence_ack();
+        Self::with_persistence(items, test_config(), mock, persistence_rx)
+    }
+
+    fn with_persistence(
+        items: Vec<ConversationItem>,
+        config: SamplingConfig,
+        mock: MockChatPersistence,
+        persistence_rx: MockPersistenceReceiver,
+    ) -> Self {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let token = tokio_util::sync::CancellationToken::new();
-
         let handle = ChatStateActor::spawn(items, config, Box::new(mock), event_tx, token.clone());
-
         Self {
             handle,
             event_rx,
@@ -91,36 +106,6 @@ impl TestHarness {
 }
 
 // ============================================================================
-// Lifecycle tests
-// ============================================================================
-
-#[tokio::test]
-async fn actor_spawns_and_shuts_down_via_cancellation() {
-    let (mock, _rx) = MockChatPersistence::new();
-    let (event_tx, _event_rx) = mpsc::unbounded_channel();
-    let token = tokio_util::sync::CancellationToken::new();
-    let _handle = ChatStateActor::spawn(
-        vec![],
-        test_config(),
-        Box::new(mock),
-        event_tx,
-        token.clone(),
-    );
-    token.cancel();
-    tokio::time::sleep(Duration::from_millis(50)).await;
-}
-
-#[tokio::test]
-async fn actor_shuts_down_when_all_handles_dropped() {
-    let (mock, _rx) = MockChatPersistence::new();
-    let (event_tx, _event_rx) = mpsc::unbounded_channel();
-    let token = tokio_util::sync::CancellationToken::new();
-    let handle = ChatStateActor::spawn(vec![], test_config(), Box::new(mock), event_tx, token);
-    drop(handle);
-    tokio::time::sleep(Duration::from_millis(50)).await;
-}
-
-// ============================================================================
 // Mutation tests
 // ============================================================================
 
@@ -135,6 +120,77 @@ async fn push_user_message_appends_and_persists() {
     let records = h.drain_persistence();
     assert_eq!(records.len(), 1);
     assert!(matches!(&records[0], PersistenceRecord::Message(_)));
+}
+
+#[tokio::test]
+async fn push_user_messages_batch_appends_and_persists_in_order() {
+    let mut h = TestHarness::new();
+    h.handle
+        .try_push_user_messages_batch(vec![
+            ConversationItem::interjection("first"),
+            ConversationItem::interjection("second"),
+        ])
+        .unwrap();
+
+    let conversation = h.handle.get_conversation().await;
+    assert_eq!(
+        conversation
+            .iter()
+            .map(ConversationItem::text_content)
+            .collect::<Vec<_>>(),
+        ["first", "second"]
+    );
+    assert_eq!(
+        h.drain_persistence()
+            .into_iter()
+            .filter_map(|record| match record {
+                PersistenceRecord::Message(item) => Some(item.text_content()),
+                _ => None,
+            })
+            .collect::<Vec<_>>(),
+        ["first", "second"]
+    );
+}
+
+#[test]
+fn user_messages_batch_uses_one_command() {
+    let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel();
+    let handle = crate::handle::ChatStateHandle::new(cmd_tx);
+
+    handle
+        .try_push_user_messages_batch(vec![
+            ConversationItem::interjection("first"),
+            ConversationItem::interjection("second"),
+        ])
+        .unwrap();
+
+    let command = cmd_rx.try_recv().expect("one batch command");
+    let crate::commands::ChatStateCommand::PushUserMessagesBatch { items } = command else {
+        panic!("expected user-message batch command");
+    };
+    assert_eq!(
+        items
+            .iter()
+            .map(ConversationItem::text_content)
+            .collect::<Vec<_>>(),
+        ["first", "second"]
+    );
+    assert!(cmd_rx.try_recv().is_err(), "batch must use one send");
+}
+
+#[test]
+fn closed_mailbox_rejects_entire_batch() {
+    let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
+    drop(cmd_rx);
+    let handle = crate::handle::ChatStateHandle::new(cmd_tx);
+
+    assert_eq!(
+        handle.try_push_user_messages_batch(vec![
+            ConversationItem::interjection("first"),
+            ConversationItem::interjection("second"),
+        ]),
+        Err(crate::ChatStateMailboxClosed)
+    );
 }
 
 #[tokio::test]
@@ -153,6 +209,249 @@ async fn push_user_message_and_ack_waits_for_actor_acceptance() {
     let records = h.drain_persistence();
     assert_eq!(records.len(), 1);
     assert!(matches!(&records[0], PersistenceRecord::Message(_)));
+}
+
+#[tokio::test]
+async fn strict_switch_append_preserves_prefix_and_deduplicates_generation() {
+    let prefix = vec![
+        ConversationItem::system("sys"),
+        ConversationItem::assistant("assistant"),
+        ConversationItem::tool_result("dangling", "must remain"),
+    ];
+    let prefix_json: Vec<Vec<u8>> = prefix
+        .iter()
+        .map(|item| serde_json::to_vec(item).unwrap())
+        .collect();
+    let mut h = TestHarness::with_conversation(prefix);
+    let reminder = ConversationItem::working_directory_switch("moved", 3);
+
+    assert!(matches!(
+        h.handle
+            .append_working_directory_switch_and_ack(
+                "moved".into(),
+                std::num::NonZeroU64::new(3).unwrap(),
+            )
+            .await
+            .unwrap(),
+        StrictAppendAck::Appended
+    ));
+    let conversation = h.handle.get_conversation().await;
+    assert_eq!(conversation.len(), 4);
+    for (actual, expected) in conversation.iter().zip(&prefix_json) {
+        assert_eq!(serde_json::to_vec(actual).unwrap(), *expected);
+    }
+    assert_eq!(
+        serde_json::to_vec(&conversation[3]).unwrap(),
+        serde_json::to_vec(&reminder).unwrap()
+    );
+    assert!(matches!(
+        h.drain_persistence().as_slice(),
+        [PersistenceRecord::AcknowledgedMessage(_)]
+    ));
+
+    assert!(matches!(
+        h.handle
+            .append_working_directory_switch_and_ack(
+                "different text".into(),
+                std::num::NonZeroU64::new(3).unwrap(),
+            )
+            .await
+            .unwrap(),
+        StrictAppendAck::AlreadyPresent(_)
+    ));
+    assert_eq!(h.handle.get_conversation().await.len(), 4);
+    assert!(matches!(
+        h.drain_persistence().as_slice(),
+        [PersistenceRecord::AcknowledgedMessage(_)]
+    ));
+
+    assert!(matches!(
+        h.handle
+            .append_working_directory_switch_and_ack(
+                "next move".into(),
+                std::num::NonZeroU64::new(4).unwrap(),
+            )
+            .await
+            .unwrap(),
+        StrictAppendAck::Appended
+    ));
+    assert_eq!(h.handle.get_conversation().await.len(), 5);
+}
+
+#[tokio::test]
+async fn strict_switch_append_ack_waits_for_persistence() {
+    let mut h = TestHarness::with_manual_persistence_ack(vec![]);
+    let handle = h.handle.clone();
+    let task = tokio::spawn(async move {
+        handle
+            .append_working_directory_switch_and_ack(
+                "moved".into(),
+                std::num::NonZeroU64::new(1).unwrap(),
+            )
+            .await
+    });
+    let persistence_ack = h
+        .persistence_rx
+        .next_persistence_ack()
+        .await
+        .expect("acknowledged append requested");
+    assert!(matches!(
+        h.drain_persistence().as_slice(),
+        [PersistenceRecord::AcknowledgedMessage(_)]
+    ));
+    assert!(!task.is_finished(), "actor ack must wait for persistence");
+    persistence_ack.send(Ok(StrictAppendAck::Appended)).unwrap();
+    assert!(matches!(
+        task.await.unwrap().unwrap(),
+        StrictAppendAck::Appended
+    ));
+}
+
+#[tokio::test]
+async fn committed_storage_result_converges_actor_memory() {
+    let mut h = TestHarness::with_manual_persistence_ack(vec![]);
+    let handle = h.handle.clone();
+    let task = tokio::spawn(async move {
+        handle
+            .append_working_directory_switch_and_ack(
+                "moved".into(),
+                std::num::NonZeroU64::new(2).unwrap(),
+            )
+            .await
+    });
+    let persistence_ack = h.persistence_rx.next_persistence_ack().await.unwrap();
+    persistence_ack
+        .send(Err(crate::StrictAppendError::Committed {
+            acknowledgement: StrictAppendAck::Appended,
+            source: std::io::Error::other("summary failed"),
+        }))
+        .unwrap();
+    let result = task.await.unwrap();
+    assert!(matches!(
+        result,
+        Err(crate::StrictAppendError::Committed {
+            acknowledgement: StrictAppendAck::Appended,
+            ..
+        })
+    ));
+    let conversation = h.handle.get_conversation().await;
+    assert_eq!(conversation.len(), 1);
+    assert_eq!(
+        conversation[0].working_directory_switch_generation(),
+        Some(2)
+    );
+}
+
+#[tokio::test]
+async fn already_present_replaces_stale_switch_in_actor_memory() {
+    let generation = NonZeroU64::new(3).unwrap();
+    let mut h =
+        TestHarness::with_manual_persistence_ack(vec![ConversationItem::working_directory_switch(
+            "stale",
+            generation.get(),
+        )]);
+    let handle = h.handle.clone();
+    let task = tokio::spawn(async move {
+        handle
+            .append_working_directory_switch_and_ack("candidate".into(), generation)
+            .await
+    });
+    h.persistence_rx
+        .next_persistence_ack()
+        .await
+        .unwrap()
+        .send(Ok(StrictAppendAck::AlreadyPresent(
+            ConversationItem::working_directory_switch("authoritative", generation.get()),
+        )))
+        .unwrap();
+
+    assert!(matches!(
+        task.await.unwrap().unwrap(),
+        StrictAppendAck::AlreadyPresent(item) if item.text_content() == "authoritative"
+    ));
+    let conversation = h.handle.get_conversation().await;
+    assert_eq!(conversation.len(), 1);
+    assert_eq!(conversation[0].text_content(), "authoritative");
+}
+
+#[tokio::test]
+async fn committed_already_present_replaces_retry_candidate_in_actor_memory() {
+    let generation = NonZeroU64::new(4).unwrap();
+    let mut h =
+        TestHarness::with_manual_persistence_ack(vec![ConversationItem::working_directory_switch(
+            "retry candidate",
+            generation.get(),
+        )]);
+    let handle = h.handle.clone();
+    let task = tokio::spawn(async move {
+        handle
+            .append_working_directory_switch_and_ack("another retry".into(), generation)
+            .await
+    });
+    h.persistence_rx
+        .next_persistence_ack()
+        .await
+        .unwrap()
+        .send(Err(crate::StrictAppendError::Committed {
+            acknowledgement: StrictAppendAck::AlreadyPresent(
+                ConversationItem::working_directory_switch("authoritative", generation.get()),
+            ),
+            source: std::io::Error::other("summary failed"),
+        }))
+        .unwrap();
+
+    assert!(matches!(
+        task.await.unwrap(),
+        Err(crate::StrictAppendError::Committed {
+            acknowledgement: StrictAppendAck::AlreadyPresent(item),
+            ..
+        }) if item.text_content() == "authoritative"
+    ));
+    let conversation = h.handle.get_conversation().await;
+    assert_eq!(conversation.len(), 1);
+    assert_eq!(conversation[0].text_content(), "authoritative");
+}
+
+#[tokio::test]
+async fn dropped_storage_reply_is_indeterminate_and_leaves_memory_unchanged() {
+    let mut h = TestHarness::with_manual_persistence_ack(vec![]);
+    let handle = h.handle.clone();
+    let task = tokio::spawn(async move {
+        handle
+            .append_working_directory_switch_and_ack(
+                "moved".into(),
+                std::num::NonZeroU64::new(2).unwrap(),
+            )
+            .await
+    });
+    drop(h.persistence_rx.next_persistence_ack().await.unwrap());
+    assert!(matches!(
+        task.await.unwrap(),
+        Err(crate::StrictAppendError::Indeterminate(_))
+    ));
+    assert!(h.handle.get_conversation().await.is_empty());
+}
+
+#[tokio::test]
+async fn uncommitted_storage_error_leaves_actor_memory_unchanged() {
+    let mut h = TestHarness::with_manual_persistence_ack(vec![]);
+    let handle = h.handle.clone();
+    let task = tokio::spawn(async move {
+        handle
+            .append_working_directory_switch_and_ack(
+                "moved".into(),
+                std::num::NonZeroU64::new(2).unwrap(),
+            )
+            .await
+    });
+    let persistence_ack = h.persistence_rx.next_persistence_ack().await.unwrap();
+    persistence_ack
+        .send(Err(crate::StrictAppendError::NotCommitted(
+            std::io::Error::other("append failed"),
+        )))
+        .unwrap();
+    assert!(task.await.unwrap().is_err());
+    assert!(h.handle.get_conversation().await.is_empty());
 }
 
 #[tokio::test]
@@ -210,6 +509,7 @@ async fn record_last_turn_usage_round_trip() {
         total_tokens: 1290,
         reasoning_tokens: 0,
         cached_prompt_tokens: 800,
+        cache_creation_prompt_tokens: 0,
     };
     h.handle.record_last_turn_usage(usage.clone());
 
@@ -225,6 +525,7 @@ async fn record_last_turn_usage_round_trip() {
         total_tokens: 10000,
         reasoning_tokens: 0,
         cached_prompt_tokens: 0,
+        cache_creation_prompt_tokens: 0,
     };
     h.handle.record_last_turn_usage(next);
     let got2 = h
@@ -246,6 +547,7 @@ async fn prompt_usage_ledger_via_handle_resets_and_clears() {
         total_tokens: 12,
         reasoning_tokens: 0,
         cached_prompt_tokens: 0,
+        cache_creation_prompt_tokens: 0,
     };
 
     let h = TestHarness::new();
@@ -407,6 +709,21 @@ async fn assistant_response_push_does_not_bump_estimated_delta() {
 }
 
 #[tokio::test]
+async fn provider_counted_model_output_persists_without_bumping_estimate() {
+    let h = TestHarness::new();
+    h.handle.record_token_usage(100_000);
+    h.handle.push_model_output(ConversationItem::Reasoning(
+        xvora_sampling_types::synthesized_reasoning_item("r".repeat(4_000)),
+    ));
+
+    assert!(matches!(
+        h.handle.get_conversation().await.as_slice(),
+        [ConversationItem::Reasoning(_)]
+    ));
+    assert_eq!(h.handle.get_estimated_total_tokens().await, 100_000);
+}
+
+#[tokio::test]
 async fn estimated_tokens_resets_on_truncate() {
     let mut h = TestHarness::new();
     h.handle.record_token_usage(100_000);
@@ -462,6 +779,162 @@ async fn replace_conversation_persists_and_emits_reset() {
     let records = h.drain_persistence();
     assert_eq!(records.len(), 1);
     assert!(matches!(&records[0], PersistenceRecord::ReplaceHistory(_)));
+}
+
+#[tokio::test]
+async fn strip_conversation_images_replaces_only_listed_urls_and_persists() {
+    let mut user = match ConversationItem::user("look at this") {
+        ConversationItem::User(u) => u,
+        _ => unreachable!(),
+    };
+    user.add_image("data:image/png;base64,AAAA");
+    let mut later = match ConversationItem::user("and this one") {
+        ConversationItem::User(u) => u,
+        _ => unreachable!(),
+    };
+    later.add_image("data:image/png;base64,BBBB");
+    let mut h = TestHarness::with_conversation(vec![
+        ConversationItem::User(user),
+        ConversationItem::User(later),
+    ]);
+
+    let outcome = h
+        .handle
+        .strip_conversation_images(vec!["data:image/png;base64,AAAA".into()])
+        .await;
+    assert_eq!(
+        outcome,
+        crate::StripOutcome::Applied { stripped: 1 },
+        "ack must carry the disk-applied count"
+    );
+
+    let conv = h.handle.get_conversation().await; // sync point
+    assert_eq!(
+        conv.len(),
+        2,
+        "in-place strip must not add or remove conversation items"
+    );
+    let ConversationItem::User(u) = &conv[0] else {
+        panic!("expected user item");
+    };
+    assert!(
+        u.content
+            .iter()
+            .all(|p| !matches!(p, xvora_sampling_types::ContentPart::Image { .. })),
+        "listed image part must be replaced"
+    );
+    let ConversationItem::User(survivor) = &conv[1] else {
+        panic!("expected user item");
+    };
+    assert!(
+        survivor
+            .content
+            .iter()
+            .any(|p| matches!(p, xvora_sampling_types::ContentPart::Image { .. })),
+        "unlisted image must survive the scoped strip"
+    );
+
+    let records = h.drain_persistence();
+    // The recoverability contract: strip rewrites go through the single
+    // backup-gated flavor, never the plain, unguarded ReplaceHistory.
+    assert!(
+        records
+            .iter()
+            .any(|r| matches!(r, PersistenceRecord::ReplaceHistoryForStrip(_))),
+        "strip must persist via the backup-gated flavor, got {records:?}"
+    );
+    assert!(
+        !records
+            .iter()
+            .any(|r| matches!(r, PersistenceRecord::ReplaceHistory(_))),
+        "strip must not use the unguarded replace, got {records:?}"
+    );
+}
+
+#[tokio::test]
+async fn strip_conversation_images_does_not_reseed_provider_tokens() {
+    let mut user = match ConversationItem::user("look at this") {
+        ConversationItem::User(u) => u,
+        _ => unreachable!(),
+    };
+    user.add_image("data:image/png;base64,AAAA");
+    let mut h = TestHarness::with_conversation(vec![ConversationItem::User(user)]);
+    h.handle.record_token_usage(100_000);
+    let _ = h.handle.get_total_tokens().await;
+    h.drain_events();
+
+    let outcome = h
+        .handle
+        .strip_conversation_images(vec!["data:image/png;base64,AAAA".into()])
+        .await;
+    assert_eq!(
+        outcome,
+        crate::StripOutcome::Applied { stripped: 1 },
+        "ack must carry the disk-applied count"
+    );
+
+    assert_eq!(
+        h.handle.get_total_tokens().await,
+        100_000,
+        "provider total must survive a surgical strip"
+    );
+    assert!(
+        !h.drain_events()
+            .iter()
+            .any(|e| matches!(e, ChatStateEvent::ConversationReset { .. })),
+        "strip must not emit ConversationReset"
+    );
+}
+
+/// The honest-failure half of the contract: a failed disk write must
+/// surface as WriteFailed (never as Applied), so nobody tells the user a
+/// still-poisoned file was cleaned.
+#[tokio::test]
+async fn strip_conversation_images_reports_write_failure() {
+    let mut user = match ConversationItem::user("look at this") {
+        ConversationItem::User(u) => u,
+        _ => unreachable!(),
+    };
+    user.add_image("data:image/png;base64,AAAA");
+    let (mock, persistence_rx) = MockChatPersistence::new_failing_strip_writes();
+    let h = TestHarness::with_persistence(
+        vec![ConversationItem::User(user)],
+        test_config(),
+        mock,
+        persistence_rx,
+    );
+
+    let outcome = h
+        .handle
+        .strip_conversation_images(vec!["data:image/png;base64,AAAA".into()])
+        .await;
+    assert_eq!(
+        outcome,
+        crate::StripOutcome::WriteFailed { stripped: 1 },
+        "a failed disk write must never read as Applied"
+    );
+}
+
+#[tokio::test]
+async fn strip_conversation_images_is_a_noop_without_images() {
+    let mut h = TestHarness::with_conversation(vec![ConversationItem::user("plain text")]);
+
+    let outcome = h
+        .handle
+        .strip_conversation_images(vec!["data:image/png;base64,AAAA".into()])
+        .await;
+    assert_eq!(
+        outcome,
+        crate::StripOutcome::NoMatch,
+        "no match must be typed, not a fake success"
+    );
+
+    let conv = h.handle.get_conversation().await; // sync point
+    assert_eq!(conv.len(), 1);
+    assert!(
+        h.drain_persistence().is_empty(),
+        "no images stripped must mean no persistence write"
+    );
 }
 
 #[tokio::test]
@@ -660,20 +1133,59 @@ async fn compaction_reseed_without_provider_count_matches_plain_estimate() {
 }
 
 #[tokio::test]
-async fn non_compaction_replace_does_not_carry_overhead() {
+async fn non_compaction_replace_carries_confirmed_total() {
+    // Estimates run high vs the provider count (retained reasoning never
+    // reaches the wire): a rewind/mode-switch/goal-prune replace must scale
+    // from the confirmed count, not reseed to the raw estimate.
     let h = TestHarness::new();
     h.handle
         .push_user_message(ConversationItem::user("x".repeat(4000)));
-    h.handle.record_token_usage(51_000);
+    h.handle.record_token_usage(500);
+    // Estimate at last response = 1_000, confirmed = 500 → ratio 0.5.
 
     h.handle
         .replace_conversation(vec![ConversationItem::user("q".repeat(4000))]);
 
     let total = h.handle.get_total_tokens().await;
     assert_eq!(
-        total, 1_000,
-        "non-compaction replace (e.g. rewind) keeps the plain estimate"
+        total, 500,
+        "same-size replace carries the provider-confirmed count"
     );
+}
+
+#[tokio::test]
+async fn replace_never_increases_total_tokens() {
+    // A growing replace (harness rebuild injecting AGENTS.md) is capped at the
+    // confirmed total; the brief under-count self-heals on the next usage.
+    let h = TestHarness::new();
+    h.handle
+        .push_user_message(ConversationItem::user("x".repeat(4000)));
+    h.handle.record_token_usage(1_500);
+
+    h.handle
+        .replace_conversation(vec![ConversationItem::user("q".repeat(40_000))]);
+
+    assert_eq!(h.handle.get_total_tokens().await, 1_500);
+}
+
+#[tokio::test]
+async fn truncate_scales_from_confirmed_total() {
+    // Rewind sibling path: `TruncateToPromptIndex` must use the same carry as
+    // `replace_conversation`.
+    let h = TestHarness::new();
+    h.handle
+        .push_user_message(ConversationItem::user("x".repeat(4000)));
+    h.handle.increment_prompt_index();
+    h.handle
+        .push_user_message(ConversationItem::user("y".repeat(4000)));
+    h.handle.increment_prompt_index();
+    h.handle.record_token_usage(1_000);
+    // Estimate at last response = 2_000, confirmed = 1_000 → ratio 0.5.
+
+    h.handle.truncate_to_prompt_index(1).await;
+
+    // Keeps the first user item (raw estimate 1_000) → scaled to 500.
+    assert_eq!(h.handle.get_total_tokens().await, 500);
 }
 
 #[tokio::test]
@@ -689,37 +1201,6 @@ async fn flush_calls_persistence_flush() {
     assert!(matches!(&records[0], PersistenceRecord::Flush));
 }
 
-#[tokio::test]
-async fn restore_snapshot_restores_all_fields() {
-    let mut h = TestHarness::new();
-    h.handle.push_user_message(ConversationItem::user("msg"));
-    h.handle.record_token_usage(500);
-    h.handle.increment_prompt_index();
-
-    // Drain events from the mutations above
-    let _ = h.handle.get_conversation().await;
-    h.drain_events();
-
-    let snapshot = h.handle.snapshot().await.unwrap();
-    assert_eq!(snapshot.prompt_index, 1);
-    assert_eq!(snapshot.total_tokens, 500);
-    assert_eq!(snapshot.conversation.len(), 1);
-
-    // Replace state
-    h.handle.replace_conversation(vec![]);
-    let _ = h.handle.get_conversation().await;
-
-    // Restore
-    h.handle.restore_snapshot(snapshot);
-
-    let conv = h.handle.get_conversation().await;
-    assert_eq!(conv.len(), 1);
-    let idx = h.handle.get_prompt_index().await;
-    assert_eq!(idx, 1);
-    let tokens = h.handle.get_total_tokens().await;
-    assert_eq!(tokens, 500);
-}
-
 // ============================================================================
 // Query tests
 // ============================================================================
@@ -733,13 +1214,6 @@ async fn get_conversation_returns_current_state() {
 
     let conv = h.handle.get_conversation().await;
     assert_eq!(conv.len(), 2);
-}
-
-#[tokio::test]
-async fn get_total_tokens_returns_zero_initially() {
-    let h = TestHarness::new();
-    let tokens = h.handle.get_total_tokens().await;
-    assert_eq!(tokens, 0);
 }
 
 #[tokio::test]
@@ -853,17 +1327,6 @@ async fn empty_conversation_queries_return_defaults() {
 }
 
 #[tokio::test]
-async fn check_auto_compact_returns_none_when_under_threshold() {
-    let h = TestHarness::with_context_window(10000);
-    h.handle.record_token_usage(100);
-    // Sync point
-    let _ = h.handle.get_total_tokens().await;
-
-    let trigger = h.handle.check_auto_compact_needed(85).await;
-    assert!(trigger.is_none());
-}
-
-#[tokio::test]
 async fn check_auto_compact_triggers_at_threshold() {
     let h = TestHarness::with_context_window(10000);
     h.handle.record_token_usage(8600);
@@ -914,6 +1377,8 @@ async fn update_sampling_config_is_queryable() {
         top_p: None,
         api_backend: Default::default(),
         extra_headers: Default::default(),
+        query_params: Default::default(),
+        env_http_headers: Default::default(),
         context_window: NonZeroU64::new(200_000).unwrap(),
         reasoning_effort: None,
         stream_tool_calls: None,
@@ -1160,6 +1625,34 @@ async fn build_request_includes_all_messages() {
 }
 
 #[tokio::test]
+async fn build_request_projects_agent_message_for_model_without_mutating_history() {
+    let raw = format!(
+        "{}\npayload starts with the exact label",
+        crate::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+    );
+    let raw_item = ConversationItem::agent_message(&raw);
+    let raw_bytes = serde_json::to_vec(&raw_item).unwrap();
+    let h = TestHarness::with_conversation(vec![raw_item]);
+
+    let request = h
+        .handle
+        .build_request(vec![], None, false, None, "c".into(), "r".into())
+        .await
+        .unwrap();
+    assert_eq!(
+        request.items[0].text_content(),
+        format!(
+            "{}\n{raw}",
+            crate::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+        )
+    );
+
+    let persisted = h.handle.get_conversation().await;
+    assert_eq!(persisted[0].text_content(), raw);
+    assert_eq!(serde_json::to_vec(&persisted[0]).unwrap(), raw_bytes);
+}
+
+#[tokio::test]
 async fn build_request_with_empty_conversation() {
     let h = TestHarness::new();
     let request = h
@@ -1299,6 +1792,8 @@ async fn build_request_uses_sampling_config() {
         top_p: Some(0.9),
         api_backend: Default::default(),
         extra_headers: Default::default(),
+        query_params: Default::default(),
+        env_http_headers: Default::default(),
         context_window: NonZeroU64::new(128_000).unwrap(),
         reasoning_effort: None,
         stream_tool_calls: None,
@@ -1465,29 +1960,30 @@ async fn parallel_tool_calls_accept_first_reject_second_skip_third() {
     // The model's single assistant message contains all 3 tool calls.
     // In the real code, this is built from the streaming response and pushed
     // via `push_assistant_response`.
-    let assistant_with_tools = ConversationItem::Assistant(xvora_sampling_types::AssistantItem {
-        content: "I'll read the file, fix it, and run tests.".into(),
-        tool_calls: vec![
-            ToolCall {
-                id: "call_1".into(),
-                name: "read_file".to_string(),
-                arguments: r#"{"target_file":"src/main.rs"}"#.into(),
-            },
-            ToolCall {
-                id: "call_2".into(),
-                name: "edit_file".to_string(),
-                arguments: r#"{"target_file":"src/main.rs","new_string":"fixed"}"#.into(),
-            },
-            ToolCall {
-                id: "call_3".into(),
-                name: "run_terminal_cmd".to_string(),
-                arguments: r#"{"command":"cargo test"}"#.into(),
-            },
-        ],
-        model_id: Some("grok-3".to_string()),
-        model_fingerprint: None,
-        reasoning_effort: None,
-    });
+    let assistant_with_tools =
+        ConversationItem::Assistant(xvora_sampling_types::AssistantItem {
+            content: "I'll read the file, fix it, and run tests.".into(),
+            tool_calls: vec![
+                ToolCall {
+                    id: "call_1".into(),
+                    name: "read_file".to_string(),
+                    arguments: r#"{"target_file":"src/main.rs"}"#.into(),
+                },
+                ToolCall {
+                    id: "call_2".into(),
+                    name: "edit_file".to_string(),
+                    arguments: r#"{"target_file":"src/main.rs","new_string":"fixed"}"#.into(),
+                },
+                ToolCall {
+                    id: "call_3".into(),
+                    name: "run_terminal_cmd".to_string(),
+                    arguments: r#"{"command":"cargo test"}"#.into(),
+                },
+            ],
+            model_id: Some("grok-3".to_string()),
+            model_fingerprint: None,
+            reasoning_effort: None,
+        });
     h.handle.push_assistant_response(assistant_with_tools);
 
     // ── Tool execution results (simulating execute_tool_calls) ──────────
@@ -2638,12 +3134,6 @@ async fn turn_capture_survives_persisted_memory_reminder_prepend() {
 // ============================================================================
 
 #[tokio::test]
-async fn get_conversation_len_empty() {
-    let h = TestHarness::new();
-    assert_eq!(h.handle.get_conversation_len().await, 0);
-}
-
-#[tokio::test]
 async fn get_conversation_len_matches_full_conversation() {
     let h = TestHarness::new();
     h.handle.push_user_message(ConversationItem::user("a"));
@@ -2716,10 +3206,463 @@ async fn get_last_assistant_text_skips_whitespace_only() {
 }
 
 #[tokio::test]
+async fn get_last_assistant_text_in_turn_stops_at_boundary() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q1"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("previous turn answer"));
+    h.handle.push_user_message(ConversationItem::user("q2"));
+
+    assert!(h.handle.get_last_assistant_text_in_turn().await.is_none());
+    assert_eq!(
+        h.handle.get_last_assistant_text().await.as_deref(),
+        Some("previous turn answer"),
+        "the unbounded sibling still sees prior turns"
+    );
+}
+
+#[tokio::test]
+async fn get_last_assistant_text_in_turn_walks_past_synthetic_injections() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("turn answer"));
+    h.handle
+        .push_user_message(ConversationItem::stop_hook_feedback("keep working"));
+
+    assert_eq!(
+        h.handle.get_last_assistant_text_in_turn().await.as_deref(),
+        Some("turn answer"),
+        "synthetic mid-turn items must not act as turn boundaries"
+    );
+
+    // A turn-starting synthetic item (auto-wake) IS a boundary.
+    h.handle
+        .push_user_message(ConversationItem::task_completed("task done"));
+    assert!(h.handle.get_last_assistant_text_in_turn().await.is_none());
+}
+
+#[tokio::test]
 async fn get_last_assistant_text_no_assistant_messages() {
     let h = TestHarness::new();
     h.handle.push_user_message(ConversationItem::user("hi"));
     assert!(h.handle.get_last_assistant_text().await.is_none());
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_single_item_matches_last_assistant_text() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("the answer"));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("the answer")
+    );
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await,
+        h.handle.get_last_assistant_text().await,
+        "normal turn must match the single-item query"
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_joins_salvaged_segments() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("seg1"));
+    // The Length-salvage continue reminder committed between segments.
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("seg2"));
+
+    // Joined forward with no separator: Length cuts mid-token, so the
+    // continuation carries its own leading whitespace when one is needed.
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("seg1seg2")
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_skips_reasoning_between_segments() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle.push_tool_result(ConversationItem::Reasoning(
+        xvora_sampling_types::synthesized_reasoning_item("r1"),
+    ));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("seg1"));
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+    // Reasoning models commit a reasoning sibling before each segment; the
+    // turn loop pushes it via the same non-Assistant commit path used here.
+    h.handle.push_tool_result(ConversationItem::Reasoning(
+        xvora_sampling_types::synthesized_reasoning_item("r2"),
+    ));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("seg2"));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("seg1seg2"),
+        "reasoning siblings are not report content and not a boundary"
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_stops_at_non_salvage_reminder() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("Analysis done."));
+    // A todo-gate style nudge separates two DISTINCT answers; joining them
+    // with no separator would garble the report.
+    h.handle
+        .push_user_message(ConversationItem::system_reminder("finish your todos"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("Final report: X."));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("Final report: X."),
+        "only the Length-continue reminder joins segments"
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_stops_at_tool_boundary() {
+    use xvora_sampling_types::ToolCall;
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("pre-tool commentary"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant_tool_calls(vec![ToolCall {
+            id: "call_1".into(),
+            name: "my_tool".to_string(),
+            arguments: "{}".into(),
+        }]));
+    h.handle
+        .push_tool_result(ConversationItem::tool_result("call_1", "ok"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("final report"));
+
+    // Tool items and tool-calling assistants end the walk: text before them
+    // belongs to an earlier step, not the trailing report.
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("final report")
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_stops_at_real_user_message() {
+    let h = TestHarness::new();
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("previous turn"));
+    h.handle.push_user_message(ConversationItem::user("q2"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("this turn"));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("this turn")
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_skips_empty_assistant_items() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("real report"));
+    // Reasoning-only responses commit an empty assistant item.
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("   \n  "));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("real report")
+    );
+}
+
+#[tokio::test]
+async fn cancel_integrity_repair_drops_stranded_continue_reminder() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("partial"));
+    // Cancel raced between the reminder push and the continuation sample.
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+
+    h.handle.repair_dangling_after_harness_halt("test-cancel");
+    let conv = h.handle.get_conversation().await;
+    assert!(
+        !matches!(
+            conv.last(),
+            Some(ConversationItem::User(u))
+                if u.synthetic_reason
+                    == Some(xvora_sampling_types::SyntheticReason::LengthContinue)
+        ),
+        "the stranded reminder must not survive the cancel repair"
+    );
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("partial"),
+        "the committed partial stays"
+    );
+}
+
+#[tokio::test]
+async fn recovery_prompt_drops_stranded_continue_reminder() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("partial"));
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+    // The continuation died; the recovery wrapper injects its prompt.
+    h.handle
+        .push_user_message(ConversationItem::auto_recovery("try again"));
+
+    let conv = h.handle.get_conversation().await;
+    assert!(
+        !conv.iter().any(|i| matches!(
+            i,
+            ConversationItem::User(u)
+                if u.synthetic_reason
+                    == Some(xvora_sampling_types::SyntheticReason::LengthContinue)
+        )),
+        "the dead continuation's reminder must not precede the recovery prompt"
+    );
+}
+
+#[tokio::test]
+async fn next_real_prompt_drops_stranded_continue_reminder() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("partial"));
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+    // Cancel raced the continuation; the user types a new prompt.
+    h.handle.push_user_message(ConversationItem::user("next q"));
+
+    let conv = h.handle.get_conversation().await;
+    assert!(
+        !conv.iter().any(|i| matches!(
+            i,
+            ConversationItem::User(u)
+                if u.synthetic_reason
+                    == Some(xvora_sampling_types::SyntheticReason::LengthContinue)
+        )),
+        "the stranded reminder must not precede the new prompt"
+    );
+    assert!(matches!(
+        conv.last(),
+        Some(ConversationItem::User(u)) if u.synthetic_reason.is_none()
+    ));
+}
+
+/// No trailing `LengthContinue` item anywhere in the conversation.
+async fn assert_no_continue_reminder(h: &TestHarness, context: &str) {
+    let conv = h.handle.get_conversation().await;
+    assert!(
+        !conv.iter().any(|i| matches!(
+            i,
+            ConversationItem::User(u)
+                if u.synthetic_reason
+                    == Some(xvora_sampling_types::SyntheticReason::LengthContinue)
+        )),
+        "{context}: the dead continuation's reminder must be popped"
+    );
+}
+
+/// Seed `[user, partial assistant, stranded reminder]`.
+fn seed_stranded_reminder(h: &TestHarness) {
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("partial"));
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+}
+
+#[tokio::test]
+async fn stop_hook_feedback_drops_stranded_continue_reminder() {
+    let h = TestHarness::new();
+    seed_stranded_reminder(&h);
+    // The turn completed truncated; the stop gate keeps the model working.
+    h.handle
+        .push_user_message(ConversationItem::stop_hook_feedback("keep going"));
+    assert_no_continue_reminder(&h, "stop-hook feedback").await;
+}
+
+#[tokio::test]
+async fn goal_directive_drops_stranded_continue_reminder() {
+    let h = TestHarness::new();
+    seed_stranded_reminder(&h);
+    h.handle
+        .push_user_message(ConversationItem::goal_summary("next goal round"));
+    assert_no_continue_reminder(&h, "goal directive").await;
+}
+
+#[tokio::test]
+async fn drained_interjection_drops_stranded_continue_reminder() {
+    let h = TestHarness::new();
+    seed_stranded_reminder(&h);
+    // The continuation failed empty; the turn drains a queued interjection.
+    // Drains are deferred while a continuation is in flight, so a trailing
+    // reminder at this push is always dead.
+    h.handle
+        .push_user_message(ConversationItem::interjection("also do this"));
+    assert_no_continue_reminder(&h, "drained interjection").await;
+}
+
+#[tokio::test]
+async fn working_directory_switch_push_drops_stranded_continue_reminder() {
+    let h = TestHarness::new();
+    seed_stranded_reminder(&h);
+    h.handle
+        .push_user_message(ConversationItem::working_directory_switch(
+            "cd /elsewhere",
+            2,
+        ));
+    assert_no_continue_reminder(&h, "directory-switch push").await;
+}
+
+#[tokio::test]
+async fn working_directory_switch_append_drops_stranded_continue_reminder() {
+    let mut h = TestHarness::new();
+    seed_stranded_reminder(&h);
+    // Resume-time disk-authoritative append (not a push): must not bury the
+    // stranded reminder behind the switch item.
+    h.handle
+        .append_working_directory_switch_and_ack(
+            "cd /elsewhere".to_string(),
+            NonZeroU64::new(2).expect("nonzero"),
+        )
+        .await
+        .expect("append acked");
+    assert_no_continue_reminder(&h, "directory-switch append").await;
+    // The pop's history rewrite must precede the acked append; a rewrite
+    // after it would erase the durably-acknowledged switch item from disk.
+    let records = h.drain_persistence();
+    let append_at = records
+        .iter()
+        .position(|r| matches!(r, PersistenceRecord::AcknowledgedMessage(_)))
+        .expect("the switch append reached persistence");
+    assert!(
+        !records[append_at..]
+            .iter()
+            .any(|r| matches!(r, PersistenceRecord::ReplaceHistory(_))),
+        "no history rewrite may follow the acked append: {records:?}"
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_joins_later_reminderless_segments() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("one, "));
+    // The reminder is injected on the first continue only; segments from
+    // later continues sit adjacent (with at most Reasoning between).
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("two, "));
+    h.handle.push_tool_result(ConversationItem::Reasoning(
+        xvora_sampling_types::synthesized_reasoning_item("r"),
+    ));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("three"));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("one, two, three"),
+        "the budget-2 exhaustion path produces three segments; all must join"
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_joins_into_a_tool_calling_tail() {
+    use xvora_sampling_types::ToolCall;
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("cut sen"));
+    h.handle
+        .push_user_message(ConversationItem::length_continue_reminder("continue"));
+    // The continuation finishes the sentence and then calls a tool.
+    let mut tail = ConversationItem::assistant_tool_calls(vec![ToolCall {
+        id: "call_1".into(),
+        name: "my_tool".to_string(),
+        arguments: "{}".into(),
+    }]);
+    if let ConversationItem::Assistant(a) = &mut tail {
+        a.content = "tence, done.".into();
+    }
+    h.handle.push_assistant_response(tail);
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("cut sentence, done."),
+        "earlier salvage segments join into a tool-calling tail"
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_survives_trailing_reminder() {
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("final report"));
+    // Todo-gate impasse: the reminder lands after the final text and the
+    // turn completes without sampling again. The report must survive.
+    h.handle
+        .push_user_message(ConversationItem::system_reminder("todo impasse"));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("final report")
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_survives_trailing_tool_results() {
+    use xvora_sampling_types::ToolCall;
+    let h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("q"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant("commentary then stop"));
+    h.handle
+        .push_assistant_response(ConversationItem::assistant_tool_calls(vec![ToolCall {
+            id: "call_1".into(),
+            name: "my_tool".to_string(),
+            arguments: "{}".into(),
+        }]));
+    // Stationarity-style tail: the turn ends right after tool results with
+    // no further assistant text. The last commentary must survive, unjoined.
+    h.handle
+        .push_tool_result(ConversationItem::tool_result("call_1", "ok"));
+
+    assert_eq!(
+        h.handle.get_trailing_assistant_report().await.as_deref(),
+        Some("commentary then stop")
+    );
+}
+
+#[tokio::test]
+async fn get_trailing_assistant_report_no_assistant_text() {
+    let h = TestHarness::new();
+    assert!(h.handle.get_trailing_assistant_report().await.is_none());
+    h.handle.push_user_message(ConversationItem::user("hi"));
+    assert!(h.handle.get_trailing_assistant_report().await.is_none());
 }
 
 #[tokio::test]
@@ -3396,12 +4339,14 @@ async fn sampling_config_survives_compaction_replacement() {
 
     let config = SamplingConfig {
         base_url: "https://api.example.com".to_string(),
-        model: "xvora".to_string(),
+        model: "grok-build".to_string(),
         max_completion_tokens: None,
         temperature: Some(0.7),
         top_p: Some(0.95),
         api_backend: ApiBackend::Responses,
         extra_headers: Default::default(),
+        query_params: Default::default(),
+        env_http_headers: Default::default(),
         context_window: NonZeroU64::new(500_000).unwrap(),
         reasoning_effort: None,
         stream_tool_calls: None,
@@ -3424,7 +4369,7 @@ async fn sampling_config_survives_compaction_replacement() {
 
     // Pre-compaction: everything correct.
     let pre = h.handle.get_sampling_config().await.unwrap();
-    assert_eq!(pre.model, "xvora");
+    assert_eq!(pre.model, "grok-build");
     assert_eq!(pre.context_window.get(), 500_000);
     assert_eq!(pre.api_backend, ApiBackend::Responses);
 
@@ -3441,7 +4386,10 @@ async fn sampling_config_survives_compaction_replacement() {
 
     // Post-compaction: SamplingConfig MUST be preserved.
     let post = h.handle.get_sampling_config().await.unwrap();
-    assert_eq!(post.model, "xvora", "BUG: model changed after compaction");
+    assert_eq!(
+        post.model, "grok-build",
+        "BUG: model changed after compaction"
+    );
     assert_eq!(
         post.context_window.get(),
         500_000,
@@ -3468,7 +4416,7 @@ async fn sampling_config_survives_compaction_replacement() {
 
 /// After compaction, the `build_session_info` display path uses
 /// `get_sampling_config().model` as the source-of-truth model slug.
-/// If that model slug is e.g. "xvora" and not in the ModelState
+/// If that model slug is e.g. "grok-build" and not in the ModelState
 /// catalog with a display name, the pager shows the raw slug. This
 /// test verifies the pager's `current_model_name()` behavior when the
 /// model ID doesn't match any catalog entry.
@@ -3476,12 +4424,14 @@ async fn sampling_config_survives_compaction_replacement() {
 async fn model_metadata_lost_after_compaction_then_recovered_on_next_turn() {
     let config = SamplingConfig {
         base_url: "https://api.example.com".to_string(),
-        model: "xvora".to_string(),
+        model: "grok-build".to_string(),
         max_completion_tokens: None,
         temperature: Some(0.7),
         top_p: Some(0.95),
         api_backend: Default::default(),
         extra_headers: Default::default(),
+        query_params: Default::default(),
+        env_http_headers: Default::default(),
         context_window: NonZeroU64::new(500_000).unwrap(),
         reasoning_effort: None,
         stream_tool_calls: None,
@@ -3570,6 +4520,8 @@ async fn context_window_downgrade_triggers_auto_compact() {
         top_p: Some(0.95),
         api_backend: ApiBackend::Responses,
         extra_headers: Default::default(),
+        query_params: Default::default(),
+        env_http_headers: Default::default(),
         context_window: NonZeroU64::new(500_000).unwrap(),
         reasoning_effort: None,
         stream_tool_calls: None,
@@ -3652,7 +4604,9 @@ async fn context_window_downgrade_triggers_auto_compact() {
 /// produced by the From impl is directly the wire shape (modulo
 /// `patch_reasoning_text_types` which only stamps a `type` field on nested
 /// reasoning content blocks and does not reorder items).
-fn serialize_via_public_api(req: &xvora_sampling_types::ConversationRequest) -> serde_json::Value {
+fn serialize_via_public_api(
+    req: &xvora_sampling_types::ConversationRequest,
+) -> serde_json::Value {
     use xvora_sampling_types::rs;
     let create_response: rs::CreateResponse = req.into();
     let mut body = serde_json::to_value(&create_response).unwrap();
@@ -3992,7 +4946,7 @@ async fn prefix_stable_after_image_pruning() {
     // Large enough that the serialized body crosses the compaction trigger.
     let big_image_url = format!(
         "data:image/png;base64,{}",
-        "A".repeat(crate::actor::request_builder::IMAGE_COMPACT_TRIGGER_BYTES)
+        "A".repeat(crate::image_budget::IMAGE_COMPACT_TRIGGER_BYTES)
     );
 
     let h = TestHarness::with_conversation(vec![
@@ -4129,6 +5083,75 @@ async fn build_request_preserves_small_old_images() {
         image_retained,
         "a small old image must be preserved, not stripped to a placeholder"
     );
+}
+
+#[tokio::test]
+async fn build_request_budgets_tool_images_on_request_copy_only() {
+    use xvora_sampling_types::{ContentPart, ToolCall};
+
+    let image_url = format!(
+        "data:image/png;base64,{}",
+        "A".repeat(crate::image_budget::IMAGE_COMPACT_TRIGGER_BYTES)
+    );
+    let source = vec![
+        ConversationItem::assistant_tool_calls(vec![ToolCall {
+            id: "call-1".into(),
+            name: "read_file".into(),
+            arguments: r#"{"target_file":"image.png"}"#.into(),
+        }]),
+        ConversationItem::tool_result_with_images(
+            "call-1",
+            "tool text",
+            vec![ContentPart::Image {
+                url: image_url.into(),
+            }],
+        ),
+    ];
+    let source_bytes = serde_json::to_vec(&source).unwrap().len();
+    let mut h = TestHarness::with_conversation(source);
+    let request = h
+        .handle
+        .build_request(vec![], None, false, None, "c".into(), "r".into())
+        .await
+        .unwrap();
+    let event = h.next_event().await;
+    let canonical = h.handle.get_conversation().await;
+
+    let ChatStateEvent::ImageBudget {
+        body_bytes,
+        body_bytes_after,
+        inline_images,
+        needs_image_compaction,
+        evicted,
+        ..
+    } = event
+    else {
+        panic!("expected image budget event");
+    };
+    assert_eq!(body_bytes, source_bytes);
+    assert_eq!(
+        body_bytes_after,
+        serde_json::to_vec(&request.items).unwrap().len()
+    );
+    assert_eq!(inline_images, 1);
+    assert!(needs_image_compaction);
+    assert_eq!(evicted, 1);
+    let ConversationItem::ToolResult(request_result) = &request.items[1] else {
+        panic!("expected request tool result");
+    };
+    assert!(request_result.images.is_empty());
+    assert_eq!(request_result.tool_call_id, "call-1");
+    assert!(request_result.content.starts_with("tool text\n\n"));
+    assert!(
+        request_result
+            .content
+            .contains("images from this tool result were removed")
+    );
+    let ConversationItem::ToolResult(canonical_result) = &canonical[1] else {
+        panic!("expected canonical tool result");
+    };
+    assert_eq!(canonical_result.images.len(), 1);
+    assert_eq!(canonical_result.content.as_ref(), "tool text");
 }
 
 /// Prefix stability after tool result pruning. When context utilization
@@ -4409,4 +5432,35 @@ async fn repair_history_command_refused_while_turn_active() {
         .unwrap()
         .unwrap();
     assert_eq!(report.stripped_tool_result_ids, vec!["call_ORPHAN"]);
+}
+
+#[tokio::test]
+async fn restore_snapshot_restores_all_fields() {
+    let mut h = TestHarness::new();
+    h.handle.push_user_message(ConversationItem::user("msg"));
+    h.handle.record_token_usage(500);
+    h.handle.increment_prompt_index();
+
+    // Drain events from the mutations above
+    let _ = h.handle.get_conversation().await;
+    h.drain_events();
+
+    let snapshot = h.handle.snapshot().await.unwrap();
+    assert_eq!(snapshot.prompt_index, 1);
+    assert_eq!(snapshot.total_tokens, 500);
+    assert_eq!(snapshot.conversation.len(), 1);
+
+    // Replace state
+    h.handle.replace_conversation(vec![]);
+    let _ = h.handle.get_conversation().await;
+
+    // Restore
+    h.handle.restore_snapshot(snapshot);
+
+    let conv = h.handle.get_conversation().await;
+    assert_eq!(conv.len(), 1);
+    let idx = h.handle.get_prompt_index().await;
+    assert_eq!(idx, 1);
+    let tokens = h.handle.get_total_tokens().await;
+    assert_eq!(tokens, 500);
 }
