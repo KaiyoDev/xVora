@@ -20,7 +20,7 @@ prometheus = { workspace = true, optional = true }
 tool-protocol = { workspace = true }
 tool-runtime = { workspace = true }
 tool-types = { workspace = true }
-xvora-computer-hub-sdk = { workspace = true }
+computer-hub-sdk = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

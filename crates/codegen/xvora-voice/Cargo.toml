@@ -22,7 +22,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
 xvora-dirs = { workspace = true }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 # Sanctioned TTY detach for the capture subprocesses (Linux system recorders,
 # macOS `__mic-capture` self-exec helper) — workspace rule: never spawn a raw
 # `std::process::Command`.

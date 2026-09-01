@@ -35,7 +35,7 @@ xvora-env = { workspace = true }
 xvora-secrets = { workspace = true }
 xvora-mixpanel = { workspace = true }
 xvora-config = { workspace = true }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 xvora-sampler = { workspace = true }
 token-estimation = { workspace = true }
 xvora-dirs = { workspace = true }
@@ -52,11 +52,11 @@ sentry = { version = "0.42.0", default-features = false, features = [
 # Single cross-edge: `events::ToolCallCompleted.outcome` reuses
 # `xvora_session_events::types::ToolOutcome` so the local event log and
 # the product telemetry event share the same enum surface.
-xvora-session-events = { workspace = true }
+session-events = { workspace = true }
 # `session_metrics::TraceUploadReason::from_upload_method` matches on the shared
 # `UploadMethod` enum (small, dependency-light types crate) so the reason->wire
 # mapping lives next to the trace-upload lifecycle events it labels.
-file-utils = { path = "../xvora-file-utils" }
+file-utils = { path = "../file-utils" }
 tty-utils = { workspace = true }
 xvora-version = { workspace = true }
 whoami = { workspace = true }

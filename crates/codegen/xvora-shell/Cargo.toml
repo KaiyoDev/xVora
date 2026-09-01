@@ -125,32 +125,32 @@ jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 sha2 = { workspace = true }
 rand = { workspace = true }
 strum = { workspace = true }
-fast-worktree = { path = "../xvora-fast-worktree", features = ["metadata"] }
+fast-worktree = { path = "../fast-worktree", features = ["metadata"] }
 
 tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 xvora-paths = { path = "../xvora-paths" }
 xvora-shell-base = { workspace = true }
 xvora-shell-session-support = { workspace = true }
-xvora-shell-terminal = { workspace = true }
+shell-terminal = { workspace = true }
 xvora-shared = { workspace = true }
-xvora-status-line = { workspace = true }
-tracing-macros = { path = "../xvora-tracing-macros" }
+status-line = { workspace = true }
+tracing-macros = { path = "../tracing-macros" }
 xvora-fsnotify = { path = "../xvora-fsnotify" }
-codebase-graph = { path = "../xvora-codebase-graph" }
-hunk-tracker = { path = "../xvora-hunk-tracker" }
-xvora-agent-lifecycle = { workspace = true }
-xvora-interjection-core = { workspace = true }
-xvora-message-delivery-core = { workspace = true }
+codebase-graph = { path = "../codebase-graph" }
+hunk-tracker = { path = "../hunk-tracker" }
+agent-lifecycle = { workspace = true }
+interjection-core = { workspace = true }
+message-delivery-core = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-chat-state = { path = "../xvora-chat-state" }
+chat-state = { path = "../chat-state" }
 # Segment markdown rendering + the `compaction/` store path convention.
 xvora-compaction-transcript = { workspace = true }
 xvora-compaction = { path = "../../common/xvora-compaction" }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 xvora-sampler = { path = "../xvora-sampler" }
 # Session FTS search; owns this crate's only rusqlite/bundled-SQLite use.
-xvora-session-search = { workspace = true }
+session-search = { workspace = true }
 token-estimation = { workspace = true }
 xvora-sampling-types = { path = "../xvora-sampling-types" }
 xvora-tools = { path = "../xvora-tools" }
@@ -159,19 +159,19 @@ xvora-workflow = { path = "../xvora-workflow" }
 system-power = { workspace = true }
 xvora-workspace = { workspace = true }
 # Backs the compatibility-only `xvora_shell::foreign_sessions` re-export.
-xvora-foreign-sessions = { workspace = true }
+foreign-sessions = { workspace = true }
 xvora-subagent-resolution = { path = "../xvora-subagent-resolution" }
 xvora-agent = { path = "../xvora-agent" }
-xvora-bundle = { workspace = true }
+bundle = { workspace = true }
 xvora-config = { workspace = true }
 xvora-config-types = { workspace = true }
 xvora-dirs = { workspace = true }
 xvora-memory = { workspace = true }
 xvora-hooks = { path = "../xvora-hooks" }
-hooks-plugins-types = { path = "../xvora-hooks-plugins-types" }
+hooks-plugins-types = { path = "../hooks-plugins-types" }
 xvora-plugin-marketplace = { path = "../xvora-plugin-marketplace" }
-file-utils = { path = "../xvora-file-utils" }
-xvora-session-events = { workspace = true }
+file-utils = { path = "../file-utils" }
+session-events = { workspace = true }
 xvora-auth = { workspace = true, features = ["middleware"] }
 xvora-telemetry = { workspace = true }
 xvora-http = { workspace = true }
@@ -190,7 +190,7 @@ dashmap.workspace = true
 
 # Used by acp_session.rs and mcp_servers.rs for the unified
 # xvora_tool_runtime::Tool dispatch model and the computer-hub MCP adapter.
-xvora-computer-hub-sdk = { workspace = true }
+computer-hub-sdk = { workspace = true }
 tool-runtime = { workspace = true }
 tool-protocol = { workspace = true }
 tool-types = { workspace = true }
@@ -205,7 +205,7 @@ windows = { workspace = true }
 
 [dev-dependencies]
 # The fixture that builds a `[ui.status_line]` section field by field.
-xvora-status-line = { workspace = true, features = ["test-support"] }
+status-line = { workspace = true, features = ["test-support"] }
 criterion = { workspace = true }
 # Pre-main unified-log redirect (`test_support::redirect_unified_log_for_tests`).
 ctor = { workspace = true }
@@ -213,8 +213,8 @@ filetime = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 # `extensions::bundle` tests build archives with `bundle::test_helpers`, which
-# is `#[cfg(test)]`-only inside xvora-bundle without this feature.
-xvora-bundle = { workspace = true, features = ["test-support"] }
+# is `#[cfg(test)]`-only inside bundle without this feature.
+bundle = { workspace = true, features = ["test-support"] }
 xvora-memory = { workspace = true, features = ["test-support"] }
 # sandbox-enforce: keep tests running against the enforcing sandbox build.
 xvora-workspace = { workspace = true, features = ["test-support", "sandbox-enforce"] }

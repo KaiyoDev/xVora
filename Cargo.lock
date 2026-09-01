@@ -17,6 +17,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "active-sessions"
+version = "0.1.0"
+dependencies = [
+ "agent-client-protocol",
+ "chrono",
+ "fs2",
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing",
+ "windows 0.61.3",
+ "xvora-config",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -33,11 +49,22 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "aes"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
+dependencies = [
+ "cfg-if",
+ "cipher 0.4.4",
+ "cpufeatures 0.2.17",
+]
+
+[[package]]
+name = "aes"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66bd29a732b644c0431c6140f370d097879203d79b80c94a6747ba0872adaef8"
 dependencies = [
- "cipher",
+ "cipher 0.5.1",
  "cpubits",
  "cpufeatures 0.3.0",
 ]
@@ -89,6 +116,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
+ "const-random",
  "getrandom 0.3.4",
  "once_cell",
  "serde",
@@ -1195,6 +1223,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-server"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1df331683d982a0b9492b38127151e6453639cd34926eb9c07d4cd8c6d22bfc"
+dependencies = [
+ "arc-swap",
+ "bytes",
+ "either",
+ "fs-err",
+ "http 1.4.0",
+ "http-body 1.0.1",
+ "hyper",
+ "hyper-util",
+ "pin-project-lite",
+ "rustls",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls",
+ "tower-service",
+]
+
+[[package]]
 name = "backoff"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1284,7 +1334,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "shlex",
  "syn 2.0.117",
 ]
@@ -1485,6 +1535,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
+name = "bundle"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "flate2",
+ "prod-mc-cli-chat-proxy-types",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tar",
+ "tempfile",
+ "xvora-config",
+]
+
+[[package]]
 name = "bytecount"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1539,6 +1604,25 @@ checksum = "7dafe3a8757b027e2be6e4e5601ed563c55989fcf1546e933c66c8eb3a058d35"
 dependencies = [
  "bytes",
  "either",
+]
+
+[[package]]
+name = "bzip2"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49ecfb22d906f800d4fe833b6282cf4dc1c298f5057ca0b5445e5c209735ca47"
+dependencies = [
+ "bzip2-sys",
+]
+
+[[package]]
+name = "bzip2-sys"
+version = "0.1.13+1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "225bff33b2141874fe80d71e07d6eec4f85c5c216453dd96388240f96e1acc14"
+dependencies = [
+ "cc",
+ "pkg-config",
 ]
 
 [[package]]
@@ -1607,7 +1691,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98db6aeaef0eeef2c1e3ce9a27b739218825dae116076352ac3777076aa22225"
 dependencies = [
- "cipher",
+ "cipher 0.5.1",
 ]
 
 [[package]]
@@ -1682,7 +1766,6 @@ name = "chat-state"
 version = "0.1.0"
 dependencies = [
  "indexmap",
- "regex",
  "serde",
  "serde_json",
  "strum 0.27.2",
@@ -1691,6 +1774,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "xvora-compaction",
+ "xvora-compaction-transcript",
  "xvora-sampling-types",
 ]
 
@@ -1737,12 +1821,22 @@ dependencies = [
 
 [[package]]
 name = "cipher"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
+dependencies = [
+ "crypto-common 0.1.6",
+ "inout 0.1.4",
+]
+
+[[package]]
+name = "cipher"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e34d8227fe1ba289043aeb13792056ff80fd6de1a9f49137a5f499de8e8c78ea"
 dependencies = [
  "crypto-common 0.2.1",
- "inout",
+ "inout 0.2.2",
 ]
 
 [[package]]
@@ -1750,6 +1844,7 @@ name = "circuit-breaker"
 version = "0.1.0"
 dependencies = [
  "log",
+ "tonic",
 ]
 
 [[package]]
@@ -1879,7 +1974,7 @@ dependencies = [
  "once_cell",
  "petgraph 0.6.5",
  "rayon",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "serde",
  "serde_json",
  "smallvec",
@@ -2033,6 +2128,7 @@ dependencies = [
  "opentelemetry_sdk",
  "parking_lot",
  "prometheus",
+ "prometheus-parse",
  "prost",
  "reqwest 0.12.24",
  "schemars 1.0.4",
@@ -2047,8 +2143,9 @@ dependencies = [
  "tool-types",
  "tracing",
  "tracing-subscriber",
- "tracing-util",
  "url",
+ "uuid",
+ "xvora-tracing",
 ]
 
 [[package]]
@@ -2108,6 +2205,26 @@ name = "const-oid"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
+
+[[package]]
+name = "const-random"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359"
+dependencies = [
+ "const-random-macro",
+]
+
+[[package]]
+name = "const-random-macro"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
+dependencies = [
+ "getrandom 0.2.16",
+ "once_cell",
+ "tiny-keccak",
+]
 
 [[package]]
 name = "constant_time_eq"
@@ -2488,6 +2605,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctor"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec09e802f5081de6157da9a75701d6c713d8dc3ba52571fd4bd25f412644e8a6"
+dependencies = [
+ "ctor-proc-macro",
+ "dtor",
+]
+
+[[package]]
+name = "ctor-proc-macro"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2931af7e13dc045d8e9d26afccc6fa115d64e115c9c84b1166288b46f6782c2"
+
+[[package]]
 name = "cursor-icon"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2612,6 +2745,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashboard-store"
+version = "0.1.0"
+dependencies = [
+ "pretty_assertions",
+ "rusqlite",
+ "sqlite-journal",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "xvora-config",
+]
+
+[[package]]
 name = "dashmap"
 version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2670,6 +2816,12 @@ dependencies = [
  "serde",
  "uuid",
 ]
+
+[[package]]
+name = "deflate64"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac6b926516df9c60bfa16e107b21086399f8285a44ca9711344b9e553c5146e2"
 
 [[package]]
 name = "deltae"
@@ -2792,6 +2944,37 @@ name = "deunicode"
 version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
+
+[[package]]
+name = "dhat"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98cd11d84628e233de0ce467de10b8633f4ddaecafadefc86e13b84b8739b827"
+dependencies = [
+ "backtrace",
+ "lazy_static",
+ "mintex",
+ "parking_lot",
+ "rustc-hash 1.1.0",
+ "serde",
+ "serde_json",
+ "thousands",
+]
+
+[[package]]
+name = "diag-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "reqwest 0.12.24",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "xvora-version",
+]
 
 [[package]]
 name = "diff"
@@ -2942,6 +3125,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "dtor"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97cbdf2ad6846025e8e25df05171abfb30e3ababa12ee0a0e44b9bbe570633a8"
+dependencies = [
+ "dtor-proc-macro",
+]
+
+[[package]]
+name = "dtor-proc-macro"
+version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7454e41ff9012c00d53cf7f475c5e3afa3b91b7c90568495495e8d9bf47a1055"
+
+[[package]]
 name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3087,30 +3285,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "enum_delegate"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8ea75f31022cba043afe037940d73684327e915f88f62478e778c3de914cd0a"
-dependencies = [
- "enum_delegate_lib",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "enum_delegate_lib"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e1f6c3800b304a6be0012039e2a45a322a093539c45ab818d9e6895a39c90fe"
-dependencies = [
- "proc-macro2",
- "quote",
- "rand 0.8.5",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "enumflags2"
 version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3250,6 +3424,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "extra-ca"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "rcgen",
+ "reqwest 0.12.24",
+ "rustls",
+ "rustls-native-certs",
+ "tempfile",
+ "tracing",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3315,6 +3503,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlite-journal",
  "tempfile",
  "test-utils",
@@ -3322,6 +3511,9 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tty-utils",
+ "url",
+ "uuid",
+ "xvora-dirs",
  "xvora-gix-status",
 ]
 
@@ -3493,6 +3685,7 @@ dependencies = [
  "circuit-breaker",
  "dirs 5.0.1",
  "dunce",
+ "extra-ca",
  "filetime",
  "futures",
  "gcloud-storage",
@@ -3506,7 +3699,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "strum 0.27.2",
  "tempfile",
  "test-utils",
  "tokio",
@@ -3517,6 +3709,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "xvora-auth",
+ "xvora-dirs",
  "xvora-version",
  "zstd",
 ]
@@ -3663,6 +3856,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "foreign-sessions"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dirs 6.0.0",
+ "dunce",
+ "filetime",
+ "git2",
+ "libc",
+ "md5",
+ "rusqlite",
+ "serde_json",
+ "sqlite-journal",
+ "tempfile",
+ "uuid",
+ "xvora-dirs",
+ "zstd",
+]
+
+[[package]]
 name = "form_urlencoded"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3679,6 +3892,16 @@ checksum = "0f158e3ff0a1b334408dc9fb811cd99b446986f4d8b741bb08f9df1604085ae7"
 dependencies = [
  "lazy_static",
  "num",
+]
+
+[[package]]
+name = "fs-err"
+version = "3.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b91aa448ca50d7e79433bdf3ee8d99215430d2ec02ade5aefab2a073a1822e8a"
+dependencies = [
+ "autocfg",
+ "tokio",
 ]
 
 [[package]]
@@ -3824,6 +4047,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuzzy-file-search"
+version = "0.1.0"
+dependencies = [
+ "ignore",
+ "libc",
+ "nucleo",
+ "serde",
+ "tempfile",
+ "tracing",
+ "tty-utils",
+]
+
+[[package]]
 name = "fuzzy-matcher"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3909,6 +4145,21 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "generator"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3b854b0e584ead1a33f18b2fcad7cf7be18b3875c78816b753639aa501513ae"
+dependencies = [
+ "cc",
+ "cfg-if",
+ "libc",
+ "log",
+ "rustversion",
+ "windows-link 0.2.1",
+ "windows-result 0.4.1",
 ]
 
 [[package]]
@@ -5256,7 +5507,7 @@ dependencies = [
  "chrono",
  "dunce",
  "gix",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "serde",
  "serde_json",
  "similar",
@@ -5624,6 +5875,15 @@ dependencies = [
 
 [[package]]
 name = "inout"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
+name = "inout"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7"
@@ -5715,6 +5975,15 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
 dependencies = [
  "either",
 ]
@@ -5884,6 +6153,15 @@ dependencies = [
  "sha2 0.10.9",
  "signature",
  "simple_asn1",
+]
+
+[[package]]
+name = "kamadak-exif"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef4fc70d0ab7e5b6bafa30216a6b48705ea964cdfc29c050f2412295eba58077"
+dependencies = [
+ "mutate_once",
 ]
 
 [[package]]
@@ -6166,6 +6444,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "loom"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "419e0dc8046cb947daa77eb95ae174acfbddb7673b4151f56d1eed8e93fbfaca"
+dependencies = [
+ "cfg-if",
+ "generator",
+ "scoped-tls",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "lru"
 version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6200,6 +6491,27 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "url",
+]
+
+[[package]]
+name = "lzma-rs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e"
+dependencies = [
+ "byteorder",
+ "crc",
+]
+
+[[package]]
+name = "lzma-sys"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fda04ab3764e6cde78b9974eec4f779acaba7c4e84b36eca3cf77c581b85d27"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
 ]
 
 [[package]]
@@ -6376,6 +6688,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "message-delivery-core"
+version = "0.1.0"
+
+[[package]]
 name = "mid"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6436,6 +6752,12 @@ dependencies = [
  "adler2",
  "simd-adler32",
 ]
+
+[[package]]
+name = "mintex"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c505b3e17ed6b70a7ed2e67fbb2c560ee327353556120d6e72f5232b6880d536"
 
 [[package]]
 name = "mio"
@@ -6535,6 +6857,12 @@ name = "multimap"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
+
+[[package]]
+name = "mutate_once"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13d2233c9842d08cfe13f9eac96e207ca6a2ea10b80259ebe8ad0268be27d2af"
 
 [[package]]
 name = "ndk"
@@ -7175,6 +7503,9 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+dependencies = [
+ "portable-atomic",
+]
 
 [[package]]
 name = "once_cell_polyfill"
@@ -7452,12 +7783,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pbkdf2"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
+dependencies = [
+ "digest 0.10.7",
+ "hmac",
+]
+
+[[package]]
 name = "pdf_oxide"
 version = "0.3.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ba152347f68db3aa3fbecc2b0104724d74aad532b186d3d9f4d5541681ddd91"
 dependencies = [
- "aes",
+ "aes 0.9.0",
  "base64",
  "bitflags 2.13.0",
  "brotli 8.0.2",
@@ -8115,6 +8456,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "prometheus-parse"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "811031bea65e5a401fb2e1f37d802cca6601e204ac463809a3189352d13b78a5"
+dependencies = [
+ "chrono",
+ "itertools 0.12.1",
+ "once_cell",
+ "regex",
+]
+
+[[package]]
 name = "prompt-queue"
 version = "0.1.0"
 dependencies = [
@@ -8335,7 +8688,7 @@ dependencies = [
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "rustls",
  "socket2",
  "thiserror 2.0.18",
@@ -8356,7 +8709,7 @@ dependencies = [
  "lru-slab",
  "rand 0.9.2",
  "ring",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "rustls",
  "rustls-pki-types",
  "slab",
@@ -8552,7 +8905,6 @@ name = "ratatui-textarea"
 version = "0.1.0"
 dependencies = [
  "arboard",
- "chrono",
  "crossterm",
  "fuzzy-matcher",
  "ignore",
@@ -8586,6 +8938,19 @@ checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "rcgen"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75e669e5202259b5314d1ea5397316ad400819437857b90861765f24c4cf80a2"
+dependencies = [
+ "pem",
+ "ring",
+ "rustls-pki-types",
+ "time",
+ "yasna",
 ]
 
 [[package]]
@@ -8891,6 +9256,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhai"
+version = "1.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e6e1be9d697d537ce450766df42ad6adf1a93f25f21d73217354ad7e3d3dae1"
+dependencies = [
+ "ahash",
+ "bitflags 2.13.0",
+ "num-traits",
+ "once_cell",
+ "rhai_codegen",
+ "serde",
+ "smallvec",
+ "smartstring",
+ "thin-vec",
+ "web-time",
+]
+
+[[package]]
+name = "rhai_codegen"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cd3a7535e50bf36857e7be7bec276d334e8c2dfa469c2201226fd01638ea5ca"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9021,6 +9415,12 @@ name = "rustc-demangle"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56f7d92ca342cea22a06f2121d944b4fd82af56988c270852495420f961d4ace"
+
+[[package]]
+name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
@@ -9263,6 +9663,12 @@ dependencies = [
  "serde_derive_internals",
  "syn 2.0.117",
 ]
+
+[[package]]
+name = "scoped-tls"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
 
 [[package]]
 name = "scopeguard"
@@ -9685,6 +10091,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "session-events"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
+name = "session-search"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "blake3",
+ "chrono",
+ "fs2",
+ "parking_lot",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sqlite-journal",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
+ "xvora-config",
+ "xvora-telemetry",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9750,6 +10189,36 @@ checksum = "5a9e7e0f2bfae24d8a5b5a66c5b257a83c7412304311512a0c054cd5e619da11"
 dependencies = [
  "lazy_static",
  "libc",
+]
+
+[[package]]
+name = "shell-terminal"
+version = "0.1.0"
+dependencies = [
+ "acp-lib",
+ "agent-client-protocol",
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "libc",
+ "portable-pty",
+ "process-wrap",
+ "serde",
+ "serde_json",
+ "shlex",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tty-utils",
+ "uuid",
+ "windows 0.61.3",
+ "xvora-config",
+ "xvora-paths",
+ "xvora-sandbox",
+ "xvora-tools",
+ "xvora-workspace",
 ]
 
 [[package]]
@@ -10064,6 +10533,20 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "smartstring"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3fb72c633efbaa2dd666986505016c32c3044395ceaf881518399d2f4127ee29"
+dependencies = [
+ "autocfg",
+ "static_assertions",
+ "version_check",
+]
 
 [[package]]
 name = "smawk"
@@ -10150,6 +10633,16 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "status-line"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "toml",
+]
 
 [[package]]
 name = "stop-words"
@@ -10322,7 +10815,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb6895a12ac5599bb6057362f00e8a3cf1daab4df33f553a55690a44e4fed8d0"
 dependencies = [
  "kurbo 0.12.0",
- "rustc-hash",
+ "rustc-hash 2.1.1",
  "skrifa",
  "write-fonts",
 ]
@@ -10618,6 +11111,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "thin-vec"
+version = "0.2.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79def32ffcd477db1ff26f76dab9e3a91f0bd42a85ca96577089b24623056f9d"
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10656,6 +11155,12 @@ dependencies = [
  "quote",
  "syn 2.0.117",
 ]
+
+[[package]]
+name = "thousands"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bf63baf9f5039dadc247375c29eb13706706cfde997d0330d05aa63a77d8820"
 
 [[package]]
 name = "thread_local"
@@ -10740,6 +11245,15 @@ checksum = "2e70e4c5a0e0a8a4823ad65dfe1a6930e4f4d756dcd9dd7939022b5e8c501215"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
@@ -11112,6 +11626,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tool-types",
+ "typeshare",
  "uuid",
 ]
 
@@ -11310,36 +11825,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
-]
-
-[[package]]
-name = "tracing-util"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bytes",
- "fastrace",
- "fastrace-opentelemetry",
- "fastrace-reqwest",
- "fastrace-tonic",
- "http 1.4.0",
- "http-body-util",
- "log",
- "opentelemetry",
- "opentelemetry-http",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "reqwest 0.12.24",
- "reqwest-middleware 0.4.2",
- "tokio",
- "tonic",
- "tower",
- "tower-http",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "uuid",
- "wiremock",
 ]
 
 [[package]]
@@ -11542,6 +12027,28 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "typeshare"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da1bf9fe204f358ffea7f8f779b53923a20278b3ab8e8d97962c5e1b3a54edb7"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "typeshare-annotation",
+]
+
+[[package]]
+name = "typeshare-annotation"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "621963e302416b389a1ec177397e9e62de849a78bd8205d428608553def75350"
+dependencies = [
+ "quote",
+ "syn 2.0.117",
+]
 
 [[package]]
 name = "typify"
@@ -12380,6 +12887,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "wildmatch"
+version = "2.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29333c3ea1ba8b17211763463ff24ee84e41c78224c16b001cd907e663a38c68"
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13202,7 +13715,6 @@ name = "xvora-agent"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "dirs 6.0.0",
  "dunce",
  "git2",
  "ignore",
@@ -13220,7 +13732,9 @@ dependencies = [
  "tokio",
  "tool-types",
  "tracing",
+ "tty-utils",
  "xvora-config",
+ "xvora-dirs",
  "xvora-hooks",
  "xvora-sampling-types",
  "xvora-tools",
@@ -13267,6 +13781,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xvora-compaction-transcript"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde_json",
+ "strum 0.27.2",
+ "xvora-sampling-types",
+]
+
+[[package]]
 name = "xvora-config"
 version = "0.1.0"
 dependencies = [
@@ -13287,6 +13811,7 @@ dependencies = [
  "tty-utils",
  "urlencoding",
  "which",
+ "xvora-dirs",
  "xvora-version",
 ]
 
@@ -13299,10 +13824,21 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.27.2",
+ "toml",
  "tracing",
  "xvora-announcements",
  "xvora-config",
  "xvora-mcp",
+]
+
+[[package]]
+name = "xvora-dirs"
+version = "0.1.0"
+dependencies = [
+ "dunce",
+ "pretty_assertions",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -13335,6 +13871,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "xvora-gboom"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "image",
+]
+
+[[package]]
 name = "xvora-gix-status"
 version = "0.1.0"
 dependencies = [
@@ -13348,18 +13892,22 @@ dependencies = [
 name = "xvora-hooks"
 version = "0.1.0"
 dependencies = [
+ "extra-ca",
  "fastrand",
  "regex",
  "reqwest 0.12.24",
  "serde",
  "serde_json",
  "shellexpand",
+ "strum 0.27.2",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "toml",
  "tracing",
  "url",
  "xvora-config",
+ "xvora-sandbox",
  "xvora-tools",
 ]
 
@@ -13367,9 +13915,13 @@ dependencies = [
 name = "xvora-http"
 version = "0.1.0"
 dependencies = [
+ "extra-ca",
+ "rcgen",
  "reqwest 0.12.24",
  "reqwest-middleware 0.4.2",
+ "rustls",
  "serde_json",
+ "tokio",
  "tracing",
  "xvora-auth",
  "xvora-sampler",
@@ -13397,6 +13949,7 @@ dependencies = [
  "syntect",
  "textwrap",
  "two-face",
+ "unicode-segmentation",
  "unicode-width 0.2.0",
  "url",
  "xvora-markdown-core",
@@ -13417,7 +13970,7 @@ dependencies = [
  "async-trait",
  "axum",
  "computer-hub-sdk",
- "file-utils",
+ "extra-ca",
  "futures",
  "http 1.4.0",
  "libc",
@@ -13428,6 +13981,8 @@ dependencies = [
  "rmcp",
  "serde",
  "serde_json",
+ "serial_test",
+ "session-events",
  "sse-stream",
  "tempfile",
  "thiserror 2.0.18",
@@ -13441,6 +13996,7 @@ dependencies = [
  "webbrowser",
  "which",
  "xvora-config",
+ "xvora-sandbox",
  "xvora-telemetry",
  "xvora-tools",
  "xvora-version",
@@ -13460,6 +14016,7 @@ dependencies = [
  "filetime",
  "flate2",
  "git2",
+ "libc",
  "nix 0.30.1",
  "notify",
  "reqwest 0.12.24",
@@ -13470,13 +14027,13 @@ dependencies = [
  "sqlite-vec",
  "tar",
  "tempfile",
+ "token-estimation",
  "tokio",
  "tracing",
  "windows 0.61.3",
  "xvora-auth",
  "xvora-config-types",
  "xvora-http",
- "xvora-telemetry",
  "xvora-tools",
  "xvora-version",
 ]
@@ -13520,9 +14077,10 @@ dependencies = [
 
 [[package]]
 name = "xvora-pager"
-version = "0.2.0"
+version = "1.0.13"
 dependencies = [
  "acp-lib",
+ "active-sessions",
  "agent-client-protocol",
  "ansi-to-tui",
  "anyhow",
@@ -13536,13 +14094,13 @@ dependencies = [
  "crash-handler",
  "criterion",
  "crossterm",
- "derive_more 2.1.1",
- "dirs 5.0.1",
+ "dashboard-store",
  "dunce",
- "enum_delegate",
+ "extra-ca",
  "fast-worktree",
  "file-utils",
  "flate2",
+ "foreign-sessions",
  "git2",
  "hooks-plugins-types",
  "image",
@@ -13561,14 +14119,16 @@ dependencies = [
  "ratatui-inline",
  "ratatui-textarea",
  "regex",
- "rustls",
  "serde",
  "serde_json",
  "serial_test",
  "shellexpand",
+ "shlex",
  "signal-hook 0.3.18",
  "similar",
+ "status-line",
  "strip-ansi-escapes",
+ "strum 0.27.2",
  "syntect",
  "tar",
  "tempfile",
@@ -13586,13 +14146,17 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
- "wait-timeout",
+ "walkdir",
  "windows-sys 0.59.0",
  "xvora-agent",
  "xvora-announcements",
  "xvora-config",
+ "xvora-dirs",
+ "xvora-gboom",
+ "xvora-hooks",
  "xvora-markdown",
  "xvora-mermaid",
+ "xvora-pager-diff",
  "xvora-pager-pty-harness",
  "xvora-pager-render",
  "xvora-plugin-marketplace",
@@ -13609,20 +14173,22 @@ dependencies = [
 
 [[package]]
 name = "xvora-pager-bin"
-version = "0.2.0"
+version = "1.0.13"
 dependencies = [
  "acp-lib",
+ "active-sessions",
  "anyhow",
  "clap",
  "crash-handler",
  "cryptify",
  "dunce",
+ "extra-ca",
  "libc",
  "obfstr",
- "rustls",
  "semver",
  "serde_json",
  "serial_test",
+ "tempfile",
  "tikv-jemalloc-ctl",
  "tikv-jemalloc-sys",
  "tikv-jemallocator",
@@ -13643,6 +14209,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "xvora-pager-diff"
+version = "0.1.0"
+dependencies = [
+ "agent-client-protocol",
+ "serde_json",
+ "similar",
+ "tracing",
+ "xvora-tools",
+]
+
+[[package]]
 name = "xvora-pager-minimal"
 version = "0.1.0"
 dependencies = [
@@ -13655,6 +14232,7 @@ dependencies = [
  "tracing",
  "uuid",
  "xvora-pager",
+ "xvora-pager-diff",
  "xvora-shell",
  "xvora-version",
 ]
@@ -13692,9 +14270,9 @@ dependencies = [
  "anstyle",
  "anyhow",
  "base64",
+ "chrono",
  "crossterm",
  "dark-light",
- "dirs 5.0.1",
  "documented",
  "dunce",
  "image",
@@ -13708,6 +14286,7 @@ dependencies = [
  "ratatui-textarea",
  "regex",
  "serde",
+ "serde_json",
  "serial_test",
  "shellexpand",
  "strum 0.27.2",
@@ -13721,6 +14300,8 @@ dependencies = [
  "tracing",
  "tty-utils",
  "tui-scrollbar",
+ "unicode-bidi",
+ "unicode-bidi-mirroring",
  "unicode-segmentation",
  "unicode-width 0.2.0",
  "url",
@@ -13728,6 +14309,8 @@ dependencies = [
  "vte 0.15.0",
  "windows-sys 0.59.0",
  "xvora-config",
+ "xvora-dirs",
+ "xvora-gboom",
  "xvora-markdown",
  "xvora-paths",
  "xvora-shared",
@@ -13751,10 +14334,8 @@ name = "xvora-plugin-marketplace"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "dirs 5.0.1",
  "dunce",
  "fs2",
- "git2",
  "hooks-plugins-types",
  "serde",
  "serde_json",
@@ -13765,6 +14346,7 @@ dependencies = [
  "tty-utils",
  "xvora-agent",
  "xvora-config",
+ "xvora-dirs",
 ]
 
 [[package]]
@@ -13776,6 +14358,7 @@ dependencies = [
  "axum",
  "chrono",
  "eventsource-stream",
+ "extra-ca",
  "futures-util",
  "indexmap",
  "reqwest 0.12.24",
@@ -13785,6 +14368,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "uuid",
+ "xvora-auth",
  "xvora-sampling-types",
  "xvora-test-support",
  "xvora-version",
@@ -13796,8 +14380,11 @@ version = "0.1.0"
 dependencies = [
  "assert_matches",
  "async-openai",
+ "chrono",
+ "circuit-breaker",
  "indexmap",
  "reqwest 0.12.24",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -13812,7 +14399,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "dirs 5.0.1",
  "dunce",
  "globset",
  "ignore",
@@ -13824,10 +14410,12 @@ dependencies = [
  "serial_test",
  "sha2 0.10.9",
  "thiserror 2.0.18",
+ "tokio",
  "toml",
  "tracing",
  "url",
  "xvora-config",
+ "xvora-dirs",
 ]
 
 [[package]]
@@ -13847,7 +14435,6 @@ dependencies = [
  "anyhow",
  "arboard",
  "base64",
- "dirs 6.0.0",
  "dunce",
  "image",
  "libc",
@@ -13857,6 +14444,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "status-line",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
@@ -13865,13 +14453,14 @@ dependencies = [
  "uuid",
  "wl-clipboard-rs",
  "xvora-config-types",
+ "xvora-dirs",
  "xvora-models",
  "xvora-tools",
 ]
 
 [[package]]
 name = "xvora-shell"
-version = "0.1.220-alpha.4"
+version = "1.0.13"
 dependencies = [
  "acp-lib",
  "agent-client-protocol",
@@ -13885,6 +14474,7 @@ dependencies = [
  "base64",
  "blake3",
  "bm25",
+ "bundle",
  "bytes",
  "chat-state",
  "chrono",
@@ -13892,13 +14482,16 @@ dependencies = [
  "codebase-graph",
  "computer-hub-sdk",
  "criterion",
+ "ctor",
  "dashmap",
- "dirs 6.0.0",
+ "dhat",
  "dunce",
+ "extra-ca",
  "fast-worktree",
  "file-utils",
  "filetime",
  "flate2",
+ "foreign-sessions",
  "fs2",
  "futures",
  "futures-util",
@@ -13907,6 +14500,7 @@ dependencies = [
  "git2",
  "glob",
  "globset",
+ "hmac",
  "hooks-plugins-types",
  "hunk-tracker",
  "ignore",
@@ -13918,6 +14512,8 @@ dependencies = [
  "jsonwebtoken",
  "kanal",
  "libc",
+ "loom",
+ "message-delivery-core",
  "moka",
  "nix 0.30.1",
  "notify",
@@ -13925,8 +14521,7 @@ dependencies = [
  "nucleo",
  "obfstr",
  "parking_lot",
- "portable-pty",
- "process-wrap",
+ "pretty_assertions",
  "prod-mc-cli-chat-proxy-types",
  "prompt-queue",
  "prost",
@@ -13936,19 +14531,18 @@ dependencies = [
  "reqwest-middleware 0.4.2",
  "ring",
  "rsa",
- "rusqlite",
  "rustls",
- "rustls-native-certs",
  "semver",
  "serde",
  "serde_ignored",
  "serde_json",
  "serial_test",
+ "session-events",
+ "session-search",
  "sha2 0.10.9",
- "shlex",
- "similar",
+ "shell-terminal",
  "siphasher",
- "sqlite-journal",
+ "status-line",
  "strum 0.27.2",
  "system-power",
  "tar",
@@ -13960,7 +14554,6 @@ dependencies = [
  "tokio",
  "tokio-retry",
  "tokio-rustls",
- "tokio-stream",
  "tokio-tungstenite 0.27.0",
  "tokio-util",
  "toml",
@@ -13985,8 +14578,10 @@ dependencies = [
  "xvora-announcements",
  "xvora-auth",
  "xvora-compaction",
+ "xvora-compaction-transcript",
  "xvora-config",
  "xvora-config-types",
+ "xvora-dirs",
  "xvora-fsnotify",
  "xvora-hooks",
  "xvora-http",
@@ -14006,6 +14601,7 @@ dependencies = [
  "xvora-test-support",
  "xvora-tools",
  "xvora-version",
+ "xvora-workflow",
  "xvora-workspace",
  "zstd",
 ]
@@ -14016,6 +14612,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "extra-ca",
  "libc",
  "nix 0.30.1",
  "pprof",
@@ -14039,34 +14636,32 @@ dependencies = [
 name = "xvora-shell-session-support"
 version = "0.1.0"
 dependencies = [
- "agent-client-protocol",
  "axum",
- "chrono",
  "file-utils",
  "reqwest 0.12.24",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "tokio-util",
  "tracing",
  "xvora-http",
- "xvora-shell-base",
  "xvora-version",
- "xvora-workspace",
 ]
 
 [[package]]
 name = "xvora-subagent-resolution"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
+ "tokio",
  "toml",
  "tool-types",
  "tracing",
+ "xvora-agent",
  "xvora-sampling-types",
  "xvora-tools",
 ]
@@ -14078,12 +14673,14 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "axum-server",
+ "base64",
  "bytes",
  "chrono",
- "dirs 5.0.1",
+ "ctor",
+ "extra-ca",
  "file-utils",
  "filetime",
- "futures-executor",
  "git2",
  "http 1.4.0",
  "mid",
@@ -14095,10 +14692,13 @@ dependencies = [
  "opentelemetry_sdk",
  "parking_lot",
  "prost",
+ "rcgen",
  "reqwest 0.12.24",
+ "rustls",
  "sentry",
  "serde",
  "serde_json",
+ "session-events",
  "strum 0.27.2",
  "tempfile",
  "token-estimation",
@@ -14110,15 +14710,19 @@ dependencies = [
  "tracing-chrome",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "tty-utils",
  "url",
  "uuid",
+ "webpki-roots 0.26.11",
  "whoami",
  "xvora-auth",
  "xvora-config",
+ "xvora-dirs",
  "xvora-env",
  "xvora-mixpanel",
  "xvora-sampler",
  "xvora-secrets",
+ "xvora-version",
 ]
 
 [[package]]
@@ -14133,6 +14737,7 @@ dependencies = [
  "clap",
  "futures-util",
  "libc",
+ "portable-pty",
  "reqwest 0.12.24",
  "serde",
  "serde_json",
@@ -14142,6 +14747,8 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
+ "tty-utils",
+ "url",
 ]
 
 [[package]]
@@ -14161,9 +14768,11 @@ dependencies = [
  "computer-hub-sdk",
  "crc32fast",
  "derive_more 2.1.1",
- "dirs 5.0.1",
+ "dhat",
  "dunce",
  "educe",
+ "encoding_rs",
+ "extra-ca",
  "file-utils",
  "flate2",
  "fs2",
@@ -14176,11 +14785,13 @@ dependencies = [
  "indexmap",
  "infer 0.19.0",
  "interjection-core",
+ "kamadak-exif",
  "libc",
  "minijinja",
  "nix 0.30.1",
  "parking_lot",
  "pdf_oxide",
+ "pretty_assertions",
  "pulldown-cmark",
  "quick-xml 0.38.3",
  "regex",
@@ -14191,6 +14802,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_yaml",
+ "sha2 0.10.9",
  "shellexpand",
  "similar",
  "strip-ansi-escapes",
@@ -14209,18 +14821,24 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tty-utils",
+ "unicode-normalization",
  "url",
  "uuid",
  "which",
+ "wildmatch",
  "windows 0.61.3",
  "wiremock",
+ "xvora-auth",
  "xvora-config",
+ "xvora-dirs",
  "xvora-env",
  "xvora-sandbox",
+ "xvora-test-support",
  "xvora-tools-api",
  "xvora-version",
  "xvora-workspace-types",
  "zip",
+ "zstd",
 ]
 
 [[package]]
@@ -14237,13 +14855,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "xvora-tracing"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "fastrace",
+ "fastrace-opentelemetry",
+ "fastrace-reqwest",
+ "fastrace-tonic",
+ "http 1.4.0",
+ "http-body-util",
+ "log",
+ "opentelemetry",
+ "opentelemetry-http",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "reqwest 0.12.24",
+ "reqwest-middleware 0.4.2",
+ "tokio",
+ "tonic",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
 name = "xvora-update"
 version = "0.1.220-alpha.4"
 dependencies = [
  "anyhow",
  "dunce",
+ "extra-ca",
+ "flate2",
  "futures",
  "indicatif",
+ "libc",
  "reqwest 0.12.24",
  "semver",
  "serde",
@@ -14254,15 +14905,19 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
+ "url",
  "wiremock",
+ "xvora-dirs",
  "xvora-shell",
+ "xvora-telemetry",
  "xvora-tools",
  "xvora-version",
+ "zstd",
 ]
 
 [[package]]
 name = "xvora-version"
-version = "0.2.0"
+version = "1.0.13"
 dependencies = [
  "semver",
 ]
@@ -14273,8 +14928,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cpal",
+ "extra-ca",
  "futures-util",
- "rustls",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -14283,7 +14938,25 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "tty-utils",
  "url",
+ "xvora-dirs",
+]
+
+[[package]]
+name = "xvora-workflow"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "rhai",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -14305,15 +14978,16 @@ dependencies = [
  "computer-hub-mcp-adapter",
  "computer-hub-sdk",
  "dashmap",
- "dirs 6.0.0",
+ "diag-server",
  "dunce",
+ "extra-ca",
  "fast-worktree",
  "fastrace",
  "file-utils",
- "filetime",
  "flate2",
  "fs2",
  "futures",
+ "fuzzy-file-search",
  "git2",
  "glob",
  "hashbrown 0.16.1",
@@ -14323,21 +14997,20 @@ dependencies = [
  "indexmap",
  "infer 0.19.0",
  "libc",
- "md5",
+ "nix 0.30.1",
  "nohash-hasher",
- "nucleo",
  "parking_lot",
  "prometheus",
+ "rand 0.9.2",
  "regex",
  "reqwest 0.12.24",
- "rusqlite",
- "rustc-hash",
- "rustls",
+ "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "session-events",
+ "sha1",
  "sha2 0.10.9",
  "smallvec",
- "sqlite-journal",
  "tar",
  "tempfile",
  "test-utils",
@@ -14352,18 +15025,18 @@ dependencies = [
  "tool-types",
  "tracing",
  "tracing-subscriber",
- "tracing-util",
  "tree-sitter",
  "tree-sitter-bash",
  "tty-utils",
  "url",
  "urlencoding",
  "uuid",
- "windows 0.61.3",
+ "wait-timeout",
  "xvora-agent",
  "xvora-auth",
  "xvora-config",
  "xvora-config-types",
+ "xvora-dirs",
  "xvora-env",
  "xvora-fsnotify",
  "xvora-hooks",
@@ -14373,9 +15046,12 @@ dependencies = [
  "xvora-telemetry",
  "xvora-tools",
  "xvora-tools-api",
+ "xvora-tracing",
  "xvora-version",
  "xvora-workspace-client",
+ "xvora-workspace-daemon",
  "xvora-workspace-types",
+ "zip",
  "zstd",
 ]
 
@@ -14385,6 +15061,7 @@ version = "0.1.0"
 dependencies = [
  "computer-hub-sdk",
  "schemars 1.0.4",
+ "semver",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -14397,6 +15074,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "xvora-workspace-daemon"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "computer-hub-sdk",
+ "fs2",
+ "libc",
+ "prometheus",
+ "reqwest 0.12.24",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tty-utils",
+ "windows 0.61.3",
+]
+
+[[package]]
 name = "xvora-workspace-types"
 version = "0.1.0"
 dependencies = [
@@ -14405,6 +15101,15 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "xz2"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388c44dc09d76f1536602ead6d325eb532f5c122f17782bd57fb47baeeb767e2"
+dependencies = [
+ "lzma-sys",
 ]
 
 [[package]]
@@ -14421,6 +15126,15 @@ name = "yansi"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
+
+[[package]]
+name = "yasna"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
+dependencies = [
+ "time",
+]
 
 [[package]]
 name = "yoke"
@@ -14607,11 +15321,25 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12598812502ed0105f607f941c386f43d441e00148fce9dec3ca5ffb0bde9308"
 dependencies = [
+ "aes 0.8.4",
  "arbitrary",
+ "bzip2",
+ "constant_time_eq",
  "crc32fast",
+ "deflate64",
  "flate2",
+ "getrandom 0.3.4",
+ "hmac",
  "indexmap",
+ "lzma-rs",
  "memchr",
+ "pbkdf2",
+ "sha1",
+ "time",
+ "xz2",
+ "zeroize",
+ "zopfli",
+ "zstd",
 ]
 
 [[package]]
@@ -14631,6 +15359,18 @@ name = "zmij"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ff05f8caa9038894637571ae6b9e29466c1f4f829d26c9b28f869a29cbe3445"
+
+[[package]]
+name = "zopfli"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05cd8797d63865425ff89b5c4a48804f35ba0ce8d125800027ad6017d2b5249"
+dependencies = [
+ "bumpalo",
+ "crc32fast",
+ "log",
+ "simd-adler32",
+]
 
 [[package]]
 name = "zstd"

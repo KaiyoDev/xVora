@@ -12,7 +12,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "time", "macros"] }
 tracing = { workspace = true }
-file-utils = { path = "../xvora-file-utils", optional = true }
+file-utils = { path = "../file-utils", optional = true }
 xvora-http = { workspace = true }
 xvora-version = { workspace = true }
 

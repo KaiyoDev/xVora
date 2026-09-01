@@ -80,7 +80,7 @@ members = [
     "crates/common/tool-protocol",
     "crates/common/tool-runtime",
     "crates/common/tool-types",
-    "crates/common/tracing-util",
+    "crates/common/xvora-tracing",
     "prod/mc/cli-chat-proxy-types",
     "third_party/dagre_rust",
     "third_party/graphlib_rust",
@@ -323,7 +323,7 @@ token-estimation = { path = "crates/codegen/token-estimation" }
 tool-protocol = { path = "crates/common/tool-protocol" }
 tool-runtime = { path = "crates/common/tool-runtime" }
 tool-types = { path = "crates/common/tool-types" }
-tracing-util = { path = "crates/common/tracing-util" }
+tracing-util = { path = "crates/common/xvora-tracing" }
 tty-utils = { path = "crates/codegen/tty-utils" }
 zbus = { version = "5" }
 zstd = "0.13"
@@ -358,6 +358,38 @@ xvora-workflow = { path = "crates/codegen/xvora-workflow" }
 xvora-workspace-daemon = { path = "crates/codegen/xvora-workspace-daemon" }
 xvora-pager-diff = { path = "crates/codegen/xvora-pager-diff" }
 xvora-gboom = { path = "crates/codegen/xvora-gboom" }
+  axum-server = "0.8"
+  ctor = "0.4"
+  dhat = "0.3"
+  encoding_rs = "0.8.35"
+  hmac = "0.12"
+  kamadak-exif = "0.5"
+  loom = "0.7"
+  prost-reflect = "0.16"
+  rcgen = { version = "0.13", features = ["pem"] }
+  rhai = { version = "1.25", features = ["serde"] }
+  rustls = { version = "0.23", features = ["aws-lc-rs"] }
+  rustls-native-certs = "0.8"
+  sha1 = "0.10"
+  unicode-bidi = "0.3"
+  unicode-bidi-mirroring = "0.4"
+  unicode-normalization = "0.1"
+  webpki-roots = "0.26"
+  wildmatch = "2"
+  zip = "3"
+  active-sessions = { path = "crates/codegen/active-sessions" }
+  bundle = { path = "crates/codegen/bundle" }
+  dashboard-store = { path = "crates/codegen/dashboard-store" }
+  diag-server = { path = "crates/codegen/diag-server" }
+  extra-ca = { path = "crates/codegen/extra-ca" }
+  fuzzy-file-search = { path = "crates/codegen/fuzzy-file-search" }
+  message-delivery-core = { path = "crates/common/message-delivery-core" }
+  session-events = { path = "crates/codegen/session-events" }
+  session-search = { path = "crates/codegen/session-search" }
+  shell-terminal = { path = "crates/codegen/shell-terminal" }
+  status-line = { path = "crates/codegen/status-line" }
+  foreign-sessions = { path = "crates/codegen/foreign-sessions" }
+  xvora-tracing = { path = "crates/common/xvora-tracing" }
 [profile.release]
 incremental = true
 panic = "abort"

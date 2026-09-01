@@ -21,7 +21,7 @@ tracing = { workspace = true }
 urlencoding = { workspace = true }
 xvora-config-types = { workspace = true }
 xvora-models = { workspace = true }
-xvora-status-line = { workspace = true }
+status-line = { workspace = true }
 xvora-tools = { workspace = true }
 tty-utils = { workspace = true }
 

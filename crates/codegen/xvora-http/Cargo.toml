@@ -13,7 +13,7 @@ rustls = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 xvora-auth = { workspace = true, features = ["middleware"] }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 xvora-sampler = { path = "../xvora-sampler" }
 xvora-telemetry = { workspace = true }
 xvora-version = { workspace = true }

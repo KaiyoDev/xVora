@@ -27,7 +27,7 @@ xvora-update = { path = "../xvora-update" }
 xvora-version = { workspace = true }
 xvora-telemetry = { workspace = true }
 xvora-workspace = { workspace = true }
-crash-handler = { path = "../xvora-crash-handler" }
+crash-handler = { path = "../crash-handler" }
 acp-lib = { workspace = true }
 
 # Async runtime + misc.
@@ -49,10 +49,10 @@ dunce = { workspace = true }
 semver = { workspace = true }
 tty-utils = { workspace = true }
 # `collect_crashed()` for the startup crash notice.
-xvora-active-sessions = { workspace = true }
+active-sessions = { workspace = true }
 xvora-config = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 
 # Binary hardening: compile-time string + control-flow obfuscation.
 obfstr = { workspace = true }

@@ -18,11 +18,11 @@ async-openai = { workspace = true }
 tty-utils = { workspace = true }
 xvora-auth = { workspace = true }
 xvora-config = { path = "../xvora-config" }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 xvora-tools-api = { path = "../xvora-tools-api" }
 xvora-workspace-types = { path = "../xvora-workspace-types" }
 xvora-version = { workspace = true }
-xvora-interjection-core = { workspace = true }
+interjection-core = { workspace = true }
 token-estimation = { workspace = true }
 async-lsp = { workspace = true }
 async-stream = { workspace = true }
@@ -56,8 +56,8 @@ serde_path_to_error = { workspace = true }
 tool-runtime = { workspace = true }
 tool-types = { workspace = true }
 tool-protocol = { workspace = true }
-xvora-computer-hub-core = { workspace = true }
-xvora-computer-hub-sdk = { workspace = true }
+computer-hub-core = { workspace = true }
+computer-hub-sdk = { workspace = true }
 
 futures = { workspace = true }
 similar = { workspace = true }
@@ -89,7 +89,7 @@ which = { workspace = true }
 chrono = { workspace = true }
 futures-util = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-file-utils = { path = "../xvora-file-utils" }
+file-utils = { path = "../file-utils" }
 dhat = { workspace = true, optional = true }
 zstd = { workspace = true }
 

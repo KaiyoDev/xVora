@@ -8,7 +8,7 @@ description = "Actor-based sampling/inference layer for xAI grok (HTTP streaming
 [dependencies]
 # Internal
 xvora-auth = { workspace = true }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 xvora-sampling-types = { path = "../xvora-sampling-types" }
 xvora-version = { workspace = true }
 

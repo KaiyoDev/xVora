@@ -1,0 +1,298 @@
+{
+  "synced_crates": [
+    {
+      "grok": "ptyctl",
+      "xvora": "ptyctl"
+    },
+    {
+      "grok": "ptyctl-cli",
+      "xvora": "ptyctl-cli"
+    },
+    {
+      "grok": "xai-acp-lib",
+      "xvora": "acp-lib"
+    },
+    {
+      "grok": "xai-agent-lifecycle",
+      "xvora": "agent-lifecycle"
+    },
+    {
+      "grok": "xai-chat-state",
+      "xvora": "chat-state"
+    },
+    {
+      "grok": "xai-circuit-breaker",
+      "xvora": "circuit-breaker"
+    },
+    {
+      "grok": "xai-codebase-graph",
+      "xvora": "codebase-graph"
+    },
+    {
+      "grok": "xai-compaction-transcript",
+      "xvora": "xvora-compaction-transcript"
+    },
+    {
+      "grok": "xai-computer-hub-core",
+      "xvora": "computer-hub-core"
+    },
+    {
+      "grok": "xai-computer-hub-mcp-adapter",
+      "xvora": "computer-hub-mcp-adapter"
+    },
+    {
+      "grok": "xai-computer-hub-sdk",
+      "xvora": "computer-hub-sdk"
+    },
+    {
+      "grok": "xai-crash-handler",
+      "xvora": "crash-handler"
+    },
+    {
+      "grok": "xai-dirs",
+      "xvora": "xvora-dirs"
+    },
+    {
+      "grok": "xai-fast-worktree",
+      "xvora": "fast-worktree"
+    },
+    {
+      "grok": "xai-file-utils",
+      "xvora": "file-utils"
+    },
+    {
+      "grok": "xai-fsnotify",
+      "xvora": "xvora-fsnotify"
+    },
+    {
+      "grok": "xai-grok-agent",
+      "xvora": "xvora-agent"
+    },
+    {
+      "grok": "xai-grok-announcements",
+      "xvora": "xvora-announcements"
+    },
+    {
+      "grok": "xai-grok-auth",
+      "xvora": "xvora-auth"
+    },
+    {
+      "grok": "xai-grok-compaction",
+      "xvora": "xvora-compaction"
+    },
+    {
+      "grok": "xai-grok-config",
+      "xvora": "xvora-config"
+    },
+    {
+      "grok": "xai-grok-config-types",
+      "xvora": "xvora-config-types"
+    },
+    {
+      "grok": "xai-grok-env",
+      "xvora": "xvora-env"
+    },
+    {
+      "grok": "xai-grok-hooks",
+      "xvora": "xvora-hooks"
+    },
+    {
+      "grok": "xai-grok-http",
+      "xvora": "xvora-http"
+    },
+    {
+      "grok": "xai-grok-markdown",
+      "xvora": "xvora-markdown"
+    },
+    {
+      "grok": "xai-grok-markdown-core",
+      "xvora": "xvora-markdown-core"
+    },
+    {
+      "grok": "xai-grok-mcp",
+      "xvora": "xvora-mcp"
+    },
+    {
+      "grok": "xai-grok-memory",
+      "xvora": "xvora-memory"
+    },
+    {
+      "grok": "xai-grok-mermaid",
+      "xvora": "xvora-mermaid"
+    },
+    {
+      "grok": "xai-grok-models",
+      "xvora": "xvora-models"
+    },
+    {
+      "grok": "xai-grok-pager",
+      "xvora": "xvora-pager"
+    },
+    {
+      "grok": "xai-grok-pager-bin",
+      "xvora": "xvora-pager-bin"
+    },
+    {
+      "grok": "xai-grok-pager-minimal",
+      "xvora": "xvora-pager-minimal"
+    },
+    {
+      "grok": "xai-grok-pager-pty-harness",
+      "xvora": "xvora-pager-pty-harness"
+    },
+    {
+      "grok": "xai-grok-pager-render",
+      "xvora": "xvora-pager-render"
+    },
+    {
+      "grok": "xai-grok-paths",
+      "xvora": "xvora-paths"
+    },
+    {
+      "grok": "xai-grok-plugin-marketplace",
+      "xvora": "xvora-plugin-marketplace"
+    },
+    {
+      "grok": "xai-grok-sampler",
+      "xvora": "xvora-sampler"
+    },
+    {
+      "grok": "xai-grok-sampling-types",
+      "xvora": "xvora-sampling-types"
+    },
+    {
+      "grok": "xai-grok-sandbox",
+      "xvora": "xvora-sandbox"
+    },
+    {
+      "grok": "xai-grok-secrets",
+      "xvora": "xvora-secrets"
+    },
+    {
+      "grok": "xai-grok-shared",
+      "xvora": "xvora-shared"
+    },
+    {
+      "grok": "xai-grok-shell",
+      "xvora": "xvora-shell"
+    },
+    {
+      "grok": "xai-grok-shell-base",
+      "xvora": "xvora-shell-base"
+    },
+    {
+      "grok": "xai-grok-shell-session-support",
+      "xvora": "xvora-shell-session-support"
+    },
+    {
+      "grok": "xai-grok-subagent-resolution",
+      "xvora": "xvora-subagent-resolution"
+    },
+    {
+      "grok": "xai-grok-telemetry",
+      "xvora": "xvora-telemetry"
+    },
+    {
+      "grok": "xai-grok-test-support",
+      "xvora": "xvora-test-support"
+    },
+    {
+      "grok": "xai-grok-tools",
+      "xvora": "xvora-tools"
+    },
+    {
+      "grok": "xai-grok-tools-api",
+      "xvora": "xvora-tools-api"
+    },
+    {
+      "grok": "xai-grok-update",
+      "xvora": "xvora-update"
+    },
+    {
+      "grok": "xai-grok-version",
+      "xvora": "xvora-version"
+    },
+    {
+      "grok": "xai-grok-voice",
+      "xvora": "xvora-voice"
+    },
+    {
+      "grok": "xai-grok-workspace",
+      "xvora": "xvora-workspace"
+    },
+    {
+      "grok": "xai-grok-workspace-client",
+      "xvora": "xvora-workspace-client"
+    },
+    {
+      "grok": "xai-grok-workspace-types",
+      "xvora": "xvora-workspace-types"
+    },
+    {
+      "grok": "xai-hooks-plugins-types",
+      "xvora": "hooks-plugins-types"
+    },
+    {
+      "grok": "xai-hunk-tracker",
+      "xvora": "hunk-tracker"
+    },
+    {
+      "grok": "xai-interjection-core",
+      "xvora": "interjection-core"
+    },
+    {
+      "grok": "xai-mixpanel",
+      "xvora": "xvora-mixpanel"
+    },
+    {
+      "grok": "xai-prompt-queue",
+      "xvora": "prompt-queue"
+    },
+    {
+      "grok": "xai-ratatui-inline",
+      "xvora": "ratatui-inline"
+    },
+    {
+      "grok": "xai-ratatui-textarea",
+      "xvora": "ratatui-textarea"
+    },
+    {
+      "grok": "xai-sqlite-journal",
+      "xvora": "sqlite-journal"
+    },
+    {
+      "grok": "xai-system-power",
+      "xvora": "system-power"
+    },
+    {
+      "grok": "xai-test-utils",
+      "xvora": "test-utils"
+    },
+    {
+      "grok": "xai-token-estimation",
+      "xvora": "token-estimation"
+    },
+    {
+      "grok": "xai-tool-protocol",
+      "xvora": "tool-protocol"
+    },
+    {
+      "grok": "xai-tool-runtime",
+      "xvora": "tool-runtime"
+    },
+    {
+      "grok": "xai-tool-types",
+      "xvora": "tool-types"
+    },
+    {
+      "grok": "xai-tracing",
+      "xvora": "tracing-util"
+    },
+    {
+      "grok": "xai-tty-utils",
+      "xvora": "tty-utils"
+    }
+  ],
+  "new_deps_added": 26,
+  "new_members_added": 2
+}

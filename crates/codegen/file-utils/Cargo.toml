@@ -10,7 +10,7 @@ authors = ["xAI"]
 anyhow = { workspace = true }
 base64.workspace = true
 dunce = { workspace = true }
-xvora-circuit-breaker = { workspace = true }
+circuit-breaker = { workspace = true }
 xvora-version = { workspace = true }
 aws-sdk-s3 = { version = "1", default-features = false, features = [
     "rt-tokio",
@@ -30,7 +30,7 @@ dirs = { workspace = true }
 indexmap = { workspace = true }
 xvora-dirs = { workspace = true }
 reqwest = { workspace = true }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 reqwest-middleware = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync", "time", "io-util", "fs"] }
 sha2 = { workspace = true, features = ["force-soft"] }
