@@ -790,9 +790,7 @@ fn loop_instruction_derives_interval_without_default_or_inline_execute() {
 #[test]
 fn loop_prompt_matches_pager_wording() {
     // The shell and pager must stay textually identical so they don't drift.
-    use xvora_tools::implementations::grok_build::{
-        loop_schedule_instruction, loop_usage_message,
-    };
+    use xvora_tools::implementations::grok_build::{loop_schedule_instruction, loop_usage_message};
     assert_eq!(loop_text("", LoopFireMode::Detached), loop_usage_message());
     for mode in [LoopFireMode::Detached, LoopFireMode::InSession] {
         assert_eq!(

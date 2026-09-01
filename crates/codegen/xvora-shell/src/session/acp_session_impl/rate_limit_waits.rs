@@ -3,9 +3,7 @@
 use std::time::Duration;
 
 use xvora_sampler::{SamplingErrorInfo, SamplingErrorKind};
-use xvora_telemetry::events::{
-    RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited,
-};
+use xvora_telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RateLimitWaitConfig {

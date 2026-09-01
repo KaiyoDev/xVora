@@ -2753,7 +2753,8 @@ mod tests {
             0,
             false,
         );
-        let dropped = xvora_tool_runtime::TypedToolOutput::from_value(typed.tool_id, expected_value);
+        let dropped =
+            xvora_tool_runtime::TypedToolOutput::from_value(typed.tool_id, expected_value);
         assert!(dropped.chat_completion_output.is_none());
     }
     #[test]

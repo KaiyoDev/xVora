@@ -424,8 +424,7 @@ pub async fn ensure_latest_on_disk(update_config: &UpdateConfig) -> Result<Ensur
         .await?;
         // The leader relaunches right after a successful converge and would die with the event still in flight
         // Failures keep it alive, so successes would under-report. The install is already done.
-        xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN)
-            .await;
+        xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
         outcome.installed = Some(target.clone());
     }
 

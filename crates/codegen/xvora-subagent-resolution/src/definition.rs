@@ -6,6 +6,7 @@ use std::path::Path;
 use xvora_agent::config::{AgentDefinition, IsolationMode};
 use xvora_agent::plugins::PluginRegistry;
 use xvora_agent::prompt::context::{PromptAudience, PromptContext};
+use xvora_tool_types::{SubagentCapabilityMode, SubagentIsolationMode};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentCapabilityModeExt, SubagentRuntimeOverrides, prune_orphaned_background_task_tools,
 };
@@ -13,7 +14,6 @@ use xvora_tools::registry::types::ToolConfig;
 use xvora_tools::types::compat::CompatConfig;
 use xvora_tools::types::template_renderer::TemplateRenderer;
 use xvora_tools::types::tool::ToolKind;
-use xvora_tool_types::{SubagentCapabilityMode, SubagentIsolationMode};
 /// Inputs that affect definition discovery and spawn permission.
 pub struct DefinitionResolutionContext<'a> {
     pub cwd: &'a Path,
@@ -64,18 +64,14 @@ pub fn discover_agent_definition(
     subagent_type: &str,
     context: &DefinitionResolutionContext<'_>,
 ) -> Option<AgentDefinition> {
-    xvora_agent::discovery::by_name_in_cwd_with_plugins(
-        subagent_type,
-        context.cwd,
-        context.plugins,
-    )
-    .or_else(|| {
-        context
-            .cli_agents
-            .iter()
-            .find(|definition| definition.name == subagent_type)
-            .cloned()
-    })
+    xvora_agent::discovery::by_name_in_cwd_with_plugins(subagent_type, context.cwd, context.plugins)
+        .or_else(|| {
+            context
+                .cli_agents
+                .iter()
+                .find(|definition| definition.name == subagent_type)
+                .cloned()
+        })
 }
 /// Sorted agent names the model can request under the current discovery context.
 pub fn available_agent_names(context: &DefinitionResolutionContext<'_>) -> Vec<String> {

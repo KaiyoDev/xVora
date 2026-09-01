@@ -114,8 +114,7 @@ fn direct_and_enveloped_wire_inputs_preserve_exact_arguments() {
 #[test]
 fn wire_input_is_preserved_without_admission_revalidation() {
     let oversize = "x".repeat(
-        xvora_tools::implementations::grok_build::task::types::MAX_ACTIVE_AGENT_MESSAGE_BYTES
-            + 1,
+        xvora_tools::implementations::grok_build::task::types::MAX_ACTIVE_AGENT_MESSAGE_BYTES + 1,
     );
     for (subagent_id, text) in [("null", "hello"), ("sub-123", ""), ("sub-123", &oversize)] {
         let block = block(&call(

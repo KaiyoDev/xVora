@@ -3341,9 +3341,11 @@ mod tests {
             _input: serde_json::Value,
         ) -> xvora_tool_runtime::ToolStream<String> {
             Box::pin(futures::stream::iter(vec![
-                xvora_tool_runtime::ToolStreamItem::Progress(xvora_tool_runtime::ToolProgress::Text {
-                    text: "progress-1".into(),
-                }),
+                xvora_tool_runtime::ToolStreamItem::Progress(
+                    xvora_tool_runtime::ToolProgress::Text {
+                        text: "progress-1".into(),
+                    },
+                ),
                 xvora_tool_runtime::ToolStreamItem::Terminal(Ok("terminal-value".to_string())),
             ]))
         }

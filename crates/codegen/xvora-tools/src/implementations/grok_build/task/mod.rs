@@ -1301,7 +1301,8 @@ mod tests {
         input.model = Some("invented-model".to_string());
 
         let result =
-            xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(resources.into_shared()), input).await;
+            xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(resources.into_shared()), input)
+                .await;
 
         let msg = result
             .expect_err("invalid model must reject before spawn")

@@ -839,8 +839,7 @@ pub async fn run_cli_login(
     ));
     crate::agent::init::update_telemetry_config(config, &auth_manager);
     let result = run_cli_login_steps(config, &auth_manager, oauth, device_auth).await;
-    xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN)
-        .await;
+    xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
     result
 }
 async fn run_cli_login_steps(
@@ -942,9 +941,7 @@ pub fn perform_logout(
         })),
     );
     if was_logged_in {
-        xvora_telemetry::external::set_identity(
-            xvora_telemetry::external::IdentityAttrs::default(),
-        );
+        xvora_telemetry::external::set_identity(xvora_telemetry::external::IdentityAttrs::default());
         xvora_telemetry::external::flush();
         if let Some(scope) = scope {
             auth_manager.remove_scope(scope)?;

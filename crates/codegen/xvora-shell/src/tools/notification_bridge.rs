@@ -9,10 +9,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex as TokioMutex, mpsc};
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_hunk_tracker::HunkTrackerHandle;
 use xvora_tools::notification::types::{ToolNotification, ToolNotificationHandle};
 use xvora_tools::types::output::{BashOutput, ToolOutput};
 use xvora_workspace::session::file_state::FileStateTracker;
-use xvora_hunk_tracker::HunkTrackerHandle;
 const TASK_WAKE_ADMISSION_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(250);
 pub(crate) struct NotificationBridgeConfig {
     /// ACP gateway for sending streaming updates to TUI
@@ -355,8 +355,7 @@ async fn handle_notification(
         }
         ToolNotification::SubagentCompleted(_) => {}
         ToolNotification::TaskCompleted(task_snapshot) => {
-            let is_monitor =
-                task_snapshot.kind == xvora_tools::computer::types::TaskKind::Monitor;
+            let is_monitor = task_snapshot.kind == xvora_tools::computer::types::TaskKind::Monitor;
             let task_id = task_snapshot.task_id.clone();
             let goal_loop_active = config
                 .goal_loop_active

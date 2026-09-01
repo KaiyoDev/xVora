@@ -3374,9 +3374,7 @@ mod tests {
         assert!(description_text.starts_with("1234567890"));
     }
     /// Fixture: a one-plugin registry whose `agents/` dir holds `reviewer.md`.
-    fn plugin_registry_with_reviewer(
-        plugin_root: &Path,
-    ) -> xvora_agent::plugins::PluginRegistry {
+    fn plugin_registry_with_reviewer(plugin_root: &Path) -> xvora_agent::plugins::PluginRegistry {
         use xvora_agent::plugins::discovery::PluginId;
         use xvora_agent::plugins::{
             DiscoveredPlugin, PluginManifest, PluginOrigin, PluginRegistry, PluginScope,

@@ -104,13 +104,11 @@ impl NotificationService {
                 &event.body,
                 self.terminal_ctx,
             );
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::NotificationEmitted {
-                    protocol: self.protocol.as_str(),
-                    event_kind: event.kind.as_str(),
-                    was_focused: self.focus_tracker.is_focused(),
-                },
-            );
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::NotificationEmitted {
+                protocol: self.protocol.as_str(),
+                event_kind: event.kind.as_str(),
+                was_focused: self.focus_tracker.is_focused(),
+            });
         }
     }
 

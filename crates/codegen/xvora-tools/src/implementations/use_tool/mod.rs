@@ -92,7 +92,9 @@ async fn dispatch_local_mcp(
     ctx: xvora_tool_runtime::ToolCallContext,
 ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
     let tool_id = xvora_tool_protocol::ToolId::new(tool_name).map_err(|_| {
-        xvora_tool_runtime::ToolError::invalid_arguments(format!("invalid tool name: '{tool_name}'"))
+        xvora_tool_runtime::ToolError::invalid_arguments(format!(
+            "invalid tool name: '{tool_name}'"
+        ))
     })?;
     let typed = dispatch.0.call_terminal(tool_id, tool_input, ctx).await?;
     serde_json::from_value(typed.value)
@@ -481,9 +483,9 @@ mod tests {
             _args: serde_json::Value,
             _ctx: xvora_tool_runtime::ToolCallContext,
         ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
-            xvora_tool_runtime::terminal_only(Err(xvora_tool_runtime::ToolError::invalid_arguments(
-                "local validation failed",
-            )))
+            xvora_tool_runtime::terminal_only(Err(
+                xvora_tool_runtime::ToolError::invalid_arguments("local validation failed"),
+            ))
         }
     }
 
@@ -538,7 +540,10 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::InvalidArguments);
+        assert_eq!(
+            err.kind,
+            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+        );
         assert!(err.detail.contains("not a valid MCP tool name"));
         assert!(err.detail.contains("read_file"));
     }
@@ -559,7 +564,10 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::InvalidArguments);
+        assert_eq!(
+            err.kind,
+            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+        );
         assert!(err.detail.contains("inner_dispatch not set"));
     }
 
@@ -957,7 +965,10 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::InvalidArguments);
+        assert_eq!(
+            err.kind,
+            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+        );
         assert!(err.detail.contains("local validation failed"));
         assert!(gateway_captured.lock().unwrap().is_none());
     }
@@ -1586,7 +1597,10 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::InvalidArguments);
+        assert_eq!(
+            err.kind,
+            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+        );
         assert!(err.detail.contains("native tool"), "got: {}", err.detail);
         assert!(err.detail.contains("scheduler_create"));
         assert!(err.detail.contains("directly"));

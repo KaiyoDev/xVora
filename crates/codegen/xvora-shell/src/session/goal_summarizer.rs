@@ -15,11 +15,11 @@ use crate::session::goal_role_tools::RoleToolNames;
 use std::path::Path;
 use std::sync::Arc;
 use xvora_session_events::EventWriter;
+use xvora_tool_types::SubagentCapabilityMode;
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
 };
-use xvora_tool_types::SubagentCapabilityMode;
 
 // Constants
 
@@ -604,10 +604,10 @@ mod tests {
 
     #[tokio::test]
     async fn channel_spawner_request_is_harness_internal_and_read_only() {
+        use xvora_tool_types::SubagentCapabilityMode;
         use xvora_tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
-        use xvora_tool_types::SubagentCapabilityMode;
 
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {

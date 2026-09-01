@@ -10,6 +10,11 @@ use chrono::{DateTime, Utc};
 use prometheus::{HistogramVec, IntCounterVec, register_histogram_vec, register_int_counter_vec};
 use serde_json::Value;
 use xvora_computer_hub_sdk::ToolServerHandler;
+use xvora_tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
+use xvora_tool_runtime::{
+    ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,
+};
+use xvora_tool_types::ToolDescription;
 use xvora_tools::computer::types::KillOutcome;
 use xvora_tools::computer::types::TaskKind;
 use xvora_tools::implementations::grok_build::scheduler::interval::interval_to_human;
@@ -21,11 +26,6 @@ use xvora_tools::types::resources::Terminal;
 use xvora_workspace_types::rpc::workspace::{
     BackgroundTaskSnapshotWire, KillTaskOutcome, ScheduledTaskSnapshotWire, TasksSnapshotResponse,
 };
-use xvora_tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
-use xvora_tool_runtime::{
-    ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,
-};
-use xvora_tool_types::ToolDescription;
 /// Deprecation monitor for the self-attested `caller_session_id` param.
 /// `kind="param_mismatch"` means the param disagreed with the server-bound envelope session and the envelope was trusted.
 /// `kind="envelope_absent"` means no envelope session existed and the param was used as a compat fallback.

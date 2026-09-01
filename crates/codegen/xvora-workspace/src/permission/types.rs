@@ -759,9 +759,9 @@ mod tests {
     }
     #[test]
     fn write_scoped_and_dynamic_inputs_map_to_edit_not_read() {
+        use xvora_tool_types::TaskToolInput;
         use xvora_tools::implementations::opencode::edit::EditInput;
         use xvora_tools::types::ToolInput;
-        use xvora_tool_types::TaskToolInput;
         let edit = ToolInput::from(EditInput {
             file_path: "/tmp/denied.txt".into(),
             old_string: "ORIGINAL".into(),

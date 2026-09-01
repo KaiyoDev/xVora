@@ -1142,8 +1142,7 @@ fn format_modified(epoch_secs: Option<u64>, now_secs: u64) -> String {
 }
 
 fn load_fullscreen_pref() -> bool {
-    let path =
-        xvora_tools::util::grok_home::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let path = xvora_tools::util::grok_home::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
     let Some(doc) = crate::config_toml_edit::read_config_document_for_edit(&path) else {
         return false;
     };

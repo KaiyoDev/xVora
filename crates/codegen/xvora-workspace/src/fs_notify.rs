@@ -195,8 +195,12 @@ fn parse_diff_name_status_line(
     let path = parts.next()?;
 
     match status.chars().next()? {
-        'A' => Some(xvora_codebase_graph::FileEvent::created(repo_root.join(path))),
-        'D' => Some(xvora_codebase_graph::FileEvent::removed(repo_root.join(path))),
+        'A' => Some(xvora_codebase_graph::FileEvent::created(
+            repo_root.join(path),
+        )),
+        'D' => Some(xvora_codebase_graph::FileEvent::removed(
+            repo_root.join(path),
+        )),
         'R' | 'C' => {
             let new_path = parts.next()?;
             Some(xvora_codebase_graph::FileEvent::renamed(

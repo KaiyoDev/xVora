@@ -332,9 +332,7 @@ async fn resume_local_session_in_worktree(
                 is_jj,
                 registry_client.is_some(),
             ) {
-                xvora_workspace::session::git::warn_registry_disabled_restore(
-                    resolved_session_id,
-                );
+                xvora_workspace::session::git::warn_registry_disabled_restore(resolved_session_id);
             }
             let info = crate::session::info::Info {
                 id: agent_client_protocol::SessionId::new(resolved_session_id.to_owned()),

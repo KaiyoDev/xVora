@@ -1536,9 +1536,7 @@ impl SessionActor {
         purpose: DrainPurpose,
         extra: Vec<xvora_tools::implementations::grok_build::update_goal::UpdateGoalEnvelope>,
     ) {
-        use xvora_tools::implementations::grok_build::update_goal::{
-            RejectReason, UpdateGoalAck,
-        };
+        use xvora_tools::implementations::grok_build::update_goal::{RejectReason, UpdateGoalAck};
         if !self.goal_harness_enabled() {
             let reject = || UpdateGoalAck::Rejected {
                 reason: RejectReason::HarnessDisabled,

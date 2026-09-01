@@ -78,9 +78,8 @@ pub(crate) struct WorkflowHostParams {
     pub tracker: Arc<parking_lot::Mutex<WorkflowTracker>>,
     pub store: super::store::WorkflowRunStore,
     pub notify: WorkflowNotifySender,
-    pub subagent_event_tx: mpsc::UnboundedSender<
-        xvora_tools::implementations::grok_build::task::types::SubagentEvent,
-    >,
+    pub subagent_event_tx:
+        mpsc::UnboundedSender<xvora_tools::implementations::grok_build::task::types::SubagentEvent>,
     pub parent_session_id: String,
     pub allow_fork_context: bool,
     pub effort: Option<xvora_sampling_types::ReasoningEffort>,
@@ -1172,19 +1171,20 @@ mod tests {
                 .unwrap();
             reply_rx
         };
-        let succeed = |spawn: xvora_tools::implementations::grok_build::task::types::SubagentSpawnRequest| {
-            spawn
-                .respond_with(|request| {
-                    xvora_tools::implementations::grok_build::task::types::SubagentResult {
-                        success: true,
-                        output: Arc::from("done"),
-                        subagent_id: request.id.clone(),
-                        child_session_id: request.id.clone(),
-                        ..Default::default()
-                    }
-                })
-                .expect("agent result delivered");
-        };
+        let succeed =
+            |spawn: xvora_tools::implementations::grok_build::task::types::SubagentSpawnRequest| {
+                spawn
+                    .respond_with(|request| {
+                        xvora_tools::implementations::grok_build::task::types::SubagentResult {
+                            success: true,
+                            output: Arc::from("done"),
+                            subagent_id: request.id.clone(),
+                            child_session_id: request.id.clone(),
+                            ..Default::default()
+                        }
+                    })
+                    .expect("agent result delivered");
+            };
 
         let first = spawn_agent("first");
         let second = spawn_agent("second");

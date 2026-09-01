@@ -14,7 +14,8 @@ pub(crate) use xvora_interjection_core::{
 };
 
 /// Shell instantiation of the shared entry type: images are ACP content.
-pub(crate) type PendingInterjection = xvora_interjection_core::PendingInterjection<acp::ImageContent>;
+pub(crate) type PendingInterjection =
+    xvora_interjection_core::PendingInterjection<acp::ImageContent>;
 
 /// Prompt-id prefix for interjections that missed their turn and were converted into standalone prompt turns.
 /// They arrived while the session was idle, or after the running turn's final drain.
@@ -254,19 +255,15 @@ impl SessionActor {
         // Those attribute the turn, which this skill did not start
         // `SkillDispatched` still carries `plugin_source`, so dispatch counts stay complete
         for sk in &parsed {
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::SlashCommandUsed {
-                    command: sk.name.clone(),
-                    args_provided: !sk.args.is_empty(),
-                },
-            );
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::SkillDispatched {
-                    skill_name: sk.name.clone(),
-                    plugin_source: sk.plugin_name.clone(),
-                    trigger: xvora_telemetry::events::SkillTrigger::SlashCommand,
-                },
-            );
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SlashCommandUsed {
+                command: sk.name.clone(),
+                args_provided: !sk.args.is_empty(),
+            });
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillDispatched {
+                skill_name: sk.name.clone(),
+                plugin_source: sk.plugin_name.clone(),
+                trigger: xvora_telemetry::events::SkillTrigger::SlashCommand,
+            });
         }
         slash_commands::build_skill_information_for_refs(
             &parsed,

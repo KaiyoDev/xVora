@@ -1128,17 +1128,15 @@ impl SessionActor {
             } else {
                 (None, None)
             };
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::ToolCallCompleted {
-                    tool_name: prepared.tool_name.clone(),
-                    outcome: tool_outcome,
-                    hook_rewrote,
-                    duration_ms,
-                    tool_result_size_bytes,
-                    file_path: ext_file_path,
-                    parameters: ext_parameters,
-                },
-            );
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::ToolCallCompleted {
+                tool_name: prepared.tool_name.clone(),
+                outcome: tool_outcome,
+                hook_rewrote,
+                duration_ms,
+                tool_result_size_bytes,
+                file_path: ext_file_path,
+                parameters: ext_parameters,
+            });
             if let Some(artifact) = compaction_artifact_read(&prepared.parsed_args) {
                 tracing::info_span!(
                     "compaction.segment_read",
@@ -1574,15 +1572,13 @@ impl SessionActor {
             } else {
                 xvora_telemetry::enums::PermissionMode::Ask
             };
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::PermissionPrompted {
-                    tool_name: canonical_permission_tool_name.clone(),
-                    access_kind: telemetry_access_kind,
-                    permission_mode: perm_mode,
-                    subagent_session_id: subagent_session_id.clone(),
-                    subagent_type: None,
-                },
-            );
+            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PermissionPrompted {
+                tool_name: canonical_permission_tool_name.clone(),
+                access_kind: telemetry_access_kind,
+                permission_mode: perm_mode,
+                subagent_session_id: subagent_session_id.clone(),
+                subagent_type: None,
+            });
             let perm_start = self.events.permission_requested(&call.function.name);
             debug_assert!(
                 !self.session_info.id.0.is_empty(),
@@ -2185,13 +2181,11 @@ impl SessionActor {
                 vec![],
             ),
             ToolInput::Skill(skill) => {
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::SkillDispatched {
-                        skill_name: skill.skill.clone(),
-                        plugin_source: None,
-                        trigger: xvora_telemetry::events::SkillTrigger::SkillTool,
-                    },
-                );
+                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillDispatched {
+                    skill_name: skill.skill.clone(),
+                    plugin_source: None,
+                    trigger: xvora_telemetry::events::SkillTrigger::SkillTool,
+                });
                 tracing::info_span!(
                     "skill.activated",
                     skill_name = %skill.skill,
@@ -2606,9 +2600,7 @@ impl SessionActor {
                 }
                 if ops.pr_merged {
                     self.signals_handle().record_pr_merged();
-                    xvora_telemetry::session_ctx::log_event(
-                        xvora_telemetry::events::PrMerged {},
-                    );
+                    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PrMerged {});
                 }
             }
             xvora_tools::types::output::ToolOutput::MCP(m)

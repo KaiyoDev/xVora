@@ -270,11 +270,7 @@ pub(crate) fn record_auth_401(
     // tracing event
     // The local file is reliable but only ships to GCS on OIDC refresh failure (auth/refresh.rs::spawn_diagnostic_upload)
     // By itself it does not show the steady-state 401 population; Sink 2 below provides that
-    xvora_telemetry::unified_log::warn(
-        "auth 401 attribution",
-        session_id,
-        Some(payload.clone()),
-    );
+    xvora_telemetry::unified_log::warn("auth 401 attribution", session_id, Some(payload.clone()));
 
     // Sink 2: discrete OTel span exported via OTLP (util/otel_layer.rs)
     // The schema fields below become OTel span attributes under `attributes.custom.<name>` per the tracing-opentelemetry bridge

@@ -217,7 +217,9 @@ impl StorageClientAttributionBridge {
         }
     }
 }
-impl xvora_file_utils::storage_client::Auth401AttributionCallback for StorageClientAttributionBridge {
+impl xvora_file_utils::storage_client::Auth401AttributionCallback
+    for StorageClientAttributionBridge
+{
     fn record_401(&self, operation: &str, sent_bearer_prefix: Option<&str>) {
         crate::auth::attribution::record_consumer_401(
             self.auth_manager.as_ref(),

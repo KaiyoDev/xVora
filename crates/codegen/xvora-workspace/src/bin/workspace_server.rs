@@ -533,10 +533,7 @@ async fn run(
     let tracker = ws_handle.activity_tracker().clone();
     let grace_budget = xvora_workspace::handle::termination_grace_from_env();
     ws_handle
-        .two_phase_drain(
-            grace_budget,
-            xvora_workspace::handle::DrainReason::Sigterm,
-        )
+        .two_phase_drain(grace_budget, xvora_workspace::handle::DrainReason::Sigterm)
         .await;
     tracker.set_shutting_down();
     tracing::info!("Shutting down...");
@@ -809,8 +806,9 @@ mod tests {
         unsafe { std::env::remove_var("GROK_WORKSPACE_PROJECT_LSP_TRUSTED") };
         let args = Args::try_parse_from(["xvora-workspace-server"]).unwrap();
         assert!(!args.project_lsp_trusted);
-        let args = Args::try_parse_from(["xvora-workspace-server", "--project-lsp-trusted", "true"])
-            .unwrap();
+        let args =
+            Args::try_parse_from(["xvora-workspace-server", "--project-lsp-trusted", "true"])
+                .unwrap();
         assert!(args.project_lsp_trusted);
     }
     #[test]
@@ -868,8 +866,8 @@ mod tests {
     }
     #[test]
     fn ready_file_is_accepted_as_a_deprecated_no_op() {
-        let args =
-            Args::try_parse_from(["xvora-workspace-server", "--ready-file", "/tmp/x.ready"]).unwrap();
+        let args = Args::try_parse_from(["xvora-workspace-server", "--ready-file", "/tmp/x.ready"])
+            .unwrap();
         assert_eq!(args.ready_file, Some(PathBuf::from("/tmp/x.ready")));
     }
     #[test]

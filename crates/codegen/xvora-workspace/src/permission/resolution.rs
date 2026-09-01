@@ -452,9 +452,7 @@ impl ResolveInputs<'static> {
         Self {
             policy_block,
             managed: managed_settings(),
-            managed_config_rules: managed_config_permissions(
-                &xvora_config::managed_config_layers(),
-            ),
+            managed_config_rules: managed_config_permissions(&xvora_config::managed_config_layers()),
             project_trusted,
         }
     }

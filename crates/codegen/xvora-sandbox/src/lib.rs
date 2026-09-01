@@ -927,11 +927,7 @@ mod tests {
         let ws = std::env::temp_dir().join(format!("grok-{tag}-{}-{nanos}", std::process::id()));
         let grok = ws.join(".grok");
         std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(
-            grok.join(xvora_config::SANDBOX_CONFIG_FILENAME),
-            toml_body,
-        )
-        .unwrap();
+        std::fs::write(grok.join(xvora_config::SANDBOX_CONFIG_FILENAME), toml_body).unwrap();
         ws
     }
     /// Create a temp workspace defining a `denytest` profile (extends `workspace`) with the given `deny` list.

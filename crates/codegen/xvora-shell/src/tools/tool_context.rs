@@ -7,11 +7,11 @@ use agent_client_protocol as acp;
 use std::collections::HashMap;
 use std::sync::Arc;
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_hunk_tracker::HunkTrackerHandle;
 use xvora_paths::AbsPathBuf;
+use xvora_tty_utils::ProcessScope;
 use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
 use xvora_workspace::session::file_state::FileStateHandle;
-use xvora_hunk_tracker::HunkTrackerHandle;
-use xvora_tty_utils::ProcessScope;
 #[derive(Debug, Clone, Default)]
 pub struct TaskOutputTokenBudget {
     inner: Arc<parking_lot::Mutex<TaskOutputTokenBudgetState>>,
@@ -178,9 +178,9 @@ impl Drop for BlockingWaitGuard {
 pub(crate) fn subagent_foreground_wait(
     state: Arc<BlockingWaitState>,
 ) -> xvora_tools::implementations::grok_build::task::types::SubagentForegroundWait {
-    xvora_tools::implementations::grok_build::task::types::SubagentForegroundWait::new(
-        move || Box::new(BlockingWaitGuard::enter(Arc::clone(&state))),
-    )
+    xvora_tools::implementations::grok_build::task::types::SubagentForegroundWait::new(move || {
+        Box::new(BlockingWaitGuard::enter(Arc::clone(&state)))
+    })
 }
 /// Session-level context. NOT used for tool execution (bridge handles that).
 #[derive(Clone)]
@@ -208,9 +208,8 @@ pub struct ToolContext {
             xvora_tools::implementations::grok_build::task::types::SubagentEvent,
         >,
     >,
-    pub subagent_coordinator_sender: Option<
-        xvora_tools::implementations::grok_build::task::backend::SubagentCoordinatorSender,
-    >,
+    pub subagent_coordinator_sender:
+        Option<xvora_tools::implementations::grok_build::task::backend::SubagentCoordinatorSender>,
     /// Shared LSP runtime, cloned cheaply (Arc) from parent to child.
     pub lsp: Option<Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
     /// LSP server names captured at session creation (not updated mid-session).
@@ -225,8 +224,7 @@ pub struct ToolContext {
         Option<xvora_tools::implementations::grok_build::monitor::types::MonitorEventBuffer>,
     pub task_completion_reservations:
         Option<xvora_tools::reminders::task_completion::TaskCompletionReservations>,
-    pub task_wake_suppressed:
-        Option<xvora_tools::reminders::task_completion::TaskWakeSuppressed>,
+    pub task_wake_suppressed: Option<xvora_tools::reminders::task_completion::TaskWakeSuppressed>,
     /// Channel for requesting trace uploads for synthetic auto-wake turns.
     pub(crate) synthetic_trace_tx:
         Option<tokio::sync::mpsc::UnboundedSender<crate::upload::turn::SyntheticTurnTraceRequest>>,
@@ -401,9 +399,9 @@ mod tests {
     use crate::{terminal::AsyncTerminalRunner, tools::ToolContext};
     use std::collections::HashMap;
     use std::sync::Arc;
+    use xvora_hunk_tracker::HunkTrackerHandle;
     use xvora_paths::AbsPathBuf;
     use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
-    use xvora_hunk_tracker::HunkTrackerHandle;
     impl ToolContext {
         pub(crate) fn new_local_context(
             cwd: AbsPathBuf,

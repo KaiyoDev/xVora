@@ -156,7 +156,10 @@ mod tests {
         assert_eq!(deployment.url, "https://cli-chat-proxy.grok.com/v1/models");
         assert_eq!(deployment.auth, EndpointAuth::Session);
         let api = ListModelsEndpoint::from_endpoints(&cfg, ModelFetchAuth::ApiKey);
-        assert_eq!(api.url, "https://inference.acme-corp.example/xvora/v1/models");
+        assert_eq!(
+            api.url,
+            "https://inference.acme-corp.example/xvora/v1/models"
+        );
         assert_eq!(api.auth, EndpointAuth::ApiKey);
         let default = EndpointsConfig::from_config_value(&toml::Value::Table(Default::default()));
         assert_eq!(

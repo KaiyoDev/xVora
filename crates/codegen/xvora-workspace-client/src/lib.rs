@@ -17,6 +17,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use xvora_computer_hub_sdk::harness::ToolHarness;
+use xvora_tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 use xvora_workspace_types::rpc::agents_md::{AgentConfigFile, DiscoverAgentsMdReq};
 use xvora_workspace_types::rpc::code_nav::{
     CodeFindDefinitionsReq, CodeFindReferencesReq, CodeGotoDefinitionReq, CodeGotoReferencesReq,
@@ -59,7 +60,6 @@ use xvora_workspace_types::rpc::worktree::{
     WorktreeGcReq, WorktreeListReq, WorktreeShowReq,
 };
 use xvora_workspace_types::rpc::{RpcEnvelope, RpcError, WORKSPACE_RPC_TOOL_ID, WorkspaceRpc};
-use xvora_tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 #[derive(Debug, thiserror::Error)]
 pub enum WorkspaceClientError {
     /// A previous call observed a fatal transport error and no reconnect has been signalled since.
@@ -136,7 +136,9 @@ fn is_non_retryable_workspace_unavailable(err: &xvora_tool_runtime::ToolError) -
             use serde::Deserialize as _;
             xvora_tool_protocol::WorkspaceUnavailableDetails::deserialize(d).ok()
         })
-        .is_some_and(|d| d.code == xvora_tool_protocol::WORKSPACE_UNAVAILABLE_SUBCODE && !d.retryable)
+        .is_some_and(|d| {
+            d.code == xvora_tool_protocol::WORKSPACE_UNAVAILABLE_SUBCODE && !d.retryable
+        })
 }
 /// Typed client over a bound [`ToolHarness`] for `workspace.*` RPCs.
 ///
@@ -588,10 +590,10 @@ mod tests {
     use schemars::JsonSchema;
     use serde::Deserialize;
     use xvora_computer_hub_sdk::harness::LocalRegistry;
-    use xvora_workspace_types::rpc::RpcActivityClass;
     use xvora_tool_protocol::{SessionId, ToolId};
     use xvora_tool_runtime::{Tool, ToolError};
     use xvora_tool_types::ToolDescription;
+    use xvora_workspace_types::rpc::RpcActivityClass;
     #[derive(Debug, Deserialize, JsonSchema)]
     struct RpcArgs {
         method: String,

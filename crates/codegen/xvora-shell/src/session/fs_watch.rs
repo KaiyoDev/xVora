@@ -13,8 +13,8 @@ use tokio::sync::mpsc;
 use tokio::time::sleep_until;
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_fsnotify::{FsEvent, FsEventKind};
-use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 use xvora_hunk_tracker::HunkTrackerHandle;
+use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 
 use crate::session::acp_session::SessionActor;
 use crate::session::persistence::PersistenceMsg;
@@ -161,8 +161,12 @@ fn parse_diff_name_status_line(
     let path = parts.next()?;
 
     match status.chars().next()? {
-        'A' => Some(xvora_codebase_graph::FileEvent::created(repo_root.join(path))),
-        'D' => Some(xvora_codebase_graph::FileEvent::removed(repo_root.join(path))),
+        'A' => Some(xvora_codebase_graph::FileEvent::created(
+            repo_root.join(path),
+        )),
+        'D' => Some(xvora_codebase_graph::FileEvent::removed(
+            repo_root.join(path),
+        )),
         'R' | 'C' => {
             let new_path = parts.next()?;
             Some(xvora_codebase_graph::FileEvent::renamed(
@@ -568,8 +572,7 @@ impl FsWatchPlan {
         });
 
         let hunk = (caps.hunk_tracking && deps.hunk_tracking_enabled).then(|| {
-            let git_root =
-                xvora_workspace::session::git::find_git_root_from_path(&deps.cwd).ok();
+            let git_root = xvora_workspace::session::git::find_git_root_from_path(&deps.cwd).ok();
             HunkTracking {
                 handle: deps.hunk_tracker,
                 cwd: deps.cwd.clone(),

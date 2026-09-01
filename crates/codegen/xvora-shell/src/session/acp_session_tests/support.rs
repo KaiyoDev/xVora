@@ -206,9 +206,7 @@ pub(crate) async fn create_test_actor_with_terminal(
     tokio::sync::mpsc::UnboundedReceiver<SessionEvent>,
 ) {
     let cwd = xvora_paths::AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap();
-    let fs = Arc::new(xvora_workspace::file_system::MockFs::new(
-        cwd.to_path_buf(),
-    ));
+    let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
     let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
     let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
         "test-actor".to_string(),
@@ -920,7 +918,10 @@ pub(crate) fn spawn_capturing_gateway_loop(
                     if args.request.method.as_ref() == "x.ai/session_notification" {
                         let params: serde_json::Value =
                             serde_json::from_str(args.request.params.get()).unwrap_or_default();
-                        xvora_captured.lock().unwrap().push(params["update"].clone());
+                        xvora_captured
+                            .lock()
+                            .unwrap()
+                            .push(params["update"].clone());
                     }
                 }
                 _ => {}

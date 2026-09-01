@@ -2564,7 +2564,8 @@ mod tests {
 
         let tool = GrepTool;
         let mut stream =
-            xvora_tool_runtime::Tool::execute(&tool, test_ctx(resources.into_shared()), input).await;
+            xvora_tool_runtime::Tool::execute(&tool, test_ctx(resources.into_shared()), input)
+                .await;
 
         let mut deltas = String::new();
         let mut terminal: Option<Result<GrepSearchOutput, xvora_tool_runtime::ToolError>> = None;

@@ -1661,9 +1661,7 @@ pub(super) fn resolve_human_intent(
 /// It stays identical to the pager's `LoopCommand`, so the two front-ends can't drift.
 /// Like the pager, there is no host-side interval default: the model derives the cadence from the request and asks when none is given.
 fn build_loop_prompt_blocks(args: &str, mode: LoopFireMode) -> Vec<acp::ContentBlock> {
-    use xvora_tools::implementations::grok_build::{
-        loop_schedule_instruction, loop_usage_message,
-    };
+    use xvora_tools::implementations::grok_build::{loop_schedule_instruction, loop_usage_message};
     let text = if args.trim().is_empty() {
         loop_usage_message().to_string()
     } else {

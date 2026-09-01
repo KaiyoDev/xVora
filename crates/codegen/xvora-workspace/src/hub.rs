@@ -33,13 +33,13 @@ use xvora_computer_hub_sdk::{
     ToolServerBuilder, ToolServerHandler,
 };
 use xvora_diag_server::DiagHandle;
-use xvora_tools::registry::types::ToolConfig;
 use xvora_tool_protocol::ToolId;
 use xvora_tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, ToolStreamItem, TypedToolOutput,
     terminal_only,
 };
 use xvora_tool_types::ToolDescription;
+use xvora_tools::registry::types::ToolConfig;
 /// Configuration for connecting to a server instance.
 ///
 /// Passed via [`WorkspaceConfig::hub_config`](crate::config::WorkspaceConfig::hub_config).
@@ -976,7 +976,9 @@ mod tests {
             )
             .expect("register_tool must succeed");
     }
-    async fn drain_counts<T>(mut stream: xvora_tool_runtime::ToolStream<T>) -> (usize, usize, bool) {
+    async fn drain_counts<T>(
+        mut stream: xvora_tool_runtime::ToolStream<T>,
+    ) -> (usize, usize, bool) {
         let mut progress = 0;
         let mut terminal = 0;
         let mut last_is_terminal = false;
@@ -1085,9 +1087,7 @@ mod tests {
         }
     }
     fn bg_started_notif(task_id: &str) -> ToolNotification {
-        use xvora_tools::notification::types::{
-            BashExecutionBackgrounded, BashNotificationBase,
-        };
+        use xvora_tools::notification::types::{BashExecutionBackgrounded, BashNotificationBase};
         ToolNotification::BashExecutionBackgrounded(BashExecutionBackgrounded {
             base: BashNotificationBase {
                 tool_call_id: task_id.to_owned(),
@@ -1899,8 +1899,7 @@ mod tests {
             &self,
             _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<xvora_tools::types::output::ToolOutput, xvora_tool_runtime::ToolError>
-        {
+        ) -> Result<xvora_tools::types::output::ToolOutput, xvora_tool_runtime::ToolError> {
             let stdout = "/workspace/conv-abc/out.txt";
             Ok(xvora_tools::types::output::ToolOutput::Bash(
                 xvora_tools::types::output::BashOutput {

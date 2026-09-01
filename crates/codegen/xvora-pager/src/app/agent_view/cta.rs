@@ -540,12 +540,10 @@ impl AgentView {
             } => (plugin_relative_path.clone(), name.clone(), true),
             _ => return,
         };
-        xvora_telemetry::session_ctx::log_event(
-            xvora_telemetry::events::PluginCtaConnectClicked {
-                plugin_name: name.clone(),
-                is_retry,
-            },
-        );
+        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PluginCtaConnectClicked {
+            plugin_name: name.clone(),
+            is_retry,
+        });
         let Some(session_id) = self.session.session_id.clone() else {
             return;
         };

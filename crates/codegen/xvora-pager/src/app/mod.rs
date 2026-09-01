@@ -594,9 +594,7 @@ pub async fn run(
     let startup_start = std::time::Instant::now();
     let raw_config = xvora_shell::config::load_effective_config()
         .map_err(|e| anyhow::anyhow!("Failed to load config: {e}"))?;
-    let grok_com_config = match xvora_shell::agent::config::Config::new_from_toml_cfg(
-        &raw_config,
-    ) {
+    let grok_com_config = match xvora_shell::agent::config::Config::new_from_toml_cfg(&raw_config) {
         Ok(c) => c.grok_com_config,
         Err(e) => {
             tracing::warn!(error = %e, "failed to parse config for auth refresh, using defaults");
@@ -623,9 +621,7 @@ pub async fn run(
     .unwrap_or(None);
     let had_prefetch = match refreshed_auth {
         Some(auth) => xvora_shell::agent::models::startup_prefetch::begin_with_auth(Some(auth)),
-        None => {
-            xvora_shell::agent::models::startup_prefetch::begin(Some(grok_com_config.clone()))
-        }
+        None => xvora_shell::agent::models::startup_prefetch::begin(Some(grok_com_config.clone())),
     };
     xvora_shell::agent::mvp_agent::warm_async_http_client();
     tokio::task::spawn_blocking(|| {});
@@ -915,15 +911,13 @@ pub async fn run(
     } else {
         crate::acp::AgentKind::Embedded
     };
-    xvora_telemetry::external::init(
-        xvora_shell::agent::config::resolve_external_otel_config(
-            xvora_telemetry::external::config::ExternalClientInfo {
-                service_version: xvora_version::full_version().to_owned(),
-                client_version: xvora_version::VERSION.to_owned(),
-                app_entrypoint: "tui".to_owned(),
-            },
-        ),
-    );
+    xvora_telemetry::external::init(xvora_shell::agent::config::resolve_external_otel_config(
+        xvora_telemetry::external::config::ExternalClientInfo {
+            service_version: xvora_version::full_version().to_owned(),
+            client_version: xvora_version::VERSION.to_owned(),
+            app_entrypoint: "tui".to_owned(),
+        },
+    ));
     if args.log_sampling {
         unsafe { std::env::set_var("GROK_LOG_SAMPLING", "1") };
     }
@@ -1389,9 +1383,7 @@ fn init_terminal(
             })?;
         }
         if mode.is_fullscreen() {
-            xvora_shell::util::with_locked_stderr(|stderr| {
-                execute!(stderr, EnterAlternateScreen)
-            })?;
+            xvora_shell::util::with_locked_stderr(|stderr| execute!(stderr, EnterAlternateScreen))?;
         }
         #[cfg(windows)]
         if want_minimal {

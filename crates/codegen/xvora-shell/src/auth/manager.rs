@@ -1289,11 +1289,7 @@ impl AuthManager {
             DiskAuthState::FileMissing
             | DiskAuthState::EntryMissing
             | DiskAuthState::Unreadable => {
-                xvora_telemetry::unified_log::warn(
-                    "auth disk state: entry lost",
-                    None,
-                    Some(ctx),
-                );
+                xvora_telemetry::unified_log::warn("auth disk state: entry lost", None, Some(ctx));
             }
         }
     }

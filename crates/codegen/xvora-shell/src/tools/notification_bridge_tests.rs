@@ -84,8 +84,8 @@ fn make_test_config_full_raw() -> (
         session_cmd_tx,
         task_completion_reservations:
             xvora_tools::reminders::task_completion::TaskCompletionReservations::default(),
-        task_wake_suppressed:
-            xvora_tools::reminders::task_completion::TaskWakeSuppressed::default(),
+        task_wake_suppressed: xvora_tools::reminders::task_completion::TaskWakeSuppressed::default(
+        ),
         synthetic_trace_tx: Arc::new(std::sync::Mutex::new(None)),
         task_output_tool_name: Arc::new(std::sync::OnceLock::new()),
         read_tool_name: Arc::new(std::sync::OnceLock::new()),

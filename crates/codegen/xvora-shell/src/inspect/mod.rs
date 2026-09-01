@@ -837,9 +837,7 @@ async fn list_skills(
         .collect()
 }
 
-fn slash_name_counts(
-    skills: &[xvora_agent::prompt::skills::SkillInfo],
-) -> HashMap<String, usize> {
+fn slash_name_counts(skills: &[xvora_agent::prompt::skills::SkillInfo]) -> HashMap<String, usize> {
     let mut counts: HashMap<String, usize> = HashMap::new();
     for skill in skills.iter().filter(|s| s.user_invocable && s.enabled) {
         *counts.entry(skill.name.to_lowercase()).or_default() += 1;

@@ -240,8 +240,8 @@ impl ProfileName {
                 if real == home.join(path.file_name()?) {
                     return Some(real);
                 }
-                let default_sessions =
-                    xvora_dirs::home_dir().map(|user_home| user_home.join(".grok").join("sessions"));
+                let default_sessions = xvora_dirs::home_dir()
+                    .map(|user_home| user_home.join(".grok").join("sessions"));
                 if path.file_name() == Some(std::ffi::OsStr::new("sessions"))
                     && default_sessions.as_ref() == Some(&real)
                 {

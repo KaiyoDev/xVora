@@ -283,10 +283,7 @@ fn reconnect_restore_outcome(
 /// `TrustOutcome::Prompt` (interactive and untrusted, with repo configs present) becomes `TrustState::Pending` (show the question).
 /// Everything else becomes `TrustState::Done`.
 /// The feature-off fast path (kill-switch / opt-out / local build) short-circuits before any I/O.
-fn seed_trust_state(
-    app: &mut AppView,
-    remote: Option<&xvora_shell::util::config::RemoteSettings>,
-) {
+fn seed_trust_state(app: &mut AppView, remote: Option<&xvora_shell::util::config::RemoteSettings>) {
     use std::io::IsTerminal;
     use xvora_workspace::folder_trust::{
         TrustOutcome, decide, decide_inputs_with_interactive, feature_enabled,
@@ -1152,13 +1149,11 @@ pub(crate) async fn run(
                 .and_then(|s| s.privacy_banner_reshow_days)
         });
     // Local dismiss timestamp for the coding-data privacy banner.
-    app.privacy_banner_acked = xvora_shell::config::load_from_disk()
-        .ok()
-        .and_then(|root| {
-            xvora_shell::util::config::load_config_from_toml(&root)
-                .privacy
-                .privacy_banner_acked
-        });
+    app.privacy_banner_acked = xvora_shell::config::load_from_disk().ok().and_then(|root| {
+        xvora_shell::util::config::load_config_from_toml(&root)
+            .privacy
+            .privacy_banner_acked
+    });
     app.plugin_cta_enabled = xvora_config::env_bool("GROK_PLUGIN_CTA")
         .or_else(|| remote_settings.as_ref().and_then(|s| s.plugin_cta))
         .unwrap_or(false);
@@ -1279,9 +1274,10 @@ pub(crate) async fn run(
         }
     } else {
         // No cached session: check if the API key is the active credential
-        app.is_api_key_auth = app.auth_methods.iter().any(|m| {
-            m.id().0.as_ref() == xvora_shell::agent::auth_method::XAI_API_KEY_METHOD_ID
-        });
+        app.is_api_key_auth = app
+            .auth_methods
+            .iter()
+            .any(|m| m.id().0.as_ref() == xvora_shell::agent::auth_method::XAI_API_KEY_METHOD_ID);
         // No AuthMeta on this path: API keys / external auth have no consumer billing surface
         // External auth also hides `/usage`
         if app.is_api_key_auth || app.has_external_auth_provider {

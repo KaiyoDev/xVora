@@ -48,8 +48,7 @@ impl SessionActor {
             &counts,
             &tokens,
         ));
-        xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN)
-            .await;
+        xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
     }
 
     async fn tokenize_api_key(&self) -> Option<String> {

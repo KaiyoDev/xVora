@@ -141,17 +141,16 @@ impl coordinator::ChildRunner for ShellChildRunner {
                         "subagent worker runtime failed to build"
                     );
                     return coordinator::ChildRunOutput {
-                        result: xvora_tools::implementations::grok_build::task::types::SubagentResult {
-                            success: false,
-                            error: Some(
-                                format!(
-                                "Failed to start the subagent worker runtime: {err}"
-                            ),
-                            ),
-                            subagent_id: run.request.id.clone(),
-                            child_session_id: run.request.id,
-                            ..Default::default()
-                        },
+                        result:
+                            xvora_tools::implementations::grok_build::task::types::SubagentResult {
+                                success: false,
+                                error: Some(format!(
+                                    "Failed to start the subagent worker runtime: {err}"
+                                )),
+                                subagent_id: run.request.id.clone(),
+                                child_session_id: run.request.id,
+                                ..Default::default()
+                            },
                         completion_data: Default::default(),
                         snapshot_ref: None,
                     };
@@ -254,9 +253,7 @@ impl coordinator::ChildRunner for ShellChildRunner {
 /// Coordinator limit sink; the coordinator cannot link telemetry directly.
 fn log_limit_notice(notice: coordinator::SubagentLimitNotice) {
     use coordinator::{LimitedSpawnOrigin, SubagentLimitDecision};
-    use xvora_telemetry::events::{
-        SubagentLimitDisposition, SubagentLimitHit, SubagentOwnerKind,
-    };
+    use xvora_telemetry::events::{SubagentLimitDisposition, SubagentLimitHit, SubagentOwnerKind};
     let (disposition, limit) = match notice.decision {
         SubagentLimitDecision::QueuedAtConcurrentLimit { limit } => {
             (SubagentLimitDisposition::Queued, limit as u64)
@@ -292,11 +289,10 @@ pub(crate) fn spawn_subagent_coordinator(
     };
     let limit_sink: coordinator::SubagentLimitSink = std::sync::Arc::new(log_limit_notice);
     let config = coordinator::CoordinatorConfig {
-        foreground_budget:
-            xvora_tools::implementations::grok_build::task::backend::env_duration_or(
-                "GROK_SUBAGENT_AWAIT_BUDGET_MS",
-                std::time::Duration::from_secs(600),
-            ),
+        foreground_budget: xvora_tools::implementations::grok_build::task::backend::env_duration_or(
+            "GROK_SUBAGENT_AWAIT_BUDGET_MS",
+            std::time::Duration::from_secs(600),
+        ),
         limits,
         limit_sink: Some(limit_sink),
         buffer_completions: true,

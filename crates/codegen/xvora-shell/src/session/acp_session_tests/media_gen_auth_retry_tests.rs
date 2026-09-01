@@ -80,12 +80,11 @@ fn err(msg: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
 /// Build the HTTP failure shape that image_gen and video_gen emit on any non-success status.
 /// Use for retry tests that should exercise the structured status-code path rather than the string fallback.
 fn http_err(status: u16, msg: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
-    Err(
-        xvora_tool_runtime::ToolError::new(xvora_tool_runtime::ToolErrorKind::Custom, msg.to_owned())
-            .with_details(
-                serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: status}),
-            ),
+    Err(xvora_tool_runtime::ToolError::new(
+        xvora_tool_runtime::ToolErrorKind::Custom,
+        msg.to_owned(),
     )
+    .with_details(serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: status})))
 }
 
 // ── is_auth_tool_error ────────────────────────────────────────
@@ -149,7 +148,9 @@ fn is_auth_tool_error_classification() {
         // The classifier still catches it via the message-string fallback
         (
             true,
-            xvora_tool_runtime::ToolError::invalid_arguments("response: invalid api key for project"),
+            xvora_tool_runtime::ToolError::invalid_arguments(
+                "response: invalid api key for project",
+            ),
         ),
         // Fallback path: an OAuth 2.0 `invalid_token` payload (RFC 6749) surfaced as raw JSON without a structured status code
         (
@@ -164,7 +165,9 @@ fn is_auth_tool_error_classification() {
         // Negative: transport failure must not trigger a token refresh.
         (
             false,
-            xvora_tool_runtime::ToolError::invalid_arguments("Image generation timed out after 60s"),
+            xvora_tool_runtime::ToolError::invalid_arguments(
+                "Image generation timed out after 60s",
+            ),
         ),
         // Negative: structural not-found error; not a network response.
         (

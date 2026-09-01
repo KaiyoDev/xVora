@@ -66,9 +66,9 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         subagent_event_tx: tx,
         hunk_tracker_handle: xvora_hunk_tracker::HunkTrackerHandle::noop(),
         hunk_tracking_enabled: false,
-        fs: Arc::new(xvora_workspace::file_system::LocalFs::new(
-            PathBuf::from("/tmp"),
-        )),
+        fs: Arc::new(xvora_workspace::file_system::LocalFs::new(PathBuf::from(
+            "/tmp",
+        ))),
         terminal: Arc::new(crate::terminal::TerminalRunner::new(
             Arc::new(test_gateway()),
             acp::SessionId::new("test"),

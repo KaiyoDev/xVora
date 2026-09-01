@@ -148,10 +148,9 @@ impl xvora_tool_runtime::Tool for BashCcoStub {
         Ok(xvora_tools::types::output::ToolOutput::Bash(
             xvora_tools::types::output::BashOutput {
                 output: output.to_vec(),
-                output_for_prompt:
-                    xvora_tools::types::output::BashOutput::make_output_for_prompt(
-                        BASH_CCO_STUB_STDOUT,
-                    ),
+                output_for_prompt: xvora_tools::types::output::BashOutput::make_output_for_prompt(
+                    BASH_CCO_STUB_STDOUT,
+                ),
                 exit_code: 0,
                 command: format!("echo {BASH_CCO_STUB_STDOUT}"),
                 truncated: false,
@@ -3907,7 +3906,9 @@ async fn fork_session_inherits_viewer_ctx_from_parent() {
     );
 }
 /// Build the resolver exactly the way `connect_hub` does: session catalog handlers and the workspace RPC handler.
-fn bind_resolver_fixture(handle: &WorkspaceHandle) -> xvora_computer_hub_sdk::SessionHandlerResolver {
+fn bind_resolver_fixture(
+    handle: &WorkspaceHandle,
+) -> xvora_computer_hub_sdk::SessionHandlerResolver {
     let catalog_toolset = handle.session("main").expect("main session").toolset();
     let mut catalog = build_session_routed_handlers(&catalog_toolset, handle);
     let rpc_handler: Arc<dyn xvora_computer_hub_sdk::ToolServerHandler> =

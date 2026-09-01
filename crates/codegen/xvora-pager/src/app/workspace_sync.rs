@@ -225,8 +225,7 @@ mod tests {
     fn drain_moves_the_single_store_into_one_batch() {
         let temp = tempfile::tempdir().unwrap();
         let store =
-            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db"))
-                .unwrap();
+            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
         let snapshot = store.snapshot().unwrap();
         let mut app = crate::app::app_view::tests::test_app();
         app.workspace_dashboard_enabled = true;
@@ -248,8 +247,7 @@ mod tests {
     fn drain_skips_metadata_already_in_snapshot() {
         let temp = tempfile::tempdir().unwrap();
         let mut store =
-            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db"))
-                .unwrap();
+            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
         let agent = eligible_agent();
         store
             .insert_member(agent_to_new_member(&agent).unwrap())
@@ -269,8 +267,7 @@ mod tests {
     fn drain_keeps_request_while_write_owns_store() {
         let temp = tempfile::tempdir().unwrap();
         let store =
-            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db"))
-                .unwrap();
+            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
         let snapshot = store.snapshot().unwrap();
         let mut app = crate::app::app_view::tests::test_app();
         app.workspace_dashboard_enabled = true;
@@ -284,8 +281,7 @@ mod tests {
     fn drain_suppresses_identical_failed_metadata_until_it_changes() {
         let temp = tempfile::tempdir().unwrap();
         let store =
-            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db"))
-                .unwrap();
+            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
         let snapshot = store.snapshot().unwrap();
         let agent = eligible_agent();
         let failed = agent_to_new_member(&agent).unwrap();
@@ -312,8 +308,7 @@ mod tests {
     fn local_reinsert_preserves_existing_remote_origin() {
         let temp = tempfile::tempdir().unwrap();
         let mut store =
-            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db"))
-                .unwrap();
+            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
         let agent = eligible_agent();
         let mut remote = agent_to_new_member(&agent).unwrap();
         remote.origin = MemberOrigin::Remote;
@@ -328,8 +323,7 @@ mod tests {
     fn drain_caps_live_candidates_to_workspace_capacity() {
         let temp = tempfile::tempdir().unwrap();
         let store =
-            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db"))
-                .unwrap();
+            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
         let snapshot = store.snapshot().unwrap();
         let mut app = crate::app::app_view::tests::test_app();
         app.workspace_dashboard_enabled = true;
@@ -352,8 +346,7 @@ mod tests {
     fn drain_reserves_capacity_for_pinned_non_candidates() {
         let temp = tempfile::tempdir().unwrap();
         let store =
-            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db"))
-                .unwrap();
+            xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
         let mut stored = Vec::new();
         for index in 0..(WORKSPACE_CAPACITY - 2) {
             stored.push(Member {

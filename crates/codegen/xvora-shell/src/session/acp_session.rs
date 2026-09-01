@@ -481,7 +481,9 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
             .await
             .ok()
             .or_else(|| self.auth_manager.current_or_expired().map(|a| a.key))
-            .ok_or_else(|| xvora_tool_runtime::ToolError::unauthorized("no auth token available"))?;
+            .ok_or_else(|| {
+                xvora_tool_runtime::ToolError::unauthorized("no auth token available")
+            })?;
         let response = crate::session::managed_mcp::call_gateway_tool(
             &self.proxy_base_url,
             &auth_key,
@@ -510,8 +512,9 @@ fn managed_gateway_error_to_tool_error(
             } else if status == reqwest::StatusCode::FORBIDDEN {
                 xvora_tool_runtime::ToolError::permission_denied(detail)
             } else {
-                let tool_id = xvora_tool_protocol::ToolId::new(caller)
-                    .unwrap_or_else(|_| xvora_tool_protocol::ToolId::new("use_tool").expect("valid"));
+                let tool_id = xvora_tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
+                    xvora_tool_protocol::ToolId::new("use_tool").expect("valid")
+                });
                 xvora_tool_runtime::ToolError::execution(tool_id, detail)
             };
             match err.details.as_mut() {
@@ -564,7 +567,10 @@ mod managed_gateway_error_tests {
     #[test]
     fn forbidden_status_maps_to_permission_denied_and_carries_status() {
         let err = managed_gateway_error_to_tool_error(status_error(403, "denied"), "use_tool");
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::PermissionDenied);
+        assert_eq!(
+            err.kind,
+            xvora_tool_runtime::ToolErrorKind::PermissionDenied
+        );
         let details = err.details.as_ref().unwrap();
         assert_eq!(
             details.get(HTTP_STATUS_DETAILS_KEY),
@@ -1022,8 +1028,7 @@ pub(crate) struct SessionActor {
     /// `None` when no plugin registry was supplied at spawn time.
     /// Wrapped in `RefCell` for mid-session reload from `&self` methods.
     /// Safe: session actor is single-threaded (LocalSet), no concurrent access.
-    pub(crate) hook_registry:
-        std::cell::RefCell<Option<Arc<xvora_hooks::discovery::HookRegistry>>>,
+    pub(crate) hook_registry: std::cell::RefCell<Option<Arc<xvora_hooks::discovery::HookRegistry>>>,
     /// The turn's single end-of-turn hook report.
     /// Actor-scoped rather than turn-local because the gate runs on the turn task while a cancel runs on the command loop.
     pub(crate) turn_report: turn_report_slot::TurnReportSlot,
@@ -1132,9 +1137,8 @@ pub(crate) struct SessionActor {
     /// URLs are buffered by request id on `ImagesStripped`.
     /// They persist to stored history only when that request's `Completed` arrives, and drop on `Failed`.
     /// See `acp_session_impl/image_strip.rs`.
-    pub(crate) pending_image_strip: parking_lot::Mutex<
-        std::collections::HashMap<xvora_sampler::RequestId, PendingImageStrip>,
-    >,
+    pub(crate) pending_image_strip:
+        parking_lot::Mutex<std::collections::HashMap<xvora_sampler::RequestId, PendingImageStrip>>,
     /// Serializes durable image-strip writes with conversation rewinds.
     pub(crate) image_strip_rewrite_barrier: ImageStripRewriteBarrier,
     /// Handle to the per-session `xvora-sampler` actor.
@@ -1248,7 +1252,10 @@ impl SessionActor {
         skip_all,
         fields(session_id = %self.session_info.id.0, turn_number = payload.turn_number)
     )]
-    async fn send_after_turn_event(&self, payload: xvora_tool_protocol::turn_hook::AfterTurnPayload) {
+    async fn send_after_turn_event(
+        &self,
+        payload: xvora_tool_protocol::turn_hook::AfterTurnPayload,
+    ) {
         self.workspace_ops
             .on_after_turn(&self.session_id_string(), &payload)
             .await;
@@ -1301,9 +1308,7 @@ impl SessionActor {
         &self,
         tool_names: &[String],
     ) -> slash_commands::CommandAvailability {
-        use xvora_tools::implementations::memory::{
-            MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME,
-        };
+        use xvora_tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
         let memory_read_registered = tool_names
             .iter()
             .any(|n| n == MEMORY_SEARCH_TOOL_NAME || n == MEMORY_GET_TOOL_NAME);
@@ -1316,9 +1321,9 @@ impl SessionActor {
             feedback: self.feedback_manager.is_enabled(),
             memory: self.memory.is_enabled() && memory_read_registered,
             memory_configured: self.memory.backend_params.is_some(),
-            scheduler: tool_names.iter().any(|n| {
-                n == xvora_tools::implementations::grok_build::SCHEDULER_CREATE_TOOL_NAME
-            }),
+            scheduler: tool_names
+                .iter()
+                .any(|n| n == xvora_tools::implementations::grok_build::SCHEDULER_CREATE_TOOL_NAME),
             hooks: self.hook_registry.borrow().is_some(),
             plugins: self.plugin_registry.borrow().is_some(),
             goal,

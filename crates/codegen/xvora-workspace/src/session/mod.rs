@@ -16,13 +16,13 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use xvora_computer_hub_mcp_adapter::McpBridgeHandle;
+use xvora_hunk_tracker::HunkTrackerHandle;
 use xvora_mcp::servers::McpState;
+use xvora_tool_protocol::ToolId;
+use xvora_tool_runtime::WorkspaceViewerContext;
 use xvora_tools::notification::AcknowledgedToolNotification;
 use xvora_tools::notification::types::ToolNotificationHandle;
 use xvora_tools::registry::types::{FinalizedToolset, ToolConfig, ToolServerConfig};
-use xvora_hunk_tracker::HunkTrackerHandle;
-use xvora_tool_protocol::ToolId;
-use xvora_tool_runtime::WorkspaceViewerContext;
 /// Minimal result types for git error reporting (duplicated from shell session/result).
 pub mod result {
     use serde::Serialize;
@@ -885,11 +885,11 @@ impl WorkspaceShared {
                         &sid,
                         SwapAction::Applied,
                     );
-                    let _ =
-                        self.events
-                            .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
-                                session_id: sid,
-                            });
+                    let _ = self
+                        .events
+                        .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
+                            session_id: sid,
+                        });
                     rebuilt += 1;
                 }
                 Err(e) => {

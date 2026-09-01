@@ -1538,7 +1538,9 @@ pub(super) fn dispatch_action_result(
                 if let Some(ref mut modal) = agent.extensions_modal {
                     if !outcome.message.trim().is_empty() && modal.result_notice.is_none() {
                         let entry_index = match modal.last_plugins_action {
-                            Some(xvora_hooks_plugins_types::PluginsAction::Uninstall { .. }) => None,
+                            Some(xvora_hooks_plugins_types::PluginsAction::Uninstall {
+                                ..
+                            }) => None,
                             _ => modal.pending_entry_index,
                         };
                         modal.result_notice =

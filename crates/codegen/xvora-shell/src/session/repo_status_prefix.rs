@@ -356,9 +356,7 @@ mod tests {
         );
         assert_eq!(
             git.legacy_status(),
-            xvora_agent::prompt::user_message::normalize_git_status(
-                " M src/main.rs\n?? new.txt\n"
-            )
+            xvora_agent::prompt::user_message::normalize_git_status(" M src/main.rs\n?? new.txt\n")
         );
 
         let empty = RepoStatusSnapshot {

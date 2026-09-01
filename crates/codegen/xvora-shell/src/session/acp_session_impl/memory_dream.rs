@@ -39,9 +39,7 @@ impl SessionActor {
         &self,
         bridge: &xvora_tools::bridge::ToolBridge,
     ) -> Result<(), String> {
-        use xvora_tools::implementations::memory::{
-            MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME,
-        };
+        use xvora_tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
 
         bridge
             .register_mcp_tools(
@@ -712,7 +710,9 @@ impl SessionActor {
             self.chat_state_handle.get_conversation(),
         );
         let chat_history =
-            xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(conversation);
+            xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
+                conversation,
+            );
         MemoryFlushSnapshot {
             counts,
             chat_history,

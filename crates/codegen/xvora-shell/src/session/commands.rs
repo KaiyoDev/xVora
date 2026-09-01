@@ -320,8 +320,7 @@ pub enum SessionCommand {
     },
     /// Admit an owning root's model-authored message as an ordinary protected turn.
     ParentAgentMessage {
-        delivery:
-            xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageDelivery,
+        delivery: xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageDelivery,
         #[allow(private_interfaces)]
         receipt_sink: tokio::sync::mpsc::Sender<crate::agent::subagent::PromptTurnReceipt>,
         parent_telemetry_ctx: xvora_telemetry::TelemetryCtx,
@@ -431,8 +430,9 @@ pub enum SessionCommand {
     /// Refused while a turn is in flight.
     RepairHistory {
         dry_run: bool,
-        respond_to:
-            oneshot::Sender<anyhow::Result<xvora_chat_state::compaction_utils::HistoryRepairReport>>,
+        respond_to: oneshot::Sender<
+            anyhow::Result<xvora_chat_state::compaction_utils::HistoryRepairReport>,
+        >,
     },
     GetRewindPoints {
         respond_to: oneshot::Sender<RewindPointsResponse>,
@@ -638,8 +638,7 @@ pub enum SessionCommand {
     },
     /// This session's plugin registry, as served by `x.ai/plugins/list`.
     PluginsList {
-        respond_to:
-            oneshot::Sender<Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>>>,
+        respond_to: oneshot::Sender<Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>>>,
     },
     /// Inject a notification (monitor event or bash task completion) into the session's notification queue.
     /// Notifications wait for an idle session and are batched by `maybe_drain_notifications`.
@@ -835,8 +834,7 @@ pub enum SessionCommand {
     /// Routed through the session actor (like `TakeTurnMessages`) so the drain is ordered ahead of any subsequent turn's harness recording.
     /// Each `Vec` is one turn's synthetic `task` pairs, uploaded as its own sibling `turn_{N}` artifact.
     TakeHarnessTraceTurns {
-        respond_to:
-            oneshot::Sender<Vec<Vec<xvora_sampling_types::conversation::ConversationItem>>>,
+        respond_to: oneshot::Sender<Vec<Vec<xvora_sampling_types::conversation::ConversationItem>>>,
     },
     /// Take and clear the session actor's out-of-band streaming-turn capture.
     ///

@@ -261,10 +261,7 @@ pub fn draw_live(app: &mut AppView, terminal: &mut PagerTerminal) {
             .max(1);
         let rest = avail.saturating_sub(prompt_h);
         let raw_btw = if minimal_api::minimal_btw_surface_available(agent) {
-            xvora_pager::views::btw_overlay::btw_panel_height(
-                agent.btw_state.as_ref(),
-                area.width,
-            )
+            xvora_pager::views::btw_overlay::btw_panel_height(agent.btw_state.as_ref(), area.width)
         } else {
             0
         };
@@ -625,9 +622,8 @@ fn render_config_status_line(
         });
     }
     if let Some(display) = frame.display() {
-        let _ = xvora_pager::views::status_line::render_status_line(
-            buf, area, display, padding, theme,
-        );
+        let _ =
+            xvora_pager::views::status_line::render_status_line(buf, area, display, padding, theme);
     }
 }
 /// Idle status: `minimal · [/fullscreen to go back ·] /help`, plus the auto-set note.

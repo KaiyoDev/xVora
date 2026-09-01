@@ -1888,8 +1888,7 @@ fn translate_local_submit(
             if id == Some(super::dispatch::CREDIT_LIMIT_RETRY_OPTION_ID) {
                 xvora_telemetry::session_ctx::log_event(
                     xvora_telemetry::events::CreditLimitUpsellClicked {
-                        surface:
-                            xvora_telemetry::events::CreditLimitUpsellSurface::QuestionModal,
+                        surface: xvora_telemetry::events::CreditLimitUpsellSurface::QuestionModal,
                         choice: xvora_telemetry::events::CreditLimitChoice::RetryLastPrompt,
                     },
                 );
@@ -2193,8 +2192,7 @@ fn is_hash_key(key: &KeyEvent) -> bool {
 }
 /// Check `[features] remember_mode` in config.toml. Defaults to `false`.
 fn remember_mode_enabled() -> bool {
-    let path =
-        xvora_tools::util::grok_home::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let path = xvora_tools::util::grok_home::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
     let Some(doc) = crate::config_toml_edit::read_config_document_for_edit(&path) else {
         return false;
     };

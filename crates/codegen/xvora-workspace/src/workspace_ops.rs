@@ -1974,9 +1974,8 @@ mod tests {
             unreachable!("for_test builds a local handle");
         };
         let sid = "sess-teardown";
-        let toolset = std::sync::Arc::new(
-            xvora_tools::registry::types::FinalizedToolset::empty_for_test(),
-        );
+        let toolset =
+            std::sync::Arc::new(xvora_tools::registry::types::FinalizedToolset::empty_for_test());
         let weak = std::sync::Arc::downgrade(&toolset);
         ops.bind_local_session(
             sid,

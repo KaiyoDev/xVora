@@ -576,8 +576,7 @@ pub(crate) async fn generate_session_compact(
                             }
                             if let Some(fr) = choice.finish_reason {
                                 let sr = xvora_sampling_types::StopReason::from(fr);
-                                truncated =
-                                    matches!(sr, xvora_sampling_types::StopReason::Length);
+                                truncated = matches!(sr, xvora_sampling_types::StopReason::Length);
                                 stop_reason = Some(sr.as_str().to_string());
                             }
                         }

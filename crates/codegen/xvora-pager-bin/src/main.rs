@@ -130,10 +130,7 @@ fn apply_headless_args_to_config(args: &HeadlessArgs, config: &mut AgentConfig) 
     }
 }
 /// Apply global endpoint CLI args to an existing config.
-fn apply_agent_endpoint_args(
-    agent_args: &xvora_pager::app::AgentArgs,
-    config: &mut AgentConfig,
-) {
+fn apply_agent_endpoint_args(agent_args: &xvora_pager::app::AgentArgs, config: &mut AgentConfig) {
     if let Some(v) = &agent_args.cli_chat_proxy_base_url {
         config.endpoints.cli_chat_proxy_base_url = Some(v.clone());
     }
@@ -211,15 +208,13 @@ fn init_tracing_simple(app_entrypoint: &'static str) {
             xvora_shell::auth::credential_provider::build_default_otel_layer_config(),
         ));
     xvora_telemetry::debug_log::install_firehose(registry, app_entrypoint);
-    xvora_telemetry::external::init(
-        xvora_shell::agent::config::resolve_external_otel_config(
-            xvora_telemetry::external::config::ExternalClientInfo {
-                service_version: env!("VERSION_WITH_COMMIT").to_owned(),
-                client_version: xvora_version::VERSION.to_owned(),
-                app_entrypoint: app_entrypoint.to_owned(),
-            },
-        ),
-    );
+    xvora_telemetry::external::init(xvora_shell::agent::config::resolve_external_otel_config(
+        xvora_telemetry::external::config::ExternalClientInfo {
+            service_version: env!("VERSION_WITH_COMMIT").to_owned(),
+            client_version: xvora_version::VERSION.to_owned(),
+            app_entrypoint: app_entrypoint.to_owned(),
+        },
+    ));
 }
 /// `grok setup`: rendering and exit codes only; fetch logic lives in `xvora_shell::managed_config`.
 /// `json` prints the served configuration instead of installing it.
@@ -1545,8 +1540,7 @@ async fn run_agent_command(
                             match auto_update::ensure_latest_on_disk(&uc).await {
                                 Ok(outcome) => {
                                     if let Some(v) = &outcome.installed {
-                                        if let Err(e) = xvora_shell::managed_config::sync().await
-                                        {
+                                        if let Err(e) = xvora_shell::managed_config::sync().await {
                                             tracing::warn!(
                                                 "Leader auto-update: managed config refresh failed: {e}"
                                             );
@@ -1871,10 +1865,7 @@ fn install_heap_profile_hooks() {
 fn version_text(channel_label: &str) -> String {
     format!(
         "grok {}\n",
-        xvora_version::display_version_with_commit(
-            xvora_version::full_version(),
-            channel_label,
-        )
+        xvora_version::display_version_with_commit(xvora_version::full_version(), channel_label,)
     )
 }
 fn write_version(writer: &mut impl std::io::Write, channel_label: &str) -> std::io::Result<()> {
@@ -1884,10 +1875,8 @@ fn dispatch_version_if_requested(args: &PagerArgs) -> bool {
     if !args.version {
         return false;
     }
-    if let Err(error) = write_version(
-        &mut std::io::stdout().lock(),
-        xvora_update::channel_label(),
-    ) {
+    if let Err(error) = write_version(&mut std::io::stdout().lock(), xvora_update::channel_label())
+    {
         eprintln!("Error: {error}");
         std::process::exit(1);
     }
@@ -2078,11 +2067,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             }
         }
     }
-    xvora_shell::config::apply_sandbox(
-        None,
-        sandbox_profile_arg.as_deref(),
-        args.cwd.as_deref(),
-    );
+    xvora_shell::config::apply_sandbox(None, sandbox_profile_arg.as_deref(), args.cwd.as_deref());
     flag_dashboard_at_startup_if_requested(&mut args)?;
     let is_interactive = args.command.is_none()
         && args.single.is_none()
@@ -2107,10 +2092,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
                     });
                     println!("{}", serde_json::to_string(&payload)?);
                 } else {
-                    write_version(
-                        &mut std::io::stdout().lock(),
-                        xvora_update::channel_label(),
-                    )?;
+                    write_version(&mut std::io::stdout().lock(), xvora_update::channel_label())?;
                 }
                 return Ok(());
             }
@@ -2312,8 +2294,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             .as_deref()
             .map(xvora_pager::headless::parse_json_schema)
             .transpose()?;
-        if json_schema.is_some()
-            && args.output_format == xvora_pager::headless::OutputFormat::Plain
+        if json_schema.is_some() && args.output_format == xvora_pager::headless::OutputFormat::Plain
         {
             args.output_format = xvora_pager::headless::OutputFormat::Json;
         }
@@ -2588,8 +2569,7 @@ async fn run_update_command(
     if let Ok(Some(installed_version)) = &result {
         signal_leaders_to_relaunch(installed_version).await;
     }
-    xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN)
-        .await;
+    xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
     result?;
     Ok(())
 }
@@ -2925,9 +2905,7 @@ mod tests {
     #[serial_test::serial(jemalloc_heap_profile)]
     fn install_heap_profile_hooks_wires_shell_apis() {
         install_heap_profile_hooks();
-        assert_stats_sane(
-            xvora_shell::heap_profile::stats().expect("shell stats after install"),
-        );
+        assert_stats_sane(xvora_shell::heap_profile::stats().expect("shell stats after install"));
         if !require_opt_prof() {
             assert!(!xvora_shell::heap_profile::prof_available());
             return;

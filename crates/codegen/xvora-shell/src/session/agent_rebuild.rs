@@ -109,9 +109,8 @@ pub(crate) struct AgentRebuildSpec {
     pub attribution_callback: Option<xvora_tools::SharedAttributionCallback>,
     pub tool_params_json: ResolvedToolParamsJson,
     pub subagent_event_tx: Option<UnboundedSender<SubagentEvent>>,
-    pub subagent_coordinator_sender: Option<
-        xvora_tools::implementations::grok_build::task::backend::SubagentCoordinatorSender,
-    >,
+    pub subagent_coordinator_sender:
+        Option<xvora_tools::implementations::grok_build::task::backend::SubagentCoordinatorSender>,
     pub monitor_event_buffer: Option<MonitorEventBuffer>,
     pub user_question_tx: UnboundedSender<UserQuestionRequest>,
     pub subagent_depth: u32,

@@ -187,8 +187,8 @@ use crate::telemetry::dc_log;
 use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
-use xvora_file_utils::queue::EnqueueOutcome;
 use xvora_diag_server::DiagHandle;
+use xvora_file_utils::queue::EnqueueOutcome;
 use xvora_session_events::types::CancellationCategory;
 use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
 use xvora_tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
@@ -418,9 +418,7 @@ pub struct WorkspaceHandle {
 }
 type AcknowledgedNotifyChannel = (
     xvora_tools::notification::types::ToolNotificationHandle,
-    tokio::sync::mpsc::UnboundedReceiver<
-        xvora_tools::notification::AcknowledgedToolNotification,
-    >,
+    tokio::sync::mpsc::UnboundedReceiver<xvora_tools::notification::AcknowledgedToolNotification>,
 );
 /// Builds with no forwarder. They must not open the channel, because an unread one blocks every delete.
 fn acknowledged_notify_channel(_enabled: bool) -> Option<AcknowledgedNotifyChannel> {
@@ -2662,31 +2660,30 @@ impl WorkspaceHandle {
         let session_id_owned = session_id.to_owned();
         let event_writer = self.shared.session_event_writer(session_id);
         let rt_handle = tokio::runtime::Handle::current();
-        let mcp_results: Vec<
-            Result<xvora_mcp::servers::McpClient, xvora_mcp::servers::McpError>,
-        > = tokio::task::spawn_blocking(move || {
-            use std::collections::HashMap;
-            use xvora_mcp::oauth_config::McpOAuthConfigMap;
-            use xvora_mcp::servers::{McpClientTimeoutOverrides, McpMetaConfigMap};
-            let overrides_map: HashMap<String, McpClientTimeoutOverrides> = HashMap::new();
-            let meta_config_map = McpMetaConfigMap::new();
-            let oauth_config_map = McpOAuthConfigMap::new();
-            let ctx = xvora_mcp::servers::McpSpawnCtx::for_session(
-                &session_id_owned,
-                &event_writer,
-                xvora_mcp::servers::OauthInteractivity::Interactive,
-                None,
-            );
-            rt_handle.block_on(xvora_mcp::servers::start_mcp_servers(
-                configs,
-                &overrides_map,
-                &meta_config_map,
-                &oauth_config_map,
-                &ctx,
-            ))
-        })
-        .await
-        .map_err(|e| WorkspaceError::JoinError(e.to_string()))?;
+        let mcp_results: Vec<Result<xvora_mcp::servers::McpClient, xvora_mcp::servers::McpError>> =
+            tokio::task::spawn_blocking(move || {
+                use std::collections::HashMap;
+                use xvora_mcp::oauth_config::McpOAuthConfigMap;
+                use xvora_mcp::servers::{McpClientTimeoutOverrides, McpMetaConfigMap};
+                let overrides_map: HashMap<String, McpClientTimeoutOverrides> = HashMap::new();
+                let meta_config_map = McpMetaConfigMap::new();
+                let oauth_config_map = McpOAuthConfigMap::new();
+                let ctx = xvora_mcp::servers::McpSpawnCtx::for_session(
+                    &session_id_owned,
+                    &event_writer,
+                    xvora_mcp::servers::OauthInteractivity::Interactive,
+                    None,
+                );
+                rt_handle.block_on(xvora_mcp::servers::start_mcp_servers(
+                    configs,
+                    &overrides_map,
+                    &meta_config_map,
+                    &oauth_config_map,
+                    &ctx,
+                ))
+            })
+            .await
+            .map_err(|e| WorkspaceError::JoinError(e.to_string()))?;
         let mcp_state = session.mcp_state.clone();
         let mut started = Vec::new();
         let mut failed = Vec::new();
@@ -2787,12 +2784,12 @@ impl WorkspaceHandle {
             "session MCP servers initialized"
         );
         if !started.is_empty() {
-            let _ =
-                self.shared
-                    .events
-                    .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
-                        session_id: session_id.to_owned(),
-                    });
+            let _ = self
+                .shared
+                .events
+                .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
+                    session_id: session_id.to_owned(),
+                });
         }
         Ok(McpStartResult { started, failed })
     }
@@ -3818,9 +3815,8 @@ fn build_session_routed_handlers(
             Some(def.function.parameters.clone()),
             ws.clone(),
         ) {
-            Ok(handler) => {
-                handlers.push(Arc::new(handler) as Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>)
-            }
+            Ok(handler) => handlers
+                .push(Arc::new(handler) as Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>),
             Err(e) => {
                 tracing::warn!(
                     tool = %def.function.name,
@@ -4346,7 +4342,9 @@ async fn enqueue_workspace_tool_definitions(
 }
 /// Single source of truth for mapping a turn-hook outcome to the `events.jsonl` [`TurnOutcomeLabel`].
 /// Kept as one `match` so the two enums cannot drift and the mapping is never duplicated across call sites.
-fn turn_outcome_label(outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome) -> TurnOutcomeLabel {
+fn turn_outcome_label(
+    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome,
+) -> TurnOutcomeLabel {
     use xvora_tool_protocol::turn_hook::TurnHookOutcome;
     match outcome {
         TurnHookOutcome::Completed => TurnOutcomeLabel::Completed,

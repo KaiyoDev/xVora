@@ -409,15 +409,13 @@ pub fn init_tracing() -> TracingHandle {
         .with(hooks_log_layer)
         .with(otel_layer);
     xvora_telemetry::debug_log::install_firehose(registry, "tui");
-    xvora_telemetry::external::init(
-        xvora_shell::agent::config::resolve_external_otel_config(
-            xvora_telemetry::external::config::ExternalClientInfo {
-                service_version: xvora_version::full_version().to_owned(),
-                client_version: xvora_version::VERSION.to_owned(),
-                app_entrypoint: "tui".to_owned(),
-            },
-        ),
-    );
+    xvora_telemetry::external::init(xvora_shell::agent::config::resolve_external_otel_config(
+        xvora_telemetry::external::config::ExternalClientInfo {
+            service_version: xvora_version::full_version().to_owned(),
+            client_version: xvora_version::VERSION.to_owned(),
+            app_entrypoint: "tui".to_owned(),
+        },
+    ));
     TracingHandle { rx }
 }
 #[cfg(test)]

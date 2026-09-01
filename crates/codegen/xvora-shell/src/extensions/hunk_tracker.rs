@@ -9,13 +9,13 @@ use serde::{Deserialize, Serialize};
 
 use super::{ExtResult, parse_params, to_ext_response};
 use crate::agent::MvpAgent;
+use xvora_hunk_tracker::{
+    FileContentEntry, FileContentStatus, FileContentView, Hunk, HunkTrackerHandle,
+};
 use xvora_workspace::workspace_ops::{
     FileContentEntryWire, FileContentStatusWire, FileContentViewWire, HunkActionKind,
     HunkActionReq, HunkAllActionReq, HunkFileActionReq, HunkGetAllFileContentsReq,
     HunkGetSessionSummaryReq, HunkSingleActionReq, HunkTurnActionReq,
-};
-use xvora_hunk_tracker::{
-    FileContentEntry, FileContentStatus, FileContentView, Hunk, HunkTrackerHandle,
 };
 
 // ═══════════════════════════════════════════════════════════════════════

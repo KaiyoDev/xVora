@@ -26,8 +26,8 @@ use tokio::sync::Semaphore;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
-use xvora_circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 use xvora_auth::AuthCredentialProvider;
+use xvora_circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 
 use crate::circuit_breaker_observer::TracingObserver;
 
@@ -426,8 +426,7 @@ mod static_grok_auth_tests {
 /// `crate::http::shared_upload_client()`) to `with_provider`.
 fn default_upload_client() -> Client {
     #[expect(clippy::expect_used)]
-    xvora_extra_ca::build_reqwest_client(|builder| builder)
-        .expect("default reqwest client builds")
+    xvora_extra_ca::build_reqwest_client(|builder| builder).expect("default reqwest client builds")
 }
 
 /// Client for uploading files to GCS via cli-chat-proxy.

@@ -369,9 +369,7 @@ impl SessionActor {
     }
 
     /// The applied overrides to echo, or `None` when backend search is off.
-    pub(crate) fn effective_tool_overrides(
-        &self,
-    ) -> Option<xvora_sampling_types::ToolOverrides> {
+    pub(crate) fn effective_tool_overrides(&self) -> Option<xvora_sampling_types::ToolOverrides> {
         if !self.backend_search_active() {
             return None;
         }
@@ -820,11 +818,12 @@ impl SessionActor {
                             let config = session.reconstruct_full_config().await;
                             let context_window = config.context_window;
                             let model = config.model.clone();
-                            let client = xvora_sampler::SamplingClient::new(config).map_err(|e| {
-                                xvora_workspace::permission::ClassifierFailure::TransportError(
-                                    e.to_string(),
-                                )
-                            })?;
+                            let client =
+                                xvora_sampler::SamplingClient::new(config).map_err(|e| {
+                                    xvora_workspace::permission::ClassifierFailure::TransportError(
+                                        e.to_string(),
+                                    )
+                                })?;
                             (client, model, context_window)
                         }
                     };

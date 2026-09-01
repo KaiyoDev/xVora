@@ -77,9 +77,7 @@ impl WebSearchClient {
         let _ = alpha_test_key;
         let key = crate::util::shared_http::cache_key("web_search", &headers);
         let http = crate::util::shared_http::cached_client(key, || {
-            xvora_extra_ca::build_reqwest_client(|builder| {
-                builder.default_headers(headers.clone())
-            })
+            xvora_extra_ca::build_reqwest_client(|builder| builder.default_headers(headers.clone()))
         })
         .map_err(|e| {
             xvora_tool_runtime::ToolError::execution(

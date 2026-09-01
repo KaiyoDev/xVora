@@ -180,8 +180,8 @@ impl WritingToolCall {
             Some(name) => {
                 use xvora_tools::types::tool::ToolKind;
                 let copy =
-                    xvora_tools::tool_taxonomy::writing_tool_kind(name).and_then(|kind| {
-                        match kind {
+                    xvora_tools::tool_taxonomy::writing_tool_kind(name).and_then(
+                        |kind| match kind {
                             ToolKind::Write => Some("Writing file"),
                             ToolKind::Edit => Some("Writing edit"),
                             ToolKind::Execute => Some("Writing command"),
@@ -193,13 +193,12 @@ impl WritingToolCall {
                             }
                             ToolKind::AskUser => Some("Preparing question"),
                             _ => None,
-                        }
-                    });
+                        },
+                    );
                 match copy {
                     Some(copy) => format!("{copy}{ordinal}…"),
                     None => {
-                        let name =
-                            xvora_workspace::permission::mcp_pretty_name_if_qualified(name);
+                        let name = xvora_workspace::permission::mcp_pretty_name_if_qualified(name);
                         format!("Preparing {}{ordinal}…", clamp_activity_subject(&name))
                     }
                 }
@@ -1616,8 +1615,7 @@ fn user_message_hidden_from_scrollback(
         return true;
     }
     if let Some(pid) = meta.prompt_id.as_deref()
-        && xvora_shell::session::PromptOrigin::from_prompt_id(pid)
-            .hide_user_echo_from_scrollback()
+        && xvora_shell::session::PromptOrigin::from_prompt_id(pid).hide_user_echo_from_scrollback()
     {
         return true;
     }

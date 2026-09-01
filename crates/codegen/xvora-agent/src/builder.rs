@@ -555,10 +555,7 @@ impl AgentBuilder {
     /// Set the resolved vendor-compat config.
     /// Threaded into startup discovery (`list_skills_with_plugins` / `read_agents_config_with_paths`).
     /// Also threaded into the dynamic-discovery seeds (`SkillManager` / `AgentsMdTracker`).
-    pub fn with_compat_config(
-        mut self,
-        compat: xvora_tools::types::compat::CompatConfig,
-    ) -> Self {
+    pub fn with_compat_config(mut self, compat: xvora_tools::types::compat::CompatConfig) -> Self {
         self.compat = compat;
         self
     }
@@ -711,9 +708,9 @@ impl AgentBuilder {
                 tool_config
                     .tools
                     .push((&xvora_tools::implementations::grok_build::ImageToVideoTool).into());
-                tool_config.tools.push(
-                    (&xvora_tools::implementations::grok_build::ReferenceToVideoTool).into(),
-                );
+                tool_config
+                    .tools
+                    .push((&xvora_tools::implementations::grok_build::ReferenceToVideoTool).into());
             }
             let has_write_tool = tool_config
                 .tools
@@ -1212,14 +1209,15 @@ impl AgentBuilder {
     }
 }
 /// CLI naming for the shared [`xvora_tool_types::build_task_description`] builder.
-const TASK_TOOL_NAMING: xvora_tool_types::TaskToolNaming<'static> = xvora_tool_types::TaskToolNaming {
-    task_tool: "${{ tools.by_kind.task }}",
-    subagent_type_param: "${{ params.task.subagent_type }}",
-    run_in_background_param: "${{ params.task.run_in_background }}",
-    resume_from_param: "${{ params.task.resume_from }}",
-    background_retrieval_tool: "${{ tools.by_kind.background_task_action }}",
-    isolation_param: "${{ params.task.isolation }}",
-};
+const TASK_TOOL_NAMING: xvora_tool_types::TaskToolNaming<'static> =
+    xvora_tool_types::TaskToolNaming {
+        task_tool: "${{ tools.by_kind.task }}",
+        subagent_type_param: "${{ params.task.subagent_type }}",
+        run_in_background_param: "${{ params.task.run_in_background }}",
+        resume_from_param: "${{ params.task.resume_from }}",
+        background_retrieval_tool: "${{ tools.by_kind.background_task_action }}",
+        isolation_param: "${{ params.task.isolation }}",
+    };
 /// Concise task-tool description for child sessions.
 /// Delegation from a child is possible but discouraged; prefer doing the work directly.
 ///

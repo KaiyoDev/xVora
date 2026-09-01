@@ -221,9 +221,7 @@ fn parse_hook_group(event: HookEventName, value: &serde_json::Value) -> Option<C
         .map(|s| std::time::Duration::from_secs_f64(s.min(MAX_HOOK_TIMEOUT_SECS)));
     let matcher = match group.matcher.as_deref() {
         None | Some("") | Some("*") => None,
-        Some(pattern)
-            if event.traits().matcher == xvora_hooks::event::MatcherPolicy::Ignored =>
-        {
+        Some(pattern) if event.traits().matcher == xvora_hooks::event::MatcherPolicy::Ignored => {
             tracing::warn!(%event, pattern, "matcher on a {event} hook group is ignored (this event always fires)");
             None
         }
