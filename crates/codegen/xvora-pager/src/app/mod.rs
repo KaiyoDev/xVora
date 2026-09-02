@@ -13,6 +13,10 @@ pub mod actions;
 pub mod agent;
 pub mod agent_view;
 pub mod app_view;
+/// Re-export prompt_queue types for app-level usage
+pub mod prompt_queue {
+    pub use prompt_queue::*;
+}
 pub mod bundle;
 pub(crate) mod cancel_latency;
 pub mod cli;
