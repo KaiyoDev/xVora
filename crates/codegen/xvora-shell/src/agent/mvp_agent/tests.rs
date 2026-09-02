@@ -2179,7 +2179,7 @@ fn personal_xai_oauth_auth() -> crate::auth::GrokAuth {
 #[tokio::test]
 #[serial_test::serial]
 async fn feedback_trace_offer_asks_personal_oauth_accounts() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _e1 = EnvGuard::unset("GROK_TELEMETRY_ENABLED");
     let _e2 = EnvGuard::unset("GROK_TELEMETRY_TRACE_UPLOAD");
     let _e3 = EnvGuard::unset("GROK_FEEDBACK_TRACE_CARD");
@@ -2197,7 +2197,7 @@ async fn feedback_trace_offer_asks_personal_oauth_accounts() {
 #[tokio::test]
 #[serial_test::serial]
 async fn feedback_trace_offer_suppressed_for_team_accounts_even_admins() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _e1 = EnvGuard::unset("GROK_TELEMETRY_ENABLED");
     let _e2 = EnvGuard::unset("GROK_TELEMETRY_TRACE_UPLOAD");
     let _e3 = EnvGuard::unset("GROK_FEEDBACK_TRACE_CARD");
@@ -2224,7 +2224,7 @@ async fn feedback_trace_offer_suppressed_for_team_accounts_even_admins() {
 #[tokio::test]
 #[serial_test::serial]
 async fn feedback_trace_offer_suppressed_for_managed_deployments() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _e1 = EnvGuard::unset("GROK_TELEMETRY_ENABLED");
     let _e2 = EnvGuard::unset("GROK_TELEMETRY_TRACE_UPLOAD");
     let _e3 = EnvGuard::unset("GROK_FEEDBACK_TRACE_CARD");
@@ -2252,7 +2252,7 @@ async fn feedback_trace_offer_suppressed_for_managed_deployments() {
 async fn ensure_plugin_registry_lazily_populates_snapshot() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let grok_home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", grok_home.path());
     let plugin_dir = tempfile::tempdir().unwrap();
@@ -2945,7 +2945,7 @@ fn build_agent_with_api_key_auth_disabled() -> MvpAgent {
 #[serial_test::serial]
 async fn cached_token_fallthrough_prefers_api_key_for_deployment_key() {
     use crate::agent::auth_method::{XAI_API_KEY_ENV_VAR, XAI_API_KEY_METHOD_ID};
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _lockdown = EnvGuard::unset("GROK_DISABLE_API_KEY_AUTH");
     let _key = EnvGuard::set(XAI_API_KEY_ENV_VAR, "test-deployment-key");
     let agent = build_minimal_agent_for_tests();
@@ -2965,7 +2965,7 @@ async fn cached_token_fallthrough_prefers_api_key_for_deployment_key() {
 #[serial_test::serial]
 async fn cached_token_fallthrough_respects_kill_switch() {
     use crate::agent::auth_method::{GROK_COM_METHOD_ID, XAI_API_KEY_ENV_VAR};
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _lockdown = EnvGuard::unset("GROK_DISABLE_API_KEY_AUTH");
     let _key = EnvGuard::set(XAI_API_KEY_ENV_VAR, "test-deployment-key");
     let agent = build_agent_with_api_key_auth_disabled();
@@ -2987,7 +2987,7 @@ async fn cached_token_fallthrough_falls_to_grok_com_without_credentials() {
     use crate::agent::auth_method::{
         GROK_COM_METHOD_ID, LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR,
     };
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _lockdown = EnvGuard::unset("GROK_DISABLE_API_KEY_AUTH");
     let _new = EnvGuard::unset(XAI_API_KEY_ENV_VAR);
     let _legacy = EnvGuard::unset(LEGACY_XAI_API_KEY_ENV_VAR);
@@ -3384,7 +3384,7 @@ use crate::session::storage::search::IndexDecision;
 /// `decide_search_index` stops short of a session store, but do not reach `bootstrap_once`.
 /// `bootstrap_once` takes the process-cached `grok_home()`, which these guards cannot redirect, so it could index the developer's own store.
 fn search_index_env() -> (tempfile::TempDir, [test_support::EnvGuard; 2]) {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let guards = [
         EnvGuard::set("GROK_HOME", home.path()),
@@ -3504,7 +3504,7 @@ async fn read_before_the_remote_settings_land_does_not_decide() {
 async fn exhausted_fetch_decides_on_the_local_layers() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let (_home, _env) = search_index_env();
     let _no_inline_auth = EnvGuard::unset("GROK_AUTH");
     let _no_auth_path = EnvGuard::unset("GROK_AUTH_PATH");
@@ -5803,7 +5803,7 @@ fn subagent_spawn_context_reloads_project_definitions_after_trust_changes() {
 #[test]
 #[serial_test::serial]
 fn project_roles_personas_gated_via_resolve_and_record_chain() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -5884,7 +5884,7 @@ async fn answer_folder_trust_request(
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_grant_reloads_project_mcp() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     use xvora_workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
@@ -5963,7 +5963,7 @@ fn interactive_trust_prompt_grant_reloads_project_mcp() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_reject_keeps_gated() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     use xvora_workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
@@ -6001,7 +6001,7 @@ fn interactive_trust_prompt_reject_keeps_gated() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_dormant_when_feature_off() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6031,7 +6031,7 @@ fn interactive_trust_prompt_dormant_when_feature_off() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_no_request_without_capability() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6058,7 +6058,7 @@ fn interactive_trust_prompt_no_request_without_capability() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_client_error_fails_closed() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     use xvora_workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
@@ -6100,7 +6100,7 @@ fn interactive_trust_prompt_client_error_fails_closed() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_dedups_same_workspace() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6174,7 +6174,7 @@ async fn drain_reload_commands(
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_reloads_all_same_workspace_sessions() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6235,7 +6235,7 @@ fn interactive_trust_prompt_reloads_all_same_workspace_sessions() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_reprompts_after_untrust() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     use hooks_plugins_types::HooksAction;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());

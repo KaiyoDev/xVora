@@ -1170,7 +1170,7 @@ async fn manual_rename_next_flush_does_not_revert_backend_title() {
     use crate::auth::{AuthManager, GrokAuth};
     use crate::remote::BackendClient;
     use crate::session::export::ExportedMetadata;
-    use test_support::MockInferenceServer;
+    use crate::test_support::MockInferenceServer;
 
     const OLD_TITLE: &str = "Auto first-prompt summary";
     const NEW_TITLE: &str = "Manual rename";
@@ -1362,7 +1362,7 @@ async fn manual_after_auto_last_flush_is_manual() {
     use crate::auth::{AuthManager, GrokAuth};
     use crate::remote::BackendClient;
     use crate::session::export::ExportedMetadata;
-    use test_support::MockInferenceServer;
+    use crate::test_support::MockInferenceServer;
 
     const AUTO: &str = "Auto title";
     const MANUAL: &str = "Manual wins";
@@ -1466,7 +1466,7 @@ async fn auto_after_committed_manual_emits_no_set_title() {
     use crate::auth::{AuthManager, GrokAuth};
     use crate::remote::BackendClient;
     use crate::session::export::ExportedMetadata;
-    use test_support::MockInferenceServer;
+    use crate::test_support::MockInferenceServer;
 
     const AUTO: &str = "Rejected auto";
     const MANUAL: &str = "Pinned manual";
@@ -1599,7 +1599,7 @@ async fn reset_title_to_auto_then_generated_title_is_adopted() {
     use crate::session::export::ExportedMetadata;
     use crate::session::helpers::session_summary::title_fallback_from_user_text;
     use crate::session::persistence::PersistenceContentChunk;
-    use test_support::MockInferenceServer;
+    use crate::test_support::MockInferenceServer;
 
     const AUTO: &str = "Auto first title";
     const MANUAL: &str = "Pinned manual";

@@ -1,7 +1,7 @@
 //! `x.ai/session/rename` ext-handler coverage: resident `ManualTitleRenamed` enqueue, non-resident skip, and control-char stripping at the boundary.
 
 use agent_client_protocol as acp;
-use test_support::EnvGuard;
+use crate::test_support::EnvGuard;
 
 use super::{build_minimal_agent_for_tests, make_test_handle};
 use crate::session::info::Info;

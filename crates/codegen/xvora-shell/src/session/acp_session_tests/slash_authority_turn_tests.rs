@@ -4,8 +4,8 @@ use crate::extensions::prompt_meta::PromptBlockMeta;
 use crate::session::{InputAuthority, InputPolicy};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use test_support::sse::responses_api_script_exact;
-use test_support::{MockInferenceServer, ScriptedResponse};
+use crate::test_support::sse::responses_api_script_exact;
+use crate::test_support::{MockInferenceServer, ScriptedResponse};
 
 #[derive(Default)]
 struct PolicyRecorder(std::cell::Cell<Option<InputAuthority>>);

@@ -436,7 +436,7 @@ mod tests {
     use super::*;
     use serial_test::serial;
     use tempfile::tempdir;
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     use xvora_config::ConfigLayers;
 
     fn models_default_patch(default: &str) -> toml::Table {

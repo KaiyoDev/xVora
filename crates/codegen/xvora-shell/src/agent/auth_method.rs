@@ -532,7 +532,7 @@ mod tests {
         )));
     }
 
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
 
     // ── Helpers ─────────────────────────────────────────────────────────
 

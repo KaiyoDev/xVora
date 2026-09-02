@@ -4,7 +4,7 @@ use super::support::*;
 use super::*;
 use std::sync::Arc;
 use std::time::Duration;
-use test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
+use crate::test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
 
 #[derive(Clone, Copy)]
 pub(super) enum SessionKind {

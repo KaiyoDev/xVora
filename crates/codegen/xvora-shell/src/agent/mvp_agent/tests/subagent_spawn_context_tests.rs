@@ -239,7 +239,7 @@ async fn subagent_spawn_context_resolves_rate_limit_attempts_against_child_model
 fn subagent_spawn_context_resolves_compaction_mode_like_parent() {
     use crate::agent::config::Config;
     use chat_state::{CompactionDetail, CompactionMode};
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _mode = EnvGuard::unset("GROK_COMPACTION_MODE");
     let _detail = EnvGuard::unset("GROK_COMPACTION_DETAIL");
     let mut ctx = crate::test_support::lsp_runtime::ctx_with_toggle(Default::default());

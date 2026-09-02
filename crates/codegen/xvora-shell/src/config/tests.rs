@@ -3196,7 +3196,7 @@ email_domain = "example.com"
 #[test]
 #[serial_test::serial]
 fn project_config_never_sources_feedback_user() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3450,7 +3450,7 @@ fn a_repeated_pin_is_reported_against_the_layer_that_decided() {
 #[test]
 #[serial_test::serial]
 fn apply_requirements_pins_title_refresh_over_the_environment() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let _env = EnvGuard::set("GROK_TITLE_REFRESH", "1");
     let mut cfg = crate::agent::config::Config::default();
     let req: toml::Value = toml::from_str("[features]\ntitle_refresh = false\n")
@@ -3757,7 +3757,7 @@ fn explicit_grok_root_is_the_only_user_source() {
 #[test]
 #[serial_test::serial]
 fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3816,7 +3816,7 @@ fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
 #[serial_test::serial]
 fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
     use xvora_agent::plugins::{TrustStore, discover_plugins};
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3888,7 +3888,7 @@ fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
 #[test]
 #[serial_test::serial]
 fn kill_switched_cold_cwd_stays_allowed_through_plugins_config_read() {
-    use test_support::EnvGuard;
+    use crate::test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");

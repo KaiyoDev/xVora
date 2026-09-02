@@ -609,7 +609,7 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_resolve_tilde_path() {
-        use test_support::env::EnvGuard;
+        use crate::test_support::env::EnvGuard;
 
         let tmp = tempfile::tempdir().unwrap();
         let home = tmp.path().to_path_buf();

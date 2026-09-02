@@ -426,7 +426,7 @@ pub(crate) async fn cached_identity(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test_support::env::EnvGuard;
+    use crate::test_support::env::EnvGuard;
 
     fn cfg() -> FeedbackUserConfig {
         FeedbackUserConfig::default()
