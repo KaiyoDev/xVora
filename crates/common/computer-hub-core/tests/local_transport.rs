@@ -10,6 +10,11 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
+use computer_hub_core::{
+    CompoundResolver, ConnectionCleanupReport, ErasedTool, LocalTransport, ResolvedTool,
+    SessionCleanupReport, ToolHandle, ToolRegistry, ToolSessionBindOutcome,
+    ToolSessionUnbindOutcome, Transport, TransportKind,
+};
 use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind as WireTransportKind, UserId,
@@ -19,11 +24,6 @@ use tool_runtime::{
     ToolStreamItem, with_progress,
 };
 use tool_types::ToolDescription;
-use xvora_computer_hub_core::{
-    CompoundResolver, ConnectionCleanupReport, ErasedTool, LocalTransport, ResolvedTool,
-    SessionCleanupReport, ToolHandle, ToolRegistry, ToolSessionBindOutcome,
-    ToolSessionUnbindOutcome, Transport, TransportKind,
-};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EchoArgs {
@@ -193,14 +193,14 @@ impl ToolRegistry for InMemRegistry {
     fn list_servers_for_user(
         &self,
         _user_id: &tool_protocol::UserId,
-    ) -> Vec<xvora_computer_hub_core::registry::ServerRecord> {
+    ) -> Vec<computer_hub_core::registry::ServerRecord> {
         Vec::new()
     }
 
     fn get_server_record(
         &self,
         _connection_id: &ConnectionId,
-    ) -> Option<xvora_computer_hub_core::registry::ServerRecord> {
+    ) -> Option<computer_hub_core::registry::ServerRecord> {
         None
     }
 }
@@ -354,6 +354,6 @@ async fn authorize_returns_bound_principal_with_invoke_scope() {
     let principal = transport.authorize().await.expect("authorize");
     assert_eq!(principal.user_id, uid("alice"));
     assert!(principal.authorizes_session(&sid("sess-1")));
-    assert!(principal.has_scope(xvora_computer_hub_core::LOCAL_INVOKE_SCOPE));
+    assert!(principal.has_scope(computer_hub_core::LOCAL_INVOKE_SCOPE));
     assert_eq!(transport.kind(), TransportKind::Local);
 }

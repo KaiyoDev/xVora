@@ -3,10 +3,10 @@
 //! and its absence (frames from older peers) must fall back to the historic
 //! constant.
 
+use computer_hub_core::{error_from_envelope, tool_error_from_wire};
 use serde_json::json;
 use tool_protocol::{JsonRpcError, RequestId, ToolErrorWire};
 use tool_runtime::ToolErrorKind;
-use xvora_computer_hub_core::{error_from_envelope, tool_error_from_wire};
 
 #[test]
 fn internal_with_detail_reconstructs_the_wire_detail() {

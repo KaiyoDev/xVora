@@ -47,6 +47,9 @@ pub mod trace_donate;
 pub mod oidc_provider;
 
 pub use auth::{AuthCredential, AuthIdentity, AuthProvider, PrincipalKey, SharedAuthProvider};
+pub use computer_hub_core::{
+    GROK_BOT_TOOL_DESCRIPTIONS, GROK_BOT_TOOL_IDS, grok_bot_tool_description, is_grok_bot_tool,
+};
 pub use connection::{CLOSE_CODE_SANDBOX_TERMINATED, ConnKey, HubConnection, ReconnectEvent};
 pub use error::ClientError;
 pub use harness::{
@@ -67,9 +70,6 @@ pub use server::{
     ToolServerBuilder, ToolServerHandler, WeakToolServer,
 };
 pub use trace_donate::{HubDonatingReporter, TraceDonationPump};
-pub use xvora_computer_hub_core::{
-    GROK_BOT_TOOL_DESCRIPTIONS, GROK_BOT_TOOL_IDS, grok_bot_tool_description, is_grok_bot_tool,
-};
 // Re-exported so consumers that depend only on the SDK can recognize the
 // server's `workspace_unavailable` error without also pulling in the core crate.
-pub use xvora_computer_hub_core::is_workspace_unavailable;
+pub use computer_hub_core::is_workspace_unavailable;

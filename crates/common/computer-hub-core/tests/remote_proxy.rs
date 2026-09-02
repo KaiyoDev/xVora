@@ -11,6 +11,9 @@ use futures::StreamExt;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::BoxStream;
 
+use computer_hub_core::{
+    ConnectionClient, RemoteToolProxy, RemoteTransport, ToolHandle, Transport, TransportKind,
+};
 use tool_protocol::{
     JsonRpcError, JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion,
     Method, ResponseOutcome, SessionId, ToolCallId, ToolCallParams, ToolCallProgressFrame,
@@ -20,9 +23,6 @@ use tool_runtime::{
     ContentBlock, ToolCallContext, ToolError, ToolOutput, ToolProgress, ToolStreamItem,
 };
 use tool_types::ToolDescription;
-use xvora_computer_hub_core::{
-    ConnectionClient, RemoteToolProxy, RemoteTransport, ToolHandle, Transport, TransportKind,
-};
 
 /// Programmable `ConnectionClient`. Each request gets a pre-staged
 /// response; progress frames are pushed through per-call senders.

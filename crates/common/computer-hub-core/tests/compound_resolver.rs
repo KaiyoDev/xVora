@@ -7,6 +7,10 @@ use dashmap::DashMap;
 
 use async_trait::async_trait;
 
+use computer_hub_core::{
+    CompoundResolver, ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport,
+    ToolHandle, ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome,
+};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tool_protocol::{
@@ -17,10 +21,6 @@ use tool_runtime::{
     SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError, ToolStreamItem,
 };
 use tool_types::ToolDescription;
-use xvora_computer_hub_core::{
-    CompoundResolver, ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport,
-    ToolHandle, ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome,
-};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EmptyArgs {}
@@ -179,14 +179,14 @@ impl ToolRegistry for PlaneRegistry {
     fn list_servers_for_user(
         &self,
         _user_id: &tool_protocol::UserId,
-    ) -> Vec<xvora_computer_hub_core::registry::ServerRecord> {
+    ) -> Vec<computer_hub_core::registry::ServerRecord> {
         Vec::new()
     }
 
     fn get_server_record(
         &self,
         _connection_id: &ConnectionId,
-    ) -> Option<xvora_computer_hub_core::registry::ServerRecord> {
+    ) -> Option<computer_hub_core::registry::ServerRecord> {
         None
     }
 }

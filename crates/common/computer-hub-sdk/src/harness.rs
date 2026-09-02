@@ -26,6 +26,10 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use computer_hub_core::{
+    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
+    tool_error_from_wire,
+};
 use dashmap::DashMap;
 use futures::FutureExt;
 use futures::Stream;
@@ -48,10 +52,6 @@ use tool_runtime::{
 };
 use tool_types::ToolDescription;
 use url::Url;
-use xvora_computer_hub_core::{
-    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
-    tool_error_from_wire,
-};
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::connection::{HubConnection, ReconnectCallback, ReconnectEvent};
@@ -2344,7 +2344,7 @@ impl Stream for RemoteCallStream {
 // The `tool_call_result` success-body decode (`decode_call_result`),
 // the progress-frame mapping (`progress_from_frame`), and the JSON-RPC
 // envelope / `ToolErrorWire` error projections are all canonical in
-// `xvora_computer_hub_core::remote`. Routing the harness through the same
+// `computer_hub_core::remote`. Routing the harness through the same
 // functions as the core remote proxy keeps both wire-decoding paths
 // identical, so a future variant addition lands in one place.
 

@@ -9,6 +9,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use dashmap::DashMap;
 
+use computer_hub_core::{
+    ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport, ToolHandle,
+    ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome, resolver::CompoundResolver,
+};
 use serde::{Deserialize, Serialize};
 use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
@@ -16,10 +20,6 @@ use tool_protocol::{
 };
 use tool_runtime::{SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError};
 use tool_types::ToolDescription;
-use xvora_computer_hub_core::{
-    ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport, ToolHandle,
-    ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome, resolver::CompoundResolver,
-};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EmptyArgs {}
@@ -392,14 +392,14 @@ impl ToolRegistry for MockRegistry {
     fn list_servers_for_user(
         &self,
         _user_id: &tool_protocol::UserId,
-    ) -> Vec<xvora_computer_hub_core::registry::ServerRecord> {
+    ) -> Vec<computer_hub_core::registry::ServerRecord> {
         Vec::new()
     }
 
     fn get_server_record(
         &self,
         _connection_id: &ConnectionId,
-    ) -> Option<xvora_computer_hub_core::registry::ServerRecord> {
+    ) -> Option<computer_hub_core::registry::ServerRecord> {
         None
     }
 }

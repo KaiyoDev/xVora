@@ -330,7 +330,7 @@ mod tests {
     fn sdk_reexported_recognizer_matches_decoded_error() {
         // SDK-only consumers reach the recognizer through the SDK re-export and
         // the core decode path.
-        let err = xvora_computer_hub_core::error_from_envelope(workspace_gone_envelope());
+        let err = computer_hub_core::error_from_envelope(workspace_gone_envelope());
         assert!(crate::is_workspace_unavailable(&err));
     }
 
@@ -346,7 +346,7 @@ mod tests {
             message: "nope".to_owned(),
             data: Some(serde_json::to_value(&wire).unwrap()),
         };
-        let err = xvora_computer_hub_core::error_from_envelope(env);
+        let err = computer_hub_core::error_from_envelope(env);
         assert!(!crate::is_workspace_unavailable(&err));
     }
 }

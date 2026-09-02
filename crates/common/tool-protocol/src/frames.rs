@@ -239,7 +239,7 @@ pub struct BindToolSessionParams {
 /// Outcome reported by [`BindToolSessionAck`].
 ///
 /// This is intentionally a **strict subset** of the registry-side
-/// `xvora_computer_hub_core::registry::ToolSessionBindOutcome`, with one
+/// `computer_hub_core::registry::ToolSessionBindOutcome`, with one
 /// extra wire-only variant. The asymmetry exists because the wire and
 /// registry layers have different failure vocabularies:
 ///

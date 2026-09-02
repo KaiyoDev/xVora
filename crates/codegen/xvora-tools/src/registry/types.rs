@@ -361,7 +361,7 @@ type OutputConverter =
 /// `.await`.
 struct DispatchParts {
     /// Resolved `LocalRegistry` handle to dispatch through.
-    lr_handle: Arc<dyn xvora_computer_hub_core::ToolHandle>,
+    lr_handle: Arc<dyn computer_hub_core::ToolHandle>,
     /// Runtime context built for the call (resources, renderer, cwd,
     /// behavior version, inner-dispatch).
     ctx: tool_runtime::ToolCallContext,
