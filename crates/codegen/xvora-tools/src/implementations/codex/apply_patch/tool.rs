@@ -274,10 +274,7 @@ impl tool_runtime::Tool for ApplyPatchTool {
         tool_protocol::ToolId::new("apply_patch").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "apply_patch",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -525,10 +522,9 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Add File: new.txt\n+hello\n+world");
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+            .await
+            .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -557,10 +553,9 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Delete File: del.txt");
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+            .await
+            .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -588,10 +583,9 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Update File: update.txt\n@@\n foo\n-bar\n+baz");
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+            .await
+            .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -620,10 +614,9 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Update File: src.txt\n*** Move to: dst.txt\n@@\n-line\n+line2");
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+            .await
+            .unwrap();
 
         match result {
             ApplyPatchOutput::Success { files, .. } => {
@@ -653,10 +646,9 @@ mod tests {
             "*** Add File: a.txt\n+aaa\n\
              *** Add File: b.txt\n+bbb",
         );
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+            .await
+            .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -715,10 +707,9 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Update File: file.txt\n@@\n-nonexistent\n+replacement");
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+            .await
+            .unwrap();
 
         match result {
             ApplyPatchOutput::ApplicationError(msg) => {
@@ -738,10 +729,9 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = "*** Begin Patch\n*** End Patch";
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(patch))
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(patch))
+            .await
+            .unwrap();
 
         match result {
             ApplyPatchOutput::EmptyPatch(msg) => {

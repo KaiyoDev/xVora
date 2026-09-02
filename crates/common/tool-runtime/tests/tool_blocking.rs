@@ -5,9 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use tool_protocol::ToolId;
-use tool_runtime::{
-    Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolStreamItem,
-};
+use tool_runtime::{Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolStreamItem};
 use tool_types::ToolDescription;
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]

@@ -855,10 +855,7 @@ impl tool_runtime::Tool for SearchReplaceTool {
     fn id(&self) -> tool_protocol::ToolId {
         tool_protocol::ToolId::new("search_replace").expect("valid tool id")
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "search_replace",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -1140,12 +1137,9 @@ mod tests {
         }));
         let input = make_input("nonexistent.txt", "hello", "goodbye");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             SearchReplaceOutput::InvalidInput(msg) => {
                 assert_eq!(
@@ -1304,12 +1298,9 @@ mod tests {
         }));
         let input = make_input("test.txt", "aaa", "ccc");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             SearchReplaceOutput::InvalidInput(msg) => {
                 assert_eq!(
@@ -1360,12 +1351,9 @@ mod tests {
         }));
         let input = make_input("test.txt", "xyz", "abc");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             SearchReplaceOutput::InvalidInput(msg) => {
                 assert_eq!(
@@ -1715,12 +1703,9 @@ mod tests {
         }));
         let input = make_input("build/output.js", "var x = 1;", "var x = 2;");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input)
-            .await
-            .unwrap();
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
         match result {
             SearchReplaceOutput::EditsApplied(_) => {
                 let content = std::fs::read_to_string(&file_path).unwrap();

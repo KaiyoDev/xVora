@@ -9,10 +9,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::Value;
-use tracing::{debug, info, warn};
 use tool_protocol::{McpBlock, SessionId, ToolId, ToolOutputWire};
 use tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput, terminal_only};
 use tool_types::ToolDescription;
+use tracing::{debug, info, warn};
 
 use crate::transport::McpTransport;
 use crate::types::{McpCallResult, McpContent, McpError, McpServerInfo, McpToolDefinition};

@@ -8,9 +8,9 @@ use crate::handle::WorkspaceHandle;
 use crate::session::WorkspaceSession;
 use crate::session::file_state::{FileRewindResponse, RewindPoint, rewind_files};
 use crate::session::git;
+use hunk_tracker::{HunkId, HunkTrackerSnapshot, HunkTurnDelta};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use hunk_tracker::{HunkId, HunkTrackerSnapshot, HunkTurnDelta};
 use tool_protocol::turn_hook::TurnHookOutcome;
 /// A turn/prompt boundary routed through [`WorkspaceHandle::on_turn_boundary`].
 ///
@@ -154,10 +154,8 @@ impl WorkspaceSession {
             return;
         }
         prompts.sort_unstable();
-        let mut file_states: HashMap<
-            std::path::PathBuf,
-            hunk_tracker::FileHunkStateSnapshot,
-        > = HashMap::new();
+        let mut file_states: HashMap<std::path::PathBuf, hunk_tracker::FileHunkStateSnapshot> =
+            HashMap::new();
         let mut turn_index: HashMap<usize, HashSet<HunkId>> = HashMap::new();
         for idx in prompts {
             let delta = &store[&idx];

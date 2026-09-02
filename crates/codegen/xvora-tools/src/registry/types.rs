@@ -180,9 +180,7 @@ impl ToolConfig {
             .unwrap_or_else(|| default_id.to_owned())
     }
 }
-impl<T: crate::types::tool_metadata::ToolMetadata + tool_runtime::Tool> From<&T>
-    for ToolConfig
-{
+impl<T: crate::types::tool_metadata::ToolMetadata + tool_runtime::Tool> From<&T> for ToolConfig {
     fn from(tool: &T) -> Self {
         Self {
             id: format!(
@@ -401,9 +399,8 @@ struct ToolEntry {
     /// Registers `Params<T::Params>` for serialization in Resources.
     /// Noop when `T::Params = ()`.
     register_params: Box<dyn Fn(&mut Resources) + Send + Sync>,
-    parse_input: Box<
-        dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync,
-    >,
+    parse_input:
+        Box<dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync>,
     /// Registers this tool into a `LocalRegistry` using the concrete type.
     /// Captured at `register::<T>()` time when T is known.
     register_in_local: Box<dyn Fn(&xvora_computer_hub_sdk::LocalRegistry) + Send + Sync>,
@@ -441,9 +438,8 @@ struct FinalizedTool {
     /// Client-facing param → canonical param, for reverse-remapping at dispatch.
     reverse_params: HashMap<String, String>,
     /// useful for parsing input to specific type
-    parse_input: Arc<
-        dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync,
-    >,
+    parse_input:
+        Arc<dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync>,
     /// Resolved behavior contract version for this tool (e.g. `"current"`,
     /// `"legacy-0.4.10"`). `None` for unmanaged tools and dynamically
     /// registered (MCP) tools.
@@ -555,13 +551,7 @@ impl ToolRegistryBuilder {
     /// [`register_tool_pack`] can contribute tool registrations.
     pub fn register<T>(&mut self)
     where
-        T: tool_runtime::Tool
-            + ToolMetadata
-            + std::fmt::Debug
-            + Default
-            + Send
-            + Sync
-            + 'static,
+        T: tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Default + Send + Sync + 'static,
         T::Args: serde::de::DeserializeOwned + schemars::JsonSchema + Into<ToolInput>,
         T::Output: serde::Serialize + serde::de::DeserializeOwned + Into<ToolOutput>,
     {
@@ -577,13 +567,7 @@ impl ToolRegistryBuilder {
     /// [`register_tool_pack`] can contribute tool registrations.
     pub fn register_with_params<T, P>(&mut self)
     where
-        T: tool_runtime::Tool
-            + ToolMetadata
-            + std::fmt::Debug
-            + Default
-            + Send
-            + Sync
-            + 'static,
+        T: tool_runtime::Tool + ToolMetadata + std::fmt::Debug + Default + Send + Sync + 'static,
         T::Args: serde::de::DeserializeOwned + schemars::JsonSchema + Into<ToolInput>,
         T::Output: serde::Serialize + serde::de::DeserializeOwned + Into<ToolOutput>,
         P: crate::types::resources::ResourceType
@@ -3341,11 +3325,9 @@ mod tests {
             _input: serde_json::Value,
         ) -> tool_runtime::ToolStream<String> {
             Box::pin(futures::stream::iter(vec![
-                tool_runtime::ToolStreamItem::Progress(
-                    tool_runtime::ToolProgress::Text {
-                        text: "progress-1".into(),
-                    },
-                ),
+                tool_runtime::ToolStreamItem::Progress(tool_runtime::ToolProgress::Text {
+                    text: "progress-1".into(),
+                }),
                 tool_runtime::ToolStreamItem::Terminal(Ok("terminal-value".to_string())),
             ]))
         }
@@ -4942,10 +4924,9 @@ mod tests {
     }
     #[tokio::test]
     async fn prepare_dispatch_stamps_workspace_viewer_ctx_when_present() {
-        let (toolset, _tmp) =
-            toolset_with_viewer_ctx(Some(tool_runtime::WorkspaceViewerContext {
-                stream_tool_progress: true,
-            }));
+        let (toolset, _tmp) = toolset_with_viewer_ctx(Some(tool_runtime::WorkspaceViewerContext {
+            stream_tool_progress: true,
+        }));
         let parts = toolset
             .prepare_dispatch(
                 "read_file",

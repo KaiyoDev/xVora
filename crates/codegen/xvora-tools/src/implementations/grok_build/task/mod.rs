@@ -233,15 +233,14 @@ impl crate::types::tool_metadata::ToolMetadata for TaskTool {
         }
 
         static DESC: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-            let subagents: Vec<tool_types::SubagentDescriptor> =
-                tool_types::BUILTIN_SUBAGENTS
-                    .iter()
-                    .map(|b| tool_types::SubagentDescriptor {
-                        name: b.name.to_owned(),
-                        description: b.description.to_owned(),
-                        tools: Some(guard_kind_tokens(b.tools_template)),
-                    })
-                    .collect();
+            let subagents: Vec<tool_types::SubagentDescriptor> = tool_types::BUILTIN_SUBAGENTS
+                .iter()
+                .map(|b| tool_types::SubagentDescriptor {
+                    name: b.name.to_owned(),
+                    description: b.description.to_owned(),
+                    tools: Some(guard_kind_tokens(b.tools_template)),
+                })
+                .collect();
             tool_types::build_task_description(
                 &subagents,
                 &tool_types::TaskToolNaming {
@@ -280,10 +279,7 @@ impl tool_runtime::Tool for TaskTool {
         tool_protocol::ToolId::new(TASK_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "task",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -1301,8 +1297,7 @@ mod tests {
         input.model = Some("invented-model".to_string());
 
         let result =
-            tool_runtime::Tool::run(&TaskTool, test_ctx(resources.into_shared()), input)
-                .await;
+            tool_runtime::Tool::run(&TaskTool, test_ctx(resources.into_shared()), input).await;
 
         let msg = result
             .expect_err("invalid model must reject before spawn")
@@ -1691,9 +1686,7 @@ mod tests {
 
     #[test]
     fn task_tool_id_predicate_accepts_all_wire_spellings() {
-        assert!(is_task_tool_id(
-            tool_runtime::Tool::id(&TaskTool).as_str()
-        ));
+        assert!(is_task_tool_id(tool_runtime::Tool::id(&TaskTool).as_str()));
         for name in ["task", "Task", "spawn_subagent"] {
             assert!(is_task_tool_id(name), "must accept {name:?}");
         }

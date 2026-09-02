@@ -19,10 +19,7 @@ struct FixedActiveMessageBackend {
 
 #[async_trait::async_trait]
 impl SubagentBackend for FixedActiveMessageBackend {
-    async fn spawn(
-        &self,
-        _: SubagentRequest,
-    ) -> Result<SubagentResult, tool_runtime::ToolError> {
+    async fn spawn(&self, _: SubagentRequest) -> Result<SubagentResult, tool_runtime::ToolError> {
         Err(tool_runtime::ToolError::custom(
             "unsupported",
             "spawn unsupported",

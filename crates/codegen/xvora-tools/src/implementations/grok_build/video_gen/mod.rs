@@ -219,9 +219,7 @@ impl VideoGenClient {
             xvora_extra_ca::build_reqwest_client(|builder| builder.default_headers(headers.clone()))
         })
         .map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
-                "Failed to build HTTP client: {e}"
-            ))
+            tool_runtime::ToolError::invalid_arguments(format!("Failed to build HTTP client: {e}"))
         })?;
 
         // Distinct client (download timeout, no default headers); an empty
@@ -518,9 +516,7 @@ impl VideoGenClient {
     /// Download video bytes from a pre-signed temporary URL (no auth headers).
     async fn download_video(&self, url: &str) -> Result<Vec<u8>, tool_runtime::ToolError> {
         let response = self.download_http.get(url).send().await.map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
-                "Failed to download video: {e}"
-            ))
+            tool_runtime::ToolError::invalid_arguments(format!("Failed to download video: {e}"))
         })?;
 
         if !response.status().is_success() {
@@ -533,9 +529,7 @@ impl VideoGenClient {
         }
 
         response.bytes().await.map(|b| b.to_vec()).map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
-                "Failed to read video bytes: {e}"
-            ))
+            tool_runtime::ToolError::invalid_arguments(format!("Failed to read video bytes: {e}"))
         })
     }
 
@@ -772,11 +766,8 @@ pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is a SuperGrok
 pub(crate) const ZDR_RESTRICTED_MESSAGE: &str = "Video generation tools are unavailable under zero data retention (ZDR). To enable, either turn off /privacy mode to disable ZDR or supply a user-hosted storage bucket (see https://docs.x.ai/build/settings/zdr-video-storage).";
 
 fn zdr_restricted_error() -> tool_runtime::ToolError {
-    tool_runtime::ToolError::new(
-        tool_runtime::ToolErrorKind::Custom,
-        ZDR_RESTRICTED_MESSAGE,
-    )
-    .with_details(serde_json::json!({"code": "zdr_output_storage_required"}))
+    tool_runtime::ToolError::new(tool_runtime::ToolErrorKind::Custom, ZDR_RESTRICTED_MESSAGE)
+        .with_details(serde_json::json!({"code": "zdr_output_storage_required"}))
 }
 
 fn is_zdr_upload_url_error(body: &str) -> bool {
@@ -875,9 +866,7 @@ async fn resolve_image_reference(value: &str) -> Result<String, tool_runtime::To
 
     if value.starts_with("data:image/") {
         let comma = value.find(',').ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments(
-                "malformed data URL in image reference",
-            )
+            tool_runtime::ToolError::invalid_arguments("malformed data URL in image reference")
         })?;
         if !value[..comma].contains(";base64") {
             return Err(tool_runtime::ToolError::invalid_arguments(
@@ -904,9 +893,7 @@ async fn resolve_image_reference(value: &str) -> Result<String, tool_runtime::To
 
     let (_w, _h, mime) =
         crate::util::image_validate::validate_image_bytes(&raw_bytes).map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
-                "invalid image reference: {e}"
-            ))
+            tool_runtime::ToolError::invalid_arguments(format!("invalid image reference: {e}"))
         })?;
     let b64 = base64::engine::general_purpose::STANDARD.encode(&raw_bytes);
     Ok(format!("data:{mime};base64,{b64}"))
@@ -1119,10 +1106,7 @@ impl tool_runtime::Tool for ImageToVideoTool {
         tool_protocol::ToolId::new(IMAGE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             IMAGE_TO_VIDEO_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -1219,10 +1203,7 @@ impl tool_runtime::Tool for ReferenceToVideoTool {
         tool_protocol::ToolId::new(REFERENCE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             REFERENCE_TO_VIDEO_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),

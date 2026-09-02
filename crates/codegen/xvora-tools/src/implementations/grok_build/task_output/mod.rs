@@ -21,9 +21,7 @@ use crate::types::requirements::{Expr, ToolParamsRequirement, ToolRequirement};
 use crate::types::resources::{SharedResources, Terminal, TruncationCfg};
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::{ToolKind, ToolNamespace};
-use tool_types::{
-    MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput,
-};
+use tool_types::{MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput};
 
 /// Default wait budget when a caller is already in wait mode but omitted
 /// `timeout_ms` (legacy `wait_tasks` / internal `capped_wait_timeout`). On
@@ -804,17 +802,15 @@ impl crate::types::tool_metadata::ToolMetadata for TaskOutputTool {
         // renders it context-aware from the finalized toolset. This static
         // fallback mirrors the default grok-build toolset.
         static DESC: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-            tool_types::build_task_output_description(
-                &tool_types::TaskOutputToolNaming {
-                    monitor_tool: Some("monitor"),
-                    read_tool: Some("read_file"),
-                    bash_background_param: Some("is_background"),
-                    subagent_background_param: Some("run_in_background"),
-                    task_ids_param: "task_ids",
-                    timeout_ms_param: "timeout_ms",
-                    task_id_param: "task_id",
-                },
-            )
+            tool_types::build_task_output_description(&tool_types::TaskOutputToolNaming {
+                monitor_tool: Some("monitor"),
+                read_tool: Some("read_file"),
+                bash_background_param: Some("is_background"),
+                subagent_background_param: Some("run_in_background"),
+                task_ids_param: "task_ids",
+                timeout_ms_param: "timeout_ms",
+                task_id_param: "task_id",
+            })
         });
         &DESC
     }
@@ -892,10 +888,7 @@ impl tool_runtime::Tool for TaskOutputTool {
         tool_protocol::ToolId::new("get_task_output").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "get_task_output",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -1174,10 +1167,7 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = TaskOutputTool;
-        assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
-            "get_task_output"
-        );
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "get_task_output");
         // The static fallback is the shared builder's default grok-build
         // rendering (monitor + task + bash + read present): concrete names, no
         // leftover template markers.
@@ -1996,9 +1986,8 @@ mod tests {
         let tool = TaskOutputTool;
 
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions.insert(tool_runtime::BehaviorVersion(
-            "legacy-0.4.10".to_string(),
-        ));
+        ctx.extensions
+            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
 
         let result = tool_runtime::Tool::run(
             &tool,

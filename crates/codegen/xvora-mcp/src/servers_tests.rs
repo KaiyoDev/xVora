@@ -954,8 +954,8 @@ fn test_mcp_erased_tool_id_is_qualified() {
 
 #[test]
 fn test_same_raw_name_different_servers_no_local_registry_collision() {
-    use xvora_computer_hub_sdk::LocalRegistry;
     use tool_runtime::Tool;
+    use xvora_computer_hub_sdk::LocalRegistry;
 
     let mcp_state = Arc::new(Mutex::new(McpState::new(vec![])));
     let registry = LocalRegistry::new();

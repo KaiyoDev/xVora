@@ -1023,9 +1023,7 @@ fn add_marketplace_source(
 
 /// Remove a marketplace source from `~/.grok/config.toml` and uninstall all
 /// plugins that were installed from it.
-async fn handle_remove_source(
-    source_url_or_path: &str,
-) -> hooks_plugins_types::ActionOutcome {
+async fn handle_remove_source(source_url_or_path: &str) -> hooks_plugins_types::ActionOutcome {
     let src = source_url_or_path.to_string();
     // Lock, then run the blocking FS work off the reactor
     let _save_guard = crate::util::config::lock_config_writes().await;

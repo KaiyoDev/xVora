@@ -1642,10 +1642,7 @@ impl tool_runtime::Tool for BashTool {
         tool_protocol::ToolId::new("run_terminal_cmd").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "run_terminal_cmd",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -2989,12 +2986,9 @@ mod tests {
         // exercises the "drained after the last periodic chunk" path that the
         // bug missed. ASCII so lossy UTF-8 conversion is exact.
         let cmd = "printf 'tail-bytes-after-final-tick\\n'";
-        let mut stream = tool_runtime::Tool::execute(
-            &tool,
-            test_ctx(resources.into_shared()),
-            make_input(cmd),
-        )
-        .await;
+        let mut stream =
+            tool_runtime::Tool::execute(&tool, test_ctx(resources.into_shared()), make_input(cmd))
+                .await;
 
         let mut concatenated = String::new();
         let mut last_delta_total: Option<usize> = None;
@@ -3320,12 +3314,9 @@ mod tests {
         // No Terminal inserted
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
-            &tool,
-            test_ctx(resources.into_shared()),
-            make_input("ls"),
-        )
-        .await;
+        let result =
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), make_input("ls"))
+                .await;
         assert!(result.is_err());
         assert!(
             result
@@ -3434,9 +3425,9 @@ mod tests {
 
     #[test]
     fn foreground_chat_completion_emits_code_execution_result() {
-        let resp = tool_runtime::ToolOutput::chat_completion_output(
-            &BashToolOutput::Foreground(make_bash_output(0, "hi\n")),
-        )
+        let resp = tool_runtime::ToolOutput::chat_completion_output(&BashToolOutput::Foreground(
+            make_bash_output(0, "hi\n"),
+        ))
         .unwrap();
         let result = resp.result.as_ref().unwrap();
         assert_eq!(result.sender, "assistant");
@@ -4715,12 +4706,10 @@ mod tests {
         fn legacy_rt_ctx(
             resources: crate::types::resources::SharedResources,
         ) -> tool_runtime::ToolCallContext {
-            let mut ctx =
-                tool_runtime::ToolCallContext::new(tool_protocol::ToolCallId::new_v7());
+            let mut ctx = tool_runtime::ToolCallContext::new(tool_protocol::ToolCallId::new_v7());
             ctx.extensions.insert(resources);
-            ctx.extensions.insert(tool_runtime::BehaviorVersion(
-                "legacy-0.4.10".to_string(),
-            ));
+            ctx.extensions
+                .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
             ctx
         }
 

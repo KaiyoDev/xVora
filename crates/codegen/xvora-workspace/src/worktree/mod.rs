@@ -10,11 +10,11 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use anyhow::Result;
+use fast_worktree::{BtrfsDelegate, IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder};
 use git2::{DiffOptions, Oid, Repository};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex as TokioMutex;
 use tokio_util::sync::CancellationToken;
-use fast_worktree::{BtrfsDelegate, IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder};
 
 use crate::session::git::{
     GitFileChange, change_type_from_git2_delta, find_git_root_from_path,
@@ -248,8 +248,8 @@ fn resolve_grove_fuse_creation_type(
     if !is_grove_fuse_mount(source) {
         return requested;
     }
-    let linked = grove_enabled
-        && fast_worktree::source_is_linked_local_view(&enabled_grove_opts(), source);
+    let linked =
+        grove_enabled && fast_worktree::source_is_linked_local_view(&enabled_grove_opts(), source);
     resolve_grove_fuse_creation_type_for(requested, linked, working_tree, source, session_id)
 }
 
@@ -2574,20 +2574,15 @@ pub fn detach_worktree_mgmt(
     allow_copy: bool,
 ) -> Result<fast_worktree::DetachReply> {
     let path = resolve_mgmt_path(id_or_path)?;
-    let client = fast_worktree::NfsWorktreeClient::from_opts(
-        &fast_worktree::NfsWorktreeOpts::default(),
-    );
+    let client =
+        fast_worktree::NfsWorktreeClient::from_opts(&fast_worktree::NfsWorktreeOpts::default());
     client.detach_worktree(&path, allow_copy)
 }
 
-pub fn salvage_worktree_mgmt(
-    id_or_path: &str,
-    out: &str,
-) -> Result<fast_worktree::SalvageReply> {
+pub fn salvage_worktree_mgmt(id_or_path: &str, out: &str) -> Result<fast_worktree::SalvageReply> {
     let path = resolve_mgmt_path(id_or_path)?;
-    let client = fast_worktree::NfsWorktreeClient::from_opts(
-        &fast_worktree::NfsWorktreeOpts::default(),
-    );
+    let client =
+        fast_worktree::NfsWorktreeClient::from_opts(&fast_worktree::NfsWorktreeOpts::default());
     match client.salvage_worktree(&path, std::path::Path::new(out)) {
         Ok(r) => Ok(r),
         Err(e) if e.to_string().contains("unreachable") => {
@@ -2599,9 +2594,8 @@ pub fn salvage_worktree_mgmt(
 
 pub fn clean_artifacts_mgmt(id_or_path: &str) -> Result<fast_worktree::CleanArtifactsReply> {
     let path = resolve_mgmt_path(id_or_path)?;
-    let client = fast_worktree::NfsWorktreeClient::from_opts(
-        &fast_worktree::NfsWorktreeOpts::default(),
-    );
+    let client =
+        fast_worktree::NfsWorktreeClient::from_opts(&fast_worktree::NfsWorktreeOpts::default());
     match client.clean_artifacts(&path) {
         Ok(r) => Ok(r),
         Err(e) if e.to_string().contains("unreachable") => {

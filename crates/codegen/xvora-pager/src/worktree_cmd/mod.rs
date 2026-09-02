@@ -2,12 +2,12 @@ mod display;
 use agent_client_protocol as acp;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use std::io::Write;
-use tokio_util::sync::CancellationToken;
-use xvora_acp_lib::acp_send;
 use fast_worktree::WorktreeRecord;
 /// Reuse the agent's own report types rather than copies, so a field added there cannot go missing here.
 pub use fast_worktree::{DbStats, GcReport, KeptWorktree, RebuildReport};
+use std::io::Write;
+use tokio_util::sync::CancellationToken;
+use xvora_acp_lib::acp_send;
 use xvora_shell::agent::config::Config as AgentConfig;
 #[derive(Debug, clap::Args, Clone)]
 pub struct WorktreeArgs {

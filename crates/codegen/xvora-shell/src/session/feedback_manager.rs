@@ -306,10 +306,7 @@ impl FeedbackManager {
         Self::new(session_id, None, FeedbackManagerConfig::default())
     }
 
-    pub(crate) fn set_upload_queue_stats(
-        &self,
-        stats: Arc<file_utils::queue::UploadQueueStats>,
-    ) {
+    pub(crate) fn set_upload_queue_stats(&self, stats: Arc<file_utils::queue::UploadQueueStats>) {
         let _ = self.upload_queue_stats.set(stats);
     }
 
@@ -1265,8 +1262,8 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_with_upload_queue_drains() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
-        use std::sync::Arc;
         use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use std::sync::Arc;
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1515,9 +1512,9 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_empty_queue_uses_short_drain_budget() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
         use std::sync::Arc;
         use std::time::Instant;
-        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1559,9 +1556,9 @@ mod tests {
     async fn test_shutdown_nonempty_queue_clamps_drain_and_leaves_durable_pair() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
         use axum::{Router, body::Body, http::StatusCode, response::IntoResponse, routing::post};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
         use std::sync::Arc;
         use std::time::Instant;
-        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         async fn slow_handler(_body: Body) -> impl IntoResponse {
             tokio::time::sleep(Duration::from_secs(60)).await;

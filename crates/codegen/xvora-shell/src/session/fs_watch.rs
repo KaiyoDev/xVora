@@ -9,11 +9,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use agent_client_protocol as acp;
+use hunk_tracker::HunkTrackerHandle;
 use tokio::sync::mpsc;
 use tokio::time::sleep_until;
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_fsnotify::{FsEvent, FsEventKind};
-use hunk_tracker::HunkTrackerHandle;
 use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 
 use crate::session::acp_session::SessionActor;

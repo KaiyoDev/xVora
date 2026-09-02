@@ -187,9 +187,7 @@ fn file_content_status_to_wire(
         S::Full => FileContentStatusWire::Full,
     }
 }
-fn file_content_view_to_wire(
-    view: hunk_tracker::types::FileContentView,
-) -> FileContentViewWire {
+fn file_content_view_to_wire(view: hunk_tracker::types::FileContentView) -> FileContentViewWire {
     FileContentViewWire {
         status: file_content_status_to_wire(view.status),
         byte_len: view.byte_len,
@@ -903,10 +901,7 @@ impl WorkspaceOp for HunkGetFileSummariesReq {
             std::collections::HashMap::new();
         for h in &all_hunks {
             let path_str = h.path.to_string_lossy().to_string();
-            let is_agent = matches!(
-                h.source,
-                hunk_tracker::types::HunkSource::AgentEdit { .. }
-            );
+            let is_agent = matches!(h.source, hunk_tracker::types::HunkSource::AgentEdit { .. });
             let entry = file_map.entry(path_str).or_insert((0, false));
             entry.0 += 1;
             if is_agent {
@@ -2088,9 +2083,9 @@ mod tests {
     /// A `SessionSummary` (with a turn carrying a hunk) mirrors identically.
     #[test]
     fn session_summary_to_wire_serializes_identically() {
-        use std::sync::Arc;
         use hunk_tracker::SessionSummary;
         use hunk_tracker::types::{Hunk, HunkSource, TurnSummary};
+        use std::sync::Arc;
         let hunk = Hunk::file_created(
             std::path::PathBuf::from("/repo/a.rs"),
             "x\n".to_string(),

@@ -202,10 +202,7 @@ impl tool_runtime::Tool for HashlineGrepTool {
         tool_protocol::ToolId::new("hashline_grep").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "hashline_grep",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -335,10 +332,7 @@ mod tests {
     fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = HashlineGrepTool;
-        assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
-            "hashline_grep"
-        );
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "hashline_grep");
         assert_eq!(ToolMetadata::kind(&tool), ToolKind::Search);
         assert!(tool_runtime::Tool::capabilities(&tool).is_read_only);
         assert!(matches!(

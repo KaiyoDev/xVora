@@ -11,15 +11,15 @@ use crate::config::{MemoryConfig, SessionContextFactory};
 use crate::file_system::{AsyncFsWrapper, LocalFs};
 use crate::hub::{HubConfig, HubHandle};
 use crate::session::file_state::FileStateTracker;
+use hunk_tracker::HunkTrackerHandle;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use xvora_computer_hub_mcp_adapter::McpBridgeHandle;
-use hunk_tracker::HunkTrackerHandle;
-use xvora_mcp::servers::McpState;
 use tool_protocol::ToolId;
 use tool_runtime::WorkspaceViewerContext;
+use xvora_computer_hub_mcp_adapter::McpBridgeHandle;
+use xvora_mcp::servers::McpState;
 use xvora_tools::notification::AcknowledgedToolNotification;
 use xvora_tools::notification::types::ToolNotificationHandle;
 use xvora_tools::registry::types::{FinalizedToolset, ToolConfig, ToolServerConfig};
@@ -617,10 +617,8 @@ pub struct WorkspaceShared {
     /// In-flight before-turn enqueue tasks, keyed by `(session_id, turn)`.
     /// Stored by `on_before_turn`; evicted on every turn-end path.
     /// The `After` turn-hook handler awaits the handle for its ack's `artifact_count`; the fire-and-forget path just drops it (detach, not abort).
-    pub(crate) inflight_enqueues: dashmap::DashMap<
-        (String, u64),
-        tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>,
-    >,
+    pub(crate) inflight_enqueues:
+        dashmap::DashMap<(String, u64), tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>>,
     /// Artifact-producer tasks, awaited by the drain and counted by the status publisher.
     /// See [`WorkspaceHandle::spawn_producer`](crate::handle::WorkspaceHandle).
     pub(crate) producer_tasks: tokio_util::task::TaskTracker,

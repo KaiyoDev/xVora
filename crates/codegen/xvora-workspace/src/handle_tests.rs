@@ -133,10 +133,7 @@ impl tool_runtime::Tool for BashCcoStub {
     fn id(&self) -> tool_protocol::ToolId {
         tool_protocol::ToolId::new(BASH_CCO_STUB_NAME).expect("valid tool id")
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(BASH_CCO_STUB_NAME, "bash cco stub")
     }
     async fn run(
@@ -195,9 +192,8 @@ pub(crate) fn assert_bash_cco_terminal(typed: &tool_runtime::TypedToolOutput) {
     assert!(!cer.command_timed_out);
 }
 pub(crate) async fn drain_terminal_ok(
-    mut stream: impl futures::Stream<
-        Item = tool_runtime::ToolStreamItem<tool_runtime::TypedToolOutput>,
-    > + Unpin,
+    mut stream: impl futures::Stream<Item = tool_runtime::ToolStreamItem<tool_runtime::TypedToolOutput>>
+    + Unpin,
 ) -> tool_runtime::TypedToolOutput {
     use futures::StreamExt;
     use tool_runtime::ToolStreamItem;
@@ -1714,8 +1710,8 @@ pub(crate) fn make_handle_with_events() -> (WorkspaceHandle, tempfile::TempDir) 
 /// Their field content is truthful.
 #[tokio::test]
 async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
-    use xvora_session_events::ToolOutcome;
     use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use xvora_session_events::ToolOutcome;
     let (handle, home) = make_handle_with_events();
     let sid = "sess-int";
     handle
@@ -1906,8 +1902,8 @@ async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
 /// It caches no session writers and creates no `sessions/` dir.
 #[tokio::test]
 async fn events_disabled_keeps_noop_and_writes_nothing() {
-    use xvora_session_events::ToolOutcome;
     use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use xvora_session_events::ToolOutcome;
     let handle = make_handle();
     assert!(
         !handle.shared().events_enabled,
@@ -2089,8 +2085,8 @@ fn is_safe_object_segment_rejects_traversal() {
 /// The single mapping from `TurnHookOutcome` to `TurnOutcomeLabel` used by `on_after_turn` must be exhaustive and stable.
 #[test]
 fn turn_outcome_label_maps_every_variant() {
-    use xvora_session_events::TurnOutcomeLabel;
     use tool_protocol::turn_hook::TurnHookOutcome;
+    use xvora_session_events::TurnOutcomeLabel;
     assert!(matches!(
         turn_outcome_label(TurnHookOutcome::Completed),
         TurnOutcomeLabel::Completed
@@ -2379,10 +2375,7 @@ async fn environment_artifact_enqueued_when_queue_present() {
         .emit_environment_artifact("sess-env", std::path::Path::new("/work"), None)
         .await;
     assert!(
-        matches!(
-            outcome,
-            Some(file_utils::queue::EnqueueOutcome::Enqueued)
-        ),
+        matches!(outcome, Some(file_utils::queue::EnqueueOutcome::Enqueued)),
         "expected Enqueued, got {outcome:?}"
     );
     assert_eq!(
@@ -4002,12 +3995,9 @@ async fn strict_bind_with_explicit_toolset_serves_it_end_to_end() {
 async fn lax_bind_without_metadata_uses_default_catalog_end_to_end() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let resolved = resolver(
-        tool_protocol::SessionId::new("bind-e2e-lax").unwrap(),
-        None,
-    )
-    .await
-    .expect("bind must succeed");
+    let resolved = resolver(tool_protocol::SessionId::new("bind-e2e-lax").unwrap(), None)
+        .await
+        .expect("bind must succeed");
     let names = handler_names(&resolved);
     assert!(
         names.iter().any(|n| n == "read_file") && names.iter().any(|n| n == "grep"),

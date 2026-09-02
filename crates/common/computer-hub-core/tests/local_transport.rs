@@ -10,11 +10,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
-use xvora_computer_hub_core::{
-    CompoundResolver, ConnectionCleanupReport, ErasedTool, LocalTransport, ResolvedTool,
-    SessionCleanupReport, ToolHandle, ToolRegistry, ToolSessionBindOutcome,
-    ToolSessionUnbindOutcome, Transport, TransportKind,
-};
 use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind as WireTransportKind, UserId,
@@ -24,6 +19,11 @@ use tool_runtime::{
     ToolStreamItem, with_progress,
 };
 use tool_types::ToolDescription;
+use xvora_computer_hub_core::{
+    CompoundResolver, ConnectionCleanupReport, ErasedTool, LocalTransport, ResolvedTool,
+    SessionCleanupReport, ToolHandle, ToolRegistry, ToolSessionBindOutcome,
+    ToolSessionUnbindOutcome, Transport, TransportKind,
+};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EchoArgs {
@@ -303,9 +303,7 @@ async fn missing_tool_resolves_as_terminal_not_found() {
     let items = collect(&mut stream).await;
     assert_eq!(items.len(), 1);
     match &items[0] {
-        ToolStreamItem::Terminal(Err(e))
-            if e.kind == tool_runtime::ToolErrorKind::NotFound =>
-        {
+        ToolStreamItem::Terminal(Err(e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
             assert!(
                 e.detail.contains("ghost"),
                 "detail should mention tool id: {}",

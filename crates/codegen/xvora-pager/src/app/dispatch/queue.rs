@@ -907,9 +907,9 @@ pub(crate) fn apply_turn_start_shim(
         let (prompt_idx, first_id, last_id, all_ids) =
             paint_or_reuse_combined_user_bubbles(agent, &segments);
         if rewindable {
-            let restore = text.clone().unwrap_or_else(|| {
-                prompt_queue::join_texts(segments.iter().map(String::as_str))
-            });
+            let restore = text
+                .clone()
+                .unwrap_or_else(|| prompt_queue::join_texts(segments.iter().map(String::as_str)));
             let earlier = all_ids.into_iter().filter(|id| *id != last_id).collect();
             // An adopted turn arrives with text only, never the original attachments, so a Ctrl+C rewind restores just the joined text
             // The local drain path, which owns the data, restores images/chips.

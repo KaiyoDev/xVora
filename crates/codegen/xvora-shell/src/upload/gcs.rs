@@ -19,11 +19,11 @@ use crate::auth::AuthManager;
 use crate::auth::credential_provider::{
     ShellAuthCredentialProvider, StorageClientAttributionBridge,
 };
-use std::sync::Arc;
-use xvora_auth::AuthCredentialProvider;
 use file_utils::gcs::StorageConfig;
 use file_utils::storage_client::Auth401AttributionCallback;
 use file_utils::{TraceExportConfig, UploadMethod};
+use std::sync::Arc;
+use xvora_auth::AuthCredentialProvider;
 /// See the module docs for why this exists.
 ///
 /// `auth_manager == None` is supported (for tests, direct-mode upload, and a few sites without an `AuthManager` in scope).

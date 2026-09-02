@@ -162,10 +162,7 @@ impl tool_runtime::Tool for CodexGrepFilesTool {
         tool_protocol::ToolId::new("grep_files").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "grep_files",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),

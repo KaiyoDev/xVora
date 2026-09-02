@@ -16,8 +16,8 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use xvora_computer_hub_sdk::harness::ToolHarness;
 use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
+use xvora_computer_hub_sdk::harness::ToolHarness;
 use xvora_workspace_types::rpc::agents_md::{AgentConfigFile, DiscoverAgentsMdReq};
 use xvora_workspace_types::rpc::code_nav::{
     CodeFindDefinitionsReq, CodeFindReferencesReq, CodeGotoDefinitionReq, CodeGotoReferencesReq,
@@ -136,9 +136,7 @@ fn is_non_retryable_workspace_unavailable(err: &tool_runtime::ToolError) -> bool
             use serde::Deserialize as _;
             tool_protocol::WorkspaceUnavailableDetails::deserialize(d).ok()
         })
-        .is_some_and(|d| {
-            d.code == tool_protocol::WORKSPACE_UNAVAILABLE_SUBCODE && !d.retryable
-        })
+        .is_some_and(|d| d.code == tool_protocol::WORKSPACE_UNAVAILABLE_SUBCODE && !d.retryable)
 }
 /// Typed client over a bound [`ToolHarness`] for `workspace.*` RPCs.
 ///
@@ -210,8 +208,8 @@ impl WorkspaceClient {
         if !self.is_connected() {
             return Err(WorkspaceClientError::NotConnected);
         }
-        let tool_id = tool_protocol::ToolId::new(WORKSPACE_RPC_TOOL_ID)
-            .expect("constant tool id is valid");
+        let tool_id =
+            tool_protocol::ToolId::new(WORKSPACE_RPC_TOOL_ID).expect("constant tool id is valid");
         let args = serde_json::json!({ "method": method, "params": params });
         tracing::debug!(method, "WorkspaceClient::rpc");
         let fut = async {
@@ -589,10 +587,10 @@ mod tests {
     use super::*;
     use schemars::JsonSchema;
     use serde::Deserialize;
-    use xvora_computer_hub_sdk::harness::LocalRegistry;
     use tool_protocol::{SessionId, ToolId};
     use tool_runtime::{Tool, ToolError};
     use tool_types::ToolDescription;
+    use xvora_computer_hub_sdk::harness::LocalRegistry;
     use xvora_workspace_types::rpc::RpcActivityClass;
     #[derive(Debug, Deserialize, JsonSchema)]
     struct RpcArgs {

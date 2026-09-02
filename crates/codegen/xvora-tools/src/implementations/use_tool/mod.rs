@@ -92,9 +92,7 @@ async fn dispatch_local_mcp(
     ctx: tool_runtime::ToolCallContext,
 ) -> Result<ToolOutput, tool_runtime::ToolError> {
     let tool_id = tool_protocol::ToolId::new(tool_name).map_err(|_| {
-        tool_runtime::ToolError::invalid_arguments(format!(
-            "invalid tool name: '{tool_name}'"
-        ))
+        tool_runtime::ToolError::invalid_arguments(format!("invalid tool name: '{tool_name}'"))
     })?;
     let typed = dispatch.0.call_terminal(tool_id, tool_input, ctx).await?;
     serde_json::from_value(typed.value)
@@ -301,10 +299,7 @@ impl tool_runtime::Tool for UseTool {
         tool_protocol::ToolId::new(USE_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             USE_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -436,9 +431,10 @@ mod tests {
                 tool_id.as_str(),
                 "server__tool" | "linear__save_issue" | "linear__list_issues"
             ) {
-                return tool_runtime::terminal_only(Err(
-                    tool_runtime::ToolError::not_found(tool_id, "Tool not found"),
-                ));
+                return tool_runtime::terminal_only(Err(tool_runtime::ToolError::not_found(
+                    tool_id,
+                    "Tool not found",
+                )));
             }
             *self.captured_args.lock().unwrap() = Some(args);
             let value = serde_json::to_value(ToolOutput::Text("ok".into())).unwrap();
@@ -483,9 +479,9 @@ mod tests {
             _args: serde_json::Value,
             _ctx: tool_runtime::ToolCallContext,
         ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
-            tool_runtime::terminal_only(Err(
-                tool_runtime::ToolError::invalid_arguments("local validation failed"),
-            ))
+            tool_runtime::terminal_only(Err(tool_runtime::ToolError::invalid_arguments(
+                "local validation failed",
+            )))
         }
     }
 
@@ -540,10 +536,7 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(
-            err.kind,
-            tool_runtime::ToolErrorKind::InvalidArguments
-        );
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::InvalidArguments);
         assert!(err.detail.contains("not a valid MCP tool name"));
         assert!(err.detail.contains("read_file"));
     }
@@ -564,10 +557,7 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(
-            err.kind,
-            tool_runtime::ToolErrorKind::InvalidArguments
-        );
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::InvalidArguments);
         assert!(err.detail.contains("inner_dispatch not set"));
     }
 
@@ -632,10 +622,8 @@ mod tests {
             call_id: &str,
             arguments: serde_json::Value,
             _caller: &str,
-        ) -> Result<
-            crate::types::resources::ManagedGatewayToolCallResponse,
-            tool_runtime::ToolError,
-        > {
+        ) -> Result<crate::types::resources::ManagedGatewayToolCallResponse, tool_runtime::ToolError>
+        {
             if let Some(expected) = self.expected_call_id {
                 assert_eq!(call_id, expected);
             }
@@ -965,10 +953,7 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(
-            err.kind,
-            tool_runtime::ToolErrorKind::InvalidArguments
-        );
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::InvalidArguments);
         assert!(err.detail.contains("local validation failed"));
         assert!(gateway_captured.lock().unwrap().is_none());
     }
@@ -1597,10 +1582,7 @@ mod tests {
         .await;
 
         let err = result.unwrap_err();
-        assert_eq!(
-            err.kind,
-            tool_runtime::ToolErrorKind::InvalidArguments
-        );
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::InvalidArguments);
         assert!(err.detail.contains("native tool"), "got: {}", err.detail);
         assert!(err.detail.contains("scheduler_create"));
         assert!(err.detail.contains("directly"));

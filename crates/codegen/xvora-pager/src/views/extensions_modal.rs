@@ -126,9 +126,7 @@ fn hook_group_sort_key<'a>(source_dir: &'a str, meta: &HookSourceMeta) -> HookGr
     }
 }
 
-fn is_official_marketplace_source(
-    source: &hooks_plugins_types::MarketplaceScanResult,
-) -> bool {
+fn is_official_marketplace_source(source: &hooks_plugins_types::MarketplaceScanResult) -> bool {
     source.source_name == xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME
         || xvora_plugin_marketplace::is_official_source_url(&source.source_url_or_path)
 }
@@ -5117,10 +5115,7 @@ mod tests {
         assert!(StatusFilter::Disabled.matches(false));
     }
 
-    fn make_plugin_with_enabled(
-        name: &str,
-        enabled: bool,
-    ) -> hooks_plugins_types::PluginInfo {
+    fn make_plugin_with_enabled(name: &str, enabled: bool) -> hooks_plugins_types::PluginInfo {
         let mut p = make_plugin(name);
         p.enabled = enabled;
         p
@@ -5979,11 +5974,7 @@ mod tests {
 
     // ── Hook helpers with StatusFilter ───────────────────────────────
 
-    fn make_hook(
-        name: &str,
-        source_dir: &str,
-        disabled: bool,
-    ) -> hooks_plugins_types::HookInfo {
+    fn make_hook(name: &str, source_dir: &str, disabled: bool) -> hooks_plugins_types::HookInfo {
         hooks_plugins_types::HookInfo {
             name: name.to_string(),
             event: hooks_plugins_types::HookEvent::PreToolUse,
@@ -6698,9 +6689,7 @@ mod tests {
 
     // ── Plugins: origin grouping ─────────────────────────────────────
 
-    fn plugins_modal_state(
-        plugins: Vec<hooks_plugins_types::PluginInfo>,
-    ) -> ExtensionsModalState {
+    fn plugins_modal_state(plugins: Vec<hooks_plugins_types::PluginInfo>) -> ExtensionsModalState {
         let mut state = ExtensionsModalState::new(ExtensionsTab::Plugins);
         state.plugins_data =
             TabDataState::Loaded(hooks_plugins_types::PluginsListResponse { plugins });
@@ -6822,10 +6811,8 @@ mod tests {
 
     #[test]
     fn plugin_group_unknown_origin_uses_scope_fallback() {
-        let mut unknown = make_plugin_with_origin(
-            "future-tool",
-            hooks_plugins_types::PluginOrigin::Unknown,
-        );
+        let mut unknown =
+            make_plugin_with_origin("future-tool", hooks_plugins_types::PluginOrigin::Unknown);
         assert_eq!(plugin_group(&unknown).key, "origin:user");
 
         unknown.marketplace_source = Some("xAI Official".into());

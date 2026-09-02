@@ -1562,10 +1562,7 @@ impl tool_runtime::Tool for McpErasedTool {
             .unwrap_or_else(|_| tool_protocol::ToolId::new("mcp_tool").expect("valid"))
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(&self.tool.name, &self.tool.description)
     }
 

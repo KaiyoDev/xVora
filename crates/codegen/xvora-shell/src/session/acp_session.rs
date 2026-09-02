@@ -481,9 +481,7 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
             .await
             .ok()
             .or_else(|| self.auth_manager.current_or_expired().map(|a| a.key))
-            .ok_or_else(|| {
-                tool_runtime::ToolError::unauthorized("no auth token available")
-            })?;
+            .ok_or_else(|| tool_runtime::ToolError::unauthorized("no auth token available"))?;
         let response = crate::session::managed_mcp::call_gateway_tool(
             &self.proxy_base_url,
             &auth_key,
@@ -512,9 +510,8 @@ fn managed_gateway_error_to_tool_error(
             } else if status == reqwest::StatusCode::FORBIDDEN {
                 tool_runtime::ToolError::permission_denied(detail)
             } else {
-                let tool_id = tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
-                    tool_protocol::ToolId::new("use_tool").expect("valid")
-                });
+                let tool_id = tool_protocol::ToolId::new(caller)
+                    .unwrap_or_else(|_| tool_protocol::ToolId::new("use_tool").expect("valid"));
                 tool_runtime::ToolError::execution(tool_id, detail)
             };
             match err.details.as_mut() {
@@ -567,10 +564,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn forbidden_status_maps_to_permission_denied_and_carries_status() {
         let err = managed_gateway_error_to_tool_error(status_error(403, "denied"), "use_tool");
-        assert_eq!(
-            err.kind,
-            tool_runtime::ToolErrorKind::PermissionDenied
-        );
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::PermissionDenied);
         let details = err.details.as_ref().unwrap();
         assert_eq!(
             details.get(HTTP_STATUS_DETAILS_KEY),
@@ -848,8 +842,7 @@ pub(crate) struct SessionActor {
     pub(crate) origin_client: Option<crate::http::OriginClientInfo>,
     /// Feedback manager for signal tracking and feedback request heuristics
     pub(crate) feedback_manager: Arc<FeedbackManager>,
-    pub(crate) upload_queue:
-        std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
+    pub(crate) upload_queue: std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
     /// Cancellation token for the feedback sync loop (None if no feedback client)
     pub(crate) sync_loop_cancel: Option<tokio_util::sync::CancellationToken>,
     /// The fully-built Agent: owns the ToolBridge, system prompt, policies, and the AgentDefinition.
@@ -1237,10 +1230,7 @@ impl SessionActor {
     }
     /// Send a before-turn hook via the local workspace channel.
     /// Fire-and-forget; failures are logged but do not interrupt the turn.
-    async fn send_before_turn_event(
-        &self,
-        payload: tool_protocol::turn_hook::BeforeTurnPayload,
-    ) {
+    async fn send_before_turn_event(&self, payload: tool_protocol::turn_hook::BeforeTurnPayload) {
         self.workspace_ops
             .on_before_turn(&self.session_id_string(), &payload)
             .await;
@@ -1252,10 +1242,7 @@ impl SessionActor {
         skip_all,
         fields(session_id = %self.session_info.id.0, turn_number = payload.turn_number)
     )]
-    async fn send_after_turn_event(
-        &self,
-        payload: tool_protocol::turn_hook::AfterTurnPayload,
-    ) {
+    async fn send_after_turn_event(&self, payload: tool_protocol::turn_hook::AfterTurnPayload) {
         self.workspace_ops
             .on_after_turn(&self.session_id_string(), &payload)
             .await;

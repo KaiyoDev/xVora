@@ -80,10 +80,7 @@ impl tool_runtime::Tool for EnterPlanModeTool {
         tool_protocol::ToolId::new("enter_plan_mode").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "enter_plan_mode",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -302,10 +299,7 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = EnterPlanModeTool;
-        assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
-            "enter_plan_mode"
-        );
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "enter_plan_mode");
     }
 
     #[test]

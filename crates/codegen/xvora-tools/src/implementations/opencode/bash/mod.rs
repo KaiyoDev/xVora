@@ -315,10 +315,7 @@ impl tool_runtime::Tool for BashTool {
         tool_protocol::ToolId::new("bash").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "bash",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -464,10 +461,7 @@ mod tests {
     use super::*;
     use crate::types::tool_metadata::test_ctx;
 
-    fn rt_ctx_with_call_id(
-        resources: Resources,
-        call_id: &str,
-    ) -> tool_runtime::ToolCallContext {
+    fn rt_ctx_with_call_id(resources: Resources, call_id: &str) -> tool_runtime::ToolCallContext {
         let id = tool_protocol::ToolCallId::new(call_id).unwrap();
         let mut ctx = tool_runtime::ToolCallContext::new(id);
         ctx.extensions.insert(resources.into_shared());
@@ -742,12 +736,9 @@ mod tests {
         // No Terminal inserted
         let tool = BashTool;
 
-        let result = tool_runtime::Tool::run(
-            &tool,
-            test_ctx(resources.into_shared()),
-            make_input("ls"),
-        )
-        .await;
+        let result =
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), make_input("ls"))
+                .await;
         assert!(result.is_err());
         assert!(
             result
@@ -1125,12 +1116,9 @@ mod tests {
         resources.insert(NotificationHandle(ToolNotificationHandle::noop()));
 
         let tool = BashTool;
-        let result = tool_runtime::Tool::run(
-            &tool,
-            test_ctx(resources.into_shared()),
-            make_input("ls"),
-        )
-        .await;
+        let result =
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), make_input("ls"))
+                .await;
 
         assert!(result.is_err());
         assert!(

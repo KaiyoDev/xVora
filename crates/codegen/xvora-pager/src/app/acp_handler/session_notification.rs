@@ -941,8 +941,7 @@ pub(super) fn handle_session_notification_with_origin(
                 })
                 .collect();
             let is_tool_hook = event_name == "pre_tool_use" || event_name == "post_tool_use";
-            let is_stop_hook =
-                hooks_plugins_types::HookEvent::from_wire(&event_name).is_turn_end();
+            let is_stop_hook = hooks_plugins_types::HookEvent::from_wire(&event_name).is_turn_end();
             if is_tool_hook {
                 let phase = if event_name == "pre_tool_use" {
                     HookPhase::Pre
@@ -1005,12 +1004,11 @@ pub(super) fn handle_session_notification_with_origin(
             if let Some(ref mut modal) = agent.extensions_modal {
                 use crate::views::extensions_modal::TabDataState;
                 modal.seed_hook_groups_once(&hooks);
-                modal.hooks_data =
-                    TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
-                        hooks,
-                        project_trusted,
-                        load_errors,
-                    });
+                modal.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
+                    hooks,
+                    project_trusted,
+                    load_errors,
+                });
                 true
             } else {
                 false
@@ -1021,9 +1019,7 @@ pub(super) fn handle_session_notification_with_origin(
                 use crate::views::extensions_modal::TabDataState;
                 modal.seed_plugin_groups_once(&plugins);
                 modal.plugins_data =
-                    TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
-                        plugins,
-                    });
+                    TabDataState::Loaded(hooks_plugins_types::PluginsListResponse { plugins });
                 if !matches!(modal.skills_data, TabDataState::Loading) {
                     modal.skills_data = TabDataState::Loading;
                     plugins_changed_needs_skills_refetch = true;
@@ -1417,10 +1413,8 @@ pub(super) fn handle_child_session_notification(
             {
                 info.tokens_used = Some(tokens_after);
                 if let Some(cw) = info.context_window_tokens.filter(|&cw| cw > 0) {
-                    info.context_usage_pct = Some(token_estimation::usage_percentage_u8(
-                        tokens_after,
-                        cw,
-                    ));
+                    info.context_usage_pct =
+                        Some(token_estimation::usage_percentage_u8(tokens_after, cw));
                 }
             }
             changed

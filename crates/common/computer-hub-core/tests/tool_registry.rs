@@ -10,16 +10,16 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 
 use serde::{Deserialize, Serialize};
-use xvora_computer_hub_core::{
-    ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport, ToolHandle,
-    ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome, resolver::CompoundResolver,
-};
 use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind, UserId,
 };
 use tool_runtime::{SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError};
 use tool_types::ToolDescription;
+use xvora_computer_hub_core::{
+    ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport, ToolHandle,
+    ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome, resolver::CompoundResolver,
+};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EmptyArgs {}

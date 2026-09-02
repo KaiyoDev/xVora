@@ -6,8 +6,8 @@
 //! re-deriving the numeric/string code mapping.
 
 use thiserror::Error;
-use url::Url;
 use tool_protocol::{IdError, JsonRpcError, ToolCallId, ToolErrorWire};
+use url::Url;
 
 /// Errors surfaced by the client SDK.
 #[derive(Debug, Error)]

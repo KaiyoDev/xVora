@@ -1,12 +1,12 @@
 use fastrace::future::FutureExt as _;
 use fastrace::local::LocalSpan;
+use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use prometheus::{
     Histogram, HistogramVec, IntCounter, IntCounterVec, register_histogram, register_histogram_vec,
     register_int_counter, register_int_counter_vec,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
-use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use tool_protocol::ToolServerStatusPayload;
 use tool_protocol::turn_hook::TurnHookOutcome;
 /// Default SIGTERM drain budget (ms); override via `GROK_WORKSPACE_TERMINATION_GRACE_MS`.
@@ -187,11 +187,11 @@ use crate::telemetry::dc_log;
 use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
-use xvora_diag_server::DiagHandle;
 use file_utils::queue::EnqueueOutcome;
+use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
+use xvora_diag_server::DiagHandle;
 use xvora_session_events::types::CancellationCategory;
 use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
-use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
 /// Per-domain checkpoint captures, by domain and turn outcome.
 pub(crate) static REWIND_CHECKPOINT_CAPTURE_TOTAL: std::sync::LazyLock<IntCounterVec> =
     std::sync::LazyLock::new(|| {
@@ -2631,10 +2631,10 @@ impl WorkspaceHandle {
             McpClientTransportAdapter, McpStartFailure, McpStartResult, QualifiedMcpToolHandler,
             make_bridge_config, server_name_from_mcp_error,
         };
+        use tool_protocol::SessionId;
         use xvora_computer_hub_mcp_adapter::McpBridge;
         use xvora_computer_hub_sdk::ToolServerHandler as _;
         use xvora_mcp::servers::MCP_TOOL_NAME_DELIMITER;
-        use tool_protocol::SessionId;
         let tool_server = {
             let hub_guard = self.shared.hub_handle.lock().await;
             let hub = hub_guard
@@ -2729,8 +2729,7 @@ impl WorkspaceHandle {
                                         error = %e,
                                         "failed to register MCP tool on hub"
                                     );
-                                } else if let Ok(tid) =
-                                    tool_protocol::ToolId::new(&qualified_name)
+                                } else if let Ok(tid) = tool_protocol::ToolId::new(&qualified_name)
                                 {
                                     registered_tool_ids.push(tid);
                                 }
@@ -3565,10 +3564,8 @@ impl WorkspaceHandle {
                         let payload =
                             serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
                         let frame = tool_protocol::ToolNotificationFrame::custom(
-                            tool_protocol::ToolId::new(
-                                crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID,
-                            )
-                            .expect("constant tool id"),
+                            tool_protocol::ToolId::new(crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID)
+                                .expect("constant tool id"),
                             "workspace_event",
                             payload,
                         );
@@ -4342,9 +4339,7 @@ async fn enqueue_workspace_tool_definitions(
 }
 /// Single source of truth for mapping a turn-hook outcome to the `events.jsonl` [`TurnOutcomeLabel`].
 /// Kept as one `match` so the two enums cannot drift and the mapping is never duplicated across call sites.
-fn turn_outcome_label(
-    outcome: tool_protocol::turn_hook::TurnHookOutcome,
-) -> TurnOutcomeLabel {
+fn turn_outcome_label(outcome: tool_protocol::turn_hook::TurnHookOutcome) -> TurnOutcomeLabel {
     use tool_protocol::turn_hook::TurnHookOutcome;
     match outcome {
         TurnHookOutcome::Completed => TurnOutcomeLabel::Completed,
@@ -4522,10 +4517,7 @@ impl tool_runtime::ToolDyn for SessionToolHandle {
     fn id(&self) -> tool_protocol::ToolId {
         self.tool_id.clone()
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         self.desc.clone()
     }
     async fn execute(

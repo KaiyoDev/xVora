@@ -1521,9 +1521,7 @@ impl AgentDefinition {
     pub fn general_purpose() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: tool_types::GENERAL_PURPOSE_SUBAGENT
-                .description
-                .to_string(),
+            description: tool_types::GENERAL_PURPOSE_SUBAGENT.description.to_string(),
             tool_config: general_purpose_toolset(),
             prompt_body: Some(subagent_prompts::GENERAL_PURPOSE_PROMPT.to_string()),
             ..Self::base(BuiltinAgentName::GeneralPurpose, "")

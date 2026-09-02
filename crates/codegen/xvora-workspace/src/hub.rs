@@ -27,18 +27,18 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
-use url::Url;
-use xvora_computer_hub_sdk::{
-    AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
-    ToolServerBuilder, ToolServerHandler,
-};
-use xvora_diag_server::DiagHandle;
 use tool_protocol::ToolId;
 use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, ToolStreamItem, TypedToolOutput,
     terminal_only,
 };
 use tool_types::ToolDescription;
+use url::Url;
+use xvora_computer_hub_sdk::{
+    AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
+    ToolServerBuilder, ToolServerHandler,
+};
+use xvora_diag_server::DiagHandle;
 use xvora_tools::registry::types::ToolConfig;
 /// Configuration for connecting to a server instance.
 ///
@@ -976,9 +976,7 @@ mod tests {
             )
             .expect("register_tool must succeed");
     }
-    async fn drain_counts<T>(
-        mut stream: tool_runtime::ToolStream<T>,
-    ) -> (usize, usize, bool) {
+    async fn drain_counts<T>(mut stream: tool_runtime::ToolStream<T>) -> (usize, usize, bool) {
         let mut progress = 0;
         let mut terminal = 0;
         let mut last_is_terminal = false;

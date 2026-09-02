@@ -2618,26 +2618,23 @@ mod tests {
     }
     #[test]
     fn bash_output_chat_completion_carries_exit_and_stdout() {
-        let resp = tool_runtime::ToolOutput::chat_completion_output(&sample_bash(
-            0, b"hello\n", false,
-        ))
-        .unwrap();
+        let resp =
+            tool_runtime::ToolOutput::chat_completion_output(&sample_bash(0, b"hello\n", false))
+                .unwrap();
         assert_cer(&resp, "hello\n", 0, false);
         assert!(resp.result.as_ref().unwrap().extra.is_empty());
     }
     #[test]
     fn bash_output_chat_completion_empty_stdout_still_emits() {
         let resp =
-            tool_runtime::ToolOutput::chat_completion_output(&sample_bash(0, b"", false))
-                .unwrap();
+            tool_runtime::ToolOutput::chat_completion_output(&sample_bash(0, b"", false)).unwrap();
         assert_cer(&resp, "", 0, false);
     }
     #[test]
     fn bash_output_chat_completion_timeout_and_nonzero_exit() {
-        let resp = tool_runtime::ToolOutput::chat_completion_output(&sample_bash(
-            124, b"partial", true,
-        ))
-        .unwrap();
+        let resp =
+            tool_runtime::ToolOutput::chat_completion_output(&sample_bash(124, b"partial", true))
+                .unwrap();
         assert_cer(&resp, "partial", 124, true);
     }
     #[test]
@@ -2715,15 +2712,15 @@ mod tests {
         .unwrap();
         assert_cer(&resp, "agg", 0, false);
         assert!(
-            tool_runtime::ToolOutput::chat_completion_output(
-                &ToolOutput::BackgroundTaskStarted(bg_started())
-            )
+            tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::BackgroundTaskStarted(
+                bg_started()
+            ))
             .is_none()
         );
         assert!(
-            tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::Text(
-                TextOutput::from("noop")
-            ))
+            tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::Text(TextOutput::from(
+                "noop"
+            )))
             .is_none()
         );
     }
@@ -2753,8 +2750,7 @@ mod tests {
             0,
             false,
         );
-        let dropped =
-            tool_runtime::TypedToolOutput::from_value(typed.tool_id, expected_value);
+        let dropped = tool_runtime::TypedToolOutput::from_value(typed.tool_id, expected_value);
         assert!(dropped.chat_completion_output.is_none());
     }
     #[test]

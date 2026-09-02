@@ -166,8 +166,7 @@ mod tests {
             cfg.interpolate_description("capped at {max_wait_ms}", "get_task_output", 40_000, cap),
             "capped at 300000 (~5 min)"
         );
-        let default_cap =
-            tool_types::format_wait_cap_ms(tool_types::MAX_WAIT_BLOCK_MS_DEFAULT);
+        let default_cap = tool_types::format_wait_cap_ms(tool_types::MAX_WAIT_BLOCK_MS_DEFAULT);
         assert_eq!(
             TruncationConfig::default().interpolate_description(
                 "capped at {max_wait_ms}",
@@ -231,8 +230,7 @@ mod tests {
     #[test]
     fn apply_to_schema_bounds_the_real_optional_u64_property() {
         let generated =
-            serde_json::to_value(schemars::schema_for!(tool_types::TaskOutputToolInput))
-                .unwrap();
+            serde_json::to_value(schemars::schema_for!(tool_types::TaskOutputToolInput)).unwrap();
         let timeout = &generated["properties"]["timeout_ms"];
         assert!(
             timeout.get("anyOf").is_none(),

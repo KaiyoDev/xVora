@@ -9,10 +9,6 @@ use async_trait::async_trait;
 
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use xvora_computer_hub_core::{
-    CompoundResolver, ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport,
-    ToolHandle, ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome,
-};
 use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind, UserId,
@@ -21,6 +17,10 @@ use tool_runtime::{
     SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError, ToolStreamItem,
 };
 use tool_types::ToolDescription;
+use xvora_computer_hub_core::{
+    CompoundResolver, ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport,
+    ToolHandle, ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome,
+};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EmptyArgs {}
@@ -311,9 +311,7 @@ async fn resolve_and_dispatch_misses_yield_terminal_not_found() {
         .await;
     let item = stream.next().await.expect("terminal");
     match item {
-        ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == tool_runtime::ToolErrorKind::NotFound =>
-        {
+        ToolStreamItem::Terminal(Err(ref e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
             assert!(
                 e.detail.contains("missing"),
                 "detail should mention tool id: {}",

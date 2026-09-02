@@ -4,10 +4,10 @@
 use super::commands::SessionCommand;
 use super::persistence::{LocalFeedbackEntry, PersistenceMsg};
 use agent_client_protocol as acp;
-use std::collections::{HashMap, HashSet};
-use tokio::sync::{mpsc, oneshot};
 use file_utils::queue::UploadQueue;
 use hunk_tracker::HunkTrackerHandle;
+use std::collections::{HashMap, HashSet};
+use tokio::sync::{mpsc, oneshot};
 use xvora_sampling_types::ReasoningEffort;
 /// Coarse lifecycle state of a session as known to the leader/agent.
 ///
@@ -250,9 +250,7 @@ impl SessionHandle {
         rx.await.unwrap_or(None)
     }
     /// Get hooks list for the pager modal.
-    pub(crate) async fn get_hooks_list(
-        &self,
-    ) -> Option<hooks_plugins_types::HooksListResponse> {
+    pub(crate) async fn get_hooks_list(&self) -> Option<hooks_plugins_types::HooksListResponse> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx

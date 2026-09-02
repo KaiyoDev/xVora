@@ -4,6 +4,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::Value;
+use tool_protocol::ToolId;
+use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
+use tool_types::ToolDescription;
 use xvora_computer_hub_mcp_adapter::{
     McpBridgeConfig, McpCallResult, McpContent, McpServerInfo, McpToolDefinition, McpToolHandler,
     McpTransport,
@@ -11,9 +14,6 @@ use xvora_computer_hub_mcp_adapter::{
 use xvora_computer_hub_sdk::ToolServerHandler;
 use xvora_mcp::rmcp;
 use xvora_mcp::servers::{McpClient, parse_mcp_qualified_name};
-use tool_protocol::ToolId;
-use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
-use tool_types::ToolDescription;
 
 /// Adapts [`McpClient`] to the [`McpTransport`] trait for [`McpBridge`].
 pub(crate) struct McpClientTransportAdapter {
@@ -213,8 +213,8 @@ pub(crate) fn make_bridge_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_computer_hub_mcp_adapter::{McpBridge, McpError};
     use tool_protocol::SessionId;
+    use xvora_computer_hub_mcp_adapter::{McpBridge, McpError};
 
     struct TestTransport;
 

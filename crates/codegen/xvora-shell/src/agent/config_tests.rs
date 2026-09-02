@@ -3972,8 +3972,7 @@ fn worktree_auto_gc_section_parses_from_toml() {
         Some(&Some(3600))
     );
     assert_eq!(
-        p.max_age_by_kind
-            .get(&fast_worktree::WorktreeKind::Manual),
+        p.max_age_by_kind.get(&fast_worktree::WorktreeKind::Manual),
         Some(&None)
     );
 }

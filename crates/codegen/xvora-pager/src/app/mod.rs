@@ -24,7 +24,7 @@ use xvora_telemetry::region::Parent;
 pub mod edit_highlight_worker;
 /// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
 pub mod mermaid_worker;
-pub use prompt_queue as prompt_queue;
+pub use prompt_queue;
 mod acp_handler;
 mod connect_timeout;
 mod csi_filter;

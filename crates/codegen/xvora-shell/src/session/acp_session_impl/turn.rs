@@ -674,13 +674,11 @@ impl SessionActor {
             redirect_kind,
         });
         self.observability_bridge
-            .emit(
-                tool_protocol::session_event::SessionEvent::TurnStarted {
-                    turn_number,
-                    model_id: model_id.clone(),
-                    yolo_mode,
-                },
-            )
+            .emit(tool_protocol::session_event::SessionEvent::TurnStarted {
+                turn_number,
+                model_id: model_id.clone(),
+                yolo_mode,
+            })
             .await;
         self.send_before_turn_event(tool_protocol::turn_hook::BeforeTurnPayload {
             turn_number: self.chat_state_handle.get_prompt_index().await as u64,
@@ -1236,15 +1234,13 @@ impl SessionActor {
         let turn_tool_count = self.events.tool_count_this_turn();
         let bridge_outcome = turn_result_to_hook_outcome(&result);
         self.observability_bridge
-            .emit(
-                tool_protocol::session_event::SessionEvent::TurnEnded {
-                    turn_number: current_prompt_index as u64,
-                    outcome: bridge_outcome,
-                    duration_ms: turn_duration_ms,
-                    tool_call_count: turn_tool_count,
-                    model_id: turn_model_id.clone(),
-                },
-            )
+            .emit(tool_protocol::session_event::SessionEvent::TurnEnded {
+                turn_number: current_prompt_index as u64,
+                outcome: bridge_outcome,
+                duration_ms: turn_duration_ms,
+                tool_call_count: turn_tool_count,
+                model_id: turn_model_id.clone(),
+            })
             .await;
         match &result {
             Ok(TurnOutcome::Completed { stop, .. }) => {
@@ -2593,11 +2589,9 @@ impl SessionActor {
                 phase: crate::session::events::Phase::WaitingForModel,
             });
             self.observability_bridge
-                .emit(
-                    tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: tool_protocol::session_event::SessionPhase::Sampling,
-                    },
-                )
+                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
+                    phase: tool_protocol::session_event::SessionPhase::Sampling,
+                })
                 .await;
             xvora_telemetry::unified_log::info(
                 "shell.turn.inference_start",
@@ -3358,11 +3352,9 @@ impl SessionActor {
                 phase: crate::session::events::Phase::ToolExecution,
             });
             self.observability_bridge
-                .emit(
-                    tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: tool_protocol::session_event::SessionPhase::ToolExecution,
-                    },
-                )
+                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
+                    phase: tool_protocol::session_event::SessionPhase::ToolExecution,
+                })
                 .await;
             let execute_tool_calls_result = self.execute_tool_calls(tool_call_responses).await;
             match execute_tool_calls_result {

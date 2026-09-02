@@ -3,11 +3,11 @@ use super::turn::{PromptTraceContext, UploadWait};
 use crate::sampling::types::ToolDefinition;
 use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
 use base64::Engine as _;
+use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use url::Url;
-use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
 use xvora_workspace::permission::PermissionEvent;
 /// Upload the canonical tool definitions trace and wait for completion.
 ///
