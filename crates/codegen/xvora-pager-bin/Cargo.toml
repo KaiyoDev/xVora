@@ -28,7 +28,7 @@ xvora-version = { workspace = true }
 xvora-telemetry = { workspace = true }
 xvora-workspace = { workspace = true }
 xvora-crash-handler = { path = "../crash-handler" }
-xvora-acp-lib = { workspace = true }
+xvora-acp-lib = { workspace = true, package = "xvora-acp-lib" }
 
 # Async runtime + misc.
 tokio = { workspace = true, features = [
@@ -47,7 +47,7 @@ tracing-subscriber = { workspace = true }
 serde_json = { workspace = true }
 dunce = { workspace = true }
 semver = { workspace = true }
-xvora-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
 # `collect_crashed()` for the startup crash notice.
 xvora-active-sessions = { workspace = true }
 xvora-config = { workspace = true }

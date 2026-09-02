@@ -37,7 +37,7 @@ xvora-mixpanel = { workspace = true }
 xvora-config = { workspace = true }
 xvora-extra-ca = { workspace = true }
 sampler = { workspace = true }
-token-estimation = { workspace = true }
+token-estimation = { workspace = true, package = "xvora-token-estimation" }
 xvora-dirs = { workspace = true }
 sentry = { version = "0.42.0", default-features = false, features = [
     "panic",
@@ -57,7 +57,7 @@ xvora-session-events = { workspace = true }
 # `UploadMethod` enum (small, dependency-light types crate) so the reason->wire
 # mapping lives next to the trace-upload lifecycle events it labels.
 xvora-file-utils = { path = "../file-utils" }
-xvora-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
 xvora-version = { workspace = true }
 whoami = { workspace = true }
 uuid = { workspace = true, features = ["v5", "v7"] }

@@ -26,7 +26,7 @@ xvora-extra-ca = { workspace = true }
 # Sanctioned TTY detach for the capture subprocesses (Linux system recorders,
 # macOS `__mic-capture` self-exec helper) — workspace rule: never spawn a raw
 # `std::process::Command`.
-xvora-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
 
 [features]
 # `audio` = "microphone capture is compiled in". It's enabled on every OS for

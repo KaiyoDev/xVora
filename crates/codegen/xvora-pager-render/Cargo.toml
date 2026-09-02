@@ -7,7 +7,7 @@ license = "Apache-2.0"
 [dependencies]
 # TTY safety
 dunce = { workspace = true }
-xvora-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
 
 # Rendering
 ratatui = { workspace = true, features = [
@@ -61,8 +61,8 @@ tokio = { workspace = true, features = [
 tracing = { workspace = true }
 
 # Prompt text input
-xvora-ratatui-textarea = { workspace = true }
-xvora-ratatui-inline = { workspace = true }
+xvora-ratatui-textarea = { workspace = true, package = "xvora-ratatui-textarea" }
+xvora-ratatui-inline = { workspace = true, package = "xvora-ratatui-inline" }
 
 # ACP
 agent-client-protocol = { workspace = true }

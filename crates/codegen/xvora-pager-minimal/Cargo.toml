@@ -31,7 +31,7 @@ tracing = { workspace = true }
 # Native scrollback / inline viewport engine (`insert_before`, viewport sizing).
 # Used only via the pager's re-exported `PagerTerminal`; see the
 # `[package.metadata.cargo-shear]` note above.
-xvora-ratatui-inline = { workspace = true }
+xvora-ratatui-inline = { workspace = true, package = "xvora-ratatui-inline" }
 
 # `DiffLine` hunk fixtures for the committed-edit render tests. A normal (not
 # dev) dependency because gazelle lists `src/commit_tests.rs` in the library
@@ -44,7 +44,7 @@ chrono = { workspace = true }
 similar = { workspace = true }
 xvora-shell = { workspace = true }
 xvora-version = { workspace = true }
-token-estimation = { workspace = true }
+token-estimation = { workspace = true, package = "xvora-token-estimation" }
 
 [dev-dependencies]
 # The unit tests reuse the pager's test-only view-model constructors

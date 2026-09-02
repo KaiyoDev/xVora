@@ -12,10 +12,10 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }
-xvora-computer-hub-sdk = { workspace = true }
+xvora-computer-hub-sdk = { workspace = true, package = "xvora-computer-hub-sdk" }
 xvora-workspace-types = { workspace = true }
-xvora-tool-protocol = { workspace = true }
-xvora-tool-runtime = { workspace = true }
+xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
+xvora-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
 
 [features]
 default = []
@@ -23,7 +23,7 @@ default-bazel = []
 [dev-dependencies]
 schemars = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
-xvora-tool-types = { workspace = true }
+xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
 
 [lints]
 workspace = true

@@ -23,7 +23,7 @@ xvora-config-types = { workspace = true }
 xvora-models = { workspace = true }
 xvora-status-line = { workspace = true }
 xvora-tools = { workspace = true }
-xvora-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
 
 [dev-dependencies]
 uuid = { workspace = true, features = ["v4"] }

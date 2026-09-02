@@ -10,7 +10,7 @@ authors = ["xAI"]
 anyhow = { workspace = true }
 base64.workspace = true
 dunce = { workspace = true }
-circuit-breaker = { workspace = true }
+circuit-breaker = { workspace = true, package = "xvora-circuit-breaker" }
 xvora-version = { workspace = true }
 aws-sdk-s3 = { version = "1", default-features = false, features = [
     "rt-tokio",
@@ -55,7 +55,7 @@ default-bazel = []
 tempfile = { workspace = true }
 axum = { workspace = true, features = ["multipart"] }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync", "net", "time"] }
-xvora-test-utils = { workspace = true }
+xvora-test-utils = { workspace = true, package = "xvora-test-utils" }
 filetime = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 tracing-subscriber = { workspace = true }

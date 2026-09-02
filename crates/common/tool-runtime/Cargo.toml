@@ -14,8 +14,8 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio-util = { workspace = true }
 xvora-tools-api = { workspace = true }
-xvora-tool-protocol = { workspace = true }
-xvora-tool-types = { workspace = true }
+xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
+xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "test-util"] }

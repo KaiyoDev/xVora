@@ -21,7 +21,7 @@ tempfile = { workspace = true }
 # child, so it is Unix only.
 [target.'cfg(unix)'.dev-dependencies]
 libc = { workspace = true }
-tty-utils = { workspace = true }
+tty-utils = { workspace = true, package = "xvora-tty-utils" }
 
 [lints]
 workspace = true

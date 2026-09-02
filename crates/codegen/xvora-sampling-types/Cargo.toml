@@ -15,7 +15,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-circuit-breaker = { workspace = true }
+circuit-breaker = { workspace = true, package = "xvora-circuit-breaker" }
 xvora-compaction = { path = "../../common/xvora-compaction" }
 xvora-tools = { path = "../xvora-tools" }
 

@@ -14,10 +14,10 @@ thiserror = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
-xvora-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
 xvora-agent = { workspace = true }
 xvora-config = { workspace = true }
-xvora-hooks-plugins-types = { workspace = true }
+xvora-hooks-plugins-types = { workspace = true, package = "xvora-hooks-plugins-types" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

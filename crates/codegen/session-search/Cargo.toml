@@ -22,7 +22,7 @@ tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 xvora-config = { workspace = true }
 xvora-telemetry = { workspace = true }
-sqlite-journal = { workspace = true }
+sqlite-journal = { workspace = true, package = "xvora-sqlite-journal" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

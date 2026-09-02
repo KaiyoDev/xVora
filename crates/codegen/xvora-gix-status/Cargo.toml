@@ -13,7 +13,7 @@ libc = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-test-utils = { workspace = true }
+test-utils = { workspace = true, package = "xvora-test-utils" }
 
 [lints]
 workspace = true

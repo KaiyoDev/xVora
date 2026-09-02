@@ -12,7 +12,7 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 xvora-config = { workspace = true }
-sqlite-journal = { workspace = true }
+sqlite-journal = { workspace = true, package = "xvora-sqlite-journal" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

@@ -20,7 +20,7 @@ tracing = { workspace = true }
 xvora-compaction-transcript = { workspace = true }
 xvora-compaction = { path = "../../common/xvora-compaction" }
 xvora-sampling-types = { path = "../xvora-sampling-types" }
-token-estimation = { workspace = true }
+token-estimation = { workspace = true, package = "xvora-token-estimation" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

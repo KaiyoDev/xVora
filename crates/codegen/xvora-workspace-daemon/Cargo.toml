@@ -17,7 +17,7 @@ tracing = { workspace = true }
 # Metric donation sink for the preview-proxy metrics scraper.
 computer-hub-sdk = { workspace = true, features = ["metrics"] }
 # reset_oom_score_adj in the preview-proxy pre_exec hook.
-tty-utils = { workspace = true }
+tty-utils = { workspace = true, package = "xvora-tty-utils" }
 
 # fork/setsid/dup2/chdir on the self-daemonize path, and PDEATHSIG on the
 # supervised preview-proxy child.

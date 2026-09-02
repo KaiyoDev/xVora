@@ -51,7 +51,7 @@ xvora-config-types = { workspace = true }
 toml = { workspace = true, features = ["preserve_order"] }
 dashmap = { workspace = true }
 agent-client-protocol = { workspace = true }
-xvora-acp-lib = { workspace = true }
+xvora-acp-lib = { workspace = true, package = "xvora-acp-lib" }
 xvora-codebase-graph = { path = "../codebase-graph" }
 xvora-paths = { path = "../xvora-paths" }
 base64 = { workspace = true }
@@ -85,11 +85,11 @@ xvora-file-utils = { path = "../file-utils" }
 xvora-session-events = { workspace = true }
 xvora-auth = { path = "../xvora-auth" }
 xvora-telemetry = { workspace = true }
-xvora-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
 reqwest = { workspace = true }
-xvora-tool-protocol = { workspace = true }
-xvora-tool-runtime = { workspace = true }
-xvora-tool-types = { workspace = true }
+xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
+xvora-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
+xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
 tokio-util = { workspace = true, features = ["rt"] }
 urlencoding = "2"
 xvora-fast-worktree = { path = "../fast-worktree", features = ["metadata"] }

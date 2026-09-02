@@ -17,10 +17,10 @@ tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 prometheus = { workspace = true, optional = true }
 
-xvora-tool-protocol = { workspace = true }
-xvora-tool-runtime = { workspace = true }
-xvora-tool-types = { workspace = true }
-xvora-computer-hub-sdk = { workspace = true }
+xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
+xvora-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
+xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
+xvora-computer-hub-sdk = { workspace = true, package = "xvora-computer-hub-sdk" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
