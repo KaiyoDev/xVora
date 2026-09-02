@@ -9,8 +9,8 @@
 #[cfg(all(test, feature = "dhat-heap"))]
 #[global_allocator]
 static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
+pub use tracing_macros::{teprintln, timed, tprintln};
 pub(crate) use xvora_telemetry::unified_log;
-pub use xvora_tracing_macros::{teprintln, timed, tprintln};
 pub mod agent;
 pub mod auth;
 pub mod builtin;

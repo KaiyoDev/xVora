@@ -20,19 +20,18 @@ pub mod consent;
 pub use crate::link_opener;
 use xvora_telemetry::region;
 use xvora_telemetry::region::Parent;
-/// Off-thread full-file syntax highlight upgrade for edit diffs.
-pub mod edit_highlight_worker;
-/// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
-pub mod mermaid_worker;
-pub use prompt_queue;
 mod acp_handler;
 mod connect_timeout;
 mod csi_filter;
 mod dispatch;
 /// Display-refresh probe + motion cadence + terminal telemetry at startup.
 mod display_refresh_startup;
+/// Off-thread full-file syntax highlight upgrade for edit diffs.
+pub mod edit_highlight_worker;
 mod effects;
 pub(crate) mod error_display;
+/// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
+pub mod mermaid_worker;
 pub mod roster;
 pub mod session_startup;
 pub(crate) mod session_title_resolve;
