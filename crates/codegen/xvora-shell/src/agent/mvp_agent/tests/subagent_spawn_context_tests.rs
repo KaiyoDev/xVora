@@ -1,6 +1,6 @@
 use super::{build_minimal_agent_for_tests, make_test_handle};
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 #[tokio::test]
 async fn subagent_spawn_context_inherits_parent_permission_handle() {
     use xvora_workspace::permission::types::{
@@ -238,7 +238,7 @@ async fn subagent_spawn_context_resolves_rate_limit_attempts_against_child_model
 #[serial_test::serial]
 fn subagent_spawn_context_resolves_compaction_mode_like_parent() {
     use crate::agent::config::Config;
-    use xvora_chat_state::{CompactionDetail, CompactionMode};
+    use chat_state::{CompactionDetail, CompactionMode};
     use test_support::EnvGuard;
     let _mode = EnvGuard::unset("GROK_COMPACTION_MODE");
     let _detail = EnvGuard::unset("GROK_COMPACTION_DETAIL");
@@ -287,7 +287,7 @@ fn subagent_spawn_context_resolves_compaction_mode_like_parent() {
 fn run_shell_child_passes_parent_compaction_pins_into_spawn() {
     use crate::agent::subagent::SubagentSpawnContext;
     use crate::session::CompactionPins;
-    use xvora_chat_state::CompactionMode;
+    use chat_state::CompactionMode;
     use xvora_agent::prompt::user_message::UserMessageTemplate;
     let default_child = UserMessageTemplate::Default;
     let mut ctx = crate::test_support::lsp_runtime::ctx_with_toggle(Default::default());

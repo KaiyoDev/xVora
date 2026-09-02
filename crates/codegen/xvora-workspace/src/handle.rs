@@ -187,11 +187,11 @@ use crate::telemetry::dc_log;
 use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
+use diag_server::DiagHandle;
 use file_utils::queue::EnqueueOutcome;
+use session_events::types::CancellationCategory;
+use session_events::{Event, SessionRelationship, TurnOutcomeLabel};
 use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
-use xvora_diag_server::DiagHandle;
-use xvora_session_events::types::CancellationCategory;
-use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
 /// Per-domain checkpoint captures, by domain and turn outcome.
 pub(crate) static REWIND_CHECKPOINT_CAPTURE_TOTAL: std::sync::LazyLock<IntCounterVec> =
     std::sync::LazyLock::new(|| {
@@ -436,8 +436,8 @@ impl WorkspaceHandle {
         &self,
         service_name: &str,
     ) -> Option<(
-        xvora_computer_hub_sdk::HubDonatingReporter,
-        xvora_computer_hub_sdk::TraceDonationPump,
+        computer_hub_sdk::HubDonatingReporter,
+        computer_hub_sdk::TraceDonationPump,
     )> {
         self.shared
             .hub_handle
@@ -451,13 +451,13 @@ impl WorkspaceHandle {
     /// On `Some`, yields a [`LogDonationSender`] to swap into the already-installed inert `DonatingLogLayer` plus a drain handle.
     /// Never hands out an owned `ToolServer`: dropping a clone starts server teardown.
     ///
-    /// [`LogDonationSender`]: xvora_computer_hub_sdk::LogDonationSender
+    /// [`LogDonationSender`]: computer_hub_sdk::LogDonationSender
     pub async fn log_donation_layer(
         &self,
         service_name: &str,
     ) -> Option<(
-        xvora_computer_hub_sdk::LogDonationSender,
-        xvora_computer_hub_sdk::LogDonationPump,
+        computer_hub_sdk::LogDonationSender,
+        computer_hub_sdk::LogDonationPump,
     )> {
         self.shared
             .hub_handle
@@ -473,7 +473,7 @@ impl WorkspaceHandle {
     pub async fn metric_donation_reporter(
         &self,
         service_name: &str,
-    ) -> Option<xvora_computer_hub_sdk::MetricDonationPump> {
+    ) -> Option<computer_hub_sdk::MetricDonationPump> {
         self.shared
             .hub_handle
             .lock()
@@ -540,7 +540,7 @@ impl WorkspaceHandle {
         identity: crate::upload::environment::WorkspaceIdentity,
     ) -> WorkspaceResult<Self> {
         let sessions = std::collections::HashMap::new();
-        let local_registry = xvora_computer_hub_sdk::LocalRegistry::new();
+        let local_registry = computer_hub_sdk::LocalRegistry::new();
         let capacity = if config.event_buffer_capacity == 0 {
             DEFAULT_EVENT_BUFFER_CAPACITY
         } else {
@@ -607,9 +607,8 @@ impl WorkspaceHandle {
                 Some(adapter)
             }
         };
-        let session_event_writers: Arc<
-            dashmap::DashMap<String, xvora_session_events::EventWriter>,
-        > = Arc::new(dashmap::DashMap::new());
+        let session_event_writers: Arc<dashmap::DashMap<String, session_events::EventWriter>> =
+            Arc::new(dashmap::DashMap::new());
         let activity_tracker =
             Arc::new(
                 crate::activity::ActivityTracker::with_prune_window(
@@ -703,17 +702,17 @@ impl WorkspaceHandle {
     pub fn activity_tracker(&self) -> &std::sync::Arc<crate::activity::ActivityTracker> {
         &self.shared.activity_tracker
     }
-    /// The [`ToolServer`](xvora_computer_hub_sdk::ToolServer) for this workspace, if a server connection is active.
+    /// The [`ToolServer`](computer_hub_sdk::ToolServer) for this workspace, if a server connection is active.
     ///
     /// Non-blocking: returns `None` both when no server is connected and when the handle is momentarily locked (e.g. a concurrent connect).
     /// Callers must treat `None` as "no server available right now" and degrade gracefully.
-    pub fn hub_server(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
+    pub fn hub_server(&self) -> Option<computer_hub_sdk::ToolServer> {
         self.shared.hub_server()
     }
     /// Like [`Self::hub_server`] but awaits the connection lock instead of returning `None` on contention.
     /// A transient `connect_hub` lock is not mistaken for "no server"; `None` means no server is connected.
     /// Use from async callers.
-    pub async fn hub_server_blocking(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
+    pub async fn hub_server_blocking(&self) -> Option<computer_hub_sdk::ToolServer> {
         self.shared.hub_server_blocking().await
     }
     pub(crate) fn root_cwd(&self) -> crate::error::WorkspaceResult<PathBuf> {
@@ -1669,7 +1668,7 @@ impl WorkspaceHandle {
         self.shared.activity_tracker.tool_call_completed(
             call_id,
             Some(session_id),
-            xvora_session_events::ToolOutcome::Cancelled,
+            session_events::ToolOutcome::Cancelled,
         );
         tracing::info!(%session_id, %call_id, "cancel_tool_call: marked as completed");
     }
@@ -2378,19 +2377,19 @@ impl WorkspaceHandle {
     pub fn get_or_create_codebase_index(
         &self,
         cwd: std::path::PathBuf,
-    ) -> (Arc<xvora_codebase_graph::IndexManagerHandle>, bool) {
+    ) -> (Arc<codebase_graph::IndexManagerHandle>, bool) {
         self.shared.codebase_indexes.lock().get_or_create(cwd)
     }
     pub fn get_codebase_index(
         &self,
         cwd: &std::path::Path,
-    ) -> Option<Arc<xvora_codebase_graph::IndexManagerHandle>> {
+    ) -> Option<Arc<codebase_graph::IndexManagerHandle>> {
         self.shared.codebase_indexes.lock().get(cwd)
     }
     pub fn get_covering_codebase_index(
         &self,
         path: &std::path::Path,
-    ) -> Option<Arc<xvora_codebase_graph::IndexManagerHandle>> {
+    ) -> Option<Arc<codebase_graph::IndexManagerHandle>> {
         self.shared.codebase_indexes.lock().get_covering(path)
     }
     pub fn ensure_codebase_indexes(&self, roots: &[std::path::PathBuf]) {
@@ -2631,9 +2630,9 @@ impl WorkspaceHandle {
             McpClientTransportAdapter, McpStartFailure, McpStartResult, QualifiedMcpToolHandler,
             make_bridge_config, server_name_from_mcp_error,
         };
+        use computer_hub_mcp_adapter::McpBridge;
+        use computer_hub_sdk::ToolServerHandler as _;
         use tool_protocol::SessionId;
-        use xvora_computer_hub_mcp_adapter::McpBridge;
-        use xvora_computer_hub_sdk::ToolServerHandler as _;
         use xvora_mcp::servers::MCP_TOOL_NAME_DELIMITER;
         let tool_server = {
             let hub_guard = self.shared.hub_handle.lock().await;
@@ -2700,7 +2699,7 @@ impl WorkspaceHandle {
                             .owned_clients
                             .insert(server_name.clone(), Arc::clone(&client));
                     }
-                    let transport: Arc<dyn xvora_computer_hub_mcp_adapter::McpTransport> =
+                    let transport: Arc<dyn computer_hub_mcp_adapter::McpTransport> =
                         Arc::new(McpClientTransportAdapter::new(Arc::clone(&client)));
                     let bridge_config = make_bridge_config(sid.clone(), &server_name);
                     match McpBridge::connect(transport, &bridge_config).await {
@@ -3042,9 +3041,9 @@ impl WorkspaceHandle {
     /// Extracted from `connect_hub` so tests can drive the full bind path without a hub connection.
     pub(crate) fn session_bind_resolver(
         &self,
-        catalog: Arc<Vec<Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>>>,
+        catalog: Arc<Vec<Arc<dyn computer_hub_sdk::ToolServerHandler>>>,
         rpc_tool_id: tool_protocol::ToolId,
-    ) -> xvora_computer_hub_sdk::SessionHandlerResolver {
+    ) -> computer_hub_sdk::SessionHandlerResolver {
         let weak_shared = Arc::downgrade(&self.shared);
         Arc::new(
             move |sid: tool_protocol::SessionId, params: Option<serde_json::Value>| {
@@ -3384,7 +3383,7 @@ impl WorkspaceHandle {
                         unserved = ?unserved_tool_ids,
                         "session.bind: advertising finalized session toolset"
                     );
-                    Ok(xvora_computer_hub_sdk::ResolvedSessionHandlers {
+                    Ok(computer_hub_sdk::ResolvedSessionHandlers {
                         handlers,
                         unserved_tool_ids,
                         resolve_error,
@@ -3445,7 +3444,7 @@ impl WorkspaceHandle {
                 .iter()
                 .map(|h| h.tool_id().as_str().to_owned())
                 .collect();
-            let rpc_handler: Arc<dyn xvora_computer_hub_sdk::ToolServerHandler> =
+            let rpc_handler: Arc<dyn computer_hub_sdk::ToolServerHandler> =
                 Arc::new(crate::hub_server::WorkspaceRpcHandler::new(self.clone()));
             let rpc_tool_id = rpc_handler.tool_id();
             handlers.push(rpc_handler);
@@ -3471,7 +3470,7 @@ impl WorkspaceHandle {
                 return Err(e);
             }
         };
-        let catalog: Arc<Vec<Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>>> =
+        let catalog: Arc<Vec<Arc<dyn computer_hub_sdk::ToolServerHandler>>> =
             Arc::new(template_handlers.clone());
         let resolver = self.session_bind_resolver(catalog, rpc_tool_id);
         let hub_ws_started = std::time::Instant::now();
@@ -3526,7 +3525,7 @@ impl WorkspaceHandle {
         let listener_task = tokio::spawn(async move {
             while let Some(notification) = notification_rx.recv().await {
                 match notification {
-                    xvora_computer_hub_sdk::HubNotification::ToolsChanged {
+                    computer_hub_sdk::HubNotification::ToolsChanged {
                         added,
                         removed,
                         updated,
@@ -3601,7 +3600,7 @@ impl WorkspaceHandle {
             /// Returns `Some(true)` on success, `Some(false)` on transport failure (hub unreachable).
             /// `None` means the send was skipped due to a local error (serialization, id allocation) that does not indicate a dead connection.
             async fn send_status(
-                conn: &xvora_computer_hub_sdk::HubConnection,
+                conn: &computer_hub_sdk::HubConnection,
                 payload: ToolServerStatusPayload,
             ) -> Option<bool> {
                 let params = match serde_json::to_value(&payload) {
@@ -3786,7 +3785,7 @@ impl WorkspaceHandle {
 fn build_session_routed_handlers(
     toolset: &xvora_tools::registry::types::FinalizedToolset,
     ws: &WorkspaceHandle,
-) -> Vec<Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>> {
+) -> Vec<Arc<dyn computer_hub_sdk::ToolServerHandler>> {
     let tool_kinds = toolset.tool_kind_map();
     let mut seen = std::collections::HashSet::new();
     let mut handlers = Vec::new();
@@ -3812,8 +3811,9 @@ fn build_session_routed_handlers(
             Some(def.function.parameters.clone()),
             ws.clone(),
         ) {
-            Ok(handler) => handlers
-                .push(Arc::new(handler) as Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>),
+            Ok(handler) => {
+                handlers.push(Arc::new(handler) as Arc<dyn computer_hub_sdk::ToolServerHandler>)
+            }
             Err(e) => {
                 tracing::warn!(
                     tool = %def.function.name,
@@ -4036,7 +4036,7 @@ pub(crate) async fn stream_hash_and_range(
 pub async fn connect_local_workspace(
     cwd: std::path::PathBuf,
     hub_url: url::Url,
-    auth: xvora_computer_hub_sdk::SharedAuthProvider,
+    auth: computer_hub_sdk::SharedAuthProvider,
     metadata: Option<serde_json::Value>,
     server_id: Option<String>,
     alpha_test_key: Option<String>,
@@ -4228,7 +4228,7 @@ fn bundled_allowlist_ignore_dirs(dir: &str, allowlist: Option<&str>) -> Vec<Stri
 }
 /// Whether per-session `events.jsonl` recording is enabled (`GROK_WORKSPACE_EVENTS_ENABLED=true`).
 /// Any other value (including unset) keeps the legacy behaviour.
-/// [`WorkspaceShared::session_event_writer`] hands back [`EventWriter::noop()`](xvora_session_events::EventWriter::noop).
+/// [`WorkspaceShared::session_event_writer`] hands back [`EventWriter::noop()`](session_events::EventWriter::noop).
 /// No `events.jsonl` is ever opened.
 fn events_enabled() -> bool {
     std::env::var("GROK_WORKSPACE_EVENTS_ENABLED").as_deref() == Ok("true")
@@ -4612,12 +4612,12 @@ impl WorkspaceHandle {
     pub fn create_local_harness(
         &self,
         session_id: &str,
-    ) -> WorkspaceResult<xvora_computer_hub_sdk::ToolHarness> {
+    ) -> WorkspaceResult<computer_hub_sdk::ToolHarness> {
         let session = self
             .session(session_id)
             .ok_or_else(|| WorkspaceError::SessionNotFound(session_id.to_string()))?;
         let toolset = session.toolset();
-        let registry = xvora_computer_hub_sdk::LocalRegistry::new();
+        let registry = computer_hub_sdk::LocalRegistry::new();
         for def in toolset.tool_definitions() {
             let tool_name = def.function.name.clone();
             let desc = tool_types::ToolDescription::new(
@@ -4639,7 +4639,7 @@ impl WorkspaceHandle {
         }
         let session_id = tool_protocol::SessionId::new(session_id.to_string())
             .map_err(|e| WorkspaceError::HubError(format!("invalid session id: {e}")))?;
-        Ok(xvora_computer_hub_sdk::ToolHarness::local_only_with(
+        Ok(computer_hub_sdk::ToolHarness::local_only_with(
             registry,
             session_id,
             tool_runtime::TypedExtensions::default(),

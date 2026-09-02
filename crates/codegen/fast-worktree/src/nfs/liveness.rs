@@ -564,7 +564,7 @@ pub fn identities_from_worktree_records(recs: &[crate::db::WorktreeRecord]) -> V
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
     fn git_rev_parse(repo: &Path, rev: &str) -> String {
         let mut cmd = std::process::Command::new("git");
         tty_utils::detach_std_command(&mut cmd);
@@ -664,7 +664,7 @@ mod tests {
     }
     #[test]
     fn db_loss_then_source_gc_keeps_pin_via_union_liveness() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
@@ -745,7 +745,7 @@ mod tests {
     #[test]
     #[cfg(feature = "metadata")]
     fn aborted_partial_removal_prunes_after_grace() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
@@ -777,7 +777,7 @@ mod tests {
     #[test]
     #[cfg(feature = "metadata")]
     fn in_flight_create_pin_survives_gc() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
@@ -804,7 +804,7 @@ mod tests {
     #[test]
     #[cfg(feature = "metadata")]
     fn aborted_journal_does_not_mask_marker_or_mounts_toml() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
@@ -893,7 +893,7 @@ mod tests {
     }
     #[test]
     fn planted_orphan_state_does_not_delete_heads_main() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().join("gc-victim");
         std::fs::create_dir(&repo).unwrap();

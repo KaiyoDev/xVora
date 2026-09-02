@@ -11,15 +11,15 @@ use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
+use computer_hub_sdk::{
+    AuthCredential, AuthIdentity, AuthProvider, OnRefreshCallback, PrincipalKey, RefreshEvent,
+};
 use prometheus::{
     Histogram, IntCounterVec, exponential_buckets, register_histogram, register_int_counter_vec,
 };
 use rand::Rng;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use xvora_computer_hub_sdk::{
-    AuthCredential, AuthIdentity, AuthProvider, OnRefreshCallback, PrincipalKey, RefreshEvent,
-};
 
 use crate::status_config::ProactiveRefreshConfig;
 
@@ -486,7 +486,7 @@ pub(crate) fn compute_retry_delay(
 async fn do_refresh(inner: &Inner, refresh_token: &str) -> Result<RefreshOutcome, RefreshError> {
     let previous_expires_at = inner.snapshot.load().expires_at;
     let issuer = inner.issuer.trim_end_matches('/');
-    let client = xvora_extra_ca::build_reqwest_client(|builder| builder).map_err(refresh_err)?;
+    let client = extra_ca::build_reqwest_client(|builder| builder).map_err(refresh_err)?;
 
     #[derive(serde::Deserialize)]
     struct Discovery {

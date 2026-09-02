@@ -1371,7 +1371,7 @@ async fn run_agent_command(
                 let replay_state_stdin = replay_state.clone();
                 let cancel_stdin = cancel.clone();
                 let stdin_task = tokio::spawn(async move {
-                    let mut stdin_lines = xvora_acp_lib::spawn_stdin_line_reader();
+                    let mut stdin_lines = acp_lib::spawn_stdin_line_reader();
                     loop {
                         tokio::select! {
                             biased;
@@ -1956,7 +1956,7 @@ fn main() {
             );
         }
     }
-    let crashed = xvora_active_sessions::collect_crashed().unwrap_or_default();
+    let crashed = active_sessions::collect_crashed().unwrap_or_default();
     if !crashed.is_empty() {
         tracing::info!(
             count = crashed.len(),
@@ -1986,7 +1986,7 @@ fn main() {
 }
 #[tracing::instrument(level = "debug", skip_all)]
 async fn async_main(args: PagerArgs) -> Result<()> {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
     let mut args = args.apply_cwd()?;
     if let Some(ref mode) = args.compaction_mode {
         unsafe { std::env::set_var("GROK_COMPACTION_MODE", mode) };

@@ -138,7 +138,7 @@ impl ImageGenClient {
         let defaults_have_session_header = headers.contains_key(SESSION_ID_HEADER);
         let key = crate::util::shared_http::cache_key("image_gen", &headers);
         let http = crate::util::shared_http::cached_client(key, || {
-            xvora_extra_ca::build_reqwest_client(|builder| {
+            extra_ca::build_reqwest_client(|builder| {
                 builder
                     .timeout(std::time::Duration::from_secs(IMAGE_GEN_TIMEOUT_SECS))
                     .read_timeout(std::time::Duration::from_secs(IMAGE_GEN_READ_TIMEOUT_SECS))

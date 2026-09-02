@@ -378,7 +378,7 @@ pub(super) fn notify_sessions_leave_auto(app: &AppView, session_ids: &[acp::Sess
             .into(),
     );
     let (response_tx, _response_rx) = tokio::sync::oneshot::channel();
-    let args = xvora_acp_lib::AcpArgs {
+    let args = acp_lib::AcpArgs {
         request: notification,
         response_tx,
     };

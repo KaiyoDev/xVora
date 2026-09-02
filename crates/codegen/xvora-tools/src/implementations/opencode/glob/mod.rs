@@ -736,7 +736,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
 
         // Initialize a git repo so ripgrep respects .gitignore.
-        xvora_test_utils::git::ensure_hermetic_git_on_path();
+        test_utils::git::ensure_hermetic_git_on_path();
         let status = std::process::Command::new("git")
             .args(["init"])
             .current_dir(tmp.path())

@@ -175,7 +175,7 @@ pub(super) async fn check_snapshot(
     let validation_cancel = cancel.clone();
     let validation = tokio::task::spawn_blocking(move || {
         let _permit = permit;
-        xvora_workflow::validate_script_with_cancel(&snapshot.script, None, validation_cancel)
+        workflow::validate_script_with_cancel(&snapshot.script, None, validation_cancel)
             .map_err(|error| error.to_string())
     });
     let validation = match tokio::time::timeout(CHECK_TIMEOUT, validation).await {

@@ -25,7 +25,7 @@ use xvora_tools::implementations::grok_build::task::coordinator::{
 };
 #[test]
 fn canonical_total_tokens_does_not_double_count_reasoning() {
-    let totals = xvora_chat_state::UsageTotals {
+    let totals = chat_state::UsageTotals {
         input_tokens: 100,
         output_tokens: 40,
         reasoning_tokens: 25,
@@ -46,7 +46,7 @@ async fn usage_ack_precedes_terminal_presentation() {
     ctx.parent_cmd_tx = Some(parent_cmd_tx);
     let by_model = vec![(
             "test-model".to_string(),
-            xvora_chat_state::UsageTotals {
+            chat_state::UsageTotals {
                 input_tokens: 10,
                 output_tokens: 4,
                 ..Default::default()
@@ -210,7 +210,7 @@ fn wedged_child_handle() -> (
         max_turns: None,
         resolved_tool_overrides: std::sync::Arc::new(arc_swap::ArcSwapOption::empty()),
         hunk_tracker_handle,
-        chat_state_handle: xvora_chat_state::ChatStateHandle::noop(),
+        chat_state_handle: chat_state::ChatStateHandle::noop(),
         signals_handle,
         gateway_enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
         status_line_enabled: std::sync::Arc::new(
@@ -338,7 +338,7 @@ async fn usage_fold_is_bounded_when_parent_never_services_commands() {
     let (parent_cmd_tx, _parent_cmd_rx) = mpsc::unbounded_channel();
     let by_model = vec![(
             "test-model".to_string(),
-            xvora_chat_state::UsageTotals {
+            chat_state::UsageTotals {
                 input_tokens: 10,
                 ..Default::default()
             },
@@ -617,7 +617,7 @@ async fn emit_subagent_notification_stamps_one_event_id_on_both_paths() {
     };
     assert!(persisted_id.starts_with("parent-sess-"));
     let broadcast_id = match gateway_rx.try_recv().expect("broadcast must fire") {
-        xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+        acp_lib::AcpClientMessage::ExtNotification(args) => {
             let params: serde_json::Value = serde_json::from_str(
                     args.request.params.get(),
                 )
@@ -2081,7 +2081,7 @@ async fn cancel_pending_shell_child_presents_one_cancelled_finish() {
     while let Ok(message) = gateway_rx.try_recv() {
         if matches!(
                 message,
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.params.get().contains("\"status\":\"cancelled\"")
             ) {
             live += 1;
@@ -2121,8 +2121,8 @@ async fn run_promote_cancel_with_worktree(
 /// A pending cancel removes a freshly-created worktree but preserves a resumed child worktree owned by its source.
 #[tokio::test]
 async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    test_utils::require_git!();
+    use test_utils::git::{git_commit_all, init_git_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = temp.path().join("repo");
     std::fs::create_dir(&repo).unwrap();
@@ -2300,7 +2300,7 @@ async fn startup_admission_timeout_is_failed_not_cancelled() {
     while let Ok(message) = gateway_rx.try_recv() {
         if matches!(
                 message,
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.params.get().contains("\"status\":\"failed\"")
             ) {
             live += 1;
@@ -2362,7 +2362,7 @@ fn byok_model_entry(model_id: &str) -> crate::agent::config::ModelEntry {
 #[test]
 fn subagent_auth_type_rule() {
     use crate::agent::auth_method::{CACHED_TOKEN_AUTH_METHOD_ID, XAI_API_KEY_METHOD_ID};
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let session = acp::AuthMethodId::new(CACHED_TOKEN_AUTH_METHOD_ID);
     let api_key = acp::AuthMethodId::new(XAI_API_KEY_METHOD_ID);
     let byok = byok_model_entry("grok-byok");
@@ -2572,11 +2572,11 @@ fn test_sampling_config(model_slug: &str) -> xvora_sampling_types::SamplingConfi
         stream_tool_calls: None,
     }
 }
-fn spawn_test_parent_chat_state(model_slug: &str) -> xvora_chat_state::ChatStateHandle {
-    let (mock, _persistence_rx) = xvora_chat_state::MockChatPersistence::new();
+fn spawn_test_parent_chat_state(model_slug: &str) -> chat_state::ChatStateHandle {
+    let (mock, _persistence_rx) = chat_state::MockChatPersistence::new();
     let (event_tx, _event_rx) = mpsc::unbounded_channel();
     let token = tokio_util::sync::CancellationToken::new();
-    xvora_chat_state::ChatStateActor::spawn(
+    chat_state::ChatStateActor::spawn(
         vec![],
         test_sampling_config(model_slug),
         Box::new(mock),

@@ -1,4 +1,4 @@
-use xvora_status_line::test_support::StatusLineConfigFixture;
+use status_line::test_support::StatusLineConfigFixture;
 
 use super::*;
 

@@ -715,7 +715,7 @@ fn set_yolo_mode_on_with_no_allow_once_option_sends_cancelled() {
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: xvora_acp_lib::AcpArgs {
+        request: acp_lib::AcpArgs {
             request,
             response_tx,
         },
@@ -796,7 +796,7 @@ fn set_yolo_mode_on_drains_multi_item_queue() {
         );
         let options = request.options.clone();
         agent.permission_queue.push_back(PermissionViewState {
-            request: xvora_acp_lib::AcpArgs {
+            request: acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -873,7 +873,7 @@ fn set_yolo_mode_on_duplicate_dispatch_still_drains_queue() {
         .unwrap()
         .permission_queue
         .push_back(PermissionViewState {
-            request: xvora_acp_lib::AcpArgs {
+            request: acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -1706,7 +1706,7 @@ fn dispatch_cycle_mode_plan_to_always_approve_drains_queue_via_inner() {
         .unwrap()
         .permission_queue
         .push_back(PermissionViewState {
-            request: xvora_acp_lib::AcpArgs {
+            request: acp_lib::AcpArgs {
                 request,
                 response_tx,
             },

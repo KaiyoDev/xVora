@@ -1302,8 +1302,8 @@ impl acp::Agent for MvpAgent {
                         .data(format!("failed to dispatch prompt to session: {e}"))
                 })
         } else {
-            let envelope = xvora_message_delivery_core::DeliveryEnvelope::from_human(
-                xvora_message_delivery_core::Operation::Queue,
+            let envelope = message_delivery_core::DeliveryEnvelope::from_human(
+                message_delivery_core::Operation::Queue,
                 crate::session::message_delivery::HumanPromptContent {
                     prompt_blocks,
                     prompt_mode,
@@ -1507,7 +1507,7 @@ impl acp::Agent for MvpAgent {
                     .await;
                 let permission_events = self
                     .collect_permission_events(&arguments.session_id);
-                let turn_messages: Option<xvora_chat_state::TurnCapture> = {
+                let turn_messages: Option<chat_state::TurnCapture> = {
                     let (tx, rx) = oneshot::channel();
                     if handle
                         .cmd_tx
@@ -1950,7 +1950,7 @@ impl acp::Agent for MvpAgent {
                         &prompt_id,
                     )
                     .await;
-                let turn_messages: Option<xvora_chat_state::TurnCapture> = {
+                let turn_messages: Option<chat_state::TurnCapture> = {
                     let (tx, rx) = oneshot::channel();
                     if handle
                         .cmd_tx

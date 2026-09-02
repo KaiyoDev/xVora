@@ -623,8 +623,8 @@ fn inherited_child_toolset_cannot_reintroduce_workflow() {
 /// A pointer sends resume down the rehydrate path, which deletes the directory and rebuilds it from a snapshot that lacks whatever kept it.
 #[tokio::test]
 async fn kept_worktree_leaves_no_resume_pointer() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{git_commit_all, seed_repo};
+    test_utils::require_git!();
+    use test_utils::git::{git_commit_all, seed_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = seed_repo(temp.path());
     std::fs::write(repo.join(".gitignore"), ".env\n").unwrap();
@@ -678,8 +678,8 @@ async fn kept_worktree_leaves_no_resume_pointer() {
 /// Linked on purpose: only there is the registration's reflog the last name for a commit, which the second half of this test is about.
 #[tokio::test]
 async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_directory() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::seed_repo_with_remote;
+    test_utils::require_git!();
+    use test_utils::git::seed_repo_with_remote;
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-1");
@@ -715,8 +715,8 @@ async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_director
 /// The disposal gives it a lasting second name in the repository before removing the directory, so the commit stays readable.
 #[tokio::test]
 async fn disposal_names_a_reflog_only_commit_before_removing_the_worktree() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
+    test_utils::require_git!();
+    use test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-2");
@@ -1182,13 +1182,13 @@ fn token_estimation_for_window_safety() {
             ConversationItem::user("Hello, how are you?"),
             ConversationItem::assistant("I'm doing well, thank you!"),
         ];
-    let estimated = xvora_chat_state::estimate_conversation_tokens(&conversation);
+    let estimated = chat_state::estimate_conversation_tokens(&conversation);
     assert!(estimated > 0, "should produce non-zero estimate");
     assert!(
             estimated < 100,
             "short conversation should have small token estimate"
         );
-    assert_eq!(xvora_chat_state::estimate_conversation_tokens(&[]), 0);
+    assert_eq!(chat_state::estimate_conversation_tokens(&[]), 0);
 }
 #[test]
 fn token_estimation_accounts_for_images() {
@@ -1200,7 +1200,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let text_tokens = xvora_chat_state::estimate_conversation_tokens(&text_only);
+    let text_tokens = chat_state::estimate_conversation_tokens(&text_only);
     let with_image = vec![ConversationItem::User(UserItem {
             content: vec![
                 ContentPart::Text {
@@ -1213,7 +1213,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let image_tokens = xvora_chat_state::estimate_conversation_tokens(&with_image);
+    let image_tokens = chat_state::estimate_conversation_tokens(&with_image);
     assert_eq!(
             image_tokens,
             text_tokens + 765,
@@ -1228,7 +1228,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let multi_tokens = xvora_chat_state::estimate_conversation_tokens(&multi_image);
+    let multi_tokens = chat_state::estimate_conversation_tokens(&multi_image);
     assert_eq!(multi_tokens, 765 * 3, "three images = 3 * 765 tokens");
 }
 #[test]
@@ -1327,7 +1327,7 @@ fn drain_cancelled_finish_broadcasts(
 ) -> usize {
     let mut count = 0;
     while let Ok(msg) = gateway_rx.try_recv() {
-        let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+        let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
             continue;
         };
         assert_eq!(args.request.method.as_ref(), "x.ai/session_notification");
@@ -1803,7 +1803,7 @@ async fn live_reconcile_overlapping_ticks_emit_once() {
     assert_eq!(cmd_finishes, 1);
     let mut gateway_finishes = 0;
     while let Ok(msg) = gateway_rx.try_recv() {
-        let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+        let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
             continue;
         };
         let notification: SessionNotification = serde_json::from_str(
@@ -2261,9 +2261,9 @@ async fn read_parent_sampling_config_live_never_strips_a_fallback_key() {
     );
     ctx.auth = None;
     let chat = spawn_test_parent_chat_state("grok-4.5");
-    chat.update_credentials(xvora_chat_state::Credentials {
+    chat.update_credentials(chat_state::Credentials {
         api_key: Some("xvora-env-fallback".to_string()),
-        auth_type: xvora_chat_state::AuthType::SessionToken,
+        auth_type: chat_state::AuthType::SessionToken,
         alpha_test_key: None,
         client_version: None,
     });
@@ -2836,7 +2836,7 @@ fn persona_injection_into_empty_conversation() {
 mod cancellation_error_message_tests {
     use super::super::cancellation_error_message;
     use crate::session::commands::CancellationContext;
-    use xvora_session_events::types::CancellationCategory;
+    use session_events::types::CancellationCategory;
     #[test]
     fn permission_rejected_with_context() {
         let ctx = CancellationContext {

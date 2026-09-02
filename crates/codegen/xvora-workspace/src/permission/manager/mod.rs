@@ -4,10 +4,10 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use parking_lot::Mutex;
 
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use chrono::Utc;
 use tokio::sync::{mpsc, oneshot};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::permission::auto_mode::{
     BashSecurityAssessment, ClassifierSecurityFinding, ClassifierVerdict, EnvRisk,
@@ -3721,7 +3721,7 @@ mod tests {
         client_type: ClientType,
         remember_tool_approvals: bool,
     ) -> (PermissionHandle, mpsc::UnboundedReceiver<PermissionEvent>) {
-        let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+        let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
         tokio::task::spawn_local(receiver.run());
         spawn_permission_manager_with_pin(
             acp::SessionId::new(Arc::from("test-session")),
@@ -4614,7 +4614,7 @@ mod tests {
             client: RecordingClient,
             web_fetch_allowed_domains: Vec<String>,
         ) -> (PermissionHandle, mpsc::UnboundedReceiver<PermissionEvent>) {
-            let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+            let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
             tokio::task::spawn_local(receiver.run());
             spawn_permission_manager_with_pin(
                 acp::SessionId::new(Arc::from("test-session")),
@@ -6455,7 +6455,7 @@ mod tests {
                 let client = HangingFirstPromptClient {
                     prompts: prompts.clone(),
                 };
-                let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+                let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
                 tokio::task::spawn_local(receiver.run());
                 let (mgr, _events) = spawn_permission_manager_with_pin(
                     acp::SessionId::new(Arc::from("test-session")),
@@ -6623,7 +6623,7 @@ mod tests {
                     seen: seen.clone(),
                     gate: gate.clone(),
                 };
-                let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+                let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
                 tokio::task::spawn_local(receiver.run());
                 let (mgr, mut events) = spawn_permission_manager_with_pin(
                     acp::SessionId::new(Arc::from("test-session")),

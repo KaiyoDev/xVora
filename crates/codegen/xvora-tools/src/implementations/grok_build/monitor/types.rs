@@ -143,8 +143,8 @@ impl MonitorEventNotification {
 /// of [`MonitorEventNotification`]. Producers `push_capped`; the turn loop
 /// drains its session's events via [`drain_owned`].
 ///
-/// [`EventQueue`]: xvora_interjection_core::EventQueue
-pub type MonitorEventBuffer = xvora_interjection_core::EventQueue<MonitorEventNotification>;
+/// [`EventQueue`]: interjection_core::EventQueue
+pub type MonitorEventBuffer = interjection_core::EventQueue<MonitorEventNotification>;
 
 crate::register_resource!("grok_build", "MonitorEventBuffer", MonitorEventBuffer);
 

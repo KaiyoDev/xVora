@@ -8,11 +8,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use url::Url;
-use xvora_computer_hub_sdk::{
+use computer_hub_sdk::{
     AuthCredential, AuthIdentity, AuthProvider, OidcAuthProviderBuilder, OnRefreshCallback,
     RefreshEvent,
 };
+use url::Url;
 
 use crate::status_config::ProactiveRefreshConfig;
 
@@ -558,7 +558,7 @@ mod tests {
         assert_eq!(kind, OidcProviderKind::Sdk);
         let cred = provider.current();
         match cred {
-            xvora_computer_hub_sdk::AuthCredential::Bearer { token } => {
+            computer_hub_sdk::AuthCredential::Bearer { token } => {
                 assert_eq!(token, "eyJ.tok");
             }
             _ => panic!("expected Bearer"),

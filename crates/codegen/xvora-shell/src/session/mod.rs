@@ -40,17 +40,17 @@ pub(crate) fn is_cursor_user_template(
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct CompactionPins {
-    pub mode: xvora_chat_state::CompactionMode,
+    pub mode: chat_state::CompactionMode,
     pub two_pass: bool,
 }
 pub(crate) fn cursor_compaction_pins(
-    resolved_mode: xvora_chat_state::CompactionMode,
+    resolved_mode: chat_state::CompactionMode,
     resolved_two_pass: bool,
     is_cursor: bool,
 ) -> CompactionPins {
     if is_cursor {
         CompactionPins {
-            mode: xvora_chat_state::CompactionMode::Summary,
+            mode: chat_state::CompactionMode::Summary,
             two_pass: false,
         }
     } else {
@@ -78,7 +78,7 @@ pub(crate) fn image_blocks(
         })
         .collect()
 }
-pub use xvora_agent_lifecycle::{
+pub use agent_lifecycle::{
     AnalyticsClass, CompactionClass, InputAuthority, InputPolicy, QueuePolicy, ShutdownPolicy,
     TurnBoundary,
 };

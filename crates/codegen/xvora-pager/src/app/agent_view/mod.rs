@@ -990,7 +990,7 @@ pub struct AgentView {
     pub(crate) modal_hovered_key: Option<char>,
     /// Cached server-reported context state.
     pub context_state: Option<xvora_shell::session::ContextInfo>,
-    pub status_context: Option<xvora_status_line::StatusLineContext>,
+    pub status_context: Option<status_line::StatusLineContext>,
     /// Held across a frame that clamps the row away, so a script keeps the size
     /// it last painted at.
     pub last_status_line_size: Option<crate::views::status_line::RowSize>,
@@ -1401,7 +1401,7 @@ pub struct AgentView {
     pub(crate) elicitation_view: Option<ElicitationViewState>,
     pub(crate) pending_elicitation: Option<(
         xvora_tools::mcp_elicitation::McpElicitExtRequest,
-        tokio::sync::oneshot::Sender<xvora_acp_lib::AcpResult<agent_client_protocol::ExtResponse>>,
+        tokio::sync::oneshot::Sender<acp_lib::AcpResult<agent_client_protocol::ExtResponse>>,
     )>,
     pub(crate) elicit_hits: Vec<(
         crate::views::elicitation_view::ElicitHit,
@@ -2395,7 +2395,7 @@ pub(crate) mod test_fixtures {
             ),
             vec![],
         );
-        let perm = xvora_acp_lib::AcpArgs {
+        let perm = acp_lib::AcpArgs {
             request,
             response_tx,
         };

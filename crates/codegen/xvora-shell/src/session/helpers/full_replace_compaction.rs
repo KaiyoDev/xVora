@@ -20,7 +20,7 @@ use xvora_sampler::SamplerConfig as SamplingConfig;
 use xvora_sampling_types::{ConversationItem, HostedTool, ToolSpec};
 use xvora_telemetry::events::{CompactionRetryDegraded, CompactionTrigger};
 
-use xvora_chat_state::compaction_utils::{
+use chat_state::compaction_utils::{
     CompactionAttempt, MAX_CAPTURED_SUMMARY_CHARS, bound_captured_output,
 };
 

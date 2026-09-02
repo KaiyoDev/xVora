@@ -3694,8 +3694,8 @@ fn plain_send_during_pending_subagent_wait_keeps_confirmed_queue_row_reachable()
     use crate::app::agent_view::{ActivePane, test_fixtures::simulate_subagent_wait};
     use crate::app::app_view::InputOutcome;
     use crate::app::prompt_queue::QueueEntryWire;
+    use acp_lib::AcpClientMessage;
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-    use xvora_acp_lib::AcpClientMessage;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);
@@ -3734,7 +3734,7 @@ fn plain_send_during_pending_subagent_wait_keeps_confirmed_queue_row_reachable()
     });
     let (response_tx, _rx) = tokio::sync::oneshot::channel();
     crate::app::acp_handler::handle(
-        AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+        AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
             request: acp::ExtNotification::new(
                 "x.ai/queue/changed",
                 std::sync::Arc::from(serde_json::value::to_raw_value(&params).unwrap()),
@@ -3987,7 +3987,7 @@ fn goal_send_now_painted_block_survives_removed_from_queue_response() {
 /// The shell converted it into an interjection and dropped the queue row; the block waits for the interjection notification's claim.
 #[test]
 fn goal_send_now_painted_block_survives_queue_changed_removal() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);
@@ -4028,7 +4028,7 @@ fn goal_send_now_painted_block_survives_queue_changed_removal() {
     });
     let (response_tx, _rx) = tokio::sync::oneshot::channel();
     crate::app::acp_handler::handle(
-        AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+        AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
             request: acp::ExtNotification::new(
                 "x.ai/queue/changed",
                 std::sync::Arc::from(serde_json::value::to_raw_value(&params).unwrap()),

@@ -1,9 +1,9 @@
 //! Runs the full session flow in one temp directory: register, clean unregister, then crash detection.
 //! Proves a clean exit removes its entry and crash detection returns only the session with a dead PID.
 
+use active_sessions::*;
 use chrono::Utc;
 use tempfile::TempDir;
-use xvora_active_sessions::*;
 
 fn session(id: &str, pid: u32) -> ActiveSession {
     ActiveSession {

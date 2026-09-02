@@ -836,7 +836,7 @@ impl SessionActor {
                             }
                         })
                         .collect::<Vec<_>>();
-                    let input_tokens = xvora_chat_state::estimate_conversation_tokens(&items);
+                    let input_tokens = chat_state::estimate_conversation_tokens(&items);
                     if !classifier_request_fits_context(input_tokens, context_window) {
                         return Err(
                             xvora_workspace::permission::ClassifierFailure::TransportError(

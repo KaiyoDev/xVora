@@ -514,7 +514,7 @@ async fn maybe_truncate_at_threshold_returns_unchanged_no_file() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 1_000_000, 85, gateway_tx, persistence_tx).await;
 

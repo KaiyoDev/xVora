@@ -34,8 +34,8 @@ use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};
 use crate::session::visibility::ClassifiedSessionKind;
 use crate::tools::todo::TodoState;
 use crate::util::grok_home::grok_home;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_sampling_types::ReasoningEffort;
 
 use crate::extensions::notification::{
@@ -219,7 +219,7 @@ pub enum PersistenceMsg {
     AppendCwdSwitchAndAck {
         item: ConversationItem,
         respond_to: tokio::sync::oneshot::Sender<
-            Result<xvora_chat_state::StrictAppendAck, xvora_chat_state::StrictAppendError>,
+            Result<chat_state::StrictAppendAck, chat_state::StrictAppendError>,
         >,
     },
     /// Replace the entire chat history (used for compaction)
@@ -1868,12 +1868,12 @@ impl SessionPersistence {
                         .await
                         .map_err(|error| match error {
                             crate::session::storage::AppendCwdSwitchError::NotCommitted(error) => {
-                                xvora_chat_state::StrictAppendError::NotCommitted(error)
+                                chat_state::StrictAppendError::NotCommitted(error)
                             }
                             crate::session::storage::AppendCwdSwitchError::Committed {
                                 acknowledgement,
                                 source,
-                            } => xvora_chat_state::StrictAppendError::Committed {
+                            } => chat_state::StrictAppendError::Committed {
                                 acknowledgement,
                                 source,
                             },
@@ -2839,7 +2839,7 @@ pub async fn delete_session_history(
     cwd: Option<&str>,
     needs_remote: bool,
     auth_manager: Arc<crate::auth::AuthManager>,
-    search_index: Option<&xvora_session_search::SearchIndexManager>,
+    search_index: Option<&session_search::SearchIndexManager>,
 ) -> Result<SessionDeletion, DeleteSessionError> {
     let sid = acp::SessionId::new(Arc::from(session_id));
 

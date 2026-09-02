@@ -198,7 +198,7 @@ impl AuthManager {
                     /*sid*/ None,
                     Some(serde_json::json!({ "reason": format!("{reason:?}") })),
                 );
-                xvora_system_power::hold_awake("grok: OIDC token refresh")
+                system_power::hold_awake("grok: OIDC token refresh")
             } else {
                 None
             };

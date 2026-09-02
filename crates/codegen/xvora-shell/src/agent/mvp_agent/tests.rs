@@ -1136,7 +1136,7 @@ fn make_test_handle(
         max_turns: None,
         resolved_tool_overrides: std::sync::Arc::new(arc_swap::ArcSwapOption::empty()),
         hunk_tracker_handle,
-        chat_state_handle: xvora_chat_state::ChatStateHandle::noop(),
+        chat_state_handle: chat_state::ChatStateHandle::noop(),
         signals_handle: crate::session::signals::SessionSignalsHandle::new(),
         gateway_enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
         status_line_enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -2424,11 +2424,11 @@ async fn resident_activity_reports_needs_input_when_pending() {
 /// Drain the agent gateway, returning the first `x.ai/sessions/changed` payload that carries an upserted entry.
 /// Unrelated notifications parse into an empty `RosterChanged` and are ignored.
 fn drain_roster_changed(
-    rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> Option<crate::agent::roster::RosterChanged> {
     let mut found = None;
     while let Ok(msg) = rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg {
+        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg {
             if found.is_none()
                 && let Ok(changed) = serde_json::from_str::<crate::agent::roster::RosterChanged>(
                     args.request.params.get(),
@@ -2863,7 +2863,7 @@ async fn auth_type_session_based_no_current_returns_session_token() {
         );
         assert_eq!(
             agent.auth_type(),
-            xvora_chat_state::AuthType::SessionToken,
+            chat_state::AuthType::SessionToken,
             "{method_id}: session-based auth must report SessionToken even \
                  without a live token -- otherwise chat_state gets locked into \
                  auth_type = ApiKey and try_refresh_session_token will skip \
@@ -2883,7 +2883,7 @@ async fn auth_type_xai_api_key_no_current_returns_api_key() {
     assert!(agent.auth_manager.current().is_none());
     assert_eq!(
         agent.auth_type(),
-        xvora_chat_state::AuthType::ApiKey,
+        chat_state::AuthType::ApiKey,
         "xvora.api_key auth must report ApiKey -- BYOK has no session-token \
              behavior to fall back to."
     );
@@ -2899,7 +2899,7 @@ async fn auth_type_session_based_with_current_returns_session_token() {
     ));
     agent.auth_manager.hot_swap(GrokAuth::test_default());
     assert!(agent.auth_manager.current().is_some());
-    assert_eq!(agent.auth_type(), xvora_chat_state::AuthType::SessionToken,);
+    assert_eq!(agent.auth_type(), chat_state::AuthType::SessionToken,);
 }
 /// Defensive case: no `auth_method_id` selected yet (pre-`authenticate` state) and no live credential.
 /// We default to `ApiKey`.
@@ -2910,7 +2910,7 @@ async fn auth_type_no_method_id_no_current_returns_api_key() {
     let agent = build_minimal_agent_for_tests();
     assert!(agent.auth_method_id.load().is_none());
     assert!(agent.auth_manager.current().is_none());
-    assert_eq!(agent.auth_type(), xvora_chat_state::AuthType::ApiKey,);
+    assert_eq!(agent.auth_type(), chat_state::AuthType::ApiKey,);
 }
 /// Live credential present but `auth_method_id` is still `None`.
 /// The in-memory bearer takes precedence: this is the order observed during `initialize()` silent refresh.
@@ -2923,7 +2923,7 @@ async fn auth_type_no_method_id_with_current_returns_session_token() {
     agent.auth_manager.hot_swap(GrokAuth::test_default());
     assert!(agent.auth_method_id.load().is_none());
     assert!(agent.auth_manager.current().is_some());
-    assert_eq!(agent.auth_type(), xvora_chat_state::AuthType::SessionToken,);
+    assert_eq!(agent.auth_type(), chat_state::AuthType::SessionToken,);
 }
 /// Minimal agent whose `grok_com_config` engages the api-key kill switch (`disable_api_key_auth = true`), mirroring a forced-IdP deployment.
 fn build_agent_with_api_key_auth_disabled() -> MvpAgent {
@@ -5353,7 +5353,7 @@ fn build_agent_with_auth_and_proxy(
     mode: crate::agent::config::AgentMode,
 ) -> (
     MvpAgent,
-    tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
@@ -5373,11 +5373,11 @@ fn build_agent_with_auth_and_proxy(
 }
 /// Drain the gateway, returning `true` if any `x.ai/settings/update` notification was emitted (and acking each so the sender doesn't warn).
 fn drained_settings_update(
-    rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> bool {
     let mut found = false;
     while let Ok(msg) = rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg {
+        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg {
             if &*args.request.method == "x.ai/settings/update" {
                 found = true;
             }
@@ -5693,7 +5693,7 @@ fn reload_after_terminal_removal_starts_clean() {
 /// A test can observe (and answer) agent-to-client reverse-requests like the dormant `x.ai/folder_trust/request` round-trip.
 fn build_agent_with_gateway_rx() -> (
     MvpAgent,
-    tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
@@ -5863,14 +5863,14 @@ fn project_roles_personas_gated_via_resolve_and_record_chain() {
 /// Pull the next `x.ai/folder_trust/request` reverse-request off the gateway and answer it with `outcome`.
 /// Returns the request's decoded params.
 async fn answer_folder_trust_request(
-    gw_rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    gw_rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     outcome: &str,
 ) -> serde_json::Value {
     let msg = tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv())
         .await
         .expect("trust request must be sent")
         .expect("gateway channel open");
-    let xvora_acp_lib::AcpClientMessage::ExtMethod(args) = msg else {
+    let acp_lib::AcpClientMessage::ExtMethod(args) = msg else {
         panic!("expected an ext_method reverse-request, got a different message");
     };
     assert_eq!(args.request.method.as_ref(), "x.ai/folder_trust/request");
@@ -6080,7 +6080,7 @@ fn interactive_trust_prompt_client_error_fails_closed() {
             .await
             .expect("trust request must be sent")
             .expect("gateway channel open");
-        assert!(matches!(msg, xvora_acp_lib::AcpClientMessage::ExtMethod(_)));
+        assert!(matches!(msg, acp_lib::AcpClientMessage::ExtMethod(_)));
         drop(msg);
         assert!(
             tokio::time::timeout(std::time::Duration::from_millis(300), cmd_rx.recv())
@@ -6119,7 +6119,7 @@ fn interactive_trust_prompt_dedups_same_workspace() {
         agent.maybe_spawn_interactive_trust_prompt(&sid, &repo_path, Some(&remote));
         let first = tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv()).await;
         assert!(
-            matches!(first, Ok(Some(xvora_acp_lib::AcpClientMessage::ExtMethod(_)))),
+            matches!(first, Ok(Some(acp_lib::AcpClientMessage::ExtMethod(_)))),
             "first prompt for an untrusted workspace must emit a request"
         );
         agent.maybe_spawn_interactive_trust_prompt(&sid, &repo_path, Some(&remote));
@@ -6256,7 +6256,7 @@ fn interactive_trust_prompt_reprompts_after_untrust() {
         assert!(
             matches!(
                 tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv()).await,
-                Ok(Some(xvora_acp_lib::AcpClientMessage::ExtMethod(_)))
+                Ok(Some(acp_lib::AcpClientMessage::ExtMethod(_)))
             ),
             "first prompt must emit a request"
         );
@@ -6276,7 +6276,7 @@ fn interactive_trust_prompt_reprompts_after_untrust() {
         assert!(
             matches!(
                 tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv()).await,
-                Ok(Some(xvora_acp_lib::AcpClientMessage::ExtMethod(_)))
+                Ok(Some(acp_lib::AcpClientMessage::ExtMethod(_)))
             ),
             "after untrust clears the dedup, the workspace must be promptable again"
         );
@@ -6552,9 +6552,9 @@ async fn emit_announcements_gate_emits_updates_baseline_and_bumps_gen() {
     let (agent, mut rx) = build_agent_with_gateway_rx();
     agent.cfg.borrow_mut().remote_settings = Some(settings_with(Some(vec![ann("a")])));
     let recv_gen =
-        |rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>| {
+        |rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>| {
             let msg = rx.try_recv().expect("expected an announcements push");
-            let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+            let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                 panic!("expected ExtNotification, got another message kind");
             };
             assert_eq!(args.request.method.as_ref(), "x.ai/announcements/update");
@@ -6609,7 +6609,7 @@ async fn emit_announcements_gate_keeps_baseline_on_failed_send_and_retries() {
     let msg = rx
         .try_recv()
         .expect("next gate call must re-push after a failed send");
-    let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+    let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
         panic!("expected ExtNotification, got another message kind");
     };
     assert_eq!(args.request.method.as_ref(), "x.ai/announcements/update");
@@ -6756,7 +6756,7 @@ mod soft_default_settings_emit {
                 agent.cfg.borrow_mut().remote_settings = cfg.remote_settings.clone();
                 agent.emit_settings_update_notification();
                 let msg = rx.try_recv().expect("settings/update must be emitted");
-                let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+                let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                     panic!("expected ExtNotification, got {msg:?}");
                 };
                 assert_eq!(args.request.method.as_ref(), "x.ai/settings/update");
@@ -6923,7 +6923,7 @@ fn a_disconnect_switches_the_row_off_and_the_next_attach_switches_it_on() {
 fn status_line_meta(enabled: bool) -> acp::Meta {
     let mut meta = acp::Meta::new();
     meta.insert(
-        xvora_status_line::CLIENT_STATUS_LINE_META.to_string(),
+        status_line::CLIENT_STATUS_LINE_META.to_string(),
         serde_json::json!(enabled),
     );
     meta
@@ -6931,7 +6931,7 @@ fn status_line_meta(enabled: bool) -> acp::Meta {
 fn init_advertising_status_line(enabled: bool) -> acp::InitializeRequest {
     let mut meta = serde_json::Map::new();
     meta.insert(
-        xvora_status_line::STATUS_LINE_CAPABILITY.to_string(),
+        status_line::STATUS_LINE_CAPABILITY.to_string(),
         serde_json::json!(enabled),
     );
     acp::InitializeRequest::new(acp::ProtocolVersion::V1).client_capabilities(

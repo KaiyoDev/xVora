@@ -1769,7 +1769,7 @@ fn welcome_ctrl_q_requires_confirmation() {
 #[test]
 fn welcome_ctrl_u_update_keeps_priority_over_foreign_resume() {
     let mut app = test_app();
-    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -1789,8 +1789,8 @@ fn welcome_ctrl_u_update_keeps_priority_over_foreign_resume() {
     app.apply_foreign_resume_detection(
         launch_token,
         &canonical_cwd,
-        Some(xvora_foreign_sessions::RecentForeignSession {
-            tool: xvora_foreign_sessions::ForeignSessionTool::Cursor,
+        Some(foreign_sessions::RecentForeignSession {
+            tool: foreign_sessions::ForeignSessionTool::Cursor,
             native_id: "cursor-session".into(),
             age: std::time::Duration::from_secs(30),
         }),

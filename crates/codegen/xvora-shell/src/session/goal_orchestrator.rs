@@ -10,14 +10,14 @@ use crate::session::persistence::PersistenceMsg;
 
 pub(crate) struct GoalNotifySender {
     session_id: agent_client_protocol::SessionId,
-    gateway: xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: acp_lib::AcpAgentGatewaySender,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
 }
 
 impl GoalNotifySender {
     pub(crate) fn new(
         session_id: agent_client_protocol::SessionId,
-        gateway: xvora_acp_lib::AcpAgentGatewaySender,
+        gateway: acp_lib::AcpAgentGatewaySender,
         persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
     ) -> Self {
         Self {

@@ -3,7 +3,7 @@
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use xvora_status_line::{ResolvedStatusLine, StatusLineConfig, StatusLineItem, StatusLineType};
+use status_line::{ResolvedStatusLine, StatusLineConfig, StatusLineItem, StatusLineType};
 
 use super::draws_a_row;
 

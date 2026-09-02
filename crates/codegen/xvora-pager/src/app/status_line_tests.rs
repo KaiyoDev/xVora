@@ -357,7 +357,7 @@ fn every_field_on_the_wire_is_named_in_the_guide() {
     let guide = include_str!("../../docs/user-guide/25-status-line.md");
     let documented = documented_paths(guide);
     let fixture: serde_json::Value =
-        serde_json::from_str(xvora_status_line::test_support::WIRE_FIXTURE_JSON)
+        serde_json::from_str(status_line::test_support::WIRE_FIXTURE_JSON)
             .expect("the fixture parses");
 
     let mut missing = Vec::new();
@@ -402,7 +402,7 @@ fn every_builtin_item_is_named_in_the_guide() {
     let guide = include_str!("../../docs/user-guide/25-status-line.md");
     let documented: std::collections::HashSet<&str> =
         table_cells(section(guide, "## Set up")).collect();
-    let missing: Vec<_> = xvora_status_line::StatusLineItem::ALL
+    let missing: Vec<_> = status_line::StatusLineItem::ALL
         .iter()
         .map(|item| item.as_str())
         .filter(|name| !documented.contains(name))
@@ -448,11 +448,11 @@ fn every_config_key_the_section_serializes_is_named_in_the_guide() {
     let cells: std::collections::HashSet<&str> = table_cells(section(guide, "## Set up")).collect();
     // Every field is set: a key left unset would be absent from the serialized form and slip past this test
     let written = serde_json::to_value(
-        xvora_status_line::test_support::StatusLineConfigFixture::from_kind(
-            xvora_status_line::StatusLineType::Command,
+        status_line::test_support::StatusLineConfigFixture::from_kind(
+            status_line::StatusLineType::Command,
         )
         .with_command("x")
-        .with_items(vec![xvora_status_line::StatusLineItem::Cwd])
+        .with_items(vec![status_line::StatusLineItem::Cwd])
         .with_padding(1)
         .with_refresh_interval(Some(300))
         .into_config(),

@@ -319,7 +319,7 @@ async fn two_enqueues_drain_fifo_and_stale_edit_is_noop() {
             // The final broadcast must reflect the empty queue.
             let mut last: Option<crate::session::prompt_queue::QueueChanged> = None;
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref()
                         == crate::session::prompt_queue::QUEUE_CHANGED_METHOD
                 {
@@ -1372,7 +1372,7 @@ async fn interject_after_cancel_does_nothing_and_keeps_prompt_queued() {
             // The interject no-op still rebroadcasts so clients reconcile.
             let mut saw_broadcast = false;
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref()
                         == crate::session::prompt_queue::QUEUE_CHANGED_METHOD
                 {
@@ -1563,7 +1563,7 @@ async fn interject_queued_bash_row_noop_keeps_row_queued() {
 
             let mut saw_broadcast = false;
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref()
                         == crate::session::prompt_queue::QUEUE_CHANGED_METHOD
                 {
@@ -3625,7 +3625,7 @@ async fn bash_turn_sets_committed_flag_before_running_the_command() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let (actor, _ev) = create_test_actor_with_terminal(
                 0,

@@ -18,12 +18,12 @@ use crate::file_system::ContentSearchRequest;
 use crate::handle::WorkspaceHandle;
 use crate::worktree::{ApplyWorktreeRequest, CreateWorktreeRequest, RemoveWorktreeRequest};
 use async_trait::async_trait;
+use computer_hub_sdk::ToolHarness;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use xvora_computer_hub_sdk::ToolHarness;
 use xvora_tools::types::output::ToolRunResult;
 use xvora_workspace_client::{WorkspaceClient, is_transport_fatal};
 pub use xvora_workspace_types::rpc::agents_md::DiscoverAgentsMdReq;
@@ -97,10 +97,8 @@ pub trait WorkspaceOp: WorkspaceRpc + DeserializeOwned + Send + Sync {
 /// Prepare a worktree fork from an existing worktree (validation + path resolution).
 /// Returns a serialized result with `spawn_task` flag and the response.
 fn hub_transfer_client() -> WorkspaceResult<reqwest::Client> {
-    xvora_extra_ca::build_reqwest_client(|builder| {
-        builder.timeout(std::time::Duration::from_secs(600))
-    })
-    .map_err(|e| WorkspaceError::HubError(format!("failed to create HTTP client: {e}")))
+    extra_ca::build_reqwest_client(|builder| builder.timeout(std::time::Duration::from_secs(600)))
+        .map_err(|e| WorkspaceError::HubError(format!("failed to create HTTP client: {e}")))
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrepareWorktreeFromWorktreeReq {
@@ -1108,7 +1106,7 @@ fn resolve_index_for_workspace(
     ws: &WorkspaceHandle,
     root: Option<&std::path::Path>,
 ) -> WorkspaceResult<(
-    std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>,
+    std::sync::Arc<codebase_graph::IndexManagerHandle>,
     std::path::PathBuf,
 )> {
     let index_root = index_root_for(ws, root)?;
@@ -1120,7 +1118,7 @@ fn resolve_index_for_file(
     root: Option<&std::path::Path>,
     file: &str,
 ) -> WorkspaceResult<(
-    std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>,
+    std::sync::Arc<codebase_graph::IndexManagerHandle>,
     std::path::PathBuf,
 )> {
     if root.is_none() {
@@ -1234,7 +1232,7 @@ impl WorkspaceOp for CodeIndexStatusReq {
     }
 }
 fn query_result_to_response(
-    result: Result<xvora_codebase_graph::QueryResult, xvora_codebase_graph::QueryError>,
+    result: Result<codebase_graph::QueryResult, codebase_graph::QueryError>,
 ) -> CodeNavResponse {
     match result {
         Ok(qr) => CodeNavResponse {
@@ -1251,9 +1249,7 @@ fn query_result_to_response(
         Err(_) => CodeNavResponse { locations: vec![] },
     }
 }
-fn symbol_locations_to_response(
-    locations: Vec<xvora_codebase_graph::SymbolLocation>,
-) -> CodeNavResponse {
+fn symbol_locations_to_response(locations: Vec<codebase_graph::SymbolLocation>) -> CodeNavResponse {
     CodeNavResponse {
         locations: locations
             .into_iter()

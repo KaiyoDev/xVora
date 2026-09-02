@@ -11,7 +11,7 @@ use crate::recovery;
 /// The journal-mode classifier inspects the parent directory, so a caller that means to write must go through [`search_db_path`] first.
 fn db_path_in(root_dir: &Path) -> PathBuf {
     let path = root_dir.join("sessions").join("session_search.sqlite");
-    xvora_sqlite_journal::JournalMode::for_db_path(&path).effective_db_path(&path)
+    sqlite_journal::JournalMode::for_db_path(&path).effective_db_path(&path)
 }
 
 /// The same path, with the parent directory created owner only, because the index duplicates session text into the database file.

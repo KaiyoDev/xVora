@@ -1521,8 +1521,7 @@ fn workspace_dashboard_open_loads_one_snapshot_and_skips_rosters() {
 #[test]
 fn workspace_snapshot_load_requests_live_adoption() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
@@ -1540,8 +1539,8 @@ fn workspace_snapshot_load_requests_live_adoption() {
 fn workspace_dashboard_reopens_store_when_only_stale_snapshot_remains() {
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
-    app.workspace_snapshot = Some(xvora_dashboard_store::WorkspaceSnapshot {
-        grouping: xvora_dashboard_store::Grouping::State,
+    app.workspace_snapshot = Some(dashboard_store::WorkspaceSnapshot {
+        grouping: dashboard_store::Grouping::State,
         members: vec![],
         data_version: 1,
     });
@@ -1556,8 +1555,7 @@ fn workspace_dashboard_reopens_store_when_only_stale_snapshot_remains() {
 #[test]
 fn workspace_session_created_becomes_an_upsert_candidate() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
@@ -1583,20 +1581,19 @@ fn workspace_session_created_becomes_an_upsert_candidate() {
 #[test]
 fn workspace_busy_write_retries_only_once() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app();
     app.workspace_dashboard_enabled = true;
     app.workspace_snapshot = Some(snapshot.clone());
     app.workspace_write_in_flight = true;
-    let attempted = xvora_dashboard_store::NewMember {
-        key: xvora_dashboard_store::MemberKey {
-            session_id: xvora_dashboard_store::SessionId::new("saved").unwrap(),
-            kind: xvora_dashboard_store::MemberKind::Build,
+    let attempted = dashboard_store::NewMember {
+        key: dashboard_store::MemberKey {
+            session_id: dashboard_store::SessionId::new("saved").unwrap(),
+            kind: dashboard_store::MemberKind::Build,
         },
-        origin: xvora_dashboard_store::MemberOrigin::Local,
-        metadata: xvora_dashboard_store::MemberMetadata {
+        origin: dashboard_store::MemberOrigin::Local,
+        metadata: dashboard_store::MemberMetadata {
             cwd: Some("/tmp".into()),
             title: None,
             model: None,
@@ -1606,7 +1603,7 @@ fn workspace_busy_write_retries_only_once() {
         },
     };
     let mut permanent = attempted.clone();
-    permanent.key.session_id = xvora_dashboard_store::SessionId::new("permanent").unwrap();
+    permanent.key.session_id = dashboard_store::SessionId::new("permanent").unwrap();
     let _ = dispatch(
         Action::TaskComplete(TaskResult::WorkspaceMembersUpserted {
             store,
@@ -1673,8 +1670,8 @@ fn workspace_busy_write_retries_only_once() {
     let _ = dispatch(
         Action::TaskComplete(TaskResult::WorkspaceMembersUpserted {
             store,
-            snapshot: Ok(xvora_dashboard_store::WorkspaceSnapshot {
-                grouping: xvora_dashboard_store::Grouping::State,
+            snapshot: Ok(dashboard_store::WorkspaceSnapshot {
+                grouping: dashboard_store::Grouping::State,
                 members: vec![],
                 data_version: 1,
             }),
@@ -1696,19 +1693,18 @@ fn workspace_busy_write_retries_only_once() {
 #[test]
 fn workspace_snapshot_failure_reopens_without_suppressing_attempted_member() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let mut app = test_app();
     app.workspace_dashboard_enabled = true;
     app.workspace_snapshot = Some(store.snapshot().unwrap());
     app.workspace_write_in_flight = true;
-    let attempted = xvora_dashboard_store::NewMember {
-        key: xvora_dashboard_store::MemberKey {
-            session_id: xvora_dashboard_store::SessionId::new("saved").unwrap(),
-            kind: xvora_dashboard_store::MemberKind::Build,
+    let attempted = dashboard_store::NewMember {
+        key: dashboard_store::MemberKey {
+            session_id: dashboard_store::SessionId::new("saved").unwrap(),
+            kind: dashboard_store::MemberKind::Build,
         },
-        origin: xvora_dashboard_store::MemberOrigin::Local,
-        metadata: xvora_dashboard_store::MemberMetadata {
+        origin: dashboard_store::MemberOrigin::Local,
+        metadata: dashboard_store::MemberMetadata {
             cwd: Some("/tmp".into()),
             title: None,
             model: None,
@@ -1755,12 +1751,12 @@ fn workspace_overlay_cycle_omits_unadopted_live_agents() {
     let second = insert_second_agent(&mut app);
     mark_agent_nonempty(&mut app, second);
     app.workspace_dashboard_enabled = true;
-    app.workspace_snapshot = Some(xvora_dashboard_store::WorkspaceSnapshot {
-        grouping: xvora_dashboard_store::Grouping::State,
-        members: vec![xvora_dashboard_store::Member {
-            session_id: xvora_dashboard_store::SessionId::new("test-session").unwrap(),
-            kind: xvora_dashboard_store::MemberKind::Build,
-            origin: xvora_dashboard_store::MemberOrigin::Local,
+    app.workspace_snapshot = Some(dashboard_store::WorkspaceSnapshot {
+        grouping: dashboard_store::Grouping::State,
+        members: vec![dashboard_store::Member {
+            session_id: dashboard_store::SessionId::new("test-session").unwrap(),
+            kind: dashboard_store::MemberKind::Build,
+            origin: dashboard_store::MemberOrigin::Local,
             cwd: Some("/tmp".to_owned()),
             title: Some("Saved".to_owned()),
             model: None,

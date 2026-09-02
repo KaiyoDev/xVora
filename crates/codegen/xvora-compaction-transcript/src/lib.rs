@@ -433,7 +433,7 @@ fn render_turn_signature(item: &ConversationItem, index: usize) -> String {
 /// `detail == None`) verbatim turns truncated at a whole-turn boundary before
 /// [`SEGMENT_MAX_BYTES`]. `summary` must already be cleaned of analysis tags;
 /// `items` is the segment view — tool calls + results kept, images/reasoning
-/// stripped (see `xvora_chat_state::compaction_utils::prepare_conversation_for_segment`).
+/// stripped (see `chat_state::compaction_utils::prepare_conversation_for_segment`).
 pub fn render_segment_md(
     items: &[ConversationItem],
     summary: &str,

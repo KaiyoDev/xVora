@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
-use xvora_workflow::{PauseKind, PhaseMeta, WorkflowOutcome};
+use workflow::{PauseKind, PhaseMeta, WorkflowOutcome};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -528,7 +528,7 @@ impl WorkflowTracker {
             }
             WorkflowOutcome::BudgetExceeded { message } => {
                 run.state.status = WorkflowRunStatus::BudgetLimited;
-                let hint = if run.state.agents_used >= xvora_workflow::MAX_AGENT_BUDGET {
+                let hint = if run.state.agents_used >= workflow::MAX_AGENT_BUDGET {
                     "finished work is kept, but this run reached the maximum agent budget and \
                      cannot be resumed; start a new run"
                 } else {

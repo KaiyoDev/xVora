@@ -12,10 +12,10 @@ use crate::session::goal_planner::{
     RoleSpawnOverride, SpawnError, spawn_with_fail_open_retry,
 };
 use crate::session::goal_role_tools::RoleToolNames;
+use session_events::EventWriter;
 use std::path::Path;
 use std::sync::Arc;
 use tool_types::SubagentCapabilityMode;
-use xvora_session_events::EventWriter;
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
@@ -83,7 +83,7 @@ pub(crate) struct ChannelSpawner {
     pub(crate) cwd: Option<String>,
     /// Trace-artifact sink and resolved `task` tool name; `None` disables recording.
     /// See [`crate::session::goal_classifier::record_subagent_trace`].
-    pub(crate) trace_sink: Option<(xvora_chat_state::ChatStateHandle, String)>,
+    pub(crate) trace_sink: Option<(chat_state::ChatStateHandle, String)>,
     /// Event sink for the spawn-and-retry-once fail-open telemetry; `None` in tests or when no event log is wired.
     pub(crate) events: Option<EventWriter>,
 }

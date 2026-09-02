@@ -44,7 +44,7 @@ fn make_test_config() -> (
 #[allow(clippy::type_complexity)]
 fn make_test_config_full() -> (
     NotificationBridgeConfig,
-    mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     mpsc::UnboundedReceiver<PersistenceMsg>,
     mpsc::UnboundedReceiver<SessionCommand>,
 ) {
@@ -54,12 +54,12 @@ fn make_test_config_full() -> (
 #[allow(clippy::type_complexity)]
 fn make_test_config_full_raw() -> (
     NotificationBridgeConfig,
-    mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     mpsc::UnboundedReceiver<PersistenceMsg>,
     mpsc::UnboundedReceiver<SessionCommand>,
 ) {
     let (gateway_tx, gateway_rx) = mpsc::unbounded_channel();
-    let gateway = xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx);
+    let gateway = acp_lib::AcpAgentGatewaySender::new(gateway_tx);
     let (session_cmd_tx, session_cmd_rx) = mpsc::unbounded_channel();
     let (persistence_tx, persistence_rx) = mpsc::unbounded_channel();
     let config = NotificationBridgeConfig {
@@ -222,7 +222,7 @@ async fn bash_task_completed_suppresses_auto_wake_during_goal_loop() {
     // The pager UI notification must still be emitted.
     let mut found_ext = false;
     while let Ok(msg) = gateway_rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
             && args.request.method.as_ref() == "x.ai/task_completed"
         {
             found_ext = true;
@@ -270,10 +270,10 @@ async fn bash_task_completed_auto_wakes_and_reserves_without_goal_loop() {
 }
 
 fn task_completed_will_wake(
-    gateway_rx: &mut mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    gateway_rx: &mut mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> Option<bool> {
     while let Ok(msg) = gateway_rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
             && args.request.method.as_ref() == "x.ai/task_completed"
         {
             let v: serde_json::Value = serde_json::from_str(args.request.params.get()).ok()?;
@@ -870,7 +870,7 @@ async fn bash_output_chunk_forwards_live_without_persisting() {
     );
 
     match gateway_rx.try_recv().expect("chunk must be broadcast") {
-        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+        acp_lib::AcpClientMessage::SessionNotification(args) => {
             assert!(
                 args.request
                     .meta
@@ -910,7 +910,7 @@ async fn live_in_progress_event_id_is_not_a_prepare_replay_cursor() {
     .await;
     assert!(persistence_rx.try_recv().is_err());
     let live_id = match gateway_rx.try_recv().unwrap() {
-        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => args
+        acp_lib::AcpClientMessage::SessionNotification(args) => args
             .request
             .meta
             .as_ref()
@@ -1033,7 +1033,7 @@ async fn acknowledged_scheduler_removal_appends_before_ack_and_broadcast() {
     result.unwrap();
     assert!(matches!(
         gateway_rx.try_recv(),
-        Ok(xvora_acp_lib::AcpClientMessage::ExtNotification(_))
+        Ok(acp_lib::AcpClientMessage::ExtNotification(_))
     ));
 }
 
@@ -1172,7 +1172,7 @@ async fn scheduled_task_fired_is_not_persisted() {
     let fired = gateway_rx
         .try_recv()
         .expect("scheduled fire must be broadcast");
-    let xvora_acp_lib::AcpClientMessage::ExtNotification(fired) = fired else {
+    let acp_lib::AcpClientMessage::ExtNotification(fired) = fired else {
         panic!("expected scheduler fire notification");
     };
     let value: serde_json::Value = serde_json::from_str(fired.request.params.get()).unwrap();
@@ -1206,7 +1206,7 @@ async fn cross_session_monitor_event_is_dropped() {
         "cross-session monitor event must not be injected into this session"
     );
     while let Ok(msg) = gateway_rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg {
+        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg {
             assert_ne!(
                 args.request.method.as_ref(),
                 "x.ai/monitor_event",
@@ -1288,7 +1288,7 @@ async fn block_waited_task_skips_auto_wake_prompt() {
     // The x.ai/task_completed ExtNotification for UI updates must still be sent.
     let mut found_ext = false;
     while let Ok(msg) = gateway_rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
             && args.request.method.as_ref() == "x.ai/task_completed"
         {
             found_ext = true;
@@ -1556,7 +1556,7 @@ async fn plan_mode_exited_emits_current_mode_update_default() {
     // Gateway: one CurrentModeUpdate("default").
     let mut gateway_modes = Vec::new();
     while let Ok(msg) = gateway_rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::SessionNotification(args) = msg
+        if let acp_lib::AcpClientMessage::SessionNotification(args) = msg
             && let Some(id) = extract_current_mode_id(&args.request)
         {
             gateway_modes.push(id.to_string());
@@ -1689,7 +1689,7 @@ async fn plan_mode_entered_emits_current_mode_update_plan() {
 
     let mut gateway_modes = Vec::new();
     while let Ok(msg) = gateway_rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::SessionNotification(args) = msg
+        if let acp_lib::AcpClientMessage::SessionNotification(args) = msg
             && let Some(id) = extract_current_mode_id(&args.request)
         {
             gateway_modes.push(id.to_string());
@@ -1854,7 +1854,7 @@ async fn task_completed_notification_is_frame_bounded() {
 
     let mut params = None;
     while let Ok(msg) = gateway_rx.try_recv() {
-        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
             && args.request.method.as_ref() == "x.ai/task_completed"
         {
             params = Some(args.request.params.get().to_string());

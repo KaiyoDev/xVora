@@ -124,7 +124,7 @@ pub(crate) fn bounded_goal_transcript(items: &[ConversationItem]) -> String {
             {
                 (
                     "agent_message",
-                    Some(xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL),
+                    Some(chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL),
                 )
             }
             ConversationItem::User(_) => ("user", None),
@@ -255,7 +255,7 @@ mod tests {
             transcript,
             format!(
                 "[agent_message] {} review this change",
-                xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+                chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
             )
         );
     }

@@ -337,7 +337,7 @@ impl SessionActor {
             let _strip_guard = self.prepare_image_strips_for_rewind().await;
             self.cancel_active_sampling_requests();
             self.cancel_pending_image_strips_for_rewind();
-            self.notify_turn_abort(epoch, xvora_agent_lifecycle::TurnAbortReason::Interrupted)
+            self.notify_turn_abort(epoch, agent_lifecycle::TurnAbortReason::Interrupted)
                 .await;
             let total_tokens = self.chat_state_handle.get_total_tokens().await;
             return self
@@ -770,7 +770,7 @@ impl SessionActor {
         if cancelled_prompt_id.is_some()
             && let Some(epoch) = turn_epoch
         {
-            self.notify_turn_abort(epoch, xvora_agent_lifecycle::TurnAbortReason::Interrupted)
+            self.notify_turn_abort(epoch, agent_lifecycle::TurnAbortReason::Interrupted)
                 .await;
         }
         // Rewind rails hold no lease, so clear the aborted turn's exact

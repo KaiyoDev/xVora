@@ -11,6 +11,7 @@ use crate::config::{MemoryConfig, SessionContextFactory};
 use crate::file_system::{AsyncFsWrapper, LocalFs};
 use crate::hub::{HubConfig, HubHandle};
 use crate::session::file_state::FileStateTracker;
+use computer_hub_mcp_adapter::McpBridgeHandle;
 use hunk_tracker::HunkTrackerHandle;
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -18,7 +19,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use tool_protocol::ToolId;
 use tool_runtime::WorkspaceViewerContext;
-use xvora_computer_hub_mcp_adapter::McpBridgeHandle;
 use xvora_mcp::servers::McpState;
 use xvora_tools::notification::AcknowledgedToolNotification;
 use xvora_tools::notification::types::ToolNotificationHandle;
@@ -563,7 +563,7 @@ pub struct WorkspaceShared {
     /// Server config stashed at construction time for deferred connect.
     pub(crate) hub_config: Option<HubConfig>,
     /// Auth provider for xAI service calls.
-    pub(crate) auth_provider: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
+    pub(crate) auth_provider: Option<computer_hub_sdk::SharedAuthProvider>,
     /// Connection-level sink feeding the `ActivityTracker` (drained by `run_activity_feed`); not a network egress.
     /// `None` until `connect_hub()` sets it.
     pub(crate) activity_notify_handle:
@@ -572,7 +572,7 @@ pub struct WorkspaceShared {
     /// Mode-agnostic: the shell wires it to the agent gateway in local mode, and to the server in proxy mode.
     /// `None` until set via [`WorkspaceHandle::set_client_ext_sink`](crate::handle::WorkspaceHandle::set_client_ext_sink).
     pub(crate) client_ext_sink: arc_swap::ArcSwap<Option<ClientExtSink>>,
-    pub(crate) local_registry: xvora_computer_hub_sdk::LocalRegistry,
+    pub(crate) local_registry: computer_hub_sdk::LocalRegistry,
     pub(crate) activity_tracker: std::sync::Arc<crate::activity::ActivityTracker>,
     /// True after the scheduler-liveness poll task started; reconnects must not start a second one.
     pub(crate) scheduler_poll_started: std::sync::atomic::AtomicBool,
@@ -612,8 +612,7 @@ pub struct WorkspaceShared {
     /// Held in an `Arc` shared with [`ActivityTracker`](crate::activity::ActivityTracker).
     /// That sharing lets `Tool*` events resolve the right writer without a back-reference to `WorkspaceShared`.
     /// Stays empty whenever `events_enabled` is `false`.
-    pub(crate) session_event_writers:
-        Arc<dashmap::DashMap<String, xvora_session_events::EventWriter>>,
+    pub(crate) session_event_writers: Arc<dashmap::DashMap<String, session_events::EventWriter>>,
     /// In-flight before-turn enqueue tasks, keyed by `(session_id, turn)`.
     /// Stored by `on_before_turn`; evicted on every turn-end path.
     /// The `After` turn-hook handler awaits the handle for its ack's `artifact_count`; the fire-and-forget path just drops it (detach, not abort).
@@ -648,13 +647,10 @@ impl WorkspaceShared {
     }
     /// Return the per-session `events.jsonl` writer for `session_id`, opened and cached on first use under `workspace_home/sessions/{session_id}/`.
     ///
-    /// When `events_enabled` is `false` this returns [`EventWriter::noop()`](xvora_session_events::EventWriter::noop).
+    /// When `events_enabled` is `false` this returns [`EventWriter::noop()`](session_events::EventWriter::noop).
     /// It touches neither the cache nor the filesystem, so the flag-off path stays byte-for-byte identical to the legacy behaviour.
     /// The returned handle is `Clone + Send + Sync`; callers emit through it directly.
-    pub(crate) fn session_event_writer(
-        &self,
-        session_id: &str,
-    ) -> xvora_session_events::EventWriter {
+    pub(crate) fn session_event_writer(&self, session_id: &str) -> session_events::EventWriter {
         get_or_open_session_writer(
             self.events_enabled,
             &self.session_event_writers,
@@ -668,7 +664,7 @@ impl WorkspaceShared {
     pub(crate) fn session_event_writer_cached(
         &self,
         session_id: &str,
-    ) -> Option<xvora_session_events::EventWriter> {
+    ) -> Option<session_events::EventWriter> {
         if !self.events_enabled {
             return None;
         }
@@ -685,7 +681,7 @@ impl WorkspaceShared {
         self.hub_config.as_ref().and_then(|c| c.server_id.clone())
     }
     /// Auth provider used for xAI service calls.
-    pub fn auth_provider(&self) -> Option<&xvora_computer_hub_sdk::SharedAuthProvider> {
+    pub fn auth_provider(&self) -> Option<&computer_hub_sdk::SharedAuthProvider> {
         self.auth_provider.as_ref()
     }
     /// Parse the opaque [`server_metadata`](Self::server_metadata) blob into the typed subset the workspace needs (currently `sandbox_id`).
@@ -711,10 +707,10 @@ impl WorkspaceShared {
     }
     /// The tool server, if a server connection is active.
     ///
-    /// Returns a clone of the [`ToolServer`](xvora_computer_hub_sdk::ToolServer) which is cheap (`Arc` bump).
+    /// Returns a clone of the [`ToolServer`](computer_hub_sdk::ToolServer) which is cheap (`Arc` bump).
     /// Uses `try_lock` to avoid blocking on the async mutex from synchronous contexts.
     /// Returns `None` if the lock is held (i.e. a `connect_hub` call is in progress).
-    pub fn hub_server(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
+    pub fn hub_server(&self) -> Option<computer_hub_sdk::ToolServer> {
         self.hub_handle
             .try_lock()
             .ok()
@@ -722,7 +718,7 @@ impl WorkspaceShared {
     }
     /// Like [`Self::hub_server`] but awaits the `hub_handle` lock instead of returning `None` on contention.
     /// Use from async contexts that must not confuse a transient `connect_hub` lock-hold with "no hub connected"; `None` means no hub is connected.
-    pub async fn hub_server_blocking(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
+    pub async fn hub_server_blocking(&self) -> Option<computer_hub_sdk::ToolServer> {
         self.hub_handle
             .lock()
             .await
@@ -919,11 +915,11 @@ impl WorkspaceShared {
 ///   [`EventWriter::open`] uses `create(true).append(true)`, so a re-open after a workspace restart APPENDS to the existing `events.jsonl`.
 pub(crate) fn get_or_open_session_writer(
     enabled: bool,
-    writers: &dashmap::DashMap<String, xvora_session_events::EventWriter>,
+    writers: &dashmap::DashMap<String, session_events::EventWriter>,
     workspace_home: &Path,
     session_id: &str,
-) -> xvora_session_events::EventWriter {
-    use xvora_session_events::EventWriter;
+) -> session_events::EventWriter {
+    use session_events::EventWriter;
     if !enabled {
         return EventWriter::noop();
     }
@@ -953,7 +949,7 @@ pub(crate) fn get_or_open_session_writer(
 mod tests {
     use super::get_or_open_session_writer;
     use dashmap::DashMap;
-    use xvora_session_events::{Event, EventWriter};
+    use session_events::{Event, EventWriter};
     fn count_lines(path: &std::path::Path) -> usize {
         std::fs::read_to_string(path)
             .unwrap()

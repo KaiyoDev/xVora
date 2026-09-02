@@ -991,7 +991,7 @@ const STALE_TMP_AGE: Duration = Duration::from_secs(60 * 60);
 const DOWNLOAD_REQUEST_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 
 fn download_client() -> reqwest::Result<reqwest::Client> {
-    xvora_extra_ca::build_reqwest_client(|builder| builder.timeout(DOWNLOAD_REQUEST_TIMEOUT))
+    extra_ca::build_reqwest_client(|builder| builder.timeout(DOWNLOAD_REQUEST_TIMEOUT))
 }
 
 /// Unique temp path for an in-flight download of `dest`.

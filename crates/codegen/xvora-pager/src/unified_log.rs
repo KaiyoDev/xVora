@@ -5,9 +5,9 @@
 
 use std::sync::{Mutex, OnceLock};
 
+use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use tokio::runtime::Handle;
-use xvora_acp_lib::AcpAgentTx;
 use xvora_telemetry::unified_log::{
     ClientLogEntry, LOG_METHOD, LogLevel, LogNotificationParams, LogSource,
 };
@@ -100,7 +100,7 @@ fn send_entries(entries: Vec<ClientLogEntry>) {
     };
     let tx = tx.clone();
     handle.spawn(async move {
-        let _ = xvora_acp_lib::acp_send(notification, &tx).await;
+        let _ = acp_lib::acp_send(notification, &tx).await;
     });
 }
 
@@ -131,7 +131,7 @@ pub async fn flush_blocking() {
     let Some(notification) = build_notification(entries) else {
         return;
     };
-    let _ = xvora_acp_lib::acp_send(notification, tx).await;
+    let _ = acp_lib::acp_send(notification, tx).await;
 }
 
 pub fn info(msg: &str, sid: Option<&str>, ctx: Option<serde_json::Value>) {

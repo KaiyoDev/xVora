@@ -1370,7 +1370,7 @@ fn inject_capabilities_adds_status_line_when_it_is_the_only_capability() {
         ClientId(1)
     ));
     assert_eq!(
-        json["params"]["_meta"][xvora_status_line::CLIENT_STATUS_LINE_META],
+        json["params"]["_meta"][status_line::CLIENT_STATUS_LINE_META],
         true,
         "a status-line client that states nothing else must still get its own capability, \
          not the process-wide initialize one"

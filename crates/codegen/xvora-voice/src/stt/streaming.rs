@@ -58,8 +58,7 @@ impl StreamingSttSession {
         insert_optional_header(&mut request, "User-Agent", &config.user_agent);
 
         // The default connector never sees the shared trust config.
-        let connector =
-            tokio_tungstenite::Connector::Rustls(xvora_extra_ca::rustls_client_config());
+        let connector = tokio_tungstenite::Connector::Rustls(extra_ca::rustls_client_config());
         let disable_nagle = false;
         let (ws, _) = tokio::time::timeout(
             Duration::from_secs(15),

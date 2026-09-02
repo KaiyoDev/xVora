@@ -24,6 +24,11 @@
 use crate::error::{WorkspaceError, WorkspaceResult};
 use crate::handle::WorkspaceHandle;
 use async_trait::async_trait;
+use computer_hub_sdk::{
+    AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
+    ToolServerBuilder, ToolServerHandler,
+};
+use diag_server::DiagHandle;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
@@ -34,11 +39,6 @@ use tool_runtime::{
 };
 use tool_types::ToolDescription;
 use url::Url;
-use xvora_computer_hub_sdk::{
-    AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
-    ToolServerBuilder, ToolServerHandler,
-};
-use xvora_diag_server::DiagHandle;
 use xvora_tools::registry::types::ToolConfig;
 /// Configuration for connecting to a server instance.
 ///
@@ -204,7 +204,7 @@ impl HubHandle {
         ws: HubWsTiming,
         tool_handlers: Vec<std::sync::Arc<dyn ToolServerHandler>>,
         server_metadata: Option<serde_json::Value>,
-        session_handler_resolver: Option<xvora_computer_hub_sdk::SessionHandlerResolver>,
+        session_handler_resolver: Option<computer_hub_sdk::SessionHandlerResolver>,
     ) -> Result<Self, ClientError> {
         let pool = HubConnectionPool::new();
         let server_url = config.url.clone();
@@ -405,7 +405,7 @@ struct CallCompletedGuard {
     tracker: Arc<crate::activity::ActivityTracker>,
     call_id: String,
     session_id: Option<String>,
-    outcome: xvora_session_events::ToolOutcome,
+    outcome: session_events::ToolOutcome,
 }
 impl CallCompletedGuard {
     fn new(
@@ -417,10 +417,10 @@ impl CallCompletedGuard {
             tracker,
             call_id,
             session_id,
-            outcome: xvora_session_events::ToolOutcome::Cancelled,
+            outcome: session_events::ToolOutcome::Cancelled,
         }
     }
-    fn set_outcome(&mut self, outcome: xvora_session_events::ToolOutcome) {
+    fn set_outcome(&mut self, outcome: session_events::ToolOutcome) {
         self.outcome = outcome;
     }
 }
@@ -558,7 +558,7 @@ impl ToolServerHandler for SessionRoutedToolHandler {
                         yield ToolStreamItem::Progress(p);
                     }
                     ToolStreamItem::Terminal(Ok(run_result)) => {
-                        _guard.set_outcome(xvora_session_events::ToolOutcome::Success);
+                        _guard.set_outcome(session_events::ToolOutcome::Success);
                         let output = run_result.into_typed_tool_output(tool_id);
                         let output = match &virt {
                             Some(v) => v.rewrite_typed_output(output),
@@ -575,7 +575,7 @@ impl ToolServerHandler for SessionRoutedToolHandler {
                             kind = %e.variant_name(),
                             "tool call failed"
                         );
-                        _guard.set_outcome(xvora_session_events::ToolOutcome::Error);
+                        _guard.set_outcome(session_events::ToolOutcome::Error);
                         let e = match &virt {
                             Some(v) => v.rewrite_error(e),
                             None => e,

@@ -633,7 +633,7 @@ pub async fn supervise_preview_metrics(control_port: Option<u16>, shutdown: watc
         PREVIEW_METRICS_SCRAPE_INTERVAL,
         shutdown,
         |body| {
-            if let Some(sink) = xvora_computer_hub_sdk::metric_donate::active_metrics_sink() {
+            if let Some(sink) = computer_hub_sdk::metric_donate::active_metrics_sink() {
                 sink.export_text_exposition(body, PREVIEW_METRICS_PREFIX);
             }
         },

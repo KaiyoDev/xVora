@@ -241,7 +241,7 @@ impl AuthManager {
     }
 
     /// Whether the system is currently in a **dark wake**.
-    /// See [`xvora_system_power::PowerState`] for what a dark wake is and why an IdP refresh must avoid one.
+    /// See [`system_power::PowerState`] for what a dark wake is and why an IdP refresh must avoid one.
     /// `refresh_chain` gates on [`Self::should_defer_for_dark_wake`], which wraps this with a deferral bound.
     ///
     /// Scoped to processes that actively listen for power events (local, interactive ones).
@@ -266,8 +266,8 @@ impl AuthManager {
             return false;
         }
         matches!(
-            xvora_system_power::current_power_state(),
-            xvora_system_power::PowerState::DarkWake
+            system_power::current_power_state(),
+            system_power::PowerState::DarkWake
         )
     }
 
@@ -356,9 +356,9 @@ impl AuthManager {
         }
         // Weak ref so the manager and the listener never form an Arc cycle
         let weak = Arc::downgrade(self);
-        let listener = xvora_system_power::SystemPowerListener::start(move |event| {
+        let listener = system_power::SystemPowerListener::start(move |event| {
             if let Some(this) = weak.upgrade() {
-                let imminent = matches!(event, xvora_system_power::PowerEvent::WillSleep);
+                let imminent = matches!(event, system_power::PowerEvent::WillSleep);
                 this.set_system_sleep_imminent(imminent);
             }
         });

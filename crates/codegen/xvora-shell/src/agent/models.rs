@@ -125,7 +125,7 @@ struct Inner {
     auth_manager: Arc<AuthManager>,
     cfg: RwLock<config::Config>,
     fetch_auth: RwLock<ModelFetchAuth>,
-    gateway: RwLock<Option<xvora_acp_lib::AcpAgentGatewaySender>>,
+    gateway: RwLock<Option<acp_lib::AcpAgentGatewaySender>>,
     cache: ModelsCacheManager,
     endpoint: Arc<dyn ModelsEndpoint>,
     /// Guard to prevent overlapping retry loops.
@@ -369,7 +369,7 @@ impl ModelsManager {
         Ok(mgr)
     }
 
-    pub(crate) fn set_gateway(&self, gateway: xvora_acp_lib::AcpAgentGatewaySender) {
+    pub(crate) fn set_gateway(&self, gateway: acp_lib::AcpAgentGatewaySender) {
         *self.inner.gateway.write() = Some(gateway);
     }
 

@@ -355,9 +355,9 @@ fn stale_workflows_result_does_not_repaint_replaced_session_modal() {
 }
 
 fn foreign_resume_hint(
-    tool: xvora_foreign_sessions::ForeignSessionTool,
-) -> xvora_foreign_sessions::RecentForeignSession {
-    xvora_foreign_sessions::RecentForeignSession {
+    tool: foreign_sessions::ForeignSessionTool,
+) -> foreign_sessions::RecentForeignSession {
+    foreign_sessions::RecentForeignSession {
         tool,
         native_id: "native-session".into(),
         age: std::time::Duration::from_secs(30),
@@ -367,7 +367,7 @@ fn foreign_resume_hint(
 #[test]
 fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
     let mut launch = test_app();
-    launch.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
+    launch.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -404,14 +404,14 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
             canonical_cwd: canonical_cwd.clone(),
             launch_token,
             hint: Some(foreign_resume_hint(
-                xvora_foreign_sessions::ForeignSessionTool::Cursor,
+                foreign_sessions::ForeignSessionTool::Cursor,
             )),
         }),
         &mut launch,
     );
     assert_eq!(
         launch.foreign_resume_hint().map(|hint| hint.tool),
-        Some(xvora_foreign_sessions::ForeignSessionTool::Cursor)
+        Some(foreign_sessions::ForeignSessionTool::Cursor)
     );
 
     let mut stale = test_app();
@@ -429,7 +429,7 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
             canonical_cwd: canonical_cwd.clone(),
             launch_token: launch_token + 1,
             hint: Some(foreign_resume_hint(
-                xvora_foreign_sessions::ForeignSessionTool::Codex,
+                foreign_sessions::ForeignSessionTool::Codex,
             )),
         }),
         &mut stale,
@@ -451,7 +451,7 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
 #[test]
 fn foreign_resume_result_rejects_startup_conflict_before_completion() {
     let mut app = test_app();
-    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -475,7 +475,7 @@ fn foreign_resume_result_rejects_startup_conflict_before_completion() {
             canonical_cwd,
             launch_token,
             hint: Some(foreign_resume_hint(
-                xvora_foreign_sessions::ForeignSessionTool::Cursor,
+                foreign_sessions::ForeignSessionTool::Cursor,
             )),
         }),
         &mut app,

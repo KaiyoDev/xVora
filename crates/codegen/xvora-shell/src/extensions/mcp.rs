@@ -303,7 +303,7 @@ pub struct McpReadResourceContent {
 /// Push the full MCP catalog to the client.
 /// Called in the background after launch-dir MCP discovery so `initialize()` isn't blocked by config walks.
 pub async fn notify_servers_updated(
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
     local_servers: &[acp::McpServer],
 ) {
     let catalog = build_mcp_catalog(local_servers);
@@ -559,7 +559,7 @@ fn disabled_server_placeholder_entry(name: &str) -> McpServerEntry {
 pub(crate) async fn build_mcp_status(
     mcp_state: &Arc<TokioMutex<McpState>>,
     tool_bridge: &Arc<xvora_tools::bridge::ToolBridge>,
-    event_writer: Option<&xvora_session_events::EventWriter>,
+    event_writer: Option<&session_events::EventWriter>,
 ) -> McpStatusSnapshot {
     let _build_mcp_status_timer = crate::instrumentation::timer("build_mcp_status");
     let (
@@ -604,7 +604,7 @@ pub(crate) async fn build_mcp_status(
 
         let healthy = client.is_healthy().await;
         if let Some(ew) = event_writer {
-            ew.emit(xvora_session_events::Event::McpHealthCheck {
+            ew.emit(session_events::Event::McpHealthCheck {
                 server_name: name.clone(),
                 healthy,
                 client_state: Some(if healthy { "ready" } else { "unavailable" }.to_string()),
@@ -741,7 +741,7 @@ pub(crate) async fn init_agent_mcp_pool(
         return;
     }
 
-    let noop = xvora_session_events::EventWriter::noop();
+    let noop = session_events::EventWriter::noop();
     let ctx = crate::session::mcp_servers::McpSpawnCtx::standalone(&noop)
         .with_oauth_discovery(crate::session::mcp_servers::McpOauthDiscovery::Network);
     let meta = Default::default();

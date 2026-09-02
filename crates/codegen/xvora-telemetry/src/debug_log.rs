@@ -60,7 +60,7 @@ pub const RMCP_SSE_NOISE_TARGET: &str = "rmcp::transport::common::client_side_ss
 // Broad firehose filter for the routing and GROK_DEBUG_LOG sources
 // Capture our crates at debug regardless of a narrowing RUST_LOG, with deps at info so they don't flood
 // Curated first-party allowlist: new grok crates default to `info` until added here
-const FIREHOSE_BASE_DIRECTIVES: &str = "info,xvora_pager=debug,xvora_shell=debug,xvora_tools=debug,xvora_telemetry=debug,xvora_agent=debug,xvora_mcp=debug,xvora_session_search=debug,xvora_acp_lib=debug,sampling_log=off";
+const FIREHOSE_BASE_DIRECTIVES: &str = "info,xvora_pager=debug,xvora_shell=debug,xvora_tools=debug,xvora_telemetry=debug,xvora_agent=debug,xvora_mcp=debug,session_search=debug,acp_lib=debug,sampling_log=off";
 
 // Full firehose directives: the curated crate list plus the pager's ACP update target (built from the constant above, not a literal)
 fn firehose_directives() -> String {

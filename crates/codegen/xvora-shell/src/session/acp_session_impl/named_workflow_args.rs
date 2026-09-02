@@ -55,10 +55,10 @@ impl AgentBudget {
         if value == 0 {
             return Err("`agent_budget` must be a positive integer".to_string());
         }
-        if value > xvora_workflow::MAX_AGENT_BUDGET {
+        if value > workflow::MAX_AGENT_BUDGET {
             return Err(format!(
                 "`agent_budget` must be at most {} agents",
-                xvora_workflow::MAX_AGENT_BUDGET
+                workflow::MAX_AGENT_BUDGET
             ));
         }
         Ok(Self(value))

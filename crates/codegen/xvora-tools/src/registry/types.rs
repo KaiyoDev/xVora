@@ -293,12 +293,12 @@ pub struct SessionContext {
     /// instead of using the key baked into their config at construction time.
     /// Prevents 401 failures when a session outlives the initial token lifetime.
     pub api_key_provider: Option<crate::types::SharedApiKeyProvider>,
-    /// Auth provider which returns a xvora_computer_hub_sdk::AuthCredential. Can be used by
+    /// Auth provider which returns a computer_hub_sdk::AuthCredential. Can be used by
     /// tools that need to authenticate with services.
     ///
     /// Not to be confused with the api_key_provider, which is a legacy
     /// provider used by the shell's auth manager.
-    pub auth_provider: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
+    pub auth_provider: Option<computer_hub_sdk::SharedAuthProvider>,
     /// Optional 401-attribution callback for tool HTTP clients. When
     /// set, a 401 from `image_gen` / `video_gen` / `web_search`
     /// emits an `auth_401_attribution` event via this hook. Hosts can
@@ -403,7 +403,7 @@ struct ToolEntry {
         Box<dyn Fn(serde_json::Value) -> Result<ToolInput, tool_runtime::ToolError> + Send + Sync>,
     /// Registers this tool into a `LocalRegistry` using the concrete type.
     /// Captured at `register::<T>()` time when T is known.
-    register_in_local: Box<dyn Fn(&xvora_computer_hub_sdk::LocalRegistry) + Send + Sync>,
+    register_in_local: Box<dyn Fn(&computer_hub_sdk::LocalRegistry) + Send + Sync>,
 }
 /// Per-reminder metadata stored in the builder.
 struct ReminderEntry {
@@ -458,7 +458,7 @@ pub struct FinalizedToolset {
     scheduler_cancel: Option<tokio_util::sync::CancellationToken>,
     /// Shared local registry for in-process dispatch.
     /// Contains only config-enabled tools. Can be shared with ToolHarness.
-    local_registry: xvora_computer_hub_sdk::LocalRegistry,
+    local_registry: computer_hub_sdk::LocalRegistry,
     /// Lock-free access to the template renderer for tool name/param resolution.
     /// Cloned into `ToolCallContext::extensions` on each `call()` so tools
     /// can resolve names without acquiring the `resources` mutex.
@@ -527,7 +527,7 @@ impl RequirementError {
 pub struct ToolRegistryBuilder {
     tools: HashMap<String, ToolEntry>,
     reminders: Vec<ReminderEntry>,
-    shared_local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
+    shared_local_registry: Option<computer_hub_sdk::LocalRegistry>,
     /// Whether the client delivers system reminders (completion
     /// notifications for backgrounded commands/subagents) to the model.
     /// Exposed to description templates as `system_reminders_enabled` so
@@ -617,7 +617,7 @@ impl ToolRegistryBuilder {
                     let typed = serde_json::from_value::<T::Args>(json)?;
                     Ok(typed.into())
                 }),
-                register_in_local: Box::new(|lr: &xvora_computer_hub_sdk::LocalRegistry| {
+                register_in_local: Box::new(|lr: &computer_hub_sdk::LocalRegistry| {
                     lr.register(T::default());
                 }),
             },
@@ -751,7 +751,7 @@ impl ToolRegistryBuilder {
         }
         b
     }
-    pub fn with_local_registry(mut self, registry: xvora_computer_hub_sdk::LocalRegistry) -> Self {
+    pub fn with_local_registry(mut self, registry: computer_hub_sdk::LocalRegistry) -> Self {
         self.shared_local_registry = Some(registry);
         self
     }
@@ -1317,7 +1317,7 @@ impl FinalizedToolset {
             )),
             resources_persistence: Arc::new(ResourcesPersistence::noop()),
             scheduler_cancel: None,
-            local_registry: xvora_computer_hub_sdk::LocalRegistry::new(),
+            local_registry: computer_hub_sdk::LocalRegistry::new(),
             renderer: Arc::new(TemplateRenderer::new(
                 std::collections::HashMap::new(),
                 std::collections::HashMap::new(),
@@ -1326,7 +1326,7 @@ impl FinalizedToolset {
             workspace_viewer_ctx: None,
         }
     }
-    pub fn local_registry(&self) -> &xvora_computer_hub_sdk::LocalRegistry {
+    pub fn local_registry(&self) -> &computer_hub_sdk::LocalRegistry {
         &self.local_registry
     }
     /// Whether the server must await this tool's in-process cancellation cleanup.
@@ -2564,7 +2564,7 @@ mod tests {
             .tools
             .iter()
             .filter_map(|(name, entry)| {
-                let lr = xvora_computer_hub_sdk::LocalRegistry::new();
+                let lr = computer_hub_sdk::LocalRegistry::new();
                 (entry.register_in_local)(&lr);
                 let id = tool_protocol::ToolId::new(&entry.id)
                     .unwrap_or_else(|_| panic!("{name}: invalid tool id {:?}", entry.id));

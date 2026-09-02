@@ -45,7 +45,7 @@ pub enum PromptCompletionKind {
     /// Distinct from Completed so goal continuation is not re-queued under an active goal.
     StationarityEnded,
     Cancelled {
-        category: Option<xvora_session_events::types::CancellationCategory>,
+        category: Option<session_events::types::CancellationCategory>,
         context: Option<CancellationContext>,
     },
     MaxTurnsReached {
@@ -69,10 +69,8 @@ pub const ACTION_STATIONARITY_CATEGORY: &str = "action_stationarity";
 /// `_meta.cancellationCategory` wire name of a cancel category: an explicit match so a variant rename cannot silently change the wire.
 /// This is deliberately a second vocabulary next to the serde snake_case of the events.jsonl / after-turn rails.
 /// `_meta` shipped PascalCase and clients match it.
-pub fn meta_category_str(
-    category: xvora_session_events::types::CancellationCategory,
-) -> &'static str {
-    use xvora_session_events::types::CancellationCategory;
+pub fn meta_category_str(category: session_events::types::CancellationCategory) -> &'static str {
+    use session_events::types::CancellationCategory;
     match category {
         CancellationCategory::HookDenied => HOOK_DENIED_CATEGORY,
         CancellationCategory::PermissionRejected => "PermissionRejected",
@@ -385,7 +383,7 @@ pub enum SessionCommand {
         responds_to: oneshot::Sender<PromptMode>,
     },
     GetModelMetadata {
-        responds_to: oneshot::Sender<xvora_chat_state::ModelMetadata>,
+        responds_to: oneshot::Sender<chat_state::ModelMetadata>,
     },
     /// Snapshot for `/session-info`.
     GetSessionInfo {
@@ -430,9 +428,8 @@ pub enum SessionCommand {
     /// Refused while a turn is in flight.
     RepairHistory {
         dry_run: bool,
-        respond_to: oneshot::Sender<
-            anyhow::Result<xvora_chat_state::compaction_utils::HistoryRepairReport>,
-        >,
+        respond_to:
+            oneshot::Sender<anyhow::Result<chat_state::compaction_utils::HistoryRepairReport>>,
     },
     GetRewindPoints {
         respond_to: oneshot::Sender<RewindPointsResponse>,
@@ -469,7 +466,7 @@ pub enum SessionCommand {
     /// Acks `()` once chat state has applied it (prompt-attributed or session-only).
     /// Drop the oneshot on failure so the child treats the fold as not landed.
     RecordSubagentUsage {
-        by_model: Vec<(String, xvora_chat_state::UsageTotals)>,
+        by_model: Vec<(String, chat_state::UsageTotals)>,
         parent_prompt_id: Option<String>,
         /// Nested subagent bill may under-count.
         incomplete: bool,
@@ -828,7 +825,7 @@ pub enum SessionCommand {
     },
     /// Take turn messages from the chat state actor (proxied from mvp_agent).
     TakeTurnMessages {
-        respond_to: oneshot::Sender<Option<xvora_chat_state::TurnCapture>>,
+        respond_to: oneshot::Sender<Option<chat_state::TurnCapture>>,
     },
     /// Drain the sealed harness trace turns (goal planner and verifier panels) from the chat state actor (proxied from mvp_agent).
     /// Routed through the session actor (like `TakeTurnMessages`) so the drain is ordered ahead of any subsequent turn's harness recording.
@@ -862,7 +859,7 @@ pub enum SessionCommand {
 #[cfg(test)]
 mod cancellation_category_meta_tests {
     use super::PromptCompletionKind;
-    use xvora_session_events::types::CancellationCategory;
+    use session_events::types::CancellationCategory;
     /// Pins every `_meta.cancellationCategory` wire name: shipped clients string-match these, so a rename is a wire break the compiler can't see.
     #[test]
     fn pins_every_wire_name() {

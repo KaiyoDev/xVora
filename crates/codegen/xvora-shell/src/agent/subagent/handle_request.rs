@@ -953,14 +953,14 @@ pub(crate) async fn run_shell_child(
     let parent_traceparent = file_utils::trace_context::current_traceparent();
     let tracker_child_cwd = child_session_info.cwd.clone();
     let tracker_model_id = effective_model_id.0.to_string();
-    let initial_child_tokens = xvora_chat_state::estimate_conversation_tokens(&forked_conversation);
+    let initial_child_tokens = chat_state::estimate_conversation_tokens(&forked_conversation);
     let model_entry = crate::agent::config::find_model_by_id(
         &ctx.available_models,
         effective_model_id.0.as_ref(),
     );
     let model_has_own_creds = model_entry.is_some_and(|entry| entry.has_own_credentials());
     let inherited_auth_type = subagent_auth_type(model_entry, &ctx.auth_method_id);
-    let credentials = xvora_chat_state::Credentials {
+    let credentials = chat_state::Credentials {
         api_key: effective_sampling_config.api_key.clone(),
         auth_type: inherited_auth_type,
         alpha_test_key: ctx.alpha_test_key.clone(),
@@ -1623,7 +1623,7 @@ pub(crate) async fn run_shell_child(
     .map(|usage| usage.totals);
     result.tokens_used = trace_token_totals
         .as_ref()
-        .map(xvora_chat_state::UsageTotals::total_tokens)
+        .map(chat_state::UsageTotals::total_tokens)
         .unwrap_or(0);
     let (tool_calls, turns) = signals_snapshot_counts(&child_handle)
         .await
@@ -1752,7 +1752,7 @@ pub(crate) async fn run_shell_child(
             stop_reason: child_stop_reason.map(|sr| format!("{sr:?}")),
             total_tokens: trace_token_totals
                 .as_ref()
-                .map(xvora_chat_state::UsageTotals::total_tokens),
+                .map(chat_state::UsageTotals::total_tokens),
             input_tokens: final_turn_tokens.map(|tokens| tokens.0),
             cached_input_tokens: final_turn_tokens.map(|tokens| tokens.1),
             output_tokens: final_turn_tokens.map(|tokens| tokens.2),

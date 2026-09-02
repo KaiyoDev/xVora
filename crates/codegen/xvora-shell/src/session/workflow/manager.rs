@@ -5,8 +5,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+use workflow::{Journal, WorkflowOutcome, WorkflowRunParams};
 use xvora_sampling_types::ReasoningEffort;
-use xvora_workflow::{Journal, WorkflowOutcome, WorkflowRunParams};
 
 use super::host_service::{
     HostDrainOutcome, TelemetryHook, WorkflowHostParams, spawn_workflow_host_service,
@@ -17,7 +17,7 @@ use super::store::WorkflowRunStore;
 use super::tracker::WorkflowTracker;
 
 pub(crate) const WORKFLOW_MAX_ACTIVE_RUNS_PER_SESSION: usize = 4;
-pub(crate) const WORKFLOW_DEFAULT_AGENT_BUDGET: u64 = xvora_workflow::DEFAULT_AGENT_BUDGET;
+pub(crate) const WORKFLOW_DEFAULT_AGENT_BUDGET: u64 = workflow::DEFAULT_AGENT_BUDGET;
 
 struct ActiveRun {
     cancel: CancellationToken,
@@ -144,7 +144,7 @@ impl WorkflowManager {
                 }
                 if existing.status
                     == crate::session::workflow::tracker::WorkflowRunStatus::BudgetLimited
-                    && existing.agents_used >= xvora_workflow::MAX_AGENT_BUDGET
+                    && existing.agents_used >= workflow::MAX_AGENT_BUDGET
                 {
                     return Err(LaunchError::NotResumable(
                         "maximum agent budget reached; start a new run".into(),
@@ -293,7 +293,7 @@ impl WorkflowManager {
         let args = spec.args;
         let exec_cancel = cancel.clone();
         let exec = tokio::task::spawn_blocking(move || {
-            xvora_workflow::run_workflow(WorkflowRunParams {
+            workflow::run_workflow(WorkflowRunParams {
                 script,
                 args,
                 journal,
@@ -491,7 +491,7 @@ impl WorkflowManager {
         let store = WorkflowRunStore::new(session_dir.clone(), persist_tx.clone());
         let notify = super::notify::WorkflowNotifySender::new(
             agent_client_protocol::SessionId::new("test-session"),
-            xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+            acp_lib::AcpAgentGatewaySender::new(gateway_tx),
             persist_tx,
             store.clone(),
         );
@@ -871,7 +871,7 @@ mod tests {
         let store = WorkflowRunStore::new(session_dir.clone(), persist_tx.clone());
         let notify = WorkflowNotifySender::new(
             agent_client_protocol::SessionId::new("test-session"),
-            xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+            acp_lib::AcpAgentGatewaySender::new(gateway_tx),
             persist_tx,
             store.clone(),
         );

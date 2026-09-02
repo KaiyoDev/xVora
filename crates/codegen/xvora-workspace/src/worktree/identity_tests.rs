@@ -25,7 +25,7 @@ fn locked_worktrees_fixture(temp: &tempfile::TempDir) -> WorktreesFixture {
 }
 
 fn committed_repo(root: &Path) -> PathBuf {
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
     let repo = root.join("repo");
     std::fs::create_dir_all(&repo).unwrap();
     init_git_repo(&repo);
@@ -93,7 +93,7 @@ fn cwd_outside_worktrees_dir_has_no_identity() {
 
 #[test]
 fn db_recorded_source_wins_over_git_discovery() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let temp = tempfile::TempDir::new().unwrap();
     let fixture = locked_worktrees_fixture(&temp);
     let repo = committed_repo(&fixture.root);
@@ -131,7 +131,7 @@ fn db_recorded_source_wins_over_git_discovery() {
 
 #[test]
 fn linked_worktree_without_db_record_derives_source_from_git() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let temp = tempfile::TempDir::new().unwrap();
     let fixture = locked_worktrees_fixture(&temp);
     let repo = committed_repo(&fixture.root);
@@ -151,12 +151,12 @@ fn linked_worktree_without_db_record_derives_source_from_git() {
 
 #[test]
 fn plain_directory_under_worktrees_dir_does_not_inherit_enclosing_repo() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let temp = tempfile::TempDir::new().unwrap();
     let fixture = locked_worktrees_fixture(&temp);
-    xvora_test_utils::git::init_git_repo(&fixture.root);
+    test_utils::git::init_git_repo(&fixture.root);
     std::fs::write(fixture.root.join("tracked.txt"), "x").unwrap();
-    xvora_test_utils::git::git_commit_all(&fixture.root, "initial");
+    test_utils::git::git_commit_all(&fixture.root, "initial");
     let not_a_repo = fixture.worktrees.join("repo").join("deleted-worktree");
     std::fs::create_dir_all(&not_a_repo).unwrap();
 
@@ -197,15 +197,15 @@ fn resolved_cwd_under_symlinked_worktrees_dir_still_derives_identity() {
 #[cfg(unix)]
 #[test]
 fn standalone_clone_behind_symlinked_worktrees_dir_reports_no_source() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let temp = tempfile::TempDir::new().unwrap();
     let root = dunce::canonicalize(temp.path()).unwrap();
     let real_home = root.join("real-home");
     let standalone = real_home.join("worktrees").join("repo").join("standalone");
     std::fs::create_dir_all(&standalone).unwrap();
-    xvora_test_utils::git::init_git_repo(&standalone);
+    test_utils::git::init_git_repo(&standalone);
     std::fs::write(standalone.join("tracked.txt"), "x").unwrap();
-    xvora_test_utils::git::git_commit_all(&standalone, "initial");
+    test_utils::git::git_commit_all(&standalone, "initial");
     let link_home = root.join("link-home");
     std::os::unix::fs::symlink(&real_home, &link_home).unwrap();
     let _env = LockedTestEnv::lock().set("GROK_HOME", &link_home);
@@ -223,14 +223,14 @@ fn standalone_clone_behind_symlinked_worktrees_dir_reports_no_source() {
 
 #[test]
 fn standalone_clone_with_source_marker_and_no_db_derives_marker_source() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let temp = tempfile::TempDir::new().unwrap();
     let fixture = locked_worktrees_fixture(&temp);
     let standalone = fixture.worktrees.join("repo").join("standalone");
     std::fs::create_dir_all(&standalone).unwrap();
-    xvora_test_utils::git::init_git_repo(&standalone);
+    test_utils::git::init_git_repo(&standalone);
     std::fs::write(standalone.join("tracked.txt"), "x").unwrap();
-    xvora_test_utils::git::git_commit_all(&standalone, "initial");
+    test_utils::git::git_commit_all(&standalone, "initial");
     std::fs::write(
         standalone.join(".git").join("grok-worktree-source"),
         "/marker-source\n",
@@ -248,14 +248,14 @@ fn standalone_clone_with_source_marker_and_no_db_derives_marker_source() {
 
 #[test]
 fn standalone_git_dir_without_db_record_keeps_label_but_no_source() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let temp = tempfile::TempDir::new().unwrap();
     let fixture = locked_worktrees_fixture(&temp);
     let standalone = fixture.worktrees.join("repo").join("standalone");
     std::fs::create_dir_all(&standalone).unwrap();
-    xvora_test_utils::git::init_git_repo(&standalone);
+    test_utils::git::init_git_repo(&standalone);
     std::fs::write(standalone.join("tracked.txt"), "x").unwrap();
-    xvora_test_utils::git::git_commit_all(&standalone, "initial");
+    test_utils::git::git_commit_all(&standalone, "initial");
 
     assert_eq!(
         worktree_identity_in(&fixture.worktrees, &standalone.to_string_lossy()),

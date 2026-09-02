@@ -1,7 +1,7 @@
 //! Prepares one cache-aligned, image-budgeted compaction request history.
 
-use xvora_chat_state::compaction_utils::ModelRequestHistory;
-use xvora_chat_state::image_budget::{
+use chat_state::compaction_utils::ModelRequestHistory;
+use chat_state::image_budget::{
     IMAGE_COMPACT_RECLAIM_TARGET_BYTES, IMAGE_COMPACT_TRIGGER_BYTES, ImageBudgetOutcome,
     apply_image_budget_with_limits,
 };

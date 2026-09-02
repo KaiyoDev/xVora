@@ -1512,7 +1512,7 @@ pub struct ActionStationarityStop {
 #[derive(Serialize)]
 pub struct ToolCallCompleted {
     pub tool_name: String,
-    pub outcome: xvora_session_events::types::ToolOutcome,
+    pub outcome: session_events::types::ToolOutcome,
     /// Content-free: the hook name is kept out of OTLP and product events and rides only the session-event row.
     pub hook_rewrote: bool,
     pub duration_ms: u64,
@@ -2855,7 +2855,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(ToolCallCompleted {
                 tool_name: "bash".into(),
-                outcome: xvora_session_events::types::ToolOutcome::Success,
+                outcome: session_events::types::ToolOutcome::Success,
                 hook_rewrote: false,
                 duration_ms: 7,
                 tool_result_size_bytes: Some(2_048),
@@ -2874,7 +2874,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(ToolCallCompleted {
                 tool_name: "bash".into(),
-                outcome: xvora_session_events::types::ToolOutcome::Success,
+                outcome: session_events::types::ToolOutcome::Success,
                 hook_rewrote: false,
                 duration_ms: 7,
                 tool_result_size_bytes: None,

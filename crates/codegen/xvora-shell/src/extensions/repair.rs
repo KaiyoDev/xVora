@@ -4,14 +4,14 @@
 //! The usual cause is a torn or merged `chat_history.jsonl` line skipped on load.
 //! No in-band path can recover (compaction's sanitizer needs a model call that itself 400s), so the client invokes this method against the session.
 //!
-//! Repairs via [`xvora_chat_state::compaction_utils::repair_history`].
+//! Repairs via [`chat_state::compaction_utils::repair_history`].
 //! Resident sessions go through `SessionCommand::RepairHistory` (serialized with session activity, rejected mid-turn).
 //! Non-resident sessions are repaired on disk via the atomic `replace_chat_history`.
 
 use agent_client_protocol as acp;
+use chat_state::compaction_utils::HistoryRepairReport;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
-use xvora_chat_state::compaction_utils::HistoryRepairReport;
 
 use super::{ExtResult, parse_params, to_raw_response};
 use crate::agent::MvpAgent;
@@ -120,7 +120,7 @@ async fn repair_on_disk(grok_root: &std::path::Path, session_id: &str, dry_run: 
         })?
         .chat_history;
 
-    let report = xvora_chat_state::compaction_utils::repair_history(&mut chat_history);
+    let report = chat_state::compaction_utils::repair_history(&mut chat_history);
 
     if report.changed() && !dry_run {
         storage

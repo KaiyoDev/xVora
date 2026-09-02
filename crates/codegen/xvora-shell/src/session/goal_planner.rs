@@ -6,9 +6,9 @@
 
 use crate::session::events::{Event, GoalPlannerFailClosedReason, GoalRoleModelFailOpenReason};
 use crate::session::goal_role_tools::RoleToolNames;
+use session_events::EventWriter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use xvora_session_events::EventWriter;
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
@@ -235,7 +235,7 @@ pub(crate) struct ChannelSpawner {
     pub(crate) cwd: Option<String>,
     /// Trace-artifact sink and resolved `task` tool name; `None` disables recording.
     /// See [`super::goal_classifier::record_subagent_trace`].
-    pub(crate) trace_sink: Option<(xvora_chat_state::ChatStateHandle, String)>,
+    pub(crate) trace_sink: Option<(chat_state::ChatStateHandle, String)>,
     /// Resolved per-role model and toolset override.
     /// Default (inherit) keeps the historic `::default()` spawn behavior.
     pub(crate) role_override: RoleSpawnOverride,
@@ -1272,7 +1272,7 @@ mod tests {
     #[tokio::test]
     async fn fail_open_retry_emits_spawn_failed_event() {
         let dir = tempfile::tempdir().unwrap();
-        let writer = xvora_session_events::EventWriter::open(dir.path());
+        let writer = session_events::EventWriter::open(dir.path());
         let ov = RoleSpawnOverride {
             model: Some("m".into()),
             agent_type: Some("t".into()),

@@ -75,7 +75,7 @@ async fn drain_multiple_interjections_pushes_one_user_message_each_in_order() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -192,11 +192,11 @@ async fn drain_with_closed_chat_mailbox_does_not_report_model_delivery() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
-            actor.chat_state_handle = xvora_chat_state::ChatStateHandle::noop();
+            actor.chat_state_handle = chat_state::ChatStateHandle::noop();
             actor.pending_interjections.push(PendingInterjection {
                 text: "please also add tests".to_string(),
                 attachments: vec![],
@@ -250,7 +250,7 @@ mod interjection_broadcast_tests {
         local
             .run_until(async {
                 let (gateway_tx, mut gateway_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                    tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
                 let (persistence_tx, _prx) =
                     tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
                 let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -259,7 +259,7 @@ mod interjection_broadcast_tests {
 
                 let mut payload = None;
                 while let Ok(msg) = gateway_rx.try_recv() {
-                    if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                    if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                         && args.request.method.as_ref() == "x.ai/session/interjection"
                     {
                         payload =

@@ -3,7 +3,7 @@ use std::path::Path;
 use xvora_workspace::session::git::VcsKind;
 
 // Re-export from xvora-chat-state; the canonical definition lives there
-pub(crate) use xvora_chat_state::compaction_utils::extract_user_query;
+pub(crate) use chat_state::compaction_utils::extract_user_query;
 
 pub(crate) fn user_query(user_message: String) -> String {
     format!(
@@ -94,6 +94,6 @@ pub(crate) fn format_vcs_status_block(status: &str, vcs_kind: VcsKind) -> String
     format!("\n\n<{tag}>\n{description}\n{status}\n</{tag}>\n")
 }
 
-// Tests for extract_user_query now live in xvora_chat_state::compaction_utils.
+// Tests for extract_user_query now live in chat_state::compaction_utils.
 // The `<user_info>` + status block is assembled by `SessionActor::construct_legacy_prefix`
 // (see `acp_session_impl/prompt_build.rs`) from a single `RepoStatusSnapshot`.

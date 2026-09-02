@@ -4,13 +4,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_client_protocol::{self as acp, Agent as _};
-use serde_json::json;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
+use agent_client_protocol::{self as acp, Agent as _};
+use serde_json::json;
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::agent::mvp_agent::MvpAgent;
 
@@ -252,7 +252,7 @@ where
     F: FnOnce(std::path::PathBuf, std::rc::Rc<test_support::MockInferenceServer>) -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
 
     // Own thread: agent startup blocks on a models prefetch and would starve the mock.
     let mock_rt = tokio::runtime::Builder::new_multi_thread()

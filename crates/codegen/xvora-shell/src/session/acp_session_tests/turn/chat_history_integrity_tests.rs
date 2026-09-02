@@ -111,7 +111,7 @@ async fn mid_turn_user_injection_must_not_duplicate_tool_results_for_one_tool_us
             );
 
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             drain_gateway(gateway_rx);
             let (persistence_tx, persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();

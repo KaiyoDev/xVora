@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use xvora_status_line::{StatusLineConfig, StatusLineContext, StatusLineTrigger};
+use status_line::{StatusLineConfig, StatusLineContext, StatusLineTrigger};
 
 use crate::app::actions::Effect;
 use crate::app::agent::AgentId;
@@ -471,7 +471,7 @@ impl StatusLineState {
 
 #[cfg(test)]
 pub(crate) fn test_context(cwd: &str) -> StatusLineContext {
-    use xvora_status_line::StatusLineWorkspace;
+    use status_line::StatusLineWorkspace;
 
     StatusLineContext {
         cwd: cwd.to_string(),

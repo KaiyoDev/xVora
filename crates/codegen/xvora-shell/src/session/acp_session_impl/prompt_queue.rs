@@ -1,5 +1,5 @@
 use super::*;
-use xvora_agent_lifecycle::ShutdownPolicy;
+use agent_lifecycle::ShutdownPolicy;
 
 /// Outcome of a queue send-now request ([`SessionActor::handle_interject_queued_prompt`]).
 /// `mutated` reports whether the request changed anything (promoted, steered, or saved an edit).

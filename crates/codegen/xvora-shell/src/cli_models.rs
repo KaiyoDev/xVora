@@ -1,8 +1,8 @@
 //! Data APIs for `grok models`. Rendering is the client's job.
 use crate::agent::config::Config as AgentConfig;
+use acp_lib::{AcpAgentTx, acp_send};
 use agent_client_protocol as acp;
 use anyhow::Result;
-use xvora_acp_lib::{AcpAgentTx, acp_send};
 /// Status for the `grok models` banner (the display order is not the sampling priority; see [`AuthStatus::resolve`]).
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthStatus {

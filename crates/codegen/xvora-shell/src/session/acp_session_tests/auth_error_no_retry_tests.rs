@@ -70,7 +70,7 @@ async fn make_actor_with_auth_manager(
 ) -> (Arc<SessionActor>, mpsc::UnboundedReceiver<PersistenceMsg>) {
     make_actor_with_auth_and_credentials(
         auth_manager,
-        xvora_chat_state::AuthType::SessionToken,
+        chat_state::AuthType::SessionToken,
         "initial-test-key".to_string(),
     )
     .await
@@ -80,12 +80,12 @@ async fn make_actor_with_auth_manager(
 /// Use [`make_actor_with_method_and_credentials`] to pin the two independently.
 async fn make_actor_with_auth_and_credentials(
     auth_manager: Option<Arc<AuthManager>>,
-    auth_type: xvora_chat_state::AuthType,
+    auth_type: chat_state::AuthType,
     api_key: String,
 ) -> (Arc<SessionActor>, mpsc::UnboundedReceiver<PersistenceMsg>) {
     let method_id = match auth_type {
-        xvora_chat_state::AuthType::SessionToken => "cached_token",
-        xvora_chat_state::AuthType::ApiKey => "xvora.api_key",
+        chat_state::AuthType::SessionToken => "cached_token",
+        chat_state::AuthType::ApiKey => "xvora.api_key",
     };
     make_actor_with_method_and_credentials(auth_manager, method_id, auth_type, api_key).await
 }
@@ -96,7 +96,7 @@ async fn make_actor_with_auth_and_credentials(
 async fn make_actor_with_method_and_credentials(
     auth_manager: Option<Arc<AuthManager>>,
     auth_method_id: &str,
-    auth_type: xvora_chat_state::AuthType,
+    auth_type: chat_state::AuthType,
     api_key: String,
 ) -> (Arc<SessionActor>, mpsc::UnboundedReceiver<PersistenceMsg>) {
     let (gateway_tx, _) = mpsc::unbounded_channel();
@@ -106,7 +106,7 @@ async fn make_actor_with_method_and_credentials(
     actor.auth_method_id = test_auth_method_id(auth_method_id);
     actor
         .chat_state_handle
-        .update_credentials(xvora_chat_state::Credentials {
+        .update_credentials(chat_state::Credentials {
             api_key: Some(api_key),
             auth_type,
             ..Default::default()
@@ -160,7 +160,7 @@ async fn no_recovery_without_auth_manager() {
         .run_until(async {
             let (actor, _rx) = make_actor_with_auth_and_credentials(
                 None,
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "xvora-byok-key".to_string(),
             )
             .await;
@@ -230,7 +230,7 @@ async fn sampler_401_with_api_key_auth_skips_refresh_and_surfaces_error() {
             let (_dir, am) = auth_manager_with_refresher(refresher);
             let (actor, _rx) = make_actor_with_auth_and_credentials(
                 Some(am),
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "xvora-byok-key".to_string(),
             )
             .await;
@@ -267,7 +267,7 @@ async fn pre_flight_refresh_skips_api_key_auth_type() {
             let (_dir, am) = auth_manager_with_refresher(refresher);
             let (actor, _rx) = make_actor_with_auth_and_credentials(
                 Some(am),
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "byok-api-key".to_string(),
             )
             .await;
@@ -420,7 +420,7 @@ async fn pre_flight_soft_expired_transient_fail_retains_seed() {
             am.set_refresher(refresher);
             let (actor, _rx) = make_actor_with_auth_and_credentials(
                 Some(am.clone()),
-                xvora_chat_state::AuthType::SessionToken,
+                chat_state::AuthType::SessionToken,
                 "buffered-test-key".to_string(),
             )
             .await;
@@ -811,7 +811,7 @@ async fn sampler_401_session_method_with_stale_api_key_auth_type_still_recovers(
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "cached_token",
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "stale-session-jwt".to_string(),
             )
             .await;
@@ -850,7 +850,7 @@ async fn sampler_401_oidc_method_with_stale_api_key_auth_type_still_recovers() {
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "oidc",
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "stale-session-jwt".to_string(),
             )
             .await;
@@ -885,7 +885,7 @@ async fn reconstruct_full_config_wires_bearer_resolver_for_session_method_despit
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "cached_token",
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "stale-session-jwt".to_string(),
             )
             .await;
@@ -910,7 +910,7 @@ async fn reconstruct_full_config_no_bearer_resolver_for_api_key_method() {
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "xvora.api_key",
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "xvora-static-key".to_string(),
             )
             .await;
@@ -936,7 +936,7 @@ async fn pre_flight_refresh_heals_session_method_with_stale_api_key_auth_type() 
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "cached_token",
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "stale-session-jwt".to_string(),
             )
             .await;
@@ -968,7 +968,7 @@ async fn session_born_on_api_key_recovers_after_oidc_login_without_restart() {
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "xvora.api_key",
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "stale-session-jwt".to_string(),
             )
             .await;
@@ -1028,7 +1028,7 @@ async fn model_auth_memo_serves_cached_status_and_keys_on_model() {
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 None,
                 "cached_token",
-                xvora_chat_state::AuthType::SessionToken,
+                chat_state::AuthType::SessionToken,
                 "k".to_string(),
             )
             .await;
@@ -1065,7 +1065,7 @@ async fn reconstruct_full_config_no_bearer_resolver_for_byok_model_on_session_me
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "cached_token",
-                xvora_chat_state::AuthType::SessionToken,
+                chat_state::AuthType::SessionToken,
                 "byok-key".to_string(),
             )
             .await;
@@ -1110,7 +1110,7 @@ async fn set_session_model_invalidates_byok_memo_for_same_model_id() {
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 None,
                 "cached_token",
-                xvora_chat_state::AuthType::SessionToken,
+                chat_state::AuthType::SessionToken,
                 "k".to_string(),
             )
             .await;
@@ -1214,12 +1214,9 @@ async fn switch_to_first_party_model_drops_minted_provider_token() {
             let token = provider.ensure_fresh_token(None).await.rotated().unwrap();
             assert_eq!(token, "tok-1");
 
-            let (actor, _rx) = make_actor_with_auth_and_credentials(
-                None,
-                xvora_chat_state::AuthType::ApiKey,
-                token,
-            )
-            .await;
+            let (actor, _rx) =
+                make_actor_with_auth_and_credentials(None, chat_state::AuthType::ApiKey, token)
+                    .await;
             seed_provider_memo(&actor, provider).await;
 
             let model = actor
@@ -1287,12 +1284,9 @@ async fn sampler_401_on_provider_model_remints_and_resubmits() {
             let token = provider.ensure_fresh_token(None).await.rotated().unwrap();
             assert_eq!(token, "tok-1");
 
-            let (actor, _rx) = make_actor_with_auth_and_credentials(
-                None,
-                xvora_chat_state::AuthType::ApiKey,
-                token,
-            )
-            .await;
+            let (actor, _rx) =
+                make_actor_with_auth_and_credentials(None, chat_state::AuthType::ApiKey, token)
+                    .await;
             seed_provider_memo(&actor, provider).await;
             crate::auth::test_backdate_provider_mint(
                 "test-4c-recover",
@@ -1332,12 +1326,9 @@ async fn sampler_non_auth_kind_401_on_provider_model_still_recovers() {
             let provider = counting_provider("test-4c-non-auth-kind", dir.path());
             let token = provider.ensure_fresh_token(None).await.rotated().unwrap();
 
-            let (actor, _rx) = make_actor_with_auth_and_credentials(
-                None,
-                xvora_chat_state::AuthType::ApiKey,
-                token,
-            )
-            .await;
+            let (actor, _rx) =
+                make_actor_with_auth_and_credentials(None, chat_state::AuthType::ApiKey, token)
+                    .await;
             seed_provider_memo(&actor, provider).await;
             crate::auth::test_backdate_provider_mint(
                 "test-4c-non-auth-kind",
@@ -1373,7 +1364,7 @@ async fn sampler_401_with_no_key_on_provider_model_mints_and_resubmits() {
 
             let (actor, _rx) = make_actor_with_auth_and_credentials(
                 None,
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 "placeholder".to_string(),
             )
             .await;
@@ -1419,7 +1410,7 @@ async fn sampler_401_on_provider_model_never_refreshes_session() {
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "cached_token",
-                xvora_chat_state::AuthType::SessionToken,
+                chat_state::AuthType::SessionToken,
                 token,
             )
             .await;
@@ -1468,7 +1459,7 @@ async fn pre_turn_on_provider_model_never_installs_session_token() {
             let (actor, _rx) = make_actor_with_method_and_credentials(
                 Some(am),
                 "cached_token",
-                xvora_chat_state::AuthType::SessionToken,
+                chat_state::AuthType::SessionToken,
                 "placeholder".to_string(),
             )
             .await;
@@ -1506,7 +1497,7 @@ async fn sampler_401_on_fresh_provider_token_surfaces_error() {
 
             let (actor, _rx) = make_actor_with_auth_and_credentials(
                 None,
-                xvora_chat_state::AuthType::ApiKey,
+                chat_state::AuthType::ApiKey,
                 token.clone(),
             )
             .await;

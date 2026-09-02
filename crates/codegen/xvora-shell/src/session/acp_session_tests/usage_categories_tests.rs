@@ -45,7 +45,7 @@ async fn usage_categories_include_skills_and_mcp_with_counts() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             seed_skills(&actor, &["alpha", "beta"]).await;
@@ -71,7 +71,7 @@ async fn usage_categories_include_agents_md_with_count() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             let def = actor.agent.borrow().definition().clone();
@@ -117,7 +117,7 @@ async fn usage_categories_include_workflows_when_enabled() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -145,7 +145,7 @@ async fn baseline_reminder_lists_workflows_under_skills() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -185,7 +185,7 @@ async fn baseline_reminder_lists_workflows_when_there_are_no_skills() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -215,7 +215,7 @@ async fn subagent_session_does_not_list_workflows() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -255,7 +255,7 @@ async fn mcp_snapshot_matches_full_mode_injected_reminder() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.mcp_reminder_mode = McpReminderMode::Full;

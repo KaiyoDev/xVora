@@ -8,11 +8,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
 use tokio::sync::mpsc;
 use tokio::time::sleep_until;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_fsnotify::{FsEvent, FsEventKind};
 use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 
@@ -91,8 +91,8 @@ pub(crate) fn git_head_dedup_key(
 fn fs_event_to_codebase_graph_event(
     paths: &[PathBuf],
     kind: FsEventKind,
-) -> xvora_codebase_graph::FileEvent {
-    use xvora_codebase_graph::{FileEvent, FileEventKind};
+) -> codebase_graph::FileEvent {
+    use codebase_graph::{FileEvent, FileEventKind};
     let kind = match kind {
         FsEventKind::Created => FileEventKind::Created,
         FsEventKind::Modified => FileEventKind::Modified,
@@ -152,38 +152,29 @@ fn fs_event_to_delta(
 
 const GIT_DIFF_REBUILD_THRESHOLD: usize = 500;
 
-fn parse_diff_name_status_line(
-    line: &str,
-    repo_root: &Path,
-) -> Option<xvora_codebase_graph::FileEvent> {
+fn parse_diff_name_status_line(line: &str, repo_root: &Path) -> Option<codebase_graph::FileEvent> {
     let mut parts = line.splitn(3, '\t');
     let status = parts.next()?.trim();
     let path = parts.next()?;
 
     match status.chars().next()? {
-        'A' => Some(xvora_codebase_graph::FileEvent::created(
-            repo_root.join(path),
-        )),
-        'D' => Some(xvora_codebase_graph::FileEvent::removed(
-            repo_root.join(path),
-        )),
+        'A' => Some(codebase_graph::FileEvent::created(repo_root.join(path))),
+        'D' => Some(codebase_graph::FileEvent::removed(repo_root.join(path))),
         'R' | 'C' => {
             let new_path = parts.next()?;
-            Some(xvora_codebase_graph::FileEvent::renamed(
+            Some(codebase_graph::FileEvent::renamed(
                 repo_root.join(path),
                 repo_root.join(new_path),
             ))
         }
-        _ => Some(xvora_codebase_graph::FileEvent::modified(
-            repo_root.join(path),
-        )),
+        _ => Some(codebase_graph::FileEvent::modified(repo_root.join(path))),
     }
 }
 
 /// After a HEAD change, diff ORIG_HEAD..HEAD and send targeted events to the codebase graph.
 /// Falls back to a full rebuild when too many files changed.
 async fn refresh_codebase_graph_after_head_change(
-    idx: &xvora_codebase_graph::IndexManagerHandle,
+    idx: &codebase_graph::IndexManagerHandle,
     repo_root: &Path,
 ) {
     let mut cmd = tokio::process::Command::new("git");
@@ -1065,7 +1056,7 @@ mod tests {
 
     #[test]
     fn parse_diff_name_status() {
-        use xvora_codebase_graph::FileEventKind;
+        use codebase_graph::FileEventKind;
         let root = Path::new("/repo");
 
         let ev = parse_diff_name_status_line("M\tsrc/main.rs", root).unwrap();

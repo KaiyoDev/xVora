@@ -154,7 +154,7 @@ async fn generic_tool_completion_chokepoint_has_exact_active_message_cardinality
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =

@@ -45,7 +45,7 @@ use agent_client_protocol::Client as _;
 use agent_client_protocol::{self as acp, AuthenticateResponse};
 use indexmap::IndexMap;
 use tokio::sync::oneshot;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use crate::agent::auth_method;
 use crate::agent::config::{self, Config as AgentConfig, ModelEntry, resolve_credentials};
 use crate::agent::feedback_client::FeedbackClient;
@@ -695,7 +695,7 @@ const IDLE_QUERY_TIMEOUT: std::time::Duration = std::time::Duration::from_millis
 #[derive(Default)]
 struct ResidentResources {
     /// Strong ref pinning the code-nav index; the manager holds only a `Weak`.
-    codebase_index: Option<std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>>,
+    codebase_index: Option<std::sync::Arc<codebase_graph::IndexManagerHandle>>,
     is_headless: bool,
     require_gateway: bool,
 }
@@ -963,7 +963,7 @@ pub struct MvpAgent {
 /// Loading TLS root certs takes about 95ms; doing it here avoids a cold-start hit on the first request.
 /// Idempotent.
 pub fn warm_async_http_client() {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
     std::thread::spawn(|| {
         let _timer = crate::instrumentation_timer!("startup.async_http_warmup");
         let _ = crate::http::shared_client();
@@ -1078,7 +1078,7 @@ fn explicit_startup_hints(
     meta.and_then(|m| m.get("startupHints"))
         .and_then(|v| serde_json::from_value(v.clone()).ok())
 }
-use xvora_chat_state::conversation_util::replace_or_insert_system_head;
+use chat_state::conversation_util::replace_or_insert_system_head;
 /// Non-empty `systemPromptOverride` from session meta (preferred) or init meta.
 /// A blank string (empty or whitespace-only) is treated as "no override" so a client cannot accidentally blank the system prompt.
 fn system_prompt_override_from_meta<'a>(
@@ -1473,7 +1473,7 @@ impl MvpAgent {
         &self,
         session_id: &acp::SessionId,
         updates_file_path: &Option<PathBuf>,
-    ) -> Vec<tokio::sync::oneshot::Receiver<xvora_acp_lib::AcpResult<()>>> {
+    ) -> Vec<tokio::sync::oneshot::Receiver<acp_lib::AcpResult<()>>> {
         let orphaned = Self::find_orphaned_background_tasks(updates_file_path);
         if orphaned.is_empty() {
             return Vec::new();
@@ -2371,7 +2371,7 @@ async fn handle_synthetic_turn_trace(
             upload_turn_result(&ctx, &turn_result_metadata, UploadWait::Confirm).await;
         }
     }
-    let turn_messages: Option<xvora_chat_state::TurnCapture> = {
+    let turn_messages: Option<chat_state::TurnCapture> = {
         let (tx, rx) = tokio::sync::oneshot::channel();
         if ctx
             .session_handle

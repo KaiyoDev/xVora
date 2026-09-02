@@ -11,10 +11,10 @@ use test_support::{MockInferenceServer, ScriptedResponse};
 struct PolicyRecorder(std::cell::Cell<Option<InputAuthority>>);
 
 #[async_trait::async_trait(?Send)]
-impl xvora_agent_lifecycle::LocalTurnLifecycleContributor for PolicyRecorder {
+impl agent_lifecycle::LocalTurnLifecycleContributor for PolicyRecorder {
     async fn on_turn_start_with_policy(
         &self,
-        _input: &xvora_agent_lifecycle::TurnStartInput,
+        _input: &agent_lifecycle::TurnStartInput,
         policy: InputPolicy,
     ) {
         self.0.set(Some(policy.authority));
@@ -91,16 +91,16 @@ fn parent_request(text: &str, prompt_blocks: Vec<acp::ContentBlock>) -> TurnInpu
 }
 
 fn spawn_gateway_drain(
-    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> tokio::sync::mpsc::UnboundedReceiver<()> {
     let (hook_tx, hook_rx) = tokio::sync::mpsc::unbounded_channel();
     tokio::task::spawn_local(async move {
         while let Some(message) = gateway_rx.recv().await {
             match message {
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.method.as_ref() == "x.ai/hooks/event" =>
                 {
                     let _ = hook_tx.send(());
@@ -172,7 +172,7 @@ async fn actor_with_sampler(
     actor.sampler_handle = sampler_handle;
     actor.compaction.verbatim_input = false;
     let policy_recorder = std::rc::Rc::new(PolicyRecorder::default());
-    let mut extensions = xvora_agent_lifecycle::LocalExtensionRegistryBuilder::default();
+    let mut extensions = agent_lifecycle::LocalExtensionRegistryBuilder::default();
     extensions.turn_lifecycle_contributor(policy_recorder.clone());
     actor.extension_registry = extensions.build();
     actor.client_hooks.borrow_mut().insert(
@@ -500,7 +500,7 @@ async fn parent_compact_and_available_skill_execute_but_other_slashes_stay_inert
                 .to_string();
             assert!(skill_request.contains("dynamic skill body for preserve auth"));
             assert!(skill_request.contains(
-                xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+                chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
             ));
             assert_eq!(
                 actor.active_skill.lock().as_deref(),

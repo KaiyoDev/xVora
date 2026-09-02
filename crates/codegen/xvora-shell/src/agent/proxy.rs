@@ -187,7 +187,7 @@ async fn tls_wrap(
     stream: TcpStream,
     server_name: &str,
 ) -> anyhow::Result<tokio_rustls::client::TlsStream<TcpStream>> {
-    let connector = tokio_rustls::TlsConnector::from(xvora_extra_ca::rustls_client_config());
+    let connector = tokio_rustls::TlsConnector::from(extra_ca::rustls_client_config());
     let dns_name = rustls::pki_types::ServerName::try_from(server_name.to_string())
         .map_err(|e| anyhow::anyhow!("Invalid TLS server name '{server_name}': {e}"))?;
 

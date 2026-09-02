@@ -1656,8 +1656,8 @@ mod tests {
 
     #[test]
     fn test_cleanup_worktrees_in_with_plain_worktrees() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
 
         let tmp = tempfile::TempDir::new().unwrap();
 
@@ -1688,8 +1688,8 @@ mod tests {
 
     #[test]
     fn test_cleanup_worktrees_in_with_nested_dirs() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
 
         let tmp = tempfile::TempDir::new().unwrap();
 
@@ -1795,8 +1795,8 @@ mod tests {
     /// be used only as a fallback, never invoked when the direct removal succeeds.
     #[test]
     fn remove_with_delegate_deregisters_plain_worktree_without_calling_delegate() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
         // Isolate GROK_HOME so the post-removal unregister writes to a private DB.
         #[cfg(feature = "metadata")]
         let _fx = crate::db::GrokHomeFixture::new();
@@ -1842,8 +1842,8 @@ mod tests {
 
     #[test]
     fn sibling_registration_not_removed() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
         #[cfg(feature = "metadata")]
         let _fx = crate::db::GrokHomeFixture::new();
 

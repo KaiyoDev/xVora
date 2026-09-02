@@ -121,8 +121,7 @@ async fn completion_and_cancel_arbitrate_during_cleanup() {
                 let (gateway_tx, mut gateway_rx) = mpsc::unbounded_channel();
                 let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
                 let lifecycle = std::rc::Rc::new(RecordingLifecycle::default());
-                let mut extensions =
-                    xvora_agent_lifecycle::LocalExtensionRegistryBuilder::default();
+                let mut extensions = agent_lifecycle::LocalExtensionRegistryBuilder::default();
                 extensions.turn_lifecycle_contributor(lifecycle.clone());
                 actor.extension_registry = extensions.build();
                 let actor = std::sync::Arc::new(actor);
@@ -248,8 +247,7 @@ async fn normal_completion_persists_turn_completed_after_buffered_delta_flush() 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             // Buffering is enabled with a long window so a streamed delta is HELD in the replay buffer until an explicit flush
             // That is the exact state the actor loop is in when a turn's completion arrives
@@ -373,7 +371,7 @@ async fn same_prompt_and_epoch_wrong_allocation_does_not_settle_successor() {
     local
         .run_until(async {
             let (gateway_tx, mut gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             let live_epoch = TurnEpoch::default();
@@ -435,8 +433,7 @@ async fn error_completion_persists_turn_completed_with_error_detail() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -497,8 +494,7 @@ async fn truncation_completion_stamps_error_kind_on_turn_completed_field() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -549,8 +545,7 @@ async fn generic_error_completion_omits_error_kind_on_turn_completed_field() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -594,8 +589,7 @@ async fn completion_without_elapsed_persists_none() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -641,8 +635,7 @@ async fn cancellation_persists_turn_completed_cancelled() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -694,8 +687,7 @@ async fn cancel_without_running_task_persists_none_elapsed() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -773,8 +765,7 @@ async fn send_now_cancel_in_completion_race_window_still_persists_turn_completed
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -815,7 +806,7 @@ async fn send_now_cancel_stamps_cancel_trigger_on_turn_end() {
     local
         .run_until(async {
             let (gateway_tx, mut gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -849,7 +840,7 @@ async fn send_now_cancel_stamps_cancel_trigger_on_turn_end() {
 
             let mut wire_meta = None;
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref() == "x.ai/session_notification"
                     && let Ok(v) =
                         serde_json::from_str::<serde_json::Value>(args.request.params.get())
@@ -890,8 +881,7 @@ async fn hook_denied_cancel_stamps_cancellation_category_on_turn_end() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -953,7 +943,7 @@ async fn no_output_rewind_cancel_emits_no_turn_completed() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -988,8 +978,7 @@ async fn removed_from_queue_completion_emits_no_turn_completed() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -1037,8 +1026,7 @@ async fn unknown_prompt_completion_emits_no_turn_completed() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 

@@ -73,8 +73,8 @@ pub(super) fn map_transport_failure(failure: crate::http::TransportFailure) -> M
         TransportFailureKind::CertificateUntrusted => {
             ManagedConfigError::CertificateUntrusted(policy::certificate_detail(
                 failure.detail,
-                xvora_extra_ca::configured_bundle_env(),
-                xvora_extra_ca::extra_root_ders().len(),
+                extra_ca::configured_bundle_env(),
+                extra_ca::extra_root_ders().len(),
             ))
         }
         TransportFailureKind::CertificateInvalid => {

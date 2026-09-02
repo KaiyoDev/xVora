@@ -1314,11 +1314,11 @@ impl MvpAgent {
     ///
     /// The session-based clause is load-bearing.
     /// Without it, chat_state can get locked into `auth_type = ApiKey` and skip token refresh on later prompts.
-    pub(crate) fn auth_type(&self) -> xvora_chat_state::AuthType {
+    pub(crate) fn auth_type(&self) -> chat_state::AuthType {
         if self.auth_manager.current().is_some() || self.is_session_based_auth() {
-            xvora_chat_state::AuthType::SessionToken
+            chat_state::AuthType::SessionToken
         } else {
-            xvora_chat_state::AuthType::ApiKey
+            chat_state::AuthType::ApiKey
         }
     }
     /// Fall through to `xvora.api_key` if the startup probe still allows it, else `grok.com`.
@@ -1973,17 +1973,17 @@ impl MvpAgent {
             session.as_ref().map(|a| a.key.as_str()),
         );
         if prefers_oidc && !model.has_own_credentials()
-            && credentials.auth_type == xvora_chat_state::AuthType::ApiKey
+            && credentials.auth_type == chat_state::AuthType::ApiKey
         {
             credentials.api_key = None;
-            credentials.auth_type = xvora_chat_state::AuthType::SessionToken;
+            credentials.auth_type = chat_state::AuthType::SessionToken;
         }
         crate::agent::config::enforce_disable_api_key_auth(
             &mut credentials,
             self.cfg.borrow().grok_com_config.api_key_auth_disabled(),
             session.as_ref().map(|a| a.key.as_str()),
         );
-        if !has_session_key && credentials.auth_type == xvora_chat_state::AuthType::ApiKey
+        if !has_session_key && credentials.auth_type == chat_state::AuthType::ApiKey
             && !model.has_own_credentials() && is_session_based_auth
         {
             tracing::info!(
@@ -1995,7 +1995,7 @@ impl MvpAgent {
                 None,
                 Some(serde_json::json!({ "model": model.info().model.as_str() })),
             );
-            credentials.auth_type = xvora_chat_state::AuthType::SessionToken;
+            credentials.auth_type = chat_state::AuthType::SessionToken;
         }
         if should_warn_missing_session(MissingSessionCtx {
             has_session_key,
@@ -3592,7 +3592,7 @@ impl MvpAgent {
         model: &str,
         base: u64,
         turns: Vec<Vec<xvora_sampling_types::conversation::ConversationItem>>,
-    ) -> Vec<(PromptTraceContext, PromptMetadata, xvora_chat_state::TurnCapture)> {
+    ) -> Vec<(PromptTraceContext, PromptMetadata, chat_state::TurnCapture)> {
         let mut uploads = Vec::with_capacity(turns.len());
         for (offset, items) in turns.into_iter().enumerate() {
             let turn_number = base.saturating_add(offset as u64);
@@ -3627,7 +3627,7 @@ impl MvpAgent {
                 sandbox: local_sandbox_telemetry(),
                 ..Default::default()
             });
-            let capture = xvora_chat_state::TurnCapture {
+            let capture = chat_state::TurnCapture {
                 messages: items,
                 compaction_occurred: false,
             };
@@ -3892,13 +3892,13 @@ impl MvpAgent {
         meta: Option<&acp::Meta>,
         init: &acp::InitializeRequest,
     ) -> bool {
-        meta.and_then(|m| m.get(xvora_status_line::CLIENT_STATUS_LINE_META))
+        meta.and_then(|m| m.get(status_line::CLIENT_STATUS_LINE_META))
             .or_else(|| {
                 init
                     .client_capabilities
                     .meta
                     .as_ref()
-                    .and_then(|m| m.get(xvora_status_line::STATUS_LINE_CAPABILITY))
+                    .and_then(|m| m.get(status_line::STATUS_LINE_CAPABILITY))
             })
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
@@ -4557,7 +4557,7 @@ impl MvpAgent {
         let (mut handle, permission_events_rx, agent_system_prompt, session_thread) = {
             let _timer = crate::instrumentation_timer!("session.spawn_actor_call");
             let session_key = self.auth_manager.current_or_expired().map(|a| a.key);
-            let credentials = xvora_chat_state::Credentials {
+            let credentials = chat_state::Credentials {
                 api_key: sampling_config.api_key.clone(),
                 auth_type: crate::agent::config::resolve_chat_state_auth_type(
                     sampling_config.model.as_str(),

@@ -63,7 +63,7 @@ impl SessionActor {
             sampling_client.api_backend(),
             reasoning_effort,
         ) {
-            items = xvora_chat_state::compaction_utils::strip_reasoning_blocks(items);
+            items = chat_state::compaction_utils::strip_reasoning_blocks(items);
         }
 
         // /btw fires mid-turn, so the snapshot may end with an assistant message whose tool_calls have no matching ToolResult yet.

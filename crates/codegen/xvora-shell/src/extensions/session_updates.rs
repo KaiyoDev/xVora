@@ -280,7 +280,7 @@ fn extract_last_event_id<T: AsRef<str>>(lines: &[T]) -> Option<String> {
 /// Send updates as chunked `_x.ai/session/updates/chunk` notifications.
 /// Injects routing metadata when `target_client_id` is set.
 fn send_streamed_chunks<T: AsRef<str>>(
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
     session_id: &str,
     lines: &[T],
     chunk_size: usize,
@@ -317,10 +317,7 @@ fn send_streamed_chunks<T: AsRef<str>>(
 }
 
 /// Inline sync I/O (`spawn_blocking` is slow on a `current_thread` runtime with a `LocalSet`).
-pub async fn handle(
-    args: &acp::ExtRequest,
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
-) -> ExtResult {
+pub async fn handle(args: &acp::ExtRequest, gateway: &acp_lib::AcpAgentGatewaySender) -> ExtResult {
     let _timer = crate::instrumentation_timer!("session.ext.bulk_updates");
 
     let request: Request = serde_json::from_str(args.params.get())
@@ -489,9 +486,9 @@ mod tests {
         serde_json::from_str(response.0.get()).unwrap()
     }
 
-    fn dummy_gateway() -> xvora_acp_lib::AcpAgentGatewaySender {
+    fn dummy_gateway() -> acp_lib::AcpAgentGatewaySender {
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        xvora_acp_lib::AcpAgentGatewaySender::new(tx)
+        acp_lib::AcpAgentGatewaySender::new(tx)
     }
 
     fn make_request(
@@ -659,11 +656,11 @@ mod tests {
     }
 
     fn capturing_gateway() -> (
-        xvora_acp_lib::AcpAgentGatewaySender,
-        tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+        acp_lib::AcpAgentGatewaySender,
+        tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     ) {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        (xvora_acp_lib::AcpAgentGatewaySender::new(tx), rx)
+        (acp_lib::AcpAgentGatewaySender::new(tx), rx)
     }
 
     fn make_stream_request(
@@ -688,11 +685,11 @@ mod tests {
     }
 
     fn extract_chunk_params(
-        rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+        rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     ) -> Vec<serde_json::Value> {
         let mut chunks = Vec::new();
         while let Ok(msg) = rx.try_recv() {
-            if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg {
+            if let acp_lib::AcpClientMessage::ExtNotification(args) = msg {
                 let params: serde_json::Value =
                     serde_json::from_str(args.request.params.get()).unwrap();
                 chunks.push(params);

@@ -103,7 +103,7 @@ fn external_stream_gates_on_end_to_end() {
     });
     xvora_telemetry::log_event(xvora_telemetry::events::ToolCallCompleted {
         tool_name: "github__create_issue".into(),
-        outcome: xvora_session_events::types::ToolOutcome::Success,
+        outcome: session_events::types::ToolOutcome::Success,
         hook_rewrote: false,
         duration_ms: 12,
         tool_result_size_bytes: None,

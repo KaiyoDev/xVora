@@ -48,11 +48,11 @@ use xvora_tools::util::{ProcessGroup, ProcessScope};
 /// Canonical definition lives in `xvora_workspace_types`; re-exported here for callers that historically imported it from this module.
 pub use xvora_workspace_types::MCP_TOOL_NAME_DELIMITER;
 
-/// Reqwest 0.13 twin of the 0.12 adapters in `xvora_extra_ca`.
+/// Reqwest 0.13 twin of the 0.12 adapters in `extra_ca`.
 fn with_extra_root_certificates(mut builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
     builder = builder.tls_backend_rustls();
-    for der in xvora_extra_ca::extra_root_ders() {
+    for der in extra_ca::extra_root_ders() {
         match reqwest::Certificate::from_der(der) {
             Ok(cert) => builder = builder.add_root_certificate(cert),
             Err(e) => tracing::warn!(
@@ -460,7 +460,7 @@ pub struct McpState {
     pub disabled_tools: HashMap<McpServerName, std::collections::HashSet<ToolName>>,
     /// Stashed registrations for disabled tools so they can be re-enabled without a full MCP re-init (no need to call `list_tools` again).
     pub disabled_tool_registrations: HashMap<String, McpToolRegistration>,
-    event_writer: xvora_session_events::EventWriter,
+    event_writer: session_events::EventWriter,
     /// Sender wired by the session actor to its `StatusDispatcher` task.
     /// When `Some`, the state and every [`McpClient`] reached through [`Self::all_clients`] / [`Self::get_client`] forward [`McpClientEvent`]s here.
     /// Events are coalesced and fanned out as ACP `x.ai/mcp/server_status` notifications.
@@ -499,7 +499,7 @@ impl McpState {
             unreachable_attempt_counter: 0,
             disabled_tools: HashMap::new(),
             disabled_tool_registrations: HashMap::new(),
-            event_writer: xvora_session_events::EventWriter::noop(),
+            event_writer: session_events::EventWriter::noop(),
             client_event_tx: None,
             elicitation_job_tx: None,
         }
@@ -542,11 +542,11 @@ impl McpState {
         self.elicitation_job_tx.clone()
     }
 
-    pub fn set_event_writer(&mut self, writer: xvora_session_events::EventWriter) {
+    pub fn set_event_writer(&mut self, writer: session_events::EventWriter) {
         self.event_writer = writer;
     }
 
-    pub fn event_writer(&self) -> &xvora_session_events::EventWriter {
+    pub fn event_writer(&self) -> &session_events::EventWriter {
         &self.event_writer
     }
 
@@ -1235,8 +1235,8 @@ impl McpError {
         matches!(self, Self::Timeout { .. })
     }
 
-    pub fn error_category(&self) -> xvora_session_events::McpErrorCategory {
-        use xvora_session_events::McpErrorCategory;
+    pub fn error_category(&self) -> session_events::McpErrorCategory {
+        use session_events::McpErrorCategory;
         match self {
             Self::SpawnFailed { .. } => McpErrorCategory::SpawnFailed,
             Self::Timeout { .. } => McpErrorCategory::Timeout,
@@ -1596,7 +1596,7 @@ impl tool_runtime::Tool for McpErasedTool {
         let tool = &self.tool.name;
         let tool_timeout = client.tool_timeout_for(tool);
         let qualified_name = format!("{}{}{}", server, MCP_TOOL_NAME_DELIMITER, tool);
-        event_writer.emit(xvora_session_events::Event::McpToolCallStarted {
+        event_writer.emit(session_events::Event::McpToolCallStarted {
             server_name: server.clone(),
             tool_name: tool.clone(),
             call_id: qualified_name.clone(),
@@ -1615,7 +1615,7 @@ impl tool_runtime::Tool for McpErasedTool {
             Err(first_err) if client.has_auth() => {
                 auth_retry_attempted = true;
                 let reauth_ok = client.force_reauth(false).await;
-                ew.emit(xvora_session_events::Event::McpAuthRetry {
+                ew.emit(session_events::Event::McpAuthRetry {
                     server_name: server.clone(),
                     trigger: "tool_call_failed".to_string(),
                     success: reauth_ok,
@@ -1639,7 +1639,7 @@ impl tool_runtime::Tool for McpErasedTool {
         let call_result = match dispatch_result {
             Ok(result) => result,
             Err(e) => {
-                ew.emit(xvora_session_events::Event::McpToolCallCompleted {
+                ew.emit(session_events::Event::McpToolCallCompleted {
                     server_name: server.clone(),
                     tool_name: tool.clone(),
                     call_id: qualified_name,
@@ -1716,7 +1716,7 @@ impl tool_runtime::Tool for McpErasedTool {
         } else {
             None
         };
-        event_writer.emit(xvora_session_events::Event::McpToolCallCompleted {
+        event_writer.emit(session_events::Event::McpToolCallCompleted {
             server_name: server.clone(),
             tool_name: tool.clone(),
             call_id: qualified_name.clone(),
@@ -1799,7 +1799,7 @@ impl McpErasedTool {
         raw: &serde_json::Value,
         reconnect_attempted: &mut bool,
         is_timeout: &mut bool,
-        ew: &xvora_session_events::EventWriter,
+        ew: &session_events::EventWriter,
     ) -> Result<rmcp::model::CallToolResult, tool_runtime::ToolError> {
         let mcp_service = client
             .ensure_initialized()
@@ -1867,7 +1867,7 @@ impl McpErasedTool {
         original_err: ServiceError,
         reconnect_attempted: &mut bool,
         is_timeout: &mut bool,
-        ew: &xvora_session_events::EventWriter,
+        ew: &session_events::EventWriter,
     ) -> Result<rmcp::model::CallToolResult, tool_runtime::ToolError> {
         *reconnect_attempted = true;
         tracing::warn!(
@@ -1876,14 +1876,14 @@ impl McpErasedTool {
             error = %original_err,
             "MCP transport error, attempting reconnect"
         );
-        ew.emit(xvora_session_events::Event::McpTransportError {
+        ew.emit(session_events::Event::McpTransportError {
             server_name: self.tool.server_name.clone(),
             tool_name: self.tool.name.clone(),
             error: original_err.to_string(),
         });
         let mcp_service = match client.recover().await {
             Ok(service) => {
-                ew.emit(xvora_session_events::Event::McpTransportReconnect {
+                ew.emit(session_events::Event::McpTransportReconnect {
                     server_name: self.tool.server_name.clone(),
                     success: true,
                     error: None,
@@ -1891,7 +1891,7 @@ impl McpErasedTool {
                 service
             }
             Err(e) => {
-                ew.emit(xvora_session_events::Event::McpTransportReconnect {
+                ew.emit(session_events::Event::McpTransportReconnect {
                     server_name: self.tool.server_name.clone(),
                     success: false,
                     error: Some(e.to_string()),
@@ -2159,7 +2159,7 @@ async fn decide_http_auth_over_network(
                     "OAuth discovery timed out"
                 );
                 ctx.event_writer
-                    .emit(xvora_session_events::Event::McpOAuthDiscoveryTimeout {
+                    .emit(session_events::Event::McpOAuthDiscoveryTimeout {
                         server_name: server_name.to_string(),
                         url: url.to_string(),
                     });
@@ -2195,7 +2195,7 @@ async fn decide_http_auth_over_network(
                 }
             };
             ctx.event_writer
-                .emit(xvora_session_events::Event::McpOAuthProbeResolved {
+                .emit(session_events::Event::McpOAuthProbeResolved {
                     server_name: server_name.to_string(),
                     verdict: verdict.to_string(),
                 });
@@ -2243,7 +2243,7 @@ where
     /// It also lets `close` drop the writer; mirrors rmcp's own `AsyncRwTransport`.
     write: Arc<Mutex<Option<W>>>,
     server_name: String,
-    event_writer: xvora_session_events::EventWriter,
+    event_writer: session_events::EventWriter,
 }
 
 /// Max bytes of an offending line copied into the decode-error event.
@@ -2268,7 +2268,7 @@ where
         read: R,
         write: W,
         server_name: String,
-        event_writer: xvora_session_events::EventWriter,
+        event_writer: session_events::EventWriter,
     ) -> Self {
         Self {
             read: BufReader::new(read),
@@ -2292,7 +2292,7 @@ where
             "Skipping undecodable MCP stdout line; keeping transport alive",
         );
         self.event_writer
-            .emit(xvora_session_events::Event::McpTransportDecodeError {
+            .emit(session_events::Event::McpTransportDecodeError {
                 server_name: self.server_name.clone(),
                 error: err.to_string(),
                 sample,
@@ -2450,7 +2450,7 @@ impl SafeTokioChildProcess {
         mut cmd: Command,
         scope: Option<&ProcessScope>,
         server_name: String,
-        event_writer: xvora_session_events::EventWriter,
+        event_writer: session_events::EventWriter,
     ) -> std::io::Result<(Self, Option<ChildStderr>)> {
         cmd.stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
@@ -4405,7 +4405,7 @@ fn apply_stdio_env(cmd: &mut Command, env: &[acp::EnvVariable], session_id: Opti
 /// Borrowed cross-cutting spawn context whose `scope`, when set, enrolls the stdio child for session-close reaping.
 pub struct McpSpawnCtx<'a> {
     pub(crate) session_id: Option<&'a str>,
-    pub(crate) event_writer: &'a xvora_session_events::EventWriter,
+    pub(crate) event_writer: &'a session_events::EventWriter,
     pub(crate) mode: OauthInteractivity,
     pub(crate) scope: Option<&'a ProcessScope>,
     pub(crate) discovery: McpOauthDiscovery,
@@ -4414,7 +4414,7 @@ pub struct McpSpawnCtx<'a> {
 impl<'a> McpSpawnCtx<'a> {
     pub fn for_session(
         session_id: &'a str,
-        event_writer: &'a xvora_session_events::EventWriter,
+        event_writer: &'a session_events::EventWriter,
         mode: OauthInteractivity,
         scope: Option<&'a ProcessScope>,
     ) -> Self {
@@ -4427,7 +4427,7 @@ impl<'a> McpSpawnCtx<'a> {
         }
     }
 
-    pub fn standalone(event_writer: &'a xvora_session_events::EventWriter) -> Self {
+    pub fn standalone(event_writer: &'a session_events::EventWriter) -> Self {
         Self {
             session_id: None,
             event_writer,

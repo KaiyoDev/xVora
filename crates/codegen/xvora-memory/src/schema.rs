@@ -16,7 +16,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// `dimensions` controls the embedding vector size for `chunks_vec`.
 /// If `vec_available` is false, the `chunks_vec` table is not created.
 ///
-/// Connection pragmas (busy_timeout, journal_mode) are applied on the open path (`xvora_sqlite_journal::JournalMode::open`).
+/// Connection pragmas (busy_timeout, journal_mode) are applied on the open path (`sqlite_journal::JournalMode::open`).
 /// The journal mode depends on the database's filesystem.
 pub fn schema_sql(dimensions: usize, vec_available: bool) -> String {
     let mut sql = format!(

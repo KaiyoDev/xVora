@@ -5,12 +5,12 @@ use std::time::Duration;
 
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+use workflow::{AgentOpts, AgentResult, BudgetState, HostError, WorkflowHostRequest};
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::types::{
     ModelOverrideProvenance, SubagentCancelRequest, SubagentCancelTarget, SubagentEvent,
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
 };
-use xvora_workflow::{AgentOpts, AgentResult, BudgetState, HostError, WorkflowHostRequest};
 
 use super::notify::WorkflowNotifySender;
 use super::schema_contract::{
@@ -19,7 +19,7 @@ use super::schema_contract::{
 use super::tracker::WorkflowTracker;
 
 pub(crate) const WORKFLOW_MAX_AGENT_RUNS: u32 =
-    (xvora_workflow::MAX_AGENT_BUDGET as u32) * (SCHEMA_CONTRACT_RETRIES + 1);
+    (workflow::MAX_AGENT_BUDGET as u32) * (SCHEMA_CONTRACT_RETRIES + 1);
 pub(crate) const DEFAULT_WORKFLOW_MAX_CONCURRENT_AGENTS: usize = 32;
 
 /// The configured cap clamped to the machine's parallelism, so small hosts run fewer agents at once.
@@ -989,7 +989,7 @@ mod tests {
         let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel();
         let notify = WorkflowNotifySender::new(
             agent_client_protocol::SessionId::new("test-session"),
-            xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+            acp_lib::AcpAgentGatewaySender::new(gateway_tx),
             persist_tx,
             store.clone(),
         );

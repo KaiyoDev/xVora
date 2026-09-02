@@ -29,8 +29,8 @@ use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
 use crate::client_identity::{HEADLESS_CLIENT_TYPE, PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
+use acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
 use xvora_shell::agent::auth_method::AuthMethodKind;
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::sampling::types::ReasoningEffort;
@@ -494,7 +494,7 @@ fn client_capabilities_meta(flags: &ConnectFlags) -> serde_json::Value {
         "x.ai/bashOutputNoColor": true,
         "x.ai/gitHeadChanged": true,
     });
-    meta[xvora_status_line::STATUS_LINE_CAPABILITY] = flags.status_line.into();
+    meta[status_line::STATUS_LINE_CAPABILITY] = flags.status_line.into();
     meta
 }
 
@@ -1148,7 +1148,7 @@ mod tests {
     /// The agent gates the whole payload on this key, so a misspelling on either side switches the feature off with nothing to show for it.
     #[test]
     fn client_capabilities_meta_advertises_the_status_line_the_config_asked_for() {
-        let key = xvora_status_line::STATUS_LINE_CAPABILITY;
+        let key = status_line::STATUS_LINE_CAPABILITY;
         for wants_a_row in [true, false] {
             let meta = client_capabilities_meta(&ConnectFlags {
                 status_line: wants_a_row,

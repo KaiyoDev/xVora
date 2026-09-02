@@ -23,7 +23,7 @@ mod search_content;
 pub(crate) mod summary_write;
 
 /// The session search index moved to its own crate; re-exported here so `session::storage::search_fts::…` keeps resolving for its consumers.
-pub use xvora_session_search::fts as search_fts;
+pub use session_search::fts as search_fts;
 
 /// On-disk file names, relative to a session directory.
 /// Single source of truth for the storage adapter and the session/state and session/import extensions.
@@ -1061,7 +1061,7 @@ pub enum AppendChatError {
 pub enum AppendCwdSwitchError {
     NotCommitted(io::Error),
     Committed {
-        acknowledgement: xvora_chat_state::StrictAppendAck,
+        acknowledgement: chat_state::StrictAppendAck,
         source: io::Error,
     },
 }
@@ -1220,7 +1220,7 @@ pub trait StorageAdapter: Send + Sync {
         &self,
         _info: &Info,
         _message: &ConversationItem,
-    ) -> Result<xvora_chat_state::StrictAppendAck, AppendCwdSwitchError> {
+    ) -> Result<chat_state::StrictAppendAck, AppendCwdSwitchError> {
         Err(AppendCwdSwitchError::NotCommitted(io::Error::new(
             io::ErrorKind::Unsupported,
             "working-directory switch append is unsupported",

@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use xvora_sqlite_journal::JournalMode;
+use sqlite_journal::JournalMode;
 
 use super::WorkspaceStore;
 use crate::error::{Result, classify_open_error};

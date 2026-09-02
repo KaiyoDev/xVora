@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use xvora_status_line::StatusLineContext;
+use status_line::StatusLineContext;
 
 use crate::views::status_line::{MAX_STATUS_LINE_LINES, RowSize};
 

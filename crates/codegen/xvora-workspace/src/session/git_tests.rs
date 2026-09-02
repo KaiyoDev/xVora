@@ -1519,7 +1519,7 @@ async fn get_current_commit_reads_head_from_refs() {
 /// libgit2's status tolerates a missing HEAD tree (it diffs against an empty tree), so the refs-only OID read supplies the hash.
 #[tokio::test]
 async fn status_reports_head_oid_when_object_missing() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let tmp = tempfile::tempdir().expect("tempdir");
     let (repo, _) = init_git2_repo_with_commit(tmp.path());
     point_head_at_missing_object(&repo, MISSING_OID);
@@ -1540,7 +1540,7 @@ async fn status_reports_head_oid_when_object_missing() {
 /// The fast path falls through to the repair fetch, which fails here because the repo has no origin.
 #[tokio::test]
 async fn checkout_commit_with_fetch_repairs_missing_head_object() {
-    xvora_test_utils::require_git!();
+    test_utils::require_git!();
     let tmp = tempfile::tempdir().expect("tempdir");
     let (repo, _) = init_git2_repo_with_commit(tmp.path());
     point_head_at_missing_object(&repo, MISSING_OID);

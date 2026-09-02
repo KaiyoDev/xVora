@@ -229,7 +229,7 @@ fn shutdown_with_terminal_restore(exit_code: i32) -> ! {
     TERMINAL_OWNED.store(false, Ordering::Release);
     // Best-effort unregister (non-blocking flock to avoid hanging).
     if let Some(ref sid) = *CURRENT_SESSION_ID.lock() {
-        let _ = xvora_active_sessions::try_unregister(sid);
+        let _ = active_sessions::try_unregister(sid);
     }
     flush_telemetry_and_exit(exit_code);
 }

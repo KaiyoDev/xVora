@@ -933,7 +933,7 @@ pub(crate) async fn upload_permission_events(
 }
 pub(crate) async fn upload_turn_messages(
     ctx: &PromptTraceContext,
-    _capture: xvora_chat_state::TurnCapture,
+    _capture: chat_state::TurnCapture,
     _wait: UploadWait,
 ) -> bool {
     super::manifest::skip_artifact(
@@ -1016,10 +1016,10 @@ pub(crate) async fn build_chat_history_session_state(
     }
 }
 pub(crate) async fn build_chat_history_then_move_capture(
-    capture: xvora_chat_state::TurnCapture,
+    capture: chat_state::TurnCapture,
 ) -> (
     Result<Vec<u8>, SessionStateBuildError>,
-    xvora_chat_state::TurnCapture,
+    chat_state::TurnCapture,
 ) {
     let session_state = build_chat_history_session_state(&capture.messages).await;
     (session_state, capture)

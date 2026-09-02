@@ -512,7 +512,7 @@
 
         let mut leave_auto_notifs = 0;
         while let Ok(msg) = rx.try_recv() {
-            if let xvora_acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
+            if let acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
                 if args.request.method.as_ref() != "x.ai/yolo_mode_changed" {
                     continue;
                 }

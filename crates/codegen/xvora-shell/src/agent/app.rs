@@ -7,6 +7,10 @@ use crate::auth::AuthMode;
 use crate::auth::{AuthManager, GrokAuth, GrokComConfig, run_auth_flow};
 use crate::leader::protocol::InternalMethod;
 use crate::util::grok_home;
+use acp_lib::{
+    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
+    LineBufferedRead,
+};
 use agent_client_protocol as acp;
 use parking_lot::Mutex;
 use std::pin::Pin;
@@ -18,10 +22,6 @@ use tokio::sync::{Mutex as TokioMutex, mpsc};
 use tokio::time::Duration;
 use tokio_util::compat::{TokioAsyncReadCompatExt as _, TokioAsyncWriteCompatExt as _};
 use tracing::{debug, info, warn};
-use xvora_acp_lib::{
-    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
-    LineBufferedRead,
-};
 const MAX_BUFFER_SIZE: usize = 8 * 1024 * 1024;
 use indexmap::IndexMap;
 /// Configuration for periodic auto-update checking in leader mode.
@@ -260,7 +260,7 @@ pub async fn run_stdio_agent(
     let acp_incoming_tx = Arc::new(TokioMutex::new(acp_incoming_tx));
     let stdin_tx = acp_incoming_tx.clone();
     let (stdin_closed_tx, stdin_closed_rx) = tokio::sync::oneshot::channel();
-    let mut stdin_lines = xvora_acp_lib::spawn_stdin_line_reader();
+    let mut stdin_lines = acp_lib::spawn_stdin_line_reader();
     tokio::spawn(async move {
         while let Some(line) = stdin_lines.recv().await {
             let mut tx = stdin_tx.lock().await;

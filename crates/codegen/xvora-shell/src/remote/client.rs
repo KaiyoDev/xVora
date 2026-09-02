@@ -285,7 +285,7 @@ impl Default for BackendClient {
 }
 impl BackendClient {
     fn build_default_client() -> reqwest::Client {
-        xvora_extra_ca::build_reqwest_client(|builder| {
+        extra_ca::build_reqwest_client(|builder| {
                 builder.connect_timeout(Duration::from_secs(10)).timeout(DEFAULT_TIMEOUT)
             })
             .unwrap_or_else(|e| {

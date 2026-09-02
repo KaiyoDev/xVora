@@ -24,7 +24,7 @@ pub(super) type CapturedRetries =
     Arc<std::sync::Mutex<Vec<crate::extensions::notification::RetryState>>>;
 
 pub(super) fn drain_gateway(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> CapturedRetries {
     use crate::extensions::notification::{SessionNotification, SessionUpdate};
     let captured: CapturedRetries = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -32,10 +32,10 @@ pub(super) fn drain_gateway(
     tokio::task::spawn_local(async move {
         while let Some(msg) = rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.method.as_ref() == "x.ai/session_notification" =>
                 {
                     if let Ok(SessionNotification {

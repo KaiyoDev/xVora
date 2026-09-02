@@ -1373,7 +1373,7 @@ pub enum Effect {
     /// Scan enabled foreign session stores without delaying the native list.
     ScanForeignSessions {
         cwd: std::path::PathBuf,
-        compat: xvora_foreign_sessions::EnabledForeignSessionSources,
+        compat: foreign_sessions::EnabledForeignSessionSources,
         grok_home: std::path::PathBuf,
         coordinator: crate::app::ForeignScanCoordinator,
         seq: u64,
@@ -1386,7 +1386,7 @@ pub enum Effect {
     /// Detect the newest resumable foreign session without delaying first paint.
     DetectForeignResumeHint {
         canonical_cwd: std::path::PathBuf,
-        compat: xvora_foreign_sessions::EnabledForeignSessionSources,
+        compat: foreign_sessions::EnabledForeignSessionSources,
         grok_home: std::path::PathBuf,
         launch_token: u64,
     },
@@ -1430,8 +1430,8 @@ pub enum Effect {
     LoadWorkspaceSnapshot { db_path: std::path::PathBuf },
     /// Apply one coalesced dashboard-v2 adoption/metadata batch through the process-owned store connection.
     UpsertWorkspaceMembers {
-        store: xvora_dashboard_store::WorkspaceStore,
-        members: Vec<xvora_dashboard_store::NewMember>,
+        store: dashboard_store::WorkspaceStore,
+        members: Vec<dashboard_store::NewMember>,
     },
     /// Load card detail for a specific session (lazy, reads chat history from disk).
     LoadCardDetail {
@@ -2296,7 +2296,7 @@ pub enum TaskResult {
     ForeignResumeHintDetected {
         canonical_cwd: std::path::PathBuf,
         launch_token: u64,
-        hint: Option<xvora_foreign_sessions::RecentForeignSession>,
+        hint: Option<foreign_sessions::RecentForeignSession>,
     },
     /// Session list fetch failed.
     SessionListFailed {
@@ -2337,8 +2337,8 @@ pub enum TaskResult {
     },
     /// Dashboard v2's process-owned store and initial consistent view.
     WorkspaceSnapshotLoaded {
-        store: xvora_dashboard_store::WorkspaceStore,
-        snapshot: xvora_dashboard_store::WorkspaceSnapshot,
+        store: dashboard_store::WorkspaceStore,
+        snapshot: dashboard_store::WorkspaceSnapshot,
     },
     /// Dashboard v2 store open or initial snapshot failed.
     WorkspaceSnapshotFailed {
@@ -2346,10 +2346,10 @@ pub enum TaskResult {
     },
     /// A dashboard-v2 write batch finished and returned the sole store handle.
     WorkspaceMembersUpserted {
-        store: xvora_dashboard_store::WorkspaceStore,
-        snapshot: Result<xvora_dashboard_store::WorkspaceSnapshot, String>,
+        store: dashboard_store::WorkspaceStore,
+        snapshot: Result<dashboard_store::WorkspaceSnapshot, String>,
         failures: Vec<WorkspaceMemberUpsertFailure>,
-        attempted: Vec<xvora_dashboard_store::NewMember>,
+        attempted: Vec<dashboard_store::NewMember>,
     },
     /// The blocking workspace writer panicked or was cancelled, losing its moved handle; reopen the store before any further writes.
     WorkspaceMembersUpsertTaskFailed {

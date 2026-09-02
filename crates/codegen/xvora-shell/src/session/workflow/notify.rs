@@ -10,7 +10,7 @@ use super::tracker::WorkflowRunState;
 #[derive(Clone)]
 pub(crate) struct WorkflowNotifySender {
     session_id: agent_client_protocol::SessionId,
-    gateway: xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: acp_lib::AcpAgentGatewaySender,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
     store: WorkflowRunStore,
 }
@@ -18,7 +18,7 @@ pub(crate) struct WorkflowNotifySender {
 impl WorkflowNotifySender {
     pub(crate) fn new(
         session_id: agent_client_protocol::SessionId,
-        gateway: xvora_acp_lib::AcpAgentGatewaySender,
+        gateway: acp_lib::AcpAgentGatewaySender,
         persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
         store: WorkflowRunStore,
     ) -> Self {
@@ -190,15 +190,15 @@ mod tests {
             "demo".into(),
             "obj".into(),
             vec![
-                xvora_workflow::PhaseMeta {
+                workflow::PhaseMeta {
                     title: "Plan".into(),
                     detail: None,
                 },
-                xvora_workflow::PhaseMeta {
+                workflow::PhaseMeta {
                     title: "Execute".into(),
                     detail: None,
                 },
-                xvora_workflow::PhaseMeta {
+                workflow::PhaseMeta {
                     title: "Verify".into(),
                     detail: None,
                 },
@@ -233,11 +233,11 @@ mod tests {
             "demo".into(),
             "obj".into(),
             vec![
-                xvora_workflow::PhaseMeta {
+                workflow::PhaseMeta {
                     title: "Plan".into(),
                     detail: None,
                 },
-                xvora_workflow::PhaseMeta {
+                workflow::PhaseMeta {
                     title: "Verify".into(),
                     detail: None,
                 },
@@ -248,7 +248,7 @@ mod tests {
         t.set_phase("wf_2", "Verify");
         t.apply_outcome(
             "wf_2",
-            &xvora_workflow::WorkflowOutcome::Completed {
+            &workflow::WorkflowOutcome::Completed {
                 result: serde_json::json!("done"),
             },
         );

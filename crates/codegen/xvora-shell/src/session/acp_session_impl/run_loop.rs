@@ -207,7 +207,7 @@ async fn emit_session_end_timings(timer: &SharedSessionEndTimer, is_subagent: bo
 pub(super) async fn run_session(
     session: Arc<SessionActor>,
     mut cmd_rx: mpsc::UnboundedReceiver<SessionCommand>,
-    mut chat_state_event_rx: mpsc::UnboundedReceiver<xvora_chat_state::ChatStateEvent>,
+    mut chat_state_event_rx: mpsc::UnboundedReceiver<chat_state::ChatStateEvent>,
     mut event_rx: mpsc::UnboundedReceiver<SessionEvent>,
     fs_notify_config: Option<ClientFsConfig>,
     codebase_indexes: std::sync::Arc<parking_lot::Mutex<CodebaseIndexManager>>,
@@ -436,7 +436,7 @@ pub(super) async fn run_session(
                 // Events from the ChatStateActor that the session loop must react to
                 event = chat_state_event_rx.recv() => {
                     match event {
-                        Some(xvora_chat_state::ChatStateEvent::ConversationReset { new_len }) => {
+                        Some(chat_state::ChatStateEvent::ConversationReset { new_len }) => {
                             // Reset idle-flush counter so next idle period flushes the new state.
                             session.last_idle_flush_conversation_len
                                 .store(new_len, std::sync::atomic::Ordering::Relaxed);
@@ -444,7 +444,7 @@ pub(super) async fn run_session(
                             session.memory.context_injected
                                 .store(false, std::sync::atomic::Ordering::Relaxed);
                         }
-                        Some(xvora_chat_state::ChatStateEvent::ImageBudget {
+                        Some(chat_state::ChatStateEvent::ImageBudget {
                             body_bytes,
                             trigger_bytes,
                             reclaim_target_bytes,
@@ -469,8 +469,8 @@ pub(super) async fn run_session(
                                 })),
                             );
                         }
-                        Some(xvora_chat_state::ChatStateEvent::PromptIndexChanged { .. }) |
-                        Some(xvora_chat_state::ChatStateEvent::TokensUpdated { .. }) => {
+                        Some(chat_state::ChatStateEvent::PromptIndexChanged { .. }) |
+                        Some(chat_state::ChatStateEvent::TokensUpdated { .. }) => {
                             // Prompt index and token updates are informational; consumers query the actor directly when they need them
                         }
                         None => {
@@ -723,7 +723,7 @@ pub(super) async fn run_session(
 
                                 let existing = session.chat_state_handle.get_credentials().await;
                                 if let Some(r) = crate::agent::config::try_resolve_model_credentials(model_name.as_str(), existing.api_key.as_deref()) {
-                                    session.chat_state_handle.update_credentials(xvora_chat_state::Credentials {
+                                    session.chat_state_handle.update_credentials(chat_state::Credentials {
                                         api_key: r.api_key,
                                         auth_type: r.auth_type,
                                         alpha_test_key: existing.alpha_test_key,
@@ -1369,7 +1369,7 @@ pub(super) async fn run_session(
                             });
                         }
                         SessionCommand::ToggleMcpServer { server_name, enabled, server_config, respond_to } => {
-                            session.events.emit(xvora_session_events::Event::McpServerToggled {
+                            session.events.emit(session_events::Event::McpServerToggled {
                                 server_name: server_name.clone(),
                                 enabled,
                             });
@@ -2266,7 +2266,7 @@ pub(super) fn turn_texts_for_feedback(
         return (None, None);
     };
     let raw = conversation[start].text_content();
-    let extracted = xvora_chat_state::compaction_utils::extract_user_query(&raw);
+    let extracted = chat_state::compaction_utils::extract_user_query(&raw);
     let user_text = (!extracted.is_empty()).then_some(extracted);
     let assistant_text = conversation
         .iter()

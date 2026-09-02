@@ -209,7 +209,7 @@ pub(super) fn dispatch_open_dashboard(app: &mut AppView) -> Vec<Effect> {
             return vec![];
         }
         app.workspace_store_loading = true;
-        let db_path = xvora_dashboard_store::default_db_path(&xvora_config::grok_home());
+        let db_path = dashboard_store::default_db_path(&xvora_config::grok_home());
         return vec![Effect::LoadWorkspaceSnapshot { db_path }];
     }
     app.dashboard_sessions_loading = true;

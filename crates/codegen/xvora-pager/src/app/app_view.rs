@@ -17,13 +17,13 @@ use crate::render::draw::CursorState;
 use crate::scrollback::render::ScratchBuffer;
 use crate::views::prompt_widget::PromptWidget;
 use crate::views::welcome::WelcomePromptFocus;
+use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use crossterm::event::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind};
 use indexmap::IndexMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use xvora_acp_lib::AcpAgentTx;
 /// State for the "New Worktree" popup dialog on the welcome screen.
 #[derive(Debug, Default)]
 pub struct NewWorktreeDialogState {
@@ -718,9 +718,9 @@ pub struct AppView {
     pub dashboard_sessions_loading: bool,
     /// The single SQLite workspace connection owned by this pager process.
     /// Opened lazily, only after dashboard v2 is entered.
-    pub workspace_store: Option<xvora_dashboard_store::WorkspaceStore>,
+    pub workspace_store: Option<dashboard_store::WorkspaceStore>,
     /// Initial workspace view read from [`Self::workspace_store`].
-    pub workspace_snapshot: Option<xvora_dashboard_store::WorkspaceSnapshot>,
+    pub workspace_snapshot: Option<dashboard_store::WorkspaceSnapshot>,
     /// Prevents duplicate open/snapshot effects while the first read is pending.
     pub workspace_store_loading: bool,
     /// Agent metadata changed after workspace initialization and needs a scan.
@@ -730,16 +730,12 @@ pub struct AppView {
     /// A newer read-only schema was opened; suppress writes but keep reads.
     pub workspace_writes_disabled: bool,
     /// Exact metadata payloads that have consumed their one automatic retry.
-    pub workspace_retry_metadata: std::collections::HashMap<
-        xvora_dashboard_store::SessionId,
-        xvora_dashboard_store::MemberMetadata,
-    >,
+    pub workspace_retry_metadata:
+        std::collections::HashMap<dashboard_store::SessionId, dashboard_store::MemberMetadata>,
     /// Last metadata payloads that exhausted or cannot use their retry.
     /// An identical payload stays suppressed until its agent metadata changes.
-    pub workspace_failed_metadata: std::collections::HashMap<
-        xvora_dashboard_store::SessionId,
-        xvora_dashboard_store::MemberMetadata,
-    >,
+    pub workspace_failed_metadata:
+        std::collections::HashMap<dashboard_store::SessionId, dashboard_store::MemberMetadata>,
     /// Server-authoritative shared prompt queues, keyed by `sessionId`.
     /// Reconciled from `x.ai/queue/changed` broadcasts so every client renders the same ordered queue (including prompts queued by other clients).
     /// Empty in non-leader mode.
@@ -905,7 +901,7 @@ pub struct AppView {
     /// Per-incarnation generation additionally prevents responses from crossing close/reopen or host boundaries.
     pub session_picker_list_seq: u64,
     /// Resolved compat-session cells used before checking resume-skill paths.
-    pub(crate) foreign_session_compat: xvora_foreign_sessions::EnabledForeignSessionSources,
+    pub(crate) foreign_session_compat: foreign_sessions::EnabledForeignSessionSources,
     /// Monotonic picker scan sequence, bumped on every open and close.
     pub(crate) foreign_session_scan_seq: u64,
     /// Coalesces obsolete foreign scans across welcome and modal pickers.

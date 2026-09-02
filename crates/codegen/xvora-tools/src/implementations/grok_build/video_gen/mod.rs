@@ -216,7 +216,7 @@ impl VideoGenClient {
             headers.contains_key(super::image_gen::SESSION_ID_HEADER);
         let key = crate::util::shared_http::cache_key("video_gen", &headers);
         let http = crate::util::shared_http::cached_client(key, || {
-            xvora_extra_ca::build_reqwest_client(|builder| builder.default_headers(headers.clone()))
+            extra_ca::build_reqwest_client(|builder| builder.default_headers(headers.clone()))
         })
         .map_err(|e| {
             tool_runtime::ToolError::invalid_arguments(format!("Failed to build HTTP client: {e}"))
@@ -229,7 +229,7 @@ impl VideoGenClient {
             &reqwest::header::HeaderMap::new(),
         );
         let download_http = crate::util::shared_http::cached_client(download_key, || {
-            xvora_extra_ca::build_reqwest_client(|builder| {
+            extra_ca::build_reqwest_client(|builder| {
                 builder.timeout(std::time::Duration::from_secs(VIDEO_DOWNLOAD_TIMEOUT_SECS))
             })
         })

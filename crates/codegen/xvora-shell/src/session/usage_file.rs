@@ -1,8 +1,8 @@
 //! Turn deltas come from this process's last applied live ledger, not from persisted session totals (those stay large after resume).
 
+use chat_state::UsageLedger;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use xvora_chat_state::UsageLedger;
 use xvora_sampling_types::reported_cost_ticks;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -75,7 +75,7 @@ impl UsageSummary {
         summary
     }
 
-    fn from_totals(totals: &xvora_chat_state::UsageTotals, incomplete: bool) -> Self {
+    fn from_totals(totals: &chat_state::UsageTotals, incomplete: bool) -> Self {
         Self {
             input_tokens: totals.input_tokens,
             output_tokens: totals.output_tokens,

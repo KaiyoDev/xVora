@@ -3,15 +3,15 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use computer_hub_mcp_adapter::{
+    McpBridgeConfig, McpCallResult, McpContent, McpServerInfo, McpToolDefinition, McpToolHandler,
+    McpTransport,
+};
+use computer_hub_sdk::ToolServerHandler;
 use serde_json::Value;
 use tool_protocol::ToolId;
 use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
 use tool_types::ToolDescription;
-use xvora_computer_hub_mcp_adapter::{
-    McpBridgeConfig, McpCallResult, McpContent, McpServerInfo, McpToolDefinition, McpToolHandler,
-    McpTransport,
-};
-use xvora_computer_hub_sdk::ToolServerHandler;
 use xvora_mcp::rmcp;
 use xvora_mcp::servers::{McpClient, parse_mcp_qualified_name};
 
@@ -28,14 +28,14 @@ impl McpClientTransportAdapter {
 
 #[async_trait]
 impl McpTransport for McpClientTransportAdapter {
-    async fn initialize(&self) -> Result<McpServerInfo, xvora_computer_hub_mcp_adapter::McpError> {
+    async fn initialize(&self) -> Result<McpServerInfo, computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
         let info = service.peer_info().ok_or_else(|| {
-            xvora_computer_hub_mcp_adapter::McpError::Transport("no peer info after init".into())
+            computer_hub_mcp_adapter::McpError::Transport("no peer info after init".into())
         })?;
         Ok(McpServerInfo {
             name: info.server_info.name.clone(),
@@ -46,12 +46,12 @@ impl McpTransport for McpClientTransportAdapter {
 
     async fn list_tools(
         &self,
-    ) -> Result<Vec<McpToolDefinition>, xvora_computer_hub_mcp_adapter::McpError> {
+    ) -> Result<Vec<McpToolDefinition>, computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
         let mut all_tools = Vec::new();
         let mut cursor: Option<String> = None;
@@ -61,7 +61,7 @@ impl McpTransport for McpClientTransportAdapter {
                     rmcp::model::PaginatedRequestParams::default().with_cursor(cursor.clone()),
                 ))
                 .await
-                .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+                .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
             all_tools.extend(result.tools.into_iter().map(|t| McpToolDefinition {
                 name: t.name.to_string(),
@@ -82,12 +82,12 @@ impl McpTransport for McpClientTransportAdapter {
         &self,
         name: &str,
         arguments: Value,
-    ) -> Result<McpCallResult, xvora_computer_hub_mcp_adapter::McpError> {
+    ) -> Result<McpCallResult, computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
         // MCP spec requires arguments to be an object; coerce if needed.
         let args_object = match arguments {
             Value::Object(map) => Some(map),
@@ -105,7 +105,7 @@ impl McpTransport for McpClientTransportAdapter {
                 params
             })
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
         Ok(McpCallResult {
             content: result
@@ -126,7 +126,7 @@ impl McpTransport for McpClientTransportAdapter {
         })
     }
 
-    async fn close(&self) -> Result<(), xvora_computer_hub_mcp_adapter::McpError> {
+    async fn close(&self) -> Result<(), computer_hub_mcp_adapter::McpError> {
         // No-op: cleanup happens when McpClient is dropped.
         Ok(())
     }
@@ -213,8 +213,8 @@ pub(crate) fn make_bridge_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use computer_hub_mcp_adapter::{McpBridge, McpError};
     use tool_protocol::SessionId;
-    use xvora_computer_hub_mcp_adapter::{McpBridge, McpError};
 
     struct TestTransport;
 

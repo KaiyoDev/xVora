@@ -326,7 +326,7 @@ pub(crate) fn flush_window(
     session_id: &str,
     buf: HashMap<(McpServerName, McpClientEventKind), McpClientEvent>,
     shutdown: &SharedShutdownState,
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
 ) {
     // Recover from poisoning rather than cascade-panicking: `flush_window` does non-trivial work under this lock
     // A single panic while holding it would otherwise turn every future restart-task check and dispatcher window into a panic
@@ -366,7 +366,7 @@ pub(crate) fn flush_window(
 fn flush_elicitation_completes(
     session_id: &str,
     completes: Vec<(McpServerName, String)>,
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
 ) {
     for (server, elicitation_id) in completes {
         let payload = xvora_tools::mcp_elicitation::McpElicitCompletePayload {
@@ -522,7 +522,7 @@ pub(crate) async fn drop_dead_clients(
 pub(crate) async fn run_dispatcher(
     session_id: String,
     mut rx: UnboundedReceiver<McpClientEvent>,
-    gateway: xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: acp_lib::AcpAgentGatewaySender,
     mcp_state: Arc<TokioMutex<McpState>>,
     shutdown: SharedShutdownState,
     restart_actions: Option<Rc<dyn crate::session::mcp_restart::RestartActions>>,
@@ -725,7 +725,7 @@ mod tests {
         let shutdown = new_shutdown_state();
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let (gw_tx, mut gw_rx) = tokio::sync::mpsc::unbounded_channel();
-        let gateway = xvora_acp_lib::AcpAgentGatewaySender::new(gw_tx);
+        let gateway = acp_lib::AcpAgentGatewaySender::new(gw_tx);
 
         let local = tokio::task::LocalSet::new();
         local
@@ -755,7 +755,7 @@ mod tests {
                 let msg = gw_rx
                     .try_recv()
                     .expect("complete must be forwarded even with an empty status buffer");
-                let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+                let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                     panic!("expected ExtNotification");
                 };
                 assert_eq!(
@@ -1274,9 +1274,9 @@ mod tests {
     /// Construct an `AcpAgentGatewaySender` whose receiver half is dropped immediately.
     /// All `forward_fire_and_forget` calls silently no-op.
     /// Suitable only for tests that don't assert on wire payloads.
-    fn discard_gateway() -> xvora_acp_lib::AcpAgentGatewaySender {
+    fn discard_gateway() -> acp_lib::AcpAgentGatewaySender {
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        xvora_acp_lib::AcpAgentGatewaySender::new(tx)
+        acp_lib::AcpAgentGatewaySender::new(tx)
     }
 
     /// `RestartActions` test double for the integration test.
@@ -1416,7 +1416,7 @@ mod tests {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         // Capturing gateway: keep the receiver so the test can assert that NOTHING was pushed for the stale event
         let (gw_tx, mut gw_rx) = tokio::sync::mpsc::unbounded_channel();
-        let gateway = xvora_acp_lib::AcpAgentGatewaySender::new(gw_tx);
+        let gateway = acp_lib::AcpAgentGatewaySender::new(gw_tx);
 
         let actions = Rc::new(CountingActions::new(Arc::clone(&shutdown)));
         // Configured-as-stdio on purpose: proves the no-restart outcome comes from the stale-event suppression, not from the stdio guard rail

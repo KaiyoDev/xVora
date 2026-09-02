@@ -2,8 +2,8 @@ use std::collections::hash_map::Entry;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use acp_lib::AcpClientMessage;
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpClientMessage;
 
 use super::actions::Effect;
 use xvora_shell::extensions::notification::{
@@ -639,7 +639,7 @@ fn handle_interjection(notif: &acp::ExtNotification, app: &mut AppView) -> bool 
     is_active
 }
 
-fn handle_ext_method(ext: xvora_acp_lib::AcpArgs<acp::ExtRequest>, app: &mut AppView) -> bool {
+fn handle_ext_method(ext: acp_lib::AcpArgs<acp::ExtRequest>, app: &mut AppView) -> bool {
     match ext.request.method.as_ref() {
         "x.ai/ask_user_question" => handle_ask_user_question(ext, app),
         "x.ai/exit_plan_mode" => handle_exit_plan_mode(ext, app),

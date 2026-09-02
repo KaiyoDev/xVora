@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use xvora_config_types::DisplayRefreshSettings;
 
-use xvora_status_line::StatusLineConfig;
+use status_line::StatusLineConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]

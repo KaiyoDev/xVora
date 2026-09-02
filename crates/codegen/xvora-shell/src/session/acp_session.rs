@@ -51,6 +51,7 @@ use crate::session::user_message::construct_user_message_minimal;
 use crate::session::user_message::extract_user_query;
 use crate::terminal::TerminalRunRequest;
 use crate::tools::ToolContext;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use agent_client_protocol::ContentBlock;
 use parking_lot::Mutex;
@@ -62,7 +63,6 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Mutex as TokioMutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_agent::AgentDefinition;
 use xvora_agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
 use xvora_agent::prompt::skills::SkillsConfig;
@@ -753,7 +753,7 @@ pub(crate) struct SessionActor {
     pub(crate) mcp_strategy: std::cell::Cell<McpInitStrategy>,
     /// Actor-based chat state handle; manages conversation, tokens, timing, and persistence.
     /// Also stores credentials (api_key, optional extra access key, client_version) opaquely.
-    pub(crate) chat_state_handle: xvora_chat_state::ChatStateHandle,
+    pub(crate) chat_state_handle: chat_state::ChatStateHandle,
     /// Current running prompt/turn id, shared with SessionHandle.
     pub(crate) current_prompt_id: std::sync::Arc<std::sync::Mutex<Option<String>>>,
     pub(crate) unattributed_background_usage: std::sync::atomic::AtomicBool,
@@ -1001,7 +1001,7 @@ pub(crate) struct SessionActor {
     /// Background-computed user-message prefix, injected before the first prompt.
     pub(crate) deferred_prefix: TaskSlot<String>,
     /// Extensions to notify at turn and session lifecycle edges. Built once by `session_extension_registry` at actor construction and frozen after.
-    pub(crate) extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry,
+    pub(crate) extension_registry: agent_lifecycle::LocalExtensionRegistry,
     /// Local date last shown to the model.
     /// Shown via the `<user_info>` prefix (session start, compaction, model switch) or a date-rollover `<system-reminder>`.
     /// Plain resume reuses the cached prefix.
@@ -1050,7 +1050,7 @@ pub(crate) struct SessionActor {
     /// Centralized event tracking: event log, turn-end guard, active tool, doom loop terminate flag.
     pub(crate) events: crate::session::events::EventTracker,
     /// Optional hub-side session event emitter (always constructed without a harness client in the agent; methods no-op with `None` transport).
-    pub(crate) observability_bridge: xvora_computer_hub_sdk::ObservabilityBridge,
+    pub(crate) observability_bridge: computer_hub_sdk::ObservabilityBridge,
     /// Turn number captured at the start of each turn (before prompt index increment).
     /// Used by `ToolCallStarted` bridge emissions so they report the same turn number as `TurnStarted` / `TurnEnded`.
     pub(crate) current_turn_number: std::cell::Cell<u64>,

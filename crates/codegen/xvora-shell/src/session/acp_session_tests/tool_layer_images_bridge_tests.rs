@@ -60,7 +60,7 @@ async fn handle_bridge_tool_success_multimodal_mcp_image_deferred_followup() {
     local
         .run_until(async {
             let (gateway_tx, _) = tokio::sync::mpsc::unbounded_channel::<
-                xvora_acp_lib::AcpClientMessage,
+                acp_lib::AcpClientMessage,
             >();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<
                 PersistenceMsg,
@@ -126,7 +126,7 @@ async fn handle_bridge_tool_success_replacement_drops_images_and_keeps_reminders
     local
         .run_until(async {
             let (gateway_tx, _) = tokio::sync::mpsc::unbounded_channel::<
-                xvora_acp_lib::AcpClientMessage,
+                acp_lib::AcpClientMessage,
             >();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<
                 PersistenceMsg,
@@ -226,7 +226,7 @@ async fn post_tool_use_replacement_reaches_model_original_stays_on_record() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) = tokio::sync::mpsc::unbounded_channel::<
-                xvora_acp_lib::AcpClientMessage,
+                acp_lib::AcpClientMessage,
             >();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<
                 PersistenceMsg,
@@ -308,7 +308,7 @@ async fn post_tool_use_rejection_downgrades_only_the_producing_run() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) = tokio::sync::mpsc::unbounded_channel::<
-                xvora_acp_lib::AcpClientMessage,
+                acp_lib::AcpClientMessage,
             >();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<
                 PersistenceMsg,

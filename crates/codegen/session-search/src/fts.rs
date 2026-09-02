@@ -17,7 +17,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use rusqlite::{Connection, OptionalExtension, params};
-use xvora_sqlite_journal::JournalMode;
+use sqlite_journal::JournalMode;
 
 use crate::recovery;
 

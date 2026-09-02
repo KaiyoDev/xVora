@@ -384,7 +384,7 @@ impl SessionActor {
     /// The event fires for every origin, but synthetic wakes and subagent sessions run the gate observe-only.
     pub(super) fn should_enforce_prompt_block(
         &self,
-        policy: &xvora_agent_lifecycle::InputPolicy,
+        policy: &agent_lifecycle::InputPolicy,
     ) -> bool {
         policy.authority.is_human_intent() && !self.startup_hints.is_subagent
     }

@@ -35,7 +35,7 @@ pub(super) struct ReplaySendUpdateFixture {
     pub(super) persistence_rx: mpsc::UnboundedReceiver<PersistenceMsg>,
 }
 pub(super) async fn make_replay_send_update_fixture() -> ReplaySendUpdateFixture {
-    let (gateway_tx, mut gateway_rx) = mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+    let (gateway_tx, mut gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let gateway = GatewaySender::new(gateway_tx);
     let sent = Arc::new(tokio::sync::Mutex::new(
         Vec::<acp::SessionNotification>::new(),
@@ -43,7 +43,7 @@ pub(super) async fn make_replay_send_update_fixture() -> ReplaySendUpdateFixture
     let sent_for_task = sent.clone();
     tokio::task::spawn_local(async move {
         while let Some(msg) = gateway_rx.recv().await {
-            if let xvora_acp_lib::AcpClientMessage::SessionNotification(args) = msg {
+            if let acp_lib::AcpClientMessage::SessionNotification(args) = msg {
                 sent_for_task.lock().await.push(args.request);
                 let _ = args.response_tx.send(Ok(()));
             }
@@ -105,7 +105,7 @@ pub(super) async fn make_replay_send_update_fixture() -> ReplaySendUpdateFixture
         mcp_strategy: std::cell::Cell::new(McpInitStrategy::Blocking),
         delivery_tools: std::cell::RefCell::new(Vec::new()),
         attach_non_interactive: std::rc::Rc::new(std::cell::Cell::new(false)),
-        chat_state_handle: xvora_chat_state::ChatStateHandle::noop(),
+        chat_state_handle: chat_state::ChatStateHandle::noop(),
         unattributed_background_usage: std::sync::atomic::AtomicBool::new(false),
         current_prompt_id: std::sync::Arc::new(std::sync::Mutex::new(None)),
         pending_interactions: std::sync::Arc::new(std::sync::Mutex::new(
@@ -130,7 +130,7 @@ pub(super) async fn make_replay_send_update_fixture() -> ReplaySendUpdateFixture
             count: std::sync::atomic::AtomicU64::new(0),
             auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
             previous_model: std::cell::Cell::new(None),
-            compaction_mode: xvora_chat_state::CompactionMode::Transcript,
+            compaction_mode: chat_state::CompactionMode::Transcript,
             verbatim_input: true,
             tool_choice: crate::util::config::CompactionToolChoice::Auto,
             prefire: crate::session::compaction_config::PrefireState::default(),
@@ -237,7 +237,7 @@ pub(super) async fn make_replay_send_update_fixture() -> ReplaySendUpdateFixture
         laziness_debug_log: None,
         last_live_orphan_reconcile: std::cell::Cell::new(None),
         deferred_prefix: TaskSlot::new(),
-        extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
+        extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
         last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
         prefix_carries_fallback_date: std::cell::Cell::new(false),
         last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),

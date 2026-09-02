@@ -21,12 +21,12 @@ use crate::session::two_pass::{
     note_for_two_pass_pass2, split_conversation_for_two_pass,
 };
 use agent_client_protocol as acp;
-use std::sync::Arc;
-use xvora_chat_state::compaction_utils::{
+use chat_state::compaction_utils::{
     CompactedHistoryInput, CompactionAttempt, build_compacted_history, is_degenerate_summary,
     prepare_conversation_for_verbatim_summarization, sanitize_compacted_history,
     validate_compacted_history,
 };
+use std::sync::Arc;
 use xvora_sampling_types::{ApiBackend, ConversationItem};
 /// Prefix on the early-guard failure payloads below; the user-facing normalizer strips it (the renderer prepends its own headline).
 const COMPACTION_FAILED_GUARD_PREFIX: &str = "Compaction failed: ";
@@ -133,7 +133,7 @@ impl SessionActor {
         };
         let tool_defs = self.prepare_tool_definitions().await;
         let tools = self.turn_base_tool_specs(&tool_defs);
-        let compaction_tool_tokens = xvora_chat_state::estimate_tool_specs_tokens(&tools);
+        let compaction_tool_tokens = chat_state::estimate_tool_specs_tokens(&tools);
         let wall_clock_budget_secs = self
             .agent
             .borrow()
@@ -251,7 +251,7 @@ impl SessionActor {
             prepare_conversation_for_verbatim_summarization(split.prefix.to_vec(), strips);
         let prefix_est_tokens = prefix_prepared
             .iter()
-            .map(xvora_chat_state::estimate_item_tokens)
+            .map(chat_state::estimate_item_tokens)
             .sum::<u64>();
         let prompt = build_two_pass_compaction_prompt(None);
         let pass1_history = build_two_pass_pass1_history(&prefix_prepared, &prompt);
@@ -797,9 +797,9 @@ impl SessionActor {
         match preserve_inherited_prefix(&full_conv, compacted_history, prefix_len) {
             Ok(preserved) => {
                 let projected_preserved = project_preserved_reseed_tokens(
-                    xvora_chat_state::estimate_conversation_tokens(&preserved),
+                    chat_state::estimate_conversation_tokens(&preserved),
                     tokens_before,
-                    xvora_chat_state::estimate_conversation_tokens(&full_conv),
+                    chat_state::estimate_conversation_tokens(&full_conv),
                 );
                 if token_estimation::exceeds_threshold(
                     projected_preserved,
@@ -916,13 +916,13 @@ impl SessionActor {
                 model_id: model_id.clone(),
                 user_context_provided: user_context.is_some(),
                 compaction_mode: match self.compaction.compaction_mode {
-                    xvora_chat_state::CompactionMode::Summary => {
+                    chat_state::CompactionMode::Summary => {
                         xvora_telemetry::events::CompactionModeLabel::Summary
                     }
-                    xvora_chat_state::CompactionMode::Transcript => {
+                    chat_state::CompactionMode::Transcript => {
                         xvora_telemetry::events::CompactionModeLabel::Transcript
                     }
-                    xvora_chat_state::CompactionMode::Segments(_) => {
+                    chat_state::CompactionMode::Segments(_) => {
                         xvora_telemetry::events::CompactionModeLabel::Segments
                     }
                 },
@@ -949,7 +949,7 @@ impl SessionActor {
         );
         let assembly_start = std::time::Instant::now();
         let segment_messages = if self.compaction.compaction_mode.writes_segments() {
-            xvora_chat_state::compaction_utils::prepare_conversation_for_segment(
+            chat_state::compaction_utils::prepare_conversation_for_segment(
                 full_conversation.clone(),
             )
         } else {
@@ -958,14 +958,12 @@ impl SessionActor {
         const SUMMARY_BUDGET_RESERVE_TOKENS: u64 = 32_768;
         let verbatim_input_enabled = self.compaction.verbatim_input && !lossy_input;
         let mut simplified_messages = if verbatim_input_enabled {
-            xvora_chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
+            chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
                 full_conversation,
                 summary_strips_reasoning,
             )
         } else {
-            xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
-                full_conversation,
-            )
+            chat_state::compaction_utils::prepare_conversation_for_summarization(full_conversation)
         };
         let pre_compaction_ms = assembly_start.elapsed().as_millis() as u64;
         if conv_len == 0 {
@@ -1024,7 +1022,7 @@ impl SessionActor {
             .filter(|td| !backend_search_active || td.function.name != "web_search")
             .collect();
         let compaction_tool_tokens =
-            xvora_chat_state::estimate_tool_definitions_tokens(&effective_tool_defs);
+            chat_state::estimate_tool_definitions_tokens(&effective_tool_defs);
         let compaction_tools: Vec<xvora_sampling_types::ToolSpec> = effective_tool_defs
             .into_iter()
             .map(xvora_sampling_types::ToolSpec::from)
@@ -1032,7 +1030,7 @@ impl SessionActor {
         let compaction_hosted_tools: Vec<xvora_sampling_types::HostedTool> =
             self.hosted_tools_for_turn();
         if lossy_input {
-            simplified_messages = xvora_chat_state::compaction_utils::fit_conversation_to_budget(
+            simplified_messages = chat_state::compaction_utils::fit_conversation_to_budget(
                 simplified_messages,
                 lossy_input_budget(context_window, compaction_tool_tokens),
             );
@@ -1068,8 +1066,7 @@ impl SessionActor {
         };
         let use_short_prompt = false;
         let started_at = chrono::Utc::now().to_rfc3339();
-        let estimated_input_tokens =
-            xvora_chat_state::estimate_conversation_tokens(&simplified_messages);
+        let estimated_input_tokens = chat_state::estimate_conversation_tokens(&simplified_messages);
         let auto_trigger = matches!(trigger, xvora_telemetry::events::CompactionTrigger::Auto);
         let wall_clock_budget_secs = self
             .agent
@@ -1190,18 +1187,18 @@ impl SessionActor {
                                     let budget = context_window
                                         .saturating_sub(SUMMARY_BUDGET_RESERVE_TOKENS)
                                         .saturating_sub(compaction_tool_tokens);
-                                    let verbatim = xvora_chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
+                                    let verbatim = chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
                                         conv,
                                         summary_strips_reasoning,
                                     );
-                                    xvora_chat_state::compaction_utils::fit_conversation_to_budget(
+                                    chat_state::compaction_utils::fit_conversation_to_budget(
                                         verbatim,
                                         budget,
                                     )
                                 }
                                 InputStage::Lossy => {
-                                    xvora_chat_state::compaction_utils::fit_conversation_to_budget(
-                                        xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
+                                    chat_state::compaction_utils::fit_conversation_to_budget(
+                                        chat_state::compaction_utils::prepare_conversation_for_summarization(
                                             conv,
                                         ),
                                         lossy_input_budget(context_window, compaction_tool_tokens),

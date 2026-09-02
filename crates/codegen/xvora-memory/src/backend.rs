@@ -278,7 +278,7 @@ impl MemoryBackendImpl {
     /// Open a read-only connection for simple queries (`total_chunks`, `get`).
     fn open_readonly(&self) -> Result<rusqlite::Connection, rusqlite::Error> {
         // Journal-mode-aware open (busy_timeout included): never mmap a legacy WAL -shm on network mounts (SIGBUS); see JournalMode::open_readonly
-        xvora_sqlite_journal::JournalMode::for_db_path(&self.db_path).open_readonly(&self.db_path)
+        sqlite_journal::JournalMode::for_db_path(&self.db_path).open_readonly(&self.db_path)
     }
 
     async fn make_embedding_provider(&self) -> Option<super::embedding::ApiEmbeddingProvider> {

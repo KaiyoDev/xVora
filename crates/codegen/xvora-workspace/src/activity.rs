@@ -19,8 +19,8 @@ use std::time::Instant;
 
 use dashmap::DashMap;
 use file_utils::queue::UploadQueueStats;
+use session_events::{Event, EventWriter, ToolCompletedSource, ToolOutcome};
 use tool_protocol::{IdleWithholdReason, ToolServerLifecycleStatus, ToolServerStatusPayload};
-use xvora_session_events::{Event, EventWriter, ToolCompletedSource, ToolOutcome};
 
 const LIFECYCLE_NONE: u8 = 0;
 const LIFECYCLE_DRAINING: u8 = 1;

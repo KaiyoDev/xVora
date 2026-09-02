@@ -20,7 +20,7 @@ use helpers::*;
 use std::path::{Path, PathBuf};
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use xvora_acp_lib::{AcpAgentTx, acp_send};
+use acp_lib::{AcpAgentTx, acp_send};
 use xvora_telemetry::startup::{self, StartupPhase};
 use actions::{
     ClipboardPasteTarget, Effect, ProbedAttachment, SubagentKillOutcome,
@@ -59,7 +59,7 @@ pub(crate) fn execute(
     match effect {
         Effect::RegisterActiveSession { session_id, cwd } => {
             crate::app::signal_handler::set_current_session_id(Some(session_id.clone()));
-            if let Err(e) = xvora_active_sessions::register(xvora_active_sessions::ActiveSession {
+            if let Err(e) = active_sessions::register(active_sessions::ActiveSession {
                 session_id,
                 pid: std::process::id(),
                 cwd,
@@ -673,7 +673,7 @@ pub(crate) fn execute(
                     }
                     let summaries = tokio::task::spawn_blocking(move || {
                             let _permit = permit;
-                            xvora_foreign_sessions::scan_foreign_sessions(
+                            foreign_sessions::scan_foreign_sessions(
                                 &cwd,
                                 enabled,
                             )
@@ -726,7 +726,7 @@ pub(crate) fn execute(
                             compat,
                             &grok_home,
                             |enabled| async move {
-                                tokio::task::spawn_blocking(move || xvora_foreign_sessions::most_recent_foreign_session(
+                                tokio::task::spawn_blocking(move || foreign_sessions::most_recent_foreign_session(
                                         &cwd_for_scan,
                                         enabled,
                                         crate::app::foreign_sessions::RESUME_HINT_WINDOW,
@@ -933,13 +933,13 @@ pub(crate) fn execute(
             tasks
                 .spawn(async move {
                     match tokio::task::spawn_blocking(move || {
-                            let store = xvora_dashboard_store::WorkspaceStore::open(
+                            let store = dashboard_store::WorkspaceStore::open(
                                 &db_path,
                             )?;
                             let snapshot = store.snapshot()?;
                             Ok::<
                                 _,
-                                xvora_dashboard_store::StoreError,
+                                dashboard_store::StoreError,
                             >((store, snapshot))
                         })
                         .await
@@ -975,7 +975,7 @@ pub(crate) fn execute(
                                 if let Err(error) = store.insert_member(member) {
                                     let retryable = matches!(
                                 &error,
-                                xvora_dashboard_store::StoreError::Busy { .. }
+                                dashboard_store::StoreError::Busy { .. }
                             );
                                     failures
                                         .push(WorkspaceMemberUpsertFailure {

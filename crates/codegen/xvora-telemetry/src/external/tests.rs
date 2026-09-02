@@ -583,7 +583,7 @@ fn turn_error_increments_error_count() {
 
 #[test]
 fn tool_result_hook_rewrote_is_content_free() {
-    use xvora_session_events::types::ToolOutcome;
+    use session_events::types::ToolOutcome;
     for (hook_rewrote, want) in [(true, "true"), (false, "false")] {
         let stream = build(gates_off());
         emit_event_into(
@@ -610,7 +610,7 @@ fn tool_result_gates_off_collapses_and_reduces() {
         &stream,
         &events::ToolCallCompleted {
             tool_name: "nebula__post_message".into(),
-            outcome: xvora_session_events::types::ToolOutcome::Success,
+            outcome: session_events::types::ToolOutcome::Success,
             hook_rewrote: false,
             duration_ms: 42,
             tool_result_size_bytes: None,
@@ -649,7 +649,7 @@ fn tool_result_details_gate_exposes_verbatim_scrubbed() {
         &stream,
         &events::ToolCallCompleted {
             tool_name: "nebula__post_message".into(),
-            outcome: xvora_session_events::types::ToolOutcome::Success,
+            outcome: session_events::types::ToolOutcome::Success,
             hook_rewrote: false,
             duration_ms: 42,
             tool_result_size_bytes: None,

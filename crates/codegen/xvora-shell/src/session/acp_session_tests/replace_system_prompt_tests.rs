@@ -1,5 +1,5 @@
 //! Actor-path coverage for `handle_replace_system_prompt`, the resident-reconnect `systemPromptOverride` sync.
-//! The head swap itself is unit-tested in `xvora_chat_state` (`conversation_util` and the actor tests).
+//! The head swap itself is unit-tested in `chat_state` (`conversation_util` and the actor tests).
 //! These tests cover only what is unique to the `SessionActor` path: the end-to-end swap and the `preserve_inherited_system` skip.
 
 use xvora_sampling_types::conversation::ConversationItem;
@@ -15,8 +15,7 @@ fn head_text(conv: &[ConversationItem]) -> Option<String> {
 }
 
 async fn actor_with_history(history: Vec<ConversationItem>) -> SessionActor {
-    let (gateway_tx, _grx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+    let (gateway_tx, _grx) = tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
     actor.chat_state_handle.replace_conversation(history);

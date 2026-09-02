@@ -69,7 +69,7 @@ async fn test_e2e_idle_resume_refreshes_model_metadata() {
                 axum::serve(listener, app).await.unwrap();
             });
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            let (gateway_tx, _) = mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = mpsc::unbounded_channel::<PersistenceMsg>();
             let cwd = xvora_paths::AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap();
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
@@ -98,7 +98,7 @@ async fn test_e2e_idle_resume_refreshes_model_metadata() {
             });
             let (chat_event_tx, _) = tokio::sync::mpsc::unbounded_channel();
             let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel::<SessionEvent>();
-            let chat_state_handle = xvora_chat_state::ChatStateActor::spawn(
+            let chat_state_handle = chat_state::ChatStateActor::spawn(
                 vec![],
                 xvora_sampling_types::SamplingConfig {
                     base_url: mock_url,
@@ -114,11 +114,11 @@ async fn test_e2e_idle_resume_refreshes_model_metadata() {
                     reasoning_effort: None,
                     stream_tool_calls: None,
                 },
-                Box::new(xvora_chat_state::NullChatPersistence),
+                Box::new(chat_state::NullChatPersistence),
                 chat_event_tx,
                 tokio_util::sync::CancellationToken::new(),
             );
-            chat_state_handle.update_credentials(xvora_chat_state::types::Credentials {
+            chat_state_handle.update_credentials(chat_state::types::Credentials {
                 api_key: Some("test-key".to_string()),
                 auth_type: Default::default(),
                 alpha_test_key: None,
@@ -197,7 +197,7 @@ async fn test_e2e_idle_resume_refreshes_model_metadata() {
                     count: std::sync::atomic::AtomicU64::new(0),
                     auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
                     previous_model: std::cell::Cell::new(None),
-                    compaction_mode: xvora_chat_state::CompactionMode::Transcript,
+                    compaction_mode: chat_state::CompactionMode::Transcript,
                     verbatim_input: true,
                     tool_choice: crate::util::config::CompactionToolChoice::Auto,
                     prefire: crate::session::compaction_config::PrefireState::default(),
@@ -303,7 +303,7 @@ async fn test_e2e_idle_resume_refreshes_model_metadata() {
                 laziness_debug_log: None,
                 last_live_orphan_reconcile: std::cell::Cell::new(None),
                 deferred_prefix: TaskSlot::new(),
-                extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
+                extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
                 last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
                 prefix_carries_fallback_date: std::cell::Cell::new(false),
                 last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),
@@ -379,7 +379,7 @@ async fn test_idle_resume_noop_when_not_idle_enough() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _) = mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(50_000, 200_000, 85, gateway_tx, persistence_tx).await;
             let five_minutes_ago_ms = chrono::Utc::now().timestamp_millis() - (5 * 60 * 1000);

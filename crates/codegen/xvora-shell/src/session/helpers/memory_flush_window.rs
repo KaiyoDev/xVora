@@ -76,14 +76,14 @@ mod tests {
         let agent = ConversationItem::agent_message("agent context");
         let window = select_flush_window(vec![human.clone(), agent], 20);
         let projected =
-            xvora_chat_state::compaction_utils::ModelRequestHistory::from_raw(window).into_items();
+            chat_state::compaction_utils::ModelRequestHistory::from_raw(window).into_items();
 
         assert_eq!(projected[0].text_content(), human.text_content());
         assert_eq!(
             projected[1].text_content(),
             format!(
                 "{}\nagent context",
-                xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+                chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
             )
         );
     }

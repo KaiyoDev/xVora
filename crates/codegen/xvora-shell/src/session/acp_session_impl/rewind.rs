@@ -521,7 +521,7 @@ impl SessionActor {
     }
 
     /// Out-of-band history repair (`x.ai/session/repair`) for a resident session.
-    /// Runs `xvora_chat_state::compaction_utils::repair_history` inside the chat-state actor, then flushes persistence.
+    /// Runs `chat_state::compaction_utils::repair_history` inside the chat-state actor, then flushes persistence.
     /// The flush means `chat_history.jsonl` is rewritten on disk before the caller sees success.
     ///
     /// Refused while a turn is in flight (in-flight tool calls legitimately await their results).
@@ -530,12 +530,12 @@ impl SessionActor {
     pub(super) async fn handle_repair_history(
         &self,
         dry_run: bool,
-    ) -> anyhow::Result<xvora_chat_state::compaction_utils::HistoryRepairReport> {
+    ) -> anyhow::Result<chat_state::compaction_utils::HistoryRepairReport> {
         // Per-session flag, NOT `tool_context.is_turn_active`, which is the agent-wide coordinator flag shared by all sessions
         // Using it refuses repair of an idle session while any other session runs a turn, and another session's turn end could clear it mid-turn
         let turn_flag = self.session_turn_active.clone();
         if turn_flag.load(std::sync::atomic::Ordering::SeqCst) {
-            anyhow::bail!(xvora_chat_state::commands::RepairHistoryBlocked);
+            anyhow::bail!(chat_state::commands::RepairHistoryBlocked);
         }
 
         let report = self

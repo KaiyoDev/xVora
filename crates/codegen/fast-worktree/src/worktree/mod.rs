@@ -75,11 +75,11 @@ mod tests {
         assert!(!is_grove_strategy("linked"));
     }
     use tempfile::TempDir;
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
 
     #[test]
     fn test_create_worktree_simple() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_create_worktree_creates_parent_dirs() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_create_worktree_with_ignored_files() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_create_worktree_skip_ignored_files() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_copy_ignored_only_standalone() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         let dest_path = temp.path().join("dest");
@@ -259,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_copy_ignored_only_with_skip_patterns() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         let dest_path = temp.path().join("dest");
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn test_worktree_with_symlinks() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use std::os::unix::fs::symlink;
 
         let temp = TempDir::new().unwrap();
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn test_copy_ignored_only_with_symlinks() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use std::os::unix::fs::symlink;
 
         let temp = TempDir::new().unwrap();
@@ -427,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_worktree_with_dirty_files() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn test_worktree_preserves_git_status_for_dirty_files() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn test_git_status_is_instant_after_worktree_creation() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -599,7 +599,7 @@ mod tests {
 
     #[test]
     fn test_clean_files_dont_show_as_modified() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -646,7 +646,7 @@ mod tests {
 
     #[test]
     fn test_worktree_clean_state() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -676,7 +676,7 @@ mod tests {
 
     #[test]
     fn test_worktree_clean_all_state() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -725,7 +725,7 @@ mod tests {
 
     #[test]
     fn test_background_finalization() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -748,7 +748,7 @@ mod tests {
 
     #[test]
     fn test_worktree_with_nested_directories() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn test_worktree_preserves_file_content() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -818,7 +818,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn test_worktree_preserves_permissions() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use std::os::unix::fs::PermissionsExt;
 
         let temp = TempDir::new().unwrap();
@@ -855,7 +855,7 @@ mod tests {
 
     #[test]
     fn test_worktree_with_btrfs_disabled() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use crate::BtrfsMode;
 
         let temp = TempDir::new().unwrap();
@@ -884,7 +884,7 @@ mod tests {
 
     #[test]
     fn test_worktree_with_btrfs_auto_on_non_btrfs() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use crate::BtrfsMode;
 
         let temp = TempDir::new().unwrap();
@@ -1017,7 +1017,7 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_simple() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1043,7 +1043,7 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_is_independent() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1088,7 +1088,7 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_no_worktrees_dir() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1129,7 +1129,7 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_preserves_dirty_files() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1156,7 +1156,7 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_clean_tracked() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1183,7 +1183,7 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_promotable_via_rename() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1231,7 +1231,7 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_with_ignored_files() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1260,16 +1260,15 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_narrows_origin_fetch() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
         init_git_repo(&repo_path);
         std::fs::write(repo_path.join("file.txt"), "content").unwrap();
         git_commit_all(&repo_path, "initial");
-        let branch =
-            xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
-        xvora_test_utils::git::run_git(
+        let branch = test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
+        test_utils::git::run_git(
             &repo_path,
             &[
                 "remote",
@@ -1278,7 +1277,7 @@ mod tests {
                 "https://github.com/xvora-org/xvora.git",
             ],
         );
-        xvora_test_utils::git::run_git(
+        test_utils::git::run_git(
             &repo_path,
             &[
                 "config",
@@ -1288,7 +1287,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(&repo_path, &["config", "--get", "remote.origin.fetch"]),
+            test_utils::git::run_git(&repo_path, &["config", "--get", "remote.origin.fetch"]),
             "+refs/heads/*"
         );
 
@@ -1299,39 +1298,36 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            xvora_test_utils::git::run_git(
+            test_utils::git::run_git(
                 &worktree_path,
                 &["config", "--get-all", "remote.origin.fetch"]
             ),
             format!("+refs/heads/{branch}:refs/remotes/origin/{branch}")
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(
-                &worktree_path,
-                &["config", "--get", "remote.origin.url"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["config", "--get", "remote.origin.url"]),
             "https://github.com/xvora-org/xvora.git"
         );
     }
 
     #[test]
     fn test_standalone_worktree_drops_inconsistent_shallow() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
         init_git_repo(&repo_path);
         std::fs::write(repo_path.join("a.txt"), "a").unwrap();
         git_commit_all(&repo_path, "A");
-        let a = xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
+        let a = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
         std::fs::write(repo_path.join("b.txt"), "b").unwrap();
         git_commit_all(&repo_path, "B");
-        let b = xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
-        xvora_test_utils::git::run_git(&repo_path, &["checkout", "-b", "feature", &a]);
+        let b = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
+        test_utils::git::run_git(&repo_path, &["checkout", "-b", "feature", &a]);
         std::fs::write(repo_path.join("d.txt"), "d").unwrap();
         git_commit_all(&repo_path, "D");
-        xvora_test_utils::git::run_git(&repo_path, &["update-ref", "refs/heads/main", &b]);
-        xvora_test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/main", &b]);
+        test_utils::git::run_git(&repo_path, &["update-ref", "refs/heads/main", &b]);
+        test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/main", &b]);
         std::fs::write(repo_path.join(".git/shallow"), format!("{b}\n")).unwrap();
 
         let worktree_path = temp.path().join("standalone");
@@ -1342,41 +1338,38 @@ mod tests {
 
         assert!(!worktree_path.join(".git/shallow").exists());
         assert_eq!(
-            xvora_test_utils::git::run_git(
-                &worktree_path,
-                &["rev-parse", "--is-shallow-repository"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "--is-shallow-repository"]),
             "false"
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(&worktree_path, &["rev-parse", "HEAD^"]),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "HEAD^"]),
             a
         );
     }
 
     #[test]
     fn test_standalone_worktree_sanitizes_after_checkout_ref() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
         init_git_repo(&repo_path);
         std::fs::write(repo_path.join("a.txt"), "a").unwrap();
         git_commit_all(&repo_path, "A");
-        let a = xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
+        let a = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
         std::fs::write(repo_path.join("b.txt"), "b").unwrap();
         git_commit_all(&repo_path, "B");
-        let b = xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
+        let b = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
         std::fs::write(repo_path.join("c.txt"), "c").unwrap();
         git_commit_all(&repo_path, "C");
         let source_branch =
-            xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
-        xvora_test_utils::git::run_git(&repo_path, &["checkout", "-b", "feature", &a]);
+            test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
+        test_utils::git::run_git(&repo_path, &["checkout", "-b", "feature", &a]);
         std::fs::write(repo_path.join("d.txt"), "d").unwrap();
         git_commit_all(&repo_path, "D");
-        xvora_test_utils::git::run_git(&repo_path, &["checkout", &source_branch]);
+        test_utils::git::run_git(&repo_path, &["checkout", &source_branch]);
         assert_ne!(source_branch, "feature");
-        xvora_test_utils::git::run_git(
+        test_utils::git::run_git(
             &repo_path,
             &[
                 "remote",
@@ -1385,7 +1378,7 @@ mod tests {
                 "https://github.com/xvora-org/xvora.git",
             ],
         );
-        xvora_test_utils::git::run_git(
+        test_utils::git::run_git(
             &repo_path,
             &[
                 "config",
@@ -1394,15 +1387,12 @@ mod tests {
                 "+refs/heads/*",
             ],
         );
-        xvora_test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/main", &b]);
-        xvora_test_utils::git::run_git(
+        test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/main", &b]);
+        test_utils::git::run_git(
             &repo_path,
             &["update-ref", "refs/remotes/origin/feature", &a],
         );
-        xvora_test_utils::git::run_git(
-            &repo_path,
-            &["update-ref", "refs/remotes/origin/noise", &b],
-        );
+        test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/noise", &b]);
         std::fs::write(repo_path.join(".git/shallow"), format!("{b}\n")).unwrap();
 
         let worktree_path = temp.path().join("standalone");
@@ -1413,11 +1403,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            xvora_test_utils::git::run_git(&worktree_path, &["rev-parse", "--abbrev-ref", "HEAD"]),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "--abbrev-ref", "HEAD"]),
             "feature"
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(
+            test_utils::git::run_git(
                 &worktree_path,
                 &["rev-parse", "refs/remotes/origin/feature"]
             ),
@@ -1434,7 +1424,7 @@ mod tests {
             "unrelated origin/noise must still be pruned after checkout sanitize"
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(
+            test_utils::git::run_git(
                 &worktree_path,
                 &["config", "--get-all", "remote.origin.fetch"]
             ),
@@ -1445,33 +1435,30 @@ mod tests {
             "after checkout, graft B is unused and its parent is in the ODB"
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(
-                &worktree_path,
-                &["rev-parse", "--is-shallow-repository"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "--is-shallow-repository"]),
             "false"
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(&worktree_path, &["rev-parse", "HEAD^"]),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "HEAD^"]),
             a
         );
     }
 
     #[test]
     fn test_standalone_worktree_keeps_origin_ref_after_detached_checkout() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
         init_git_repo(&repo_path);
         std::fs::write(repo_path.join("a.txt"), "a").unwrap();
         git_commit_all(&repo_path, "A");
-        let a = xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
+        let a = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
         std::fs::write(repo_path.join("b.txt"), "b").unwrap();
         git_commit_all(&repo_path, "B");
-        let b = xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
-        xvora_test_utils::git::run_git(&repo_path, &["branch", "feature", &a]);
-        xvora_test_utils::git::run_git(
+        let b = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
+        test_utils::git::run_git(&repo_path, &["branch", "feature", &a]);
+        test_utils::git::run_git(
             &repo_path,
             &[
                 "remote",
@@ -1480,14 +1467,11 @@ mod tests {
                 "https://github.com/xvora-org/xvora.git",
             ],
         );
-        xvora_test_utils::git::run_git(
+        test_utils::git::run_git(
             &repo_path,
             &["update-ref", "refs/remotes/origin/feature", &a],
         );
-        xvora_test_utils::git::run_git(
-            &repo_path,
-            &["update-ref", "refs/remotes/origin/noise", &b],
-        );
+        test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/noise", &b]);
 
         let worktree_path = temp.path().join("standalone");
         WorktreeBuilder::new(repo_path, worktree_path.clone())
@@ -1497,11 +1481,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            xvora_test_utils::git::run_git(&worktree_path, &["rev-parse", "HEAD"]),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "HEAD"]),
             a
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(
+            test_utils::git::run_git(
                 &worktree_path,
                 &["rev-parse", "refs/remotes/origin/feature"]
             ),
@@ -1521,21 +1505,20 @@ mod tests {
 
     #[test]
     fn test_standalone_worktree_skips_extra_origin_remotes() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
         init_git_repo(&repo_path);
         std::fs::write(repo_path.join("file.txt"), "content").unwrap();
         git_commit_all(&repo_path, "initial");
-        let head = xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
-        let branch =
-            xvora_test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
-        xvora_test_utils::git::run_git(
+        let head = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
+        let branch = test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
+        test_utils::git::run_git(
             &repo_path,
             &["update-ref", "refs/remotes/origin/main", &head],
         );
-        xvora_test_utils::git::run_git(
+        test_utils::git::run_git(
             &repo_path,
             &[
                 "update-ref",
@@ -1544,7 +1527,7 @@ mod tests {
             ],
         );
         for i in 0..40 {
-            xvora_test_utils::git::run_git(
+            test_utils::git::run_git(
                 &repo_path,
                 &[
                     "update-ref",
@@ -1561,14 +1544,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            xvora_test_utils::git::run_git(
-                &worktree_path,
-                &["rev-parse", "refs/remotes/origin/main"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "refs/remotes/origin/main"]),
             head
         );
         assert_eq!(
-            xvora_test_utils::git::run_git(
+            test_utils::git::run_git(
                 &worktree_path,
                 &["rev-parse", &format!("refs/remotes/origin/{branch}")]
             ),
@@ -1599,7 +1579,7 @@ mod tests {
         // The partial worktree dir AND its `.git/worktrees/<name>` registration
         // must both be cleaned up, so a later create at the same dest isn't
         // blocked by a stale registration.
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use crate::CreationMode;
         use tokio_util::sync::CancellationToken;
 
@@ -1638,7 +1618,7 @@ mod tests {
         // covers the join-before-teardown ORDERING structurally (no timing
         // fault-injection); the unconditional join in execute.rs makes it safe
         // regardless of thread timing.
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use tokio_util::sync::CancellationToken;
 
         let temp = TempDir::new().unwrap();
@@ -1666,7 +1646,7 @@ mod tests {
         // reclaim the dir AND deregister `.git/worktrees/<name>` — proves the
         // guard fires on the error path, not only on cancel. An invalid
         // ignored-files glob makes the ignored-copy phase fail deterministically.
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         use crate::{CreationMode, IgnoredFilesMode};
 
         let temp = TempDir::new().unwrap();
@@ -1702,7 +1682,7 @@ mod tests {
     fn test_standalone_hard_error_reclaims_dest() {
         // A hard (non-cancel) error after the guard is armed (a bogus non-HEAD
         // ref → checkout fails) must reclaim the partial standalone dest.
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
 
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");

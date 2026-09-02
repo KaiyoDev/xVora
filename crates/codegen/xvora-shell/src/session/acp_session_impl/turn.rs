@@ -189,12 +189,12 @@ impl SessionActor {
     pub(super) async fn notify_turn_abort(
         &self,
         epoch: TurnEpoch,
-        reason: xvora_agent_lifecycle::TurnAbortReason,
+        reason: agent_lifecycle::TurnAbortReason,
     ) {
         if !self.turn_abort.try_mark_announced(epoch) {
             return;
         }
-        let input = xvora_agent_lifecycle::TurnAbortInput::new(reason);
+        let input = agent_lifecycle::TurnAbortInput::new(reason);
         for contributor in self.extension_registry.turn_lifecycle_contributors() {
             contributor.on_turn_abort(&input).await;
         }
@@ -397,8 +397,7 @@ impl SessionActor {
         let _turn_active_guard =
             TurnActiveGuard::activate(self.tool_context.is_turn_active.as_ref());
         let _session_turn_active_guard = TurnActiveGuard::activate(Some(&self.session_turn_active));
-        let turn_start_input =
-            xvora_agent_lifecycle::TurnStartInput::new(input_origin.is_synthetic());
+        let turn_start_input = agent_lifecycle::TurnStartInput::new(input_origin.is_synthetic());
         for contributor in self.extension_registry.turn_lifecycle_contributors() {
             contributor
                 .on_turn_start_with_policy(&turn_start_input, policy)
@@ -828,10 +827,7 @@ impl SessionActor {
             let query =
                 crate::session::placeholder_images::strip_paths_from_image_placeholders(query);
             let query = if send_now && !verbatim {
-                xvora_interjection_core::frame_user_turn(
-                    xvora_interjection_core::INTERJECTION_NOTE,
-                    &query,
-                )
+                interjection_core::frame_user_turn(interjection_core::INTERJECTION_NOTE, &query)
             } else {
                 query
             };
@@ -1459,20 +1455,20 @@ impl SessionActor {
             Ok(TurnOutcome::Completed { .. }) | Ok(TurnOutcome::StationarityEnded { .. }) => {
                 for contributor in self.extension_registry.turn_lifecycle_contributors() {
                     contributor
-                        .on_turn_done(&xvora_agent_lifecycle::TurnDoneInput)
+                        .on_turn_done(&agent_lifecycle::TurnDoneInput)
                         .await;
                 }
             }
             Ok(TurnOutcome::Cancelled { .. }) | Ok(TurnOutcome::MaxTurnsReached { .. }) => {
                 self.notify_turn_abort(
                     self.turn_report.epoch(),
-                    xvora_agent_lifecycle::TurnAbortReason::Interrupted,
+                    agent_lifecycle::TurnAbortReason::Interrupted,
                 )
                 .await;
             }
             Err(err) => {
                 let message = err.to_string();
-                let input = xvora_agent_lifecycle::TurnErrorInput { message: &message };
+                let input = agent_lifecycle::TurnErrorInput { message: &message };
                 for contributor in self.extension_registry.turn_lifecycle_contributors() {
                     contributor.on_turn_error(&input).await;
                 }

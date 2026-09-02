@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run() -> anyhow::Result<()> {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
 
     tracing_subscriber::fmt()
         .with_env_filter(

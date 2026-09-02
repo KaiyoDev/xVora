@@ -51,7 +51,7 @@ pub(crate) enum UploadWait {
 /// Turn-message capture handed to [`complete_prompt_trace`].
 #[derive(Debug)]
 pub(crate) enum TurnMessages {
-    Captured(xvora_chat_state::TurnCapture),
+    Captured(chat_state::TurnCapture),
     Missing(MissingTurnMessages),
 }
 /// Why there is no capture to upload — answered-empty must not be conflated
@@ -67,8 +67,8 @@ pub(crate) enum MissingTurnMessages {
     /// without an answer — a real miss, recorded as a failure.
     ChannelDropped,
 }
-impl From<Option<xvora_chat_state::TurnCapture>> for TurnMessages {
-    fn from(capture: Option<xvora_chat_state::TurnCapture>) -> Self {
+impl From<Option<chat_state::TurnCapture>> for TurnMessages {
+    fn from(capture: Option<chat_state::TurnCapture>) -> Self {
         match capture {
             Some(capture) => Self::Captured(capture),
             None => Self::Missing(MissingTurnMessages::Empty),

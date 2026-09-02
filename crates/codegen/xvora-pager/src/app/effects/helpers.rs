@@ -2,7 +2,7 @@
 use std::path::Path;
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use xvora_acp_lib::{AcpAgentTx, acp_send};
+use acp_lib::{AcpAgentTx, acp_send};
 use super::actions::{PermissionModePersist, SubagentKillOutcome, TaskResult};
 use super::agent::AgentId;
 use crate::unified_log as ulog;
@@ -31,8 +31,8 @@ pub(super) async fn acp_send_bounded<R, T>(
     action: &str,
 ) -> Result<T::Response, acp::Error>
 where
-    T: xvora_acp_lib::AcpRequest,
-    R: From<xvora_acp_lib::AcpArgs<T>> + std::fmt::Debug,
+    T: acp_lib::AcpRequest,
+    R: From<acp_lib::AcpArgs<T>> + std::fmt::Debug,
 {
     let timeout = session_rpc_timeout();
     match tokio::time::timeout(timeout, acp_send(request, tx)).await {
@@ -1674,7 +1674,7 @@ pub(super) fn has_prepaid_credits(
 /// Fetch the user's auto top-up rule via the `x.ai/auto-topup-rule` extension.
 /// A transport failure yields [`AutoTopupFetch::Unchanged`] so the caller keeps any cached rule rather than treating the blip as "no auto top-up".
 pub(super) async fn fetch_auto_topup_info(
-    tx: &xvora_acp_lib::AcpAgentTx,
+    tx: &acp_lib::AcpAgentTx,
 ) -> crate::views::credit_bar::AutoTopupFetch {
     use crate::views::credit_bar::AutoTopupFetch;
     let req = acp::ExtRequest::new(
@@ -1730,7 +1730,7 @@ pub(super) fn unregister_active_session_best_effort_in(
     root: &Path,
     session_id: &acp::SessionId,
 ) {
-    match xvora_active_sessions::try_unregister_in(root, session_id) {
+    match active_sessions::try_unregister_in(root, session_id) {
         Ok(true) => {}
         Ok(false) => {
             tracing::debug!(

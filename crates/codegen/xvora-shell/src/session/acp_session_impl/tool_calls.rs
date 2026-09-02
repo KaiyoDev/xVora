@@ -271,8 +271,8 @@ impl PlanApprovalOutcome {
 /// Any other error (including a non-`acp_send` error) defaults to `false` so the approval is kept pending and never auto-approved.
 fn ext_method_no_client(err: &acp::Error) -> bool {
     matches!(
-        xvora_acp_lib::acp_channel_failure(err),
-        Some(xvora_acp_lib::AcpChannelFailure::SendFailed)
+        acp_lib::acp_channel_failure(err),
+        Some(acp_lib::AcpChannelFailure::SendFailed)
     )
 }
 /// Model-facing turn injected after a resumed plan is approved.
@@ -559,7 +559,7 @@ impl SessionActor {
                             }
                             other => format!("{other:?}"),
                         };
-                        self.emit_event(xvora_session_events::Event::McpToolCallCompleted {
+                        self.emit_event(session_events::Event::McpToolCallCompleted {
                             server_name: server.to_string(),
                             tool_name: tool.to_string(),
                             call_id: format!(
@@ -1615,16 +1615,14 @@ impl SessionActor {
                 &call.function.name,
                 match &decision {
                     Decision::Allow | Decision::Ask => {
-                        xvora_session_events::types::PermissionDecision::Allow
+                        session_events::types::PermissionDecision::Allow
                     }
                     Decision::Reject(_) | Decision::PolicyDeny(_) => {
-                        xvora_session_events::types::PermissionDecision::Deny
+                        session_events::types::PermissionDecision::Deny
                     }
-                    Decision::Cancelled => {
-                        xvora_session_events::types::PermissionDecision::Cancelled
-                    }
+                    Decision::Cancelled => session_events::types::PermissionDecision::Cancelled,
                     Decision::FollowupMessage(_) => {
-                        xvora_session_events::types::PermissionDecision::Followup
+                        session_events::types::PermissionDecision::Followup
                     }
                 },
                 perm_start,
@@ -3395,7 +3393,7 @@ mod plan_approval_helper_tests {
     }
     #[test]
     fn ext_method_no_client_defaults_false_for_untagged_error() {
-        assert!(!ext_method_no_client(&xvora_acp_lib::acp_internal_error(
+        assert!(!ext_method_no_client(&acp_lib::acp_internal_error(
             "unrelated internal error"
         )));
     }
@@ -3430,7 +3428,7 @@ mod wait_interrupt_tests {
     #[tokio::test(start_paused = true)]
     async fn pending_interjection_aborts_in_flight_wait() {
         use super::InterjectionBuffer;
-        use xvora_interjection_core::PendingInterjection;
+        use interjection_core::PendingInterjection;
         let buf: InterjectionBuffer<agent_client_protocol::ImageContent> =
             InterjectionBuffer::default();
         let out = tokio::select! {

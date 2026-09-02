@@ -26,12 +26,12 @@ use crate::cpu_profile::{
     ShutdownStopDisposition,
 };
 use agent_client_protocol::AGENT_METHOD_NAMES;
+use computer_hub_sdk::{AuthCredential, AuthIdentity, AuthProvider};
 use kanal::{AsyncReceiver, AsyncSender};
 use parking_lot::Mutex;
 use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, trace, warn};
-use xvora_computer_hub_sdk::{AuthCredential, AuthIdentity, AuthProvider};
 use xvora_workspace::WorkspaceHandle;
 const REGISTRATION_TIMEOUT: Duration = Duration::from_secs(30);
 /// Separator for namespacing request IDs.
@@ -697,7 +697,7 @@ fn inject_session_request_context(
                 serde_json::json!(capabilities.fs_write),
             );
             meta_obj.insert(
-                xvora_status_line::CLIENT_STATUS_LINE_META.to_string(),
+                status_line::CLIENT_STATUS_LINE_META.to_string(),
                 serde_json::json!(capabilities.status_line),
             );
         }

@@ -15,15 +15,15 @@ pub(super) struct RecordingLifecycle {
 }
 
 #[async_trait::async_trait(?Send)]
-impl xvora_agent_lifecycle::LocalTurnLifecycleContributor for RecordingLifecycle {
-    async fn on_turn_abort(&self, _input: &xvora_agent_lifecycle::TurnAbortInput) {
+impl agent_lifecycle::LocalTurnLifecycleContributor for RecordingLifecycle {
+    async fn on_turn_abort(&self, _input: &agent_lifecycle::TurnAbortInput) {
         self.aborts.set(self.aborts.get() + 1);
     }
 }
 
 #[async_trait::async_trait(?Send)]
-impl xvora_agent_lifecycle::LocalSessionLifecycleContributor for RecordingLifecycle {
-    async fn on_session_idle(&self, _input: &xvora_agent_lifecycle::SessionIdleInput) {
+impl agent_lifecycle::LocalSessionLifecycleContributor for RecordingLifecycle {
+    async fn on_session_idle(&self, _input: &agent_lifecycle::SessionIdleInput) {
         self.idles.set(self.idles.get() + 1);
     }
 }
@@ -31,12 +31,12 @@ impl xvora_agent_lifecycle::LocalSessionLifecycleContributor for RecordingLifecy
 struct Harness {
     actor: Arc<SessionActor>,
     lifecycle: std::rc::Rc<RecordingLifecycle>,
-    gateway: Option<tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>>,
+    gateway: Option<tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>>,
     events: Option<tokio::sync::mpsc::UnboundedReceiver<SessionEvent>>,
     /// Stands in for the one `run_session` owns; [`Self::spawn_loop`] retires it.
     queue: Option<super::turn_end_hooks::TurnEndQueue>,
     /// Held only so the loop does not see its chat channel close.
-    chat: Option<tokio::sync::mpsc::UnboundedSender<xvora_chat_state::ChatStateEvent>>,
+    chat: Option<tokio::sync::mpsc::UnboundedSender<chat_state::ChatStateEvent>>,
 }
 
 impl Harness {
@@ -62,7 +62,7 @@ impl Harness {
             actor.startup_hints.subagent_type = Some("explore".into());
         }
         let lifecycle = std::rc::Rc::new(RecordingLifecycle::default());
-        let mut builder = xvora_agent_lifecycle::LocalExtensionRegistryBuilder::default();
+        let mut builder = agent_lifecycle::LocalExtensionRegistryBuilder::default();
         builder.turn_lifecycle_contributor(lifecycle.clone());
         builder.session_lifecycle_contributor(lifecycle.clone());
         actor.extension_registry = builder.build();
@@ -115,13 +115,13 @@ impl Harness {
         tokio::task::spawn_local(async move {
             while let Some(msg) = gateway.recv().await {
                 match msg {
-                    xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                    acp_lib::AcpClientMessage::ExtNotification(args) => {
                         if args.request.method.as_ref() == "x.ai/hooks/event" {
                             sink.borrow_mut()
                                 .push(serde_json::from_str(args.request.params.get()).unwrap());
                         }
                     }
-                    xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                    acp_lib::AcpClientMessage::SessionNotification(args) => {
                         let _ = args.response_tx.send(Ok(()));
                     }
                     _ => {}
@@ -229,7 +229,7 @@ impl Harness {
             .expect("the loop owns the gateway; assert on the sink it returns");
         let mut events = Vec::new();
         while let Ok(msg) = gateway.try_recv() {
-            if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+            if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                 && args.request.method.as_ref() == "x.ai/hooks/event"
             {
                 events.push(serde_json::from_str(args.request.params.get()).unwrap());
@@ -420,7 +420,7 @@ async fn a_rewind_reports_nothing_but_still_settles_the_session() {
 async fn a_turn_announces_its_abort_once() {
     run(async {
         let h = Harness::new().await;
-        let interrupted = xvora_agent_lifecycle::TurnAbortReason::Interrupted;
+        let interrupted = agent_lifecycle::TurnAbortReason::Interrupted;
         let first = h.actor.turn_report.epoch();
         h.actor.notify_turn_abort(first, interrupted).await;
         h.actor.notify_turn_abort(first, interrupted).await;

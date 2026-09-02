@@ -86,7 +86,7 @@ fn make_handle_with_factory(
         skills_config: Default::default(),
         plugin_discovery_config: Default::default(),
         hub_config: None,
-        auth_provider: Some(Arc::new(xvora_computer_hub_sdk::AuthCredential::bearer(
+        auth_provider: Some(Arc::new(computer_hub_sdk::AuthCredential::bearer(
             "test-token",
         ))),
         server_metadata: None,
@@ -371,7 +371,7 @@ async fn resolver_advertises_tool_absent_from_connect_catalog() {
         .expect("main session exists")
         .toolset();
     let mut catalog = build_session_routed_handlers(&catalog_toolset, &handle);
-    let rpc_handler: Arc<dyn xvora_computer_hub_sdk::ToolServerHandler> =
+    let rpc_handler: Arc<dyn computer_hub_sdk::ToolServerHandler> =
         Arc::new(crate::hub_server::WorkspaceRpcHandler::new(handle.clone()));
     let rpc_tool_id = rpc_handler.tool_id();
     catalog.push(rpc_handler);
@@ -599,7 +599,7 @@ async fn rebind_none_to_explicit_swaps_mid_turn() {
 /// Once the call completes, a later rebind applies the correction.
 #[tokio::test]
 async fn rebind_explicit_to_explicit_with_in_flight_call_defers_then_corrects() {
-    use xvora_session_events::ToolOutcome;
+    use session_events::ToolOutcome;
     let rejected_before = swap_rejected_count("in_flight", "owner_rebind");
     let handle = make_handle();
     let cfg_a = explicit_cfg("read_a");
@@ -647,7 +647,7 @@ async fn rebind_explicit_to_explicit_with_in_flight_call_defers_then_corrects() 
 /// A reconnect's identical `session.bind` heals a stale session: reuse without the marker, defer in-flight, rebuild and clear once idle.
 #[tokio::test]
 async fn rebind_identical_reapply_repairs_stale_resolve() {
-    use xvora_session_events::ToolOutcome;
+    use session_events::ToolOutcome;
     let handle = make_handle();
     let cfg = explicit_cfg("renamed_read");
     let fingerprint = serde_json::to_value(&cfg).ok();
@@ -1710,8 +1710,8 @@ pub(crate) fn make_handle_with_events() -> (WorkspaceHandle, tempfile::TempDir) 
 /// Their field content is truthful.
 #[tokio::test]
 async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
+    use session_events::ToolOutcome;
     use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
-    use xvora_session_events::ToolOutcome;
     let (handle, home) = make_handle_with_events();
     let sid = "sess-int";
     handle
@@ -1732,14 +1732,15 @@ async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
     tracker.tool_call_completed("c1", Some(sid), ToolOutcome::Success);
     handle.on_yolo_toggled(sid, true);
     handle.on_mcp_server_toggled(sid, "linear", false);
-    handle.shared().session_event_writer(sid).emit(
-        xvora_session_events::Event::McpToolCallStarted {
+    handle
+        .shared()
+        .session_event_writer(sid)
+        .emit(session_events::Event::McpToolCallStarted {
             server_name: "linear".into(),
             tool_name: "list_issues".into(),
             call_id: "mcp-1".into(),
             timeout_sec: 30,
-        },
-    );
+        });
     handle
         .on_after_turn(
             sid,
@@ -1902,8 +1903,8 @@ async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
 /// It caches no session writers and creates no `sessions/` dir.
 #[tokio::test]
 async fn events_disabled_keeps_noop_and_writes_nothing() {
+    use session_events::ToolOutcome;
     use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
-    use xvora_session_events::ToolOutcome;
     let handle = make_handle();
     assert!(
         !handle.shared().events_enabled,
@@ -2085,8 +2086,8 @@ fn is_safe_object_segment_rejects_traversal() {
 /// The single mapping from `TurnHookOutcome` to `TurnOutcomeLabel` used by `on_after_turn` must be exhaustive and stable.
 #[test]
 fn turn_outcome_label_maps_every_variant() {
+    use session_events::TurnOutcomeLabel;
     use tool_protocol::turn_hook::TurnHookOutcome;
-    use xvora_session_events::TurnOutcomeLabel;
     assert!(matches!(
         turn_outcome_label(TurnHookOutcome::Completed),
         TurnOutcomeLabel::Completed
@@ -2306,9 +2307,8 @@ fn make_queue_backed_handle_with(
         confine_fs_to_workspace_root: false,
     };
     let home = tempfile::tempdir().expect("workspace home tempdir");
-    let auth: xvora_computer_hub_sdk::SharedAuthProvider = Arc::new(
-        xvora_computer_hub_sdk::auth::AuthCredential::bearer("test-token"),
-    );
+    let auth: computer_hub_sdk::SharedAuthProvider =
+        Arc::new(computer_hub_sdk::auth::AuthCredential::bearer("test-token"));
     let proxy = Arc::new(crate::upload::ProxyStorageConfig::new(
         auth,
         "http://127.0.0.1:1/v1".to_string(),
@@ -3459,12 +3459,11 @@ fn observe_connect_hub_catalog_result_records_error_pair() {
 #[test]
 fn workspace_shared_auth_provider_uses_workspace_config() {
     let temp = tempfile::tempdir().unwrap();
-    let service_auth: xvora_computer_hub_sdk::SharedAuthProvider = Arc::new(
-        xvora_computer_hub_sdk::auth::AuthCredential::bearer("xvora-service-token"),
+    let service_auth: computer_hub_sdk::SharedAuthProvider = Arc::new(
+        computer_hub_sdk::auth::AuthCredential::bearer("xvora-service-token"),
     );
-    let hub_auth: xvora_computer_hub_sdk::SharedAuthProvider = Arc::new(
-        xvora_computer_hub_sdk::auth::AuthCredential::bearer("hub-token"),
-    );
+    let hub_auth: computer_hub_sdk::SharedAuthProvider =
+        Arc::new(computer_hub_sdk::auth::AuthCredential::bearer("hub-token"));
     let hub_cfg = crate::hub::HubConfig {
         url: url::Url::parse("ws://127.0.0.1:9/ws").unwrap(),
         auth: hub_auth.clone(),
@@ -3899,18 +3898,16 @@ async fn fork_session_inherits_viewer_ctx_from_parent() {
     );
 }
 /// Build the resolver exactly the way `connect_hub` does: session catalog handlers and the workspace RPC handler.
-fn bind_resolver_fixture(
-    handle: &WorkspaceHandle,
-) -> xvora_computer_hub_sdk::SessionHandlerResolver {
+fn bind_resolver_fixture(handle: &WorkspaceHandle) -> computer_hub_sdk::SessionHandlerResolver {
     let catalog_toolset = handle.session("main").expect("main session").toolset();
     let mut catalog = build_session_routed_handlers(&catalog_toolset, handle);
-    let rpc_handler: Arc<dyn xvora_computer_hub_sdk::ToolServerHandler> =
+    let rpc_handler: Arc<dyn computer_hub_sdk::ToolServerHandler> =
         Arc::new(crate::hub_server::WorkspaceRpcHandler::new(handle.clone()));
     let rpc_tool_id = rpc_handler.tool_id();
     catalog.push(rpc_handler);
     handle.session_bind_resolver(Arc::new(catalog), rpc_tool_id)
 }
-fn handler_names(resolved: &xvora_computer_hub_sdk::ResolvedSessionHandlers) -> Vec<String> {
+fn handler_names(resolved: &computer_hub_sdk::ResolvedSessionHandlers) -> Vec<String> {
     resolved
         .handlers
         .iter()
@@ -4987,7 +4984,7 @@ fn make_handle_with_queue_routing(
     Arc<file_utils::queue::UploadQueue>,
     tempfile::TempDir,
 ) {
-    use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
+    use computer_hub_sdk::auth::{AuthCredential, AuthProvider};
     let factory = Arc::new(TestSessionContextFactory::new());
     let cwd = factory.temp.path().to_path_buf();
     let config = WorkspaceConfig {

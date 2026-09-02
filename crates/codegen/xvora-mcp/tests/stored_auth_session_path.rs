@@ -105,7 +105,7 @@ fn make_http_server(name: &str, url: &str) -> acp::McpServer {
     acp::McpServer::Http(acp::McpServerHttp::new(name, url))
 }
 
-fn session_ctx(event_writer: &xvora_session_events::EventWriter) -> McpSpawnCtx<'_> {
+fn session_ctx(event_writer: &session_events::EventWriter) -> McpSpawnCtx<'_> {
     xvora_mcp::isolate_grok_home_for_tests();
     McpSpawnCtx::for_session(
         "sess",
@@ -165,7 +165,7 @@ async fn stored_token_lifecycle_across_spawns() {
     let (url, requests, token_grants) = spawn_counting_gated_server().await;
     seed_stored_token("seeded", &url::Url::parse(&url).unwrap());
 
-    let event_writer = xvora_session_events::EventWriter::noop();
+    let event_writer = session_events::EventWriter::noop();
 
     let requests_before = requests.load(Ordering::SeqCst);
     let client = start_mcp_server(
@@ -257,7 +257,7 @@ async fn stored_token_lifecycle_across_spawns() {
 async fn entry_without_token_fail_fasts_until_out_of_band_login() {
     let (url, requests, _token_grants) = spawn_counting_gated_server().await;
     let parsed_url = url::Url::parse(&url).unwrap();
-    let event_writer = xvora_session_events::EventWriter::noop();
+    let event_writer = session_events::EventWriter::noop();
 
     seed_login_without_token("gated", &parsed_url);
 

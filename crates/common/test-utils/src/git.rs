@@ -51,7 +51,7 @@ pub fn ensure_hermetic_git_on_path() {
 /// ```ignore
 /// #[test]
 /// fn my_git_test() {
-///     xvora_test_utils::require_git!();
+///     test_utils::require_git!();
 ///     // ... git commands work here ...
 /// }
 /// ```

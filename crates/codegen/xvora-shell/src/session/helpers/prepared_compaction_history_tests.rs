@@ -39,7 +39,7 @@ fn reserved_tool_headroom_triggers_small_history_once() {
 fn compaction_summary_input_projects_agent_message_once_and_keeps_source_raw() {
     let raw = format!(
         "{}\npayload starts with the exact label",
-        xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+        chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
     );
     let source = vec![ConversationItem::agent_message(&raw)];
     let source_serialized = serde_json::to_vec(&source).unwrap();
@@ -51,7 +51,7 @@ fn compaction_summary_input_projects_agent_message_once_and_keeps_source_raw() {
         final_boundary.items[0].text_content(),
         format!(
             "{}\n{raw}",
-            xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+            chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
         )
     );
     assert_eq!(serde_json::to_vec(&source).unwrap(), source_serialized);
@@ -74,7 +74,7 @@ fn prepared_image_only_agent_history_cannot_be_projected_again() {
     assert!(matches!(
         user.content.as_slice(),
         [ContentPart::Text { text }, ContentPart::Image { .. }]
-            if text.as_ref() == xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+            if text.as_ref() == chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
     ));
 }
 

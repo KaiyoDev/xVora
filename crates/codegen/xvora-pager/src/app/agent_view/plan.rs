@@ -1368,7 +1368,7 @@ mod plan_approval_optimistic_mode_tests {
     use agent_client_protocol as acp;
     fn agent_in_plan_mode_with_approval() -> (
         AgentView,
-        tokio::sync::oneshot::Receiver<xvora_acp_lib::AcpResult<acp::ExtResponse>>,
+        tokio::sync::oneshot::Receiver<acp_lib::AcpResult<acp::ExtResponse>>,
     ) {
         let mut agent = make_agent();
         agent.plan_mode_active = true;

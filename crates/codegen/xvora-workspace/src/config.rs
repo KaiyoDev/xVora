@@ -727,7 +727,7 @@ pub struct WorkspaceConfig {
     pub hub_config: Option<HubConfig>,
     /// Auth provider for xAI service calls made from workspace-scoped code.
     /// `None` for workspaces that do not configure service auth.
-    pub auth_provider: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
+    pub auth_provider: Option<computer_hub_sdk::SharedAuthProvider>,
     /// Metadata attached to the tool server registration.
     /// Propagated through the server to `ServerInfo.metadata` in `servers.list` responses.
     /// Harness clients use it to identify the sandbox that started the tool server.
@@ -769,7 +769,7 @@ impl WorkspaceConfig {
         root_cwd: PathBuf,
         session_factory: Arc<dyn SessionContextFactory>,
         hub_config: HubConfig,
-        auth_provider: xvora_computer_hub_sdk::SharedAuthProvider,
+        auth_provider: computer_hub_sdk::SharedAuthProvider,
         server_metadata: Option<serde_json::Value>,
         status_config: crate::status_config::StatusConfig,
         tool_config: ToolServerConfig,

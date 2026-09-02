@@ -147,7 +147,7 @@
             ],
         )
         .meta(meta);
-        let msg = AcpClientMessage::RequestPermission(xvora_acp_lib::AcpArgs {
+        let msg = AcpClientMessage::RequestPermission(acp_lib::AcpArgs {
             request,
             response_tx: tx,
         });
@@ -186,7 +186,7 @@
             "mode": "default",
         }))
         .unwrap();
-        let msg = AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+        let msg = AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
             request: acp::ExtRequest::new("x.ai/ask_user_question", raw.into()),
             response_tx: tx,
         });
@@ -230,7 +230,7 @@
             }
         }))
         .unwrap();
-        let msg = AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+        let msg = AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
             request: acp::ExtRequest::new("x.ai/mcp/elicit", raw.into()),
             response_tx: tx,
         });
@@ -265,7 +265,7 @@
         }))
         .unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/mcp/elicit", raw1.into()),
                 response_tx: tx1,
             }),
@@ -295,7 +295,7 @@
         }))
         .unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/mcp/elicit", raw2.into()),
                 response_tx: tx2,
             }),
@@ -349,7 +349,7 @@
         }))
         .unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/mcp/elicit", raw.into()),
                 response_tx: tx,
             }),
@@ -412,7 +412,7 @@
         }))
         .unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/mcp/elicit", raw.into()),
                 response_tx: tx,
             }),
@@ -460,7 +460,7 @@
         }))
         .unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/mcp/elicit", raw1.into()),
                 response_tx: tx1,
             }),
@@ -489,7 +489,7 @@
         }))
         .unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/mcp/elicit", raw2.into()),
                 response_tx: tx2,
             }),
@@ -534,7 +534,7 @@
         }))
         .unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/mcp/elicit", raw.into()),
                 response_tx: tx,
             }),
@@ -561,7 +561,7 @@
         // A different server guessing the id must not dismiss the card.
         let (tx_bad, _rx_bad) = tokio::sync::oneshot::channel();
         let changed = handle(
-            AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
                 request: acp::ExtNotification::new(
                     "x.ai/mcp/elicit_complete",
                     complete("evil-mcp").into(),
@@ -579,7 +579,7 @@
         // The emitting server's own complete dismisses it.
         let (tx_ok, _rx_ok) = tokio::sync::oneshot::channel();
         let changed = handle(
-            AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
                 request: acp::ExtNotification::new(
                     "x.ai/mcp/elicit_complete",
                     complete("demo-mcp").into(),
@@ -610,7 +610,7 @@
             "mode": "default",
         }))
         .unwrap();
-        let msg = AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+        let msg = AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
             request: acp::ExtRequest::new("x.ai/ask_user_question", raw.into()),
             response_tx: tx,
         });
@@ -709,7 +709,7 @@
         };
         let raw = serde_json::value::to_raw_value(&ext_req).unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/exit_plan_mode", raw.into()),
                 response_tx: tx,
             }),
@@ -755,7 +755,7 @@
         };
         let raw = serde_json::value::to_raw_value(&ext_req).unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/exit_plan_mode", raw.into()),
                 response_tx: tx,
             }),
@@ -794,7 +794,7 @@
         };
         let raw = serde_json::value::to_raw_value(&ext_req).unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/exit_plan_mode", raw.into()),
                 response_tx: tx,
             }),
@@ -879,10 +879,10 @@
     fn a_status_snapshot_repaints_a_row_that_had_already_settled() {
         let mut app = make_app_with_agent("sess-1");
         app.current_ui.status_line =
-            xvora_status_line::test_support::StatusLineConfigFixture::from_kind(
-                xvora_status_line::StatusLineType::Builtin,
+            status_line::test_support::StatusLineConfigFixture::from_kind(
+                status_line::StatusLineType::Builtin,
             )
-            .with_items(vec![xvora_status_line::StatusLineItem::Cwd])
+            .with_items(vec![status_line::StatusLineItem::Cwd])
             .into_config();
 
         assert!(
@@ -930,7 +930,7 @@
         };
         let raw = serde_json::value::to_raw_value(&ext_req).unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/exit_plan_mode", raw.into()),
                 response_tx: tx,
             }),
@@ -979,7 +979,7 @@
         };
         let raw = serde_json::value::to_raw_value(&ext_req).unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/exit_plan_mode", raw.into()),
                 response_tx: tx,
             }),
@@ -1033,7 +1033,7 @@
         };
         let raw = serde_json::value::to_raw_value(&ext_req).unwrap();
         handle(
-            AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
                 request: acp::ExtRequest::new("x.ai/exit_plan_mode", raw.into()),
                 response_tx: tx,
             }),

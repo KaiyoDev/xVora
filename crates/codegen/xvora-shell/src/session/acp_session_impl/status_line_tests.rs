@@ -2,6 +2,7 @@ use super::{
     build_context_window, emit_loop, live_turn, split_normalized_remote, strip_trailing_separator,
 };
 use crate::extensions::notification::PromptUsageModel;
+use acp_lib::AcpClientMessage;
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -10,7 +11,6 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::sync::mpsc::UnboundedReceiver;
-use xvora_acp_lib::AcpClientMessage;
 use xvora_workspace::session::git::normalize_repo_url;
 
 #[test]
@@ -40,7 +40,7 @@ fn a_turn_is_on_the_wire_only_while_one_is_running() {
 
     assert_eq!(
         live_turn(Some(started), Some("prompt-1")),
-        Some(xvora_status_line::StatusLineTurn {
+        Some(status_line::StatusLineTurn {
             started_at_ms: started
         })
     );

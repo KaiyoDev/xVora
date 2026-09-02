@@ -6,9 +6,9 @@
 use super::SessionActor;
 use crate::extensions::notification::CompactionSegmentFile;
 use crate::session::persistence::PersistenceMsg;
-use xvora_chat_state::CompactionMode;
-use xvora_chat_state::compaction_utils::format_compact_summary;
-use xvora_compaction_transcript::COMPACTION_DIR;
+use chat_state::CompactionMode;
+use chat_state::compaction_utils::format_compact_summary;
+use compaction_transcript::COMPACTION_DIR;
 use xvora_sampling_types::ConversationItem;
 impl SessionActor {
     /// Persist the per-segment store (`Segments` only; no-op for `Summary` and `Transcript`).

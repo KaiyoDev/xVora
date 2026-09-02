@@ -87,15 +87,15 @@ fn canonicalize_existing_ancestor(path: &Path) -> Option<PathBuf> {
 
 /// Pull the path a read/list tool targets and classify it against the store.
 /// Keys span harnesses: `read_file` uses `target_file`, grep uses `path`, `list_dir` uses `target_directory`.
-/// The path grammar lives in `xvora_compaction_transcript`.
+/// The path grammar lives in `compaction_transcript`.
 pub(super) fn compaction_artifact_read(
     args: &serde_json::Value,
-) -> Option<xvora_compaction_transcript::CompactionArtifact> {
+) -> Option<compaction_transcript::CompactionArtifact> {
     let path = str_arg(
         args,
         &["target_file", "file_path", "path", "target_directory"],
     )?;
-    xvora_compaction_transcript::classify_compaction_path(path)
+    compaction_transcript::classify_compaction_path(path)
 }
 
 /// Map a backend-hosted tool name to a user-facing title, ACP ToolKind, and `raw_input` JSON for display in the pager's tool call UI.

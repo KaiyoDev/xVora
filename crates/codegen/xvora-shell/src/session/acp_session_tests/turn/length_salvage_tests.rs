@@ -117,7 +117,7 @@ async fn salvage_test_actor_on_backend(
         sampler_event_tx,
     );
     let (gateway_tx, gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     drain_gateway(gateway_rx);
     let (persistence_tx, persistence_rx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     drain_persistence(persistence_rx);

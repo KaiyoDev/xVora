@@ -13,9 +13,9 @@
 
 use std::time::{Duration, Instant};
 
+use acp_lib::AcpClientMessage;
 use agent_client_protocol as acp;
 use serde::Deserialize;
-use xvora_acp_lib::AcpClientMessage;
 
 use super::actions::TaskResult;
 use super::agent::AgentId;
@@ -352,7 +352,7 @@ mod tests {
             ))),
         )
         .meta(Some(meta));
-        AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+        AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
             request,
             response_tx: tx,
         })
@@ -373,7 +373,7 @@ mod tests {
     fn ext_notification(method: &str, params: serde_json::Value) -> AcpClientMessage {
         let (tx, _rx) = tokio::sync::oneshot::channel();
         let raw = serde_json::value::to_raw_value(&params).expect("raw params");
-        AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+        AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
             request: acp::ExtNotification::new(method, raw.into()),
             response_tx: tx,
         })
@@ -393,7 +393,7 @@ mod tests {
                 acp::PermissionOptionKind::AllowOnce,
             )],
         );
-        AcpClientMessage::RequestPermission(xvora_acp_lib::AcpArgs {
+        AcpClientMessage::RequestPermission(acp_lib::AcpArgs {
             request,
             response_tx: tx,
         })

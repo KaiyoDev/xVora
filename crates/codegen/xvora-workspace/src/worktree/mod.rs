@@ -2881,7 +2881,7 @@ mod tests {
 
     /// Create a source repo (one committed file) plus a worktree of it.
     fn repo_with_worktree(temp: &tempfile::TempDir) -> (std::path::PathBuf, std::path::PathBuf) {
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        use test_utils::git::{git_commit_all, init_git_repo};
         let repo = temp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
         init_git_repo(&repo);
@@ -2896,7 +2896,7 @@ mod tests {
     /// Happy path: the snapshot ref resolves and the worktree dir is removed.
     #[tokio::test]
     async fn snapshot_and_remove_captures_then_deletes() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = tempfile::TempDir::new().unwrap();
         let (repo, wt) = repo_with_worktree(&temp);
 
@@ -2921,7 +2921,7 @@ mod tests {
     /// Full cycle (LINKED worktree): snapshot and remove, then rehydrate restores content byte-for-byte.
     #[tokio::test]
     async fn snapshot_and_remove_then_rehydrate_round_trips() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = tempfile::TempDir::new().unwrap();
         let (repo, wt) = repo_with_worktree(&temp);
 
@@ -2956,8 +2956,8 @@ mod tests {
     /// The test FAILS without `transfer_snapshot_to_repo`.
     #[tokio::test]
     async fn snapshot_standalone_worktree_durable_after_removal_round_trips() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
@@ -3011,7 +3011,7 @@ mod tests {
     /// Invariant: a failed snapshot must NOT remove the worktree directory.
     #[tokio::test]
     async fn snapshot_failure_preserves_worktree() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = tempfile::TempDir::new().unwrap();
 
         // A plain directory (no git HEAD) makes `snapshot_worktree_to_ref` fail, so removal must never run
@@ -3133,8 +3133,8 @@ mod tests {
     /// `delegate` is `None` here, exercising the direct removal path.
     #[tokio::test]
     async fn cleanup_cancelled_worktree_removes_dir_and_deregisters() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
@@ -3177,8 +3177,8 @@ mod tests {
     /// In proxy mode the shell never spawns the async task, so a marker set in prepare would never clear and would wedge every retry in `Creating`.
     #[tokio::test]
     async fn prepare_does_not_strand_in_progress_marker() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
@@ -3235,8 +3235,8 @@ mod tests {
     /// The probe observes it mid-creation.
     #[tokio::test]
     async fn create_worktree_async_holds_marker_during_creation_and_clears_after() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
@@ -3288,7 +3288,7 @@ mod tests {
     /// `prepare_worktree_from_worktree` must not strand the marker in the proxy case.
     #[tokio::test]
     async fn fork_prepare_does_not_strand_in_progress_marker() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = tempfile::TempDir::new().unwrap();
         let (_repo, wt) = repo_with_worktree(&temp);
 
@@ -3342,8 +3342,8 @@ mod tests {
     /// The loser bails (no second creation, no spurious terminal status) and the marker is cleared once the winner finishes.
     #[tokio::test]
     async fn concurrent_create_worktree_async_dedups_to_single_creator() {
-        xvora_test_utils::require_git!();
-        use xvora_test_utils::git::{git_commit_all, init_git_repo};
+        test_utils::require_git!();
+        use test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");

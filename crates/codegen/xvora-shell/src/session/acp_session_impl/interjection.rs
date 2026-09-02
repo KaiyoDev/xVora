@@ -9,13 +9,12 @@ use super::*;
 // Re-exported for `acp_session.rs`, which does `pub(crate) use interjection::*;`
 // Retained code and co-located tests keep resolving by `acp_session::` path
 #[allow(unused_imports)]
-pub(crate) use xvora_interjection_core::{
+pub(crate) use interjection_core::{
     INTERRUPT_NOTE, InterjectionBuffer, drain_formatted, format_interjection, frame_user_turn,
 };
 
 /// Shell instantiation of the shared entry type: images are ACP content.
-pub(crate) type PendingInterjection =
-    xvora_interjection_core::PendingInterjection<acp::ImageContent>;
+pub(crate) type PendingInterjection = interjection_core::PendingInterjection<acp::ImageContent>;
 
 /// Prompt-id prefix for interjections that missed their turn and were converted into standalone prompt turns.
 /// They arrived while the session was idle, or after the running turn's final drain.

@@ -6,11 +6,11 @@ use crate::session::persistence::{CHAT_FORMAT_VERSION, Summary};
 use crate::tools::todo::TodoState;
 use agent_client_protocol as acp;
 use async_trait::async_trait;
+use chat_state::StrictAppendAck;
 use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
-use xvora_chat_state::StrictAppendAck;
 use xvora_workspace::session::file_state::RewindPoint;
 mod copy;
 #[derive(Clone)]
@@ -1145,7 +1145,7 @@ async fn next_compaction_segment_index(compaction_dir: &std::path::Path) -> u64 
         if let Some(n) = entry
             .file_name()
             .to_str()
-            .and_then(xvora_compaction_transcript::parse_segment_index)
+            .and_then(compaction_transcript::parse_segment_index)
         {
             next = next.max(n + 1);
         }
@@ -1879,11 +1879,11 @@ impl StorageAdapter for JsonlStorageAdapter {
         info: &Info,
         segment: &crate::extensions::notification::CompactionSegmentFile,
     ) -> io::Result<()> {
-        use tokio::io::AsyncWriteExt;
-        use xvora_compaction_transcript::{
+        use compaction_transcript::{
             COMPACTION_DIR, INDEX_FILE, INDEX_HEADER, extract_keywords, render_index_row,
             render_segment_md, segment_filename,
         };
+        use tokio::io::AsyncWriteExt;
         let base = self.session_dir(info).join(COMPACTION_DIR);
         tokio::fs::create_dir_all(&base).await?;
         let index = next_compaction_segment_index(&base).await;

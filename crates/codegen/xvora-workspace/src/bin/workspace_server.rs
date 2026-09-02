@@ -3,10 +3,10 @@
 //! Reads OIDC credentials from `~/.grok/auth.json`, connects to a
 //! server, exposes workspace tools, and refreshes tokens automatically.
 use clap::Parser;
+use diag_server::{self as diag_server, DiagHandle, ErrorClass};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-use xvora_diag_server::{self as diag_server, DiagHandle, ErrorClass};
 use xvora_workspace::config::merge_session_metadata;
 use xvora_workspace::error::WorkspaceError;
 use xvora_workspace_daemon::daemonize;
@@ -295,12 +295,12 @@ async fn run(
     oom_protection: std::io::Result<()>,
     oom_protect_applied: Option<bool>,
 ) -> anyhow::Result<()> {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
     use tracing_subscriber::layer::SubscriberExt as _;
     use tracing_subscriber::util::SubscriberInitExt as _;
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let donating = xvora_computer_hub_sdk::DonatingLogLayer::new_inert();
+    let donating = computer_hub_sdk::DonatingLogLayer::new_inert();
     tracing_subscriber::registry()
         .with(env_filter)
         .with(tracing_subscriber::fmt::layer())
@@ -541,7 +541,7 @@ async fn run(
     if let Some(pump) = &donation_pump {
         pump.drain().await;
     }
-    xvora_computer_hub_sdk::flush_log_layer();
+    computer_hub_sdk::flush_log_layer();
     if let Some(pump) = &log_donation_pump {
         pump.drain().await;
     }
@@ -622,7 +622,7 @@ mod tests {
     #[test]
     fn classify_from_client_error_display_round_trip() {
         let handshake = WorkspaceError::HubError(
-            xvora_computer_hub_sdk::ClientError::HandshakeAuthFailed { status: 401 }.to_string(),
+            computer_hub_sdk::ClientError::HandshakeAuthFailed { status: 401 }.to_string(),
         );
         let handshake_msg = handshake.to_string();
         assert_eq!(
@@ -634,15 +634,14 @@ mod tests {
             WORKSPACE_HUB_AUTH_FAILED_MARKER
         );
         let auth = WorkspaceError::HubError(
-            xvora_computer_hub_sdk::ClientError::AuthError("token rejected".into()).to_string(),
+            computer_hub_sdk::ClientError::AuthError("token rejected".into()).to_string(),
         );
         assert_eq!(
             classify_hub_connect_failure(&auth.to_string()),
             ErrorClass::HubAuth
         );
         let network = WorkspaceError::HubError(
-            xvora_computer_hub_sdk::ClientError::NetworkError("connection refused".into())
-                .to_string(),
+            computer_hub_sdk::ClientError::NetworkError("connection refused".into()).to_string(),
         );
         assert_eq!(
             classify_hub_connect_failure(&network.to_string()),

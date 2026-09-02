@@ -17,11 +17,11 @@ use crate::session::goal_planner::{
 };
 use crate::session::goal_role_tools::RoleToolNames;
 use crate::session::goal_tracker::GoalClassifierVerdict;
+use session_events::EventWriter;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use xvora_session_events::EventWriter;
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
@@ -400,11 +400,11 @@ pub(crate) fn build_subagent_trace_items(
 
 /// Record a harness-spawned subagent into the in-progress harness trace phase as a synthetic `task` call (see [`build_subagent_trace_items`]).
 /// The items accumulate in a side buffer, never the live model context.
-/// The caller seals the phase via [`xvora_chat_state::ChatStateHandle::flush_harness_trace_turn`] so it uploads as its own sibling `turn_{N}` artifact.
+/// The caller seals the phase via [`chat_state::ChatStateHandle::flush_harness_trace_turn`] so it uploads as its own sibling `turn_{N}` artifact.
 /// No-op when tracing is off (`sink` absent) or no prompt was captured.
 /// `sink` carries the chat-state handle and the resolved `task` tool name.
 pub(crate) fn record_subagent_trace(
-    sink: Option<&(xvora_chat_state::ChatStateHandle, String)>,
+    sink: Option<&(chat_state::ChatStateHandle, String)>,
     subagent_id: &str,
     subagent_type: &str,
     description: &str,
@@ -440,7 +440,7 @@ pub(crate) struct ChannelSpawner {
     pub(crate) cwd: Option<String>,
     /// Trace-artifact sink and the resolved `task` tool name.
     /// `None` disables trace recording (tests, or sessions without trace capture).
-    pub(crate) trace_sink: Option<(xvora_chat_state::ChatStateHandle, String)>,
+    pub(crate) trace_sink: Option<(chat_state::ChatStateHandle, String)>,
     /// Resolved model-and-toolset override per skeptic, indexed by `skeptic_idx`.
     /// An out-of-range index (or `Default`) inherits the current model.
     /// Round-robin expansion and the auth/capability fail-open are resolved parent-side before the spawner is built.

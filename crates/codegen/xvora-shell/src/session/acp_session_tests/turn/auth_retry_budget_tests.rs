@@ -66,17 +66,17 @@ fn expired_auth_manager(
 type XaiUpdates = Arc<parking_lot::Mutex<Vec<serde_json::Value>>>;
 
 fn drain_gateway(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> XaiUpdates {
     let captured = XaiUpdates::default();
     let sink = captured.clone();
     tokio::task::spawn_local(async move {
         while let Some(msg) = rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                acp_lib::AcpClientMessage::ExtNotification(args) => {
                     if let Ok(value) = serde_json::from_str(args.params.get()) {
                         sink.lock().push(value);
                     }
@@ -150,7 +150,7 @@ async fn session_token_actor(
     actor.chat_state_handle.update_sampling_config(cfg);
     let mut creds = actor.chat_state_handle.get_credentials().await;
     creds.api_key = None;
-    creds.auth_type = xvora_chat_state::AuthType::SessionToken;
+    creds.auth_type = chat_state::AuthType::SessionToken;
     actor.chat_state_handle.update_credentials(creds);
 
     // Definite NotByok: the session-token gate must stay active against the loopback mock URL (an `Unknown` would demand a first-party host)

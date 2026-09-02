@@ -1159,7 +1159,7 @@
         let raw = serde_json::value::to_raw_value(&payload).unwrap();
         let request = acp::ExtNotification::new("x.ai/session_notification", raw.into());
         let changed = handle(
-            AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),

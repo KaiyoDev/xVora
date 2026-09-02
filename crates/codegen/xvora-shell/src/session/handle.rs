@@ -58,7 +58,7 @@ pub struct SessionHandle {
         std::sync::Arc<arc_swap::ArcSwapOption<xvora_sampling_types::ToolOverrides>>,
     pub hunk_tracker_handle: HunkTrackerHandle,
     /// Actor-based chat state handle; lets callers inspect final conversation state.
-    pub chat_state_handle: xvora_chat_state::ChatStateHandle,
+    pub chat_state_handle: chat_state::ChatStateHandle,
     /// Handle to session signals (used for completion tracking)
     pub signals_handle: super::signals::SessionSignalsHandle,
     /// Shared gate controlling whether the session actor forwards notifications to the client via the gateway.
@@ -159,7 +159,7 @@ impl SessionHandle {
         )
     }
     /// Last assistant `model_id` / `model_fingerprint` in conversation (global, not turn-scoped).
-    pub(crate) async fn get_model_metadata(&self) -> xvora_chat_state::ModelMetadata {
+    pub(crate) async fn get_model_metadata(&self) -> chat_state::ModelMetadata {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -168,7 +168,7 @@ impl SessionHandle {
         {
             rx.await.unwrap_or_default()
         } else {
-            xvora_chat_state::ModelMetadata::default()
+            chat_state::ModelMetadata::default()
         }
     }
     /// Move a foreground bash command to background by tool_call_id.

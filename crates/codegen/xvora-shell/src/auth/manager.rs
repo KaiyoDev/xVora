@@ -227,7 +227,7 @@ pub struct AuthManager {
     power_listener_started: std::sync::atomic::AtomicBool,
     /// Keeps the OS power listener alive for this manager's lifetime; dropping it stops the listener.
     /// `None` until started (or if unavailable).
-    power_listener: parking_lot::Mutex<Option<xvora_system_power::SystemPowerListener>>,
+    power_listener: parking_lot::Mutex<Option<system_power::SystemPowerListener>>,
     /// Per-process `manual_auth` KPI debounce, shared by all recoveries on this manager.
     /// Repeated 401s on the most-recent dead credential emit once.
     manual_auth: crate::auth::recovery::ManualAuthTracker,

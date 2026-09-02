@@ -15,8 +15,8 @@ use crate::client_identity::{PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
 use crate::theme::system_appearance::{self, SystemAppearanceWatcher};
 use crate::theme::{Theme, ThemeKind, cache as theme_cache};
 
+use acp_lib::{AcpClientMessage, acp_send};
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpClientMessage, acp_send};
 
 use super::actions::{Action, Effect, TaskResult};
 use super::app_view::{
@@ -1331,7 +1331,7 @@ pub(crate) async fn run(
         effective_config.as_ref().ok_or(()),
         remote_settings.as_ref(),
     );
-    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
         claude: compat.claude.sessions,
         codex: compat.codex.sessions,
         cursor: compat.cursor.sessions,
@@ -4555,7 +4555,7 @@ mod tests {
         ));
 
         let request = match acp_rx.recv().await.expect("session/new request") {
-            xvora_acp_lib::AcpAgentMessage::NewSession(args) => args.request,
+            acp_lib::AcpAgentMessage::NewSession(args) => args.request,
             other => panic!("expected session/new, got {other:?}"),
         };
         let meta = request.meta.expect("permission metadata");
@@ -4656,7 +4656,7 @@ mod tests {
         assert!(!result.should_quit);
         assert!(matches!(
             acp_rx.recv().await.expect("session/new request"),
-            xvora_acp_lib::AcpAgentMessage::NewSession(_)
+            acp_lib::AcpAgentMessage::NewSession(_)
         ));
         assert_eq!(
             app.agents[&crate::app::agent::AgentId(0)].prompt.text(),

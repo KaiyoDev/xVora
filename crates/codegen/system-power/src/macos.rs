@@ -277,7 +277,7 @@ extern "C" fn power_callback(
         // in-flight token refresh to finish, which intentionally delays the
         // `IOAllowPowerChange` and holds off the suspend. IOKit allows ~30 s
         // per phase before forcing sleep, so a bounded wait is safe. See the
-        // `xvora_system_power` crate-level callback contract.
+        // `system_power` crate-level callback contract.
         (ctx.callback)(event);
     }
     if needs_ack {

@@ -112,7 +112,7 @@ impl SessionActor {
             session_id.clone()
         };
         ConversationRequest {
-            items: xvora_chat_state::compaction_utils::ModelRequestHistory::from_raw(call.items)
+            items: chat_state::compaction_utils::ModelRequestHistory::from_raw(call.items)
                 .into_items(),
             tools: call.tools,
             hosted_tools: call.hosted_tools,

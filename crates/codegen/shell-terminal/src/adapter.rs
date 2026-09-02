@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use super::exit_watcher::{poll_for_terminal_exit, release_terminal, watch_for_exit};
 use super::output_recorder::{OutputRecorder, read_log_tail};
+use acp_lib::{AcpAgentGatewaySender as GatewaySender, acp_channel_failure};
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpAgentGatewaySender as GatewaySender, acp_channel_failure};
 use xvora_tools::computer::types::{
     BackgroundHandle, ComputerError, KillOutcome, KillSource, TaskKind, TaskSnapshot,
     TerminalBackend, TerminalRunRequest, TerminalRunResult,

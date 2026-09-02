@@ -28,7 +28,7 @@ pub(crate) fn resolve_session_toolset(
     session_env: Arc<HashMap<String, String>>,
     session_id: &str,
     factory: &dyn SessionContextFactory,
-    local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
+    local_registry: Option<computer_hub_sdk::LocalRegistry>,
     lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
     viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
@@ -75,7 +75,7 @@ pub(crate) fn resolve_session_toolset_rebuild(
     session_env: Arc<HashMap<String, String>>,
     session_id: &str,
     factory: &dyn SessionContextFactory,
-    local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
+    local_registry: Option<computer_hub_sdk::LocalRegistry>,
     lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
     viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
@@ -302,7 +302,7 @@ pub(crate) use crate::ENV_TEST_LOCK as TOOL_STATE_ENV_LOCK;
 /// [`build_session_context`]: crate::config::SessionContextFactory::build_session_context
 /// [`LocalTerminalBackend`]: xvora_tools::computer::local::LocalTerminalBackend
 pub struct WorkspaceSessionContextFactory {
-    auth: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
+    auth: Option<computer_hub_sdk::SharedAuthProvider>,
     api_base_url: Option<String>,
     /// Resolved `$GROK_WORKSPACE_HOME` when tool-state persistence is enabled; `None` disables it.
     /// Resolved once by the caller so the factory performs no per-build env reads.
@@ -322,10 +322,7 @@ impl WorkspaceSessionContextFactory {
         }
     }
     /// Factory with auth: gen tools use the provider's live token.
-    pub fn with_auth(
-        auth: xvora_computer_hub_sdk::SharedAuthProvider,
-        api_base_url: String,
-    ) -> Self {
+    pub fn with_auth(auth: computer_hub_sdk::SharedAuthProvider, api_base_url: String) -> Self {
         Self {
             auth: Some(auth),
             api_base_url: Some(api_base_url),
@@ -393,7 +390,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
             if let (Some(auth), Some(url)) = (&self.auth, &self.api_base_url) {
                 let cred = auth.current();
                 match cred {
-                    xvora_computer_hub_sdk::AuthCredential::Bearer { token, .. } => {
+                    computer_hub_sdk::AuthCredential::Bearer { token, .. } => {
                         let headers = build_proxy_headers(url);
                         (
                             ImageGenConfig::Enabled {

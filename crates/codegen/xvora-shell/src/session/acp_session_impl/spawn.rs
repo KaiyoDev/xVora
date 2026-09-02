@@ -181,7 +181,7 @@ pub(crate) async fn spawn_session_actor(
     session_info: SessionInfo,
     gateway: GatewaySender,
     sampling_config: SamplingConfig,
-    credentials: xvora_chat_state::Credentials,
+    credentials: chat_state::Credentials,
     auth_method_id: crate::agent::auth_method::SharedAuthMethodId,
     auth_manager: Option<Arc<AuthManager>>,
     attribution_callback: Option<xvora_sampler::SharedAttributionCallback>,
@@ -205,7 +205,7 @@ pub(crate) async fn spawn_session_actor(
     client_type: ClientType,
     auto_compact_threshold_percent: u8,
     system_prompt_label: String,
-    compaction_mode: xvora_chat_state::CompactionMode,
+    compaction_mode: chat_state::CompactionMode,
     compaction_verbatim_input: bool,
     compaction_tool_choice: crate::util::config::CompactionToolChoice,
     two_pass_enabled: bool,
@@ -537,7 +537,7 @@ pub(crate) async fn spawn_session_actor(
         reasoning_effort: sampling_config.reasoning_effort,
         stream_tool_calls: Some(sampling_config.stream_tool_calls),
     };
-    let actor_pruning_config = xvora_chat_state::PruningConfig {
+    let actor_pruning_config = chat_state::PruningConfig {
         enabled: session_pruning_config.enabled,
         keep_last_n_turns: session_pruning_config.keep_last_n_turns,
         soft_trim_threshold: session_pruning_config.soft_trim_threshold,
@@ -546,7 +546,7 @@ pub(crate) async fn spawn_session_actor(
         hard_clear_age_turns: session_pruning_config.hard_clear_age_turns,
     };
     let (chat_state_event_tx, chat_state_event_rx) = mpsc::unbounded_channel();
-    let chat_state_handle = xvora_chat_state::ChatStateActor::spawn_with_pruning(
+    let chat_state_handle = chat_state::ChatStateActor::spawn_with_pruning(
         conversation.clone(),
         chat_state_sampling_config,
         actor_pruning_config,
@@ -1437,12 +1437,10 @@ pub(crate) async fn spawn_session_actor(
                 if input.validate_only {
                     let script = resolved.script.clone();
                     let probe_args = input.args.clone();
-                    let agent_budget = input
-                        .agent_budget
-                        .unwrap_or(xvora_workflow::DEFAULT_AGENT_BUDGET);
+                    let agent_budget = input.agent_budget.unwrap_or(workflow::DEFAULT_AGENT_BUDGET);
                     tokio::spawn(async move {
                         let verdict = tokio::task::spawn_blocking(move || {
-                            xvora_workflow::validate_script_with_agent_budget(
+                            workflow::validate_script_with_agent_budget(
                                 &script,
                                 probe_args,
                                 agent_budget,
@@ -1536,7 +1534,7 @@ pub(crate) async fn spawn_session_actor(
     let obs_bridge = {
         let sid = tool_protocol::SessionId::new(&*session_info.id.0)
             .unwrap_or_else(|_| tool_protocol::SessionId::new("unknown").expect("valid"));
-        xvora_computer_hub_sdk::ObservabilityBridge::new(None, sid)
+        computer_hub_sdk::ObservabilityBridge::new(None, sid)
     };
     let mut effective_config = crate::config::load_effective_config()
         .ok()
@@ -2268,7 +2266,7 @@ pub(crate) async fn spawn_session_on_thread(
     session_info: SessionInfo,
     gateway: GatewaySender,
     sampling_config: SamplingConfig,
-    credentials: xvora_chat_state::Credentials,
+    credentials: chat_state::Credentials,
     auth_method_id: crate::agent::auth_method::SharedAuthMethodId,
     auth_manager: Option<Arc<AuthManager>>,
     attribution_callback: Option<xvora_sampler::SharedAttributionCallback>,
@@ -2290,7 +2288,7 @@ pub(crate) async fn spawn_session_on_thread(
     client_type: ClientType,
     auto_compact_threshold_percent: u8,
     system_prompt_label: String,
-    compaction_mode: xvora_chat_state::CompactionMode,
+    compaction_mode: chat_state::CompactionMode,
     compaction_verbatim_input: bool,
     compaction_tool_choice: crate::util::config::CompactionToolChoice,
     two_pass_enabled: bool,

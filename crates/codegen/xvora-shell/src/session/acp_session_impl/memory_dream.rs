@@ -5,7 +5,7 @@ use xvora_telemetry::session_end::{self, Phase};
 
 #[derive(Debug)]
 pub(super) struct MemoryFlushSnapshot {
-    counts: xvora_chat_state::ConversationCounts,
+    counts: chat_state::ConversationCounts,
     chat_history: Vec<ConversationItem>,
 }
 
@@ -493,7 +493,7 @@ impl SessionActor {
                 n = recent.len(),
             );
             items.extend(
-                xvora_chat_state::compaction_utils::ModelRequestHistory::from_raw(recent).into_items(),
+                chat_state::compaction_utils::ModelRequestHistory::from_raw(recent).into_items(),
             );
             items.push(ConversationItem::user(
                 "Now write the memory summary as described in the system prompt.",
@@ -710,9 +710,7 @@ impl SessionActor {
             self.chat_state_handle.get_conversation(),
         );
         let chat_history =
-            xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
-                conversation,
-            );
+            chat_state::compaction_utils::prepare_conversation_for_summarization(conversation);
         MemoryFlushSnapshot {
             counts,
             chat_history,

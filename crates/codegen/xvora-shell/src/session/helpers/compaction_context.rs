@@ -1,6 +1,6 @@
 //! Rendering helpers for [`CompactionStateContext`] that depend on shell-specific types (`xvora_tools::MemoryBackend`, memory context).
 //!
-//! The core [`CompactionStateContext`] struct and its builder live in `xvora_chat_state::compaction_utils`.
+//! The core [`CompactionStateContext`] struct and its builder live in `chat_state::compaction_utils`.
 //! This module adds system-reminder rendering that requires dependencies not available in `xvora-chat-state`.
 //!
 //! The three **common** active-agent sections (background tasks, TODO list, running subagents) are formatted by [`xvora_compaction::reminder`].
@@ -9,7 +9,7 @@
 
 use std::path::PathBuf;
 
-pub use xvora_chat_state::compaction_utils::{
+pub use chat_state::compaction_utils::{
     BackgroundTaskSummary, CompactionInputs, CompactionServerSummary, CompactionStateContext,
     RunningSubagentSummary, TodoSummary, TodoSummaryStatus, extract_last_user_query,
     extract_messages_since_last_user, extract_user_query,
