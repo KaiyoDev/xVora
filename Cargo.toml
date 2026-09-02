@@ -323,6 +323,7 @@ token-estimation = {  path = "crates/codegen/token-estimation", package = "xvora
 tool-protocol = {  path = "crates/common/tool-protocol", package = "xvora-tool-protocol" }
 tool-runtime = {  path = "crates/common/tool-runtime", package = "xvora-tool-runtime" }
 tool-types = {  path = "crates/common/tool-types", package = "xvora-tool-types" }
+xvora-tool-types = { path = "crates/common/tool-types" }
 tracing-util = {  path = "crates/common/xvora-tracing", package = "xvora-tracing" }
 tty-utils = {  path = "crates/codegen/tty-utils", package = "xvora-tty-utils" }
 zbus = { version = "5" }
@@ -370,6 +371,18 @@ shell-terminal = { path = "crates/codegen/shell-terminal" }
 status-line = { path = "crates/codegen/status-line" }
 foreign-sessions = { path = "crates/codegen/foreign-sessions" }
 sampler = { path = "crates/codegen/xvora-sampler", package = "xvora-sampler" }
+xvora-auth = { path = "crates/codegen/xvora-auth" }
+xvora-bundle = { path = "crates/codegen/bundle" }
+xvora-computer-hub-sdk = { path = "crates/common/computer-hub-sdk" }
+xvora-config = { path = "crates/codegen/xvora-config" }
+xvora-env = { path = "crates/codegen/xvora-env" }
+xvora-memory = { path = "crates/codegen/xvora-memory" }
+xvora-shell = { path = "crates/codegen/xvora-shell" }
+xvora-shell-base = { path = "crates/codegen/xvora-shell-base" }
+xvora-sqlite-journal = { path = "crates/codegen/sqlite-journal" }
+xvora-status-line = { path = "crates/codegen/status-line" }
+xvora-test-support = { path = "crates/codegen/xvora-test-support" }
+xvora-workspace = { path = "crates/codegen/xvora-workspace" }
 [profile.release]
 incremental = true
 panic = "abort"
