@@ -37,7 +37,7 @@ impl ConfigWatcher {
     }
     /// Start with config loaded from disk (prod mode, no hot-reload).
     fn start_static() -> io::Result<Self> {
-        let config = xvora_config::user_grok_home()
+        let config = config::user_grok_home()
             .and_then(|_| std::fs::read_to_string(Self::pager_config_path()).ok())
             .and_then(|content| {
                 toml::from_str::<super::config::RawAppearanceConfig>(&content)

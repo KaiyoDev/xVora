@@ -16,7 +16,7 @@ use crate::app::app_view::InputOutcome;
 use crate::input::line_editor::{LineEditOutcome, LineEditor};
 use crate::key;
 use crate::views::prompt_widget::{PromptEvent, PromptWidget};
-use xvora_shell::session::persistence::MAX_TITLE_SCALARS as MAX_RENAME_SCALARS;
+use shell::session::persistence::MAX_TITLE_SCALARS as MAX_RENAME_SCALARS;
 
 const PROMPT_MULTI_CLICK_MS: u128 = 300;
 
@@ -655,7 +655,7 @@ impl DashboardDispatchMode {
 #[derive(Debug, Clone)]
 pub struct PendingDispatchModel {
     pub id: agent_client_protocol::ModelId,
-    pub effort: Option<xvora_shell::sampling::types::ReasoningEffort>,
+    pub effort: Option<shell::sampling::types::ReasoningEffort>,
     pub display: String,
 }
 
@@ -698,7 +698,7 @@ impl RenameDraft {
         self.editor.cursor_byte()
     }
 
-    pub(crate) fn viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    pub(crate) fn viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.editor.viewport(width)
     }
 
@@ -846,7 +846,7 @@ impl LocationPickerState {
                 if cfg!(windows) && has_windows_drive_prefix(q) && q.len() == 2 {
                     (PathBuf::from(format!("{q}\\")), String::new())
                 } else {
-                    let home = xvora_dirs::home_dir().unwrap_or_else(|| self.base_cwd.clone());
+                    let home = dirs::home_dir().unwrap_or_else(|| self.base_cwd.clone());
                     (home, q.trim_start_matches('~').to_string())
                 }
             }
@@ -957,7 +957,7 @@ fn resolve_dir_prefix(prefix: &str, base: &Path) -> PathBuf {
         }
     } else if trimmed == "~" || prefix.starts_with("~/") {
         let rest = trimmed.trim_start_matches('~').trim_start_matches('/');
-        let mut home = xvora_dirs::home_dir().unwrap_or_else(|| base.to_path_buf());
+        let mut home = dirs::home_dir().unwrap_or_else(|| base.to_path_buf());
         if !rest.is_empty() {
             home.push(rest);
         }
@@ -2841,7 +2841,7 @@ impl DashboardState {
         // Stamped `Keyboard` (like the agent/welcome Ctrl+O) so "which surface" stays orthogonal to "was it keyboard"
         if self.pinned_upgrade_cta_live && key!('o', CONTROL).matches(key) {
             return InputOutcome::Action(Action::AnnouncementsOpenCta(
-                xvora_telemetry::events::AnnouncementCtaSurface::Keyboard,
+                telemetry::events::AnnouncementCtaSurface::Keyboard,
             ));
         }
 
@@ -3582,7 +3582,7 @@ impl DashboardState {
             // A click on the header upgrade CTA `[label]` opens the promo url (resolved through the slot gate at dispatch time)
             if self.upgrade_cta_hit.contains(mouse.column, mouse.row) {
                 return InputOutcome::Action(Action::AnnouncementsOpenCta(
-                    xvora_telemetry::events::AnnouncementCtaSurface::Dashboard,
+                    telemetry::events::AnnouncementCtaSurface::Dashboard,
                 ));
             }
 
@@ -4414,8 +4414,8 @@ fn atomic_write(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 }
 
 fn config_path() -> Option<PathBuf> {
-    let home = xvora_shell::util::grok_home::grok_home();
-    Some(home.join(xvora_config::USER_CONFIG_FILENAME))
+    let home = shell::util::grok_home::grok_home();
+    Some(home.join(config::USER_CONFIG_FILENAME))
 }
 
 /// Cap parsed entry count to keep a corrupted or malicious config.toml from ballooning allocations.

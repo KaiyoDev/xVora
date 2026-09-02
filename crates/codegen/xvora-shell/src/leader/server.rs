@@ -31,8 +31,8 @@ use parking_lot::Mutex;
 use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, trace, warn};
-use xvora_computer_hub_sdk::{AuthCredential, AuthIdentity, AuthProvider};
-use xvora_workspace::WorkspaceHandle;
+use computer_hub_sdk::{AuthCredential, AuthIdentity, AuthProvider};
+use workspace::WorkspaceHandle;
 const REGISTRATION_TIMEOUT: Duration = Duration::from_secs(30);
 /// Separator for namespacing request IDs.
 /// The pipe is valid in JSON strings (no escaping needed) and unlikely to appear in typical JSON-RPC IDs (usually numbers or UUIDs).
@@ -751,7 +751,7 @@ fn inject_session_request_context(
                 serde_json::json!(capabilities.fs_write),
             );
             meta_obj.insert(
-                xvora_status_line::CLIENT_STATUS_LINE_META.to_string(),
+                status_line::CLIENT_STATUS_LINE_META.to_string(),
                 serde_json::json!(capabilities.status_line),
             );
         }
@@ -1144,7 +1144,7 @@ async fn handle_workspace_start(
     }
     let allow_insecure_ws =
         url.scheme() == "ws" && matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "::1"));
-    let status_config = xvora_workspace::StatusConfig::from_env();
+    let status_config = workspace::StatusConfig::from_env();
     let alpha_test_key = None;
     let auth = wait_for_leader_auth(ws, &cancel).await?;
     let server_id = workspace_server_id();
@@ -1157,11 +1157,11 @@ async fn handle_workspace_start(
         std::env::var("GROK_WORKSPACE_UPLOAD_QUEUE_ENABLED").as_deref() != Ok("false");
     crate::agent::folder_trust::resolve_and_record(&cwd_path, None, false);
     let project_lsp_trusted = crate::agent::folder_trust::project_scope_allowed(&cwd_path);
-    let handle = xvora_workspace::connect_local_workspace(
+    let handle = workspace::connect_local_workspace(
         cwd_path.clone(),
         url,
         auth,
-        xvora_workspace::LocalWorkspaceConnectOptions {
+        workspace::LocalWorkspaceConnectOptions {
             metadata: Some(metadata),
             server_id: Some(server_id),
             alpha_test_key,
@@ -1647,7 +1647,7 @@ pub async fn run_leader_server(
                         client.registered = true;
                         client_count.fetch_add(1, Ordering::Relaxed);
                         debug!(client_id = id.0, ?mode, yolo_mode = client.capabilities.yolo_mode, client_type = %client.client_type, "Client registered");
-                        xvora_telemetry::unified_log::info(
+                        telemetry::unified_log::info(
                             "leader.client.registered",
                             None,
                             Some(serde_json::json!({
@@ -1691,7 +1691,7 @@ pub async fn run_leader_server(
                     clients.remove(&id);
                     if was_registered {
                         client_count.fetch_sub(1, Ordering::Relaxed);
-                        xvora_telemetry::unified_log::info(
+                        telemetry::unified_log::info(
                             "leader.client.disconnected",
                             None,
                             Some(serde_json::json!({ "client_id": id.0 })),
@@ -1958,7 +1958,7 @@ pub async fn run_leader_server(
                         request_id = orphan_req_id.as_str(),
                         "Dropping RPC response: requesting client disconnected (response orphaned)"
                     );
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "leader.response.orphaned",
                         None,
                         Some(serde_json::json!({
@@ -2011,7 +2011,7 @@ pub async fn run_leader_server(
                                 client_id = client_id.0,
                                 "Failed to send response to client (channel full)"
                             );
-                            xvora_telemetry::unified_log::warn(
+                            telemetry::unified_log::warn(
                                 "leader.response.send_failed",
                                 None,
                                 Some(serde_json::json!({
@@ -2022,7 +2022,7 @@ pub async fn run_leader_server(
                         }
                         Err(e) => {
                             warn!(client_id = client_id.0, error = %e, "Failed to send response to client (channel closed)");
-                            xvora_telemetry::unified_log::warn(
+                            telemetry::unified_log::warn(
                                 "leader.response.send_failed",
                                 None,
                                 Some(serde_json::json!({

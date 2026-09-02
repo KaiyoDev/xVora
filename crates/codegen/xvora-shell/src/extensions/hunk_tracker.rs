@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::{ExtResult, parse_params, to_ext_response};
 use crate::agent::MvpAgent;
 use hunk_tracker::{FileContentEntry, FileContentStatus, FileContentView, Hunk, HunkTrackerHandle};
-use xvora_workspace::workspace_ops::{
+use workspace::workspace_ops::{
     FileContentEntryWire, FileContentStatusWire, FileContentViewWire, HunkActionKind,
     HunkActionReq, HunkAllActionReq, HunkFileActionReq, HunkGetAllFileContentsReq,
     HunkGetSessionSummaryReq, HunkSingleActionReq, HunkTurnActionReq,
@@ -293,7 +293,7 @@ fn compute_file_summaries(
 
 pub async fn handle(
     agent: &MvpAgent,
-    ops: &xvora_workspace::WorkspaceOps,
+    ops: &workspace::WorkspaceOps,
     args: &acp::ExtRequest,
 ) -> ExtResult {
     match args.method.as_ref() {

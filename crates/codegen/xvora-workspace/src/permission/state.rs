@@ -4,7 +4,7 @@ use crate::permission::types::EditPolicy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use xvora_paths::AbsPathBuf;
-use xvora_tools::util::grok_home::grok_home;
+use tools::util::grok_home::grok_home;
 
 const VALIDATED_MCP_SERVER_GRANTS_VERSION: i64 = 1;
 
@@ -122,7 +122,7 @@ impl PermissionState {
 ///
 /// Synchronous filesystem work (git discovery and canonicalize): call from the blocking pool via [`resolve_store_dirs`] on the async paths.
 fn permission_scope_root(cwd: &AbsPathBuf) -> std::path::PathBuf {
-    match xvora_agent::repo::RepoDirChain::resolve(cwd.as_path()).git_root {
+    match agent::repo::RepoDirChain::resolve(cwd.as_path()).git_root {
         // git2 workdirs can carry a trailing separator
         // Re-collecting the components drops it so the encoded store key matches the plain spelling of the same directory
         Some(root) => root.components().collect(),
@@ -133,14 +133,14 @@ fn permission_scope_root(cwd: &AbsPathBuf) -> std::path::PathBuf {
 /// Test-only; production resolves the scope root once in [`resolve_store_dirs`] and derives everything from it.
 #[cfg(test)]
 fn state_dir_for_cwd(cwd: &AbsPathBuf) -> std::path::PathBuf {
-    xvora_config::sessions_cwd_dir(&permission_scope_root(cwd).to_string_lossy())
+    config::sessions_cwd_dir(&permission_scope_root(cwd).to_string_lossy())
 }
 
 /// The store location from before repo-root keying (keyed on the exact cwd), when it differs from the resolved repo-root store `dir`.
 /// Read-only migration source: grants saved by older builds in a subdirectory still load until the repo-root store exists.
 /// The next persist carries them into it.
 fn legacy_state_dir(cwd: &AbsPathBuf, dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    let legacy = xvora_config::sessions_cwd_dir(cwd.as_str());
+    let legacy = config::sessions_cwd_dir(cwd.as_str());
     (legacy != dir).then_some(legacy)
 }
 
@@ -155,7 +155,7 @@ struct StoreDirs {
 
 async fn resolve_store_dirs(cwd: &AbsPathBuf, ensure: bool) -> StoreDirs {
     let cwd = cwd.clone();
-    let fallback_dir = xvora_config::sessions_cwd_dir(cwd.as_str());
+    let fallback_dir = config::sessions_cwd_dir(cwd.as_str());
     tokio::task::spawn_blocking(move || {
         // Resolve the scope root ONCE: discovery walks the filesystem
         // The store dir, its ensure fallback, and the legacy compare all derive from this single resolution
@@ -163,12 +163,12 @@ async fn resolve_store_dirs(cwd: &AbsPathBuf, ensure: bool) -> StoreDirs {
         let dir = if ensure {
             // Canonical creator: tighten the sessions root this write may create
             // Falls back to the computed path (persist_state_to_dir re-creates it owner-only) so a failed ensure still gets a write
-            xvora_config::ensure_sessions_cwd_dir(&root).unwrap_or_else(|e| {
+            config::ensure_sessions_cwd_dir(&root).unwrap_or_else(|e| {
                 tracing::warn!(?e, "failed ensuring sessions cwd dir for permission state");
-                xvora_config::sessions_cwd_dir(&root)
+                config::sessions_cwd_dir(&root)
             })
         } else {
-            xvora_config::sessions_cwd_dir(&root)
+            config::sessions_cwd_dir(&root)
         };
         StoreDirs {
             legacy_dir: legacy_state_dir(&cwd, &dir),
@@ -228,7 +228,7 @@ where
 
 async fn try_load_state(path: &std::path::Path) -> Option<PermissionState> {
     try_load_state_with_writer(path, |path, contents| {
-        xvora_config::fs_atomic::write_atomically(path, contents, None)
+        config::fs_atomic::write_atomically(path, contents, None)
     })
     .await
 }
@@ -367,8 +367,8 @@ async fn persist_state_to_dir(
     // Owner-only dir creation runs inside the writer's spawn_blocking
     // GROK_HOME may sit on a slow filesystem, so no blocking fs work on the async worker
     let result = persist_state_to_path_with_writer(&path, state, move |path, contents| {
-        xvora_config::create_dir_all_owner_only(&dir)?;
-        xvora_config::fs_atomic::write_atomically(path, contents, None)
+        config::create_dir_all_owner_only(&dir)?;
+        config::fs_atomic::write_atomically(path, contents, None)
     })
     .await;
     if let Err(e) = result {
@@ -1246,7 +1246,7 @@ allowed_mcp_servers = ["a"]
         let dir = dunce::canonicalize(tmp.path()).unwrap();
         let cwd = AbsPathBuf::new(dir.clone()).unwrap();
         // Guard: skip if the system temp dir is itself inside a repo.
-        if xvora_agent::repo::RepoDirChain::resolve(&dir)
+        if agent::repo::RepoDirChain::resolve(&dir)
             .git_root
             .is_none()
         {

@@ -18,7 +18,7 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 
 /// Name of the trust-store file under `~/.grok/`.
-const TRUST_FILE_NAME: &str = xvora_config::TRUSTED_PLUGINS_FILENAME;
+const TRUST_FILE_NAME: &str = config::TRUSTED_PLUGINS_FILENAME;
 
 #[derive(Debug, Clone)]
 pub struct TrustStore {
@@ -33,7 +33,7 @@ impl TrustStore {
     pub fn load() -> Self {
         // Gate on user_grok_home() so a project's `.grok/trusted-plugins` is never read as the user trust store
         // That happens when neither GROK_HOME nor a home dir resolves
-        let Some(grok) = xvora_config::user_grok_home() else {
+        let Some(grok) = config::user_grok_home() else {
             return Self {
                 trusted: HashSet::new(),
                 file_path: PathBuf::new(),
@@ -150,7 +150,7 @@ impl TrustStore {
     /// is under the user's home directory.  Otherwise it requires explicit
     /// trust via `~/.grok/trusted-plugins`.
     pub fn is_config_path_auto_trusted(plugin_root: &Path) -> bool {
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return false;
         };
         match dunce::canonicalize(plugin_root) {

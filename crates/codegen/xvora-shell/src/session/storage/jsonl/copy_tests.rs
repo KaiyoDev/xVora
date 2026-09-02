@@ -346,7 +346,7 @@ async fn copy_session_data_copies_compaction_segments_when_enabled() {
     let seg = |s: &str| CompactionSegmentFile {
         items: vec![ConversationItem::user("a"), ConversationItem::user("b")],
         summary: s.to_string(),
-        detail: xvora_chat_state::CompactionDetail::Verbose,
+        detail: chat_state::CompactionDetail::Verbose,
         timestamp: "2026-01-01T00:00:00Z".to_string(),
     };
     adapter
@@ -377,7 +377,7 @@ async fn copy_session_data_copies_compaction_segments_when_enabled() {
 
     let dst = adapter
         .session_dir(&target_info)
-        .join(xvora_compaction_transcript::COMPACTION_DIR);
+        .join(compaction_transcript::COMPACTION_DIR);
     assert!(dst.join("segment_000.md").is_file());
     assert!(dst.join("segment_001.md").is_file());
     assert!(dst.join("INDEX.md").is_file());
@@ -399,7 +399,7 @@ async fn copy_session_data_copies_compaction_segments_when_enabled() {
     assert!(
         !adapter
             .session_dir(&target2)
-            .join(xvora_compaction_transcript::COMPACTION_DIR)
+            .join(compaction_transcript::COMPACTION_DIR)
             .exists()
     );
 }
@@ -1163,7 +1163,7 @@ fn worktree_target_cwd(home: &std::path::Path) -> String {
 #[serial_test::serial]
 async fn fork_with_default_kind_into_worktree_cwd_stamps_worktree_identity() {
     let home = TempDir::new().unwrap();
-    let _env = xvora_test_support::EnvGuard::set("GROK_HOME", home.path());
+    let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
     let adapter = JsonlStorageAdapter::with_root(home.path().join("sessions-root"));
     let source_info = Info {
         id: acp::SessionId::new("src-plain-fork"),
@@ -1192,7 +1192,7 @@ async fn fork_with_default_kind_into_worktree_cwd_stamps_worktree_identity() {
 #[serial_test::serial]
 async fn explicit_subagent_fork_kind_wins_over_worktree_target_cwd() {
     let home = TempDir::new().unwrap();
-    let _env = xvora_test_support::EnvGuard::set("GROK_HOME", home.path());
+    let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
     let adapter = JsonlStorageAdapter::with_root(home.path().join("sessions-root"));
     let source_info = Info {
         id: acp::SessionId::new("src-subagent-fork"),
@@ -1288,7 +1288,7 @@ async fn assert_copy_clears_pending_relocation(fork_filter: bool) {
                 )
                 .await
                 .unwrap(),
-            xvora_chat_state::StrictAppendAck::AlreadyPresent(item)
+            chat_state::StrictAppendAck::AlreadyPresent(item)
                 if item.text_content() == "switch"
         ));
         let retried = adapter.read_summary_sync(&target).unwrap();

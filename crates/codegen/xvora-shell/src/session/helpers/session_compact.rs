@@ -7,7 +7,7 @@ use agent_client_protocol as acp;
 use async_openai::types::responses::ResponseStreamEvent;
 use futures_util::StreamExt;
 use reqwest::StatusCode;
-use xvora_sampler::SamplerConfig as SamplingConfig;
+use sampler::SamplerConfig as SamplingConfig;
 
 // Re-export compaction utilities from xvora-chat-state so existing callers that import from this module continue to work
 pub use chat_state::compaction_utils::{
@@ -91,7 +91,7 @@ pub(crate) const COMPACT_ERROR_DETAIL_MAX_BYTES: usize = 300;
 pub(crate) fn normalize_compact_detail(raw: &str) -> String {
     let single_line = raw.split_whitespace().collect::<Vec<_>>().join(" ");
     let scrubbed = crate::sampling::error::rewrite_service_names(&single_line);
-    xvora_tools::util::truncate_str_with_marker(&scrubbed, COMPACT_ERROR_DETAIL_MAX_BYTES)
+    tools::util::truncate_str_with_marker(&scrubbed, COMPACT_ERROR_DETAIL_MAX_BYTES)
         .into_owned()
 }
 
@@ -119,7 +119,7 @@ impl CompactFailure {
 }
 
 // Single definition so turn-path and compaction size detection can't drift.
-pub(crate) use xvora_compaction::is_context_length_error;
+pub(crate) use compaction::is_context_length_error;
 
 /// Classify an upstream `SamplingError` for the compaction retry loop.
 ///
@@ -512,7 +512,7 @@ pub(crate) async fn generate_session_compact(
             message.x_grok_conv_id = Some(sid.clone());
             message.x_grok_req_id = Some(format!("xvora-compact-{}", uuid::Uuid::new_v4()));
             message.x_grok_session_id = Some(sid);
-            message.x_grok_agent_id = Some(xvora_telemetry::id::agent_id());
+            message.x_grok_agent_id = Some(telemetry::id::agent_id());
 
             tracing::info!(
                 compact_model = %sampling_config.model,
@@ -606,7 +606,7 @@ pub(crate) async fn generate_session_compact(
                 x_grok_conv_id: Some(session_id.to_string()),
                 x_grok_req_id: Some(format!("xvora-compact-{}", uuid::Uuid::new_v4())),
                 x_grok_session_id: Some(session_id.to_string()),
-                x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+                x_grok_agent_id: Some(telemetry::id::agent_id()),
                 ..Default::default()
             };
             let stream_result =
@@ -729,7 +729,7 @@ pub(crate) async fn generate_session_compact(
                 x_grok_conv_id: Some(session_id.to_string()),
                 x_grok_req_id: Some(format!("xvora-compact-{}", uuid::Uuid::new_v4())),
                 x_grok_session_id: Some(session_id.to_string()),
-                x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+                x_grok_agent_id: Some(telemetry::id::agent_id()),
                 ..Default::default()
             };
             let stream_result =

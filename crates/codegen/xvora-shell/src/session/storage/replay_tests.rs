@@ -927,7 +927,7 @@ fn stream_replay_collapses_tool_call_and_skips_in_progress() {
 fn stream_replay_forwards_completed_tool_call_update_without_base() {
     let home = tempfile::tempdir().unwrap();
     let cwd = "/tmp/orphan-complete";
-    let encoded = xvora_config::encode_cwd_dirname(cwd);
+    let encoded = config::encode_cwd_dirname(cwd);
     let sid = "child-orphan-complete";
     let dir = home.path().join("sessions").join(&encoded).join(sid);
     std::fs::create_dir_all(&dir).unwrap();
@@ -1127,7 +1127,7 @@ fn replay_would_emit_requires_an_emitting_acp_line() {
 fn child_fast_path_finds_updates_under_parent_encoded_cwd() {
     let home = tempfile::tempdir().unwrap();
     let cwd = "/work/proj";
-    let encoded = xvora_config::encode_cwd_dirname(cwd);
+    let encoded = config::encode_cwd_dirname(cwd);
     let sid = "child-fast";
     let dir = home.path().join("sessions").join(&encoded).join(sid);
     std::fs::create_dir_all(&dir).unwrap();
@@ -1152,7 +1152,7 @@ fn child_fast_path_finds_updates_under_child_cwd() {
     let home = tempfile::tempdir().unwrap();
     let parent_cwd = "/work/parent";
     let child_cwd = "/work/wt";
-    let encoded = xvora_config::encode_cwd_dirname(child_cwd);
+    let encoded = config::encode_cwd_dirname(child_cwd);
     let sid = "child-wt";
     let dir = home.path().join("sessions").join(&encoded).join(sid);
     std::fs::create_dir_all(&dir).unwrap();
@@ -1175,7 +1175,7 @@ fn child_fast_path_finds_updates_under_child_cwd() {
 #[test]
 fn child_lookup_falls_back_when_fast_path_misses() {
     let home = tempfile::tempdir().unwrap();
-    let other = xvora_config::encode_cwd_dirname("/other/cwd");
+    let other = config::encode_cwd_dirname("/other/cwd");
     let sid = "relocated-child";
     let dir = home.path().join("sessions").join(&other).join(sid);
     std::fs::create_dir_all(&dir).unwrap();
@@ -1206,7 +1206,7 @@ fn child_lookup_falls_back_when_fast_path_misses() {
 #[test]
 fn child_lookup_hinted_only_skips_scan_when_fast_path_misses() {
     let home = tempfile::tempdir().unwrap();
-    let other = xvora_config::encode_cwd_dirname("/other/cwd");
+    let other = config::encode_cwd_dirname("/other/cwd");
     let sid = "relocated-child-hinted";
     let dir = home.path().join("sessions").join(&other).join(sid);
     std::fs::create_dir_all(&dir).unwrap();

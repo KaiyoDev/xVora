@@ -13,11 +13,11 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tokio_util::sync::CancellationToken;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::{
+use acp_lib::{
     AcpClientChannel, AcpGatewayReceiver, AcpGatewaySender, LineBufferedRead, acp_channels,
 };
-pub use xvora_shell::leader::ConnectionStatus;
-use xvora_shell::leader::{LeaderConnection, LeaderReconnector, ReconnectPolicy};
+pub use shell::leader::ConnectionStatus;
+use shell::leader::{LeaderConnection, LeaderReconnector, ReconnectPolicy};
 
 const MAX_BUF: usize = 8 * 1024 * 1024;
 
@@ -112,7 +112,7 @@ pub(crate) fn bridge_channels(
         .name("pager-leader-bridge".into())
         .spawn(move || -> Result<()> {
             let mut builder = tokio::runtime::Builder::new_current_thread();
-            let rt = xvora_tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()?;
+            let rt = tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()?;
             let local = tokio::task::LocalSet::new();
             local.block_on(&rt, async move {
                 let leader_tx_shared = Arc::new(TokioMutex::new(leader_tx));
@@ -257,7 +257,7 @@ pub(crate) fn bridge_channels(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_acp_lib::acp_send;
+    use acp_lib::acp_send;
 
     #[tokio::test]
     async fn forward_outbound_line_delivers_on_live_channel() {

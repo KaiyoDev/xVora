@@ -1,4 +1,4 @@
-use xvora_shell::sampling::{ApiBackend, Client, SamplerConfig};
+use shell::sampling::{ApiBackend, Client, SamplerConfig};
 
 #[cfg(unix)]
 pub mod leader {
@@ -7,7 +7,7 @@ pub mod leader {
     use std::pin::Pin;
 
     use futures::FutureExt as _;
-    use xvora_test_support::leader::{LeaderFixture, LeaderStdioClient};
+    use test_support::leader::{LeaderFixture, LeaderStdioClient};
 
     #[allow(dead_code)]
     pub type TestBody<'a> = Pin<Box<dyn Future<Output = ()> + 'a>>;
@@ -292,7 +292,7 @@ pub mod leader {
 pub fn isolated_home() -> tempfile::TempDir {
     let home = tempfile::TempDir::new().expect("grok home tempdir");
     // SAFETY: single-test binary; no other thread reads or writes the environment.
-    unsafe { xvora_test_support::isolate_grok_env(home.path()) };
+    unsafe { test_support::isolate_grok_env(home.path()) };
     home
 }
 
@@ -306,17 +306,17 @@ pub fn block_on<F: std::future::Future>(fut: F) -> F::Output {
 }
 
 #[allow(dead_code)]
-pub async fn start_seeded_mock(home: &std::path::Path) -> xvora_test_support::MockInferenceServer {
-    let server = xvora_test_support::MockInferenceServer::start()
+pub async fn start_seeded_mock(home: &std::path::Path) -> test_support::MockInferenceServer {
+    let server = test_support::MockInferenceServer::start()
         .await
         .expect("start mock server");
     std::fs::write(home.join("agent_id"), "test-agent-id").expect("seed agent_id");
-    let scope = xvora_shell::auth::GrokComConfig::default().auth_scope();
+    let scope = shell::auth::GrokComConfig::default().auth_scope();
     let auth = serde_json::json!({
         scope: {
             "key": "test-session-token",
             "auth_mode": "oidc",
-            "oidc_issuer": xvora_shell::auth::xvora_oauth2_issuer(),
+            "oidc_issuer": shell::auth::xvora_oauth2_issuer(),
             "create_time": "2026-01-01T00:00:00Z",
             "expires_at": "2099-01-01T00:00:00Z",
             "user_id": "test-user",
@@ -335,11 +335,11 @@ pub async fn start_seeded_mock(home: &std::path::Path) -> xvora_test_support::Mo
 }
 
 #[allow(dead_code)]
-pub async fn run_bootstrap() -> Result<xvora_shell::agent::config::Config, String> {
+pub async fn run_bootstrap() -> Result<shell::agent::config::Config, String> {
     tokio::task::spawn_blocking(|| {
-        let cfg = xvora_shell::agent::config::Config::default();
+        let cfg = shell::agent::config::Config::default();
         let auth_manager = std::sync::Arc::new(cfg.create_auth_manager());
-        xvora_shell::agent::init::bootstrap(&cfg, &auth_manager, None)
+        shell::agent::init::bootstrap(&cfg, &auth_manager, None)
             .map(|(resolved, _models_manager)| resolved)
             .map_err(|e| e.to_string())
     })
@@ -371,7 +371,7 @@ pub fn test_sampler_config(
     api_backend: ApiBackend,
     extra_headers: &[(&str, &str)],
 ) -> SamplerConfig {
-    // Shell `Client` is `xvora_sampler::SamplingClient`, which takes a `SamplerConfig` directly
+    // Shell `Client` is `sampler::SamplingClient`, which takes a `SamplerConfig` directly
     SamplerConfig {
         api_key: Some("test-api-key".to_string()),
         base_url: base_url.to_string(),

@@ -63,7 +63,7 @@ impl SessionActor {
             sampling_client.api_backend(),
             reasoning_effort,
         ) {
-            items = xvora_chat_state::compaction_utils::strip_reasoning_blocks(items);
+            items = chat_state::compaction_utils::strip_reasoning_blocks(items);
         }
 
         // /btw fires mid-turn, so the snapshot may end with an assistant message whose tool_calls have no matching ToolResult yet.
@@ -552,7 +552,7 @@ impl SessionActor {
     ) -> Option<String> {
         use crate::session::helpers::prompt_suggest;
 
-        use xvora_telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
+        use telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
 
         if !crate::util::config::prompt_suggestions_enabled_from_disk() {
             tracing::debug!("prompt suggest: feature disabled; skipping request");
@@ -584,7 +584,7 @@ impl SessionActor {
                 reasoning_is_off,
                 "prompt suggest: effective model not in catalog; skipping request"
             );
-            xvora_telemetry::session_ctx::log_event(PromptSuggestion {
+            telemetry::session_ctx::log_event(PromptSuggestion {
                 action: PsAction::SkippedCatalog,
                 chars: 0,
                 words: 0,
@@ -635,7 +635,7 @@ impl SessionActor {
         );
         let reasoning_effort = suggest_reasoning.effort;
         let request_model = sampling_config.model.clone();
-        let sampling_client = match xvora_sampler::SamplingClient::new(sampling_config) {
+        let sampling_client = match sampler::SamplingClient::new(sampling_config) {
             Ok(client) => client,
             Err(e) => {
                 tracing::debug!(error = %e, "prompt suggest: sampling client unavailable");
@@ -674,13 +674,13 @@ impl SessionActor {
             x_grok_conv_id: Some(format!("promptsuggest-{}", uuid::Uuid::new_v4())),
             x_grok_req_id: Some(request_id.clone()),
             x_grok_session_id: Some(self.session_info.id.to_string()),
-            x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+            x_grok_agent_id: Some(telemetry::id::agent_id()),
             ..Default::default()
         };
 
         let started = std::time::Instant::now();
         let log_fetch = |action, chars, words, latency_ms| {
-            xvora_telemetry::session_ctx::log_event(PromptSuggestion {
+            telemetry::session_ctx::log_event(PromptSuggestion {
                 action,
                 chars,
                 words,
@@ -719,7 +719,7 @@ impl SessionActor {
             }
         };
         tracing::debug!(
-            raw_preview = %xvora_tools::util::truncate_str(raw.trim(), 60),
+            raw_preview = %tools::util::truncate_str(raw.trim(), 60),
             accepted = suggestion.is_some(),
             "prompt suggest: response"
         );

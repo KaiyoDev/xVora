@@ -240,7 +240,7 @@ pub(super) fn set_voice_stt_language_inner(app: &mut AppView, canonical: &str) {
     // Tear down any in-flight session first so the mic indicator clears immediately and the pipeline's channel-close is not misreported as "pipeline ended"
     if language_changed && let Some(tx) = app.voice_cmd_tx.take() {
         app.voice_reset();
-        let _ = tx.try_send(xvora_voice::VoiceCommand::Shutdown);
+        let _ = tx.try_send(voice::VoiceCommand::Shutdown);
     }
 }
 
@@ -259,7 +259,7 @@ pub(in crate::app::dispatch) fn set_voice_stt_language(
     }
     set_voice_stt_language_inner(app, canonical);
     refresh_open_settings_modals(app);
-    let effective = xvora_voice::language_for_api(canonical);
+    let effective = voice::language_for_api(canonical);
     tracing::info!(
         target: "settings",
         key = "voice_stt_language",
@@ -267,10 +267,10 @@ pub(in crate::app::dispatch) fn set_voice_stt_language(
         effective,
         "setting changed"
     );
-    let toast = if canonical == xvora_voice::STT_LANGUAGE_AUTO {
+    let toast = if canonical == voice::STT_LANGUAGE_AUTO {
         format!("\u{2713} Voice language: System ({effective})")
     } else {
-        let name = xvora_voice::stt_language_by_code(canonical).map_or(canonical, |l| l.name);
+        let name = voice::stt_language_by_code(canonical).map_or(canonical, |l| l.name);
         format!("\u{2713} Voice language: {name}")
     };
     app.show_toast(&toast);
@@ -363,7 +363,7 @@ pub(in crate::app::dispatch) fn set_ask_user_question_timeout_enabled(
     app: &mut AppView,
     new: bool,
 ) -> Vec<Effect> {
-    use xvora_tools::implementations::grok_build::ask_user_question;
+    use tools::implementations::grok_build::ask_user_question;
     let prev_state = app.ask_user_question_timeout_enabled;
     let prev_effective =
         prev_state.unwrap_or(ask_user_question::DEFAULT_ASK_USER_QUESTION_TIMEOUT_ENABLED);
@@ -996,7 +996,7 @@ pub(super) fn set_follow_up_behavior_inner(
     crate::appearance::cache::set_follow_up_behavior(new);
     // Same-process atomic only (tests / in-proc shell)
     // The real agent is a separate process; it re-resolves Steer from config.toml mtime after the PersistSetting disk write lands
-    xvora_shell::util::config::set_follow_up_steer_cache(new.is_steer());
+    shell::util::config::set_follow_up_steer_cache(new.is_steer());
 }
 
 pub(in crate::app::dispatch) fn set_follow_up_behavior(
@@ -1076,11 +1076,11 @@ pub(in crate::app::dispatch) fn set_simple_mode(app: &mut AppView, new: bool) ->
 /// State-only mutation: write one tip's user-config Option, then re-resolve and fan the resolved gates out to `app` and every agent prompt.
 pub(super) fn set_contextual_hint_inner(
     app: &mut AppView,
-    write: fn(&mut xvora_shell::agent::config::ContextualHints, Option<bool>),
+    write: fn(&mut shell::agent::config::ContextualHints, Option<bool>),
     new: bool,
 ) {
     write(&mut app.current_ui.contextual_hints, Some(new));
-    let resolved = xvora_shell::util::config::resolve_contextual_hints(
+    let resolved = shell::util::config::resolve_contextual_hints(
         &app.current_ui.contextual_hints,
         app.remote_contextual_hints.as_ref(),
     );
@@ -1093,7 +1093,7 @@ fn set_contextual_hint(
     key: crate::settings::SettingKey,
     label: &str,
     prev: Option<bool>,
-    write: fn(&mut xvora_shell::agent::config::ContextualHints, Option<bool>),
+    write: fn(&mut shell::agent::config::ContextualHints, Option<bool>),
     new: bool,
 ) -> Vec<Effect> {
     // Skip when the stored user-explicit value already matches (no-op toggle).
@@ -1721,7 +1721,7 @@ pub(in crate::app::dispatch) fn set_default_model(
     // Chat (`--chat` / GROK_CHAT_MODE) catalogs use opaque `/rest/modes`
     // slugs that must not become the global Build `default_model`.
     let mut effects: Vec<Effect> = Vec::new();
-    if !xvora_shell::agent::chat_modes::process_chat_mode_enabled() {
+    if !shell::agent::chat_modes::process_chat_mode_enabled() {
         let new_id_str = new_id.0.to_string();
         let prev_id_str = prev_id
             .as_ref()
@@ -1899,9 +1899,9 @@ pub(in crate::app::dispatch) fn set_fork_secondary_model(
 }
 
 /// Outer dispatcher for `Action::ClearForkSecondaryModel`.
-/// Resets the persisted override to the built-in baseline (`xvora_shell::models::default_model()`).
+/// Resets the persisted override to the built-in baseline (`shell::models::default_model()`).
 pub(in crate::app::dispatch) fn clear_fork_secondary_model(app: &mut AppView) -> Vec<Effect> {
-    let baseline = xvora_shell::models::default_model().to_string();
+    let baseline = shell::models::default_model().to_string();
     let prev_id_str = app.current_ui.fork_secondary_model.clone();
     if prev_id_str == baseline {
         // Idempotent: already at baseline.
@@ -1989,7 +1989,7 @@ pub(in crate::app::dispatch) fn set_max_thoughts_width(app: &mut AppView, new: i
 /// Effective-default lookup for the `Option<bool>` AppView mirrors (`show_tips`, `auto_update`, ask_user_question timeout).
 /// Matches the consumer's `.unwrap_or(...)` fallback.
 pub(super) fn pr13_effective_default(key: &str) -> Option<bool> {
-    use xvora_tools::implementations::grok_build::ask_user_question;
+    use tools::implementations::grok_build::ask_user_question;
     match key {
         "show_tips" => Some(true),
         "auto_update" => Some(true),

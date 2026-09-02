@@ -204,9 +204,9 @@ impl Resources {
     }
     /// Get a shared reference to a stored value, or return
     /// a `custom("missing_resource", ...)` error with the type name if absent.
-    pub fn require<T: Send + Sync + 'static>(&self) -> Result<&T, xvora_tool_runtime::ToolError> {
+    pub fn require<T: Send + Sync + 'static>(&self) -> Result<&T, tool_runtime::ToolError> {
         self.get::<T>().ok_or_else(|| {
-            xvora_tool_runtime::ToolError::custom(
+            tool_runtime::ToolError::custom(
                 "missing_resource",
                 format!("missing required resource: {}", std::any::type_name::<T>()),
             )
@@ -436,10 +436,10 @@ pub(crate) fn resolve_plan_file_path(res: &Resources) -> (Option<PathBuf>, Strin
 /// Like [`resolve_plan_file_path`] but errors when no absolute target resolves.
 pub(crate) fn require_plan_file_path(
     res: &Resources,
-) -> Result<(PathBuf, String), xvora_tool_runtime::ToolError> {
+) -> Result<(PathBuf, String), tool_runtime::ToolError> {
     let (target, display) = resolve_plan_file_path(res);
     let target = target.ok_or_else(|| {
-        xvora_tool_runtime::ToolError::custom(
+        tool_runtime::ToolError::custom(
             "missing_resource",
             "missing required resource: PlanFilePath or an absolute Cwd",
         )
@@ -538,12 +538,12 @@ fn sanitize_model_path_arg(input: &str) -> &str {
 pub fn display_cwd_or_cwd(cwd: &std::path::Path, display_cwd: Option<&std::path::Path>) -> PathBuf {
     display_cwd.unwrap_or(cwd).to_path_buf()
 }
-/// Newtype wrapper for `Arc<dyn xvora_tool_runtime::ToolDispatch>` so it can
+/// Newtype wrapper for `Arc<dyn tool_runtime::ToolDispatch>` so it can
 /// be stored in `ToolCallContext::extensions`. Used by `use_tool` and the
 /// external MCP-call tool, which dispatch to target tools without going
 /// through the outer `ToolBridge` (which would deadlock).
 #[derive(Clone)]
-pub struct InnerDispatch(pub std::sync::Arc<dyn xvora_tool_runtime::ToolDispatch>);
+pub struct InnerDispatch(pub std::sync::Arc<dyn tool_runtime::ToolDispatch>);
 #[derive(Debug, Clone)]
 pub struct ManagedGatewayToolSource {
     pub connector_id: String,
@@ -571,7 +571,7 @@ pub trait ManagedGatewayToolCaller: Send + Sync {
         call_id: &str,
         arguments: serde_json::Value,
         caller: &str,
-    ) -> Result<ManagedGatewayToolCallResponse, xvora_tool_runtime::ToolError>;
+    ) -> Result<ManagedGatewayToolCallResponse, tool_runtime::ToolError>;
 }
 #[derive(Clone)]
 pub struct ManagedGatewayToolClient(pub Arc<dyn ManagedGatewayToolCaller>);
@@ -717,7 +717,7 @@ impl ParamNameMapping {
 }
 /// Canonical → client-facing param names for the tool currently executing.
 ///
-/// Stamped onto [`xvora_tool_runtime::ToolCallContext::extensions`] by
+/// Stamped onto [`tool_runtime::ToolCallContext::extensions`] by
 /// `prepare_dispatch` / `call_raw` from that tool's own
 /// `params_name_overrides`. Prefer this over kind-wide
 /// [`crate::types::template_renderer::TemplateRenderer::param_for_kind`] when
@@ -1469,14 +1469,14 @@ mod tests {
     }
     #[test]
     fn resolve_model_path_tilde_expands_to_home() {
-        let home = xvora_dirs::home_dir().expect("test requires home_dir");
+        let home = dirs::home_dir().expect("test requires home_dir");
         let cwd = std::path::Path::new("/worktree/abc");
         let result = super::resolve_model_path(cwd, None, "~/foo/bar.rs");
         assert_eq!(result, home.join("foo/bar.rs"));
     }
     #[test]
     fn resolve_model_path_tilde_alone() {
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return;
         };
         let cwd = std::path::Path::new("/worktree/abc");
@@ -1484,7 +1484,7 @@ mod tests {
     }
     #[test]
     fn resolve_model_path_tilde_slash_only() {
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return;
         };
         let cwd = std::path::Path::new("/worktree/abc");
@@ -1513,7 +1513,7 @@ mod tests {
     }
     #[test]
     fn resolve_model_path_tilde_with_display_cwd() {
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return;
         };
         let cwd = std::path::Path::new("/worktree/abc");

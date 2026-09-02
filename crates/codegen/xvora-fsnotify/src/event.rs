@@ -43,7 +43,7 @@ pub enum FsEvent {
     GitOperationCompleted { head_changed: bool },
 }
 
-/// Aligned with `xvora_workspace_types::FsEventKind` (identity map at
+/// Aligned with `workspace_types::FsEventKind` (identity map at
 /// the workspace boundary). `notify::EventKind::{Access, Any, Other}` are
 /// filtered upstream and never surface here.
 #[derive(

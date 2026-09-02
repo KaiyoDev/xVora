@@ -10,7 +10,7 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 indicatif = { workspace = true }
 reqwest = { workspace = true }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -19,11 +19,11 @@ time = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["fs", "process", "io-util", "macros", "time"] }
 tracing = { workspace = true }
 url = { workspace = true }
-xvora-dirs = { workspace = true }
-xvora-shell = { workspace = true }
-xvora-telemetry = { workspace = true }
-xvora-tools = { workspace = true }
-xvora-version = { workspace = true }
+dirs = { workspace = true }
+shell = { workspace = true }
+telemetry = { workspace = true }
+tools = { workspace = true }
+version = { workspace = true }
 flate2 = { workspace = true }
 zstd = { workspace = true }
 

@@ -16,7 +16,7 @@
 //! Other workspace keys under the path, including nested git roots, are not covered.
 //! The persisted file is written atomically with owner-only (`0600`) permissions.
 //!
-//! The store is rooted at [`xvora_config::user_grok_home`], never the cwd-relative `./.grok` fallback.
+//! The store is rooted at [`config::user_grok_home`], never the cwd-relative `./.grok` fallback.
 //! That home is `None` when neither `$GROK_HOME` nor a home directory is set (e.g. a minimal container / CI).
 //! In that no-home environment [`TrustStore::load`] yields an empty store that trusts nothing and persists nothing.
 //! So a cloned repo can never ship a `./.grok/trusted_folders.toml` that self-trusts its own checkout (fail closed).
@@ -30,7 +30,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 /// Filename of the folder-trust store under `~/.grok/`.
-pub const TRUST_FILE_NAME: &str = xvora_config::TRUSTED_FOLDERS_FILENAME;
+pub const TRUST_FILE_NAME: &str = config::TRUSTED_FOLDERS_FILENAME;
 
 /// A single folder's trust record.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,10 +95,10 @@ impl TrustStore {
 
     /// Default on-disk path: `<user_grok_home>/trusted_folders.toml`, or `None` when no user home resolves.
     ///
-    /// Resolves via [`xvora_config::user_grok_home`], never [`xvora_config::grok_home`], so it never falls back to a cwd-relative `./.grok`.
+    /// Resolves via [`config::user_grok_home`], never [`config::grok_home`], so it never falls back to a cwd-relative `./.grok`.
     /// That fallback would let an untrusted cloned repo's `.grok` masquerade as the user-global store and self-trust the checkout.
     pub fn default_path() -> Option<PathBuf> {
-        Self::default_path_in(xvora_config::user_grok_home())
+        Self::default_path_in(config::user_grok_home())
     }
 
     /// Map a resolved user-grok-home to the store path, preserving "no home" as "no path" (never synthesizing a fallback).
@@ -368,7 +368,7 @@ fn git_derived_workspace_key(cwd: &Path) -> PathBuf {
 
 /// Whether `path` resolves to the user's home directory.
 pub fn is_home_dir(path: &Path) -> bool {
-    let Some(home) = xvora_dirs::home_dir() else {
+    let Some(home) = dirs::home_dir() else {
         return false;
     };
     canonicalize_or_owned(path) == canonicalize_or_owned(&home)
@@ -671,7 +671,7 @@ mod tests {
         // The real regression guard is `default_path_in(None) == None` above
         assert_eq!(
             TrustStore::default_path(),
-            xvora_config::user_grok_home().map(|h| h.join(TRUST_FILE_NAME))
+            config::user_grok_home().map(|h| h.join(TRUST_FILE_NAME))
         );
     }
 
@@ -964,7 +964,7 @@ mod tests {
             .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         let store_path = tmp.path().join(TRUST_FILE_NAME);
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return; // no home dir in this environment; nothing to assert
         };
 
@@ -996,7 +996,7 @@ mod tests {
     #[test]
     fn workspace_key_ignores_home_git_repo_for_subdir() {
         // Home-is-a-git-repo (dotfiles in $HOME): the git up-walk finds home as the repo root, but a subdir must key on the SUBDIR, not $HOME
-        // Pin HOME and USERPROFILE: xvora_dirs::home_dir reads USERPROFILE on Windows
+        // Pin HOME and USERPROFILE: dirs::home_dir reads USERPROFILE on Windows
         let _lock = crate::ENV_TEST_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
@@ -1109,7 +1109,7 @@ mod tests {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         // A hand-edited / migrated `[folders."<home>"]` record must not trust repos under $HOME; the read side ignores it, matching set_trusted
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return; // no home dir in this environment; nothing to assert
         };
         let canonical_home = canonicalize_or_owned(&home);

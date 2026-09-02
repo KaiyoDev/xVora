@@ -6,7 +6,7 @@ use crate::agent::subagent::{LIVE_ORPHAN_RECONCILE_REASON, SubagentMeta};
 use crate::extensions::notification::SessionUpdate;
 use crate::session::SessionCommand;
 use agent_client_protocol as acp;
-use xvora_tools::implementations::grok_build::task::types::{
+use tools::implementations::grok_build::task::types::{
     SubagentEvent, SubagentInspection, SubagentSnapshot, SubagentSnapshotStatus,
 };
 
@@ -103,7 +103,7 @@ fn drain_cancelled_finishes(
 }
 
 fn spawn_inspect_stub(
-    event_rx: xvora_tools::implementations::grok_build::task::coordinator::SubagentCoordinatorReceiver,
+    event_rx: tools::implementations::grok_build::task::coordinator::SubagentCoordinatorReceiver,
     inspect: Option<SubagentInspection>,
 ) {
     let mut event_rx = event_rx.into_event_receiver();

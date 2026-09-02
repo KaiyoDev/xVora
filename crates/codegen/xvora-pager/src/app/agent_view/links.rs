@@ -81,8 +81,8 @@ impl AgentView {
     /// Split from `draw`'s emit-gated block so the guards are unit-testable; the caller owns the `hyperlink_route().emit_osc8` check.
     pub(super) fn push_promo_cta_link_span(
         &self,
-        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
-        banner_announcements: &[xvora_announcements::RemoteAnnouncement],
+        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
+        banner_announcements: &[announcements::RemoteAnnouncement],
         hidden_announcement_ids: &std::collections::BTreeSet<String>,
     ) {
         if let Some((_, url)) = crate::views::announcements::promo_cta_target(
@@ -96,8 +96,8 @@ impl AgentView {
     /// It shares the banner CTA's url resolution and occluder rule.
     pub(super) fn push_upgrade_cta_link_span(
         &self,
-        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
-        banner_announcements: &[xvora_announcements::RemoteAnnouncement],
+        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
+        banner_announcements: &[announcements::RemoteAnnouncement],
         hidden_announcement_ids: &std::collections::BTreeSet<String>,
     ) {
         if let Some((_, url)) = crate::views::announcements::promo_cta_target(
@@ -110,8 +110,8 @@ impl AgentView {
     /// Append the OSC 8 spans a `command` status row opened, in the screen columns the row was painted at, under the same occluder rule as the CTAs.
     pub(super) fn push_status_line_link_spans(
         &self,
-        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
-        status_line_spans: Vec<xvora_ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
+        status_line_spans: Vec<ratatui_inline::LinkSpan>,
     ) {
         for span in status_line_spans {
             let width = span.col_end.saturating_sub(span.col_start);
@@ -125,14 +125,14 @@ impl AgentView {
     /// Draw already suppressed the rect under prompt dropdowns; the goal-detail overlay can reach the top/bottom rows on short terminals.
     fn push_cta_link_span(
         &self,
-        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
         rect: Option<ratatui::layout::Rect>,
         url: &str,
     ) {
         if let Some(rect) = rect
             && !self.rect_occluded(rect)
         {
-            link_spans_out.push(xvora_ratatui_inline::LinkSpan {
+            link_spans_out.push(ratatui_inline::LinkSpan {
                 row: rect.y,
                 col_start: rect.x,
                 col_end: rect.x.saturating_add(rect.width),
@@ -611,7 +611,7 @@ mod link_click_tests {
     fn draw_banner_frame(
         agent: &mut AgentView,
         reg: &ActionRegistry,
-        announcements: &[xvora_announcements::RemoteAnnouncement],
+        announcements: &[announcements::RemoteAnnouncement],
         banner_height: u16,
     ) {
         draw_frame_sized(agent, reg, announcements, banner_height, 80);
@@ -619,7 +619,7 @@ mod link_click_tests {
     fn draw_frame_sized(
         agent: &mut AgentView,
         reg: &ActionRegistry,
-        announcements: &[xvora_announcements::RemoteAnnouncement],
+        announcements: &[announcements::RemoteAnnouncement],
         banner_height: u16,
         cols: u16,
     ) -> Buffer {
@@ -628,7 +628,7 @@ mod link_click_tests {
     fn draw_frame_privacy(
         agent: &mut AgentView,
         reg: &ActionRegistry,
-        announcements: &[xvora_announcements::RemoteAnnouncement],
+        announcements: &[announcements::RemoteAnnouncement],
         banner_height: u16,
         cols: u16,
         privacy_banner: bool,
@@ -667,7 +667,7 @@ mod link_click_tests {
         let reg = ActionRegistry::defaults();
         let mut agent = make_agent();
         agent.last_terminal_size = (80, 30);
-        let critical = [xvora_announcements::RemoteAnnouncement {
+        let critical = [announcements::RemoteAnnouncement {
             severity: Some("critical".into()),
             title: Some("ZZCRIT".into()),
             message: Some("outage".into()),
@@ -708,7 +708,7 @@ mod link_click_tests {
         let reg = ActionRegistry::defaults();
         let mut agent = make_agent();
         agent.last_terminal_size = (80, 30);
-        let critical = [xvora_announcements::RemoteAnnouncement {
+        let critical = [announcements::RemoteAnnouncement {
             severity: Some("critical".into()),
             title: Some("ZZCRIT".into()),
             message: Some("outage".into()),
@@ -787,11 +787,11 @@ mod link_click_tests {
         let reg = ActionRegistry::defaults();
         let mut agent = make_agent();
         agent.last_terminal_size = (80, 30);
-        let promo = [xvora_announcements::RemoteAnnouncement {
+        let promo = [announcements::RemoteAnnouncement {
             id: Some("promo-1".into()),
             severity: Some("promo".into()),
             message: Some("ZZPROMO".into()),
-            cta: Some(xvora_announcements::AnnouncementCta {
+            cta: Some(announcements::AnnouncementCta {
                 label: Some("Go".into()),
                 url: Some("https://x.ai/promo".into()),
                 caption: None,
@@ -973,12 +973,12 @@ mod link_click_tests {
         let reg = ActionRegistry::defaults();
         let mut agent = make_agent();
         agent.last_terminal_size = (120, 30);
-        let promo = [xvora_announcements::RemoteAnnouncement {
+        let promo = [announcements::RemoteAnnouncement {
             id: Some("promo-pin".into()),
             severity: Some("promo".into()),
             message: Some("ZZPROMO".into()),
             dismissible: Some(false),
-            cta: Some(xvora_announcements::AnnouncementCta {
+            cta: Some(announcements::AnnouncementCta {
                 label: Some("Upgrade Account".into()),
                 url: Some("https://x.ai/promo".into()),
                 caption: None,
@@ -1087,11 +1087,11 @@ mod link_click_tests {
         let reg = ActionRegistry::defaults();
         let mut agent = make_agent();
         agent.last_terminal_size = (120, 30);
-        let promo = [xvora_announcements::RemoteAnnouncement {
+        let promo = [announcements::RemoteAnnouncement {
             id: Some("promo-1".into()),
             severity: Some("promo".into()),
             message: Some("ZZPROMO".into()),
-            cta: Some(xvora_announcements::AnnouncementCta {
+            cta: Some(announcements::AnnouncementCta {
                 label: Some("Go".into()),
                 url: Some("https://x.ai/promo".into()),
                 caption: None,
@@ -1116,10 +1116,10 @@ mod link_click_tests {
     #[test]
     fn header_upgrade_cta_rect_and_ctrl_o_override() {
         use crate::actions::ActionId;
-        use xvora_telemetry::events::AnnouncementCtaSurface;
+        use telemetry::events::AnnouncementCtaSurface;
         let reg = ActionRegistry::defaults();
         let cta = || {
-            Some(xvora_announcements::AnnouncementCta {
+            Some(announcements::AnnouncementCta {
                 label: Some("Upgrade Account".into()),
                 url: Some("https://x.ai/promo".into()),
                 caption: None,
@@ -1127,7 +1127,7 @@ mod link_click_tests {
         };
         let mut agent = make_agent();
         agent.last_terminal_size = (120, 30);
-        let pinned = [xvora_announcements::RemoteAnnouncement {
+        let pinned = [announcements::RemoteAnnouncement {
             id: Some("promo-pin".into()),
             severity: Some("promo".into()),
             message: Some("ZZPROMO".into()),
@@ -1174,7 +1174,7 @@ mod link_click_tests {
         );
         let mut agent = make_agent();
         agent.last_terminal_size = (120, 30);
-        let dismissible = [xvora_announcements::RemoteAnnouncement {
+        let dismissible = [announcements::RemoteAnnouncement {
             id: Some("promo-dis".into()),
             severity: Some("promo".into()),
             message: Some("ZZPROMO".into()),
@@ -1216,12 +1216,12 @@ mod link_click_tests {
         let reg = ActionRegistry::defaults();
         let mut agent = make_agent();
         agent.last_terminal_size = (80, 30);
-        let promo = [xvora_announcements::RemoteAnnouncement {
+        let promo = [announcements::RemoteAnnouncement {
             id: Some("promo-pin".into()),
             severity: Some("promo".into()),
             message: Some("ZZPROMO".into()),
             dismissible: Some(false),
-            cta: Some(xvora_announcements::AnnouncementCta {
+            cta: Some(announcements::AnnouncementCta {
                 label: Some("Go".into()),
                 url: Some("https://x.ai/promo".into()),
                 caption: None,
@@ -1248,11 +1248,11 @@ mod link_click_tests {
         let reg = ActionRegistry::defaults();
         let mut agent = make_agent();
         agent.last_terminal_size = (80, 30);
-        let promo = [xvora_announcements::RemoteAnnouncement {
+        let promo = [announcements::RemoteAnnouncement {
             id: Some("promo-1".into()),
             severity: Some("promo".into()),
             message: Some("ZZPROMO".into()),
-            cta: Some(xvora_announcements::AnnouncementCta {
+            cta: Some(announcements::AnnouncementCta {
                 label: Some("Go".into()),
                 url: Some("https://x.ai/promo".into()),
                 caption: None,
@@ -2583,7 +2583,7 @@ mod link_click_tests {
             &mut HashMap::new(),
         );
         assert!(agent.ephemeral_tip.is_active());
-        let critical = [xvora_announcements::RemoteAnnouncement {
+        let critical = [announcements::RemoteAnnouncement {
             severity: Some("critical".into()),
             message: Some("ZZCRITZZ outage".into()),
             ..Default::default()

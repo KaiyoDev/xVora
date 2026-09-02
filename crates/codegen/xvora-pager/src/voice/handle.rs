@@ -1,6 +1,6 @@
 //! Applies [`VoiceEvent`]s from the voice pipeline to the prompt text and the dictation overlay.
 
-use xvora_voice::VoiceEvent;
+use voice::VoiceEvent;
 
 use crate::app::app_view::{AppView, VoiceTarget};
 use crate::views::prompt_widget::PromptWidget;

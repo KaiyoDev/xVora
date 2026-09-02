@@ -10,7 +10,7 @@ use crate::session::info::Info;
 use crate::session::persistence::PersistenceMsg;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 enum State {
     /// No summary generated yet. The next [`SummaryGenerator::update`] call will attempt one.
@@ -217,7 +217,7 @@ mod tests {
     fn reset_returns_generator_to_idle() {
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
         let sampling_client =
-            OaiCompatClient::new(xvora_sampler::SamplerConfig::default()).unwrap();
+            OaiCompatClient::new(sampler::SamplerConfig::default()).unwrap();
         let mut generator = SummaryGenerator::new(SummaryConfig {
             sampling_client,
             model: String::new(),

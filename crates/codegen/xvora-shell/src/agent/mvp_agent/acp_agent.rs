@@ -1,9 +1,9 @@
 #![cfg_attr(rustfmt, rustfmt::skip)]
 #![allow(unused_imports)]
 use super::*;
-use xvora_telemetry::instrument_task;
-use xvora_telemetry::region;
-use xvora_telemetry::region::Parent;
+use telemetry::instrument_task;
+use telemetry::region;
+use telemetry::region::Parent;
 use crate::auth::{CachedTokenState, SilentRefresh};
 use crate::upload::trace::PromptMetadataParams;
 use crate::leader::protocol::InternalMethod;
@@ -92,8 +92,8 @@ impl acp::Agent for MvpAgent {
         arguments: acp::InitializeRequest,
     ) -> Result<acp::InitializeResponse, acp::Error> {
         tracing::debug!(target: "sampling_log", "Received initialize request");
-        xvora_telemetry::unified_log::info("agent initialized", None, None);
-        xvora_telemetry::startup::mark_agent_serving();
+        telemetry::unified_log::info("agent initialized", None, None);
+        telemetry::startup::mark_agent_serving();
         self.start_subagent_coordinator();
         if self.cfg.borrow().remote_settings.is_none() {
             self.spawn_settings_reapply();
@@ -105,7 +105,7 @@ impl acp::Agent for MvpAgent {
                 "auto worktree gc and session search deferred until remote_settings arrive"
             );
         }
-        let grok_home = xvora_fast_worktree::resolve_grok_home();
+        let grok_home = fast_worktree::resolve_grok_home();
         tokio::task::spawn_blocking(move || {
             crate::session::worktree_pool::cleanup_stale_pool_worktrees(None);
             if !remote_settled {
@@ -124,27 +124,27 @@ impl acp::Agent for MvpAgent {
         CLEANUP_PERMISSIONS_ONCE
             .call_once(|| {
                 tokio::task::spawn(
-                    xvora_workspace::permission::cleanup_stale_permission_state(
+                    workspace::permission::cleanup_stale_permission_state(
                         std::time::Duration::from_secs(
                             PERMISSION_CLEANUP_TTL_DAYS * 24 * 60 * 60,
                         ),
                     ),
                 );
             });
-        xvora_workspace::trust::migrate_legacy_hook_trust();
+        workspace::trust::migrate_legacy_hook_trust();
         if let Some(auth) = self.auth_manager.current() {
             let user_id = auth.user_id.trim();
             let needs_user_info = user_id.is_empty()
                 || user_id.eq_ignore_ascii_case("unknown");
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth init user_info check",
                 None,
                 Some(
                     serde_json::json!({
                     "user_id": user_id,
                     "needs_user_info": needs_user_info,
-                    "key_prefix": xvora_auth::bearer_suffix(&auth.key),
-                    "rt_prefix": auth.refresh_token.as_deref().map(xvora_auth::bearer_suffix),
+                    "key_prefix": auth::bearer_suffix(&auth.key),
+                    "rt_prefix": auth.refresh_token.as_deref().map(auth::bearer_suffix),
                 }),
                 ),
             );
@@ -228,24 +228,24 @@ impl acp::Agent for MvpAgent {
             .auth_manager
             .current()
             .map(|a| (
-                xvora_auth::bearer_suffix(&a.key).to_owned(),
+                auth::bearer_suffix(&a.key).to_owned(),
                 a
                     .refresh_token
                     .as_deref()
-                    .map(|t| xvora_auth::bearer_suffix(t).to_owned()),
+                    .map(|t| auth::bearer_suffix(t).to_owned()),
             ));
         self.auth_manager.force_reload_from_disk();
         let post = self
             .auth_manager
             .current()
             .map(|a| (
-                xvora_auth::bearer_suffix(&a.key).to_owned(),
+                auth::bearer_suffix(&a.key).to_owned(),
                 a
                     .refresh_token
                     .as_deref()
-                    .map(|t| xvora_auth::bearer_suffix(t).to_owned()),
+                    .map(|t| auth::bearer_suffix(t).to_owned()),
             ));
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth init disk refresh",
             None,
             Some(
@@ -258,7 +258,7 @@ impl acp::Agent for MvpAgent {
             }),
             ),
         );
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth: initialize() refreshed auth state from disk",
             None,
             Some(
@@ -277,7 +277,7 @@ impl acp::Agent for MvpAgent {
         {
             unsafe { std::env::set_var("XAI_API_KEY", &api_key) };
             tracing::info!("auth: loaded API key from auth.json (xvora::api_key scope)");
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth: loaded API key from auth.json (xvora::api_key scope)",
                 None,
                 None,
@@ -292,7 +292,7 @@ impl acp::Agent for MvpAgent {
             let cfg = self.cfg.borrow();
             let gc = &cfg.grok_com_config;
             if disable_api_key_auth || gc.force_login_team_uuid.is_some() {
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "auth: enterprise login policy active",
                     None,
                     Some(
@@ -335,7 +335,7 @@ impl acp::Agent for MvpAgent {
         let init_token_state = self.auth_manager.cached_token_state();
         let init_has_current = matches!(init_token_state, CachedTokenState::Valid(_));
         let init_is_expired = matches!(init_token_state, CachedTokenState::Expired);
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth init token state",
             None,
             Some(
@@ -377,7 +377,7 @@ impl acp::Agent for MvpAgent {
                 issuer = %issuer,
                 "auth: advertising enterprise OIDC auth method",
             );
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth: advertising enterprise OIDC auth method",
                 None,
                 Some(serde_json::json!({ "issuer": issuer })),
@@ -408,7 +408,7 @@ impl acp::Agent for MvpAgent {
             preferred_method,
         });
         let auth_methods = built.methods;
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth: initialize() built auth_methods for ACP response",
             None,
             Some(
@@ -445,7 +445,7 @@ impl acp::Agent for MvpAgent {
             .as_ref()
             .map(|id| id.0.to_string());
         if let Some(default_id) = built.default_auth_method_id {
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth method selection",
                 None,
                 Some(
@@ -527,12 +527,12 @@ impl acp::Agent for MvpAgent {
                     "defaultAuthMethodId": default_auth_method_id_wire,
                     // The agent can drive in-process SDK MCP servers over the ACP reverse channel (`x.ai/mcp/sdk_call`)
                     // The SDK reads this to enable transport="acp"
-                    (xvora_mcp::wire::MCP_SDK): true,
+                    (mcp::wire::MCP_SDK): true,
                     // `session/new` / `session/load` accept per-session plugin roots in `_meta.pluginDirs`
                     // The SDKs gate `GrokOptions.plugins` on this
                     (SESSION_PLUGIN_DIRS_CAPABILITY_KEY): true,
                     "currentWorkingDirectory": current_working_directory.to_string_lossy().to_string(),
-                    "agentVersion": xvora_version::VERSION,
+                    "agentVersion": version::VERSION,
                     "agentId": agent_id(),
                     "agentInstanceId": agent_instance_id(),
                     "hostname": hostname.to_string_lossy().to_string(),
@@ -562,7 +562,7 @@ impl acp::Agent for MvpAgent {
         arguments: acp::AuthenticateRequest,
     ) -> Result<AuthenticateResponse, acp::Error> {
         tracing::info!(method = %arguments.method_id.0, "auth: authenticate request");
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth started",
             None,
             Some(serde_json::json!({"method": arguments.method_id.0.as_ref()})),
@@ -609,7 +609,7 @@ impl acp::Agent for MvpAgent {
                             &api_key,
                         ) {
                             tracing::warn!("failed to persist API key to auth.json: {e}");
-                            xvora_telemetry::unified_log::warn(
+                            telemetry::unified_log::warn(
                                 "failed to persist API key to auth.json",
                                 None,
                                 Some(serde_json::json!({ "error": e.to_string() })),
@@ -637,7 +637,7 @@ impl acp::Agent for MvpAgent {
                     self.chat_modes.warm_in_background();
                 }
                 emit_login_span(true, "api_key", None, None);
-                log_event(xvora_telemetry::events::Login {
+                log_event(telemetry::events::Login {
                     auth_method: "api_key".to_string(),
                     user_id: None,
                 });
@@ -662,7 +662,7 @@ impl acp::Agent for MvpAgent {
                 let is_legacy = current_auth
                     .as_ref()
                     .is_some_and(|a| a.auth_mode == crate::auth::AuthMode::WebLogin);
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "auth cached_token check",
                     None,
                     Some(
@@ -679,7 +679,7 @@ impl acp::Agent for MvpAgent {
                     Some(crate::auth::PreferredAuthMethod::ApiKey)
                 );
                 if is_devbox && is_legacy && !pin_blocks_oidc_mint {
-                    xvora_telemetry::unified_log::info(
+                    telemetry::unified_log::info(
                         "auth cached_token: devbox legacy migration starting",
                         None,
                         None,
@@ -700,14 +700,14 @@ impl acp::Agent for MvpAgent {
                                     {
                                         tracing::warn!(error = ?e, "auth: failed to remove legacy scope (non-fatal)");
                                     }
-                                    xvora_telemetry::unified_log::info(
+                                    telemetry::unified_log::info(
                                         "auth cached_token: devbox legacy migration succeeded",
                                         None,
                                         None,
                                     );
                                 }
                                 Err(e) => {
-                                    xvora_telemetry::unified_log::warn(
+                                    telemetry::unified_log::warn(
                                         "auth cached_token: devbox migration save failed",
                                         None,
                                         Some(serde_json::json!({ "error": e.to_string() })),
@@ -716,7 +716,7 @@ impl acp::Agent for MvpAgent {
                             }
                         }
                         Err(e) => {
-                            xvora_telemetry::unified_log::warn(
+                            telemetry::unified_log::warn(
                                 "auth cached_token: devbox mint failed, will reject legacy token",
                                 None,
                                 Some(serde_json::json!({ "error": format!("{e}") })),
@@ -746,7 +746,7 @@ impl acp::Agent for MvpAgent {
                         "No cached auth token found"
                     };
                     tracing::info!(%message, "cached_token missing/expired, falling through");
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "auth cached_token fallthrough",
                         None,
                         Some(serde_json::json!({ "reason": message })),
@@ -757,7 +757,7 @@ impl acp::Agent for MvpAgent {
                 };
                 if auth.auth_mode == crate::auth::AuthMode::WebLogin {
                     tracing::info!("auth: rejecting legacy WebLogin token");
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "auth cached_token legacy rejected",
                         None,
                         Some(
@@ -782,7 +782,7 @@ impl acp::Agent for MvpAgent {
                     let mut sampling_config = self.sampling_config.borrow_mut();
                     sampling_config.api_key = Some(auth.key);
                     tracing::debug!("auth: cached_token handler set api_key (SessionToken)");
-                    xvora_telemetry::unified_log::debug(
+                    telemetry::unified_log::debug(
                         "auth: cached_token handler set api_key (SessionToken)",
                         None,
                         None,
@@ -795,7 +795,7 @@ impl acp::Agent for MvpAgent {
                 }
                 let uid = self.auth_manager.current().map(|a| a.user_id);
                 emit_login_span(true, "cached_token", uid.as_deref(), None);
-                log_event(xvora_telemetry::events::Login {
+                log_event(telemetry::events::Login {
                     auth_method: "cached_token".to_string(),
                     user_id: uid,
                 });
@@ -812,7 +812,7 @@ impl acp::Agent for MvpAgent {
                     use_oauth = auth_meta.use_oauth,
                     "auth: inline auth flow",
                 );
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "auth: inline auth flow",
                     None,
                     Some(
@@ -830,7 +830,7 @@ impl acp::Agent for MvpAgent {
                 let cli_oauth = auth_meta.use_oauth.then_some(true);
                 let use_oidc = self.cfg.borrow().resolve_grok_oauth(cli_oauth);
                 tracing::debug!(resolved = use_oidc.value, source = ?use_oidc.source, "auth: method resolved");
-                xvora_telemetry::unified_log::debug(
+                telemetry::unified_log::debug(
                     "auth: method resolved",
                     None,
                     Some(
@@ -916,7 +916,7 @@ impl acp::Agent for MvpAgent {
                     let mut sampling_config = self.sampling_config.borrow_mut();
                     sampling_config.api_key = Some(auth.key.clone());
                     tracing::debug!("auth: grok.com/oidc handler set api_key (SessionToken)");
-                    xvora_telemetry::unified_log::debug(
+                    telemetry::unified_log::debug(
                         "auth: grok.com/oidc handler set api_key (SessionToken)",
                         None,
                         None,
@@ -939,7 +939,7 @@ impl acp::Agent for MvpAgent {
                     Some(auth.user_id.as_str()),
                     None,
                 );
-                log_event(xvora_telemetry::events::Login {
+                log_event(telemetry::events::Login {
                     auth_method: arguments.method_id.0.as_ref().to_string(),
                     user_id: Some(auth.user_id.clone()),
                 });
@@ -1001,7 +1001,7 @@ impl acp::Agent for MvpAgent {
     ) -> Result<acp::PromptResponse, acp::Error> {
         use crate::session::plan_mode::PromptMode;
         if let Some(meta) = arguments.meta.as_ref() {
-            xvora_file_utils::trace_context::link_current_span_to_meta(
+            file_utils::trace_context::link_current_span_to_meta(
                 &serde_json::Value::Object(meta.clone()),
             );
         }
@@ -1011,7 +1011,7 @@ impl acp::Agent for MvpAgent {
             session_id = %arguments.session_id.0,
             "Received prompt request"
         );
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "prompt received",
             Some(arguments.session_id.0.as_ref()),
             None,
@@ -1051,7 +1051,7 @@ impl acp::Agent for MvpAgent {
                     model_id = %restore_model_id.0,
                     "prompt: previously-unavailable model is back in the catalog; restoring it and unblocking the session"
                 );
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "prompt: previously-unavailable model recovered, unblocking session",
                     Some(arguments.session_id.0.as_ref()),
                     Some(
@@ -1087,7 +1087,7 @@ impl acp::Agent for MvpAgent {
                     available_keys = ?available.keys().take(10).collect::<Vec<_>>(),
                     "prompt blocked: session model unavailable since load and still missing from the catalog"
                 );
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "prompt blocked: model unavailable",
                     Some(arguments.session_id.0.as_ref()),
                     Some(
@@ -1225,7 +1225,7 @@ impl acp::Agent for MvpAgent {
                 prompt_verbatim: if verbatim { Some(true) } else { None },
                 cwd: Some(ctx.session_info.cwd.clone()),
                 agent_type: Some(ctx.session_handle.agent_name.clone()),
-                shell_version: Some(xvora_version::VERSION.to_string()),
+                shell_version: Some(version::VERSION.to_string()),
                 sandbox: local_sandbox_telemetry(),
                 ..Default::default()
             });
@@ -1332,7 +1332,7 @@ impl acp::Agent for MvpAgent {
         let artifact_upload_ctx = trace_context
             .as_ref()
             .map(|ctx| ctx.artifact_upload_context());
-        let traceparent = xvora_file_utils::trace_context::current_traceparent();
+        let traceparent = file_utils::trace_context::current_traceparent();
         let dispatch_result: Result<(), acp::Error> = if send_now {
             handle
                 .cmd_tx
@@ -1359,8 +1359,8 @@ impl acp::Agent for MvpAgent {
                         .data(format!("failed to dispatch prompt to session: {e}"))
                 })
         } else {
-            let envelope = xvora_message_delivery_core::DeliveryEnvelope::from_human(
-                xvora_message_delivery_core::Operation::Queue,
+            let envelope = message_delivery_core::DeliveryEnvelope::from_human(
+                message_delivery_core::Operation::Queue,
                 crate::session::message_delivery::HumanPromptContent {
                     prompt_blocks,
                     prompt_mode,
@@ -1564,7 +1564,7 @@ impl acp::Agent for MvpAgent {
                     .await;
                 let permission_events = self
                     .collect_permission_events(&arguments.session_id);
-                let turn_messages: Option<xvora_chat_state::TurnCapture> = {
+                let turn_messages: Option<chat_state::TurnCapture> = {
                     let (tx, rx) = oneshot::channel();
                     if handle
                         .cmd_tx
@@ -1735,7 +1735,7 @@ impl acp::Agent for MvpAgent {
                         Parent::Root,
                         async move {
                             let git_out = |args: &[&str]| -> Option<String> {
-                                xvora_tty_utils::git_command()
+                                tty_utils::git_command()
                                     .current_dir(&cwd_str)
                                     .args(args)
                                     .output()
@@ -1828,7 +1828,7 @@ impl acp::Agent for MvpAgent {
                         turn: i32,
                         cwd: String,
                     ) {
-                        let repo_head_at_end = xvora_tty_utils::git_command()
+                        let repo_head_at_end = tty_utils::git_command()
                             .current_dir(&cwd)
                             .args(["rev-parse", "HEAD"])
                             .output()
@@ -1883,11 +1883,11 @@ impl acp::Agent for MvpAgent {
                         let cwd = cwd_for_git.clone();
                         let cmd_tx = handle.cmd_tx.clone();
                         tokio::spawn(async move {
-                            let head = xvora_workspace::session::git::get_current_commit(
+                            let head = workspace::session::git::get_current_commit(
                                     std::path::Path::new(&cwd),
                                 )
                                 .await;
-                            let branch = xvora_workspace::session::git::get_branch(
+                            let branch = workspace::session::git::get_branch(
                                     std::path::Path::new(&cwd),
                                 )
                                 .await;
@@ -2008,7 +2008,7 @@ impl acp::Agent for MvpAgent {
                         &prompt_id,
                     )
                     .await;
-                let turn_messages: Option<xvora_chat_state::TurnCapture> = {
+                let turn_messages: Option<chat_state::TurnCapture> = {
                     let (tx, rx) = oneshot::channel();
                     if handle
                         .cmd_tx
@@ -2172,7 +2172,7 @@ impl acp::Agent for MvpAgent {
             .and_then(|m| m.get("cancelTrigger"))
             .and_then(|v| v.as_str())
             .map(crate::session::CancelTrigger::from_client);
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "shell.cancel.received",
             Some(args.session_id.0.as_ref()),
             Some(
@@ -2273,7 +2273,7 @@ impl acp::Agent for MvpAgent {
             .ok()
             .and_then(|v| v.get("_meta").cloned());
         if let Some(meta) = &request_meta {
-            xvora_file_utils::trace_context::link_current_span_to_meta(meta);
+            file_utils::trace_context::link_current_span_to_meta(meta);
         }
         tracing::info!("Received extension method call: method={}", args.method);
         #[allow(unused_mut)]
@@ -2876,7 +2876,7 @@ impl acp::Agent for MvpAgent {
                     client_version = ?params.client_version,
                     "non_git_decision",
                 );
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::NonGitDecisionEvent {
+                telemetry::session_ctx::log_event(telemetry::events::NonGitDecisionEvent {
                     decision: params.decision,
                     session_id: params.session_id,
                     client_version: params.client_version,
@@ -2902,14 +2902,14 @@ impl acp::Agent for MvpAgent {
                     params.preferred_agent_label
                 );
                 let total_agents = 1 + params.other_agents.len();
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::MultiAgentFollowup {
+                telemetry::session_ctx::log_event(telemetry::events::MultiAgentFollowup {
                     preferred_agent_label: params.preferred_agent_label.to_string(),
                     preferred_agent_session_id: params.preferred_agent_session_id,
                     preferred_agent_model_id: params.preferred_agent_model_id,
                     other_agents: params
                         .other_agents
                         .into_iter()
-                        .map(|(l, s, m)| xvora_telemetry::events::AgentInfo {
+                        .map(|(l, s, m)| telemetry::events::AgentInfo {
                             label: l.to_string(),
                             session_id: s,
                             model_id: m,
@@ -2938,14 +2938,14 @@ impl acp::Agent for MvpAgent {
                     params.applied_agent_label
                 );
                 let total_agents = 1 + params.discarded_agents.len();
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::MultiAgentApply {
+                telemetry::session_ctx::log_event(telemetry::events::MultiAgentApply {
                     applied_agent_label: params.applied_agent_label.to_string(),
                     applied_agent_session_id: params.applied_agent_session_id,
                     applied_agent_model_id: params.applied_agent_model_id,
                     discarded_agents: params
                         .discarded_agents
                         .into_iter()
-                        .map(|(l, s, m)| xvora_telemetry::events::AgentInfo {
+                        .map(|(l, s, m)| telemetry::events::AgentInfo {
                             label: l.to_string(),
                             session_id: s,
                             model_id: m,
@@ -2971,11 +2971,11 @@ impl acp::Agent for MvpAgent {
                     params.discarded_agents.len()
                 );
                 let total = params.discarded_agents.len();
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::MultiAgentDiscard {
+                telemetry::session_ctx::log_event(telemetry::events::MultiAgentDiscard {
                     discarded_agents: params
                         .discarded_agents
                         .into_iter()
-                        .map(|(l, s, m)| xvora_telemetry::events::AgentInfo {
+                        .map(|(l, s, m)| telemetry::events::AgentInfo {
                             label: l.to_string(),
                             session_id: s,
                             model_id: m,
@@ -2987,12 +2987,12 @@ impl acp::Agent for MvpAgent {
                 tracing::warn!("Failed to parse multi-agent discard telemetry params");
             }
         }
-        if args.method.as_ref() == xvora_telemetry::unified_log::LOG_METHOD
+        if args.method.as_ref() == telemetry::unified_log::LOG_METHOD
             && let Ok(params) = serde_json::from_str::<
-                xvora_telemetry::unified_log::LogNotificationParams,
+                telemetry::unified_log::LogNotificationParams,
             >(args.params.get())
         {
-            xvora_telemetry::unified_log::ingest_client_entries(
+            telemetry::unified_log::ingest_client_entries(
                 params.src,
                 &params.entries,
             );

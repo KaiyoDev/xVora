@@ -6,9 +6,9 @@ use clap::Parser;
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-use xvora_diag_server::{self as diag_server, DiagHandle, ErrorClass};
-use xvora_workspace::config::merge_session_metadata;
-use xvora_workspace::error::WorkspaceError;
+use diag_server::{self as diag_server, DiagHandle, ErrorClass};
+use workspace::config::merge_session_metadata;
+use workspace::error::WorkspaceError;
 use xvora_workspace_daemon::daemonize;
 use xvora_workspace_daemon::preview_supervisor::{
     self, PreviewActivitySink, PreviewArgs, PreviewVisibility,
@@ -22,7 +22,7 @@ const WORKSPACE_HUB_AUTH_FAILED_MARKER: &str = "workspace hub auth failed";
 /// Post-failure dwell so the host can poll `/ready` before exit ([500ms, 2s]).
 const HUB_CONNECT_FAILED_DWELL: Duration = Duration::from_millis(750);
 fn server_id_startup_error(id: &str) -> Option<String> {
-    id.parse::<xvora_tool_protocol::ServerId>()
+    id.parse::<tool_protocol::ServerId>()
         .err()
         .map(|e| format!("{INVALID_SERVER_ID_MARKER} {id:?}: {e}"))
 }
@@ -205,7 +205,7 @@ impl PreviewCliArgs {
 }
 /// Binds the preview-activity scraper to the workspace `ActivityTracker`.
 /// `xvora-workspace-daemon` deliberately does not depend on `xvora-workspace`, so this binary owns the one adapter between them.
-struct TrackerSink(std::sync::Arc<xvora_workspace::activity::ActivityTracker>);
+struct TrackerSink(std::sync::Arc<workspace::activity::ActivityTracker>);
 impl PreviewActivitySink for TrackerSink {
     fn note_preview_routed_activity(&self) {
         self.0.note_preview_routed_activity();
@@ -243,7 +243,7 @@ fn main() -> anyhow::Result<()> {
         Some(ref p) => dunce::canonicalize(p)?,
         None => std::env::current_dir()?,
     };
-    let oom_protection = xvora_tty_utils::protect_from_oom_kill();
+    let oom_protection = tty_utils::protect_from_oom_kill();
     let _pidfile_guard = if args.daemonize {
         let anchor = |p: PathBuf| if p.is_absolute() { p } else { cwd.join(p) };
         args.log_file = anchor(std::mem::take(&mut args.log_file));
@@ -268,13 +268,13 @@ fn main() -> anyhow::Result<()> {
     };
     #[cfg(unix)]
     if should_set_reset_child_oom(oom_protection.is_ok(), args.oom_protect) {
-        unsafe { std::env::set_var(xvora_tty_utils::RESET_CHILD_OOM_ENV, "1") };
+        unsafe { std::env::set_var(tty_utils::RESET_CHILD_OOM_ENV, "1") };
     }
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder
-        .worker_threads(xvora_tty_utils::runtime::capped_worker_threads().get())
+        .worker_threads(tty_utils::runtime::capped_worker_threads().get())
         .enable_all();
-    let rt = xvora_tty_utils::runtime::build_with_blocking_pool(&mut builder)?;
+    let rt = tty_utils::runtime::build_with_blocking_pool(&mut builder)?;
     rt.block_on(run(args, cwd, oom_protection, oom_protect_applied))
 }
 /// Whether to set `GROK_TOOLS_RESET_CHILD_OOM` after the always-on protect attempt.
@@ -295,12 +295,12 @@ async fn run(
     oom_protection: std::io::Result<()>,
     oom_protect_applied: Option<bool>,
 ) -> anyhow::Result<()> {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
     use tracing_subscriber::layer::SubscriberExt as _;
     use tracing_subscriber::util::SubscriberInitExt as _;
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let donating = xvora_computer_hub_sdk::DonatingLogLayer::new_inert();
+    let donating = computer_hub_sdk::DonatingLogLayer::new_inert();
     tracing_subscriber::registry()
         .with(env_filter)
         .with(tracing_subscriber::fmt::layer())
@@ -315,7 +315,7 @@ async fn run(
     }
     let direct_otlp = match std::env::var("GROK_WORKSPACE_OTLP_ENDPOINT") {
         Ok(endpoint) if !endpoint.is_empty() => {
-            match xvora_tracing::init_fastrace(endpoint.clone(), SERVICE_NAME.to_owned(), None) {
+            match tracing::init_fastrace(endpoint.clone(), SERVICE_NAME.to_owned(), None) {
                 Ok(()) => {
                     tracing::info!(%endpoint, "trace export enabled (direct OTLP)");
                     true
@@ -372,9 +372,9 @@ async fn run(
             );
         }
     }
-    let mut status_config = xvora_workspace::StatusConfig::from_env();
+    let mut status_config = workspace::StatusConfig::from_env();
     status_config.preview_control_port = args.preview.preview_control_port;
-    let auth_provider = xvora_workspace::hub_auth::provider(
+    let auth_provider = workspace::hub_auth::provider(
         &url,
         args.auth_config.as_deref(),
         &status_config.oidc_refresh,
@@ -401,7 +401,7 @@ async fn run(
         .map(str::to_owned);
     let diag_handle = diag_server::DiagHandle::new(launch_id);
     {
-        let caps = xvora_workspace::image_capabilities::image_capabilities();
+        let caps = workspace::image_capabilities::image_capabilities();
         diag_handle.set_image_capabilities(caps.wire(), caps.is_declared());
     }
     #[cfg(unix)]
@@ -442,12 +442,12 @@ async fn run(
         None
     };
     let preview_scrape_interval = status_config.preview_activity_scrape_interval;
-    xvora_workspace::init_metrics();
-    let ws_handle = match xvora_workspace::handle::connect_local_workspace(
+    workspace::init_metrics();
+    let ws_handle = match workspace::handle::connect_local_workspace(
         cwd,
         url,
         auth_provider,
-        xvora_workspace::LocalWorkspaceConnectOptions {
+        workspace::LocalWorkspaceConnectOptions {
             metadata,
             server_id: server_id.clone(),
             alpha_test_key: None,
@@ -534,9 +534,9 @@ async fn run(
     diag_handle.set_shutting_down();
     tracing::info!("Received shutdown signal, draining...");
     let tracker = ws_handle.activity_tracker().clone();
-    let grace_budget = xvora_workspace::handle::termination_grace_from_env();
+    let grace_budget = workspace::handle::termination_grace_from_env();
     ws_handle
-        .two_phase_drain(grace_budget, xvora_workspace::handle::DrainReason::Sigterm)
+        .two_phase_drain(grace_budget, workspace::handle::DrainReason::Sigterm)
         .await;
     tracker.set_shutting_down();
     tracing::info!("Shutting down...");
@@ -544,7 +544,7 @@ async fn run(
     if let Some(pump) = &donation_pump {
         pump.drain().await;
     }
-    xvora_computer_hub_sdk::flush_log_layer();
+    computer_hub_sdk::flush_log_layer();
     if let Some(pump) = &log_donation_pump {
         pump.drain().await;
     }
@@ -625,7 +625,7 @@ mod tests {
     #[test]
     fn classify_from_client_error_display_round_trip() {
         let handshake = WorkspaceError::HubError(
-            xvora_computer_hub_sdk::ClientError::HandshakeAuthFailed { status: 401 }.to_string(),
+            computer_hub_sdk::ClientError::HandshakeAuthFailed { status: 401 }.to_string(),
         );
         let handshake_msg = handshake.to_string();
         assert_eq!(
@@ -637,14 +637,14 @@ mod tests {
             WORKSPACE_HUB_AUTH_FAILED_MARKER
         );
         let auth = WorkspaceError::HubError(
-            xvora_computer_hub_sdk::ClientError::AuthError("token rejected".into()).to_string(),
+            computer_hub_sdk::ClientError::AuthError("token rejected".into()).to_string(),
         );
         assert_eq!(
             classify_hub_connect_failure(&auth.to_string()),
             ErrorClass::HubAuth
         );
         let network = WorkspaceError::HubError(
-            xvora_computer_hub_sdk::ClientError::NetworkError("connection refused".into())
+            computer_hub_sdk::ClientError::NetworkError("connection refused".into())
                 .to_string(),
         );
         assert_eq!(
@@ -991,11 +991,11 @@ mod tests {
         assert_eq!(cfg.to_argv(), vec!["--visibility", "owner"]);
     }
     /// The scraper reports through `PreviewActivitySink`, so this adapter is the only place the preview signal meets the tracker's idle accounting.
-    /// The scraper's own behavior is tested in `xvora-workspace-daemon`, and the tracker's in `xvora_workspace::activity`.
+    /// The scraper's own behavior is tested in `xvora-workspace-daemon`, and the tracker's in `workspace::activity`.
     /// This test covers only the adapter.
     #[test]
     fn tracker_sink_forwards_every_signal_to_the_activity_tracker() {
-        use xvora_workspace::activity::ActivityTracker;
+        use workspace::activity::ActivityTracker;
         let tracker = std::sync::Arc::new(ActivityTracker::new());
         let sink = TrackerSink(std::sync::Arc::clone(&tracker));
         assert_eq!(

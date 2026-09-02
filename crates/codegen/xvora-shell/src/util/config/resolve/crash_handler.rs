@@ -65,7 +65,7 @@ fn load_managed_toml_layers() -> Option<TomlValue> {
         (Some(s), None) => Some(s),
         (None, Some(m)) => Some(m),
         (Some(mut s), Some(m)) => {
-            xvora_config::deep_merge_toml(&mut s, &m);
+            config::deep_merge_toml(&mut s, &m);
             Some(s)
         }
     }

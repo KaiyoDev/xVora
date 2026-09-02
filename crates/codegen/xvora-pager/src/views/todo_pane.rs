@@ -4,7 +4,7 @@
 
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use xvora_shell::tools::{TodoItem, TodoStatus};
+use shell::tools::{TodoItem, TodoStatus};
 
 use super::list_pane::ListItem;
 

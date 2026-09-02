@@ -59,7 +59,7 @@ impl StreamingSttSession {
 
         // The default connector never sees the shared trust config.
         let connector =
-            tokio_tungstenite::Connector::Rustls(xvora_extra_ca::rustls_client_config());
+            tokio_tungstenite::Connector::Rustls(extra_ca::rustls_client_config());
         let disable_nagle = false;
         let (ws, _) = tokio::time::timeout(
             Duration::from_secs(15),

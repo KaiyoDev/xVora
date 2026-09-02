@@ -7,8 +7,8 @@ use fast_worktree::WorktreeRecord;
 pub use fast_worktree::{DbStats, GcReport, KeptWorktree, RebuildReport};
 use std::io::Write;
 use tokio_util::sync::CancellationToken;
-use xvora_acp_lib::acp_send;
-use xvora_shell::agent::config::Config as AgentConfig;
+use acp_lib::acp_send;
+use shell::agent::config::Config as AgentConfig;
 #[derive(Debug, clap::Args, Clone)]
 pub struct WorktreeArgs {
     #[command(subcommand)]
@@ -71,7 +71,7 @@ enum WorktreeDbCommand {
 }
 pub async fn run(args: WorktreeArgs, agent_config: &AgentConfig) -> Result<()> {
     let cancel = CancellationToken::new();
-    xvora_telemetry::startup::mark_utility_process();
+    telemetry::startup::mark_utility_process();
     let spawned = crate::acp::spawn::spawn_grok_shell(agent_config.clone(), &cancel, None).await?;
     let _agent_guard =
         crate::acp::spawn::AgentShutdownGuard::new(cancel.clone(), Some(spawned.thread_handle));
@@ -95,7 +95,7 @@ pub async fn run(args: WorktreeArgs, agent_config: &AgentConfig) -> Result<()> {
     .await?;
     dispatch(args.command, &spawned.channel.tx).await
 }
-async fn dispatch(command: WorktreeCommand, tx: &xvora_acp_lib::AcpAgentTx) -> Result<()> {
+async fn dispatch(command: WorktreeCommand, tx: &acp_lib::AcpAgentTx) -> Result<()> {
     match command {
         WorktreeCommand::List {
             repo,
@@ -131,7 +131,7 @@ struct ExtEnvelope<T> {
     error: Option<serde_json::Value>,
 }
 async fn ext_call<T: serde::de::DeserializeOwned>(
-    tx: &xvora_acp_lib::AcpAgentTx,
+    tx: &acp_lib::AcpAgentTx,
     method: &str,
     params: &impl serde::Serialize,
 ) -> Result<T> {
@@ -150,7 +150,7 @@ async fn ext_call<T: serde::de::DeserializeOwned>(
         .ok_or_else(|| anyhow::anyhow!("ACP response missing result field"))
 }
 async fn cmd_list(
-    tx: &xvora_acp_lib::AcpAgentTx,
+    tx: &acp_lib::AcpAgentTx,
     repo: Option<String>,
     types: Vec<String>,
     json: bool,
@@ -174,7 +174,7 @@ async fn cmd_list(
     };
     Ok(crate::util::ignore_broken_pipe(written)?)
 }
-async fn cmd_show(tx: &xvora_acp_lib::AcpAgentTx, id_or_path: &str) -> Result<()> {
+async fn cmd_show(tx: &acp_lib::AcpAgentTx, id_or_path: &str) -> Result<()> {
     let rec: Option<WorktreeRecord> = ext_call(
         tx,
         "x.ai/git/worktree/show",
@@ -197,7 +197,7 @@ struct RemoveResponse {
     resolved_path: Option<String>,
 }
 async fn cmd_rm(
-    tx: &xvora_acp_lib::AcpAgentTx,
+    tx: &acp_lib::AcpAgentTx,
     ids: Vec<String>,
     force: bool,
     dry_run: bool,
@@ -228,7 +228,7 @@ async fn cmd_rm(
     Ok(())
 }
 async fn cmd_gc(
-    tx: &xvora_acp_lib::AcpAgentTx,
+    tx: &acp_lib::AcpAgentTx,
     dry_run: bool,
     max_age: Option<String>,
     force: bool,
@@ -252,7 +252,7 @@ async fn cmd_gc(
     })();
     Ok(crate::util::ignore_broken_pipe(written)?)
 }
-async fn cmd_db(tx: &xvora_acp_lib::AcpAgentTx, command: WorktreeDbCommand) -> Result<()> {
+async fn cmd_db(tx: &acp_lib::AcpAgentTx, command: WorktreeDbCommand) -> Result<()> {
     match command {
         WorktreeDbCommand::Stats => {
             let stats: DbStats = ext_call(tx, "x.ai/git/worktree/db/stats", &()).await?;

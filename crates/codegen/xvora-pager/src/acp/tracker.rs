@@ -25,9 +25,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tracing::debug;
-use xvora_tools::types::output::{BashOutput, ToolOutput};
-use xvora_tools::types::output::{ReadFileOutput, SearchToolOutput, WebFetchOutput};
-use xvora_tools::util::strip_redundant_session_cd;
+use tools::types::output::{BashOutput, ToolOutput};
+use tools::types::output::{ReadFileOutput, SearchToolOutput, WebFetchOutput};
+use tools::util::strip_redundant_session_cd;
 /// Convert a UTC millisecond timestamp to local time.
 fn utc_ms_to_local(ms: i64) -> DateTime<Local> {
     chrono::Utc
@@ -168,19 +168,19 @@ impl WritingToolCall {
             n => format!(" ({n})"),
         };
         match self.tool_name.as_deref() {
-            Some(name) if xvora_tools::is_task_tool_id(name) => {
+            Some(name) if tools::is_task_tool_id(name) => {
                 format!("Writing subagent prompt{ordinal}…")
             }
-            Some(xvora_tools::USE_TOOL_NAME) => {
+            Some(tools::USE_TOOL_NAME) => {
                 format!("Preparing MCP tool{ordinal}…")
             }
-            Some(xvora_tools::SEARCH_TOOL_NAME) => {
+            Some(tools::SEARCH_TOOL_NAME) => {
                 format!("Searching MCP tools{ordinal}…")
             }
             Some(name) => {
-                use xvora_tools::types::tool::ToolKind;
+                use tools::types::tool::ToolKind;
                 let copy =
-                    xvora_tools::tool_taxonomy::writing_tool_kind(name).and_then(
+                    tools::tool_taxonomy::writing_tool_kind(name).and_then(
                         |kind| match kind {
                             ToolKind::Write => Some("Writing file"),
                             ToolKind::Edit => Some("Writing edit"),
@@ -198,7 +198,7 @@ impl WritingToolCall {
                 match copy {
                     Some(copy) => format!("{copy}{ordinal}…"),
                     None => {
-                        let name = xvora_workspace::permission::mcp_pretty_name_if_qualified(name);
+                        let name = workspace::permission::mcp_pretty_name_if_qualified(name);
                         format!("Preparing {}{ordinal}…", clamp_activity_subject(&name))
                     }
                 }
@@ -1512,7 +1512,7 @@ impl AcpUpdateTracker {
             crate::scrollback::blocks::UserPromptBlock::with_skill_tokens(text, skill_token_ranges)
         } else {
             let skill_display =
-                xvora_tools::implementations::skills::skill::extract_skill_display_text(&text);
+                tools::implementations::skills::skill::extract_skill_display_text(&text);
             if let Some(display_text) = skill_display {
                 self.skip_next_skill_body = true;
                 crate::scrollback::blocks::UserPromptBlock::skill(display_text)
@@ -1615,7 +1615,7 @@ fn user_message_hidden_from_scrollback(
         return true;
     }
     if let Some(pid) = meta.prompt_id.as_deref()
-        && xvora_shell::session::PromptOrigin::from_prompt_id(pid).hide_user_echo_from_scrollback()
+        && shell::session::PromptOrigin::from_prompt_id(pid).hide_user_echo_from_scrollback()
     {
         return true;
     }
@@ -2416,7 +2416,7 @@ fn is_todo_tool(tc: &acp::ToolCall) -> bool {
 /// Suppressed from scrollback because the SubagentBlock (created from the SubagentSpawned notification) provides better visibility.
 /// Covers the `task` / `Task` / `spawn_subagent` ids and Task-family variant tags.
 fn is_task_tool(tc: &acp::ToolCall) -> bool {
-    xvora_tools::is_task_tool_id(&tc.title) || is_task_variant(extract_variant(tc))
+    tools::is_task_tool_id(&tc.title) || is_task_variant(extract_variant(tc))
 }
 fn is_goal_tool(tc: &acp::ToolCall) -> bool {
     tc.title == "update_goal"
@@ -2455,7 +2455,7 @@ fn extract_raw_field(tc: &acp::ToolCall, field: &str) -> Option<String> {
 }
 /// Extract a short, user-friendly error label from a failed Edit tool call.
 fn extract_edit_error(tc: &acp::ToolCall) -> String {
-    use xvora_tools::types::output::SearchReplaceOutput;
+    use tools::types::output::SearchReplaceOutput;
     if let Some(ref raw) = tc.raw_output
         && let Ok(ToolOutput::SearchReplace(sr)) = serde_json::from_value::<ToolOutput>(raw.clone())
     {
@@ -2571,7 +2571,7 @@ fn parse_file_paths_from_stdout(stdout: &str) -> Vec<String> {
 fn extract_listdir_content(raw: &Option<serde_json::Value>) -> Option<String> {
     let val = raw.as_ref()?;
     match serde_json::from_value::<ToolOutput>(val.clone()) {
-        Ok(ToolOutput::ListDir(xvora_tools::types::output::ListDirOutput::Content(c))) => {
+        Ok(ToolOutput::ListDir(tools::types::output::ListDirOutput::Content(c))) => {
             Some(c.content)
         }
         _ => None,
@@ -2761,7 +2761,7 @@ fn extract_use_tool_output(raw: &Option<serde_json::Value>) -> Option<String> {
     if let Ok(output) = serde_json::from_value::<ToolOutput>(val.clone()) {
         let text = match output {
             ToolOutput::MCP(mcp) => {
-                use xvora_tools::types::output::MCPOutputDetails;
+                use tools::types::output::MCPOutputDetails;
                 match mcp.output() {
                     MCPOutputDetails::OkayOutput(s) | MCPOutputDetails::Error(s) => s.clone(),
                 }

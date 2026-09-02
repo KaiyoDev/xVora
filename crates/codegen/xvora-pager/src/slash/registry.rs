@@ -16,7 +16,7 @@ use super::command::{CommandProvenance, SlashCommand, WorkflowChoice};
 use super::mode_support::ModeSupport;
 
 /// Shell ACP names the pager never offers (unified `/hooks` / `/plugins` UI, plus `/help`).
-/// These must stay covered by [`xvora_shell::session::PAGER_COMMAND_KEYS`].
+/// These must stay covered by [`shell::session::PAGER_COMMAND_KEYS`].
 /// A skill of the same name is then advertised already qualified instead of being dropped here when the matching shell gate is off.
 pub(crate) const BLOCKED_ACP_NAMES: &[&str] = &[
     "help",

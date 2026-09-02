@@ -39,7 +39,7 @@ impl SessionActor {
     pub(super) fn length_salvage_budget(&self) -> Option<u32> {
         resolve_length_salvage_budget(
             self.is_cursor_agent(),
-            xvora_config::env_bool("GROK_LENGTH_SALVAGE"),
+            config::env_bool("GROK_LENGTH_SALVAGE"),
             self.length_salvage_remote_budget,
         )
     }

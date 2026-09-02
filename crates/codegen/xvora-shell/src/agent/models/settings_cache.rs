@@ -98,7 +98,7 @@ impl SettingsCacheManager {
             return None;
         }
         let cache: SettingsCache = serde_json::from_str(&signed.payload).ok()?;
-        if cache.grok_version != xvora_version::VERSION {
+        if cache.grok_version != version::VERSION {
             tracing::debug!("settings cache version mismatch");
             return None;
         }
@@ -129,7 +129,7 @@ impl SettingsCacheManager {
     ) {
         let cache = SettingsCache {
             fetched_at: Utc::now(),
-            grok_version: xvora_version::VERSION.to_string(),
+            grok_version: version::VERSION.to_string(),
             identity: identity.to_string(),
             origin: origin.to_string(),
             client: crate::http::process_client_identifier(),
@@ -272,7 +272,7 @@ mod settings_cache_tests {
     fn cache_file(fetched_at: DateTime<Utc>) -> SettingsCache {
         SettingsCache {
             fetched_at,
-            grok_version: xvora_version::VERSION.to_string(),
+            grok_version: version::VERSION.to_string(),
             identity: "id".to_string(),
             origin: ORIGIN.to_string(),
             client: crate::http::process_client_identifier(),
@@ -294,7 +294,7 @@ mod settings_cache_tests {
         let write = |c: &SettingsCache| std::fs::write(&path, signed_cache_bytes(c)).unwrap();
 
         write(&SettingsCache {
-            grok_version: format!("{}-stale", xvora_version::VERSION),
+            grok_version: format!("{}-stale", version::VERSION),
             ..base()
         });
         assert!(manager.load_fresh("id", ORIGIN).is_none());

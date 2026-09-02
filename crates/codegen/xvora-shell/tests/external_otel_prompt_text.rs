@@ -1,7 +1,7 @@
 //! Dedicated binary: the external-stream `OnceLock` is process-global, so this
 //! construction canary cannot live in the lib test suite.
 
-use xvora_telemetry::external::{self, ExternalOtelConfig};
+use telemetry::external::{self, ExternalOtelConfig};
 
 #[test]
 fn prompt_submitted_prompt_text_is_some_when_stream_active() {
@@ -14,7 +14,7 @@ fn prompt_submitted_prompt_text_is_some_when_stream_active() {
         None,
     )
     .expect("double opt-in must resolve");
-    cfg.client = xvora_telemetry::external::config::ExternalClientInfo {
+    cfg.client = telemetry::external::config::ExternalClientInfo {
         service_version: "0.0.0-test".into(),
         client_version: "0.0.0-test".into(),
         app_entrypoint: "cli".into(),
@@ -26,7 +26,7 @@ fn prompt_submitted_prompt_text_is_some_when_stream_active() {
     );
 
     let user_message = "PARITY_PROMPT live construction";
-    let ev = xvora_telemetry::events::PromptSubmitted {
+    let ev = telemetry::events::PromptSubmitted {
         prompt_length: user_message.len(),
         model_id: "grok-4".into(),
         client_identifier: None,

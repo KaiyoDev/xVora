@@ -318,9 +318,9 @@ pub fn name_from_dirname(dir: &Path) -> Option<String> {
 }
 
 /// Replaces `${GROK_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`, `${GROK_PLUGIN_DATA}`, and `${CLAUDE_PLUGIN_DATA}` with the provided values.
-/// Delegates to [`xvora_tools::util::substitute_plugin_tokens`], which plugin skill and command bodies also use.
+/// Delegates to [`tools::util::substitute_plugin_tokens`], which plugin skill and command bodies also use.
 pub fn substitute_env_vars(s: &str, plugin_root: &str, plugin_data: &str) -> String {
-    xvora_tools::util::substitute_plugin_tokens(s, Some(plugin_root), Some(plugin_data))
+    tools::util::substitute_plugin_tokens(s, Some(plugin_root), Some(plugin_data))
 }
 
 pub fn normalize_inline_mcp_servers(value: &serde_json::Value) -> serde_json::Value {

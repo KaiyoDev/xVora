@@ -62,7 +62,7 @@ fn app_draw_drains_deferred_release_after_flush() {
         crate::render::draw::TermWriter::new(frame_tx, crate::render::draw::WriterSync::new())
             .expect("single test writer");
     let backend = ratatui::backend::CrosstermBackend::new(writer);
-    let mut terminal = xvora_ratatui_inline::Terminal::with_options(
+    let mut terminal = ratatui_inline::Terminal::with_options(
         backend,
         TerminalOptions {
             viewport: Viewport::Fixed(ratatui::layout::Rect::new(0, 0, 80, 24)),
@@ -97,7 +97,7 @@ pub(crate) fn test_app() -> AppView {
         models: ModelState::default(),
         registry: ActionRegistry::defaults(),
         settings_registry: std::sync::Arc::new(crate::settings::SettingsRegistry::defaults()),
-        current_ui: xvora_shell::agent::config::UiConfig::default(),
+        current_ui: shell::agent::config::UiConfig::default(),
         status_line: Default::default(),
         cwd: std::path::PathBuf::from("/tmp"),
         cwd_has_git_ancestor: false,
@@ -324,7 +324,7 @@ pub(crate) fn test_app() -> AppView {
         keyboard_normalizer: KeyboardNormalizer::from_terminal_context(),
         voice_mode_enabled: false,
         voice_ui_active: false,
-        voice_config: xvora_voice::VoiceConfig::default(),
+        voice_config: voice::VoiceConfig::default(),
         voice_auth: None,
         voice_cmd_tx: None,
         voice_state: VoiceState::Idle,
@@ -882,7 +882,7 @@ fn slash_gate_resyncs_when_critical_expires_between_pushes() {
         .get_mut(&id)
         .unwrap()
         .set_has_session_announcements(true);
-    app.active_announcements = vec![xvora_announcements::RemoteAnnouncement {
+    app.active_announcements = vec![announcements::RemoteAnnouncement {
         id: Some("expired".into()),
         message: Some("gone".into()),
         severity: Some("critical".into()),
@@ -897,7 +897,7 @@ fn slash_gate_resyncs_when_critical_expires_between_pushes() {
             .has_session_announcements(),
         "expired-only list must close the gate on the next frame"
     );
-    app.active_announcements = vec![xvora_announcements::RemoteAnnouncement {
+    app.active_announcements = vec![announcements::RemoteAnnouncement {
         id: Some("live".into()),
         message: Some("new outage".into()),
         severity: Some("critical".into()),
@@ -1556,7 +1556,7 @@ fn external_auth_provider_keeps_billing_off_after_auth_meta() {
     let mut app = test_app();
     app.has_external_auth_provider = true;
     app.usage_visible = false;
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta::default());
+    app.apply_auth_meta(&shell::auth::AuthMeta::default());
     assert!(!app.usage_visible);
     assert!(app.tier_restricted_commands.is_empty());
     assert!(
@@ -1571,7 +1571,7 @@ fn external_auth_provider_keeps_billing_off_after_auth_meta() {
 fn apply_auth_meta_disables_billing_surface_for_team_users() {
     let mut app = test_app();
     assert!(app.usage_visible);
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         team_id: Some("team-uuid".into()),
         team_name: Some("Acme Corp".into()),
         ..Default::default()
@@ -1589,7 +1589,7 @@ fn apply_auth_meta_disables_billing_surface_for_team_users() {
 fn apply_auth_meta_enables_billing_surface_for_personal_users() {
     let mut app = test_app();
     app.usage_visible = false;
-    let meta = xvora_shell::auth::AuthMeta::default();
+    let meta = shell::auth::AuthMeta::default();
     app.apply_auth_meta(&meta);
     assert!(app.usage_visible);
 }
@@ -1598,7 +1598,7 @@ fn apply_auth_meta_clears_api_key_flag_and_restores_billing_on_personal_login() 
     let mut app = test_app();
     app.is_api_key_auth = true;
     app.usage_visible = false;
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta::default());
+    app.apply_auth_meta(&shell::auth::AuthMeta::default());
     assert!(!app.is_api_key_auth);
     assert!(app.usage_visible);
 }
@@ -1607,7 +1607,7 @@ fn apply_auth_meta_api_key_enables_voice_and_skips_tier_gate() {
     let mut app = test_app();
     advertise_media_tools(&mut app);
     assert!(!app.voice_mode_enabled);
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta {
+    app.apply_auth_meta(&shell::auth::AuthMeta {
         auth_mode: Some("ApiKey".into()),
         subscription_tier: Some("API Key".into()),
         ..Default::default()
@@ -1619,14 +1619,14 @@ fn apply_auth_meta_api_key_enables_voice_and_skips_tier_gate() {
     assert!(!app.is_voice_tier_restricted());
     assert!(app.voice_mode_enabled);
     let mut app = test_app();
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta {
+    app.apply_auth_meta(&shell::auth::AuthMeta {
         subscription_tier: Some("api_key".into()),
         ..Default::default()
     });
     assert!(app.is_api_key_auth);
     assert!(app.voice_mode_enabled);
     assert!(app.tier_restricted_commands.is_empty());
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta {
+    app.apply_auth_meta(&shell::auth::AuthMeta {
         auth_mode: Some("Oidc".into()),
         subscription_tier: Some("Free".into()),
         ..Default::default()
@@ -1683,7 +1683,7 @@ fn assert_tier_restricted_commands_present(app: &AppView) {
 fn apply_auth_meta_restricts_usage_for_free_tier() {
     let mut app = test_app();
     advertise_media_tools(&mut app);
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta::default());
+    app.apply_auth_meta(&shell::auth::AuthMeta::default());
     assert_eq!(
         app.tier_restricted_commands,
         expected_tier_restricted_commands()
@@ -1695,7 +1695,7 @@ fn apply_auth_meta_restricts_usage_for_free_tier() {
 fn apply_auth_meta_restricts_usage_for_x_basic_tier() {
     let mut app = test_app();
     advertise_media_tools(&mut app);
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         subscription_tier: Some("X Basic".into()),
         ..Default::default()
     };
@@ -1710,7 +1710,7 @@ fn apply_auth_meta_restricts_usage_for_x_basic_tier() {
 fn apply_auth_meta_lifts_restrictions_for_paid_tiers_and_teams() {
     let mut app = test_app();
     advertise_media_tools(&mut app);
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         subscription_tier: Some("SuperGrok".into()),
         ..Default::default()
     };
@@ -1719,14 +1719,14 @@ fn apply_auth_meta_lifts_restrictions_for_paid_tiers_and_teams() {
     assert_tier_restricted_commands_present(&app);
     let mut app = test_app();
     advertise_media_tools(&mut app);
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta::default());
+    app.apply_auth_meta(&shell::auth::AuthMeta::default());
     assert!(!app.tier_restricted_commands.is_empty());
     app.subscription_tier = Some("SuperGrok".into());
     app.apply_tier_restrictions();
     assert!(app.tier_restricted_commands.is_empty());
     assert_tier_restricted_commands_present(&app);
     let mut app = test_app();
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         team_id: Some("team-uuid".into()),
         team_name: Some("Acme Corp".into()),
         ..Default::default()
@@ -1754,10 +1754,10 @@ fn voice_included_in_tier_restricted_commands() {
 #[test]
 fn is_voice_tier_restricted_tracks_tier() {
     let mut app = test_app();
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta::default());
+    app.apply_auth_meta(&shell::auth::AuthMeta::default());
     assert!(app.is_voice_tier_restricted());
     let mut app = test_app();
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         subscription_tier: Some("SuperGrok".into()),
         ..Default::default()
     };
@@ -1767,13 +1767,13 @@ fn is_voice_tier_restricted_tracks_tier() {
 #[test]
 fn apply_auth_meta_clears_gate_on_subscription() {
     let mut app = test_app();
-    app.gate = Some(xvora_shell::auth::GateInfo {
+    app.gate = Some(shell::auth::GateInfo {
         message: "Subscribe to use Grok Build".into(),
         url: Some("https://grok.com/supergrok?referrer=grok-build".into()),
         label: None,
     });
     assert!(app.is_access_blocked());
-    let meta = xvora_shell::auth::AuthMeta::default();
+    let meta = shell::auth::AuthMeta::default();
     app.apply_auth_meta(&meta);
     assert!(app.gate.is_none());
     assert!(app.has_access());
@@ -1781,13 +1781,13 @@ fn apply_auth_meta_clears_gate_on_subscription() {
 #[test]
 fn apply_auth_meta_gate_unchanged_when_still_gated() {
     let mut app = test_app();
-    let gate = xvora_shell::auth::GateInfo {
+    let gate = shell::auth::GateInfo {
         message: "Subscribe".into(),
         url: None,
         label: None,
     };
     app.gate = Some(gate.clone());
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         gate: Some(gate),
         ..Default::default()
     };
@@ -1813,7 +1813,7 @@ fn welcome_ctrl_q_requires_confirmation() {
 #[test]
 fn welcome_ctrl_u_update_keeps_priority_over_foreign_resume() {
     let mut app = test_app();
-    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -1833,8 +1833,8 @@ fn welcome_ctrl_u_update_keeps_priority_over_foreign_resume() {
     app.apply_foreign_resume_detection(
         launch_token,
         &canonical_cwd,
-        Some(xvora_foreign_sessions::RecentForeignSession {
-            tool: xvora_foreign_sessions::ForeignSessionTool::Cursor,
+        Some(foreign_sessions::RecentForeignSession {
+            tool: foreign_sessions::ForeignSessionTool::Cursor,
             native_id: "cursor-session".into(),
             age: std::time::Duration::from_secs(30),
         }),
@@ -3311,7 +3311,7 @@ fn esc_owned_before_agent_covers_app_level_owners() {
     assert!(!app.esc_owned_before_agent());
     app.import_claude_modal = Some(
         crate::views::import_claude_modal::ImportClaudeModalState::new(
-            xvora_shell::claude_import::ImportPlan::default(),
+            shell::claude_import::ImportPlan::default(),
             std::path::PathBuf::from("/tmp"),
         ),
     );
@@ -5693,7 +5693,7 @@ fn overlay_left_arrow_file_search_open_does_not_exit() {
         let ctx = crate::views::file_search::context::detect("@", 1).expect("@-context must parse");
         agent.prompt.file_search.set_test_state(
             ctx,
-            vec![xvora_workspace::file_system::FuzzyMatchResult {
+            vec![workspace::file_system::FuzzyMatchResult {
                 path: nucleo::Utf32String::from("src"),
                 score: 100,
                 indices: Vec::new(),
@@ -6010,7 +6010,7 @@ fn install_question_overlay(
     n_questions: usize,
 ) {
     use crate::views::question_view::QuestionViewState;
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
     let questions: Vec<Question> = (0..n_questions)
         .map(|i| Question {
             question: format!("Q{i}?"),

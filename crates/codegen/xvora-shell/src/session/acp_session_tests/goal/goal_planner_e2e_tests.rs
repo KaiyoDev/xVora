@@ -7,7 +7,7 @@ use serial_test::serial;
 use std::sync::Arc as StdArc;
 use std::sync::atomic::{AtomicUsize, Ordering as SeqOrd};
 use tempfile::TempDir;
-use xvora_tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
+use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
 /// Pull the planner's plan-file path from the prompt by its backtick-quoted `.md` token.
 /// Rewording the surrounding sentence therefore can't silently break the fake, which would otherwise write nothing and fail far from the cause.
@@ -165,7 +165,7 @@ async fn make_planner_actor(
 ) -> (StdArc<SessionActor>, TempDir) {
     let tmp = TempDir::new().expect("tempdir");
     let (gateway_tx, _gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let (persistence_tx, _persistence_rx) =
         tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -194,7 +194,7 @@ async fn make_planner_actor_capturing(
 ) {
     let tmp = TempDir::new().expect("tempdir");
     let (gateway_tx, _gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let (persistence_tx, persistence_rx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
     actor.events = crate::session::events::EventTracker::new(tmp.path());

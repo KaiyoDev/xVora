@@ -1,7 +1,7 @@
 //! Tool-call display for active-agent messages; it never includes the message content.
 
 use agent_client_protocol as acp;
-use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageInput;
+use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageInput;
 
 pub(super) fn active_agent_message_tool_call_display(
     _message: &SendSubagentMessageInput,

@@ -23,4 +23,4 @@ pub use handle::handle_voice_event;
 pub(crate) use handle::{combine_prompt_with_voice_text, commit_interim_into_prompt};
 // Re-exported for the composition-root binary, which links the pager library rather than the voice crate
 // It intercepts the hidden `__mic-capture` helper mode (macOS captures the mic out of process) and runs at the very top of `main`
-pub use xvora_voice::maybe_run_capture_subprocess;
+pub use voice::maybe_run_capture_subprocess;

@@ -796,7 +796,7 @@ fn test_cleanup_orphaned_overlay_snapshots() {
     );
 
     // Run orphan cleanup.
-    let report = xvora_fast_worktree::cleanup_orphaned_overlay_snapshots();
+    let report = fast_worktree::cleanup_orphaned_overlay_snapshots();
 
     eprintln!(
         "orphan cleanup report: removed={}, btrfs={}, errors={}",

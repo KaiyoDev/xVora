@@ -1948,7 +1948,7 @@
     /// Helper: create a minimal `PastedImage` for testing.
     fn test_image() -> PastedImage {
         PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0), // overwritten by insert_image
+            element_id: ratatui_textarea::ElementId::from_raw(0), // overwritten by insert_image
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((100, 80)),
@@ -3245,8 +3245,8 @@
     // ── File search Right Arrow (drill-down) ────────────────────────────
 
     /// Build a `FuzzyMatchResult` for use in test fixtures.
-    fn fuzzy_result(path: &str, is_dir: bool) -> xvora_workspace::file_system::FuzzyMatchResult {
-        xvora_workspace::file_system::FuzzyMatchResult {
+    fn fuzzy_result(path: &str, is_dir: bool) -> workspace::file_system::FuzzyMatchResult {
+        workspace::file_system::FuzzyMatchResult {
             path: nucleo::Utf32String::from(path),
             score: 100,
             indices: Vec::new(),

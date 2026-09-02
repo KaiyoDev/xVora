@@ -1,6 +1,6 @@
 use agent_client_protocol as acp;
 use indexmap::IndexMap;
-use xvora_shell::sampling::types::{
+use shell::sampling::types::{
     ReasoningEffort, ReasoningEffortOption, parse_reasoning_effort_meta,
     parse_reasoning_efforts_meta, supports_reasoning_effort_meta,
 };

@@ -1048,7 +1048,7 @@ fn dispatch_rename_session_updates_display_name_locally() {
         Effect::RenameSession { kind, .. } => {
             assert_eq!(
                 *kind,
-                xvora_shell::session::unified_list::SessionKind::Build,
+                shell::session::unified_list::SessionKind::Build,
                 "build-lane /rename must send kind=build"
             );
         }
@@ -1101,7 +1101,7 @@ fn dispatch_rename_session_chat_kind_stamps_kind_chat() {
             assert_eq!(title, "chat rename");
             assert_eq!(
                 *kind,
-                xvora_shell::session::unified_list::SessionKind::Chat,
+                shell::session::unified_list::SessionKind::Chat,
                 "chat-lane /rename must send kind=chat"
             );
         }
@@ -1123,7 +1123,7 @@ fn dispatch_rename_session_sticky_chat_local_build_stays_build() {
             assert_eq!(title, "local title");
             assert_eq!(
                 *kind,
-                xvora_shell::session::unified_list::SessionKind::Build,
+                shell::session::unified_list::SessionKind::Build,
                 "history-bypass local build under sticky --chat must send kind=build"
             );
         }
@@ -1134,7 +1134,7 @@ fn dispatch_rename_session_sticky_chat_local_build_stays_build() {
 #[test]
 fn rename_session_request_serializes_camel_case_kind() {
     use crate::app::actions::RenameSessionRequest;
-    use xvora_shell::session::unified_list::SessionKind;
+    use shell::session::unified_list::SessionKind;
 
     let build = serde_json::to_value(RenameSessionRequest::for_rename(
         "sid".into(),
@@ -1229,7 +1229,7 @@ fn dispatch_reset_session_title_clears_titles_and_emits_effect() {
             assert_eq!(cwd, std::path::Path::new("/tmp"));
             assert_eq!(
                 *kind,
-                xvora_shell::session::unified_list::SessionKind::Build
+                shell::session::unified_list::SessionKind::Build
             );
             assert_eq!(previous_display_name.as_deref(), Some("Manual"));
             assert_eq!(previous_generated_title.as_deref(), Some("Manual"));
@@ -1259,7 +1259,7 @@ fn dispatch_reset_session_title_never_manual_keeps_generated_title() {
         matches!(
             &effects[..],
             [Effect::ResetSessionTitle {
-                kind: xvora_shell::session::unified_list::SessionKind::Build,
+                kind: shell::session::unified_list::SessionKind::Build,
                 ..
             }]
         ),
@@ -1283,7 +1283,7 @@ fn dispatch_reset_session_title_sticky_chat_local_build_stays_build() {
         [Effect::ResetSessionTitle { kind, .. }] => {
             assert_eq!(
                 *kind,
-                xvora_shell::session::unified_list::SessionKind::Build,
+                shell::session::unified_list::SessionKind::Build,
                 "history-bypass local build under sticky --chat must unpin as build"
             );
         }
@@ -1439,10 +1439,10 @@ fn complete_session_usage(app: &mut AppView) {
     );
 }
 
-fn context_info_response() -> xvora_shell::session::SessionInfoResponse {
-    use xvora_shell::session::acp_types::{ContextInfo, SessionInfoData};
+fn context_info_response() -> shell::session::SessionInfoResponse {
+    use shell::session::acp_types::{ContextInfo, SessionInfoData};
 
-    xvora_shell::session::SessionInfoResponse {
+    shell::session::SessionInfoResponse {
         session_id: "test-session".to_string(),
         cwd: "/tmp/test".to_string(),
         data: SessionInfoData {

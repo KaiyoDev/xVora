@@ -24,7 +24,7 @@ textwrap = { workspace = true }
 unicode-segmentation = { workspace = true }
 unicode-width = { workspace = true }
 url = { workspace = true }
-xvora-markdown-core = { workspace = true }
+markdown-core = { workspace = true }
 
 [dependencies.crossterm]
 workspace = true

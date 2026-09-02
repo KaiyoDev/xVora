@@ -2,12 +2,12 @@
 
 use super::*;
 use std::sync::Arc;
-use xvora_message_delivery_core::{
+use message_delivery_core::{
     DeliveryMessage, MessageDeliveryLifecycle, OwnedDelivery, TerminalCause, TerminalTarget,
     TurnBinding,
 };
-use xvora_tools::implementations::grok_build::task::coordinator::ActiveMessageAdmission;
-use xvora_tools::implementations::grok_build::task::types::{
+use tools::implementations::grok_build::task::coordinator::ActiveMessageAdmission;
+use tools::implementations::grok_build::task::types::{
     ActiveAgentMessage, ActiveAgentMessageDelivery, ActiveAgentMessageOperation,
 };
 
@@ -63,7 +63,7 @@ impl MessageDeliveryState {
         &mut self,
         target: TerminalTarget<'_, String, TurnEpoch>,
         cause: TerminalCause,
-    ) -> xvora_message_delivery_core::TerminalTransition<
+    ) -> message_delivery_core::TerminalTransition<
         String,
         ParentAgentSource,
         PendingParentAgentMessage,
@@ -160,7 +160,7 @@ impl SessionActor {
         self: &Arc<Self>,
         delivery: ActiveAgentMessageDelivery,
         receipt_sink: mpsc::Sender<crate::agent::subagent::PromptTurnReceipt>,
-        parent_telemetry_ctx: xvora_telemetry::TelemetryCtx,
+        parent_telemetry_ctx: telemetry::TelemetryCtx,
         respond_to: oneshot::Sender<ActiveMessageAdmission>,
         completion_tx: mpsc::UnboundedSender<super::turn_task::TurnCompletionMsg>,
     ) {
@@ -184,7 +184,7 @@ impl SessionActor {
         message: ActiveAgentMessage,
         requested: ActiveAgentMessageOperation,
         receipt_sink: mpsc::Sender<crate::agent::subagent::PromptTurnReceipt>,
-        parent_telemetry_ctx: xvora_telemetry::TelemetryCtx,
+        parent_telemetry_ctx: telemetry::TelemetryCtx,
         respond_to: oneshot::Sender<ActiveMessageAdmission>,
         completion_tx: mpsc::UnboundedSender<super::turn_task::TurnCompletionMsg>,
     ) {
@@ -461,7 +461,7 @@ impl SessionActor {
             message,
             operation,
             receipt_sink,
-            xvora_telemetry::TelemetryCtx::new(
+            telemetry::TelemetryCtx::new(
                 "test-parent".to_owned(),
                 std::sync::Arc::new(tokio::sync::Mutex::new(0)),
             ),

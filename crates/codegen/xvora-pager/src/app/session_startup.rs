@@ -26,7 +26,7 @@ pub enum DeferredSessionStartup {
     },
     /// Fresh plain Grok session whose first prompt resumes a foreign tool session.
     ForeignResume {
-        tool: xvora_foreign_sessions::ForeignSessionTool,
+        tool: foreign_sessions::ForeignSessionTool,
         native_id: String,
     },
 }
@@ -65,7 +65,7 @@ pub fn fork_session_params(
     parent_is_worktree: bool,
 ) -> serde_json::Value {
     let parent_cwd_str = parent_cwd.to_string_lossy().into_owned();
-    let source_cwd = xvora_shell::session::resolve_local_session_any_cwd(parent_session_id)
+    let source_cwd = shell::session::resolve_local_session_any_cwd(parent_session_id)
         .unwrap_or_else(|| parent_cwd_str.clone());
     let mut payload = serde_json::json!({
         "sourceSessionId": parent_session_id,
@@ -85,8 +85,8 @@ pub fn fork_session_params(
 /// Mirrors in-session `/fork` reading `agent.session.is_worktree`.
 pub fn parent_session_is_worktree(session_id: &str, cwd: &Path) -> bool {
     let cwd_str = cwd.to_string_lossy();
-    let sessions_root = xvora_shell::util::grok_home::grok_home().join("sessions");
-    let encoded = xvora_shell::util::grok_home::encode_cwd_dirname(&cwd_str);
+    let sessions_root = shell::util::grok_home::grok_home().join("sessions");
+    let encoded = shell::util::grok_home::encode_cwd_dirname(&cwd_str);
     let summary_path = sessions_root
         .join(encoded)
         .join(session_id)
@@ -516,7 +516,7 @@ pub fn validate_local_workspace_cwd(path: &std::path::Path) -> anyhow::Result<st
     if canon == std::path::Path::new("/") {
         anyhow::bail!("{LOCAL_WORKSPACE_HOME_DENIED}");
     }
-    if let Some(home_path) = xvora_dirs::home_dir() {
+    if let Some(home_path) = dirs::home_dir() {
         let home_canon = home_path.canonicalize().unwrap_or(home_path);
         if canon == home_canon {
             anyhow::bail!("{LOCAL_WORKSPACE_HOME_DENIED}");
@@ -610,7 +610,7 @@ pub fn probe_advertised_tool_ids() -> Option<Vec<String>> {
 }
 #[cfg(feature = "local-workspace")]
 fn local_workspace_ack_path() -> Option<std::path::PathBuf> {
-    Some(xvora_dirs::resolve_grok_home()?.join("local_workspace_ack"))
+    Some(dirs::resolve_grok_home()?.join("local_workspace_ack"))
 }
 /// Conservative shape check for a chat-mode `--resume <id>` passthrough.
 ///
@@ -628,7 +628,7 @@ pub fn valid_conversation_id_shape(id: &str) -> bool {
 /// A gateway conversation id colliding with a Build session under another cwd must not false-refuse CLI resume or non-entry loads under `--chat`.
 pub fn local_build_session_on_disk(session_id: &str, cwd: &Path) -> bool {
     let cwd_str = cwd.to_string_lossy();
-    xvora_shell::session::resolve_local_session(session_id, &cwd_str).is_some()
+    shell::session::resolve_local_session(session_id, &cwd_str).is_some()
 }
 /// Pure policy: process-wide `--chat` refuses a local Build disk row.
 /// The exception is a caller-marked explicit conversation entry (picker `source == "conversation"`).
@@ -744,13 +744,13 @@ pub fn effective_fork_new_cwd(process_cwd: &str, parent_cwd: Option<&Path>) -> S
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|| process_cwd.to_string())
 }
-pub use xvora_shell::session::persistence::RecentSessionSelection;
+pub use shell::session::persistence::RecentSessionSelection;
 /// Resolve most-recent session id for cwd, or error.
 async fn most_recent_session_id(
     cwd: &str,
     selection: RecentSessionSelection,
 ) -> anyhow::Result<(String, Option<String>)> {
-    let summaries = xvora_shell::session::persistence::list_summaries(Some(cwd)).await?;
+    let summaries = shell::session::persistence::list_summaries(Some(cwd)).await?;
     let first = summaries
         .iter()
         .find(|summary| selection.admits(summary))
@@ -766,10 +766,10 @@ async fn most_recent_session_id(
 /// Wires the auth-provider refresher before the first `auth()`.
 /// Without it, environments that mint credentials via `auth_provider_command` report `NoOauth`.
 pub(crate) fn pre_acp_auth_manager(
-    agent_config: &xvora_shell::agent::config::Config,
-) -> std::sync::Arc<xvora_shell::auth::AuthManager> {
-    let auth = std::sync::Arc::new(xvora_shell::auth::AuthManager::new(
-        &xvora_shell::util::grok_home::grok_home(),
+    agent_config: &shell::agent::config::Config,
+) -> std::sync::Arc<shell::auth::AuthManager> {
+    let auth = std::sync::Arc::new(shell::auth::AuthManager::new(
+        &shell::util::grok_home::grok_home(),
         agent_config.grok_com_config.clone(),
     ));
     auth.configure_refresher(
@@ -795,7 +795,7 @@ pub fn ensure_session_id_available(session_id: &str, cwd: &str) -> anyhow::Resul
     if uuid::Uuid::try_parse(session_id).is_err() {
         anyhow::bail!("Error: --session-id must be a valid UUID (got '{session_id}').");
     }
-    if xvora_shell::session::persistence::session_exists_for_cwd(session_id, cwd) {
+    if shell::session::persistence::session_exists_for_cwd(session_id, cwd) {
         anyhow::bail!("Error: Session ID {session_id} is already in use.");
     }
     Ok(())
@@ -939,7 +939,7 @@ async fn resolve_existing_session(
     session_id: &str,
     cwd: &str,
 ) -> anyhow::Result<ResolvedExisting> {
-    if let Some(local_id) = xvora_shell::session::resolve_local_session(session_id, cwd) {
+    if let Some(local_id) = shell::session::resolve_local_session(session_id, cwd) {
         tracing::info!(session_id = %session_id, local_id = %local_id, "Session found locally");
         if !in_place_restore_code_allowed(ctx.restore_code, ctx.has_worktree, session_id, &local_id)
         {
@@ -953,7 +953,7 @@ async fn resolve_existing_session(
             suppress_code_restore: false,
         });
     }
-    if let Some(original_cwd) = xvora_shell::session::resolve_local_session_any_cwd(session_id) {
+    if let Some(original_cwd) = shell::session::resolve_local_session_any_cwd(session_id) {
         tracing::info!(
             session_id = %session_id,
             original_cwd = %original_cwd,
@@ -1095,10 +1095,10 @@ async fn restore_session_from_remote(
     cwd: &str,
     progress_on_stdout: bool,
 ) -> anyhow::Result<ResolvedExisting> {
-    let raw_config = xvora_shell::config::load_effective_config()
+    let raw_config = shell::config::load_effective_config()
         .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?;
     if let Some((false, source)) =
-        xvora_shell::util::config::session_registry_local_override_sourced(Some(&raw_config))
+        shell::util::config::session_registry_local_override_sourced(Some(&raw_config))
     {
         anyhow::bail!(
             "Session does not exist locally (session registry is disabled by {})",
@@ -1112,12 +1112,12 @@ async fn restore_session_from_remote(
             session_id
         ),
     );
-    let agent_config = xvora_shell::agent::config::Config::new_from_toml_cfg(&raw_config)
+    let agent_config = shell::agent::config::Config::new_from_toml_cfg(&raw_config)
         .map_err(|e| anyhow::anyhow!("Failed to create agent config: {}", e))?;
-    use xvora_shell::agent::session_registry_client::SessionRegistryClient;
-    use xvora_shell::auth::{AuthManager, ensure_authenticated_or_noninteractive};
-    use xvora_shell::session::restore::{RestoreSessionOpts, restore_session_with_storage};
-    use xvora_shell::util::grok_home::grok_home;
+    use shell::agent::session_registry_client::SessionRegistryClient;
+    use shell::auth::{AuthManager, ensure_authenticated_or_noninteractive};
+    use shell::session::restore::{RestoreSessionOpts, restore_session_with_storage};
+    use shell::util::grok_home::grok_home;
     let deployment_key = agent_config.endpoints.deployment_key.clone();
     ensure_authenticated_or_noninteractive(
         &agent_config.grok_com_config,
@@ -1135,7 +1135,7 @@ async fn restore_session_from_remote(
             .with_deployment_key(deployment_key.clone())
             .with_alpha_test_key(agent_config.endpoints.alpha_test_key.clone())
             .with_auth(auth_manager.clone());
-    let storage_client = xvora_shell::auth::credential_provider::build_storage_client_for_proxy(
+    let storage_client = shell::auth::credential_provider::build_storage_client_for_proxy(
         &agent_config.endpoints.proxy_url(),
         deployment_key,
         agent_config.endpoints.alpha_test_key.clone(),
@@ -1144,7 +1144,7 @@ async fn restore_session_from_remote(
         None,
         "grok-pager",
     );
-    let progress: xvora_shell::session::restore::ProgressCallback = Box::new(move |event| {
+    let progress: shell::session::restore::ProgressCallback = Box::new(move |event| {
         emit_pre_tui_restore_line(progress_on_stdout, &format!("  {}", event.display_line()));
     });
     let timed = tokio::time::timeout(
@@ -1166,7 +1166,7 @@ async fn restore_session_from_remote(
         Ok(inner) => (false, Some(inner)),
         Err(_) => (true, None),
     };
-    let recovered_local_id = xvora_shell::session::find_local_child_for_remote(session_id, cwd);
+    let recovered_local_id = shell::session::find_local_child_for_remote(session_id, cwd);
     match classify_remote_restore(
         timed_out,
         restore_result
@@ -1275,7 +1275,7 @@ async fn resolve_session_by_title(
     cwd: &str,
     selection: RecentSessionSelection,
 ) -> anyhow::Result<Option<ResolvedExisting>> {
-    let summaries = xvora_shell::session::persistence::list_summaries(Some(cwd)).await?;
+    let summaries = shell::session::persistence::list_summaries(Some(cwd)).await?;
     let candidates: Vec<_> = summaries
         .into_iter()
         .filter(|summary| selection.admits(summary))
@@ -1410,7 +1410,7 @@ mod tests {
     fn deferred_startup_owner_take_is_atomic() {
         let mut actions = DeferredStartupActions {
             session: Some(DeferredSessionStartup::ForeignResume {
-                tool: xvora_foreign_sessions::ForeignSessionTool::Cursor,
+                tool: foreign_sessions::ForeignSessionTool::Cursor,
                 native_id: "cursor-id".into(),
             }),
             prompt: Some("prompt".into()),
@@ -2080,8 +2080,8 @@ mod tests {
         let cwd = tempfile::tempdir().expect("cwd tempdir");
         let cwd_str = cwd.path().to_string_lossy().to_string();
         let id = "aaaaaaaa-1111-2222-3333-444444444444";
-        let encoded = xvora_shell::util::grok_home::encode_cwd_dirname(&cwd_str);
-        let sessions_cwd_dir = xvora_shell::util::grok_home::grok_home()
+        let encoded = shell::util::grok_home::encode_cwd_dirname(&cwd_str);
+        let sessions_cwd_dir = shell::util::grok_home::grok_home()
             .join("sessions")
             .join(&encoded);
         struct RmDirOnDrop(std::path::PathBuf);
@@ -2322,8 +2322,8 @@ mod tests {
         }
     }
     #[cfg(feature = "local-workspace")]
-    fn advertised_tools_env() -> xvora_test_support::EnvGuard {
-        xvora_test_support::EnvGuard::set(
+    fn advertised_tools_env() -> test_support::EnvGuard {
+        test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV,
             "workspace.fs_list,workspace.fs_read_file,workspace.fs_write_file,workspace.fs_exists,workspace.fs_delete_file,workspace.put_files,workspace.get_files",
         )
@@ -2348,7 +2348,7 @@ mod tests {
     #[test]
     fn resolve_local_workspace_empty_cli_attach_falls_back_to_env() {
         let _env = advertised_tools_env();
-        let _sid = xvora_test_support::EnvGuard::set(
+        let _sid = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV,
             "srv-from-env",
         );
@@ -2367,13 +2367,13 @@ mod tests {
     #[test]
     fn resolve_local_workspace_cwd_only_is_not_a_request() {
         let tmp = tempfile::tempdir().unwrap();
-        let _cwd = xvora_test_support::EnvGuard::set(
+        let _cwd = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_CWD_ENV,
             tmp.path().to_str().unwrap(),
         );
-        let _enable = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ENV);
-        let _mode = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
-        let _sid = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
+        let _enable = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ENV);
+        let _mode = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
+        let _sid = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
         let cfg = resolve_local_workspace_config(true, None, None, Some(tmp.path())).unwrap();
         assert!(
             cfg.is_none(),
@@ -2402,11 +2402,11 @@ mod tests {
     #[test]
     fn resolve_local_workspace_own_env_defaults() {
         let _env = advertised_tools_env();
-        let _enable = xvora_test_support::EnvGuard::set(GROK_CHAT_LOCAL_WORKSPACE_ENV, "1");
-        let _mode = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
-        let _sid = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
+        let _enable = test_support::EnvGuard::set(GROK_CHAT_LOCAL_WORKSPACE_ENV, "1");
+        let _mode = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
+        let _sid = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
         let cwd = tempfile::tempdir().unwrap();
-        let _cwd = xvora_test_support::EnvGuard::set(
+        let _cwd = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_CWD_ENV,
             cwd.path().to_str().unwrap(),
         );
@@ -2436,15 +2436,15 @@ mod tests {
     #[serial_test::serial(USERPROFILE)]
     #[test]
     fn resolve_local_workspace_defaults_cwd_and_denies_home() {
-        let _tools = xvora_test_support::EnvGuard::set(
+        let _tools = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV,
             "workspace.fs_list",
         );
-        let _allow = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
+        let _allow = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
         let home = tempfile::tempdir().unwrap();
         let home_str = home.path().to_str().unwrap();
-        let _home = xvora_test_support::EnvGuard::set("HOME", home_str);
-        let _userprofile = xvora_test_support::EnvGuard::set("USERPROFILE", home_str);
+        let _home = test_support::EnvGuard::set("HOME", home_str);
+        let _userprofile = test_support::EnvGuard::set("USERPROFILE", home_str);
         let err =
             resolve_local_workspace_config(true, None, Some("srv"), Some(home.path())).unwrap_err();
         assert!(err.to_string().contains("ALLOW_HOME"), "unexpected: {err}");
@@ -2454,7 +2454,7 @@ mod tests {
     #[test]
     fn resolve_local_workspace_refuses_uncheckable_toolset() {
         let _tools =
-            xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV);
+            test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV);
         let tmp = tempfile::tempdir().unwrap();
         let err =
             resolve_local_workspace_config(true, None, Some("srv"), Some(tmp.path())).unwrap_err();
@@ -2467,7 +2467,7 @@ mod tests {
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS)]
     #[test]
     fn resolve_local_workspace_refuses_non_fs_toolset() {
-        let _tools = xvora_test_support::EnvGuard::set(
+        let _tools = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV,
             "workspace.fs_list,workspace.bash",
         );
@@ -2492,9 +2492,9 @@ mod tests {
     #[serial_test::serial(GROK_HOME)]
     #[test]
     fn local_workspace_non_tty_requires_ack() {
-        let _ack = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV);
+        let _ack = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV);
         let home = tempfile::tempdir().unwrap();
-        let _home = xvora_test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
         let cfg = LocalWorkspaceConfig {
             mode: LocalWorkspaceMode::Attach,
             cwd: Some(std::path::PathBuf::from("/tmp/repo")),
@@ -2510,7 +2510,7 @@ mod tests {
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME)]
     #[test]
     fn validate_local_workspace_cwd_denies_root() {
-        let _allow = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
+        let _allow = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
         let err = validate_local_workspace_cwd(std::path::Path::new("/")).unwrap_err();
         assert!(err.to_string().contains("ALLOW_HOME"), "{err}");
     }

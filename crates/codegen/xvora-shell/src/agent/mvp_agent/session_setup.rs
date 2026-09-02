@@ -88,7 +88,7 @@ struct RestoredSignals {
     compaction_count: u64,
     turn_count: u64,
     tool_call_count: u64,
-    plan_mode_state: xvora_telemetry::events::PlanModeState,
+    plan_mode_state: telemetry::events::PlanModeState,
     /// A parked `exit_plan_mode` approval must be re-issued once a client is back.
     awaiting_plan_approval: bool,
 }
@@ -98,7 +98,7 @@ impl RestoredSignals {
         plan_mode: Option<&crate::session::plan_mode::PlanModeSnapshot>,
     ) -> Self {
         use crate::session::plan_mode::PlanModeState;
-        use xvora_telemetry::events::PlanModeState as Reported;
+        use telemetry::events::PlanModeState as Reported;
         Self {
             compaction_count: signals.map(|s| s.compaction_count as u64).unwrap_or(0),
             turn_count: signals.map(|s| s.turn_count as u64).unwrap_or(0),
@@ -183,7 +183,7 @@ fn log_session_started(
     setup_duration: std::time::Duration,
     restored_from_disk: bool,
 ) {
-    xvora_telemetry::session_ctx::log_session_event(
+    telemetry::session_ctx::log_session_event(
         crate::agent::session_metrics::SessionStarted::new(
             session_id.0.to_string(),
             kind,
@@ -554,7 +554,7 @@ impl MvpAgent {
             };
             let mut spawn_timer = crate::instrumentation_timer!("session.spawn");
             spawn_timer.with_field("session_id", session_id.0.as_ref());
-            spawn_timer.with_subphase(xvora_telemetry::startup::Subphase::SessionSpawn);
+            spawn_timer.with_subphase(telemetry::startup::Subphase::SessionSpawn);
             self.spawn_and_register_session(init, spawn_opts).await
         };
         #[cfg(all(feature = "local-workspace", unix))]
@@ -574,30 +574,30 @@ impl MvpAgent {
         );
         let bridge_attach = BridgeAttach::NotAttached;
         let product_analytics = self.product_analytics_enabled();
-        if product_analytics || xvora_telemetry::external::is_active() {
+        if product_analytics || telemetry::external::is_active() {
             let sid = session_id.0.to_string();
             let ci = client_identifier.clone();
             let cv = self.client_version();
             let cwd_str = cwd.as_str().to_owned();
             let perm = if session_yolo_mode {
-                xvora_telemetry::enums::PermissionMode::AlwaysApprove
+                telemetry::enums::PermissionMode::AlwaysApprove
             } else if session_auto_mode
                 && crate::util::config::auto_permission_mode_enabled_from_disk()
             {
-                xvora_telemetry::enums::PermissionMode::Auto
+                telemetry::enums::PermissionMode::Auto
             } else {
-                xvora_telemetry::enums::PermissionMode::Ask
+                telemetry::enums::PermissionMode::Ask
             };
             tokio::spawn(async move {
-                let git = xvora_telemetry::context::collect_git_context(&cwd_str);
-                let ev = xvora_telemetry::events::SessionNew {
+                let git = telemetry::context::collect_git_context(&cwd_str);
+                let ev = telemetry::events::SessionNew {
                     session_id: sid,
                     client_identifier: ci,
                     client_version: cv,
                     is_git_repo: git.is_git_repo,
                     permission_mode: perm,
                 };
-                xvora_telemetry::session_ctx::log_event_dual(product_analytics, ev);
+                telemetry::session_ctx::log_event_dual(product_analytics, ev);
             });
         }
         if let Some(model_id) = resolved_custom_model {
@@ -652,7 +652,7 @@ impl MvpAgent {
         let git_discovery_timer =
             crate::instrumentation_timer!("session.new_session.git_discovery");
         let (git_root, is_git_repo, discovery_failed) =
-            match xvora_workspace::session::git::discover_git_root(cwd.as_path()) {
+            match workspace::session::git::discover_git_root(cwd.as_path()) {
                 GitDiscoveryResult::Found(root) => {
                     let root_str = root.to_string_lossy().trim_end_matches('/').to_string();
                     (Some(root_str), true, false)
@@ -683,7 +683,7 @@ impl MvpAgent {
             let feedback_enabled = cfg.is_feedback_enabled();
             (show_non_git_warning, feedback_enabled)
         };
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "session created",
             Some(session_id.0.as_ref()),
             Some(serde_json::json!({"cwd": cwd.as_str()})),
@@ -798,7 +798,7 @@ impl MvpAgent {
         load_timer.with_field("session_id", session_id.0.as_ref());
         load_timer.with_field("cwd", cwd.as_str());
         let git_root =
-            xvora_workspace::session::git::find_git_root_from_path(cwd.as_path()).ok();
+            workspace::session::git::find_git_root_from_path(cwd.as_path()).ok();
         if let Some(root) = git_root {
             tokio::task::spawn_blocking(move || {
                 crate::session::worktree_pool::cleanup_stale_pool_worktrees(Some(&root));
@@ -848,7 +848,7 @@ impl MvpAgent {
         let relay_sync = self.start_relay_sync(&session_id, &session_info);
         let mut persistence_timer = crate::instrumentation_timer!("session.load");
         persistence_timer.with_field("session_id", session_id.0.as_ref());
-        persistence_timer.with_subphase(xvora_telemetry::startup::Subphase::SessionLoad);
+        persistence_timer.with_subphase(telemetry::startup::Subphase::SessionLoad);
         let backend = if self.build_registry_config().is_some() {
             Some(crate::remote::BackendClient::new().with_auth_manager(self.auth_manager.clone()))
         } else {
@@ -930,14 +930,14 @@ impl MvpAgent {
             }
         };
         let envrc = if !load_envrc {
-            Some(xvora_workspace::envrc::spawn_envrc_load(
+            Some(workspace::envrc::spawn_envrc_load(
                 cwd.as_path().to_path_buf(),
                 false,
             ))
         } else if session_exists {
             None
         } else {
-            Some(xvora_workspace::envrc::spawn_envrc_load(
+            Some(workspace::envrc::spawn_envrc_load(
                 cwd.as_path().to_path_buf(),
                 folder_trust::project_scope_allowed(cwd.as_path()),
             ))
@@ -975,7 +975,7 @@ impl MvpAgent {
             );
             let mut spawn_timer = crate::instrumentation_timer!("session.spawn");
             spawn_timer.with_field("session_id", session_id.0.as_ref());
-            spawn_timer.with_subphase(xvora_telemetry::startup::Subphase::SessionSpawn);
+            spawn_timer.with_subphase(telemetry::startup::Subphase::SessionSpawn);
             let persisted_agent_name: Option<String> = summary.agent_name.clone().or_else(|| {
                 self.resolve_model_id(&summary.current_model_id)
                     .ok()
@@ -1092,7 +1092,7 @@ impl MvpAgent {
         let (model_state, response_meta) = self
             .build_attach_response_meta(&session_id, &summary, persist_data, code_restore_info)
             .await;
-        xvora_telemetry::unified_log::info("session loaded", Some(session_id.0.as_ref()), None);
+        telemetry::unified_log::info("session loaded", Some(session_id.0.as_ref()), None);
         let config_options = self.acp_config_options(Some(&session_id), &model_state);
         let response = acp::LoadSessionResponse::new()
             .models(Some(model_state))
@@ -1105,20 +1105,20 @@ impl MvpAgent {
             }
         }
         if self.product_analytics_enabled() {
-            log_event(xvora_telemetry::events::SessionLoad {
+            log_event(telemetry::events::SessionLoad {
                 session_id: session_id.0.to_string(),
                 compaction_count: restored.compaction_count,
                 turn_count: restored.turn_count,
                 tool_call_count: restored.tool_call_count,
                 plan_mode_state: restored.plan_mode_state,
                 permission_mode: if session_yolo_mode {
-                    xvora_telemetry::enums::PermissionMode::AlwaysApprove
+                    telemetry::enums::PermissionMode::AlwaysApprove
                 } else if session_auto_mode
                     && crate::util::config::auto_permission_mode_enabled_from_disk()
                 {
-                    xvora_telemetry::enums::PermissionMode::Auto
+                    telemetry::enums::PermissionMode::Auto
                 } else {
-                    xvora_telemetry::enums::PermissionMode::Ask
+                    telemetry::enums::PermissionMode::Ask
                 },
                 model_id: summary.current_model_id.0.to_string(),
                 restored_from_disk: true,
@@ -1142,10 +1142,10 @@ impl MvpAgent {
     ) -> Option<serde_json::Value> {
         let registry_client_for_restore = self.session_registry_client();
         if restore_code_requested && registry_client_for_restore.is_none() {
-            xvora_workspace::session::git::warn_registry_disabled_restore(session_id.0.as_ref());
+            workspace::session::git::warn_registry_disabled_restore(session_id.0.as_ref());
         }
         let restore_checkout_allowed =
-            xvora_workspace::session::git::restore_code_checkout_allowed(
+            workspace::session::git::restore_code_checkout_allowed(
                 cwd.as_path(),
                 Some(summary.info.cwd.as_str()),
             );
@@ -1154,14 +1154,14 @@ impl MvpAgent {
             && let Some(ref target_sha) = summary.head_commit
         {
             tracing::warn!(
-                target: xvora_workspace::session::git::RESTORE_CODE_LOG,
+                target: workspace::session::git::RESTORE_CODE_LOG,
                 session_id = %session_id.0,
                 supplied_cwd = %cwd.as_str(),
                 persisted_cwd = %summary.info.cwd,
                 target_sha = %target_sha,
                 "restore_code: skipping session HEAD checkout — supplied cwd is neither a grok worktree nor the session's persisted cwd (refusing to detach the source repo)"
             );
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "restore_code: skipped session HEAD checkout (unsafe cwd)",
                 Some(session_id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1176,8 +1176,8 @@ impl MvpAgent {
             && restore_checkout_allowed
             && let Some(ref target_sha) = summary.head_commit
         {
-            use xvora_workspace::session::git::RestoreKind;
-            let outcome = xvora_workspace::session::git::checkout_session_commit(
+            use workspace::session::git::RestoreKind;
+            let outcome = workspace::session::git::checkout_session_commit(
                 cwd.as_path(),
                 target_sha,
                 true,
@@ -1331,7 +1331,7 @@ impl MvpAgent {
             });
             crate::agent::subagent::reconcile_orphaned_subagents_with_backend(
                 unfinished_subagents,
-                &xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+                &tools::implementations::grok_build::task::backend::ChannelBackend::new(
                     self.subagent_event_tx.event_sender().0,
                 ),
                 &session_dir,
@@ -1389,7 +1389,7 @@ impl MvpAgent {
                     catalog_key = %catalog_key.0,
                     "load_session: mapped persisted routing slug to catalog key"
                 );
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "load_session: mapped persisted routing slug to catalog key",
                     Some(session_id.0.as_ref()),
                     Some(serde_json::json!({
@@ -1405,7 +1405,7 @@ impl MvpAgent {
                 persisted = %persisted_model.0,
                 "load_session: model catalog empty at load; keeping persisted model unverified (catalog fetch may still be in flight)"
             );
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "load_session: model catalog empty, keeping persisted model unverified",
                 Some(session_id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1441,7 +1441,7 @@ impl MvpAgent {
                 available_keys = ?available.keys().take(10).collect::<Vec<_>>(),
                 "Persisted model no longer available, no same-family fallback — blocking prompts for this session"
             );
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "load_session: persisted model unavailable, no same-family fallback",
                 Some(session_id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1513,7 +1513,7 @@ impl MvpAgent {
         if summary.head_commit.is_some()
             && let Some(ref cwd) = session_cwd
             && summary.git_root_dir.as_deref().is_none_or(|root| {
-                xvora_workspace::session::git::find_git_root_from_path(std::path::Path::new(
+                workspace::session::git::find_git_root_from_path(std::path::Path::new(
                     cwd.as_str(),
                 ))
                 .ok()
@@ -1521,13 +1521,13 @@ impl MvpAgent {
             })
         {
             let mut git_scan_timer = crate::instrumentation_timer!("session.git_divergence");
-            git_scan_timer.with_subphase(xvora_telemetry::startup::Subphase::SessionGitScan);
+            git_scan_timer.with_subphase(telemetry::startup::Subphase::SessionGitScan);
             let cwd_path = std::path::Path::new(cwd.as_str());
             let current_head =
-                xvora_workspace::session::git::git_cli(cwd_path, &["rev-parse", "HEAD"])
+                workspace::session::git::git_cli(cwd_path, &["rev-parse", "HEAD"])
                     .await
                     .ok();
-            if let Some(divergence) = xvora_workspace::session::git::detect_head_divergence(
+            if let Some(divergence) = workspace::session::git::detect_head_divergence(
                 summary.head_commit.as_deref(),
                 summary.head_branch.as_deref(),
                 current_head.as_deref(),

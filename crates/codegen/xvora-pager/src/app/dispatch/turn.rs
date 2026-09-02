@@ -9,13 +9,13 @@ use crate::app::agent_view::{ActivePane, AgentView};
 use crate::app::app_view::{ActiveView, AppView};
 use crate::app::cancel_latency::{CancelOrigin, TurnEnd};
 use std::time::Instant;
-use xvora_telemetry::events::CancellationScope;
+use telemetry::events::CancellationScope;
 
 /// Map `[ui].cancel_subagents_on_turn_cancel` / in-memory agent preference to `cancel_subagents` for the cancel wire payload.
 /// `None` means prompt.
 fn effective_cancel_subagents_preference(
     agent_pref: Option<bool>,
-    ui: &xvora_shell::agent::config::UiConfig,
+    ui: &shell::agent::config::UiConfig,
 ) -> Option<bool> {
     agent_pref.or(match ui.cancel_subagents_on_turn_cancel.as_deref() {
         Some("always_stop") => Some(true),
@@ -33,7 +33,7 @@ fn cancel_subagents_pref_canonical(stop: bool) -> &'static str {
 }
 
 fn cancel_subagents_pref_canonical_from_ui(
-    ui: &xvora_shell::agent::config::UiConfig,
+    ui: &shell::agent::config::UiConfig,
 ) -> &'static str {
     match ui.cancel_subagents_on_turn_cancel.as_deref() {
         Some("always_stop") => "always_stop",
@@ -716,7 +716,7 @@ pub(super) fn dispatch_kill_bg_task(app: &mut AppView, task_id: String) -> Vec<E
     vec![Effect::KillBgTask {
         session_id,
         task_id,
-        source: xvora_shell::extensions::task::TaskKillSource::ClientUi,
+        source: shell::extensions::task::TaskKillSource::ClientUi,
     }]
 }
 
@@ -781,9 +781,9 @@ pub(super) fn handle_bg_task_killed(
     app: &mut AppView,
     session_id: String,
     task_id: String,
-    outcome: Option<xvora_tools::types::KillOutcome>,
+    outcome: Option<tools::types::KillOutcome>,
 ) -> Vec<Effect> {
-    use xvora_tools::types::KillOutcome;
+    use tools::types::KillOutcome;
     if let Some(agent) = find_agent_by_session_id(&mut app.agents, &session_id) {
         match outcome {
             Some(KillOutcome::Killed) => {

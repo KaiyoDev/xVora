@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_copy_parallel_only_ignored() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let src = TempDir::new().unwrap();
         let dest = TempDir::new().unwrap();
 

@@ -114,28 +114,28 @@ impl crate::types::tool_metadata::ToolMetadata for ReadTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for ReadTool {
+impl tool_runtime::Tool for ReadTool {
     type Args = ReadInput;
     type Output = ReadFileOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("read").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("read").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "read",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
+            tool_scope: Some(tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -143,9 +143,9 @@ impl xvora_tool_runtime::Tool for ReadTool {
     #[tracing::instrument(name = "tool.opencode.read", skip_all)]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: ReadInput,
-    ) -> Result<ReadFileOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<ReadFileOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::{invoking_param_names, resolve_cwd, shared_resources};
         let resources = shared_resources(&ctx)?;
         // Client-facing `offset` name for runtime "read beyond…" hints; a
@@ -566,7 +566,7 @@ mod tests {
             offset: None,
             limit: Some(5),
         };
-        let result = xvora_tool_runtime::Tool::run(&ReadTool, ctx, input)
+        let result = tool_runtime::Tool::run(&ReadTool, ctx, input)
             .await
             .unwrap();
         match result {
@@ -600,7 +600,7 @@ mod tests {
             offset: Some(0),
             limit: None,
         };
-        let result = xvora_tool_runtime::Tool::run(&ReadTool, ctx, input)
+        let result = tool_runtime::Tool::run(&ReadTool, ctx, input)
             .await
             .unwrap();
         match result {
@@ -633,7 +633,7 @@ mod tests {
         };
 
         let shared = resources.into_shared();
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -664,7 +664,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -690,7 +690,7 @@ mod tests {
             limit: Some(2),
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -719,7 +719,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -748,7 +748,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -771,7 +771,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -846,7 +846,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -886,7 +886,7 @@ mod tests {
             offset: None,
             limit: None,
         };
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -921,7 +921,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -960,7 +960,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -991,7 +991,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1022,7 +1022,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1059,7 +1059,7 @@ mod tests {
             limit: Some(5),
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1091,7 +1091,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1125,7 +1125,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1166,7 +1166,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1205,7 +1205,7 @@ mod tests {
             limit: Some(3),
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1253,7 +1253,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1310,7 +1310,7 @@ mod tests {
             limit: None,
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {

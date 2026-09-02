@@ -1,4 +1,4 @@
-//! Provides a dedicated tracing target (`xvora_memory`) with an optional
+//! Provides a dedicated tracing target (`memory`) with an optional
 //! file logger that writes to `~/.grok/logs/memory.log`.
 //!
 //! ## When to use
@@ -15,7 +15,7 @@
 //! ```
 
 /// Tracing target for all memory system operations.
-pub const TARGET: &str = "xvora_memory";
+pub const TARGET: &str = "memory";
 
 #[cfg(feature = "memory-log")]
 mod inner {
@@ -32,7 +32,7 @@ mod inner {
     use tracing_subscriber::registry::LookupSpan;
 
     use super::TARGET;
-    use xvora_config::grok_home;
+    use config::grok_home;
 
     const ENV_MEMORY_LOG: &str = "GROK_MEMORY_LOG";
 
@@ -60,7 +60,7 @@ mod inner {
         }
     }
 
-    /// Writes to `~/.grok/logs/memory.log`. Filters to `xvora_memory=trace`.
+    /// Writes to `~/.grok/logs/memory.log`. Filters to `memory=trace`.
     /// Set `GROK_MEMORY_LOG=0` to disable, `GROK_MEMORY_LOG=/path` to redirect.
     pub fn layer<S>() -> Option<impl Layer<S>>
     where

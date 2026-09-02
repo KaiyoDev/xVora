@@ -135,7 +135,7 @@ pub(crate) fn resolve_mcp_recursive_config_watch(
     .value
 }
 
-/// Kept in sync with `xvora_mcp::servers`'s standalone fallback.
+/// Kept in sync with `mcp::servers`'s standalone fallback.
 pub const DEFAULT_MCP_STARTUP_TIMEOUT_SECS: u64 = 30;
 
 /// Env override for the MCP startup timeout, in milliseconds (shared with common third-party tooling, so an existing setting carries over).
@@ -240,12 +240,12 @@ mod mcp_startup_timeout_tests {
 // Tools holds a single effective atomic: we resolve once on apply and push it via `set_mcp_max_output_bytes` so free-function truncation sees it
 
 /// Default MCP tool-result inline cap (bytes).
-pub const DEFAULT_MAX_MCP_OUTPUT_BYTES: usize = xvora_tools::MCP_MAX_OUTPUT_BYTES;
+pub const DEFAULT_MAX_MCP_OUTPUT_BYTES: usize = tools::MCP_MAX_OUTPUT_BYTES;
 
 /// Resolve the full stack for `remote` and push the result into the tools-crate atomic, which cannot re-read config/requirements on every use.
 /// Call wherever `RemoteSettings` is applied (same sites as [`cache_remote_mcp_startup_timeout_secs`], which caches only the remote tier).
 pub(crate) fn cache_remote_max_mcp_output_bytes(remote: Option<u64>) {
-    xvora_tools::set_mcp_max_output_bytes(resolve_max_mcp_output_bytes(remote));
+    tools::set_mcp_max_output_bytes(resolve_max_mcp_output_bytes(remote));
 }
 
 fn max_mcp_output_bytes_from_toml(v: &toml::Value) -> Option<usize> {
@@ -278,7 +278,7 @@ pub(crate) fn resolve_max_mcp_output_bytes(remote: Option<u64>) -> usize {
         .and_then(max_mcp_output_bytes_from_toml);
     resolve_max_mcp_output_bytes_precedence(
         requirements,
-        xvora_tools::mcp_max_output_bytes_from_env(),
+        tools::mcp_max_output_bytes_from_env(),
         None, // Project tier needs a cwd; see resolve_max_mcp_output_bytes_for_cwd
         config,
         remote_usize,
@@ -296,7 +296,7 @@ fn project_max_mcp_output_bytes(cwd: &std::path::Path) -> Option<usize> {
     let mut value = None;
     // Repo root first, cwd last: later (deeper) files overwrite
     for config_path in crate::config::find_project_configs(cwd) {
-        if let Ok(toml_val) = xvora_config::load_config_file(&config_path)
+        if let Ok(toml_val) = config::load_config_file(&config_path)
             && let Some(v) = max_mcp_output_bytes_from_toml(&toml_val)
         {
             value = Some(v);
@@ -313,7 +313,7 @@ pub(crate) fn resolve_max_mcp_output_bytes_for_cwd(cwd: &std::path::Path) -> Opt
     let requirements = crate::config::load_merged_requirements()
         .as_ref()
         .and_then(max_mcp_output_bytes_from_toml);
-    if requirements.is_some() || xvora_tools::mcp_max_output_bytes_from_env().is_some() {
+    if requirements.is_some() || tools::mcp_max_output_bytes_from_env().is_some() {
         return None;
     }
     project_max_mcp_output_bytes(cwd)

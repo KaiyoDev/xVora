@@ -153,7 +153,7 @@ fn load_managed_settings() -> ManagedSettings {
         disable_yolo: engine.features.disable_yolo,
         source_path: engine.features.source_path.clone(),
     };
-    let Some(path) = xvora_config::claude_managed_settings_path() else {
+    let Some(path) = config::claude_managed_settings_path() else {
         return ManagedSettings {
             features,
             ..Default::default()

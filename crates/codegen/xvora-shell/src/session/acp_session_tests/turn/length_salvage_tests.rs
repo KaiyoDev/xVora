@@ -6,8 +6,8 @@ use super::support::*;
 use super::*;
 use std::sync::Arc;
 use std::time::Duration;
-use xvora_test_support::sse::chat_completion_script_exact;
-use xvora_test_support::{MockInferenceServer, ScriptedResponse, SseEvent};
+use test_support::sse::chat_completion_script_exact;
+use test_support::{MockInferenceServer, ScriptedResponse, SseEvent};
 /// Distinctive fragment of the continue reminder.
 const REMINDER_MARKER: &str = "exceeded the output token limit";
 /// `SessionActor` turn futures overflow the default test thread stack.
@@ -95,7 +95,7 @@ async fn salvage_test_actor_on_backend(
     context_window: u64,
     backend: xvora_sampling_types::ApiBackend,
 ) -> Arc<SessionActor> {
-    let sampling_cfg = xvora_sampler::SamplerConfig {
+    let sampling_cfg = sampler::SamplerConfig {
         api_key: Some("test-key".to_string()),
         base_url: server.url(),
         model: "test".to_string(),
@@ -106,10 +106,10 @@ async fn salvage_test_actor_on_backend(
         ..Default::default()
     };
     let (sampler_event_tx, sampler_event_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_sampler::SamplingEvent>();
-    let sampler_handle = xvora_sampler::SamplerActor::spawn(
+        tokio::sync::mpsc::unbounded_channel::<sampler::SamplingEvent>();
+    let sampler_handle = sampler::SamplerActor::spawn(
         sampling_cfg,
-        xvora_sampler::RetryPolicy {
+        sampler::RetryPolicy {
             max_retries: 0,
             rate_limit_retry_threshold: 0,
             ..Default::default()
@@ -117,7 +117,7 @@ async fn salvage_test_actor_on_backend(
         sampler_event_tx,
     );
     let (gateway_tx, gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     drain_gateway(gateway_rx);
     let (persistence_tx, persistence_rx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     drain_persistence(persistence_rx);
@@ -187,13 +187,13 @@ async fn run_prompt(actor: &Arc<SessionActor>, prompt_id: &str) -> PromptTurnRes
 /// cell, now injectable).
 #[test]
 fn remote_budget_wires_into_the_resolver() {
-    if xvora_config::env_bool("GROK_LENGTH_SALVAGE") == Some(true) {
+    if config::env_bool("GROK_LENGTH_SALVAGE") == Some(true) {
         panic!("ambient GROK_LENGTH_SALVAGE=1 would mask the remote tier under test");
     }
     block_on_session(|| {
         current_thread_local(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             drain_gateway(gateway_rx);
             let (persistence_tx, persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
@@ -236,7 +236,7 @@ fn remote_settings_length_salvage_budget_serde_cells() {
 /// This is the safety property that nothing changes for production default agents until the rollout flag lands.
 #[test]
 fn default_agent_gate_off_hard_fails_on_length() {
-    if xvora_config::env_bool("GROK_LENGTH_SALVAGE") == Some(true) {
+    if config::env_bool("GROK_LENGTH_SALVAGE") == Some(true) {
         panic!("ambient GROK_LENGTH_SALVAGE=1 would flip the gate under test");
     }
     block_on_session(|| {
@@ -263,10 +263,10 @@ fn default_agent_gate_off_hard_fails_on_length() {
 /// Terminal error whose metadata reports a tiny context window.
 /// The overflow heuristic compares the token estimate to that window, so it fires for any nonempty history.
 fn error_with_tiny_window(
-    kind: xvora_sampler::SamplingErrorKind,
+    kind: sampler::SamplingErrorKind,
     status_code: u16,
-) -> xvora_sampler::SamplingErrorInfo {
-    xvora_sampler::SamplingErrorInfo {
+) -> sampler::SamplingErrorInfo {
+    sampler::SamplingErrorInfo {
         kind,
         status_code: Some(status_code),
         message: "terminal failure".to_string(),
@@ -298,7 +298,7 @@ fn rate_limit_mid_continuation_stays_terminal() {
                     "enough history that the token estimate clears the tiny window",
                 ),
             );
-            let error = error_with_tiny_window(xvora_sampler::SamplingErrorKind::RateLimited, 429);
+            let error = error_with_tiny_window(sampler::SamplingErrorKind::RateLimited, 429);
             let Err(err) = actor
                 .handle_sampling_failure(error, 0, transient_state(0, true), true)
                 .await
@@ -330,7 +330,7 @@ fn suppressed_overflow_mid_continuation_still_completes_truncated() {
                 crate::session::compaction_config::SUPPRESS_STICKY,
                 std::sync::atomic::Ordering::Relaxed,
             );
-            let error = error_with_tiny_window(xvora_sampler::SamplingErrorKind::Api, 500);
+            let error = error_with_tiny_window(sampler::SamplingErrorKind::Api, 500);
             let Err(err) = actor
                 .handle_sampling_failure(error, 0, transient_state(0, true), true)
                 .await

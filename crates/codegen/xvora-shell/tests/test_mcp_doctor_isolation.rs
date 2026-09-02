@@ -27,7 +27,7 @@ async fn run_doctor_skips_managed_gateway_without_configs_probe() {
     let _home = isolate_home();
     let cwd = tempfile::tempdir().unwrap();
 
-    let report = xvora_shell::mcp_doctor::run_doctor(cwd.path(), None).await;
+    let report = shell::mcp_doctor::run_doctor(cwd.path(), None).await;
     assert!(
         !report.sources.iter().any(|s| s.path == "grok.com"),
         "doctor must not invent a grok.com source: {:?}",

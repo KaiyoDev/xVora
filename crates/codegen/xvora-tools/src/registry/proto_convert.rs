@@ -2,15 +2,15 @@
 //! runtime registry types ([`ToolConfig`] / [`ToolServerConfig`]).
 //!
 //! The `params_json` parse/validation contract lives in
-//! [`xvora_tools_api::config_validation`] so every consumer (this
+//! [`tools_api::config_validation`] so every consumer (this
 //! converter, save-time config validation, ...) shares one source of
 //! truth. The error types are re-exported here for back-compat.
 
 use super::types::{ToolConfig, ToolServerConfig};
 
-pub use xvora_tools_api::config_validation::{ToolConfigEntryError, ToolConfigEntryErrorKind};
+pub use tools_api::config_validation::{ToolConfigEntryError, ToolConfigEntryErrorKind};
 
-/// Convert one wire [`xvora_tools_api::ToolConfigEntry`] to a runtime
+/// Convert one wire [`tools_api::ToolConfigEntry`] to a runtime
 /// [`ToolConfig`].
 ///
 /// `index` is only used for error reporting. The result always has
@@ -18,9 +18,9 @@ pub use xvora_tools_api::config_validation::{ToolConfigEntryError, ToolConfigEnt
 /// capability-mode filtering intentionally keeps baseline `kind: None` tools.
 pub fn tool_config_from_entry(
     index: usize,
-    entry: xvora_tools_api::ToolConfigEntry,
+    entry: tools_api::ToolConfigEntry,
 ) -> Result<ToolConfig, ToolConfigEntryError> {
-    let xvora_tools_api::ToolConfigEntry {
+    let tools_api::ToolConfigEntry {
         id,
         params_json,
         name_override,
@@ -29,8 +29,8 @@ pub fn tool_config_from_entry(
         description_override,
     } = entry;
     let params =
-        xvora_tools_api::config_validation::parse_params_json(index, &id, params_json.as_deref())?;
-    xvora_tools_api::config_validation::validate_name_override(
+        tools_api::config_validation::parse_params_json(index, &id, params_json.as_deref())?;
+    tools_api::config_validation::validate_name_override(
         index,
         &id,
         name_override.as_deref(),
@@ -56,7 +56,7 @@ pub fn tool_config_from_entry(
 /// `behavior_preset` is always `None` (the `"current"` default); per-tool
 /// `behavior_version` overrides on individual entries still apply.
 pub fn tool_server_config_from_entries(
-    entries: Vec<xvora_tools_api::ToolConfigEntry>,
+    entries: Vec<tools_api::ToolConfigEntry>,
 ) -> Result<ToolServerConfig, ToolConfigEntryError> {
     let tools = entries
         .into_iter()
@@ -73,8 +73,8 @@ pub fn tool_server_config_from_entries(
 mod tests {
     use super::*;
 
-    fn entry(id: &str) -> xvora_tools_api::ToolConfigEntry {
-        xvora_tools_api::ToolConfigEntry {
+    fn entry(id: &str) -> tools_api::ToolConfigEntry {
+        tools_api::ToolConfigEntry {
             id: id.to_owned(),
             params_json: None,
             name_override: None,

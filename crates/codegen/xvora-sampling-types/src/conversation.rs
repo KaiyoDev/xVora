@@ -1378,9 +1378,9 @@ impl ConversationItem {
 // The full-replace assembler (`apply_full_replace_compaction` / `assemble_compacted_history`) uses it to rebuild the compacted history
 // Each factory constructor maps to the matching `ConversationItem` constructor
 // That preserves the `SyntheticReason` tags the replay / spawn-time idempotence guards rely on
-impl xvora_compaction::CompactionItem for ConversationItem {
-    fn role(&self) -> xvora_compaction::CompactionRole {
-        use xvora_compaction::CompactionRole;
+impl compaction::CompactionItem for ConversationItem {
+    fn role(&self) -> compaction::CompactionRole {
+        use compaction::CompactionRole;
         // grok-build has no distinct `Developer` role; everything maps onto the four `Role` variants `ConversationItem::role()` already returns
         match self.role() {
             Role::System => CompactionRole::System,
@@ -1408,7 +1408,7 @@ impl xvora_compaction::CompactionItem for ConversationItem {
         false
     }
 
-    fn attachment_refs(&self) -> Vec<xvora_compaction::CompactionFileRef> {
+    fn attachment_refs(&self) -> Vec<compaction::CompactionFileRef> {
         // grok-build `UserItem`s carry only `Text`/`Image { url }` content parts
         // There is no id-and-name attachment-ref concept like the chat harness's `GrokTurn` has
         // The full-replace path does not read this; revisit if image attachments need to survive into the `<grok_user_queries>` preamble
@@ -1416,7 +1416,7 @@ impl xvora_compaction::CompactionItem for ConversationItem {
     }
 }
 
-impl xvora_compaction::CompactionItemFactory for ConversationItem {
+impl compaction::CompactionItemFactory for ConversationItem {
     fn new_user(text: String) -> Self {
         Self::user(text)
     }
@@ -2232,7 +2232,7 @@ pub fn dedup_duplicate_tool_results(conversation: &mut Vec<ConversationItem>) ->
 #[cfg(test)]
 mod compaction_item_bridge_tests {
     use super::*;
-    use xvora_compaction::{CompactionItem, CompactionItemFactory, CompactionRole};
+    use compaction::{CompactionItem, CompactionItemFactory, CompactionRole};
 
     #[test]
     fn role_maps_every_variant() {

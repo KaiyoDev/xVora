@@ -7,8 +7,8 @@ use std::sync::{Mutex, OnceLock};
 
 use agent_client_protocol as acp;
 use tokio::runtime::Handle;
-use xvora_acp_lib::AcpAgentTx;
-use xvora_telemetry::unified_log::{
+use acp_lib::AcpAgentTx;
+use telemetry::unified_log::{
     ClientLogEntry, LOG_METHOD, LogLevel, LogNotificationParams, LogSource,
 };
 
@@ -45,7 +45,7 @@ fn make_entry(
     ClientLogEntry {
         ts: now_ts(),
         pid: Some(std::process::id()),
-        ver: Some(xvora_version::VERSION.to_owned()),
+        ver: Some(version::VERSION.to_owned()),
         lvl,
         sid: sid.map(Into::into),
         msg: msg.into(),
@@ -58,7 +58,7 @@ fn make_entry(
 /// Entries logged before the connect that must survive a failed startup go through here.
 /// They get the same pager source and pid stamps as forwarded entries.
 pub fn write_direct_info(msg: &str, ctx: Option<serde_json::Value>) {
-    xvora_telemetry::unified_log::ingest_client_entries(
+    telemetry::unified_log::ingest_client_entries(
         LogSource::GrokPager,
         &[make_entry(LogLevel::Info, msg, None, ctx)],
     );
@@ -100,7 +100,7 @@ fn send_entries(entries: Vec<ClientLogEntry>) {
     };
     let tx = tx.clone();
     handle.spawn(async move {
-        let _ = xvora_acp_lib::acp_send(notification, &tx).await;
+        let _ = acp_lib::acp_send(notification, &tx).await;
     });
 }
 
@@ -131,7 +131,7 @@ pub async fn flush_blocking() {
     let Some(notification) = build_notification(entries) else {
         return;
     };
-    let _ = xvora_acp_lib::acp_send(notification, tx).await;
+    let _ = acp_lib::acp_send(notification, tx).await;
 }
 
 pub fn info(msg: &str, sid: Option<&str>, ctx: Option<serde_json::Value>) {

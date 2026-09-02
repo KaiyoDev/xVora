@@ -797,7 +797,7 @@ fn feedback_always_upload_stops_reoffering_this_session() {
 
     // A later auth-meta refresh (login, subscription check) recomputes the offer from shell config
     // The persisted consent reaches that config asynchronously, so the refresh must not resurrect the question
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         feedback_trace_offer: true,
         ..Default::default()
     };
@@ -1152,7 +1152,7 @@ fn auth_meta_refreshes_feedback_trace_offer() {
     let mut app = test_app_with_agent();
     app.shell_feedback_trace_offer = false; // initialize ran logged-out
 
-    let meta = xvora_shell::auth::AuthMeta {
+    let meta = shell::auth::AuthMeta {
         feedback_trace_offer: true,
         coding_data_retention_opt_out: false,
         ..Default::default()
@@ -1303,7 +1303,7 @@ fn enter_feedback_mode_requires_session() {
 fn enter_feedback_mode_busy_question_is_mode_specific() {
     use crate::views::prompt_widget::StashedPrompt;
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::Question;
+    use tools::implementations::grok_build::ask_user_question::Question;
 
     let id = AgentId(0);
     let occupy = |agent: &mut crate::app::agent_view::AgentView| {

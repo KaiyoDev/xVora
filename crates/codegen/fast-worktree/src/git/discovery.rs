@@ -79,7 +79,7 @@ pub(crate) fn get_head_commit(path: &Path) -> Result<String> {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
 
     #[test]
     fn test_find_worktree_git_dir_resolves_relative_gitdir() {
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_find_worktree_git_dir_regular_repo() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         init_git_repo(temp.path());
 
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_get_head_commit() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         init_git_repo(temp.path());
 

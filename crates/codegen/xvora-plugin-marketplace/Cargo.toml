@@ -5,7 +5,7 @@ version = "0.1.0"
 edition.workspace = true
 
 [dependencies]
-xvora-dirs = { workspace = true }
+dirs = { workspace = true }
 dunce = { workspace = true }
 fs2 = { workspace = true }
 serde = { workspace = true }
@@ -14,10 +14,10 @@ thiserror = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
-xvora-agent = { workspace = true }
-xvora-config = { workspace = true }
-xvora-hooks-plugins-types = { workspace = true, package = "xvora-hooks-plugins-types" }
+tty-utils = { workspace = true }
+agent = { workspace = true }
+config = { workspace = true }
+hooks-plugins-types = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

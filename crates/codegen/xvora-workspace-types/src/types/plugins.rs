@@ -37,7 +37,7 @@ pub struct HookInfo {
     /// Hook event the script attaches to (e.g. `"PreToolUse"`).
     ///
     /// TODO(workspace): the event field will become a typed enum once
-    /// aligned with `xvora_hooks_plugins_types::HookEvent` -- right
+    /// aligned with `hooks_plugins_types::HookEvent` -- right
     /// now it's a free-form string for placeholder convenience, which
     /// allows typos through.
     #[serde(default)]

@@ -1,7 +1,7 @@
 //! Wired into adapter.rs via `#[path = "adapter_tests.rs"] mod tests;` so the implementation there reads top-to-bottom.
 
 use super::*;
-use xvora_tools::notification::types::ToolNotificationHandle;
+use tools::notification::types::ToolNotificationHandle;
 
 fn make_tracked_task(command: &str) -> TrackedTask {
     TrackedTask {
@@ -66,7 +66,7 @@ fn to_snapshot_derives_completed_and_end_time() {
 
 /// Scripted client side of the terminal protocol: each `terminal/output` serves the next snapshot; `wait_for_exit` resolves after the last one.
 fn scripted_gateway(outputs: Vec<(String, bool)>) -> GatewaySender {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     tokio::spawn(async move {
         let mut next = 0usize;
@@ -140,7 +140,7 @@ fn background_request(output_file: PathBuf) -> TerminalRunRequest {
 
 #[tokio::test(start_paused = true)]
 async fn run_background_records_snapshots_and_threads_task_kind() {
-    use xvora_tools::notification::types::ToolNotification;
+    use tools::notification::types::ToolNotification;
 
     let dir = tempfile::tempdir().unwrap();
     let output_file = dir.path().join("terminal").join("monitor-call-1.log");
@@ -182,7 +182,7 @@ async fn run_background_records_snapshots_and_threads_task_kind() {
 
 /// A gateway whose `terminal/output` never replies, so live polls fail and `get_task` exercises its offline fallback.
 fn output_unavailable_gateway() -> GatewaySender {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
@@ -232,7 +232,7 @@ fn kill_wait_gateway(
     kill_ok: bool,
     sent: std::sync::Arc<Mutex<Vec<&'static str>>>,
 ) -> GatewaySender {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
@@ -292,7 +292,7 @@ async fn kill_task_unknown_id_answers_not_found_despite_lenient_client_kill() {
 /// The kill proceeds; `NotFound` is reserved for a client that answered and disowned the id.
 #[tokio::test]
 async fn kill_task_unknown_id_probe_transport_failure_still_kills() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let sent = std::sync::Arc::new(Mutex::new(Vec::new()));
     let recorded = Arc::clone(&sent);
@@ -506,7 +506,7 @@ async fn wait_for_completion_live_waiter_makes_client_ui_kill_delivered() {
 /// ACP has no oneshot, so we re-sample `live_waiters` after the await (local backend uses `reply.send().is_ok()`).
 #[tokio::test]
 async fn client_ui_kill_does_not_mark_delivered_if_waiter_drops_during_kill() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let (release_kill, hold_kill) = tokio::sync::oneshot::channel::<()>();
     let kill_seen = std::sync::Arc::new(tokio::sync::Notify::new());
@@ -573,7 +573,7 @@ async fn client_ui_kill_does_not_mark_delivered_if_waiter_drops_during_kill() {
 /// ModelTool must mark delivered *before* the kill RPC returns, so an exit-watcher TaskCompleted in that window still suppresses auto-wake.
 #[tokio::test]
 async fn model_tool_kill_marks_delivered_before_kill_rpc_returns() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let (release_kill, hold_kill) = tokio::sync::oneshot::channel::<()>();
     let kill_seen = std::sync::Arc::new(tokio::sync::Notify::new());
@@ -801,7 +801,7 @@ async fn wait_for_completion_untracked_live_terminal_stays_pending() {
 /// Same as kill: do not treat it as not-found and skip WaitForTerminalExit.
 #[tokio::test]
 async fn wait_for_completion_untracked_probe_transport_failure_still_waits() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let sent = std::sync::Arc::new(Mutex::new(Vec::new()));
     let recorded = Arc::clone(&sent);
@@ -837,7 +837,7 @@ async fn wait_for_completion_untracked_probe_transport_failure_still_waits() {
 /// A stamped completion is an answer: the fallback must not poll the released terminal until the deadline.
 #[tokio::test]
 async fn wait_for_completion_race_with_exit_watcher_skips_the_polling_fallback() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let adapter = AcpTerminalAdapter::new(GatewaySender::new(tx), acp::SessionId::new("s"));

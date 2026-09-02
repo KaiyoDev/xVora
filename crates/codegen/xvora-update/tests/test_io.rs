@@ -10,7 +10,7 @@ use std::time::Duration;
 use serial_test::serial;
 
 use common::{reset_home, test_home};
-use xvora_update::write_version_cache;
+use update::write_version_cache;
 
 fn version_cache_path() -> PathBuf {
     test_home().join("version.json")
@@ -155,7 +155,7 @@ async fn get_installed_version_falls_back_to_cargo_pkg_version_when_env_unset() 
     unsafe {
         std::env::remove_var("GROK_TEST_VERSION");
     }
-    let v = xvora_update::version::get_installed_grok_version();
+    let v = update::version::get_installed_grok_version();
     let _: semver::Version = v
         .parse()
         .unwrap_or_else(|e| panic!("CARGO_PKG_VERSION is not a valid semver: '{v}': {e}"));
@@ -171,13 +171,13 @@ async fn get_installed_version_with_env_var_takes_precedence() {
         unsafe {
             std::env::remove_var("GROK_TEST_VERSION");
         }
-        xvora_update::version::get_installed_grok_version()
+        update::version::get_installed_grok_version()
     };
 
     unsafe {
         std::env::set_var("GROK_TEST_VERSION", "0.0.0-test");
     }
-    let overridden = xvora_update::version::get_installed_grok_version();
+    let overridden = update::version::get_installed_grok_version();
     assert_ne!(real, overridden);
     assert_eq!(overridden, "0.0.0-test");
 
@@ -196,7 +196,7 @@ async fn get_installed_version_does_not_validate_env_var_format() {
     unsafe {
         std::env::set_var("GROK_TEST_VERSION", "not-a-version");
     }
-    let v = xvora_update::version::get_installed_grok_version();
+    let v = update::version::get_installed_grok_version();
     assert_eq!(v, "not-a-version");
     unsafe {
         std::env::remove_var("GROK_TEST_VERSION");

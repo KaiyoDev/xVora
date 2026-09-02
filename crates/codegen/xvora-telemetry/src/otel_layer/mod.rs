@@ -11,7 +11,7 @@ use std::sync::{Arc, OnceLock};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::Layer as _;
 use tracing_subscriber::registry::LookupSpan;
-use xvora_auth::AuthCredentialProvider;
+use auth::AuthCredentialProvider;
 mod redact;
 static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 const ENV_OTEL_FILTER: &str = "GROK_OTEL_FILTER";
@@ -20,7 +20,7 @@ const DEFAULT_OTEL_FILTER: &str = "info";
 /// Passing them in keeps this crate free of shell-internal types (`AuthManager`, `EndpointsConfig`, `GrokComConfig`).
 ///
 /// The binaries (`xvora-pager`) build this from their own configuration.
-/// The credentials provider is constructed by shell's `xvora_shell::auth::credential_provider::build_otel_credential_provider`.
+/// The credentials provider is constructed by shell's `shell::auth::credential_provider::build_otel_credential_provider`.
 pub struct OtelLayerConfig {
     /// Live credential source.
     /// Each batch export reads it to get a fresh bearer token for the OTLP `Authorization` header.
@@ -135,7 +135,7 @@ fn build_export_headers(
     token: &str,
     token_auth_header: Option<&str>,
     extra_headers: &[(String, String)],
-    snapshot: &xvora_auth::CredentialSnapshot,
+    snapshot: &auth::CredentialSnapshot,
 ) -> std::collections::HashMap<String, String> {
     let mut headers = static_headers.clone();
     for (name, value) in [
@@ -167,7 +167,7 @@ fn build_otlp_exporter(
     token_auth_header: Option<&str>,
     extra_headers: &[(String, String)],
     http_client: crate::otlp_http::BlockingOtlpClient,
-    snapshot: &xvora_auth::CredentialSnapshot,
+    snapshot: &auth::CredentialSnapshot,
 ) -> Result<opentelemetry_otlp::SpanExporter, opentelemetry_otlp::ExporterBuildError> {
     let headers = build_export_headers(
         static_headers,
@@ -197,7 +197,7 @@ async fn export_batch(
 /// The ids are only known after auth is wired; stamping at init would leave them blank for a session that authenticates mid-run.
 fn resource_with_tenant_id(
     base: opentelemetry_sdk::Resource,
-    snapshot: &xvora_auth::CredentialSnapshot,
+    snapshot: &auth::CredentialSnapshot,
 ) -> opentelemetry_sdk::Resource {
     let tenant_attrs: Vec<opentelemetry::KeyValue> = [
         ("deployment.id", &snapshot.deployment_id),
@@ -453,7 +453,7 @@ pub fn otel_guard() -> OtelGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_auth::CredentialSnapshot;
+    use auth::CredentialSnapshot;
     #[test]
     fn build_export_headers_tracks_snapshot_and_respects_overrides() {
         let static_headers = std::collections::HashMap::new();

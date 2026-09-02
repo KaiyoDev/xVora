@@ -6,12 +6,12 @@ use crate::app::app_view::AppView;
 /// When the scan finds nothing importable, records the dismissal and shows an info warning instead of the modal.
 pub(super) fn dispatch_import_claude(app: &mut AppView) -> Vec<Effect> {
     let cwd = app.cwd.clone();
-    let plan = xvora_shell::claude_import::scan_importable_settings(&cwd);
+    let plan = shell::claude_import::scan_importable_settings(&cwd);
 
     if plan.is_empty() {
-        xvora_shell::claude_import_state::mark_dismissed(&cwd);
+        shell::claude_import_state::mark_dismissed(&cwd);
         // Always write the [claude_compat] imported = true marker so the user's opt-in is recorded even on an empty plan
-        if let Err(e) = xvora_shell::claude_import::mark_claude_imported() {
+        if let Err(e) = shell::claude_import::mark_claude_imported() {
             tracing::warn!(error = %e, "Failed to write Claude import marker");
         }
         app.has_claude_import = false;
@@ -47,7 +47,7 @@ pub(super) fn dispatch_import_claude_confirm(app: &mut AppView) -> Vec<Effect> {
     };
 
     if selected_count > 0 {
-        match xvora_shell::claude_import::apply_import(&filtered, &cwd) {
+        match shell::claude_import::apply_import(&filtered, &cwd) {
             Ok(result) => {
                 summary.push_str(&format!(
                     "\nImported {} of {} setting(s).",
@@ -71,8 +71,8 @@ pub(super) fn dispatch_import_claude_confirm(app: &mut AppView) -> Vec<Effect> {
 
     // Mark the current Claude state as seen so the startup warning won't re-fire for the same content
     // Skipped items remain importable via re-running the slash command
-    xvora_shell::claude_import_state::mark_imported(&cwd);
-    if let Err(e) = xvora_shell::claude_import::mark_claude_imported() {
+    shell::claude_import_state::mark_imported(&cwd);
+    if let Err(e) = shell::claude_import::mark_claude_imported() {
         tracing::warn!(error = %e, "Failed to write Claude import marker");
     }
     app.has_claude_import = false;
@@ -95,10 +95,10 @@ pub(super) fn dispatch_import_claude_cancel(app: &mut AppView) -> Vec<Effect> {
 /// The startup detection compares the saved hash on the next launch; if it matches (no new Claude content), the menu stays hidden.
 pub(super) fn dispatch_dismiss_claude_import(app: &mut AppView) -> Vec<Effect> {
     let cwd = app.cwd.clone();
-    xvora_shell::claude_import_state::mark_dismissed(&cwd);
+    shell::claude_import_state::mark_dismissed(&cwd);
     // The imported = true marker also stops the runtime fallbacks (perms, env, MCP servers, hooks, plugins) reading .claude/ and ~/.claude.json
     // Dismiss means "I've decided I want nothing from .claude/", so don't keep silently reading it at runtime
-    if let Err(e) = xvora_shell::claude_import::mark_claude_imported() {
+    if let Err(e) = shell::claude_import::mark_claude_imported() {
         tracing::warn!(error = %e, "Failed to write Claude import marker on dismiss");
     }
     app.has_claude_import = false;

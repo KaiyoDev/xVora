@@ -33,9 +33,9 @@ dunce = { workspace = true }
 tonic-prost = { workspace = true, optional = true }
 agent-client-protocol = { workspace = true }
 anyhow = { workspace = true }
-xvora-announcements = { workspace = true }
-xvora-prompt-queue = { workspace = true, package = "xvora-prompt-queue" }
-xvora-version = { workspace = true }
+announcements = { workspace = true }
+prompt-queue = { workspace = true }
+version = { workspace = true }
 
 async-openai = { workspace = true }
 async-trait = { workspace = true }
@@ -57,7 +57,7 @@ regex = { workspace = true }
 # types via `xvora_mcp::rmcp::model::*`. reqwest 0.13 is a private impl
 # detail of xvora-mcp::servers; shell never sees it. Every HTTP call site
 # in this crate uses workspace reqwest 0.12.
-xvora-mcp = { workspace = true }
+mcp = { workspace = true }
 reqwest = { workspace = true, features = ["stream", "blocking"] }
 reqwest-middleware = { workspace = true }
 serde = { workspace = true }
@@ -88,7 +88,7 @@ obfstr = { workspace = true }
 tokio-util = { workspace = true, features = ["compat", "rt"] }
 tokio-retry = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v5", "v7"] }
-xvora-acp-lib = { workspace = true, package = "xvora-acp-lib" }
+acp-lib = { workspace = true }
 axum = { workspace = true, features = ["ws", "multipart"] }
 backon = { workspace = true }
 webbrowser = { workspace = true }
@@ -130,52 +130,52 @@ xvora-fast-worktree = { path = "../fast-worktree", features = ["metadata"] }
 tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 xvora-paths = { path = "../xvora-paths" }
-xvora-shell-base = { workspace = true }
-xvora-shell-session-support = { workspace = true }
-xvora-shell-terminal = { workspace = true }
-xvora-shared = { workspace = true }
-xvora-status-line = { workspace = true }
+shell-base = { workspace = true }
+shell-session-support = { workspace = true }
+shell-terminal = { workspace = true }
+shared = { workspace = true }
+status-line = { workspace = true }
 xvora-tracing-macros = { path = "../tracing-macros", package = "tracing-macros" }
 xvora-fsnotify = { path = "../xvora-fsnotify" }
 xvora-codebase-graph = { path = "../codebase-graph" }
 xvora-hunk-tracker = { path = "../hunk-tracker" }
-xvora-agent-lifecycle = { workspace = true, package = "xvora-agent-lifecycle" }
-xvora-interjection-core = { workspace = true, package = "xvora-interjection-core" }
-xvora-message-delivery-core = { workspace = true }
+agent-lifecycle = { workspace = true }
+interjection-core = { workspace = true }
+message-delivery-core = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
 xvora-chat-state = { path = "../chat-state" }
 # Segment markdown rendering + the `compaction/` store path convention.
-xvora-compaction-transcript = { workspace = true }
+compaction-transcript = { workspace = true }
 xvora-compaction = { path = "../../common/xvora-compaction" }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 xvora-sampler = { path = "../xvora-sampler" }
 # Session FTS search; owns this crate's only rusqlite/bundled-SQLite use.
-xvora-session-search = { workspace = true }
+session-search = { workspace = true }
 token-estimation = { workspace = true, package = "xvora-token-estimation" }
 xvora-sampling-types = { path = "../xvora-sampling-types" }
 xvora-tools = { path = "../xvora-tools" }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+tty-utils = { workspace = true }
 xvora-workflow = { path = "../xvora-workflow" }
-xvora-system-power = { workspace = true, package = "xvora-system-power" }
-xvora-workspace = { workspace = true }
+system-power = { workspace = true }
+workspace = { workspace = true }
 # Backs the compatibility-only `xvora_shell::foreign_sessions` re-export.
-xvora-foreign-sessions = { workspace = true }
+foreign-sessions = { workspace = true }
 xvora-subagent-resolution = { path = "../xvora-subagent-resolution" }
 xvora-agent = { path = "../xvora-agent" }
-xvora-bundle = { workspace = true }
-xvora-config = { workspace = true }
-xvora-config-types = { workspace = true }
-xvora-dirs = { workspace = true }
-xvora-memory = { workspace = true }
+bundle = { workspace = true }
+config = { workspace = true }
+config-types = { workspace = true }
+dirs = { workspace = true }
+memory = { workspace = true }
 xvora-hooks = { path = "../xvora-hooks" }
 xvora-hooks-plugins-types = { path = "../hooks-plugins-types" }
 xvora-plugin-marketplace = { path = "../xvora-plugin-marketplace" }
 xvora-file-utils = { path = "../file-utils" }
-xvora-session-events = { workspace = true }
+session-events = { workspace = true }
 xvora-auth = { workspace = true, features = ["middleware"] }
-xvora-telemetry = { workspace = true }
-xvora-http = { workspace = true }
-xvora-models = { workspace = true }
+telemetry = { workspace = true }
+http = { workspace = true }
+models = { workspace = true }
 prod-mc-cli-chat-proxy-types = { path = "../../../prod/mc/cli-chat-proxy-types" }
 flate2 = { workspace = true }
 fs2 = { workspace = true }
@@ -190,10 +190,10 @@ dashmap.workspace = true
 
 # Used by acp_session.rs and mcp_servers.rs for the unified
 # xvora_tool_runtime::Tool dispatch model and the computer-hub MCP adapter.
-xvora-computer-hub-sdk = { workspace = true, package = "xvora-computer-hub-sdk" }
-xvora-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
-xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
-xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
+computer-hub-sdk = { workspace = true }
+tool-runtime = { workspace = true }
+tool-protocol = { workspace = true }
+tool-types = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
@@ -204,7 +204,7 @@ siphasher = { workspace = true }
 windows = { workspace = true }
 
 [dev-dependencies]
-xvora-dirs = { workspace = true }
+dirs = { workspace = true }
 xvora-status-line = { workspace = true, features = ["test-support"] }
 criterion = { workspace = true }
 # Pre-main unified-log redirect (`test_support::redirect_unified_log_for_tests`).
@@ -229,7 +229,7 @@ serial_test = { workspace = true }
 # this crate's test targets.
 xvora-shell-base = { workspace = true, features = ["test-support"] }
 xvora-test-support = { workspace = true, features = [] }
-xvora-test-utils = { workspace = true, package = "xvora-test-utils" }
+test-utils = { workspace = true }
 # `test-util` enables `#[tokio::test(start_paused = true)]` (paused virtual
 # clock with auto-advance) so interval-driven loop tests in `auth::refresh`
 # can assert exact tick counts deterministically without real-time sleep.

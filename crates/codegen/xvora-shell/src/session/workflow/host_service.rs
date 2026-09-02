@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
-use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
-use xvora_tools::implementations::grok_build::task::types::{
+use tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
+use tools::implementations::grok_build::task::types::{
     ModelOverrideProvenance, SubagentCancelRequest, SubagentCancelTarget, SubagentEvent,
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
 };
@@ -79,7 +79,7 @@ pub(crate) struct WorkflowHostParams {
     pub store: super::store::WorkflowRunStore,
     pub notify: WorkflowNotifySender,
     pub subagent_event_tx:
-        mpsc::UnboundedSender<xvora_tools::implementations::grok_build::task::types::SubagentEvent>,
+        mpsc::UnboundedSender<tools::implementations::grok_build::task::types::SubagentEvent>,
     pub parent_session_id: String,
     pub allow_fork_context: bool,
     pub effort: Option<xvora_sampling_types::ReasoningEffort>,
@@ -388,8 +388,8 @@ impl HostService {
                 if self.params.cancel.is_cancelled() {
                     return Err(HostError::Cancelled);
                 }
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::SubagentLimitHit::workflow_run_concurrent(
+                telemetry::session_ctx::log_event(
+                    telemetry::events::SubagentLimitHit::workflow_run_concurrent(
                         self.params.parent_session_id.clone(),
                         self.params.run_id.clone(),
                         self.params.max_concurrent_agents as u64,
@@ -497,7 +497,7 @@ impl HostService {
         };
         let isolation = opts
             .isolation_worktree
-            .then_some(xvora_tool_types::SubagentIsolationMode::Worktree);
+            .then_some(tool_types::SubagentIsolationMode::Worktree);
         let subagent_type = opts
             .agent_type
             .clone()
@@ -938,8 +938,8 @@ impl HostService {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_command(&mut cmd);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_command(&mut cmd);
 
         let output = tokio::time::timeout(DIFF_TIMEOUT, cmd.output())
             .await
@@ -981,7 +981,7 @@ mod tests {
         scratch_suffix: &str,
         tracker: Arc<parking_lot::Mutex<WorkflowTracker>>,
         subagent_event_tx: mpsc::UnboundedSender<
-            xvora_tools::implementations::grok_build::task::types::SubagentEvent,
+            tools::implementations::grok_build::task::types::SubagentEvent,
         >,
     ) -> (WorkflowHostParams, mpsc::UnboundedReceiver<PersistenceMsg>) {
         let (persist_tx, persist_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
@@ -989,7 +989,7 @@ mod tests {
         let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel();
         let notify = WorkflowNotifySender::new(
             agent_client_protocol::SessionId::new("test-session"),
-            xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+            acp_lib::AcpAgentGatewaySender::new(gateway_tx),
             persist_tx,
             store.clone(),
         );
@@ -1172,10 +1172,10 @@ mod tests {
             reply_rx
         };
         let succeed =
-            |spawn: xvora_tools::implementations::grok_build::task::types::SubagentSpawnRequest| {
+            |spawn: tools::implementations::grok_build::task::types::SubagentSpawnRequest| {
                 spawn
                     .respond_with(|request| {
-                        xvora_tools::implementations::grok_build::task::types::SubagentResult {
+                        tools::implementations::grok_build::task::types::SubagentResult {
                             success: true,
                             output: Arc::from("done"),
                             subagent_id: request.id.clone(),

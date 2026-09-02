@@ -6,7 +6,7 @@ use crate::types::process_manager::format_system_time_rfc3339;
 use crate::util::truncate::{
     DEFAULT_SOFT_WRAP_WIDTH, PREVIEW_SIZE, soft_wrap_lines, truncate_with_preview,
 };
-use xvora_tool_types::TaskOutputResult;
+use tool_types::TaskOutputResult;
 
 /// Convert a TaskSnapshot to a TaskOutputResult, with output truncation.
 pub(crate) fn snapshot_to_result(
@@ -206,7 +206,7 @@ mod tests {
         let mut running = make_test_snapshot("test-1", false, None);
         running.output = String::new();
         let result = snapshot_to_result(running, "read_file", DEFAULT_TOOL_OUTPUT_BYTES);
-        let prompt = ToolOutput::TaskOutput(xvora_tool_types::TaskOutputOutput::Result(result))
+        let prompt = ToolOutput::TaskOutput(tool_types::TaskOutputOutput::Result(result))
             .to_prompt_format();
         assert!(prompt.contains("(no output yet)"), "running: {prompt}");
 
@@ -214,7 +214,7 @@ mod tests {
         timed_out.output = String::new();
         timed_out.signal = Some("timeout".to_string());
         let result = snapshot_to_result(timed_out, "read_file", DEFAULT_TOOL_OUTPUT_BYTES);
-        let prompt = ToolOutput::TaskOutput(xvora_tool_types::TaskOutputOutput::Result(result))
+        let prompt = ToolOutput::TaskOutput(tool_types::TaskOutputOutput::Result(result))
             .to_prompt_format();
         assert!(prompt.contains("Status: timed_out"), "prompt: {prompt}");
         assert!(prompt.contains("(no output)"), "prompt: {prompt}");
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(q_count, 5_000);
 
         // Prompt rendering also preserves content
-        let output = ToolOutput::TaskOutput(xvora_tool_types::TaskOutputOutput::Result(result));
+        let output = ToolOutput::TaskOutput(tool_types::TaskOutputOutput::Result(result));
         let prompt = output.to_prompt_format();
         let q_count = prompt.chars().filter(|c| *c == 'Q').count();
         assert_eq!(q_count, 5_000);

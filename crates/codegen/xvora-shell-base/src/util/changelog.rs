@@ -102,7 +102,7 @@ impl ChangelogManager {
             };
         }
 
-        let version = xvora_version::VERSION;
+        let version = version::VERSION;
         let md_url = format!("{}/{}.external.md", base, version);
 
         // Fetch both formats in parallel: 3s timeout each means 3s total, not 6s
@@ -210,7 +210,7 @@ pub fn bullets_from_entries(entries: &[ChangelogEntry], max: usize) -> Vec<Strin
 /// Callers (`std::thread::scope` threads) are already off the tokio runtime, so no extra thread spawn is needed.
 fn fetch_blocking(url: &str) -> anyhow::Result<String> {
     let client =
-        xvora_extra_ca::build_blocking_reqwest_client(|builder| builder.timeout(FETCH_TIMEOUT))?;
+        extra_ca::build_blocking_reqwest_client(|builder| builder.timeout(FETCH_TIMEOUT))?;
     let resp = client.get(url).send()?;
     if !resp.status().is_success() {
         anyhow::bail!("HTTP {}", resp.status());

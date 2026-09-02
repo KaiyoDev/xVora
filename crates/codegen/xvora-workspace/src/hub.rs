@@ -28,18 +28,18 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 use url::Url;
-use xvora_computer_hub_sdk::{
+use computer_hub_sdk::{
     AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
     ToolServerBuilder, ToolServerHandler,
 };
-use xvora_diag_server::DiagHandle;
-use xvora_tool_protocol::ToolId;
-use xvora_tool_runtime::{
+use diag_server::DiagHandle;
+use tool_protocol::ToolId;
+use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, ToolStreamItem, TypedToolOutput,
     terminal_only,
 };
-use xvora_tool_types::ToolDescription;
-use xvora_tools::registry::types::ToolConfig;
+use tool_types::ToolDescription;
+use tools::registry::types::ToolConfig;
 /// Configuration for connecting to a server instance.
 ///
 /// Passed via [`WorkspaceConfig::hub_config`](crate::config::WorkspaceConfig::hub_config).
@@ -204,8 +204,8 @@ impl HubHandle {
         ws: HubWsTiming,
         tool_handlers: Vec<std::sync::Arc<dyn ToolServerHandler>>,
         server_metadata: Option<serde_json::Value>,
-        session_handler_resolver: Option<xvora_computer_hub_sdk::SessionHandlerResolver>,
-        on_session_unbound: Option<std::sync::Arc<xvora_computer_hub_sdk::SessionUnboundCallback>>,
+        session_handler_resolver: Option<computer_hub_sdk::SessionHandlerResolver>,
+        on_session_unbound: Option<std::sync::Arc<computer_hub_sdk::SessionUnboundCallback>>,
     ) -> Result<Self, ClientError> {
         let pool = HubConnectionPool::new();
         let server_url = config.url.clone();
@@ -214,7 +214,7 @@ impl HubHandle {
             .url(server_url)
             .auth_provider(config.auth.clone())
             .allow_insecure_ws(config.allow_insecure_ws)
-            .binary_version(xvora_version::VERSION)
+            .binary_version(version::VERSION)
             .image_capabilities(
                 crate::image_capabilities::image_capabilities()
                     .wire()
@@ -372,7 +372,7 @@ impl HubHandle {
 pub(crate) struct SessionRoutedToolHandler {
     tool_id: ToolId,
     desc: ToolDescription,
-    semantic_kind: Option<xvora_tools::types::tool::ToolKind>,
+    semantic_kind: Option<tools::types::tool::ToolKind>,
     schema: Option<Value>,
     workspace: WorkspaceHandle,
 }
@@ -380,10 +380,10 @@ impl SessionRoutedToolHandler {
     pub(crate) fn new(
         name: String,
         desc: ToolDescription,
-        semantic_kind: Option<xvora_tools::types::tool::ToolKind>,
+        semantic_kind: Option<tools::types::tool::ToolKind>,
         schema: Option<Value>,
         workspace: WorkspaceHandle,
-    ) -> Result<Self, xvora_tool_protocol::IdError> {
+    ) -> Result<Self, tool_protocol::IdError> {
         Ok(Self {
             tool_id: ToolId::new(name)?,
             desc,
@@ -409,7 +409,7 @@ struct CallCompletedGuard {
     tracker: Arc<crate::activity::ActivityTracker>,
     call_id: String,
     session_id: Option<String>,
-    outcome: xvora_session_events::ToolOutcome,
+    outcome: session_events::ToolOutcome,
 }
 impl CallCompletedGuard {
     fn new(
@@ -421,10 +421,10 @@ impl CallCompletedGuard {
             tracker,
             call_id,
             session_id,
-            outcome: xvora_session_events::ToolOutcome::Cancelled,
+            outcome: session_events::ToolOutcome::Cancelled,
         }
     }
-    fn set_outcome(&mut self, outcome: xvora_session_events::ToolOutcome) {
+    fn set_outcome(&mut self, outcome: session_events::ToolOutcome) {
         self.outcome = outcome;
     }
 }
@@ -449,7 +449,7 @@ impl ToolServerHandler for SessionRoutedToolHandler {
         let tool_id = self.tool_id();
         let hub_session = ctx
             .extensions
-            .get::<xvora_tool_runtime::SessionContext>()
+            .get::<tool_runtime::SessionContext>()
             .map(|s| s.0.clone());
         let tracker = &self.workspace.shared.activity_tracker;
         if tracker.is_draining() {
@@ -562,7 +562,7 @@ impl ToolServerHandler for SessionRoutedToolHandler {
                         yield ToolStreamItem::Progress(p);
                     }
                     ToolStreamItem::Terminal(Ok(run_result)) => {
-                        _guard.set_outcome(xvora_session_events::ToolOutcome::Success);
+                        _guard.set_outcome(session_events::ToolOutcome::Success);
                         let output = run_result.into_typed_tool_output(tool_id);
                         let output = match &virt {
                             Some(v) => v.rewrite_typed_output(output),
@@ -579,7 +579,7 @@ impl ToolServerHandler for SessionRoutedToolHandler {
                             kind = %e.variant_name(),
                             "tool call failed"
                         );
-                        _guard.set_outcome(xvora_session_events::ToolOutcome::Error);
+                        _guard.set_outcome(session_events::ToolOutcome::Error);
                         let e = match &virt {
                             Some(v) => v.rewrite_error(e),
                             None => e,
@@ -656,8 +656,8 @@ pub(crate) fn apply_tools_changed(
     }
     new_tools
 }
-fn parse_server_id(id: &str) -> Result<xvora_tool_protocol::ServerId, ClientError> {
-    xvora_tool_protocol::ServerId::new(id)
+fn parse_server_id(id: &str) -> Result<tool_protocol::ServerId, ClientError> {
+    tool_protocol::ServerId::new(id)
         .map_err(|e| ClientError::InvalidConfig(format!("invalid server_id {id:?}: {e}")))
 }
 /// Map a [`ClientError`] into a [`WorkspaceError::HubError`].
@@ -671,7 +671,7 @@ pub(crate) fn hub_result<T>(result: Result<T, ClientError>) -> WorkspaceResult<T
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::tool::ToolKind;
     #[test]
     fn hub_tool_ids_to_tool_configs_basic() {
         let ids = vec![
@@ -716,7 +716,7 @@ mod tests {
         assert_eq!(result[0].id, "hub:tool_a");
     }
     use futures::StreamExt;
-    use xvora_tool_runtime::{SessionContext, ToolCallId};
+    use tool_runtime::{SessionContext, ToolCallId};
     fn make_handler(workspace: &WorkspaceHandle, tool_name: &str) -> SessionRoutedToolHandler {
         SessionRoutedToolHandler::new(
             tool_name.to_owned(),
@@ -745,13 +745,13 @@ mod tests {
     #[tokio::test]
     async fn renamed_active_message_handler_keeps_semantic_hitl_classification() {
         let handle = crate::handle::tests::make_handle();
-        let mut config = xvora_tools::registry::types::ToolConfig::for_tool::<
-            xvora_tools::implementations::grok_build::SendSubagentMessageTool,
+        let mut config = tools::registry::types::ToolConfig::for_tool::<
+            tools::implementations::grok_build::SendSubagentMessageTool,
         >();
         config.name_override = Some("relay_to_subagent".to_owned());
         assert_eq!(
             config.kind,
-            Some(xvora_tools::types::tool::ToolKind::ActiveAgentMessage)
+            Some(tools::types::tool::ToolKind::ActiveAgentMessage)
         );
         let model_name = config.name_override.clone().expect("name override");
         let desc = ToolDescription::new(model_name.clone(), "relay");
@@ -857,7 +857,7 @@ mod tests {
                 );
                 assert_eq!(
                     typed.model_output,
-                    vec![xvora_tool_runtime::ContentBlock::Text {
+                    vec![tool_runtime::ContentBlock::Text {
                         text: run_result.prompt_text.clone(),
                     }],
                     "model_output must be the prompt_text, not a JSON dump"
@@ -919,45 +919,45 @@ mod tests {
             "dropping the stream must run the RAII completion guard"
         );
     }
-    use xvora_tools::types::tool_metadata::ToolMetadata as XaiToolMetadata;
+    use tools::types::tool_metadata::ToolMetadata as XaiToolMetadata;
     #[derive(Debug)]
     struct GateStreamingStub;
     impl XaiToolMetadata for GateStreamingStub {
         fn kind(&self) -> ToolKind {
             ToolKind::Other
         }
-        fn tool_namespace(&self) -> xvora_tools::types::tool::ToolNamespace {
-            xvora_tools::types::tool::ToolNamespace::MCP
+        fn tool_namespace(&self) -> tools::types::tool::ToolNamespace {
+            tools::types::tool::ToolNamespace::MCP
         }
         fn description_template(&self) -> &str {
             "gate streaming stub"
         }
     }
-    impl xvora_tool_runtime::Tool for GateStreamingStub {
+    impl tool_runtime::Tool for GateStreamingStub {
         type Args = serde_json::Value;
         type Output = String;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("gate_streaming_stub").expect("valid tool id")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("gate_streaming_stub").expect("valid tool id")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("gate_streaming_stub", "gate streaming stub")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("gate_streaming_stub", "gate streaming stub")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<String, xvora_tool_runtime::ToolError> {
+        ) -> Result<String, tool_runtime::ToolError> {
             Ok("terminal-value".into())
         }
         async fn execute(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> xvora_tool_runtime::ToolStream<String> {
-            use xvora_tool_runtime::{ToolProgress, ToolStreamItem};
+        ) -> tool_runtime::ToolStream<String> {
+            use tool_runtime::{ToolProgress, ToolStreamItem};
             Box::pin(futures::stream::iter(vec![
                 ToolStreamItem::Progress(ToolProgress::Text {
                     text: "stub-progress-1".into(),
@@ -981,7 +981,7 @@ mod tests {
             .expect("register_tool must succeed");
     }
     async fn drain_counts<T>(
-        mut stream: xvora_tool_runtime::ToolStream<T>,
+        mut stream: tool_runtime::ToolStream<T>,
     ) -> (usize, usize, bool) {
         let mut progress = 0;
         let mut terminal = 0;
@@ -1028,8 +1028,8 @@ mod tests {
     use crate::capability::CapabilityMode;
     use crate::session::tool_config::test_support::tc;
     use std::time::Duration;
-    use xvora_tools::notification::types::{ToolNotification, ToolNotificationHandle};
-    use xvora_tools::registry::types::ToolServerConfig;
+    use tools::notification::types::{ToolNotification, ToolNotificationHandle};
+    use tools::registry::types::ToolServerConfig;
     fn bg_config() -> ToolServerConfig {
         ToolServerConfig {
             tools: vec![
@@ -1068,9 +1068,9 @@ mod tests {
     }
     async fn wait_until(
         tracker: &crate::activity::ActivityTracker,
-        pred: impl Fn(&xvora_tool_protocol::ToolServerStatusPayload) -> bool,
+        pred: impl Fn(&tool_protocol::ToolServerStatusPayload) -> bool,
         timeout: Duration,
-    ) -> xvora_tool_protocol::ToolServerStatusPayload {
+    ) -> tool_protocol::ToolServerStatusPayload {
         let deadline = tokio::time::Instant::now() + timeout;
         loop {
             let snap = tracker.snapshot();
@@ -1091,7 +1091,7 @@ mod tests {
         }
     }
     fn bg_started_notif(task_id: &str) -> ToolNotification {
-        use xvora_tools::notification::types::{BashExecutionBackgrounded, BashNotificationBase};
+        use tools::notification::types::{BashExecutionBackgrounded, BashNotificationBase};
         ToolNotification::BashExecutionBackgrounded(BashExecutionBackgrounded {
             base: BashNotificationBase {
                 tool_call_id: task_id.to_owned(),
@@ -1108,7 +1108,7 @@ mod tests {
         })
     }
     fn task_completed_notif(task_id: &str) -> ToolNotification {
-        use xvora_tools::computer::types::{TaskKind, TaskSnapshot};
+        use tools::computer::types::{TaskKind, TaskSnapshot};
         ToolNotification::TaskCompleted(TaskSnapshot {
             task_id: task_id.to_owned(),
             command: "sleep 1".to_owned(),
@@ -1471,30 +1471,30 @@ mod tests {
         fn kind(&self) -> ToolKind {
             ToolKind::Other
         }
-        fn tool_namespace(&self) -> xvora_tools::types::tool::ToolNamespace {
-            xvora_tools::types::tool::ToolNamespace::MCP
+        fn tool_namespace(&self) -> tools::types::tool::ToolNamespace {
+            tools::types::tool::ToolNamespace::MCP
         }
         fn description_template(&self) -> &str {
             "path echo stub"
         }
     }
-    impl xvora_tool_runtime::Tool for PathEchoStub {
+    impl tool_runtime::Tool for PathEchoStub {
         type Args = serde_json::Value;
         type Output = serde_json::Value;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("path_echo").expect("valid tool id")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("path_echo").expect("valid tool id")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("path_echo", "path echo stub")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("path_echo", "path echo stub")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             input: serde_json::Value,
-        ) -> Result<serde_json::Value, xvora_tool_runtime::ToolError> {
+        ) -> Result<serde_json::Value, tool_runtime::ToolError> {
             *self.received.lock().expect("path echo lock") = Some(input.clone());
             Ok(serde_json::json!({
                 "received": input.get("path").cloned().unwrap_or(serde_json::Value::Null),
@@ -1503,10 +1503,10 @@ mod tests {
         }
         async fn execute(
             &self,
-            ctx: xvora_tool_runtime::ToolCallContext,
+            ctx: tool_runtime::ToolCallContext,
             input: serde_json::Value,
-        ) -> xvora_tool_runtime::ToolStream<serde_json::Value> {
-            use xvora_tool_runtime::{ToolProgress, ToolStreamItem};
+        ) -> tool_runtime::ToolStream<serde_json::Value> {
+            use tool_runtime::{ToolProgress, ToolStreamItem};
             let value = self.run(ctx, input).await;
             Box::pin(futures::stream::iter(vec![
                 ToolStreamItem::Progress(ToolProgress::Text {
@@ -1538,10 +1538,10 @@ mod tests {
         received
     }
     async fn drain_terminal(
-        stream: xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput>,
+        stream: tool_runtime::ToolStream<tool_runtime::TypedToolOutput>,
     ) -> (
-        Vec<xvora_tool_runtime::ToolProgress>,
-        xvora_tool_runtime::TypedToolOutput,
+        Vec<tool_runtime::ToolProgress>,
+        tool_runtime::TypedToolOutput,
     ) {
         use futures::StreamExt;
         let mut progress = Vec::new();
@@ -1594,7 +1594,7 @@ mod tests {
             "outbound must not leak the real root: {dumped}"
         );
         match progress.first() {
-            Some(xvora_tool_runtime::ToolProgress::Text { text }) => {
+            Some(tool_runtime::ToolProgress::Text { text }) => {
                 assert_eq!(text, "wrote /workspace/out.txt");
             }
             other => panic!("expected rewritten progress, got {other:?}"),
@@ -1800,32 +1800,32 @@ mod tests {
         fn kind(&self) -> ToolKind {
             ToolKind::Other
         }
-        fn tool_namespace(&self) -> xvora_tools::types::tool::ToolNamespace {
-            xvora_tools::types::tool::ToolNamespace::MCP
+        fn tool_namespace(&self) -> tools::types::tool::ToolNamespace {
+            tools::types::tool::ToolNamespace::MCP
         }
         fn description_template(&self) -> &str {
             "path error stub"
         }
     }
-    impl xvora_tool_runtime::Tool for PathErrorStub {
+    impl tool_runtime::Tool for PathErrorStub {
         type Args = serde_json::Value;
         type Output = serde_json::Value;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("path_error").expect("valid tool id")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("path_error").expect("valid tool id")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("path_error", "path error stub")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("path_error", "path error stub")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<serde_json::Value, xvora_tool_runtime::ToolError> {
-            Err(xvora_tool_runtime::ToolError::new(
-                xvora_tool_runtime::ToolErrorKind::Execution,
+        ) -> Result<serde_json::Value, tool_runtime::ToolError> {
+            Err(tool_runtime::ToolError::new(
+                tool_runtime::ToolErrorKind::Execution,
                 "missing /workspace/conv-abc/gone.txt",
             )
             .with_details(serde_json::json!({
@@ -1880,36 +1880,36 @@ mod tests {
         fn kind(&self) -> ToolKind {
             ToolKind::Execute
         }
-        fn tool_namespace(&self) -> xvora_tools::types::tool::ToolNamespace {
-            xvora_tools::types::tool::ToolNamespace::MCP
+        fn tool_namespace(&self) -> tools::types::tool::ToolNamespace {
+            tools::types::tool::ToolNamespace::MCP
         }
         fn description_template(&self) -> &str {
             "bash cco path stub"
         }
     }
-    impl xvora_tool_runtime::Tool for BashCcoPathStub {
+    impl tool_runtime::Tool for BashCcoPathStub {
         type Args = serde_json::Value;
-        type Output = xvora_tools::types::output::ToolOutput;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("bash_cco_path").expect("valid tool id")
+        type Output = tools::types::output::ToolOutput;
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("bash_cco_path").expect("valid tool id")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("bash_cco_path", "bash cco path stub")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("bash_cco_path", "bash cco path stub")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<xvora_tools::types::output::ToolOutput, xvora_tool_runtime::ToolError> {
+        ) -> Result<tools::types::output::ToolOutput, tool_runtime::ToolError> {
             let stdout = "/workspace/conv-abc/out.txt";
-            Ok(xvora_tools::types::output::ToolOutput::Bash(
-                xvora_tools::types::output::BashOutput {
+            Ok(tools::types::output::ToolOutput::Bash(
+                tools::types::output::BashOutput {
                     output: stdout.as_bytes().to_vec(),
                     output_for_prompt:
-                        xvora_tools::types::output::BashOutput::make_output_for_prompt(stdout),
+                        tools::types::output::BashOutput::make_output_for_prompt(stdout),
                     exit_code: 0,
                     command: "cat /workspace/conv-abc/out.txt".into(),
                     truncated: false,

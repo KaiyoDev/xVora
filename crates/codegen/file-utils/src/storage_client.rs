@@ -26,8 +26,8 @@ use tokio::sync::Semaphore;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
-use xvora_auth::AuthCredentialProvider;
-use xvora_circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
+use auth::AuthCredentialProvider;
+use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 
 use crate::circuit_breaker_observer::TracingObserver;
 
@@ -35,7 +35,7 @@ use crate::circuit_breaker_observer::TracingObserver;
 // Storage Circuit Breaker policy
 // ============================================================================
 // `StorageClient`'s session-wide breaker uses the shared
-// `xvora_circuit_breaker::BreakerConfig::client()` preset
+// `circuit_breaker::BreakerConfig::client()` preset
 // (sliding-window-with-min-samples: 5 samples / 60s window / 60s open
 // duration / failure code = 401). The observer name "storage_breaker"
 // is surfaced as a structured field on every tracing event so existing
@@ -390,7 +390,7 @@ impl StaticGrokAuth {
     }
 }
 
-impl xvora_auth::HttpAuth for StaticGrokAuth {
+impl auth::HttpAuth for StaticGrokAuth {
     fn apply(&self, builder: reqwest::RequestBuilder, _base_url: &str) -> reqwest::RequestBuilder {
         if let Some(ref key) = self.deployment_key {
             builder.header("Authorization", format!("Bearer {}", key))
@@ -426,7 +426,7 @@ mod static_grok_auth_tests {
 /// `crate::http::shared_upload_client()`) to `with_provider`.
 fn default_upload_client() -> Client {
     #[expect(clippy::expect_used)]
-    xvora_extra_ca::build_reqwest_client(|builder| builder).expect("default reqwest client builds")
+    extra_ca::build_reqwest_client(|builder| builder).expect("default reqwest client builds")
 }
 
 /// Client for uploading files to GCS via cli-chat-proxy.
@@ -475,7 +475,7 @@ impl StorageClient {
     pub fn new(proxy_base_url: &str, user_token: &str) -> Self {
         let creds = StaticGrokAuth::new(Some(user_token.to_owned()));
         let bearer = creds.wire_bearer();
-        let provider = Arc::new(xvora_auth::StaticAuthCredentialProvider::new(
+        let provider = Arc::new(auth::StaticAuthCredentialProvider::new(
             Box::new(creds),
             bearer,
         ));
@@ -542,7 +542,7 @@ impl StorageClient {
     fn with_breaker_for_testing(
         mut self,
         open_duration: Duration,
-        observer: std::sync::Arc<dyn xvora_circuit_breaker::Observer>,
+        observer: std::sync::Arc<dyn circuit_breaker::Observer>,
     ) -> Self {
         let mut config = storage_breaker_config();
         config.open_duration = open_duration;
@@ -1119,7 +1119,7 @@ impl StorageClient {
         let version = self
             .client_version
             .as_deref()
-            .unwrap_or(xvora_version::VERSION);
+            .unwrap_or(version::VERSION);
         let mut builder = builder.header("x-grok-client-version", version);
 
         if let Some(id) = &self.client_identifier {
@@ -1995,7 +1995,7 @@ async fn upload_part_streaming(
         let mut request = client
             .post(&url)
             .header("Content-Type", "application/octet-stream")
-            .header("x-grok-client-version", xvora_version::VERSION)
+            .header("x-grok-client-version", version::VERSION)
             .header("Content-Length", length.to_string());
         for (name, value) in crate::trace_context::trace_context_headers().iter() {
             request = request.header(name.clone(), value.clone());

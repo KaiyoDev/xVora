@@ -4,7 +4,7 @@
 //! The input is structured `SearchReplaceEditDetail` records, ACP `ToolCall` payloads, or plain before/after text.
 
 use similar::{ChangeTag, TextDiff};
-use xvora_tools::types::output::SearchReplaceEditDetail;
+use tools::types::output::SearchReplaceEditDetail;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DiffLine {
@@ -298,7 +298,7 @@ fn stitch_hunk_pair(a: &DiffHunk, b: &DiffHunk) -> Option<DiffHunk> {
 ///
 /// Returns `(hunks, edit_count)`.
 pub fn extract_edit_hunks(tc: &agent_client_protocol::ToolCall) -> (Vec<DiffHunk>, usize) {
-    use xvora_tools::types::output::{
+    use tools::types::output::{
         SearchReplaceEditContextInformation, SearchReplaceOutput, ToolOutput,
     };
 
@@ -996,7 +996,7 @@ mod tests {
     fn extract_edit_hunks_from_raw_output() {
         use agent_client_protocol as acp;
         use std::sync::Arc;
-        use xvora_tools::types::output::{
+        use tools::types::output::{
             SearchReplaceEditContextInformation, SearchReplaceEditsApplied, SearchReplaceOutput,
             ToolOutput,
         };
@@ -1097,7 +1097,7 @@ mod tests {
         // Strategy 2: structured edit details from Diff.meta (acp_conversion embeds SearchReplaceEditContextInformation)
         use agent_client_protocol as acp;
         use std::sync::Arc;
-        use xvora_tools::types::output::SearchReplaceEditContextInformation;
+        use tools::types::output::SearchReplaceEditContextInformation;
 
         let edits = SearchReplaceEditContextInformation {
             details: vec![SearchReplaceEditDetail {

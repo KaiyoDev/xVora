@@ -1,3 +1,3 @@
-//! The bridge implementation lives in `xvora_tools::bridge`; this module re-exports it for backward compatibility.
+//! The bridge implementation lives in `tools::bridge`; this module re-exports it for backward compatibility.
 
-pub use xvora_tools::bridge::{ToolBridge, ToolBridgeResult};
+pub use tools::bridge::{ToolBridge, ToolBridgeResult};

@@ -8,7 +8,7 @@ async fn resilient_transport_skips_undecodable_line_and_keeps_stream_alive() {
         client_in,
         tokio::io::sink(),
         "fwbuild".to_string(),
-        xvora_session_events::EventWriter::noop(),
+        session_events::EventWriter::noop(),
     );
 
     let valid = r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}"#;
@@ -180,7 +180,7 @@ fn parse_config_headers_skips_invalid_and_keeps_last_duplicate() {
 fn apply_user_agent_policy_sets_versioned_grok_cli() {
     let mut headers = reqwest::header::HeaderMap::new();
     apply_user_agent_policy(&mut headers, "linear", "https://mcp.linear.app/mcp");
-    let expected = format!("grok-cli/{}", xvora_version::VERSION);
+    let expected = format!("grok-cli/{}", version::VERSION);
     assert_eq!(
         headers.get(reqwest::header::USER_AGENT).unwrap(),
         expected.as_str()
@@ -222,12 +222,12 @@ fn safe_stdio_child_drop_without_entered_runtime_reaps_child() {
     let (transport, pid) = rt.block_on(async {
         let mut cmd = Command::new("sleep");
         cmd.arg("30").kill_on_drop(true);
-        xvora_tools::util::detach_command(&mut cmd);
+        tools::util::detach_command(&mut cmd);
         let (transport, _stderr) = SafeTokioChildProcess::spawn(
             cmd,
             None,
             "test".to_string(),
-            xvora_session_events::EventWriter::noop(),
+            session_events::EventWriter::noop(),
         )
         .await
         .expect("spawn test child");
@@ -267,12 +267,12 @@ async fn scope_kill_all_reaps_enrolled_mcp_child_while_owner_wedged() {
 
     let mut cmd = Command::new("sleep");
     cmd.arg("600").kill_on_drop(true);
-    xvora_tools::util::detach_command(&mut cmd);
+    tools::util::detach_command(&mut cmd);
     let (mut child_process, _stderr) = SafeTokioChildProcess::spawn(
         cmd,
         Some(&scope),
         "wedge-test".to_string(),
-        xvora_session_events::EventWriter::noop(),
+        session_events::EventWriter::noop(),
     )
     .await
     .expect("spawn enrolled MCP child");
@@ -921,7 +921,7 @@ fn test_update_configs_diff_nonempty_to_empty() {
 
 #[test]
 fn test_mcp_erased_tool_id_is_qualified() {
-    use xvora_tool_runtime::Tool;
+    use tool_runtime::Tool;
 
     let mcp_state = Arc::new(Mutex::new(McpState::new(vec![])));
 
@@ -957,8 +957,8 @@ fn test_mcp_erased_tool_id_is_qualified() {
 
 #[test]
 fn test_same_raw_name_different_servers_no_local_registry_collision() {
-    use xvora_computer_hub_sdk::LocalRegistry;
-    use xvora_tool_runtime::Tool;
+    use computer_hub_sdk::LocalRegistry;
+    use tool_runtime::Tool;
 
     let mcp_state = Arc::new(Mutex::new(McpState::new(vec![])));
     let registry = LocalRegistry::new();
@@ -1610,7 +1610,7 @@ async fn recover_and_retry_surfaces_original_error_when_recover_fails() {
 
     let mut reconnect_attempted = false;
     let mut is_timeout = false;
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
 
     let err = tool
         .recover_and_retry(
@@ -1944,7 +1944,7 @@ async fn http_transport_sends_default_user_agent_on_initialize() {
     client.ensure_initialized().await.expect("handshake");
     assert_eq!(
         *handles.init_user_agents.lock(),
-        vec![format!("grok-cli/{}", xvora_version::VERSION)]
+        vec![format!("grok-cli/{}", version::VERSION)]
     );
 }
 
@@ -1954,7 +1954,7 @@ async fn try_call_tool_http_mcperror_recovers_then_retry_succeeds() {
     let client = fake_http_client(&url, 5);
     let tool = fake_echo_tool();
     let tmp = tempfile::tempdir().unwrap();
-    let ew = xvora_session_events::EventWriter::open(tmp.path());
+    let ew = session_events::EventWriter::open(tmp.path());
 
     let mut reconnect = false;
     let mut is_timeout = false;
@@ -2005,7 +2005,7 @@ async fn try_call_tool_http_retry_failure_surfaces_retry_error() {
     let (url, handles) = spawn_fake_mcp(CallToolBehavior::AlwaysError { code: -32603 }).await;
     let client = fake_http_client(&url, 5);
     let tool = fake_echo_tool();
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
 
     let mut reconnect = false;
     let mut is_timeout = false;
@@ -2035,7 +2035,7 @@ async fn try_call_tool_http_invalid_params_not_recovered() {
     let (url, handles) = spawn_fake_mcp(CallToolBehavior::AlwaysError { code: -32602 }).await;
     let client = fake_http_client(&url, 5);
     let tool = fake_echo_tool();
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
 
     let mut reconnect = false;
     let mut is_timeout = false;
@@ -2077,7 +2077,7 @@ async fn try_call_tool_mrtr_form_elicitation_round_trip() {
         assert!(
             matches!(
                 job.fields.mode,
-                xvora_tools::mcp_elicitation::McpElicitModeFields::Form {
+                tools::mcp_elicitation::McpElicitModeFields::Form {
                     requested_schema: Some(_)
                 }
             ),
@@ -2089,7 +2089,7 @@ async fn try_call_tool_mrtr_form_elicitation_round_trip() {
     });
 
     let tool = fake_echo_tool();
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
     let mut reconnect = false;
     let mut is_timeout = false;
     let out = tool
@@ -2173,7 +2173,7 @@ async fn try_call_tool_mrtr_round_survives_transport_recovery() {
     });
 
     let tool = fake_echo_tool();
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
     let mut reconnect = false;
     let mut is_timeout = false;
     let out = tool
@@ -2227,7 +2227,7 @@ async fn try_call_tool_mrtr_url_elicitation_with_state_only_round() {
             .recv()
             .await
             .expect("elicitation job reaches the inbox");
-        let xvora_tools::mcp_elicitation::McpElicitModeFields::Url {
+        let tools::mcp_elicitation::McpElicitModeFields::Url {
             url,
             elicitation_id,
         } = &job.fields.mode
@@ -2243,7 +2243,7 @@ async fn try_call_tool_mrtr_url_elicitation_with_state_only_round() {
     });
 
     let tool = fake_echo_tool();
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
     let mut reconnect = false;
     let mut is_timeout = false;
     let out = tool
@@ -2291,7 +2291,7 @@ async fn try_call_tool_http_outer_timeout_resets_transport_no_retry() {
     let (url, handles) = spawn_fake_mcp(CallToolBehavior::HangThenOk { hang_ms: 3000 }).await;
     let client = fake_http_client(&url, 1);
     let tool = fake_echo_tool();
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
 
     let mut reconnect = false;
     let mut is_timeout = false;
@@ -2343,7 +2343,7 @@ async fn try_call_tool_http_retry_timeout_surfaces_timeout() {
     .await;
     let client = fake_http_client(&url, 1);
     let tool = fake_echo_tool();
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
 
     let mut reconnect = false;
     let mut is_timeout = false;
@@ -2600,7 +2600,7 @@ async fn try_call_tool_reconnects_then_succeeds_after_retriable_transport_error(
     let raw = serde_json::json!({ "text": "after reconnect" });
     let mut reconnect_attempted = false;
     let mut is_timeout = false;
-    let ew = xvora_session_events::EventWriter::noop();
+    let ew = session_events::EventWriter::noop();
     let result = erased
         .try_call_tool(
             &client,
@@ -2774,7 +2774,7 @@ fn auth_required_records_as_auth_not_init_failed_and_maps_category() {
     };
     assert!(matches!(
         err.error_category(),
-        xvora_session_events::McpErrorCategory::AuthRequired
+        session_events::McpErrorCategory::AuthRequired
     ));
 }
 
@@ -3395,7 +3395,7 @@ async fn spawn_fake_streamable_http(
 }
 
 fn probe_ctx<'a>(
-    event_writer: &'a xvora_session_events::EventWriter,
+    event_writer: &'a session_events::EventWriter,
     mode: OauthInteractivity,
 ) -> McpSpawnCtx<'a> {
     crate::isolate_grok_home_for_tests();
@@ -3409,7 +3409,7 @@ fn probe_ctx<'a>(
     }
 }
 
-fn session_test_ctx(event_writer: &xvora_session_events::EventWriter) -> McpSpawnCtx<'_> {
+fn session_test_ctx(event_writer: &session_events::EventWriter) -> McpSpawnCtx<'_> {
     crate::isolate_grok_home_for_tests();
     McpSpawnCtx::for_session(
         "sess",
@@ -3426,7 +3426,7 @@ async fn resolve_tokenless_with_headers(
     headers: &[(String, String)],
     mode: OauthInteractivity,
 ) -> HttpAuthDecision {
-    let event_writer = xvora_session_events::EventWriter::noop();
+    let event_writer = session_events::EventWriter::noop();
     let ctx = probe_ctx(&event_writer, mode);
     decide_http_auth_over_network("fake", url, headers, &ctx, TEST_DISCOVERY_TIMEOUT).await
 }
@@ -3458,7 +3458,7 @@ async fn anonymous_access_probe_sends_default_user_agent() {
         .expect("probe POST must reach the fake server");
     assert_eq!(
         header_values(&captured, axum::http::header::USER_AGENT),
-        vec![format!("grok-cli/{}", xvora_version::VERSION)]
+        vec![format!("grok-cli/{}", version::VERSION)]
     );
     assert_eq!(
         header_values(&captured, axum::http::header::CONTENT_TYPE),
@@ -3545,7 +3545,7 @@ async fn inconclusive_oauth_probe_connects_plain_interactively() {
 async fn inconclusive_oauth_probe_emits_timeout_and_verdict_events() {
     let (url, _handles) = spawn_fake_streamable_http(axum::http::StatusCode::OK).await;
     let tmp = tempfile::tempdir().unwrap();
-    let event_writer = xvora_session_events::EventWriter::open(tmp.path());
+    let event_writer = session_events::EventWriter::open(tmp.path());
     let ctx = probe_ctx(&event_writer, OauthInteractivity::NonInteractive);
     let decision =
         decide_http_auth_over_network("fake", &url, &[], &ctx, TEST_DISCOVERY_TIMEOUT).await;
@@ -3584,7 +3584,7 @@ async fn spawn_counting_http_server() -> (String, Arc<std::sync::atomic::AtomicU
 #[tokio::test(flavor = "multi_thread")]
 async fn session_spawn_sends_zero_network_requests() {
     let (url, counter) = spawn_counting_http_server().await;
-    let event_writer = xvora_session_events::EventWriter::noop();
+    let event_writer = session_events::EventWriter::noop();
 
     let session_ctx = session_test_ctx(&event_writer);
     let client = start_mcp_server(
@@ -3631,7 +3631,7 @@ fn apply_stdio_env_session_id_cannot_be_shadowed() {
 
 #[tokio::test]
 async fn grok_agent_id_header_rejects_invalid_session_id() {
-    let writer = xvora_session_events::EventWriter::noop();
+    let writer = session_events::EventWriter::noop();
     let ctx = McpSpawnCtx::for_session(
         "bad\nsession",
         &writer,
@@ -3746,7 +3746,7 @@ async fn dropping_the_spawn_guard_kills_grandchildren() {
     cmd.args(["-c", "sleep 600 & echo $!; wait"])
         .stdout(std::process::Stdio::piped())
         .kill_on_drop(true);
-    xvora_tools::util::detach_command(&mut cmd);
+    tools::util::detach_command(&mut cmd);
     #[allow(clippy::disallowed_methods)]
     let mut child = cmd.spawn().expect("spawn wrapper");
     let mut group = ProcessGroup::new().expect("group");
@@ -3785,12 +3785,12 @@ async fn spawn_into_a_closed_scope_fails_fast() {
 
     let mut cmd = Command::new("sleep");
     cmd.arg("600").kill_on_drop(true);
-    xvora_tools::util::detach_command(&mut cmd);
+    tools::util::detach_command(&mut cmd);
     let result = SafeTokioChildProcess::spawn(
         cmd,
         Some(&scope),
         "closed-scope".to_string(),
-        xvora_session_events::EventWriter::noop(),
+        session_events::EventWriter::noop(),
     )
     .await;
 
@@ -4040,7 +4040,7 @@ async fn refused_connect_handshake_classifies_connect_phase() {
     let url = format!("http://{}/mcp", listener.local_addr().unwrap());
     drop(listener);
 
-    let event_writer = xvora_session_events::EventWriter::noop();
+    let event_writer = session_events::EventWriter::noop();
     let ctx = session_test_ctx(&event_writer);
     let client = start_mcp_server(make_http_server("refused", &url), None, None, None, &ctx)
         .await

@@ -30,7 +30,7 @@ pub struct ForkArgs {
 /// Errors:
 /// - `--worktree` and `--no-worktree` cannot both appear.
 /// - `--at <turn>` returns a friendly "not supported in this version" message.
-///   The shell already supports the parameter as `xvora_shell::session::fork::ForkSessionRequest::target_prompt_index`.
+///   The shell already supports the parameter as `shell::session::fork::ForkSessionRequest::target_prompt_index`.
 ///   A turn-picker UI is planned; rejecting the flag now tells the user the feature is deferred.
 pub fn parse_fork_args(args: &str) -> Result<ForkArgs, String> {
     let mut worktree_override: Option<bool> = None;

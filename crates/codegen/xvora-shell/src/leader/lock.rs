@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use fs2::FileExt;
-use xvora_workspace::util::is_lock_contended;
+use workspace::util::is_lock_contended;
 
 use crate::util::grok_home::grok_home;
 

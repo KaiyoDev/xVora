@@ -3,9 +3,9 @@
 //! See the module-level docs in `mod.rs` for the architectural rationale.
 
 use agent_client_protocol as acp;
-use xvora_shell::agent::config::UiConfig;
-use xvora_shell::util::config::DISPLAY_REFRESH_DEFAULT_AUTO_CADENCE_ENABLED;
-use xvora_tools::implementations::grok_build::ask_user_question;
+use shell::agent::config::UiConfig;
+use shell::util::config::DISPLAY_REFRESH_DEFAULT_AUTO_CADENCE_ENABLED;
+use tools::implementations::grok_build::ask_user_question;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -311,7 +311,7 @@ impl Default for PagerLocalSnapshot {
             respect_manual_folds: crate::appearance::ScrollConfig::default().respect_manual_folds,
             auto_mode_gate: false,
             ask_user_question_timeout_enabled: None,
-            voice_stt_language: xvora_voice::STT_LANGUAGE_DEFAULT.to_string(),
+            voice_stt_language: voice::STT_LANGUAGE_DEFAULT.to_string(),
             // Matches `resolve_scheduler_background_loops`'s default.
             scheduler_background_loops: true,
         }
@@ -331,11 +331,11 @@ pub fn canonical_voice_capture_mode(value: Option<&str>) -> &'static str {
 
 /// Canonicalize a raw voice STT language to a settings choice.
 ///
-/// Delegates to [`xvora_voice::canonicalize_stt_language`] so the pager and the STT client share one catalog.
+/// Delegates to [`voice::canonicalize_stt_language`] so the pager and the STT client share one catalog.
 /// The catalog is the official Grok STT languages plus the client-only `auto`.
 /// Unknown, blank, and `None` all fall back to `en`.
 pub fn canonical_voice_stt_language(value: Option<&str>) -> &'static str {
-    xvora_voice::canonicalize_stt_language(value)
+    voice::canonicalize_stt_language(value)
 }
 
 /// Canonicalize a raw hunk-tracker mode to a registry choice.
@@ -638,7 +638,7 @@ pub fn current_value_for(
         // None falls back to the resolver-shared default
         "remember_tool_approvals" => Some(SettingValue::Bool(
             ui.remember_tool_approvals
-                .unwrap_or(xvora_shell::util::config::DEFAULT_REMEMBER_TOOL_APPROVALS),
+                .unwrap_or(shell::util::config::DEFAULT_REMEMBER_TOOL_APPROVALS),
         )),
         // ask_user_question timeout: reflects the effective TOML merge
         // The toggle writes the user layer, and the env and remote settings tiers feed the final gate at agent build
@@ -683,7 +683,7 @@ pub fn current_value_for(
         // The mirror persists the ModelId slug but the DynamicEnum canonicals are catalog display names, so resolve via the snapshot
         // A stale id passes through raw
         "fork_secondary_model" => Some(SettingValue::String({
-            let baseline = xvora_shell::models::default_model();
+            let baseline = shell::models::default_model();
             if ui.fork_secondary_model == baseline {
                 String::new()
             } else {
@@ -967,7 +967,7 @@ mod tests {
                 ("remember_tool_approvals", SettingKind::Bool { default }) => {
                     assert_eq!(
                         *default,
-                        xvora_shell::util::config::DEFAULT_REMEMBER_TOOL_APPROVALS,
+                        shell::util::config::DEFAULT_REMEMBER_TOOL_APPROVALS,
                         "remember_tool_approvals default drifts from the shared \
                          resolver const in xvora-shell"
                     );
@@ -1172,7 +1172,7 @@ mod tests {
                     // Cross-check: the UiConfig field IS the built-in default.
                     assert_eq!(
                         ui.fork_secondary_model,
-                        xvora_shell::models::default_model(),
+                        shell::models::default_model(),
                         "UiConfig::default().fork_secondary_model must equal \
                          models::default_model() — drift here breaks the empty-fold contract",
                     );
@@ -1315,7 +1315,7 @@ mod tests {
         );
     }
 
-    /// Spot-check the delegation to `xvora_voice::canonicalize_stt_language`.
+    /// Spot-check the delegation to `voice::canonicalize_stt_language`.
     /// Exhaustive alias and locale coverage lives in the voice crate's tests.
     #[test]
     fn canonical_voice_stt_language_delegates_to_voice_crate() {
@@ -1355,7 +1355,7 @@ mod tests {
                 "duplicate settings language code {}",
                 c.canonical
             );
-            let lang = xvora_voice::stt_language_by_code(c.canonical)
+            let lang = voice::stt_language_by_code(c.canonical)
                 .unwrap_or_else(|| panic!("settings offers unsupported STT code {}", c.canonical));
             assert_eq!(
                 c.display, lang.name,
@@ -1366,10 +1366,10 @@ mod tests {
         assert!(saw_auto, "settings must offer System (auto)");
 
         let crate_codes: HashSet<&str> =
-            xvora_voice::STT_LANGUAGES.iter().map(|l| l.code).collect();
+            voice::STT_LANGUAGES.iter().map(|l| l.code).collect();
         assert_eq!(
             setting_codes, crate_codes,
-            "settings concrete languages must match xvora_voice::STT_LANGUAGES exactly"
+            "settings concrete languages must match voice::STT_LANGUAGES exactly"
         );
     }
 
@@ -1461,7 +1461,7 @@ mod tests {
         let slug = "grok-4.5-fast";
         assert_ne!(
             slug,
-            xvora_shell::models::default_model(),
+            shell::models::default_model(),
             "test slug must differ from the baseline or the empty-fold arm masks the lookup",
         );
         let pager = PagerLocalSnapshot {
@@ -1656,7 +1656,7 @@ mod tests {
         );
         // A user opt-out flips the read for that tip only.
         let ui = UiConfig {
-            contextual_hints: xvora_shell::agent::config::ContextualHints {
+            contextual_hints: shell::agent::config::ContextualHints {
                 undo: Some(false),
                 ..Default::default()
             },

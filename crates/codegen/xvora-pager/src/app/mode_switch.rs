@@ -108,25 +108,25 @@ fn perform_screen_transition(
     match to {
         ScreenMode::Minimal => {
             let mouse_was_captured = super::MOUSE_CAPTURE_ENABLED.swap(false, Ordering::AcqRel);
-            xvora_shell::util::with_locked_stderr(|stderr| {
+            shell::util::with_locked_stderr(|stderr| {
                 if mouse_was_captured {
                     let _ = execute!(stderr, event::DisableMouseCapture);
                 }
                 // JediTerm/Windows: DisableMouseCapture is winapi-only, so send the ANSI reset too (init_terminal applies the same fix)
                 if crate::terminal::terminal_context().mouse_reporting_leaks_as_raw_text() {
                     use std::io::Write as _;
-                    let _ = stderr.write_all(xvora_crash_handler::terminal::MOUSE_TRACKING_RESET);
+                    let _ = stderr.write_all(crash_handler::terminal::MOUSE_TRACKING_RESET);
                 }
             });
             #[cfg(windows)]
             super::win_native_selection::enable_native_selection();
             if from.is_fullscreen() {
-                xvora_shell::util::with_locked_stderr(|stderr| {
+                shell::util::with_locked_stderr(|stderr| {
                     let _ = execute!(stderr, LeaveAlternateScreen);
                 });
             } else {
                 // Clear(All) only: Purge would destroy the user's real scrollback
-                xvora_shell::util::with_locked_stderr(|stderr| {
+                shell::util::with_locked_stderr(|stderr| {
                     let _ = execute!(
                         stderr,
                         Clear(ClearType::All),
@@ -142,7 +142,7 @@ fn perform_screen_transition(
             match terminal.set_viewport(ratatui::Viewport::Inline(viewport_rows)) {
                 Ok(()) => ModeSwitchOutcome::Switched,
                 Err(error) => {
-                    xvora_shell::util::with_locked_stderr(|stderr| {
+                    shell::util::with_locked_stderr(|stderr| {
                         if from.is_fullscreen() {
                             let _ = execute!(stderr, EnterAlternateScreen);
                         }
@@ -171,7 +171,7 @@ fn perform_screen_transition(
             }
         }
         ScreenMode::Fullscreen => {
-            xvora_shell::util::with_locked_stderr(|stderr| {
+            shell::util::with_locked_stderr(|stderr| {
                 let _ = execute!(stderr, EnterAlternateScreen);
                 let _ = execute!(stderr, event::EnableMouseCapture);
             });

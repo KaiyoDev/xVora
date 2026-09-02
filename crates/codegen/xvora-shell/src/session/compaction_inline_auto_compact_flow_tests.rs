@@ -8,8 +8,8 @@ use std::sync::OnceLock;
 use std::sync::atomic::Ordering::Relaxed;
 use tokio::sync::mpsc;
 use xvora_paths::AbsPathBuf;
-use xvora_workspace::file_system::MockFs;
-use xvora_workspace::permission::PermissionHandle;
+use workspace::file_system::MockFs;
+use workspace::permission::PermissionHandle;
 #[derive(Debug)]
 struct DummyTerminal;
 #[async_trait::async_trait]
@@ -22,18 +22,18 @@ async fn create_test_actor(
     total_tokens: u64,
     context_window: u64,
     threshold_percent: u8,
-    gateway_tx: mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
     persistence_tx: mpsc::UnboundedSender<PersistenceMsg>,
 ) -> SessionActor {
     let cwd = AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap();
     let fs = Arc::new(MockFs::new(cwd.to_path_buf()));
     let terminal = Arc::new(DummyTerminal {});
     let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test-auto-compact".to_string(),
         cwd.to_path_buf(),
         hunk_tx,
-        xvora_hunk_tracker::TrackingMode::AgentOnly,
+        hunk_tracker::TrackingMode::AgentOnly,
         tokio_util::sync::CancellationToken::new(),
     );
     let tool_context = ToolContext::new(cwd.clone(), None, None, fs, terminal, hunk_tracker_handle);
@@ -53,7 +53,7 @@ async fn create_test_actor(
     let (chat_event_tx, _chat_event_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, _event_rx) =
         tokio::sync::mpsc::unbounded_channel::<crate::session::replay_events::SessionEvent>();
-    let chat_state_handle = xvora_chat_state::ChatStateActor::spawn(
+    let chat_state_handle = chat_state::ChatStateActor::spawn(
         vec![],
         xvora_sampling_types::SamplingConfig {
             base_url: "http://localhost".to_string(),
@@ -70,7 +70,7 @@ async fn create_test_actor(
             reasoning_effort: None,
             stream_tool_calls: None,
         },
-        Box::new(xvora_chat_state::NullChatPersistence),
+        Box::new(chat_state::NullChatPersistence),
         chat_event_tx,
         tokio_util::sync::CancellationToken::new(),
     );
@@ -131,7 +131,7 @@ async fn create_test_actor(
             count: std::sync::atomic::AtomicU64::new(0),
             auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
             previous_model: std::cell::Cell::new(None),
-            compaction_mode: xvora_chat_state::CompactionMode::Transcript,
+            compaction_mode: chat_state::CompactionMode::Transcript,
             verbatim_input: true,
             tool_choice: crate::util::config::CompactionToolChoice::Auto,
             prefire: crate::session::compaction_config::PrefireState::default(),
@@ -236,7 +236,7 @@ async fn create_test_actor(
         laziness_debug_log: None,
         last_live_orphan_reconcile: std::cell::Cell::new(None),
         deferred_prefix: TaskSlot::new(),
-        extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
+        extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
         last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
         prefix_carries_fallback_date: std::cell::Cell::new(false),
         last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),
@@ -247,7 +247,7 @@ async fn create_test_actor(
         turn_end_tx: Default::default(),
         client_hooks: Default::default(),
         hook_resolved_workspace_root: String::new(),
-        vcs_kind: xvora_workspace::session::git::VcsKind::Git,
+        vcs_kind: workspace::session::git::VcsKind::Git,
         hook_load_errors: std::cell::RefCell::new(Vec::new()),
         plugin_registry: std::cell::RefCell::new(None),
         plugin_registry_handle: None,
@@ -271,13 +271,13 @@ async fn create_test_actor(
         turn_stream_drained: parking_lot::Mutex::new(std::collections::HashMap::new()),
         pending_image_strip: parking_lot::Mutex::new(std::collections::HashMap::new()),
         image_strip_rewrite_barrier: ImageStripRewriteBarrier::new(),
-        sampler_handle: xvora_sampler::SamplerHandle::noop(),
+        sampler_handle: sampler::SamplerHandle::noop(),
         sampling_gate: None,
         rebuild_spec: crate::session::agent_rebuild::test_rebuild_spec_default(),
         image_description_model: crate::test_support::TEST_MODEL.to_owned(),
         image_describe_cache: Arc::new(crate::session::image_describe::ImageDescribeCache::new()),
         subagent_token_records: parking_lot::Mutex::new(std::collections::HashMap::new()),
-        workspace_ops: xvora_workspace::WorkspaceOps::for_test(),
+        workspace_ops: workspace::WorkspaceOps::for_test(),
         trace_config_template: std::cell::RefCell::new(None),
     }
 }
@@ -790,8 +790,8 @@ async fn spawn_capturing_status_body_server(
     });
     (format!("http://{addr}"), captured)
 }
-fn switch_target_config(model: &str, base_url: String) -> xvora_sampler::SamplerConfig {
-    xvora_sampler::SamplerConfig {
+fn switch_target_config(model: &str, base_url: String) -> sampler::SamplerConfig {
+    sampler::SamplerConfig {
         api_key: Some("test-key".to_string()),
         base_url,
         model: model.to_string(),
@@ -832,7 +832,7 @@ async fn family_switch_compacts_lossy_with_new_model() {
                 }),
                 ConversationItem::assistant("done"),
             ]);
-            let server = xvora_test_support::MockInferenceServer::start()
+            let server = test_support::MockInferenceServer::start()
                 .await
                 .expect("mock inference server");
             actor
@@ -1335,7 +1335,7 @@ async fn transient_auto_compact_failure_notifies_with_real_error() {
 /// So the announced episodes clear and the MCP reminder goes dirty for a re-announcement at the next injection.
 #[tokio::test(flavor = "current_thread")]
 async fn compaction_rearms_failed_server_announcements() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1384,7 +1384,7 @@ async fn compaction_rearms_failed_server_announcements() {
 #[tokio::test(flavor = "current_thread")]
 async fn forked_prefix_released_under_pressure_and_stays_released() {
     use crate::session::compaction_config::SUPPRESS_NONE;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1456,7 +1456,7 @@ async fn forked_prefix_released_under_pressure_and_stays_released() {
 #[tokio::test(flavor = "current_thread")]
 async fn forked_release_still_over_threshold_suppresses_auto() {
     use crate::session::compaction_config::SUPPRESS_STICKY;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1568,7 +1568,7 @@ fn user_facing_compact_error_strips_prefix_single_lines_and_caps() {
         SessionActor::user_facing_compact_error("compact failed: API error\n  detail  line\t2"),
         "API error detail line 2"
     );
-    let nested = xvora_compaction::sampler::CompactionSampleError::Build(format!(
+    let nested = compaction::sampler::CompactionSampleError::Build(format!(
         "{COMPACT_FAILED_PREFIX}API error (status 400 Bad Request): invalid_image: too big"
     ))
     .to_string();
@@ -1767,9 +1767,9 @@ mod preserve_prefix {
         );
     }
 }
-fn api_error_with_context_window(context_window: u64) -> xvora_sampler::SamplingErrorInfo {
-    xvora_sampler::SamplingErrorInfo {
-        kind: xvora_sampler::SamplingErrorKind::Api,
+fn api_error_with_context_window(context_window: u64) -> sampler::SamplingErrorInfo {
+    sampler::SamplingErrorInfo {
+        kind: sampler::SamplingErrorKind::Api,
         status_code: Some(400),
         message: "prompt is too long".to_string(),
         is_retryable: false,
@@ -1793,7 +1793,7 @@ async fn test_pre_sampling_uses_estimated_tokens() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _) = mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(80_000, 100_000, 85, gateway_tx, persistence_tx).await;
             let result = actor.check_auto_compact_needed().await;
@@ -1811,7 +1811,7 @@ async fn test_model_switch_compaction_triggers_on_downgrade() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _) = mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+            let (gateway_tx, _) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(86_000, 100_000, 85, gateway_tx, persistence_tx).await;
             actor.compaction.previous_model.set(Some(
@@ -1846,11 +1846,11 @@ async fn get_transcript_path_returns_some_when_file_exists() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor =
                 create_test_actor(50_000, 200_000, 85, gateway_tx, persistence_tx).await;
-            actor.compaction.compaction_mode = xvora_chat_state::CompactionMode::Transcript;
+            actor.compaction.compaction_mode = chat_state::CompactionMode::Transcript;
             let session_dir = crate::session::persistence::session_dir(&actor.session_info);
             std::fs::create_dir_all(&session_dir).unwrap();
             let updates_path = session_dir.join("updates.jsonl");
@@ -1865,7 +1865,7 @@ async fn get_transcript_path_returns_some_when_file_exists() {
             let hint = actor.transcript_hint().expect("transcript hint present");
             assert!(hint.contains("read the full transcript"));
             assert!(hint.ends_with("updates.jsonl"));
-            actor.compaction.compaction_mode = xvora_chat_state::CompactionMode::Summary;
+            actor.compaction.compaction_mode = chat_state::CompactionMode::Summary;
             assert!(actor.transcript_hint().is_none());
             let _ = std::fs::remove_file(&updates_path);
             let _ = std::fs::remove_dir_all(&session_dir);

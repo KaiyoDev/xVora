@@ -27,7 +27,7 @@ fn external_stream_grpc_mtls_end_to_end() {
     );
     assert!(endpoint.starts_with("https://"), "{endpoint}");
 
-    let mut cfg = xvora_telemetry::external::ExternalOtelConfig::resolve_with(
+    let mut cfg = telemetry::external::ExternalOtelConfig::resolve_with(
         |name| match name {
             "GROK_EXTERNAL_OTEL" => Some("1".into()),
             "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
@@ -48,31 +48,31 @@ fn external_stream_grpc_mtls_end_to_end() {
         Some(cert_path.as_str())
     );
     assert_eq!(cfg.logs_client_key.as_deref(), Some(key_path.as_str()));
-    cfg.client = xvora_telemetry::external::config::ExternalClientInfo {
+    cfg.client = telemetry::external::config::ExternalClientInfo {
         service_version: "0.0.0-test".into(),
         client_version: "0.0.0-test".into(),
         app_entrypoint: "cli".into(),
     };
 
-    xvora_telemetry::external::init(Some(cfg));
+    telemetry::external::init(Some(cfg));
     assert!(
-        xvora_telemetry::external::is_active(),
+        telemetry::external::is_active(),
         "mTLS gRPC exporters must build and activate the stream"
     );
 
-    xvora_telemetry::log_event(xvora_telemetry::events::SessionNew {
+    telemetry::log_event(telemetry::events::SessionNew {
         session_id: "sess-grpc-mtls-1".into(),
         client_identifier: None,
         client_version: None,
         is_git_repo: true,
-        permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
+        permission_mode: telemetry::enums::PermissionMode::Ask,
     });
-    xvora_telemetry::log_event(xvora_telemetry::events::SessionHarness {
+    telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-grpc-mtls-1".into(),
         client_identifier: Some("grok-pager".into()),
         model_id: "grok-4".into(),
         agent_name: "grok-build-plan".into(),
-        permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
+        permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![],
         plugin_names: vec![],
         skill_names: vec![],
@@ -80,12 +80,12 @@ fn external_stream_grpc_mtls_end_to_end() {
         hook_names: vec![],
         agents_md_dir_names: vec![],
         memory_enabled: false,
-        memory_retrieval_mode: xvora_telemetry::events::MemoryRetrievalMode::Disabled,
+        memory_retrieval_mode: telemetry::events::MemoryRetrievalMode::Disabled,
         is_git_repo: true,
         auto_update: None,
     });
 
-    xvora_telemetry::external::flush();
+    telemetry::external::flush();
     assert!(
         col::wait_until(std::time::Duration::from_secs(10), || {
             collected.logs_len() > 0
@@ -105,5 +105,5 @@ fn external_stream_grpc_mtls_end_to_end() {
         "metric exports must arrive over mTLS"
     );
 
-    xvora_telemetry::external::shutdown();
+    telemetry::external::shutdown();
 }

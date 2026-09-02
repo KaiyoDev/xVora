@@ -135,7 +135,7 @@ impl PromptSuggestionController {
 
 /// Uses the shared shell resolver so pager and shell agree.
 pub fn resolve_enabled() -> bool {
-    xvora_shell::util::config::prompt_suggestions_enabled_for_config(
+    shell::util::config::prompt_suggestions_enabled_for_config(
         crate::appearance::cache::load_prompt_suggestions_config(),
     )
 }

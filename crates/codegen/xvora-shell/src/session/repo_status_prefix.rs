@@ -6,7 +6,7 @@ use tokio::sync::{Semaphore, watch};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use xvora_workspace::session::git::VcsKind;
+use workspace::session::git::VcsKind;
 
 /// Bounds a cold status so a wedged VCS can't stall the prompt.
 pub(crate) const REPO_STATUS_GATHER_TIMEOUT: Duration = Duration::from_secs(5);
@@ -28,7 +28,7 @@ pub(crate) struct RepoStatusInputs {
 }
 
 pub(crate) fn discover_vcs_root(cwd: &std::path::Path) -> Option<PathBuf> {
-    use xvora_workspace::session::git::{GitDiscoveryResult, discover_git_root};
+    use workspace::session::git::{GitDiscoveryResult, discover_git_root};
     match discover_git_root(cwd) {
         GitDiscoveryResult::Found(r) => {
             Some(PathBuf::from(r.to_string_lossy().trim_end_matches('/')))
@@ -88,14 +88,14 @@ impl RepoStatusSnapshot {
             .filter(|s| !s.trim().is_empty())?;
         match self.vcs_kind {
             VcsKind::JujutsuColocated => Some(raw_status.to_string()),
-            VcsKind::Git => xvora_agent::prompt::user_message::normalize_git_status(raw_status),
+            VcsKind::Git => agent::prompt::user_message::normalize_git_status(raw_status),
             VcsKind::None => None,
         }
     }
 }
 
 pub(crate) async fn gather_repo_status(inputs: &RepoStatusInputs) -> Option<RepoStatusSnapshot> {
-    use xvora_workspace::file_system::{
+    use workspace::file_system::{
         git_status_short_pinned, jj_status, probe_fsmonitor_override,
     };
 
@@ -356,7 +356,7 @@ mod tests {
         );
         assert_eq!(
             git.legacy_status(),
-            xvora_agent::prompt::user_message::normalize_git_status(" M src/main.rs\n?? new.txt\n")
+            agent::prompt::user_message::normalize_git_status(" M src/main.rs\n?? new.txt\n")
         );
 
         let empty = RepoStatusSnapshot {

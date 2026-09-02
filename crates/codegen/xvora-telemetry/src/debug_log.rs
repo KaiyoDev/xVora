@@ -22,7 +22,7 @@ use tracing_subscriber::layer::{Context, Layer};
 use tracing_subscriber::registry::LookupSpan;
 
 use crate::session_ctx::SESSION_ID_FIELD;
-use xvora_config::grok_home;
+use config::grok_home;
 
 /// Which env var requested a single-file debug log (drives filter and diagnostics).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,7 +60,7 @@ pub const RMCP_SSE_NOISE_TARGET: &str = "rmcp::transport::common::client_side_ss
 // Broad firehose filter for the routing and GROK_DEBUG_LOG sources
 // Capture our crates at debug regardless of a narrowing RUST_LOG, with deps at info so they don't flood
 // Curated first-party allowlist: new grok crates default to `info` until added here
-const FIREHOSE_BASE_DIRECTIVES: &str = "info,xvora_pager=debug,xvora_shell=debug,xvora_tools=debug,xvora_telemetry=debug,xvora_agent=debug,xvora_mcp=debug,xvora_session_search=debug,xvora_acp_lib=debug,sampling_log=off";
+const FIREHOSE_BASE_DIRECTIVES: &str = "info,xvora_pager=debug,shell=debug,tools=debug,telemetry=debug,agent=debug,mcp=debug,session_search=debug,acp_lib=debug,sampling_log=off";
 
 // Full firehose directives: the curated crate list plus the pager's ACP update target (built from the constant above, not a literal)
 fn firehose_directives() -> String {
@@ -664,9 +664,9 @@ mod tests {
         tracing::subscriber::with_default(subscriber, || {
             // `%` mirrors production's `info_span!("session", session_id = %...)`.
             tracing::info_span!("session", session_id = %"sess-xyz").in_scope(|| {
-                tracing::info!(target: "xvora_shell", "inside session");
+                tracing::info!(target: "shell", "inside session");
             });
-            tracing::info!(target: "xvora_shell", "outside session");
+            tracing::info!(target: "shell", "outside session");
         });
         crate::appender::flush_file_log_guards();
 
@@ -692,7 +692,7 @@ mod tests {
         let _lock = flush_test_lock();
         let dir = tempfile::tempdir().unwrap();
         // Exactly the production wrapper: routing layer behind FIREHOSE_DIRECTIVES.
-        // Pins at the unit level that the `session` span (INFO, target `xvora_telemetry::session_ctx`) survives the real filter
+        // Pins at the unit level that the `session` span (INFO, target `telemetry::session_ctx`) survives the real filter
         // `event_scope` can only find the session id if the filter keeps that span
         let layer = RoutingLayer::new(dir.path().to_path_buf(), "agent".to_owned(), 7)
             .with_filter(firehose_filter());
@@ -700,12 +700,12 @@ mod tests {
 
         tracing::subscriber::with_default(subscriber, || {
             tracing::info_span!(
-                target: "xvora_telemetry::session_ctx",
+                target: "telemetry::session_ctx",
                 "session",
                 session_id = %"sid-real"
             )
             .in_scope(|| {
-                tracing::debug!(target: "xvora_shell", "filtered routing works");
+                tracing::debug!(target: "shell", "filtered routing works");
             });
         });
         crate::appender::flush_file_log_guards();
@@ -733,11 +733,11 @@ mod tests {
         tracing::subscriber::with_default(subscriber, || {
             tracing::info_span!("session", session_id = %"sid-one").in_scope(|| {
                 // Two events in one session also prove within-session accumulation.
-                tracing::info!(target: "xvora_shell", "one first");
-                tracing::info!(target: "xvora_shell", "one second");
+                tracing::info!(target: "shell", "one first");
+                tracing::info!(target: "shell", "one second");
             });
             tracing::info_span!("session", session_id = %"sid-two").in_scope(|| {
-                tracing::info!(target: "xvora_shell", "two only");
+                tracing::info!(target: "shell", "two only");
             });
         });
         crate::appender::flush_file_log_guards();

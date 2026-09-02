@@ -78,7 +78,7 @@ impl RelocationView {
     pub(crate) fn session_dirs(&self, cwd: Option<&str>) -> Result<Vec<PathBuf>> {
         let cwd_parent = cwd.map(|cwd| {
             self.sessions_root
-                .join(xvora_config::encode_cwd_dirname(cwd))
+                .join(config::encode_cwd_dirname(cwd))
         });
         Ok(self
             .persisted_candidates

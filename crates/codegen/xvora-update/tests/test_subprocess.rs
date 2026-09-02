@@ -13,8 +13,8 @@ mod common;
 use serial_test::serial;
 
 use common::FakeBinGuard;
-use xvora_update::auto_update::install_npm_for_test;
-use xvora_update::version::{
+use update::auto_update::install_npm_for_test;
+use update::version::{
     fetch_gh_release_version, fetch_npm_tag_for_test, fetch_npm_version_for_test,
 };
 

@@ -140,7 +140,7 @@ pub async fn write_hidden_announcement_ids(ids: &BTreeSet<String>) {
 }
 
 fn announcements_state_path() -> PathBuf {
-    xvora_tools::util::grok_home::grok_home().join("announcements.json")
+    tools::util::grok_home::grok_home().join("announcements.json")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 //! `FEATURES` is the source of truth and the operator tables are hand-maintained mirrors with no compile-time check of their own.
 //! This test is that check.
 
-use xvora_shell::agent::config::FEATURES;
+use shell::agent::config::FEATURES;
 
 const ENTERPRISE: &str = include_str!("../docs/internal/25-enterprise.md");
 const ENV_VARS: &str = include_str!("../docs/internal/22-environment-variables.md");

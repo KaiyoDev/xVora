@@ -1,7 +1,7 @@
 //! Memory concern for `SessionActor`: memory flush, the dream pipeline, memory tool registration, and note rewriting.
 
 use super::*;
-use xvora_telemetry::session_end::{self, Phase};
+use telemetry::session_end::{self, Phase};
 
 const DREAM_MODEL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30 * 60);
 /// Stale-lock floor: the whole dream (model call plus post-call reindex) must finish inside this, so it must exceed the model timeout; doubling it leaves reindex headroom.
@@ -16,7 +16,7 @@ enum DreamAttempt {
 
 #[derive(Debug)]
 pub(super) struct MemoryFlushSnapshot {
-    counts: xvora_chat_state::ConversationCounts,
+    counts: chat_state::ConversationCounts,
     chat_history: Vec<ConversationItem>,
 }
 
@@ -48,14 +48,14 @@ impl SessionActor {
     /// The memory backend itself is already in `Resources`, inserted by the caller before this method.
     pub(super) async fn register_memory_tools(
         &self,
-        bridge: &xvora_tools::bridge::ToolBridge,
+        bridge: &tools::bridge::ToolBridge,
     ) -> Result<(), String> {
-        use xvora_tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
+        use tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
 
         bridge
             .register_mcp_tools(
                 MEMORY_SEARCH_TOOL_NAME.to_owned(),
-                xvora_tools::implementations::memory::search_tool::MemorySearchImpl,
+                tools::implementations::memory::search_tool::MemorySearchImpl,
                 None,
             )
             .await
@@ -63,7 +63,7 @@ impl SessionActor {
         bridge
             .register_mcp_tools(
                 MEMORY_GET_TOOL_NAME.to_owned(),
-                xvora_tools::implementations::memory::get_tool::MemoryGetImpl,
+                tools::implementations::memory::get_tool::MemoryGetImpl,
                 None,
             )
             .await
@@ -77,8 +77,8 @@ impl SessionActor {
         total_chunks_at_end: usize,
         session_end_result: &str,
     ) {
-        xvora_telemetry::session_ctx::log_event(
-            xvora_telemetry::memory_telemetry::MemorySessionSummary {
+        telemetry::session_ctx::log_event(
+            telemetry::memory_telemetry::MemorySessionSummary {
                 session_id: self.session_info.id.to_string(),
                 memory_enabled: self.memory.is_enabled(),
                 session_duration_secs: self.session_start.elapsed().as_secs(),
@@ -104,12 +104,12 @@ impl SessionActor {
     pub(super) async fn run_session_end_memory_pipeline(
         &self,
         log_suffix: &str,
-        timer: &xvora_telemetry::session_end::SharedSessionEndTimer,
+        timer: &telemetry::session_end::SharedSessionEndTimer,
     ) {
         let span = session_end::span(Phase::Memory);
         if self.startup_hints.is_subagent {
             tracing::debug!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 "MEMORY_SUBAGENT_SKIP: skipping on_session_end for subagent session"
             );
             return;
@@ -146,7 +146,7 @@ impl SessionActor {
             let telem = self.memory.telemetry_snapshot();
             let msg = format!("MEMORY_SESSION_END: {log_suffix}");
             tracing::info!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 result = ?result,
                 tool_searches = telem.tool_search_count,
                 injection_searches = telem.injection_count,
@@ -186,7 +186,7 @@ impl SessionActor {
     pub(super) async fn maybe_run_dream(&self) {
         if self.startup_hints.is_subagent {
             tracing::debug!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 "MEMORY_SUBAGENT_SKIP: skipping dream for subagent session"
             );
             return;
@@ -205,7 +205,7 @@ impl SessionActor {
             DreamGate::Open { sessions } => sessions,
             other => {
                 tracing::info!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     gate = ?other,
                     "MEMORY_DREAM: gate check result, skipping"
                 );
@@ -214,7 +214,7 @@ impl SessionActor {
         };
 
         tracing::info!(
-            target: xvora_telemetry::memory_log::TARGET,
+            target: telemetry::memory_log::TARGET,
             session_count = sessions.len(),
             "MEMORY_DREAM: gates passed, starting consolidation"
         );
@@ -245,7 +245,7 @@ impl SessionActor {
         ) {
             Ok(s) if s.is_empty() => {
                 tracing::info!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     "MEMORY_DREAM_SLASH: no session logs found, nothing to consolidate"
                 );
                 return;
@@ -253,7 +253,7 @@ impl SessionActor {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     error = %e,
                     "MEMORY_DREAM_SLASH: failed to list sessions"
                 );
@@ -262,7 +262,7 @@ impl SessionActor {
         };
 
         tracing::info!(
-            target: xvora_telemetry::memory_log::TARGET,
+            target: telemetry::memory_log::TARGET,
             session_count = sessions.len(),
             "MEMORY_DREAM_SLASH: starting manual consolidation"
         );
@@ -316,14 +316,14 @@ impl SessionActor {
             Ok(Some(g)) => g,
             Ok(None) => {
                 tracing::info!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     "{log_prefix}: lock held by another process, skipping"
                 );
                 return DreamAttempt::Skipped("another consolidation is already running");
             }
             Err(e) => {
                 tracing::warn!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     error = %e,
                     "{log_prefix}: lock acquire failed"
                 );
@@ -343,7 +343,7 @@ impl SessionActor {
                     }
                     other => {
                         tracing::info!(
-                            target: xvora_telemetry::memory_log::TARGET,
+                            target: telemetry::memory_log::TARGET,
                             gate = ?other,
                             "{log_prefix}: gate closed under lock, skipping"
                         );
@@ -361,7 +361,7 @@ impl SessionActor {
                 Some(msg) => msg,
                 None => {
                     tracing::info!(
-                        target: xvora_telemetry::memory_log::TARGET,
+                        target: telemetry::memory_log::TARGET,
                         "{log_prefix}: no readable session content, skipping"
                     );
                     return DreamAttempt::Skipped("no readable session content");
@@ -377,7 +377,7 @@ impl SessionActor {
             Ok(Ok(r)) => r,
             Ok(Err(e)) => {
                 tracing::warn!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     error = %e,
                     "{log_prefix}: model call failed"
                 );
@@ -386,7 +386,7 @@ impl SessionActor {
             }
             Err(_) => {
                 tracing::warn!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     "{log_prefix}: model call timed out (30m)"
                 );
                 self.memory.record_dream_result(false);
@@ -423,7 +423,7 @@ impl SessionActor {
                     Some(path.display().to_string())
                 } else {
                     tracing::warn!(
-                        target: xvora_telemetry::memory_log::TARGET,
+                        target: telemetry::memory_log::TARGET,
                         "{log_prefix}: consolidation marker failed to write; gate stays open to retry"
                     );
                     None
@@ -434,7 +434,7 @@ impl SessionActor {
                     self.memory.record_dream_neutral();
                 } else {
                     tracing::warn!(
-                        target: xvora_telemetry::memory_log::TARGET,
+                        target: telemetry::memory_log::TARGET,
                         "{log_prefix}: consolidation marker failed to write; gate stays open to retry"
                     );
                 }
@@ -458,7 +458,7 @@ impl SessionActor {
         .await;
 
         tracing::info!(
-            target: xvora_telemetry::memory_log::TARGET,
+            target: telemetry::memory_log::TARGET,
             status = ?result.status,
             sessions_eligible = result.sessions_eligible,
             sessions_cleaned = cleaned_stems.len(),
@@ -487,7 +487,7 @@ impl SessionActor {
             x_grok_conv_id: Some(format!("dream-{}", uuid::Uuid::new_v4())),
             x_grok_req_id: Some(format!("xvora-dream-{}", uuid::Uuid::new_v4())),
             x_grok_session_id: Some(session_id),
-            x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+            x_grok_agent_id: Some(telemetry::id::agent_id()),
             ..Default::default()
         };
         let response = sampling_client
@@ -510,18 +510,18 @@ impl SessionActor {
         trigger: &str,
         snapshot: Option<MemoryFlushSnapshot>,
     ) -> bool {
-        use xvora_memory::flush::*;
+        use memory::flush::*;
 
         // Atomically acquire the flushing lock. If another flush is already running (idle timer, pre-compaction, or user-requested), skip.
         if !self.memory.try_acquire_flush_lock() {
             tracing::info!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 "MEMORY_FLUSH: skipped — another flush is already in progress (trigger={trigger})"
             );
             return false;
         }
 
-        tracing::info!(target: xvora_telemetry::memory_log::TARGET, "MEMORY_FLUSH: starting");
+        tracing::info!(target: telemetry::memory_log::TARGET, "MEMORY_FLUSH: starting");
         let flush_start = std::time::Instant::now();
 
         self.send_xai_notification(XaiSessionUpdate::MemoryFlushStarted)
@@ -536,8 +536,8 @@ impl SessionActor {
                 Some(snapshot) => snapshot,
                 None => self.snapshot_memory_flush_state().await,
             };
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::memory_telemetry::MemoryFlushStart {
+            telemetry::session_ctx::log_event(
+                telemetry::memory_telemetry::MemoryFlushStart {
                     session_id: self.session_info.id.to_string(),
                     trigger: trigger.to_owned(),
                     conversation_len: counts.total,
@@ -545,7 +545,7 @@ impl SessionActor {
                 },
             );
             tracing::info!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 "MEMORY_FLUSH: conversation has {user} user, {assistant} assistant, {tool} tool messages ({total} total)",
                 user = counts.user,
                 assistant = counts.assistant,
@@ -569,12 +569,12 @@ impl SessionActor {
             };
             let mut items: Vec<ConversationItem> = vec![ConversationItem::system(system_prompt)];
             tracing::info!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 "MEMORY_FLUSH: sending {n} recent messages to model (+ system prompt + user closer)",
                 n = recent.len(),
             );
             items.extend(
-                xvora_chat_state::compaction_utils::ModelRequestHistory::from_raw(recent).into_items(),
+                chat_state::compaction_utils::ModelRequestHistory::from_raw(recent).into_items(),
             );
             items.push(ConversationItem::user(
                 "Now write the memory summary as described in the system prompt.",
@@ -587,7 +587,7 @@ impl SessionActor {
                     .unwrap_or_default(),
             };
             tracing::info!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 "MEMORY_FLUSH: using model={model}"
             );
             let session_id = self.session_info.id.to_string();
@@ -597,7 +597,7 @@ impl SessionActor {
                 x_grok_conv_id: Some(format!("flush-{}", uuid::Uuid::new_v4())),
                 x_grok_req_id: Some(format!("xvora-flush-{}", uuid::Uuid::new_v4())),
                 x_grok_session_id: Some(session_id.clone()),
-                x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+                x_grok_agent_id: Some(telemetry::id::agent_id()),
                 ..Default::default()
             };
 
@@ -737,7 +737,7 @@ impl SessionActor {
             }
         };
 
-        tracing::info!(target: xvora_telemetry::memory_log::TARGET, outcome = %outcome, "MEMORY_FLUSH: completed");
+        tracing::info!(target: telemetry::memory_log::TARGET, outcome = %outcome, "MEMORY_FLUSH: completed");
         let flush_outcome = if outcome.starts_with("written") {
             "written"
         } else if outcome.starts_with("nothing") {
@@ -750,8 +750,8 @@ impl SessionActor {
             "error"
         };
         self.memory.record_flush_result(flush_outcome);
-        xvora_telemetry::session_ctx::log_event(
-            xvora_telemetry::memory_telemetry::MemoryFlushComplete {
+        telemetry::session_ctx::log_event(
+            telemetry::memory_telemetry::MemoryFlushComplete {
                 session_id: self.session_info.id.to_string(),
                 trigger: trigger.to_owned(),
                 outcome: flush_outcome.to_owned(),
@@ -763,12 +763,12 @@ impl SessionActor {
         );
 
         let flush_trigger = match trigger {
-            "slash_command" => xvora_telemetry::events::MemoryFlushTrigger::SlashCommand,
-            "interval" => xvora_telemetry::events::MemoryFlushTrigger::Interval,
-            "pre_compaction" => xvora_telemetry::events::MemoryFlushTrigger::PreCompaction,
-            _ => xvora_telemetry::events::MemoryFlushTrigger::UserRequested,
+            "slash_command" => telemetry::events::MemoryFlushTrigger::SlashCommand,
+            "interval" => telemetry::events::MemoryFlushTrigger::Interval,
+            "pre_compaction" => telemetry::events::MemoryFlushTrigger::PreCompaction,
+            _ => telemetry::events::MemoryFlushTrigger::UserRequested,
         };
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::MemoryFlushed {
+        telemetry::session_ctx::log_event(telemetry::events::MemoryFlushed {
             trigger: flush_trigger,
             success: flush_outcome == "written",
             duration_ms: flush_start.elapsed().as_millis() as u64,
@@ -791,7 +791,7 @@ impl SessionActor {
             self.chat_state_handle.get_conversation(),
         );
         let chat_history =
-            xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
+            chat_state::compaction_utils::prepare_conversation_for_summarization(
                 conversation,
             );
         MemoryFlushSnapshot {

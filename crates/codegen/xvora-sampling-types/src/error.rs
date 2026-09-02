@@ -5,7 +5,7 @@ use std::fmt;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use xvora_circuit_breaker::RetryPolicy;
+use circuit_breaker::RetryPolicy;
 
 use crate::provider_error::{parse_provider_error, parse_provider_error_str};
 
@@ -767,7 +767,7 @@ pub fn try_parse_stream_error(data: &str) -> Option<SamplingError> {
 }
 
 /// Shared size-overflow text detector: a single definition (in the compaction engine) so the turn path and compaction loops can't drift.
-pub use xvora_compaction::is_context_length_error;
+pub use compaction::is_context_length_error;
 
 /// Whether an HTTP status is worth retrying: the rule CCP publishes in `x-should-retry` (429 and any 5xx), minus Cloudflare's origin-TLS 525/526.
 /// Requests reach CCP through the Cloudflare edge, which answers with its own 52x pages when the origin is unreachable.

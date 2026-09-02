@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Subcommand;
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::auth::{AuthManager, try_ensure_fresh_auth};
-use xvora_shell::session::merge::MergedSession;
-use xvora_shell::util::grok_home::grok_home;
+use shell::agent::config::Config as AgentConfig;
+use shell::auth::{AuthManager, try_ensure_fresh_auth};
+use shell::session::merge::MergedSession;
+use shell::util::grok_home::grok_home;
 #[derive(Debug, clap::Args, Clone)]
 pub struct SessionsArgs {
     #[command(subcommand)]
@@ -45,7 +45,7 @@ pub async fn run(args: SessionsArgs, agent_config: &AgentConfig) -> Result<()> {
         agent_config.grok_com_config.clone(),
     ));
 
-    let client = xvora_shell::agent::session_registry_client::SessionRegistryClient::new(
+    let client = shell::agent::session_registry_client::SessionRegistryClient::new(
         agent_config.endpoints.proxy_url(),
         String::new(),
     )
@@ -57,27 +57,27 @@ pub async fn run(args: SessionsArgs, agent_config: &AgentConfig) -> Result<()> {
 
     match args.command {
         SessionsCommand::List { limit } => {
-            let sessions = xvora_shell::session::merge::fetch_merged(
+            let sessions = shell::session::merge::fetch_merged(
                 Some(&client),
                 cwd.to_str(),
-                xvora_shell::session::merge::CwdScope::WithSiblings,
+                shell::session::merge::CwdScope::WithSiblings,
                 None,
                 limit,
                 // The CLI listing is an inventory, not the resume picker.
-                xvora_shell::session::visibility::HeadlessPolicy::Include,
+                shell::session::visibility::HeadlessPolicy::Include,
             )
             .await;
             print_sessions_grouped(&sessions);
         }
         SessionsCommand::Search { query, limit } => {
             use std::collections::HashSet;
-            use xvora_shell::session::merge::REMOTE_TIMEOUT;
-            use xvora_shell::session::storage::search::{
+            use shell::session::merge::REMOTE_TIMEOUT;
+            use shell::session::storage::search::{
                 IndexDecision, SessionSearchRequest, execute_search,
             };
 
             // Search is the only subcommand that reads the index, so it is the only one to start one
-            let search = xvora_shell::session::storage::search::start_if_enabled(agent_config);
+            let search = shell::session::storage::search::start_if_enabled(agent_config);
 
             let req = SessionSearchRequest {
                 query,
@@ -187,7 +187,7 @@ pub async fn run(args: SessionsArgs, agent_config: &AgentConfig) -> Result<()> {
             // Pass `cwd = None` so the session is found by id regardless of which workspace it was created in
             // The local delete still uses the resolved per-session cwd
             // No search handle: the eviction inside prunes the row from another process's index, so a delete never needs one of its own
-            let deletion = xvora_shell::session::persistence::delete_session_history(
+            let deletion = shell::session::persistence::delete_session_history(
                 &id,
                 None,
                 needs_remote,

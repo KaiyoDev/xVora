@@ -6,7 +6,7 @@
 use crate::app::actions::Action;
 use crate::slash::command::{CommandExecCtx, CommandResult, SlashCommand, slash_meta};
 use crate::views::extensions_modal::ExtensionsTab;
-use xvora_telemetry::events::ExtensionsModalTrigger;
+use telemetry::events::ExtensionsModalTrigger;
 
 /// Open the hooks/plugins modal on the Hooks tab.
 pub struct HooksCommand;

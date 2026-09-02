@@ -8,7 +8,7 @@ pub use trust::{
     ClipboardDelivery, ClipboardEnvironment, NativeClipboardPreflight, Osc52Capability,
     expected_delivery, native_clipboard_preflight,
 };
-pub use xvora_ratatui_textarea::{ClipboardProvider, InternalClipboard};
+pub use ratatui_textarea::{ClipboardProvider, InternalClipboard};
 
 use std::sync::OnceLock;
 
@@ -21,13 +21,13 @@ pub const GROK_COPY_FILE_ENV: &str = "GROK_COPY_FILE";
 /// Cached result of the remote-session check (env vars don't change at runtime).
 fn is_remote() -> bool {
     static REMOTE: OnceLock<bool> = OnceLock::new();
-    *REMOTE.get_or_init(xvora_shared::clipboard::is_remote_session)
+    *REMOTE.get_or_init(shared::clipboard::is_remote_session)
 }
 
 /// Cached result of the container-without-display check.
 fn is_container_no_display() -> bool {
     static CONTAINER: OnceLock<bool> = OnceLock::new();
-    *CONTAINER.get_or_init(xvora_shared::clipboard::is_containerized_without_display)
+    *CONTAINER.get_or_init(shared::clipboard::is_containerized_without_display)
 }
 
 /// Cached result of the "an upstream OSC 52 sink is capturing our output" check.
@@ -70,7 +70,7 @@ pub fn clipboard_route() -> &'static ClipboardRoute {
 pub fn wayland_data_control_label() -> &'static str {
     match crate::host::DisplayServer::current() {
         crate::host::DisplayServer::Wayland => {
-            if xvora_shared::clipboard::wayland_data_control_supported() {
+            if shared::clipboard::wayland_data_control_supported() {
                 "yes"
             } else {
                 "no"
@@ -173,17 +173,17 @@ fn write_tmux_buffer(text: &str) -> bool {
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         // Spooled stdin, not a pipe: a payload past the pipe buffer would block the UI thread if a wedged tmux server stops draining stdin
         // The bounded wait below also needs stdin already closed
-        let stdin = xvora_shared::clipboard::spool_for_stdin(text.as_bytes())?;
+        let stdin = shared::clipboard::spool_for_stdin(text.as_bytes())?;
         let mut cmd = Command::new("tmux");
         cmd.args(["load-buffer", "-"])
             .stdin(Stdio::from(stdin))
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         #[allow(clippy::disallowed_methods)] // short-lived clipboard helper, waited on below
         let mut child = cmd.spawn()?;
         // Bounded wait: a wedged tmux server must not freeze the UI thread.
-        let status = xvora_shared::clipboard::wait_with_deadline(
+        let status = shared::clipboard::wait_with_deadline(
             &mut child,
             std::time::Duration::from_secs(2),
         )?;
@@ -198,7 +198,7 @@ fn write_tmux_buffer(text: &str) -> bool {
     result.is_ok()
 }
 
-/// Delegates to [`xvora_shared::clipboard`], which uses `pbcopy`/`pbpaste` on macOS (avoiding AppKit GPU overhead) and `arboard` elsewhere.
+/// Delegates to [`shared::clipboard`], which uses `pbcopy`/`pbpaste` on macOS (avoiding AppKit GPU overhead) and `arboard` elsewhere.
 ///
 /// In tmux-backed environments, clipboard writes follow the full three-leg contract: native clipboard, tmux buffer, and OSC 52.
 #[derive(Debug)]
@@ -214,7 +214,7 @@ impl SystemClipboard {
 
 impl ClipboardProvider for SystemClipboard {
     fn get(&mut self) -> Option<String> {
-        xvora_shared::clipboard::get_text().ok().flatten()
+        shared::clipboard::get_text().ok().flatten()
     }
 
     fn set(&mut self, text: &str) {
@@ -254,7 +254,7 @@ fn clipboard_write_with_route(text: &str, route: &ClipboardRoute) -> ClipboardWr
     };
 
     if route.native {
-        let outcome = xvora_shared::clipboard::set_text_with_outcome(text);
+        let outcome = shared::clipboard::set_text_with_outcome(text);
         legs.cli_ok = outcome.cli_ok;
         legs.arboard_ok = outcome.arboard_ok;
         legs.data_control = outcome.data_control;
@@ -271,7 +271,7 @@ fn clipboard_write_with_route(text: &str, route: &ClipboardRoute) -> ClipboardWr
     }
 
     if route.osc52 {
-        match xvora_shared::clipboard::set_text_osc52(text, route.osc52_tmux_passthrough) {
+        match shared::clipboard::set_text_osc52(text, route.osc52_tmux_passthrough) {
             Ok(()) => legs.osc52_ok = true,
             Err(e) => {
                 tracing::debug!("OSC 52 clipboard write failed (best-effort): {e}");
@@ -504,7 +504,7 @@ pub fn default_copy_fallback_path() -> Option<std::path::PathBuf> {
             ));
         }
     }
-    xvora_config::user_grok_home().map(|grok_home| grok_home.join("last-copy.txt"))
+    config::user_grok_home().map(|grok_home| grok_home.join("last-copy.txt"))
 }
 
 /// Render a backup-file path for user-facing messages using the codebase-wide
@@ -652,10 +652,10 @@ fn log_clipboard_copy_event(
     toast_kind: &'static str,
     started: std::time::Instant,
 ) {
-    if !xvora_telemetry::client::is_enabled() {
+    if !telemetry::client::is_enabled() {
         return;
     }
-    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::ClipboardCopy {
+    telemetry::session_ctx::log_event(telemetry::events::ClipboardCopy {
         terminal: crate::terminal::terminal_context().telemetry_snapshot(),
         source: "copy_text",
         text_len: text.len() as u64,
@@ -702,7 +702,7 @@ pub fn system_clipboard_read_text() -> Result<Option<String>, ClipboardTextReadE
     if let Some(text) = test_support::hook_text_result() {
         return text;
     }
-    xvora_shared::clipboard::get_text().map_err(|error| {
+    shared::clipboard::get_text().map_err(|error| {
         tracing::debug!("clipboard text read failed: {error}");
         ClipboardTextReadError
     })
@@ -726,10 +726,10 @@ pub fn system_primary_selection_get() -> Option<String> {
             .filter(|text| !text.is_empty());
     }
 
-    if !xvora_shared::clipboard::x11_display_env_present() {
+    if !shared::clipboard::x11_display_env_present() {
         return None;
     }
-    xvora_shared::clipboard::get_primary_text()
+    shared::clipboard::get_primary_text()
         .ok()
         .flatten()
         .filter(|text| !text.is_empty())
@@ -745,7 +745,7 @@ pub fn x11_primary_guidance_available() -> bool {
     #[cfg(target_os = "linux")]
     {
         is_native_x11(crate::host::DisplayServer::current())
-            && xvora_shared::clipboard::x11_display_env_present()
+            && shared::clipboard::x11_display_env_present()
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -777,10 +777,10 @@ pub fn log_paste_key_empty_host_clipboard(surface: &str) {
         paste.surface = %surface,
         "paste_key_empty_host_clipboard"
     );
-    if !xvora_telemetry::client::is_enabled() {
+    if !telemetry::client::is_enabled() {
         return;
     }
-    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PasteKeyEmptyHostClipboard {
+    telemetry::session_ctx::log_event(telemetry::events::PasteKeyEmptyHostClipboard {
         terminal,
         surface: surface.to_owned(),
     });
@@ -999,10 +999,10 @@ fn log_clipboard_paste_event(
     image_mime: &str,
     started: std::time::Instant,
 ) {
-    if !xvora_telemetry::client::is_enabled() {
+    if !telemetry::client::is_enabled() {
         return;
     }
-    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::ClipboardImagePaste {
+    telemetry::session_ctx::log_event(telemetry::events::ClipboardImagePaste {
         terminal: crate::terminal::terminal_context().telemetry_snapshot(),
         probe: probe.to_owned(),
         outcome: outcome.to_owned(),
@@ -1016,7 +1016,7 @@ fn log_clipboard_paste_event(
 /// On non-macOS this composes separate arboard reads.
 fn system_clipboard_get_attachments() -> Result<AttachmentsProbeResult, ClipboardProbeError> {
     let started = std::time::Instant::now();
-    match xvora_shared::clipboard::get_attachments() {
+    match shared::clipboard::get_attachments() {
         Ok(att) => {
             let (outcome, mime) = match (&att.image, &att.file_urls) {
                 (Some(img), _) => ("image", img.mime_type.as_str()),
@@ -1045,7 +1045,7 @@ struct AttachmentsProbeResult {
 }
 
 /// Re-export [`ImageData`] so pager code does not import the shell directly.
-pub use xvora_shared::clipboard::ImageData;
+pub use shared::clipboard::ImageData;
 
 /// One pasteboard snapshot `(change_count, has_pasteable_image)` read in a single native pass (macOS native, sub-millisecond, no data read).
 /// `(None, false)` off-macOS or when AppKit cannot be loaded.
@@ -1054,7 +1054,7 @@ pub fn clipboard_image_snapshot() -> (Option<u64>, bool) {
     if let Some(snapshot) = test_support::hook_image_snapshot() {
         return snapshot;
     }
-    xvora_shared::clipboard::clipboard_image_snapshot()
+    shared::clipboard::clipboard_image_snapshot()
 }
 
 /// Cheap pasteboard `changeCount` read (one native message, no type scan, no data read).
@@ -1066,7 +1066,7 @@ pub fn clipboard_change_count() -> Option<u64> {
     if let Some((change_count, _)) = test_support::hook_image_snapshot() {
         return change_count;
     }
-    xvora_shared::clipboard::clipboard_change_count()
+    shared::clipboard::clipboard_change_count()
 }
 
 /// Whether the fast image probe exists on this platform.
@@ -1076,7 +1076,7 @@ pub fn clipboard_image_probe_supported() -> bool {
     if let Some(supported) = test_support::hook_image_probe_supported() {
         return supported;
     }
-    xvora_shared::clipboard::clipboard_image_probe_supported()
+    shared::clipboard::clipboard_image_probe_supported()
 }
 
 /// Prime the macOS AppKit `dlopen` ONCE on a detached background thread.
@@ -1090,14 +1090,14 @@ pub fn prewarm_image_probe() {
         return;
     }
     WARMED.call_once(|| {
-        std::thread::spawn(xvora_shared::clipboard::clipboard_prewarm);
+        std::thread::spawn(shared::clipboard::clipboard_prewarm);
     });
 }
 
 /// Read an image while preserving an empty-versus-error distinction.
 fn system_clipboard_get_image_result() -> Result<Option<ImageData>, ClipboardProbeError> {
     let started = std::time::Instant::now();
-    match xvora_shared::clipboard::get_image() {
+    match shared::clipboard::get_image() {
         Ok(img) => {
             let (outcome, mime) = match &img {
                 Some(img) => ("image", img.mime_type.as_str()),
@@ -2212,7 +2212,7 @@ mod tests {
         }
         let path = default_copy_fallback_path();
         // Test envs always resolve a home (or set GROK_HOME).
-        let expected = xvora_config::user_grok_home()
+        let expected = config::user_grok_home()
             .expect("home resolves in tests")
             .join("last-copy.txt");
         assert_eq!(path, Some(expected));
@@ -2224,7 +2224,7 @@ mod tests {
     #[test]
     fn display_copy_path_abbreviates_home() {
         if std::env::var_os("GROK_HOME").is_none() {
-            let home = xvora_dirs::home_dir().expect("home resolves in tests");
+            let home = dirs::home_dir().expect("home resolves in tests");
             assert_eq!(
                 display_copy_path(&home.join(".grok").join("last-copy.txt")),
                 "~/.grok/last-copy.txt"

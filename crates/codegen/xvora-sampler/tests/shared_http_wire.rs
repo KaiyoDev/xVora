@@ -3,8 +3,8 @@ mod support;
 use std::sync::atomic::Ordering;
 
 use support::{pin_env, send_one, test_config};
-use xvora_sampler::SamplingClient;
-use xvora_test_support::spawn_counting_server;
+use sampler::SamplingClient;
+use test_support::spawn_counting_server;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shared_client_keeps_per_config_headers_isolated() {

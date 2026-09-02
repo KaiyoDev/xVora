@@ -229,7 +229,7 @@ fn shutdown_with_terminal_restore(exit_code: i32) -> ! {
     TERMINAL_OWNED.store(false, Ordering::Release);
     // Best-effort unregister (non-blocking flock to avoid hanging).
     if let Some(ref sid) = *CURRENT_SESSION_ID.lock() {
-        let _ = xvora_active_sessions::try_unregister(sid);
+        let _ = active_sessions::try_unregister(sid);
     }
     flush_telemetry_and_exit(exit_code);
 }
@@ -239,15 +239,15 @@ fn flush_telemetry_and_exit(exit_code: i32) -> ! {
     // Reap detached (setsid) background children before the hard exit
     // This tail runs on the force/second-signal and agent-mode paths that skip the graceful quit
     // The graceful path reaps them in `app::run`'s teardown
-    xvora_tty_utils::global_process_scope().kill_all();
+    tty_utils::global_process_scope().kill_all();
     // Restore fd 2 so Sentry/OTEL flushes reach the terminal.
-    xvora_tty_utils::restore_native_stderr();
+    tty_utils::restore_native_stderr();
     crate::app::status_line::metrics::global().report_health();
-    xvora_telemetry::sentry::flush_on_shutdown();
-    xvora_telemetry::otel_layer::shutdown_otel();
+    telemetry::sentry::flush_on_shutdown();
+    telemetry::otel_layer::shutdown_otel();
     // Flush the --debug firehose on TUI signal exit (this path bypasses main's flush).
-    xvora_telemetry::debug_log::flush();
-    if let Some(path) = xvora_telemetry::span_profile::finalize() {
+    telemetry::debug_log::flush();
+    if let Some(path) = telemetry::span_profile::finalize() {
         eprintln!("grok: span profile written to {}", path.display());
     }
     std::process::exit(exit_code);

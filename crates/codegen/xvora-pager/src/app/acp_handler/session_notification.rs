@@ -1,5 +1,5 @@
 use super::*;
-use xvora_shell::sampling::error::format_rate_limited_user_message;
+use shell::sampling::error::format_rate_limited_user_message;
 /// Stash a live stop-family batch under `stash_pid` for the turn marker to fold.
 /// `merge_same_name` merges a same-name repeat instead of pushing it standalone.
 pub(super) fn stash_live_stop_batch(
@@ -908,15 +908,15 @@ pub(super) fn handle_session_notification_with_origin(
                 .into_iter()
                 .map(|r| {
                     let status = match r.status {
-                        xvora_shell::extensions::notification::HookRunStatusDto::Success {
+                        shell::extensions::notification::HookRunStatusDto::Success {
                             elapsed_ms,
                         } => HookRunStatus::Success {
                             elapsed: std::time::Duration::from_millis(elapsed_ms),
                         },
-                        xvora_shell::extensions::notification::HookRunStatusDto::Skipped => {
+                        shell::extensions::notification::HookRunStatusDto::Skipped => {
                             HookRunStatus::Skipped
                         }
-                        xvora_shell::extensions::notification::HookRunStatusDto::Failed {
+                        shell::extensions::notification::HookRunStatusDto::Failed {
                             error,
                             elapsed_ms,
                             blocked: true,
@@ -924,7 +924,7 @@ pub(super) fn handle_session_notification_with_origin(
                             detail: error,
                             elapsed: std::time::Duration::from_millis(elapsed_ms),
                         },
-                        xvora_shell::extensions::notification::HookRunStatusDto::Failed {
+                        shell::extensions::notification::HookRunStatusDto::Failed {
                             error,
                             elapsed_ms,
                             blocked: false,
@@ -942,7 +942,7 @@ pub(super) fn handle_session_notification_with_origin(
                 .collect();
             let is_tool_hook = event_name == "pre_tool_use" || event_name == "post_tool_use";
             let is_stop_hook =
-                xvora_hooks_plugins_types::HookEvent::from_wire(&event_name).is_turn_end();
+                hooks_plugins_types::HookEvent::from_wire(&event_name).is_turn_end();
             if is_tool_hook {
                 let phase = if event_name == "pre_tool_use" {
                     HookPhase::Pre
@@ -1006,7 +1006,7 @@ pub(super) fn handle_session_notification_with_origin(
                 use crate::views::extensions_modal::TabDataState;
                 modal.seed_hook_groups_once(&hooks);
                 modal.hooks_data =
-                    TabDataState::Loaded(xvora_hooks_plugins_types::HooksListResponse {
+                    TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
                         hooks,
                         project_trusted,
                         load_errors,
@@ -1021,7 +1021,7 @@ pub(super) fn handle_session_notification_with_origin(
                 use crate::views::extensions_modal::TabDataState;
                 modal.seed_plugin_groups_once(&plugins);
                 modal.plugins_data =
-                    TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
+                    TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
                         plugins,
                     });
                 if !matches!(modal.skills_data, TabDataState::Loading) {
@@ -1035,13 +1035,13 @@ pub(super) fn handle_session_notification_with_origin(
         }
         XaiSessionUpdate::SessionSummaryGenerated { session_summary } => {
             let title_is_manual = session_notif.meta.as_ref().and_then(|v| {
-                v.get(xvora_shell::extensions::notification::TITLE_IS_MANUAL_META_KEY)
+                v.get(shell::extensions::notification::TITLE_IS_MANUAL_META_KEY)
                     .and_then(|v| v.as_bool())
             });
             match title_is_manual {
                 Some(true) => {
                     if let Some(clean) =
-                        xvora_shell::session::persistence::sanitize_and_cap_title(&session_summary)
+                        shell::session::persistence::sanitize_and_cap_title(&session_summary)
                     {
                         agent.display_name = Some(clean.clone());
                         agent.generated_session_title = Some(clean);
@@ -1057,7 +1057,7 @@ pub(super) fn handle_session_notification_with_origin(
                     };
                     let decoded = decode_html_entities(&session_summary);
                     if let Some(clean) =
-                        xvora_shell::session::persistence::sanitize_and_cap_title(&decoded)
+                        shell::session::persistence::sanitize_and_cap_title(&decoded)
                     {
                         agent.generated_session_title = Some(clean);
                     } else if other == Some(false)
@@ -1163,10 +1163,10 @@ pub(super) fn handle_session_notification_with_origin(
                 );
                 return false;
             }
-            use xvora_shell::sampling::types::ReasoningEffort;
+            use shell::sampling::types::ReasoningEffort;
             let new_model_id = acp::ModelId::new(model_id.clone());
             if !agent.session.models.available.contains_key(&new_model_id) {
-                if xvora_shell::agent::chat_modes::process_chat_mode_enabled() {
+                if shell::agent::chat_modes::process_chat_mode_enabled() {
                     agent.session.models.available.insert(
                         new_model_id.clone(),
                         acp::ModelInfo::new(new_model_id.clone(), model_id.clone()),
@@ -1426,7 +1426,7 @@ pub(super) fn handle_child_session_notification(
             {
                 info.tokens_used = Some(tokens_after);
                 if let Some(cw) = info.context_window_tokens.filter(|&cw| cw > 0) {
-                    info.context_usage_pct = Some(xvora_token_estimation::usage_percentage_u8(
+                    info.context_usage_pct = Some(token_estimation::usage_percentage_u8(
                         tokens_after,
                         cw,
                     ));
@@ -1597,7 +1597,7 @@ pub(super) fn scrollback_has_recent_compaction_failed(
 /// Only the re-encode *fallback* (the oversized original was kept) shows, as a persistent scrollback warning that is rebuilt on session replay.
 pub(super) fn apply_image_compressed(
     agent: &mut AgentView,
-    images: &[xvora_shell::extensions::notification::ImageCompressedEntry],
+    images: &[shell::extensions::notification::ImageCompressedEntry],
     message: &str,
 ) -> bool {
     if images.is_empty() {
@@ -1611,14 +1611,14 @@ pub(super) fn apply_image_compressed(
     false
 }
 pub(super) fn apply_retry_state(
-    retry: &xvora_shell::extensions::notification::RetryState,
+    retry: &shell::extensions::notification::RetryState,
     session: &mut AgentSession,
     scrollback: &mut crate::scrollback::state::ScrollbackState,
     is_api_key_auth: bool,
 ) {
     let mut is_credit_limit = false;
     let mut is_reauth = false;
-    use xvora_shell::extensions::notification::RetryState;
+    use shell::extensions::notification::RetryState;
     match retry {
         RetryState::Retrying {
             attempt,
@@ -1641,7 +1641,7 @@ pub(super) fn apply_retry_state(
             session.set_retry_activity(None);
             session.rate_limited = *rate_limited;
             if *rate_limited {
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::RateLimitHit {
+                telemetry::session_ctx::log_event(telemetry::events::RateLimitHit {
                     model_id: session
                         .models
                         .current
@@ -1653,7 +1653,7 @@ pub(super) fn apply_retry_state(
             }
             is_credit_limit = super::super::dispatch::is_credit_limit_error(None, reason);
             let is_free_usage = *rate_limited
-                && xvora_shell::sampling::error::is_free_usage_exhausted_error(reason);
+                && shell::sampling::error::is_free_usage_exhausted_error(reason);
             if is_credit_limit {
                 session.credit_limit_blocked = true;
             } else if is_free_usage {
@@ -1716,7 +1716,7 @@ pub(super) fn apply_retry_state(
         }
     }
     if is_credit_limit {
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::CreditLimitHit {
+        telemetry::session_ctx::log_event(telemetry::events::CreditLimitHit {
             model_id: session
                 .models
                 .current
@@ -1740,7 +1740,7 @@ pub(super) fn apply_retry_state(
 ///
 /// Returns `true` when a `CurrentModeUpdate` was processed so the caller can refresh open settings modals after the per-agent borrow releases.
 pub(super) fn detect_plan_mode_change(update: &acp::SessionUpdate, agent: &mut AgentView) -> bool {
-    use xvora_tools::types::SessionMode;
+    use tools::types::SessionMode;
     let acp::SessionUpdate::CurrentModeUpdate(cmu) = update else {
         return false;
     };

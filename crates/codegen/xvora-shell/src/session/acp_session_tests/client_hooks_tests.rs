@@ -20,11 +20,11 @@ fn install_client_hook(
 
 async fn test_actor() -> (
     SessionActor,
-    tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     tokio::sync::mpsc::UnboundedReceiver<PersistenceMsg>,
 ) {
     let (gateway_tx, gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let (persistence_tx, persistence_rx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
     (actor, gateway_rx, persistence_rx)
@@ -49,13 +49,13 @@ fn post_tool_use_envelope(actor: &SessionActor) -> xvora_hooks::event::HookEvent
 }
 
 fn spawn_run_responder(
-    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     reply: impl Fn(&serde_json::Value) -> serde_json::Value + 'static,
 ) {
     tokio::task::spawn_local(async move {
         while let Some(msg) = gateway_rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                acp_lib::AcpClientMessage::ExtMethod(args) => {
                     let params: serde_json::Value =
                         serde_json::from_str(args.request.params.get()).unwrap();
                     let body: Arc<serde_json::value::RawValue> =
@@ -64,7 +64,7 @@ fn spawn_run_responder(
                             .into();
                     let _ = args.response_tx.send(Ok(acp::ExtResponse::new(body)));
                 }
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
                 _ => {}
@@ -74,7 +74,7 @@ fn spawn_run_responder(
 }
 
 fn spawn_deny_responder(
-    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     reason: &'static str,
 ) {
     spawn_run_responder(
@@ -111,7 +111,7 @@ async fn client_hooks_fire_without_file_registry() {
             let msg = gateway_rx
                 .try_recv()
                 .expect("client hook must fire with no file registry");
-            let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+            let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                 panic!("expected an x.ai/hooks/event ext notification");
             };
             assert_eq!(args.request.method.as_ref(), "x.ai/hooks/event");
@@ -130,8 +130,8 @@ async fn pre_tool_use_resolves_meta_dispatch_tool_name_end_to_end() {
         .run_until(async {
             let (actor, gateway_rx, _persistence_rx) = test_actor().await;
             *actor.agent.borrow_mut() =
-                test_agent_with_tools(vec![xvora_tools::registry::types::ToolConfig::for_tool::<
-                    xvora_tools::implementations::use_tool::UseTool,
+                test_agent_with_tools(vec![tools::registry::types::ToolConfig::for_tool::<
+                    tools::implementations::use_tool::UseTool,
                 >()])
                 .await;
 
@@ -201,7 +201,7 @@ async fn subagent_inherits_parent_pre_tool_use_client_hook() {
             tokio::task::spawn_local(async move {
                 while let Some(msg) = child_gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             let params: serde_json::Value =
                                 serde_json::from_str(args.request.params.get()).unwrap();
                             *seen.lock().unwrap() =
@@ -214,7 +214,7 @@ async fn subagent_inherits_parent_pre_tool_use_client_hook() {
                                 .into();
                             let _ = args.response_tx.send(Ok(acp::ExtResponse::new(deny)));
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}
@@ -281,7 +281,7 @@ async fn pre_tool_use_slow_callback_does_not_starve_a_deny() {
                 let mut held = Vec::new();
                 while let Some(msg) = gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             let params: serde_json::Value =
                                 serde_json::from_str(args.request.params.get()).unwrap();
                             if params["hookCallbackId"] == "deny_cb" {
@@ -296,7 +296,7 @@ async fn pre_tool_use_slow_callback_does_not_starve_a_deny() {
                                 held.push(args.response_tx);
                             }
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}
@@ -376,7 +376,7 @@ async fn post_tool_use_and_failure_never_double_fire() {
                 .expect("execute_tool_calls must not error");
             let mut failure_events = Vec::new();
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref() == "x.ai/hooks/event"
                 {
                     let params: serde_json::Value =
@@ -397,7 +397,7 @@ async fn post_tool_use_and_failure_never_double_fire() {
             tokio::task::spawn_local(async move {
                 while let Some(msg) = gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             if args.request.method.as_ref() == "x.ai/hooks/run" {
                                 let params: serde_json::Value =
                                     serde_json::from_str(args.request.params.get()).unwrap();
@@ -411,7 +411,7 @@ async fn post_tool_use_and_failure_never_double_fire() {
                                     .into();
                             let _ = args.response_tx.send(Ok(acp::ExtResponse::new(empty)));
                         }
-                        xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                        acp_lib::AcpClientMessage::ExtNotification(args) => {
                             if args.request.method.as_ref() == "x.ai/hooks/event" {
                                 let params: serde_json::Value =
                                     serde_json::from_str(args.request.params.get()).unwrap();
@@ -420,7 +420,7 @@ async fn post_tool_use_and_failure_never_double_fire() {
                                 }
                             }
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}
@@ -456,40 +456,40 @@ async fn post_tool_use_and_failure_never_double_fire() {
 #[derive(Debug)]
 struct McpErrorResultTool;
 
-impl xvora_tools::types::tool_metadata::ToolMetadata for McpErrorResultTool {
-    fn kind(&self) -> xvora_tools::types::tool::ToolKind {
-        xvora_tools::types::tool::ToolKind::Other
+impl tools::types::tool_metadata::ToolMetadata for McpErrorResultTool {
+    fn kind(&self) -> tools::types::tool::ToolKind {
+        tools::types::tool::ToolKind::Other
     }
-    fn tool_namespace(&self) -> xvora_tools::types::tool::ToolNamespace {
-        xvora_tools::types::tool::ToolNamespace::MCP
+    fn tool_namespace(&self) -> tools::types::tool::ToolNamespace {
+        tools::types::tool::ToolNamespace::MCP
     }
     fn description_template(&self) -> &str {
         "stub MCP tool that returns an error result"
     }
 }
 
-impl xvora_tool_runtime::Tool for McpErrorResultTool {
+impl tool_runtime::Tool for McpErrorResultTool {
     type Args = serde_json::Value;
-    type Output = xvora_tools::types::output::ToolOutput;
+    type Output = tools::types::output::ToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("mock_error_tool").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("mock_error_tool").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new("mock_error_tool", "stub MCP error tool")
+        _ctx: &tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new("mock_error_tool", "stub MCP error tool")
     }
 
     async fn run(
         &self,
-        _ctx: xvora_tool_runtime::ToolCallContext,
+        _ctx: tool_runtime::ToolCallContext,
         _args: serde_json::Value,
-    ) -> Result<Self::Output, xvora_tool_runtime::ToolError> {
-        Ok(xvora_tools::types::output::ToolOutput::MCP(
-            xvora_tools::types::output::MCPOutput::errored(
+    ) -> Result<Self::Output, tool_runtime::ToolError> {
+        Ok(tools::types::output::ToolOutput::MCP(
+            tools::types::output::MCPOutput::errored(
                 "mock_error_tool".into(),
                 "mock".into(),
                 "upstream exploded".into(),
@@ -536,7 +536,7 @@ async fn mcp_error_result_fires_only_failure_and_delivers_original_output() {
             tokio::task::spawn_local(async move {
                 while let Some(msg) = gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             if args.request.method.as_ref() == "x.ai/hooks/run" {
                                 let params: serde_json::Value =
                                     serde_json::from_str(args.request.params.get()).unwrap();
@@ -550,7 +550,7 @@ async fn mcp_error_result_fires_only_failure_and_delivers_original_output() {
                                     .into();
                             let _ = args.response_tx.send(Ok(acp::ExtResponse::new(empty)));
                         }
-                        xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                        acp_lib::AcpClientMessage::ExtNotification(args) => {
                             if args.request.method.as_ref() == "x.ai/hooks/event" {
                                 let params: serde_json::Value =
                                     serde_json::from_str(args.request.params.get()).unwrap();
@@ -559,7 +559,7 @@ async fn mcp_error_result_fires_only_failure_and_delivers_original_output() {
                                 }
                             }
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}
@@ -827,7 +827,7 @@ async fn post_tool_use_client_gate_records_failure_and_orders_contributions() {
                 let mut buffered = Vec::new();
                 while let Some(msg) = gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             buffered.push(args);
                             if buffered.len() == 3 {
                                 while let Some(args) = buffered.pop() {
@@ -852,7 +852,7 @@ async fn post_tool_use_client_gate_records_failure_and_orders_contributions() {
                                 }
                             }
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}
@@ -901,7 +901,7 @@ async fn post_tool_use_client_gate_records_failure_and_orders_contributions() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn post_tool_use_dispatch_merges_file_then_client_contributions() {
-    use xvora_tools::types::output::{MCPOutput, ToolOutput, ToolRunResult};
+    use tools::types::output::{MCPOutput, ToolOutput, ToolRunResult};
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1090,7 +1090,7 @@ async fn file_force_stop_skips_client_gate_but_notifies() {
             tokio::task::spawn_local(async move {
                 while let Some(msg) = gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             if args.request.method.as_ref() == "x.ai/hooks/run" {
                                 runs.set(runs.get() + 1);
                             }
@@ -1100,12 +1100,12 @@ async fn file_force_stop_skips_client_gate_but_notifies() {
                                     .into();
                             let _ = args.response_tx.send(Ok(acp::ExtResponse::new(empty)));
                         }
-                        xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                        acp_lib::AcpClientMessage::ExtNotification(args) => {
                             if args.request.method.as_ref() == "x.ai/hooks/event" {
                                 observes.set(observes.get() + 1);
                             }
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}
@@ -1151,7 +1151,7 @@ async fn client_force_stop_attribution_is_registration_ordered() {
             tokio::task::spawn_local(async move {
                 while let Some(msg) = gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             let params: serde_json::Value =
                                 serde_json::from_str(args.request.params.get()).unwrap();
                             let is_first = params["hookCallbackId"] == "cb_first";
@@ -1174,7 +1174,7 @@ async fn client_force_stop_attribution_is_registration_ordered() {
                                 let _ = args.response_tx.send(Ok(acp::ExtResponse::new(body)));
                             });
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}
@@ -1226,7 +1226,7 @@ async fn subagent_session_gates_on_subagent_stop() {
 
             tokio::task::spawn_local(async move {
                 while let Some(msg) = gateway_rx.recv().await {
-                    if let xvora_acp_lib::AcpClientMessage::SessionNotification(args) = msg {
+                    if let acp_lib::AcpClientMessage::SessionNotification(args) = msg {
                         let _ = args.response_tx.send(Ok(()));
                     }
                 }
@@ -1321,7 +1321,7 @@ async fn an_unanswered_client_gate_leaves_the_report_unspent() {
 
             tokio::task::spawn_local(async move {
                 while let Some(msg) = gateway_rx.recv().await {
-                    if let xvora_acp_lib::AcpClientMessage::ExtMethod(args) = msg {
+                    if let acp_lib::AcpClientMessage::ExtMethod(args) = msg {
                         drop(args.response_tx);
                     }
                 }

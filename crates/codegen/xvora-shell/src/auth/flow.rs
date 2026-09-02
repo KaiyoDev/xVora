@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tokio::io::AsyncBufReadExt as _;
 use tokio::sync::{mpsc, oneshot};
-use xvora_telemetry::events::{LoginFailed, LoginFailureKind};
+use telemetry::events::{LoginFailed, LoginFailureKind};
 pub(crate) type StderrCallback = Box<dyn Fn(&str)>;
 /// Reject a cached credential that lacks `oidc_issuer`, has a mismatched issuer, or whose team principal violates the `force_login_team_uuid` pin.
 /// Interactive login then starts fresh instead of reusing a stale or wrong-team session.
@@ -195,8 +195,8 @@ pub(crate) async fn run_external_auth_provider(
     } else {
         cmd.stderr(std::process::Stdio::piped());
     }
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     #[allow(clippy::disallowed_methods)]
     let mut child = cmd
         .spawn()
@@ -410,7 +410,7 @@ async fn run_auth_flow_inner(
     if let Err(err) = &result
         && let Some(event) = login_failure_event(err)
     {
-        xvora_telemetry::session_ctx::log_event(event);
+        telemetry::session_ctx::log_event(event);
     }
     result
 }
@@ -465,7 +465,7 @@ pub(super) async fn run_auth_flow_steps(
     if !force_interactive && let Some(auth) = auth_manager.current() {
         if is_cached_credential_compatible(&auth, grok_com_config) {
             tracing::info!(auth_mode = ?auth.auth_mode, "auth: using cached credentials");
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth: using cached credentials",
                 None,
                 Some(serde_json::json!({ "auth_mode": format!("{:?}", auth.auth_mode) })),
@@ -492,7 +492,7 @@ pub(super) async fn run_auth_flow_steps(
             .into_guard();
         let disk_auth = auth_manager.read_disk_auth();
         let disk_expired = disk_auth.as_ref().is_some_and(crate::auth::is_expired);
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth run_auth_flow expired path",
             None,
             Some(serde_json::json!({
@@ -504,7 +504,7 @@ pub(super) async fn run_auth_flow_steps(
         if disk_auth.as_ref().is_some_and(|d| {
             !crate::auth::is_expired(d) && is_cached_credential_compatible(d, grok_com_config)
         }) {
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth run_auth_flow using valid disk token",
                 None,
                 None,
@@ -526,7 +526,7 @@ pub(super) async fn run_auth_flow_steps(
                         )
                     ) && d.refresh_token.is_some()
                 }) {
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "auth run_auth_flow refresh failed, deferring to consumer refresh",
                         None,
                         Some(serde_json::json!({
@@ -537,7 +537,7 @@ pub(super) async fn run_auth_flow_steps(
                     auth_manager.hot_swap(d);
                     return Ok((ret, false));
                 }
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "auth run_auth_flow refresh failed, falling through to interactive",
                     None,
                     Some(serde_json::json!({
@@ -569,7 +569,7 @@ pub(super) async fn run_auth_flow_steps(
             Ok(new_auth) => match auth_manager.save_without_enrichment(new_auth).await {
                 Ok(auth) => {
                     let _ = auth_manager.remove_scope(LEGACY_AUTH_SCOPE);
-                    xvora_telemetry::unified_log::info(
+                    telemetry::unified_log::info(
                         "auth: devbox migration in auth flow succeeded",
                         None,
                         Some(serde_json::json!({
@@ -839,7 +839,7 @@ pub async fn run_cli_login(
     ));
     crate::agent::init::update_telemetry_config(config, &auth_manager);
     let result = run_cli_login_steps(config, &auth_manager, oauth, device_auth).await;
-    xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
+    telemetry::session_ctx::drain_pending(telemetry::session_ctx::CLI_DRAIN).await;
     result
 }
 async fn run_cli_login_steps(
@@ -931,7 +931,7 @@ pub fn perform_logout(
     let auth = auth_manager.current_or_expired();
     let email = auth.as_ref().and_then(|a| a.email.clone());
     let was_logged_in = auth.is_some();
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "auth: logout",
         None,
         Some(serde_json::json!({
@@ -941,8 +941,8 @@ pub fn perform_logout(
         })),
     );
     if was_logged_in {
-        xvora_telemetry::external::set_identity(xvora_telemetry::external::IdentityAttrs::default());
-        xvora_telemetry::external::flush();
+        telemetry::external::set_identity(telemetry::external::IdentityAttrs::default());
+        telemetry::external::flush();
         if let Some(scope) = scope {
             auth_manager.remove_scope(scope)?;
         } else {

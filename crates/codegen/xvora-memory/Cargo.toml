@@ -32,12 +32,12 @@ sqlite-vec = "=0.1.7-alpha.2"
 tar = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }
 tracing = { workspace = true }
-xvora-auth = { workspace = true }
-xvora-config-types = { workspace = true }
-xvora-http = { workspace = true }
-xvora-tools = { workspace = true }
-xvora-version = { workspace = true }
-xvora-sqlite-journal = { workspace = true, package = "xvora-sqlite-journal" }
+auth = { workspace = true }
+config-types = { workspace = true }
+http = { workspace = true }
+tools = { workspace = true }
+version = { workspace = true }
+sqlite-journal = { workspace = true }
 token-estimation = { workspace = true, package = "xvora-token-estimation" }
 
 [target.'cfg(unix)'.dependencies]

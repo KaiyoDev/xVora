@@ -1,7 +1,7 @@
 use std::fmt::Write as _;
 use std::time::Duration;
 
-use xvora_telemetry::startup::{AgentKind, PhaseSnapshot, StartupPhase, format_duration};
+use telemetry::startup::{AgentKind, PhaseSnapshot, StartupPhase, format_duration};
 
 use crate::app::connect_timeout::CONNECT_UI_TIMEOUT_TRY_COMMAND;
 

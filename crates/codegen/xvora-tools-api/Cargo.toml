@@ -13,10 +13,10 @@ tonic = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
-xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
+tool-protocol = { workspace = true }
 
 [build-dependencies]
-xvora-proto-build = { workspace = true }
+proto-build = { workspace = true }
 
 [package.metadata.cargo-shear]
 ignored = ["serde", "tonic"]

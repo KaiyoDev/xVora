@@ -10,13 +10,13 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
-use xvora_telemetry::startup::{self, StartupPhase};
+use telemetry::startup::{self, StartupPhase};
 
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentChannel, AcpClientChannel, AcpClientTx, AcpGatewayReceiver, AcpGatewaySender,
     acp_channels,
 };
-use xvora_shell::{
+use shell::{
     agent::{MvpAgent, activity::SESSION_FLUSH_GRACE, config::Config as AgentConfig},
     auth::AuthManager,
     util::grok_home::grok_home,
@@ -132,7 +132,7 @@ enum JoinOutcome {
 fn join_agent_thread(handle: thread::JoinHandle<Result<()>>, timeout: Duration) -> JoinOutcome {
     use std::sync::mpsc::RecvTimeoutError;
 
-    let span = xvora_telemetry::session_end::join_span();
+    let span = telemetry::session_end::join_span();
     let start = Instant::now();
 
     let (tx, rx) = std::sync::mpsc::channel();
@@ -160,7 +160,7 @@ fn join_agent_thread(handle: thread::JoinHandle<Result<()>>, timeout: Duration) 
 
     let outcome_label: &'static str = (&outcome).into();
     let elapsed_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
-    xvora_telemetry::session_end::record_join(&span, outcome_label, elapsed_ms, notice_shown);
+    telemetry::session_end::record_join(&span, outcome_label, elapsed_ms, notice_shown);
     crate::unified_log::write_direct_info(
         "session_end.worker_join",
         Some(serde_json::json!({
@@ -196,7 +196,7 @@ fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
 pub async fn spawn_grok_shell(
     agent_config: AgentConfig,
     cancel: &CancellationToken,
-    memory_config: Option<xvora_shell::config::MemoryConfig>,
+    memory_config: Option<shell::config::MemoryConfig>,
 ) -> Result<SpawnedAgent> {
     let auth_manager = std::sync::Arc::new(AuthManager::new(
         &grok_home(),
@@ -219,16 +219,16 @@ pub async fn spawn_grok_shell(
     // prewarm instead. Disarmed where ownership transfers to SpawnedAgent.
     let cancel_prewarm_unless_spawned = agent_cancel.clone().drop_guard();
 
-    xvora_shell::agent::app::apply_otel_config(&auth_manager, &agent_config.grok_com_config);
+    shell::agent::app::apply_otel_config(&auth_manager, &agent_config.grok_com_config);
 
-    xvora_shell::agent::models::startup_prefetch::begin_before_policy_gate(&agent_config);
+    shell::agent::models::startup_prefetch::begin_before_policy_gate(&agent_config);
 
-    xvora_shell::managed_config::ensure_managed_policy_present(&auth_manager).await;
+    shell::managed_config::ensure_managed_policy_present(&auth_manager).await;
 
     // Run the full bootstrap sequence: config resolution, process-level
     // singletons, and model catalog construction.
     let (agent_config, models_manager) =
-        xvora_shell::agent::init::bootstrap(&agent_config, &auth_manager, None)
+        shell::agent::init::bootstrap(&agent_config, &auth_manager, None)
             .map_err(anyhow::Error::new)?;
     models_manager.spawn_background_refresh();
 
@@ -281,7 +281,7 @@ async fn spawn_agent_thread_direct(
     // Off the UI worker: failure must fail spawn, not start ACP.
     let rt = tokio::task::spawn_blocking(|| {
         let mut builder = tokio::runtime::Builder::new_current_thread();
-        xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all())
+        tty_utils::runtime::build_with_blocking_pool(builder.enable_all())
     })
     .await
     .map_err(|e| anyhow::anyhow!("agent runtime worker join: {e}"))?
@@ -305,8 +305,8 @@ async fn spawn_agent_thread_direct(
                 let _skills_watcher = {
                     let cwd = std::env::current_dir().unwrap_or_default();
                     let workspace_user_dir =
-                        xvora_agent::prompt::workspace_user::optional_workspace_user_dir();
-                    xvora_shell::config::watcher::SkillsFileWatcher::start(
+                        agent::prompt::workspace_user::optional_workspace_user_dir();
+                    shell::config::watcher::SkillsFileWatcher::start(
                         Some(cwd.as_path()),
                         workspace_user_dir.as_deref(),
                         &skills_paths,
@@ -317,7 +317,7 @@ async fn spawn_agent_thread_direct(
                             while let Some(change) = skills_rx.recv().await {
                                 let created_discovery_dir = watcher.refresh_new_discovery_dirs();
                                 match change {
-                                    xvora_shell::config::watcher::DiscoveryChange::Skills => {
+                                    shell::config::watcher::DiscoveryChange::Skills => {
                                         tracing::info!(
                                             "skill directory changed on disk; reloading skills for all sessions"
                                         );
@@ -326,7 +326,7 @@ async fn spawn_agent_thread_direct(
                                             agent.advertise_commands_all_sessions();
                                         }
                                     }
-                                    xvora_shell::config::watcher::DiscoveryChange::Workflows => {
+                                    shell::config::watcher::DiscoveryChange::Workflows => {
                                         tracing::info!(
                                             "workflow directory changed on disk; re-advertising commands for all sessions"
                                         );
@@ -347,7 +347,7 @@ async fn spawn_agent_thread_direct(
                 // SessionEnd. Mirrors leader auto-update / relaunch.
                 cancel.cancelled().await;
                 agent_rc.flush_all_sessions(SESSION_FLUSH_GRACE).await;
-                xvora_telemetry::session_ctx::drain_at_process_exit().await;
+                telemetry::session_ctx::drain_at_process_exit().await;
                 anyhow::Result::Ok(())
             });
             // LocalSet before runtime, as an implicit scope-end drop would do.
@@ -366,7 +366,7 @@ mod tests {
     #[test]
     fn worker_runtime_teardown_bounded_despite_inflight_blocking_task() {
         let mut builder = tokio::runtime::Builder::new_current_thread();
-        let rt = xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all()).unwrap();
+        let rt = tty_utils::runtime::build_with_blocking_pool(builder.enable_all()).unwrap();
         let (started_tx, started_rx) = std::sync::mpsc::channel();
         rt.handle().spawn_blocking(move || {
             let _ = started_tx.send(());

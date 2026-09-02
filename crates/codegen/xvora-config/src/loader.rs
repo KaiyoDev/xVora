@@ -448,7 +448,7 @@ pub fn hook_config_layers_at(
 /// Applies matching `[[version_overrides]]` patches against the running CLI version; strips the section either way.
 /// If the installed version can't be parsed (broken `GROK_TEST_VERSION` in dev), it silently strips without applying, keeping the CLI usable.
 pub fn apply_version_overrides_with_registered(value: &mut toml::Value) -> std::io::Result<()> {
-    match xvora_version::installed_semver() {
+    match version::installed_semver() {
         Ok(version) => apply_version_overrides(value, &version)
             .map_err(|e| std::io::Error::other(e.redacted())),
         Err(_) => {

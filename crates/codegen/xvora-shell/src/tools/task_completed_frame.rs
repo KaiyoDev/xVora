@@ -4,7 +4,7 @@
 
 use serde_json::Value;
 use serde_json::value::RawValue;
-use xvora_tools::types::TaskSnapshot;
+use tools::types::TaskSnapshot;
 
 use crate::extensions::notification::{SessionNotification, SessionUpdate};
 

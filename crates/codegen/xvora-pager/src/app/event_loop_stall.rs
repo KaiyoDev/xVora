@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use xvora_telemetry::events::EventLoopStall;
+use telemetry::events::EventLoopStall;
 
 pub(crate) const STALL_REPORT_WINDOW: Duration = Duration::from_secs(60);
 
@@ -13,7 +13,7 @@ pub(crate) struct StallActivity {
 
 impl StallActivity {
     pub(crate) fn read() -> Self {
-        use xvora_telemetry::activity::{self, gauge_value};
+        use telemetry::activity::{self, gauge_value};
         Self {
             compaction_active: gauge_value(activity::COMPACTIONS_ACTIVE_KEY) > 0,
             subagents_active: gauge_value(activity::SUBAGENTS_ACTIVE_KEY),

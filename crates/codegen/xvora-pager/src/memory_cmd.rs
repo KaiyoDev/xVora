@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Subcommand;
-use xvora_shell::session::memory::storage::MemoryStorage;
+use shell::session::memory::storage::MemoryStorage;
 
 #[derive(Debug, clap::Args, Clone)]
 pub struct MemoryArgs {

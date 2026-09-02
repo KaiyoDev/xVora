@@ -88,7 +88,7 @@ const WORKFLOW_PAUSE_MESSAGE_MAX_BYTES: usize = 4 * 1024;
 
 fn capped_pause_message(message: impl Into<String>) -> String {
     let message = message.into();
-    xvora_tools::util::truncate_str(&message, WORKFLOW_PAUSE_MESSAGE_MAX_BYTES).to_string()
+    tools::util::truncate_str(&message, WORKFLOW_PAUSE_MESSAGE_MAX_BYTES).to_string()
 }
 
 fn default_label_for(agents: &[WorkflowAgentRow], phase: Option<&str>) -> String {

@@ -189,7 +189,7 @@ impl AgentView {
         range_id: u16,
         width_override: Option<u16>,
         geom: &TableGeometry,
-        f: impl FnOnce(&dyn Fn(usize) -> Option<String>, Option<&xvora_markdown::TableCopyMeta>) -> R,
+        f: impl FnOnce(&dyn Fn(usize) -> Option<String>, Option<&markdown::TableCopyMeta>) -> R,
     ) -> Option<R> {
         if entry_idx == BTW_OVERLAY_ENTRY_IDX {
             return self.with_btw_output(range_id, width_override, |src, lines, content| {
@@ -451,7 +451,7 @@ impl AgentView {
         if crate::terminal::terminal_context().brand.is_xtermjs_embed()
             && crate::app::MOUSE_CAPTURE_ENABLED.load(std::sync::atomic::Ordering::Acquire)
         {
-            xvora_shell::util::with_locked_stderr(|stderr| {
+            shell::util::with_locked_stderr(|stderr| {
                 let _ = crossterm::execute!(
                     stderr,
                     crossterm::event::DisableMouseCapture,

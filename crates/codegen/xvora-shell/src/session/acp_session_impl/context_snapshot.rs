@@ -9,7 +9,7 @@ impl SessionActor {
     /// Record itemized context occupancy for this session.
     /// No-op when session metrics are disabled or there is no credential for the tokenizer endpoint.
     pub(super) async fn emit_session_context_snapshot(&self) {
-        if !self.telemetry_enabled || !xvora_telemetry::is_session_metrics_enabled() {
+        if !self.telemetry_enabled || !telemetry::is_session_metrics_enabled() {
             return;
         }
         let Some(api_key) = self.tokenize_api_key().await else {
@@ -42,13 +42,13 @@ impl SessionActor {
             skills_count = counts.skills_count,
             "session_context_snapshot: emitted"
         );
-        xvora_telemetry::session_ctx::log_session_event(session_context_snapshot(
+        telemetry::session_ctx::log_session_event(session_context_snapshot(
             self.session_info.id.0.to_string(),
             &info,
             &counts,
             &tokens,
         ));
-        xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
+        telemetry::session_ctx::drain_pending(telemetry::session_ctx::CLI_DRAIN).await;
     }
 
     async fn tokenize_api_key(&self) -> Option<String> {
@@ -285,7 +285,7 @@ async fn tokenize_one(
     let resp = client
         .post(url)
         .header(reqwest::header::AUTHORIZATION, auth)
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .json(&serde_json::json!({
             "text": text,
             "model": model,

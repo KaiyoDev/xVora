@@ -114,28 +114,28 @@ impl crate::types::tool_metadata::ToolMetadata for BashConciseTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for BashConciseTool {
+impl tool_runtime::Tool for BashConciseTool {
     type Args = BashToolInput;
     type Output = BashToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("run_terminal_cmd").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("run_terminal_cmd").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "run_terminal_cmd",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -143,10 +143,10 @@ impl xvora_tool_runtime::Tool for BashConciseTool {
     #[tracing::instrument(name = "tool.run_terminal_cmd_concise", skip_all)]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: BashToolInput,
-    ) -> Result<BashToolOutput, xvora_tool_runtime::ToolError> {
-        let result = xvora_tool_runtime::Tool::run(&BashTool, ctx, input).await?;
+    ) -> Result<BashToolOutput, tool_runtime::ToolError> {
+        let result = tool_runtime::Tool::run(&BashTool, ctx, input).await?;
 
         match result {
             // TODO: Add different concise message for auto backgrounded terminal task

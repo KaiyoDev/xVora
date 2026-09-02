@@ -4,7 +4,7 @@
 //! lookup must be cheaper than re-loading from `~/.grok/config.toml`.
 //! [`current_kind`] returns the in-memory value, lazily seeding from the shell's layered effective config on first call.
 //!
-//! Disk writes live in `xvora_shell::util::config::set_theme()` (and friends), invoked via `Effect::PersistSetting` from the dispatcher.
+//! Disk writes live in `shell::util::config::set_theme()` (and friends), invoked via `Effect::PersistSetting` from the dispatcher.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -93,12 +93,12 @@ pub fn set_terminal_native_lock(locked: bool) {
     TERMINAL_NATIVE_LOCK.store(locked, Ordering::Relaxed);
     // Cap quantization at ANSI-16 and switch syntax tokens to the dual-polarity accent map (default-fg grays and base ANSI hues)
     // Without the polarity-safe remap, night-theme pastels collapse to White and vanish on light terminal profiles in minimal mode
-    xvora_markdown::set_color_level_cap(if locked {
-        xvora_markdown::ColorLevel::Basic
+    markdown::set_color_level_cap(if locked {
+        markdown::ColorLevel::Basic
     } else {
-        xvora_markdown::ColorLevel::TrueColor
+        markdown::ColorLevel::TrueColor
     });
-    xvora_markdown::set_polarity_safe_syntax(locked);
+    markdown::set_polarity_safe_syntax(locked);
 }
 
 // -- Auto-mode ---------------------------------------------------------------
@@ -217,7 +217,7 @@ pub fn resolve_auto() -> ThemeKind {
 /// Read the theme from the effective config (managed_config.toml merged under config.toml; user wins).
 /// Checks `[ui].theme` first (the canonical location), then falls back to a top-level `theme` key for backwards compatibility.
 fn load_from_disk() -> Option<ThemeKind> {
-    let root = xvora_config::load_effective_config_disk_only().ok()?;
+    let root = config::load_effective_config_disk_only().ok()?;
     let table = root.as_table()?;
     // Canonical: [ui] section
     let value = table
@@ -232,7 +232,7 @@ fn load_from_disk() -> Option<ThemeKind> {
 /// Reads `[ui].auto_dark_theme` and `[ui].auto_light_theme` from the effective config, parsing them as theme names.
 /// Filters out `Auto` to prevent circular reference.
 fn load_auto_theme_config() -> AutoThemeConfig {
-    let Ok(root) = xvora_config::load_effective_config_disk_only() else {
+    let Ok(root) = config::load_effective_config_disk_only() else {
         return AutoThemeConfig::default();
     };
     let Some(table) = root.as_table() else {
@@ -366,14 +366,14 @@ mod tests {
     #[test]
     fn terminal_native_lock_enables_polarity_safe_syntax() {
         with_test_env(|| {
-            assert!(!xvora_markdown::polarity_safe_syntax());
+            assert!(!markdown::polarity_safe_syntax());
             set_terminal_native_lock(true);
             assert!(
-                xvora_markdown::polarity_safe_syntax(),
+                markdown::polarity_safe_syntax(),
                 "minimal must engage polarity-safe syntax remapping"
             );
             set_terminal_native_lock(false);
-            assert!(!xvora_markdown::polarity_safe_syntax());
+            assert!(!markdown::polarity_safe_syntax());
         });
     }
 

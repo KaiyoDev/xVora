@@ -2,8 +2,8 @@ use super::*;
 
 pub(super) fn turn_result_to_hook_outcome(
     result: &Result<TurnOutcome, acp::Error>,
-) -> xvora_tool_protocol::turn_hook::TurnHookOutcome {
-    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+) -> tool_protocol::turn_hook::TurnHookOutcome {
+    use tool_protocol::turn_hook::TurnHookOutcome;
     match result {
         Ok(TurnOutcome::Completed { .. }) | Ok(TurnOutcome::StationarityEnded { .. }) => {
             TurnHookOutcome::Completed
@@ -30,9 +30,9 @@ pub(super) fn cancellation_category_to_wire_string(
 /// `Cancelled` means the tool never ran (permission, doom-loop, hook, followup).
 pub(super) fn map_tool_outcome(
     outcome: crate::session::events::ToolOutcome,
-) -> xvora_tool_protocol::session_event::ToolCallOutcome {
+) -> tool_protocol::session_event::ToolCallOutcome {
     use crate::session::events::ToolOutcome;
-    use xvora_tool_protocol::session_event::ToolCallOutcome;
+    use tool_protocol::session_event::ToolCallOutcome;
     match outcome {
         ToolOutcome::Success => ToolCallOutcome::Success,
         ToolOutcome::Error | ToolOutcome::InvalidTool => ToolCallOutcome::Error,
@@ -384,7 +384,7 @@ impl SessionActor {
     /// The event fires for every origin, but synthetic wakes and subagent sessions run the gate observe-only.
     pub(super) fn should_enforce_prompt_block(
         &self,
-        policy: &xvora_agent_lifecycle::InputPolicy,
+        policy: &agent_lifecycle::InputPolicy,
     ) -> bool {
         policy.authority.is_human_intent() && !self.startup_hints.is_subagent
     }
@@ -428,25 +428,25 @@ impl SessionActor {
                 } => (
                     hook_name,
                     elapsed,
-                    xvora_telemetry::events::HookOutcome::Success,
+                    telemetry::events::HookOutcome::Success,
                 ),
                 xvora_hooks::result::HookRunResult::Blocked {
                     hook_name, elapsed, ..
                 } => (
                     hook_name,
                     elapsed,
-                    xvora_telemetry::events::HookOutcome::Blocked,
+                    telemetry::events::HookOutcome::Blocked,
                 ),
                 xvora_hooks::result::HookRunResult::Failed {
                     hook_name, elapsed, ..
                 } => (
                     hook_name,
                     elapsed,
-                    xvora_telemetry::events::HookOutcome::Error,
+                    telemetry::events::HookOutcome::Error,
                 ),
                 xvora_hooks::result::HookRunResult::Skipped { .. } => continue,
             };
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::HookExecuted {
+            telemetry::session_ctx::log_event(telemetry::events::HookExecuted {
                 hook_name: hook_name.clone(),
                 event: event_name.to_string(),
                 tool_name: tool.clone(),
@@ -524,7 +524,7 @@ mod notification_hook_filter_tests {
     #[test]
     fn task_completed_does_not_fire_via_filter() {
         let update = XaiSessionUpdate::TaskCompleted {
-            task_snapshot: xvora_tools::types::TaskSnapshot {
+            task_snapshot: tools::types::TaskSnapshot {
                 task_id: "task-1".into(),
                 command: "echo hi".into(),
                 display_command: None,

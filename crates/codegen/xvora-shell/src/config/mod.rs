@@ -302,7 +302,7 @@ impl SubagentsConfig {
             env,
             config,
             remote,
-            xvora_tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
+            tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
         )
     }
     /// Resolve the subagent turn-sampling limit, clamped to [`crate::agent::subagent::MAX_SUBAGENT_SAMPLING_LIMIT`].
@@ -344,8 +344,8 @@ impl SubagentsConfig {
         env: Option<&str>,
         config: Option<&str>,
         remote: Option<&str>,
-    ) -> xvora_tools::implementations::grok_build::task::admission::LimitBehavior {
-        use xvora_tools::implementations::grok_build::task::admission::LimitBehavior;
+    ) -> tools::implementations::grok_build::task::admission::LimitBehavior {
+        use tools::implementations::grok_build::task::admission::LimitBehavior;
         for (source, value) in [("env", env), ("config", config), ("remote", remote)] {
             let Some(value) = value else { continue };
             if value.eq_ignore_ascii_case("fail") {
@@ -373,7 +373,7 @@ impl SubagentsConfig {
     ///
     /// Project files are excluded from this trust-independent base; Task boundaries overlay them using the parent cwd's authoritative trust verdict.
     pub fn resolve(cli_flag: bool, config: &toml::Value) -> Self {
-        let user_grok_root = xvora_config::user_grok_home();
+        let user_grok_root = config::user_grok_home();
         Self::resolve_base_with_sources(
             cli_flag,
             config,
@@ -663,7 +663,7 @@ pub struct ToolsConfig {
     /// The generated video then lands in a team-owned bucket instead of being downloaded locally.
     /// Only effective when `disable_zdr_incompatible_tools` is `true`. Populated from `[tools.zdr_video_output_s3]` in config.
     pub zdr_video_output_s3:
-        Option<xvora_tools::implementations::grok_build::video_gen::ZdrVideoOutputS3Config>,
+        Option<tools::implementations::grok_build::video_gen::ZdrVideoOutputS3Config>,
     pub media_gen: MediaGenToolsConfig,
 }
 impl ToolsConfig {
@@ -692,7 +692,7 @@ impl ToolsConfig {
                 .and_then(|s3_val| match s3_val
                     .clone()
                     .try_into::<
-                        xvora_tools::implementations::grok_build::video_gen::ZdrVideoOutputS3Config,
+                        tools::implementations::grok_build::video_gen::ZdrVideoOutputS3Config,
                     >()
                 {
                     Ok(cfg) if cfg.is_valid() => Some(cfg),
@@ -751,7 +751,7 @@ impl ToolsConfig {
             env,
             config,
             remote,
-            xvora_tools::media_gen_limits::DEFAULT_MAX_PARALLEL_IMAGE_GEN,
+            tools::media_gen_limits::DEFAULT_MAX_PARALLEL_IMAGE_GEN,
         )
     }
     pub(crate) fn resolve_max_parallel_video_gen_calls(
@@ -764,7 +764,7 @@ impl ToolsConfig {
             env,
             config,
             remote,
-            xvora_tools::media_gen_limits::DEFAULT_MAX_PARALLEL_VIDEO_GEN,
+            tools::media_gen_limits::DEFAULT_MAX_PARALLEL_VIDEO_GEN,
         )
     }
 }
@@ -807,7 +807,7 @@ pub(crate) fn resolve_positive_count(
     default: usize,
 ) -> usize {
     if let Some(value) = env {
-        match xvora_tools::util::env::parse_positive(value.trim()) {
+        match tools::util::env::parse_positive(value.trim()) {
             Some(parsed) => return usize::try_from(parsed).unwrap_or(usize::MAX),
             None => {
                 tracing::warn!(
@@ -883,8 +883,8 @@ impl StorageMode {
         }
     }
 }
-pub use xvora_config::ConfigLayers;
-pub use xvora_config::{
+pub use config::ConfigLayers;
+pub use config::{
     GROK_CONFIG_ENV, GROK_CONFIG_PATH_ENV, MDM_REQUIREMENTS_SOURCE, OverlaySource,
     RequirementsLayer, RequirementsSource, ResolvedOverlay, ServingIdentity, SyncMarker,
     claude_managed_settings_probe_path, confirmed_team_switch, confirmed_team_switch_at,
@@ -1010,12 +1010,12 @@ impl std::fmt::Display for EnforcedField {
 pub(crate) fn apply_managed_settings_features(
     config: &mut crate::agent::config::Config,
 ) -> Vec<EnforcedField> {
-    let ms = xvora_workspace::permission::resolution::managed_settings();
+    let ms = workspace::permission::resolution::managed_settings();
     apply_managed_settings_features_inner(config, &ms.features)
 }
 fn apply_managed_settings_features_inner(
     config: &mut crate::agent::config::Config,
-    features: &xvora_workspace::permission::resolution::ManagedSettingsFeatures,
+    features: &workspace::permission::resolution::ManagedSettingsFeatures,
 ) -> Vec<EnforcedField> {
     let Some(ref path) = features.source_path else {
         return Vec::new();
@@ -1623,7 +1623,7 @@ pub fn apply_sandbox(
         sandbox.install();
     }
 }
-pub use xvora_workspace::project_config::find_project_configs;
+pub use workspace::project_config::find_project_configs;
 /// Resolve the effective `[plugins]` config for a working directory the same way a session does at reload time:
 /// global/user config ([`load_effective_config`]),
 /// plus every ancestor project `.grok/config.toml` ([`find_project_configs`], extending `paths` and `disabled`),
@@ -1658,7 +1658,7 @@ pub(crate) fn resolve_effective_plugins_config(
     plugins_cfg.merge_claude_enabled_plugins(Some(cwd));
     plugins_cfg
 }
-pub use xvora_config::{deep_merge_toml, expand_env_vars_in_string, expand_env_vars_in_toml};
+pub use config::{deep_merge_toml, expand_env_vars_in_string, expand_env_vars_in_toml};
 /// Add a plugin path to `[plugins].paths` in `~/.grok/config.toml`.
 ///
 /// Creates the `[plugins]` section and `paths` array if they don't exist.
@@ -1920,7 +1920,7 @@ pub(crate) fn validate_hooks_path(path: &str) -> Result<(), Box<dyn std::error::
 /// Auto-enables all plugins in the repo so they are active after the next reload.
 /// Returns `(plugin_names, warnings)` for status messaging.
 pub(crate) fn post_install_plugin(repo_key: &str) -> (Vec<String>, Vec<String>) {
-    let registry = xvora_agent::plugins::InstallRegistry::load();
+    let registry = agent::plugins::InstallRegistry::load();
     let Some(repo) = registry.get_repo(repo_key) else {
         return (
             vec![],

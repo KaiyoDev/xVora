@@ -95,7 +95,7 @@ struct BundleFile<'a> {
 }
 
 pub fn bundled_root() -> PathBuf {
-    xvora_config::grok_home().join(BUNDLED_DIR_NAME)
+    config::grok_home().join(BUNDLED_DIR_NAME)
 }
 
 pub fn read_cached_manifest(root: &Path) -> Result<Option<BundleManifest>> {

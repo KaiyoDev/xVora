@@ -113,7 +113,7 @@ impl SessionSearchIndex {
     pub fn open_or_create(db_path: &Path) -> Result<Self, rusqlite::Error> {
         if let Some(parent) = db_path.parent() {
             // The parent is usually the sessions root; never (re)create it with loose permissions
-            let _ = xvora_config::create_dir_all_owner_only(parent);
+            let _ = config::create_dir_all_owner_only(parent);
         }
 
         let journal_mode = JournalMode::for_db_path(db_path);

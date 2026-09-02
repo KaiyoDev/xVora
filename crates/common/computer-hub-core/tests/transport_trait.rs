@@ -4,9 +4,9 @@
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
-use xvora_computer_hub_core::{Principal, Transport, TransportKind};
-use xvora_tool_protocol::{SessionId, ToolId, UserId};
-use xvora_tool_runtime::{
+use computer_hub_core::{Principal, Transport, TransportKind};
+use tool_protocol::{SessionId, ToolId, UserId};
+use tool_runtime::{
     ToolCallContext, ToolError, ToolStream, ToolStreamItem, TypedToolOutput, terminal_only,
 };
 

@@ -105,7 +105,7 @@ async fn run(args: &Args) -> Result<Observation> {
     let log = content
         .sandbox()
         .grok_home()
-        // `xvora_telemetry::unified_log::LOG_DIR` is unreachable without a telemetry dependency.
+        // `telemetry::unified_log::LOG_DIR` is unreachable without a telemetry dependency.
         .join("logs")
         .join("unified.jsonl");
     std::fs::copy(&log, &args.log_out).with_context(|| {

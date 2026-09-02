@@ -43,7 +43,7 @@ clap = { workspace = true }
 crossbeam = { workspace = true }
 dashmap = { workspace = true }
 dunce = { workspace = true }
-xvora-dirs = { workspace = true }
+dirs = { workspace = true }
 gix = { workspace = true, features = ["status", "parallel"] }
 gix-status = { version = "0.30.0" }
 globset = { workspace = true }
@@ -60,9 +60,9 @@ sha2 = { workspace = true, optional = true }
 tokio-util = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
-xvora-gix-status = { workspace = true }
+# gix-status = { workspace = true }
 xvora-sqlite-journal = { workspace = true, optional = true }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+tty-utils = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
@@ -70,7 +70,7 @@ uuid = { workspace = true, optional = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 serde_json = { workspace = true }
-xvora-test-utils = { workspace = true, package = "xvora-test-utils" }
+test-utils = { workspace = true }
 # Unconditional because cargo doesn't support feature-gated dev-deps cleanly.
 # Only used by tests behind #[cfg(feature = "metadata")] in db/tests.rs.
 rusqlite = { version = "0.37", features = ["bundled"] }

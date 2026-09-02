@@ -4,12 +4,12 @@ use std::sync::{Arc, OnceLock};
 use agent_client_protocol as acp;
 use serial_test::serial;
 use tokio::sync::{mpsc, oneshot};
-use xvora_acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
+use acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
 use xvora_paths::AbsPathBuf;
-use xvora_workspace::permission::types::{
+use workspace::permission::types::{
     PatternMode, PermissionConfig, PermissionRule, RuleAction, ToolFilter,
 };
-use xvora_workspace::permission::{
+use workspace::permission::{
     AccessKind, ClientType, Decision, PermissionCommand, PermissionHandle, PermissionRequest,
     PermissionState, spawn_permission_manager, spawn_permission_manager_with_hub,
 };
@@ -592,7 +592,7 @@ async fn allow_always_mcp_server_downgrades_when_access_has_no_separator() {
 #[tokio::test]
 #[serial]
 async fn dont_ask_policy_denies_without_prompting() {
-    use xvora_workspace::permission::types::{PermissionConfig, PromptPolicy};
+    use workspace::permission::types::{PermissionConfig, PromptPolicy};
 
     let mut policy = PermissionConfig::new(vec![]);
     policy.prompt_policy = PromptPolicy::Deny;

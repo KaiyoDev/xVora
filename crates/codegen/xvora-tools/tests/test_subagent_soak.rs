@@ -19,15 +19,15 @@ use serde::{Serialize, Serializer};
 use strum::{EnumCount, IntoEnumIterator};
 use tokio_util::sync::CancellationToken;
 
-use xvora_test_support::env::env_parse;
-use xvora_test_support::resources::{ResourceGrowth, ResourceSnapshot};
-use xvora_tools::implementations::grok_build::task::admission::SubagentLimits;
-use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
-use xvora_tools::implementations::grok_build::task::coordinator::{
+use test_support::env::env_parse;
+use test_support::resources::{ResourceGrowth, ResourceSnapshot};
+use tools::implementations::grok_build::task::admission::SubagentLimits;
+use tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
+use tools::implementations::grok_build::task::coordinator::{
     ChildCompletion, ChildControl, ChildRunOutput, ChildRunRequest, ChildRunner, CoordinatorConfig,
     LocalBoxFuture, MAX_COMPLETED_ENTRIES, StartedChild, SubagentCoordinator, SubagentProgress,
 };
-use xvora_tools::implementations::grok_build::task::types::{
+use tools::implementations::grok_build::task::types::{
     SubagentDescribeOutcome, SubagentOwner, SubagentRegistryCounts, SubagentRequest,
     SubagentResult, SubagentValidateTypeOutcome,
 };

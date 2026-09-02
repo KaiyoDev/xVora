@@ -5,7 +5,7 @@
 //! field rename/retype in `grok-tools.proto` cannot silently break those
 //! wire contracts (the producer and consumer live in separate services).
 
-use xvora_tools_api::ToolConfigEntry;
+use tools_api::ToolConfigEntry;
 
 fn full_entry() -> ToolConfigEntry {
     ToolConfigEntry {
@@ -21,8 +21,8 @@ fn full_entry() -> ToolConfigEntry {
     }
 }
 
-fn finalize_request_minimal() -> xvora_tools_api::FinalizeToolServerConfigRequest {
-    xvora_tools_api::FinalizeToolServerConfigRequest {
+fn finalize_request_minimal() -> tools_api::FinalizeToolServerConfigRequest {
+    tools_api::FinalizeToolServerConfigRequest {
         tools: vec![],
         truncation: None,
         system_reminders_enabled: false,
@@ -138,7 +138,7 @@ fn finalize_request_callback_fields_are_optional_and_snake_case() {
 
 #[test]
 fn finalize_request_callback_fields_default_when_absent() {
-    let back: xvora_tools_api::FinalizeToolServerConfigRequest =
+    let back: tools_api::FinalizeToolServerConfigRequest =
         serde_json::from_value(serde_json::json!({
             "tools": [],
             "system_reminders_enabled": false,

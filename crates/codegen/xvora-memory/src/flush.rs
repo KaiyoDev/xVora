@@ -7,7 +7,7 @@ use crate::{
 };
 use xvora_config_types::MemoryFlushConfig;
 
-const LOG: &str = "xvora_memory";
+const LOG: &str = "memory";
 
 /// Check whether a memory flush should run before the next compaction.
 ///
@@ -30,7 +30,7 @@ pub fn should_flush(
             "MEMORY_FLUSH_CHECK: already flushed this cycle (cycle={current_compaction_count})");
         return false;
     }
-    let should = xvora_token_estimation::exceeds_threshold_with_headroom(
+    let should = token_estimation::exceeds_threshold_with_headroom(
         total_tokens,
         context_window,
         compact_threshold_percent,

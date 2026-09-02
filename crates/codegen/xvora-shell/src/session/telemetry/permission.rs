@@ -1,10 +1,10 @@
-use xvora_telemetry::enums::PermissionMode;
-use xvora_telemetry::events::{
+use telemetry::enums::PermissionMode;
+use telemetry::events::{
     self, PermissionClassifierSource, PermissionClassifierVerdict, PermissionDecisionPayload,
     PermissionDecisionReason, PermissionOutcome, PermissionPromptOutcome,
     PermissionPromptOutcomeDetail, PermissionSecurityFinding,
 };
-use xvora_workspace::permission::{
+use workspace::permission::{
     AUTO_DENY_CONSECUTIVE_LIMIT, AUTO_DENY_TOTAL_LIMIT, Decision, PermissionEvent,
 };
 
@@ -200,9 +200,9 @@ pub(crate) fn permission_outcome(decision: &Decision) -> PermissionOutcome {
 /// Mode, wait, and source are never re-derived, so the span and product rails cannot observe different shell state.
 /// Content-free analytics come from [`manager_permission_analytics`].
 pub(crate) fn canonical_permission_tool_name(
-    access: &xvora_workspace::permission::AccessKind,
+    access: &workspace::permission::AccessKind,
 ) -> String {
-    xvora_workspace::permission::prompter_tool_name_for_access(access)
+    workspace::permission::prompter_tool_name_for_access(access)
 }
 
 pub(crate) fn permission_decision_payload(
@@ -241,12 +241,12 @@ pub(crate) fn permission_decision_payload(
 mod permission_analytics_tests {
     use super::*;
     use chrono::Utc;
-    use xvora_telemetry::events::{
+    use telemetry::events::{
         self, AutoDenialKpi, PermissionClassifierSource, PermissionClassifierVerdict,
         PermissionDecisionPayload, PermissionDecisionReason, PermissionPromptOutcome,
         PermissionSecurityFinding,
     };
-    use xvora_workspace::permission::{ClassifierSecurityFinding, reasons};
+    use workspace::permission::{ClassifierSecurityFinding, reasons};
 
     /// Build a manager `PermissionEvent` for the prompted auto denial-limit cohort.
     fn denial_limit_event(
@@ -313,7 +313,7 @@ mod permission_analytics_tests {
 
     #[test]
     fn renamed_agent_message_keeps_canonical_product_and_external_identity() {
-        let access = xvora_workspace::permission::AccessKind::AgentMessage {
+        let access = workspace::permission::AccessKind::AgentMessage {
             subagent_id: "sub-1".into(),
         };
         let canonical = canonical_permission_tool_name(&access);
@@ -569,7 +569,7 @@ mod permission_analytics_tests {
     /// A new owner kind (one `wire_enum!` list entry) that lacks a `PermissionPromptOutcome` mapping fails here rather than being silently omitted.
     #[test]
     fn prompt_outcome_covers_manager_vocabulary() {
-        use xvora_workspace::permission::PromptOutcomeKind;
+        use workspace::permission::PromptOutcomeKind;
         for kind in PromptOutcomeKind::ALL {
             let wire = kind.wire_str();
             assert!(
@@ -584,8 +584,8 @@ mod permission_analytics_tests {
     #[test]
     fn prompt_outcome_detail_matches_manager_vocabulary() {
         use std::collections::BTreeSet;
-        use xvora_telemetry::events::PermissionPromptOutcomeDetail;
-        use xvora_workspace::permission::PromptOutcomeKind;
+        use telemetry::events::PermissionPromptOutcomeDetail;
+        use workspace::permission::PromptOutcomeKind;
         let manager: BTreeSet<&str> = PromptOutcomeKind::ALL
             .iter()
             .map(|k| k.wire_str())
@@ -613,7 +613,7 @@ mod permission_analytics_tests {
     #[test]
     fn classifier_source_enum_matches_manager_vocabulary() {
         use std::collections::BTreeSet;
-        use xvora_workspace::permission::ClassifierSourceKind;
+        use workspace::permission::ClassifierSourceKind;
         let manager: BTreeSet<&str> = ClassifierSourceKind::ALL
             .iter()
             .map(|k| k.wire_str())
@@ -639,7 +639,7 @@ mod permission_analytics_tests {
     #[test]
     fn classifier_verdict_enum_matches_manager_vocabulary() {
         use std::collections::BTreeSet;
-        use xvora_workspace::permission::ClassifierVerdict;
+        use workspace::permission::ClassifierVerdict;
         let manager: BTreeSet<&str> = ClassifierVerdict::ALL
             .iter()
             .map(|v| v.wire_str())

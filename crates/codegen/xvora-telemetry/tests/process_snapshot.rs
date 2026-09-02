@@ -2,16 +2,16 @@
 
 use std::time::{Duration, Instant};
 
-use xvora_telemetry::events::ShellTrueNoop;
-use xvora_telemetry::{process_metrics, session_ctx};
+use telemetry::events::ShellTrueNoop;
+use telemetry::{process_metrics, session_ctx};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_gated_emit_takes_no_snapshot_and_the_second_snapshot_reports_cpu() {
     assert!(
-        !xvora_telemetry::is_enabled(),
+        !telemetry::is_enabled(),
         "this binary must never install a telemetry client"
     );
-    xvora_telemetry::log_event(ShellTrueNoop {
+    telemetry::log_event(ShellTrueNoop {
         tool_name: "bash".into(),
     });
     session_ctx::drain_pending(Duration::from_secs(5)).await;

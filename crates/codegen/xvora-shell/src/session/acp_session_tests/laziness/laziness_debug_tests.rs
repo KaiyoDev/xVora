@@ -104,7 +104,7 @@ fn flatten_marks_agent_message_as_untrusted_not_human() {
         out,
         format!(
             "[agent_message] {} review this change\n",
-            xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+            chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
         )
     );
 }

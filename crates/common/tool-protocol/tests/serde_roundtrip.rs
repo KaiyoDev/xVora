@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
-use xvora_tool_protocol::{
+use tool_protocol::{
     AttachRoute, ConnectionId, ConnectionKind, ERROR_CODES, FrameSeq, HelloAckMsg, HelloMsg,
     HookEvent, HookFrame, HookKind, IMAGE_CAPABILITIES_V1, JsonRpcId, JsonRpcVersion,
     KNOWN_NOTIFICATION_KINDS, LastSeq, McpBlock, Method, NotificationFilter, NotificationSchemas,
@@ -24,7 +24,7 @@ use xvora_tool_protocol::{
     TransportKind, UnsubscribeAck, UnsubscribeNotificationsParams, UnsubscribeOutcome, UserId,
     WireCustomNotification, WireToolNotification, error_codes,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 fn roundtrip<T>(value: &T) -> Value
 where

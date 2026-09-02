@@ -246,7 +246,7 @@ pub struct BindToolSessionParams {
 /// Outcome reported by [`BindToolSessionAck`].
 ///
 /// This is intentionally a **strict subset** of the registry-side
-/// `xvora_computer_hub_core::registry::ToolSessionBindOutcome`, with one
+/// `computer_hub_core::registry::ToolSessionBindOutcome`, with one
 /// extra wire-only variant. The asymmetry exists because the wire and
 /// registry layers have different failure vocabularies:
 ///
@@ -511,7 +511,7 @@ pub struct ToolsListParams {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolsListResult {
-    pub tools: Vec<xvora_tool_types::ToolDescription>,
+    pub tools: Vec<tool_types::ToolDescription>,
     /// Whether this session has invocable workspace tools (local registry
     /// or published remote routes). Older hubs omit the field; clients
     /// treat a missing value as unknown and fall back to the tool list.
@@ -596,7 +596,7 @@ pub struct SessionBindServerParams {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SessionBindServerResult {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tools: Vec<xvora_tool_types::ToolDescription>,
+    pub tools: Vec<tool_types::ToolDescription>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub binary_version: Option<String>,
     /// [`SessionBindResult::unserved_tool_ids`], forwarded verbatim.
@@ -639,7 +639,7 @@ pub struct SessionAttachServerResult {
     /// Registry snapshot for the session (local + cross-instance), same
     /// shape as [`SessionBindServerResult::tools`].
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tools: Vec<xvora_tool_types::ToolDescription>,
+    pub tools: Vec<tool_types::ToolDescription>,
     /// Where the session's tool-server was found.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub route: Option<AttachRoute>,
@@ -699,7 +699,7 @@ pub struct SessionBindParams {}
 /// newly bound session.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SessionBindResult {
-    pub tools: Vec<xvora_tool_types::ToolDescription>,
+    pub tools: Vec<tool_types::ToolDescription>,
     /// Version of the responding tool-server binary. `None` on servers
     /// predating the field.
     #[serde(default, skip_serializing_if = "Option::is_none")]

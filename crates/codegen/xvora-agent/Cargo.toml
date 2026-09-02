@@ -10,7 +10,7 @@ dunce = { workspace = true }
 xvora-hooks = { path = "../xvora-hooks" }
 xvora-sampling-types = { path = "../xvora-sampling-types" }
 xvora-tools = { path = "../xvora-tools" }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+tty-utils = { workspace = true }
 token-estimation = { workspace = true, package = "xvora-token-estimation" }
 minijinja = { version = "2", features = ["custom_syntax"] }
 git2 = { version = "0.20", default-features = false, features = ["vendored-libgit2"] }
@@ -22,8 +22,8 @@ tokio = { workspace = true, features = ["rt", "macros", "sync"] }
 tracing = { workspace = true }
 chrono = { workspace = true }
 ignore = { workspace = true }
-xvora-config = { workspace = true }
-xvora-dirs = { workspace = true }
+config = { workspace = true }
+dirs = { workspace = true }
 sha2 = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }

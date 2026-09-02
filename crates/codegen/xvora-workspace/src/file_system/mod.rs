@@ -8,7 +8,7 @@ pub use ext_fs::{
 };
 
 // Client-facing read-only fs ops (`workspace.client_fs_*`)
-// Not re-exported: the `ClientFs*` types live in `xvora_workspace_types::rpc::fs` and would collide with the shell-facing `ext_fs` names above
+// Not re-exported: the `ClientFs*` types live in `workspace_types::rpc::fs` and would collide with the shell-facing `ext_fs` names above
 pub(crate) mod client_fs;
 
 // Shared filesystem core: paginated listing and binary-safe ranged reads, used by `client_fs`, `ext_fs`, and the shell-local `session::file_system`
@@ -18,7 +18,7 @@ pub use walk::{
     clamp_read_length, encode_chunk, list_directory_paged, read_range,
 };
 // Re-exported so shell-side fs ops can name the shared read encoding.
-pub use xvora_workspace_types::rpc::fs::FsReadEncoding;
+pub use workspace_types::rpc::fs::FsReadEncoding;
 
 pub mod adapter;
 pub use adapter::AcpFsAdapter;
@@ -54,7 +54,7 @@ pub use jj_status::jj_status;
 mod attach_file;
 pub use attach_file::{FileReference, render_embedded_resource, render_file_reference};
 
-pub use xvora_fuzzy_file_search::{
+pub use fuzzy_file_search::{
     FuzzyFileMatcher, FuzzyFileMatcherDaemon, FuzzyMatchResult, FuzzyMatcherDaemonResults,
     FuzzyMatcherStatus,
 };
@@ -77,7 +77,7 @@ use std::{
 use uuid::Uuid;
 
 // These types are canonical in xvora-workspace-types; the re-export keeps existing import paths working
-pub use xvora_workspace_types::rpc::search::{ClientId, ContentSearchRequest, TargetClientId};
+pub use workspace_types::rpc::search::{ClientId, ContentSearchRequest, TargetClientId};
 
 impl From<ContentSearchRequest> for ContentSearchParams {
     fn from(req: ContentSearchRequest) -> Self {

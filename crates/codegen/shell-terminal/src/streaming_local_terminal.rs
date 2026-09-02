@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use crate::runner::{AsyncTerminalRunner, TerminalError, TerminalRunRequest, TerminalRunResult};
 use crate::{TerminalInfo, TerminalStatus};
-use xvora_tools::types::output::{BashOutput, ToolOutput};
+use tools::types::output::{BashOutput, ToolOutput};
 
 const DEFAULT_NOTIFICATION_INTERVAL_MS: u64 = 100;
 const READ_BUFFER_SIZE: usize = 8192;
@@ -826,7 +826,7 @@ fn spawn_shell_command(
     }
     #[cfg(not(unix))]
     {
-        let inv = xvora_config::shell::shell_command_argv(command);
+        let inv = config::shell::shell_command_argv(command);
         spawn_with_argv(&inv.program, cwd, env, |cmd| {
             cmd.args(&inv.args).envs(inv.env);
         })
@@ -990,7 +990,7 @@ async fn wait_background_completion(
     command: String,
     cwd: String,
 ) {
-    use xvora_tools::types::output::{BashOutput, ToolOutput};
+    use tools::types::output::{BashOutput, ToolOutput};
 
     // Wait for the process to exit
     loop {

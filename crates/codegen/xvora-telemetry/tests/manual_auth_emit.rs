@@ -6,10 +6,10 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use xvora_telemetry::client;
-use xvora_telemetry::config::{TelemetryConfig, TelemetryMode};
-use xvora_telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
-use xvora_telemetry::process_info::{
+use telemetry::client;
+use telemetry::config::{TelemetryConfig, TelemetryMode};
+use telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
+use telemetry::process_info::{
     Entrypoint, Interactivity, LeaderMode, ProcessIdentity, ReleaseChannel, set_identity,
     set_release_channel,
 };
@@ -56,7 +56,7 @@ async fn manual_auth_posts_to_events_endpoint_as_grok_shell_manual_auth() {
         reqwest::Client::new(),
     );
 
-    xvora_telemetry::log_event(ManualAuth {
+    telemetry::log_event(ManualAuth {
         reason: ManualAuthReason::RefreshTokenRejected,
         trigger: ManualAuthSurface::Turn,
         token_kind: AuthTokenKind::OidcSession,
@@ -100,7 +100,7 @@ async fn manual_auth_posts_to_events_endpoint_as_grok_shell_manual_auth() {
         ("is_leader_mode", serde_json::json!(false)),
         ("is_interactive", serde_json::json!(false)),
         ("release_channel", serde_json::json!("alpha")),
-        ("dev_build", serde_json::json!(xvora_version::IS_DEV_BUILD)),
+        ("dev_build", serde_json::json!(version::IS_DEV_BUILD)),
     ] {
         assert_eq!(
             meta.get(key),
@@ -181,12 +181,12 @@ async fn manual_auth_posts_to_events_endpoint_as_grok_shell_manual_auth() {
         "session_id",
         "turn_number",
         // Activity gauges register on first use, so a fresh process emits none.
-        xvora_telemetry::activity::SESSIONS_ACTIVE_KEY,
-        xvora_telemetry::activity::SUBAGENTS_ACTIVE_KEY,
-        xvora_telemetry::activity::COMPACTIONS_ACTIVE_KEY,
-        xvora_telemetry::activity::MCP_SERVERS_CONNECTED_KEY,
-        xvora_telemetry::activity::TURNS_ACTIVE_KEY,
-        xvora_telemetry::activity::WORKFLOW_RUNS_ACTIVE_KEY,
+        telemetry::activity::SESSIONS_ACTIVE_KEY,
+        telemetry::activity::SUBAGENTS_ACTIVE_KEY,
+        telemetry::activity::COMPACTIONS_ACTIVE_KEY,
+        telemetry::activity::MCP_SERVERS_CONNECTED_KEY,
+        telemetry::activity::TURNS_ACTIVE_KEY,
+        telemetry::activity::WORKFLOW_RUNS_ACTIVE_KEY,
         #[cfg(not(unix))]
         "cpu_time_ms",
         #[cfg(not(unix))]
@@ -198,7 +198,7 @@ async fn manual_auth_posts_to_events_endpoint_as_grok_shell_manual_auth() {
         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         "rss_bytes",
     ];
-    for key in xvora_telemetry::client::RESERVED_EVENT_KEYS {
+    for key in telemetry::client::RESERVED_EVENT_KEYS {
         assert!(
             meta.get(*key).is_some() || conditional.contains(key),
             "reserved key {key} neither present nor known-conditional",

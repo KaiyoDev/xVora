@@ -6,8 +6,8 @@ use super::*;
 use super::reasoning_effort::EffortTarget;
 use crate::auth::PreferredAuthMethod;
 use crate::upload::trace::PromptMetadataParams;
-use xvora_tools::implementations::grok_build::task::backend::SubagentBackend;
-use xvora_tty_utils::ProcessScope;
+use tools::implementations::grok_build::task::backend::SubagentBackend;
+use tty_utils::ProcessScope;
 struct SessionConfigInputs {
     model_id: acp::ModelId,
     effort_options: Vec<ReasoningEffortOption>,
@@ -176,7 +176,7 @@ impl MvpAgent {
                 if self.is_session_based_auth() {
                     let auth = self.auth_manager.expired_auth();
                     if auth.is_some() {
-                        xvora_telemetry::unified_log::info(
+                        telemetry::unified_log::info(
                             "auth buffered token fallback",
                             None,
                             None,
@@ -506,14 +506,14 @@ impl MvpAgent {
             } else {
                 (None, auth.team_id)
             };
-            xvora_telemetry::client::init_if_needed(
+            telemetry::client::init_if_needed(
                 cfg.telemetry.clone(),
                 mode,
                 user_id,
                 team_id,
                 cfg.endpoints.deployment_key.clone(),
                 self.origin_client_info_from_meta(None),
-                xvora_version::VERSION.to_owned(),
+                version::VERSION.to_owned(),
                 subscription_tier,
                 crate::http::shared_client(),
             );
@@ -632,7 +632,7 @@ impl MvpAgent {
     /// Shared plugin registry handle used by extensions for snapshot/reload.
     pub(crate) fn plugin_registry_handle(
         &self,
-    ) -> &xvora_agent::plugins::SharedPluginRegistryHandle {
+    ) -> &agent::plugins::SharedPluginRegistryHandle {
         &self.plugin_registry_handle
     }
     /// `true` when the agent runs in writeback storage mode.
@@ -802,7 +802,7 @@ impl MvpAgent {
                 cfg.hub.url.as_deref(),
             )
         };
-        let auth_path = xvora_workspace::hub_auth::default_auth_path().ok();
+        let auth_path = workspace::hub_auth::default_auth_path().ok();
         let binary = crate::gateway_bridge::local_workspace_supervisor::resolve_workspace_server_bin()
             .ok();
         let agent_ref = LocalRef::new(self);
@@ -1243,7 +1243,7 @@ impl MvpAgent {
     /// This is the same boot stall as plugin discovery on grok-desktop Windows.
     fn ensure_local_workspace_ops(
         &self,
-    ) -> Result<xvora_workspace::WorkspaceOps, acp::Error> {
+    ) -> Result<workspace::WorkspaceOps, acp::Error> {
         if let Some(ops) = self.workspace_ops.borrow().clone() {
             return Ok(ops);
         }
@@ -1253,10 +1253,10 @@ impl MvpAgent {
             .current_or_expired()
             .map(|a| match a.team_id.filter(|t| !t.is_empty()) {
                 Some(team) => {
-                    xvora_workspace::WorkspaceIdentity::team(a.user_id, team)
+                    workspace::WorkspaceIdentity::team(a.user_id, team)
                 }
                 None => {
-                    xvora_workspace::WorkspaceIdentity::new(
+                    workspace::WorkspaceIdentity::new(
                         a.user_id,
                         a.principal_type,
                         a.principal_id,
@@ -1264,12 +1264,12 @@ impl MvpAgent {
                 }
             })
             .unwrap_or_default();
-        let ops = match xvora_workspace::handle::WorkspaceHandle::new_minimal(
+        let ops = match workspace::handle::WorkspaceHandle::new_minimal(
             cwd.to_path_buf(),
             workspace_identity,
             project_lsp_trusted,
         ) {
-            Ok(handle) => xvora_workspace::WorkspaceOps::local(handle),
+            Ok(handle) => workspace::WorkspaceOps::local(handle),
             Err(e) => {
                 tracing::error!(
                     error = %e,
@@ -1289,7 +1289,7 @@ impl MvpAgent {
     /// Called at the `ext_method` dispatch boundary and in session spawn; extensions receive the resolved `&WorkspaceOps` directly.
     pub(crate) fn resolve_workspace_ops(
         &self,
-    ) -> Result<xvora_workspace::WorkspaceOps, acp::Error> {
+    ) -> Result<workspace::WorkspaceOps, acp::Error> {
         let ops = self.ensure_local_workspace_ops()?;
         if let Some(handle) = ops.workspace_handle() && !handle.has_client_ext_sink() {
             let gw = self.gateway.clone();
@@ -1319,11 +1319,11 @@ impl MvpAgent {
     ///
     /// The session-based clause is load-bearing.
     /// Without it, chat_state can get locked into `auth_type = ApiKey` and skip token refresh on later prompts.
-    pub(crate) fn auth_type(&self) -> xvora_chat_state::AuthType {
+    pub(crate) fn auth_type(&self) -> chat_state::AuthType {
         if self.auth_manager.current().is_some() || self.is_session_based_auth() {
-            xvora_chat_state::AuthType::SessionToken
+            chat_state::AuthType::SessionToken
         } else {
-            xvora_chat_state::AuthType::ApiKey
+            chat_state::AuthType::ApiKey
         }
     }
     /// Fall through to `xvora.api_key` if the startup probe still allows it, else `grok.com`.
@@ -1357,7 +1357,7 @@ impl MvpAgent {
                 _ => auth_method::PREFERRED_OIDC_UNAVAILABLE,
             };
             tracing::info!(%msg, "cached_token unavailable; preferred_method forbids fallthrough");
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth cached_token fallthrough blocked by preferred_method",
                 None,
                 Some(
@@ -1374,7 +1374,7 @@ impl MvpAgent {
             arguments.meta
         };
         tracing::info!(fallback = %method_id.0, "cached_token fallthrough");
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "auth cached_token fallthrough",
             None,
             Some(serde_json::json!({ "fallback": method_id.0.as_ref() })),
@@ -1621,14 +1621,14 @@ impl MvpAgent {
             subscription_tier,
             self.auth_manager.current_or_expired().as_ref(),
         );
-        xvora_telemetry::client::init(
+        telemetry::client::init(
             telemetry_config,
             telemetry_mode,
             grok_user_id,
             grok_team_id,
             deployment_key,
             self.origin_client_info_from_meta(None),
-            xvora_version::VERSION.to_owned(),
+            version::VERSION.to_owned(),
             subscription_tier,
             crate::http::shared_client(),
         );
@@ -1806,7 +1806,7 @@ impl MvpAgent {
     pub(super) fn apply_polled_announcements(
         &self,
         fresh: crate::util::config::RemoteSettings,
-        pre_fetch: Option<Vec<xvora_announcements::RemoteAnnouncement>>,
+        pre_fetch: Option<Vec<announcements::RemoteAnnouncement>>,
     ) {
         let mut cfg = self.cfg.borrow_mut();
         let Some(stored) = cfg.remote_settings.as_mut() else {
@@ -1978,29 +1978,29 @@ impl MvpAgent {
             session.as_ref().map(|a| a.key.as_str()),
         );
         if prefers_oidc && !model.has_own_credentials()
-            && credentials.auth_type == xvora_chat_state::AuthType::ApiKey
+            && credentials.auth_type == chat_state::AuthType::ApiKey
         {
             credentials.api_key = None;
-            credentials.auth_type = xvora_chat_state::AuthType::SessionToken;
+            credentials.auth_type = chat_state::AuthType::SessionToken;
         }
         crate::agent::config::enforce_disable_api_key_auth(
             &mut credentials,
             self.cfg.borrow().grok_com_config.api_key_auth_disabled(),
             session.as_ref().map(|a| a.key.as_str()),
         );
-        if !has_session_key && credentials.auth_type == xvora_chat_state::AuthType::ApiKey
+        if !has_session_key && credentials.auth_type == chat_state::AuthType::ApiKey
             && !model.has_own_credentials() && is_session_based_auth
         {
             tracing::info!(
                 model = model.info().model.as_str(),
                 "auth: overriding auth_type to SessionToken (session-based auth method)",
             );
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth auth_type override to SessionToken",
                 None,
                 Some(serde_json::json!({ "model": model.info().model.as_str() })),
             );
-            credentials.auth_type = xvora_chat_state::AuthType::SessionToken;
+            credentials.auth_type = chat_state::AuthType::SessionToken;
         }
         if should_warn_missing_session(MissingSessionCtx {
             has_session_key,
@@ -2014,7 +2014,7 @@ impl MvpAgent {
                 auth_type = ?credentials.auth_type,
                 "auth: prepare_sampling_config has no session key",
             );
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth: prepare_sampling_config has no session key",
                 None,
                 Some(
@@ -2118,8 +2118,8 @@ impl MvpAgent {
     /// So IC authenticates and meters Imagine usage per-user.
     pub(super) fn prepare_image_gen_config(
         &self,
-    ) -> xvora_tools::implementations::grok_build::image_gen::ImageGenConfig {
-        use xvora_tools::implementations::grok_build::image_gen::ImageGenConfig;
+    ) -> tools::implementations::grok_build::image_gen::ImageGenConfig {
+        use tools::implementations::grok_build::image_gen::ImageGenConfig;
         let sampling_config = self.sampling_config.borrow();
         let Some(ref api_key) = sampling_config.api_key else {
             return ImageGenConfig::Disabled;
@@ -2130,7 +2130,7 @@ impl MvpAgent {
         let version = cfg
             .client_version
             .clone()
-            .unwrap_or_else(|| xvora_version::VERSION.to_string());
+            .unwrap_or_else(|| version::VERSION.to_string());
         let alpha_test_key = cfg.endpoints.alpha_test_key.clone();
         let mut headers = indexmap::IndexMap::new();
         headers.insert("user-agent".to_string(), format!("xvora-build/{version}"));
@@ -2154,15 +2154,15 @@ impl MvpAgent {
     /// The tool talks directly to the deployer service.
     pub(super) fn prepare_app_builder_deployer_config(
         &self,
-    ) -> xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig {
-        use xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
+    ) -> tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig {
+        use tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
         AppBuilderDeployerConfig::Disabled
     }
     /// Video tools call the xAI API directly.
     pub(super) fn prepare_video_gen_config(
         &self,
-    ) -> xvora_tools::implementations::grok_build::video_gen::VideoGenConfig {
-        use xvora_tools::implementations::grok_build::video_gen::VideoGenConfig;
+    ) -> tools::implementations::grok_build::video_gen::VideoGenConfig {
+        use tools::implementations::grok_build::video_gen::VideoGenConfig;
         let cfg = self.cfg.borrow();
         if !cfg.resolve_video_gen().value {
             return VideoGenConfig::Disabled;
@@ -2185,7 +2185,7 @@ impl MvpAgent {
         let version = cfg
             .client_version
             .clone()
-            .unwrap_or_else(|| xvora_version::VERSION.to_string());
+            .unwrap_or_else(|| version::VERSION.to_string());
         let alpha_test_key = cfg.endpoints.alpha_test_key.clone();
         let mut headers = indexmap::IndexMap::new();
         headers.insert("user-agent".to_string(), format!("xvora-build/{version}"));
@@ -2251,8 +2251,8 @@ impl MvpAgent {
     /// - `allow_local`: `[toolset.web_fetch] allow_local` > `GROK_WEB_FETCH_ALLOW_LOCAL` > false
     pub(super) fn prepare_web_fetch_config(
         &self,
-    ) -> xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig {
-        use xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig;
+    ) -> tools::implementations::grok_build::web_fetch::WebFetchConfig {
+        use tools::implementations::grok_build::web_fetch::WebFetchConfig;
         let cfg = self.cfg.borrow();
         if cfg.disable_web_search {
             return WebFetchConfig::Disabled;
@@ -2351,7 +2351,7 @@ impl MvpAgent {
             launch_cwd: std::env::current_dir()
                 .unwrap_or_else(|_| std::path::PathBuf::from(".")),
             launch_dir_trust: std::cell::OnceCell::new(),
-            plugin_registry_handle: xvora_agent::plugins::SharedPluginRegistryHandle::new(
+            plugin_registry_handle: agent::plugins::SharedPluginRegistryHandle::new(
                 None,
                 cfg.plugins.cli_plugin_dirs.clone(),
             ),
@@ -2412,7 +2412,7 @@ impl MvpAgent {
             subagent_sampling_semaphore: Arc::new(
                 tokio::sync::Semaphore::new(cfg.subagents_sampling_limit),
             ),
-            monitor_event_buffer: xvora_tools::implementations::grok_build::monitor::types::MonitorEventBuffer::default(),
+            monitor_event_buffer: tools::implementations::grok_build::monitor::types::MonitorEventBuffer::default(),
             bundle_sync_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             post_unblock_jwt_retry_in_flight: Arc::new(
                 std::sync::atomic::AtomicBool::new(false),
@@ -2758,8 +2758,8 @@ impl MvpAgent {
         &self,
         session_id: &str,
         task_id: &str,
-        source: xvora_tools::types::KillSource,
-    ) -> Result<xvora_tools::types::KillOutcome, String> {
+        source: tools::types::KillSource,
+    ) -> Result<tools::types::KillOutcome, String> {
         let sid = acp::SessionId::new(session_id);
         if let Some(handle) = self.get_session_handle(&sid) {
             handle.kill_background_task(task_id, source).await
@@ -2784,8 +2784,8 @@ impl MvpAgent {
     pub(crate) async fn cancel_subagent(
         &self,
         subagent_id: &str,
-    ) -> xvora_tools::implementations::grok_build::task::types::SubagentCancelOutcome {
-        xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+    ) -> tools::implementations::grok_build::task::types::SubagentCancelOutcome {
+        tools::implementations::grok_build::task::backend::ChannelBackend::new(
                 self.subagent_event_tx.event_sender().0,
             )
             .cancel(subagent_id)
@@ -2795,9 +2795,9 @@ impl MvpAgent {
         &self,
         parent_session_id: &str,
     ) -> Vec<
-        xvora_tools::implementations::grok_build::task::types::SubagentInspection,
+        tools::implementations::grok_build::task::types::SubagentInspection,
     > {
-        let backend = xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+        let backend = tools::implementations::grok_build::task::backend::ChannelBackend::new(
             self.subagent_event_tx.event_sender().0,
         );
         let sid = acp::SessionId::new(parent_session_id);
@@ -2819,9 +2819,9 @@ impl MvpAgent {
         &self,
         subagent_id: &str,
     ) -> Option<
-        xvora_tools::implementations::grok_build::task::types::SubagentInspection,
+        tools::implementations::grok_build::task::types::SubagentInspection,
     > {
-        xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+        tools::implementations::grok_build::task::backend::ChannelBackend::new(
                 self.subagent_event_tx.event_sender().0,
             )
             .inspect(subagent_id)
@@ -2833,9 +2833,9 @@ impl MvpAgent {
         block: bool,
         timeout_ms: Option<u64>,
     ) -> Option<
-        xvora_tools::implementations::grok_build::task::types::SubagentSnapshot,
+        tools::implementations::grok_build::task::types::SubagentSnapshot,
     > {
-        xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+        tools::implementations::grok_build::task::backend::ChannelBackend::new(
                 self.subagent_event_tx.event_sender().0,
             )
             .query(subagent_id, block, timeout_ms)
@@ -2846,7 +2846,7 @@ impl MvpAgent {
         parent_session_id: &str,
         prompt_id: &str,
     ) -> Vec<crate::upload::trace::SubagentSpawnedRef> {
-        xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+        tools::implementations::grok_build::task::backend::ChannelBackend::new(
                 self.subagent_event_tx.event_sender().0,
             )
             .spawned_refs_for_prompt(parent_session_id, prompt_id)
@@ -2867,7 +2867,7 @@ impl MvpAgent {
     pub async fn list_tasks(
         &self,
         session_id: &str,
-    ) -> Option<Vec<xvora_tools::types::TaskSnapshot>> {
+    ) -> Option<Vec<tools::types::TaskSnapshot>> {
         let sid = acp::SessionId::new(session_id);
         if let Some(handle) = self.get_session_handle(&sid) {
             handle.list_tasks().await
@@ -3003,7 +3003,7 @@ impl MvpAgent {
     pub(crate) async fn list_hooks(
         &self,
         session_id: &acp::SessionId,
-    ) -> Option<xvora_hooks_plugins_types::HooksListResponse> {
+    ) -> Option<hooks_plugins_types::HooksListResponse> {
         let handle = self.get_session_handle(session_id)?;
         handle.get_hooks_list().await
     }
@@ -3011,14 +3011,14 @@ impl MvpAgent {
     pub(crate) async fn execute_hooks_action(
         &self,
         session_id: &acp::SessionId,
-        action: xvora_hooks_plugins_types::HooksAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
-        if matches!(action, xvora_hooks_plugins_types::HooksAction::Untrust)
+        action: hooks_plugins_types::HooksAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
+        if matches!(action, hooks_plugins_types::HooksAction::Untrust)
             && let Some(cwd) = self.get_session_cwd(session_id)
         {
             self.interactive_trust_prompted
                 .borrow_mut()
-                .remove(&xvora_workspace::trust::workspace_key(&cwd));
+                .remove(&workspace::trust::workspace_key(&cwd));
         }
         let handle = self.get_session_handle(session_id)?;
         handle.execute_hooks_action(action).await
@@ -3027,14 +3027,14 @@ impl MvpAgent {
     pub(crate) async fn execute_plugins_action(
         &self,
         session_id: &acp::SessionId,
-        action: xvora_hooks_plugins_types::PluginsAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
-        let is_reload = matches!(action, xvora_hooks_plugins_types::PluginsAction::Reload);
+        action: hooks_plugins_types::PluginsAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
+        let is_reload = matches!(action, hooks_plugins_types::PluginsAction::Reload);
         let handle = self.get_session_handle(session_id)?;
         let outcome = handle.execute_plugins_action(action).await;
         let succeeded = matches!(
             outcome.as_ref().map(|o| &o.status),
-            Some(xvora_hooks_plugins_types::OutcomeStatus::Success)
+            Some(hooks_plugins_types::OutcomeStatus::Success)
         );
         if is_reload && succeeded {
             self.broadcast_plugin_registry_to_sessions(Some(session_id));
@@ -3044,7 +3044,7 @@ impl MvpAgent {
     /// Get a snapshot of the shared plugin registry (for `x.ai/plugins/list`).
     pub(crate) fn plugin_registry_snapshot(
         &self,
-    ) -> Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>> {
+    ) -> Option<std::sync::Arc<agent::plugins::PluginRegistry>> {
         self.plugin_registry_handle.snapshot()
     }
     /// Returns an upload method, or `None` when trace uploads are disabled.
@@ -3406,7 +3406,7 @@ impl MvpAgent {
             if let Some(auth) = self.auth_manager.current_or_expired() {
                 sampling_config.api_key = Some(auth.key);
                 tracing::debug!("auth: seed_client_config set auth (SessionToken)");
-                xvora_telemetry::unified_log::debug(
+                telemetry::unified_log::debug(
                     "auth: seed_client_config set auth (SessionToken)",
                     None,
                     None,
@@ -3418,7 +3418,7 @@ impl MvpAgent {
                 .any(|m| m.has_own_credentials())
             {
                 tracing::warn!("No credentials found: no login token and no model api_key/env_key");
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "No credentials found: no login token and no model api_key/env_key",
                     None,
                     None,
@@ -3646,7 +3646,7 @@ impl MvpAgent {
         model: &str,
         base: u64,
         turns: Vec<Vec<xvora_sampling_types::conversation::ConversationItem>>,
-    ) -> Vec<(PromptTraceContext, PromptMetadata, xvora_chat_state::TurnCapture)> {
+    ) -> Vec<(PromptTraceContext, PromptMetadata, chat_state::TurnCapture)> {
         let mut uploads = Vec::with_capacity(turns.len());
         for (offset, items) in turns.into_iter().enumerate() {
             let turn_number = base.saturating_add(offset as u64);
@@ -3677,11 +3677,11 @@ impl MvpAgent {
                 prompt_was_truncated: Some(false),
                 prompt_verbatim: Some(true),
                 cwd: Some(info.cwd.clone()),
-                shell_version: Some(xvora_version::VERSION.to_string()),
+                shell_version: Some(version::VERSION.to_string()),
                 sandbox: local_sandbox_telemetry(),
                 ..Default::default()
             });
-            let capture = xvora_chat_state::TurnCapture {
+            let capture = chat_state::TurnCapture {
                 messages: items,
                 compaction_occurred: false,
             };
@@ -3714,7 +3714,7 @@ impl MvpAgent {
                 );
                 obj.insert("turn_number".into(), serde_json::json!(turn_number));
             }
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "trace.upload.decision",
                 Some(session_info.id.0.as_ref()),
                 Some(decision),
@@ -3723,7 +3723,7 @@ impl MvpAgent {
         let upload_method = match upload_method {
             Some(method) => method,
             None => {
-                xvora_telemetry::session_ctx::log_session_event(crate::agent::session_metrics::TraceUploadSkipped {
+                telemetry::session_ctx::log_session_event(crate::agent::session_metrics::TraceUploadSkipped {
                     session_id: session_info.id.0.to_string(),
                     turn_number,
                     reason: upload_reason.as_str().to_owned(),
@@ -3738,7 +3738,7 @@ impl MvpAgent {
                     match cfg.endpoints.resolve_trace_bucket_url() {
                         Some(resolved) => Some(resolved.value),
                         None => {
-                            xvora_telemetry::session_ctx::log_session_event(crate::agent::session_metrics::TraceUploadSkipped {
+                            telemetry::session_ctx::log_session_event(crate::agent::session_metrics::TraceUploadSkipped {
                                 session_id: session_info.id.0.to_string(),
                                 turn_number,
                                 reason: "no_trace_bucket_configured".to_owned(),
@@ -3770,7 +3770,7 @@ impl MvpAgent {
                 let queue = crate::upload::trace::spawn_upload_queue(
                     &grok_home,
                     &gcs_config,
-                    Some(xvora_version::VERSION),
+                    Some(version::VERSION),
                     self.auth_manager.clone(),
                 );
                 crate::upload::trace::spawn_startup_spill_reconcile(
@@ -3806,26 +3806,26 @@ impl MvpAgent {
     /// 6. Built-in default agent.
     ///
     /// `GROK_AGENT` and an explicit `[agent] name` bypass step 1.
-    /// Strict-harness classification is structural; see [`xvora_agent::config::is_strict_harness_agent_type`].
+    /// Strict-harness classification is structural; see [`agent::config::is_strict_harness_agent_type`].
     ///
     /// Harness inheritance for a profile that pins its own model is applied by the caller via [`inherited_harness_template`], not here.
     pub fn resolve_agent_definition(
         cwd: &std::path::Path,
         agent_profile_path: Option<&std::path::Path>,
         agent_config: &config::AgentSelectionConfig,
-        acp_agent_profile: Option<xvora_agent::AgentDefinition>,
+        acp_agent_profile: Option<agent::AgentDefinition>,
         model_agent_type: Option<&str>,
-    ) -> xvora_agent::AgentDefinition {
-        use xvora_agent::AgentDefinition;
+    ) -> agent::AgentDefinition {
+        use agent::AgentDefinition;
         let grok_agent_env_set = std::env::var("GROK_AGENT")
             .ok()
             .is_some_and(|s| !s.trim().is_empty());
         let config_agent_explicitly_set = agent_config.name.is_some();
         let model_requires_strict_harness = model_agent_type
-            .is_some_and(xvora_agent::config::is_strict_harness_agent_type);
+            .is_some_and(agent::config::is_strict_harness_agent_type);
         if !grok_agent_env_set && !config_agent_explicitly_set
             && model_requires_strict_harness && let Some(required) = model_agent_type
-            && let Some(def) = xvora_agent::discovery::by_name_in_cwd(required, cwd)
+            && let Some(def) = agent::discovery::by_name_in_cwd(required, cwd)
         {
             tracing::info!(
                 agent_name = %def.name,
@@ -3883,7 +3883,7 @@ impl MvpAgent {
                 agent_name = %name,
                 "Resolving agent definition from config.toml [agent] name"
             );
-            if let Some(def) = xvora_agent::discovery::by_name_in_cwd(name, cwd) {
+            if let Some(def) = agent::discovery::by_name_in_cwd(name, cwd) {
                 return def;
             }
             tracing::warn!(
@@ -3912,7 +3912,7 @@ impl MvpAgent {
                 }
             }
             Some(name) => {
-                xvora_agent::discovery::by_name_in_cwd(name, cwd)
+                agent::discovery::by_name_in_cwd(name, cwd)
                     .unwrap_or_else(AgentDefinition::grok_build_plan)
             }
             None => AgentDefinition::grok_build_plan(),
@@ -3926,7 +3926,7 @@ impl MvpAgent {
                 model_agent_type = %required,
                 "resolve_agent_definition: model requires different agent, re-resolving"
             );
-            if let Some(def) = xvora_agent::discovery::by_name_in_cwd(required, cwd) {
+            if let Some(def) = agent::discovery::by_name_in_cwd(required, cwd) {
                 return def;
             }
             tracing::warn!(
@@ -3946,13 +3946,13 @@ impl MvpAgent {
         meta: Option<&acp::Meta>,
         init: &acp::InitializeRequest,
     ) -> bool {
-        meta.and_then(|m| m.get(xvora_status_line::CLIENT_STATUS_LINE_META))
+        meta.and_then(|m| m.get(status_line::CLIENT_STATUS_LINE_META))
             .or_else(|| {
                 init
                     .client_capabilities
                     .meta
                     .as_ref()
-                    .and_then(|m| m.get(xvora_status_line::STATUS_LINE_CAPABILITY))
+                    .and_then(|m| m.get(status_line::STATUS_LINE_CAPABILITY))
             })
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
@@ -4045,7 +4045,7 @@ impl MvpAgent {
         let load_envrc = self.cfg.borrow().session.load_envrc.unwrap_or(true);
         let project_env_trusted = folder_trust::project_scope_allowed(cwd.as_path());
         let envrc = envrc
-            .unwrap_or_else(|| xvora_workspace::envrc::spawn_envrc_load(
+            .unwrap_or_else(|| workspace::envrc::spawn_envrc_load(
                 cwd.as_path().to_path_buf(),
                 load_envrc && project_env_trusted,
             ));
@@ -4057,7 +4057,7 @@ impl MvpAgent {
             .and_then(|m| m.get("x.ai/fs_notify"))
             .and_then(|v| {
                 use crate::session::{ClientFsConfig, ClientFsMode};
-                use xvora_fsnotify::FsConfig;
+                use fsnotify::FsConfig;
                 if v.as_bool() == Some(true) {
                     return Some(ClientFsConfig::default());
                 }
@@ -4082,7 +4082,7 @@ impl MvpAgent {
                 }
                 Some(ClientFsConfig { fs, mode })
             });
-        let fs: Arc<dyn xvora_workspace::file_system::AsyncFileSystem> = if use_acp_fs {
+        let fs: Arc<dyn workspace::file_system::AsyncFileSystem> = if use_acp_fs {
             let mut acp_fs = AcpSessionFs::new(
                 cwd.to_path_buf(),
                 session_info.id.clone(),
@@ -4152,7 +4152,7 @@ impl MvpAgent {
                 );
                 (handle, Some((hunk_event_rx, cancel)))
             }
-            None => (xvora_hunk_tracker::HunkTrackerHandle::noop(), None),
+            None => (hunk_tracker::HunkTrackerHandle::noop(), None),
         };
         let has_xai_auth = self.auth_manager.current().is_some_and(|a| a.is_xai_auth());
         let loc_tracking_enabled = hunk_tracking_enabled && has_xai_auth
@@ -4181,15 +4181,15 @@ impl MvpAgent {
                 let (loc_agg_tx, loc_agg_rx) = tokio::sync::mpsc::unbounded_channel();
                 let loc_path = crate::session::persistence::session_dir(&session_info)
                     .join("hunk_records.jsonl");
-                let loc_writer = xvora_hunk_tracker::JsonlHunkRecordWriter::new(loc_path);
-                let loc_ctx = xvora_hunk_tracker::LocSinkContext {
+                let loc_writer = hunk_tracker::JsonlHunkRecordWriter::new(loc_path);
+                let loc_ctx = hunk_tracker::LocSinkContext {
                     session_id: session_info.id.0.to_string(),
                     agent_id: agent_id(),
                     user_id: self.auth_manager.current().map(|a| a.user_id.clone()),
                     aggregate_tx: Some(loc_agg_tx),
                 };
                 tokio::spawn(
-                    xvora_hunk_tracker::run_loc_sink(
+                    hunk_tracker::run_loc_sink(
                         hunk_event_rx,
                         loc_writer,
                         loc_ctx,
@@ -4201,7 +4201,7 @@ impl MvpAgent {
             _ => None,
         };
         let session_env_timer = crate::instrumentation_timer!("session.spawn_and_register.session_env");
-        let mut session_env = xvora_workspace::permission::claude_settings::load_claude_env_with_project(
+        let mut session_env = workspace::permission::claude_settings::load_claude_env_with_project(
             cwd.as_path(),
             project_env_trusted,
         );
@@ -4346,7 +4346,7 @@ impl MvpAgent {
         let pinned_model: Option<(acp::ModelId, ModelEntry)> = match &agent_definition
             .model
         {
-            xvora_agent::config::ModelOverride::Override(id) => {
+            agent::config::ModelOverride::Override(id) => {
                 let mid = acp::ModelId::new(Arc::from(id.as_str()));
                 match self.resolve_model_id(&mid) {
                     Ok(entry) => Some((mid, entry)),
@@ -4360,7 +4360,7 @@ impl MvpAgent {
                     }
                 }
             }
-            xvora_agent::config::ModelOverride::Inherit => None,
+            agent::config::ModelOverride::Inherit => None,
         };
         if let Some(template) = inherited_harness_template(
             &agent_definition.user_message_template,
@@ -4443,7 +4443,7 @@ impl MvpAgent {
                     p.inline_lsp_servers.as_ref().map(|v| (v, p.name.as_str()))
                 })
                 .unzip();
-            let sourced = xvora_tools::implementations::lsp::config::load_servers_with_plugins_sourced(
+            let sourced = tools::implementations::lsp::config::load_servers_with_plugins_sourced(
                 tool_ctx.cwd.as_path(),
                 &plugin_lsp_paths,
                 &plugin_inline_lsp,
@@ -4456,7 +4456,7 @@ impl MvpAgent {
             );
             tool_ctx.lsp_server_names = servers.keys().cloned().collect();
             if servers.is_empty() {
-                let user_path = xvora_tools::util::grok_home::grok_home()
+                let user_path = tools::util::grok_home::grok_home()
                     .join("lsp.json");
                 let project_path = tool_ctx.cwd.as_path().join(".grok").join("lsp.json");
                 tracing::debug!(
@@ -4466,7 +4466,7 @@ impl MvpAgent {
                     "LSP tools enabled, but no language servers are configured"
                 );
             } else {
-                use xvora_tools::implementations::lsp::{
+                use tools::implementations::lsp::{
                     LspBackend, LspBackendAdapter, LspManager,
                 };
                 let mgr = std::sync::Arc::new(
@@ -4475,7 +4475,7 @@ impl MvpAgent {
                                 servers,
                                 tool_ctx.cwd.as_path().to_path_buf(),
                                 true,
-                                xvora_tools::notification::ToolNotificationHandle::noop(),
+                                tools::notification::ToolNotificationHandle::noop(),
                             )
                             .with_process_scope(tool_ctx.process_scope.clone()),
                     ),
@@ -4613,7 +4613,7 @@ impl MvpAgent {
         let (mut handle, permission_events_rx, agent_system_prompt, session_thread) = {
             let _timer = crate::instrumentation_timer!("session.spawn_actor_call");
             let session_key = self.auth_manager.current_or_expired().map(|a| a.key);
-            let credentials = xvora_chat_state::Credentials {
+            let credentials = chat_state::Credentials {
                 api_key: sampling_config.api_key.clone(),
                 auth_type: crate::agent::config::resolve_chat_state_auth_type(
                     sampling_config.model.as_str(),
@@ -4624,7 +4624,7 @@ impl MvpAgent {
                 client_version: sampling_config.client_version.clone(),
             };
             let attribution_callback: Option<
-                xvora_sampler::SharedAttributionCallback,
+                sampler::SharedAttributionCallback,
             > = Some(
                 crate::auth::attribution::ShellAttribution::new(
                     self.auth_manager.clone(),
@@ -4655,7 +4655,7 @@ impl MvpAgent {
                     let hooks_trusted = folder_trust::project_scope_allowed(cwd);
                     let git_root = {
                         let _timer = crate::instrumentation_timer!("session.spawn_git_root");
-                        xvora_workspace::session::git::find_git_root_from_path(cwd)
+                        workspace::session::git::find_git_root_from_path(cwd)
                             .ok()
                     };
                     let (disk_registry, disk_errors) = {
@@ -4811,7 +4811,7 @@ impl MvpAgent {
                     prompt_display_cwd,
                     subagent_toggle,
                     Vec::new(),
-                    xvora_agent::prompt::context::PromptAudience::Primary,
+                    agent::prompt::context::PromptAudience::Primary,
                     None,
                     None,
                     disable_web_search,
@@ -4881,14 +4881,14 @@ impl MvpAgent {
             tokio::spawn(async move {
                 while let Some(agg) = loc_rx.recv().await {
                     match agg {
-                        xvora_hunk_tracker::LocAggregate::LinesChanged {
+                        hunk_tracker::LocAggregate::LinesChanged {
                             author_type,
                             lines_added,
                             lines_removed,
                             file_path,
                         } => {
                             let is_agent = author_type
-                                == xvora_hunk_tracker::AuthorType::Agent;
+                                == hunk_tracker::AuthorType::Agent;
                             signals
                                 .record_loc_change(
                                     is_agent,
@@ -4897,7 +4897,7 @@ impl MvpAgent {
                                     file_path,
                                 );
                         }
-                        xvora_hunk_tracker::LocAggregate::LinesReverted {
+                        hunk_tracker::LocAggregate::LinesReverted {
                             lines_added_reverted,
                             lines_removed_reverted,
                         } => {

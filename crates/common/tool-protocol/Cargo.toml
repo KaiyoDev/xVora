@@ -6,7 +6,7 @@ edition.workspace = true
 description = "Wire-protocol types for the xAI Computer Hub"
 
 [dependencies]
-xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
+tool-types = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

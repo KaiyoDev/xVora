@@ -1,8 +1,8 @@
 use super::mcp_failed_reminder::{classify_failed_servers, render_failed_section};
 use super::*;
 use crate::session::mcp_servers::McpOauthDiscovery;
-use xvora_telemetry::instrument_task;
-use xvora_telemetry::region::Parent;
+use telemetry::instrument_task;
+use telemetry::region::Parent;
 /// Wire the session's elicitation inbox into a freshly built client so its `elicitation/create` requests reach the coordinator.
 /// Takes the already-locked `McpState` so each caller keeps its own lock scope.
 fn attach_elicitation_tx(
@@ -437,7 +437,7 @@ impl SessionActor {
         );
         oauth_config_map
     }
-    /// Attempt to respawn MCP servers whose last spawn failed as unreachable ([`xvora_mcp::servers::McpError::Unreachable`]).
+    /// Attempt to respawn MCP servers whose last spawn failed as unreachable ([`mcp::servers::McpError::Unreachable`]).
     /// A transient connectivity loss during one startup probe must not strip the session of the server's tools for its remaining lifetime.
     /// Init runs once per config generation, so nothing else ever re-attempts the spawn.
     ///
@@ -540,7 +540,7 @@ impl SessionActor {
                         }
                     };
                     let _ = arc
-                        .arm_liveness_watcher(xvora_mcp::liveness::DEFAULT_POLL_INTERVAL)
+                        .arm_liveness_watcher(mcp::liveness::DEFAULT_POLL_INTERVAL)
                         .await;
                     let mut mcp_state = self.mcp_state.lock().await;
                     if !mcp_state.finish_unreachable_attempt(&server_name, token) {
@@ -622,7 +622,7 @@ impl SessionActor {
         client_for_auth: Option<std::sync::Arc<crate::session::mcp_servers::McpClient>>,
     ) {
         let detail =
-            || xvora_tools::util::truncate_str_with_marker(&error.to_string(), 200).into_owned();
+            || tools::util::truncate_str_with_marker(&error.to_string(), 200).into_owned();
         let mut state = self.mcp_state.lock().await;
         if error.is_auth_rejection() {
             if !state.settle_unreachable_attempt_unretryable(server_name, token) {
@@ -722,7 +722,7 @@ impl SessionActor {
         {
             return;
         }
-        use xvora_tools::implementations::search_tool::fingerprint_servers;
+        use tools::implementations::search_tool::fingerprint_servers;
         self.mcp_reminder_dirty
             .store(false, std::sync::atomic::Ordering::Relaxed);
         struct RearmOnDrop<'a>(Option<&'a std::sync::atomic::AtomicBool>);
@@ -763,16 +763,16 @@ impl SessionActor {
     /// A future dropped there by a turn cancel would swallow the announcement for good.
     fn latch_and_push_mcp_reminder(
         &self,
-        server_summaries: &[xvora_tools::types::tool_index::ServerSummary],
+        server_summaries: &[tools::types::tool_index::ServerSummary],
         new_fingerprints: std::collections::HashMap<
             String,
-            xvora_tools::implementations::search_tool::ServerFingerprint,
+            tools::implementations::search_tool::ServerFingerprint,
         >,
         currently_failed: Vec<crate::session::announcement_state::FailedServer>,
         unconnected_configured: &std::collections::HashSet<String>,
         hint: Option<&str>,
     ) -> bool {
-        use xvora_tools::implementations::search_tool::{
+        use tools::implementations::search_tool::{
             build_delta_reminder, build_server_reminder,
         };
         let (mut reminder_text, announcements_changed, to_announce) = {
@@ -981,7 +981,7 @@ impl SessionActor {
     /// Wiring the sender after the handshake still routes later `tools/list_changed` / `resources/list_changed` pushes through the dispatcher.
     /// The handler re-reads the slot on every emit.
     ///
-    /// **Contract:** the [`xvora_mcp::servers`] test `client_handler_observes_post_handshake_set_event_tx` covers this.
+    /// **Contract:** the [`mcp::servers`] test `client_handler_observes_post_handshake_set_event_tx` covers this.
     /// It builds a handler from a client whose slot is `None`, then installs a sender via `client.set_event_tx(Some(_))`.
     /// The next emit must reach the new receiver.
     /// If a future refactor snapshots `notify_tx` at handler construction instead of re-reading via the `Arc<Mutex<_>>`, that test regresses.
@@ -1068,13 +1068,13 @@ impl SessionActor {
         }
         if let Some(tx) = event_tx {
             new_client.set_event_tx(Some(tx.clone()));
-            let _ = tx.send(xvora_mcp::servers::McpClientEvent::ToolsChanged {
+            let _ = tx.send(mcp::servers::McpClientEvent::ToolsChanged {
                 server: server.to_string(),
             });
         }
         let arc_client = std::sync::Arc::new(new_client);
         let _ = arc_client
-            .arm_liveness_watcher(xvora_mcp::liveness::DEFAULT_POLL_INTERVAL)
+            .arm_liveness_watcher(mcp::liveness::DEFAULT_POLL_INTERVAL)
             .await;
         {
             let mut mcp_state = self.mcp_state.lock().await;
@@ -1176,7 +1176,7 @@ impl SessionActor {
             } else {
                 mcp_state.cancel_init();
                 self.events
-                    .emit(xvora_session_events::Event::McpInitCancelled {
+                    .emit(session_events::Event::McpInitCancelled {
                         reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
                     });
             }
@@ -1248,7 +1248,7 @@ impl SessionActor {
             } else {
                 mcp_state.cancel_init();
                 self.events
-                    .emit(xvora_session_events::Event::McpInitCancelled {
+                    .emit(session_events::Event::McpInitCancelled {
                         reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
                     });
             }
@@ -1321,7 +1321,7 @@ impl SessionActor {
                         .iter()
                         .find(|c| mcp_server_name(c) == sname.as_str());
                     self.events
-                        .emit(xvora_session_events::Event::McpServerFailed {
+                        .emit(session_events::Event::McpServerFailed {
                             server_name: sname,
                             transport: cfg.map(|c| mcp_transport_str(c).to_string()),
                             target: cfg.map(mcp_target_str),
@@ -1343,7 +1343,7 @@ impl SessionActor {
             if mcp_state.generation() != generation {
                 mcp_state.cancel_init();
                 self.events
-                    .emit(xvora_session_events::Event::McpInitCancelled {
+                    .emit(session_events::Event::McpInitCancelled {
                         reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
                     });
                 return;
@@ -1446,7 +1446,7 @@ impl SessionActor {
                         let server_name = client.server_name().to_string();
                         let server_start = std::time::Instant::now();
                         let timeout_sec = client.startup_timeout_sec();
-                        ew.emit(xvora_session_events::Event::McpServerStarting {
+                        ew.emit(session_events::Event::McpServerStarting {
                             server_name: server_name.clone(),
                             transport: transport.clone(),
                             target,
@@ -1538,7 +1538,7 @@ impl SessionActor {
                             generation,
                             mcp_state.generation()
                         );
-                        event_writer.emit(xvora_session_events::Event::McpInitCancelled {
+                        event_writer.emit(session_events::Event::McpInitCancelled {
                             reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
                         });
                         return;
@@ -1643,7 +1643,7 @@ impl SessionActor {
                                                 e
                                             );
                                             event_writer.emit(
-                                            xvora_session_events::Event::McpToolRegistrationFailed {
+                                            session_events::Event::McpToolRegistrationFailed {
                                                 server_name: server_name.clone(),
                                                 tool_name: qualified_name.clone(),
                                                 error: e.to_string(),
@@ -1663,18 +1663,18 @@ impl SessionActor {
                                     .copied()
                                     .unwrap_or("unknown")
                                 {
-                                    "stdio" => xvora_telemetry::events::McpTransport::Stdio,
-                                    "sse" => xvora_telemetry::events::McpTransport::Sse,
-                                    _ => xvora_telemetry::events::McpTransport::Http,
+                                    "stdio" => telemetry::events::McpTransport::Stdio,
+                                    "sse" => telemetry::events::McpTransport::Sse,
+                                    _ => telemetry::events::McpTransport::Http,
                                 };
                                 debug_assert!(
-                                    xvora_telemetry::activity::gauge_value(
-                                        xvora_telemetry::activity::MCP_SERVERS_CONNECTED_KEY
+                                    telemetry::activity::gauge_value(
+                                        telemetry::activity::MCP_SERVERS_CONNECTED_KEY
                                     ) >= 1,
                                     "McpServerConnected must stamp a self-inclusive count"
                                 );
-                                xvora_telemetry::session_ctx::log_event(
-                                    xvora_telemetry::events::McpServerConnected {
+                                telemetry::session_ctx::log_event(
+                                    telemetry::events::McpServerConnected {
                                         server_name: server_name.clone(),
                                         tool_count,
                                         transport: transport_enum,
@@ -1686,7 +1686,7 @@ impl SessionActor {
                                     .copied()
                                     .unwrap_or("unknown");
                                 event_writer.emit(
-                                    xvora_session_events::Event::McpServerConnected {
+                                    session_events::Event::McpServerConnected {
                                         server_name: server_name.clone(),
                                         transport: transport_str.to_string(),
                                         tool_count,
@@ -1712,21 +1712,21 @@ impl SessionActor {
                             }
                             Err((server_name, ref e, needs_auth, elapsed, timeout_sec)) => {
                                 let error_cat = if needs_auth {
-                                    xvora_session_events::McpErrorCategory::AuthRequired
+                                    session_events::McpErrorCategory::AuthRequired
                                 } else {
                                     e.error_category()
                                 };
                                 let error_type_label = match error_cat {
-                                    xvora_session_events::McpErrorCategory::AuthRequired => {
-                                        xvora_telemetry::events::McpErrorType::Auth
+                                    session_events::McpErrorCategory::AuthRequired => {
+                                        telemetry::events::McpErrorType::Auth
                                     }
-                                    xvora_session_events::McpErrorCategory::Timeout => {
-                                        xvora_telemetry::events::McpErrorType::Timeout
+                                    session_events::McpErrorCategory::Timeout => {
+                                        telemetry::events::McpErrorType::Timeout
                                     }
-                                    _ => xvora_telemetry::events::McpErrorType::HandshakeFailed,
+                                    _ => telemetry::events::McpErrorType::HandshakeFailed,
                                 };
-                                xvora_telemetry::session_ctx::log_event(
-                                    xvora_telemetry::events::McpServerFailed {
+                                telemetry::session_ctx::log_event(
+                                    telemetry::events::McpServerFailed {
                                         server_name: server_name.clone(),
                                         error_type: error_type_label,
                                         duration_ms: elapsed.as_millis() as u64,
@@ -1750,7 +1750,7 @@ impl SessionActor {
                                     None,
                                     Some(error_type_label.as_str()),
                                 );
-                                event_writer.emit(xvora_session_events::Event::McpServerFailed {
+                                event_writer.emit(session_events::Event::McpServerFailed {
                                     server_name: server_name.clone(),
                                     transport: Some(transport_str.to_string()),
                                     target: server_target_map.get(server_name.as_str()).cloned(),
@@ -1771,7 +1771,7 @@ impl SessionActor {
                                 // Keeping the two disjoint means a server that later authenticates is not left stuck Unavailable with zero tools
                                 // Stash the real cause for the model-facing MCP reminder rather than a bare "connection failed"
                                 let detail = (!needs_auth).then(|| {
-                                    xvora_tools::util::truncate_str_with_marker(&e.to_string(), 200)
+                                    tools::util::truncate_str_with_marker(&e.to_string(), 200)
                                         .into_owned()
                                 });
                                 if !needs_auth && e.is_connect_failure() {
@@ -1797,7 +1797,7 @@ impl SessionActor {
                         let arc = std::sync::Arc::new(c);
                         // `arm_liveness_watcher` does nothing when the client is not `Ready`, already has a watcher, or is ACP
                         let _ = arc
-                            .arm_liveness_watcher(xvora_mcp::liveness::DEFAULT_POLL_INTERVAL)
+                            .arm_liveness_watcher(mcp::liveness::DEFAULT_POLL_INTERVAL)
                             .await;
                         mcp_state
                             .owned_clients
@@ -1814,8 +1814,8 @@ impl SessionActor {
                     // Wake `wait_for_mcp_templated_prefix_ready`.
                     mcp_handshakes_done.notify_waiters();
 
-                    xvora_telemetry::session_ctx::log_event(
-                        xvora_telemetry::events::McpInitCompleted {
+                    telemetry::session_ctx::log_event(
+                        telemetry::events::McpInitCompleted {
                             total_duration_ms: handshake_start.elapsed().as_millis() as u64,
                             server_count,
                             servers_succeeded,
@@ -1826,7 +1826,7 @@ impl SessionActor {
                             is_reinit,
                         },
                     );
-                    event_writer.emit(xvora_session_events::Event::McpInitCompleted {
+                    event_writer.emit(session_events::Event::McpInitCompleted {
                         total_servers: server_count,
                         succeeded: servers_succeeded,
                         failed: servers_failed,
@@ -1957,8 +1957,8 @@ impl SessionActor {
     /// The single source for every consumer of the server list.
     pub(crate) fn connected_server_summaries(
         &self,
-    ) -> Vec<xvora_tools::types::tool_index::ServerSummary> {
-        use xvora_tools::types::tool_index::ToolSearchIndex;
+    ) -> Vec<tools::types::tool_index::ServerSummary> {
+        use tools::types::tool_index::ToolSearchIndex;
         crate::session::tool_index::Bm25ToolSearchIndex::new(self.tool_metadata_snapshot.clone())
             .list_server_summaries()
     }
@@ -1981,7 +1981,7 @@ impl SessionActor {
     pub(super) async fn mcp_announcement_snapshot(&self) -> Option<McpAnnouncementSnapshot> {
         let server_summaries = self.connected_server_summaries();
         let mut text =
-            xvora_tools::implementations::search_tool::build_server_reminder(&server_summaries)?;
+            tools::implementations::search_tool::build_server_reminder(&server_summaries)?;
         if let Some(hint) = self.rendered_mcp_hint().await {
             text.push_str(&hint);
         }

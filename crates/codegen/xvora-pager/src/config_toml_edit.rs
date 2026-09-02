@@ -31,7 +31,7 @@ pub(crate) fn read_config_document_for_edit(path: &Path) -> Option<toml_edit::Do
 /// No-ops when the existing file is non-blank but unparseable, so a malformed config is never clobbered.
 /// Performs blocking I/O.
 pub(crate) fn set_hint(key: &str, value: impl Into<toml_edit::Value>) -> std::io::Result<()> {
-    let path = xvora_tools::util::grok_home::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let path = tools::util::grok_home::grok_home().join(config::USER_CONFIG_FILENAME);
     set_hint_at(&path, key, value)
 }
 
@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn merge_round_trip_preserves_sibling_tables() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(xvora_config::USER_CONFIG_FILENAME);
+        let path = dir.path().join(config::USER_CONFIG_FILENAME);
         fs::write(
             &path,
             "[ui]\ncompact_mode = false\n\n[mcpServers]\nx = \"y\"\n",
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn nonempty_unparseable_returns_none_and_leaves_file() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(xvora_config::USER_CONFIG_FILENAME);
+        let path = dir.path().join(config::USER_CONFIG_FILENAME);
         let bad = "this is [not valid toml\n";
         fs::write(&path, bad).unwrap();
 
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn blank_file_is_editable_empty_doc() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(xvora_config::USER_CONFIG_FILENAME);
+        let path = dir.path().join(config::USER_CONFIG_FILENAME);
         for blank in ["", "   \n", "\n\t  \n"] {
             fs::write(&path, blank).unwrap();
             let doc = read_config_document_for_edit(&path)
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn set_hint_at_round_trips_and_preserves_siblings() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(xvora_config::USER_CONFIG_FILENAME);
+        let path = dir.path().join(config::USER_CONFIG_FILENAME);
         fs::write(&path, "[ui]\ncompact_mode = false\n").unwrap();
 
         set_hint_at(&path, "memory_modal_fullscreen", true).unwrap();
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn set_hint_write_then_read_back_round_trips() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(xvora_config::USER_CONFIG_FILENAME);
+        let path = dir.path().join(config::USER_CONFIG_FILENAME);
         fs::write(&path, "[ui]\ntheme = \"dark\"\n").unwrap();
 
         set_hint_at(&path, "memory_modal_fullscreen", true).unwrap();
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn set_hint_at_leaves_unparseable_file_untouched() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(xvora_config::USER_CONFIG_FILENAME);
+        let path = dir.path().join(config::USER_CONFIG_FILENAME);
         let bad = "this is [not valid toml\n";
         fs::write(&path, bad).unwrap();
 
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn vim_mode_round_trip() {
         let dir = tempdir().unwrap();
-        let path = dir.path().join(xvora_config::USER_CONFIG_FILENAME);
+        let path = dir.path().join(config::USER_CONFIG_FILENAME);
         fs::write(&path, "[ui]\ncompact_mode = false\n").unwrap();
 
         let mut doc = read_config_document_for_edit(&path).expect("parse");

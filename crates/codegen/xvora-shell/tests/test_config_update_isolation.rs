@@ -52,8 +52,8 @@ async fn update_config_does_not_leak_requirements_into_user_config() {
     .unwrap();
 
     // Sanity-check: effective config should show auto_update = false (requirements wins over user config)
-    let effective = xvora_shell::config::load_effective_config().unwrap();
-    let effective_cfg = xvora_shell::util::config::load_config_from_toml(&effective);
+    let effective = shell::config::load_effective_config().unwrap();
+    let effective_cfg = shell::util::config::load_config_from_toml(&effective);
     assert_eq!(
         effective_cfg.cli.auto_update,
         Some(false),
@@ -62,7 +62,7 @@ async fn update_config_does_not_leak_requirements_into_user_config() {
 
     // --- Act ---
     // Simulate an unrelated config write (e.g. persisting a model preference).
-    xvora_shell::util::config::update_config(|cfg| {
+    shell::util::config::update_config(|cfg| {
         cfg.models.default = Some("grok-3".to_string());
     })
     .await
@@ -72,7 +72,7 @@ async fn update_config_does_not_leak_requirements_into_user_config() {
     // Read the user's config.toml back from disk (raw, no merge).
     let raw = fs::read_to_string(home.join("config.toml")).unwrap();
     let user_toml: toml::Value = toml::from_str(&raw).unwrap();
-    let user_cfg = xvora_shell::util::config::load_config_from_toml(&user_toml);
+    let user_cfg = shell::util::config::load_config_from_toml(&user_toml);
 
     assert_eq!(
         user_cfg.cli.auto_update,
@@ -105,7 +105,7 @@ async fn update_config_preserves_none_when_only_requirements_sets_value() {
     .unwrap();
 
     // Write an unrelated field
-    xvora_shell::util::config::update_config(|cfg| {
+    shell::util::config::update_config(|cfg| {
         cfg.ui.yolo = true;
     })
     .await
@@ -114,7 +114,7 @@ async fn update_config_preserves_none_when_only_requirements_sets_value() {
     // Read back
     let raw = fs::read_to_string(home.join("config.toml")).unwrap();
     let user_toml: toml::Value = toml::from_str(&raw).unwrap();
-    let user_cfg = xvora_shell::util::config::load_config_from_toml(&user_toml);
+    let user_cfg = shell::util::config::load_config_from_toml(&user_toml);
 
     assert_eq!(
         user_cfg.cli.auto_update, None,
@@ -142,7 +142,7 @@ async fn update_config_does_not_leak_managed_config_values() {
     )
     .unwrap();
 
-    xvora_shell::util::config::update_config(|cfg| {
+    shell::util::config::update_config(|cfg| {
         cfg.models.default = Some("test-model".to_string());
     })
     .await
@@ -150,7 +150,7 @@ async fn update_config_does_not_leak_managed_config_values() {
 
     let raw = fs::read_to_string(home.join("config.toml")).unwrap();
     let user_toml: toml::Value = toml::from_str(&raw).unwrap();
-    let user_cfg = xvora_shell::util::config::load_config_from_toml(&user_toml);
+    let user_cfg = shell::util::config::load_config_from_toml(&user_toml);
 
     assert_eq!(
         user_cfg.cli.auto_update, None,

@@ -12,7 +12,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use portable_pty::CommandBuilder;
 #[cfg(any(unix, test))]
-use xvora_test_support::TestSandbox;
+use test_support::TestSandbox;
 
 use crate::pty::EnvOp;
 
@@ -251,7 +251,7 @@ pub(crate) fn spawn_pty_session_child(
     // non-setuid with no file capabilities (the kernel clears PDEATHSIG
     // across a privileged exec).
     #[cfg(target_os = "linux")]
-    xvora_tty_utils::kill_on_parent_death_std_with(&mut cmd, libc::SIGKILL);
+    tty_utils::kill_on_parent_death_std_with(&mut cmd, libc::SIGKILL);
 
     cmd.stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())

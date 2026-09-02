@@ -1,5 +1,5 @@
 use super::*;
-use xvora_test_utils::git::reflog_only_commit;
+use test_utils::git::reflog_only_commit;
 
 #[test]
 fn commit_no_remote_holds_keeps_the_worktree() {

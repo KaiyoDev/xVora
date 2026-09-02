@@ -1117,7 +1117,7 @@ fn subagents_config_parses_max_depth_from_toml() {
 }
 #[test]
 fn subagent_limit_counts_resolve_env_over_toml_over_remote_over_default() {
-    use xvora_tools::implementations::grok_build::task::admission;
+    use tools::implementations::grok_build::task::admission;
     let resolve = SubagentsConfig::resolve_max_concurrent;
     assert_eq!(resolve(Some("3"), Some(2), Some(4)), 3);
     assert_eq!(resolve(None, Some(2), Some(4)), 2);
@@ -1133,7 +1133,7 @@ fn subagent_limit_counts_resolve_env_over_toml_over_remote_over_default() {
 #[test]
 fn subagent_sampling_limit_applies_precedence_and_clamps() {
     use crate::agent::subagent::MAX_SUBAGENT_SAMPLING_LIMIT;
-    use xvora_tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT;
+    use tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT;
     let resolve = |env: Option<&str>, config: Option<i64>, remote: Option<u32>| SubagentsConfig::resolve_sampling_limit(
         env,
         config,
@@ -1178,7 +1178,7 @@ fn subagent_sampling_limit_defaults_to_resolved_subagents_max_concurrent() {
 }
 #[test]
 fn subagent_limit_behavior_resolves_env_over_toml_over_remote_over_queue() {
-    use xvora_tools::implementations::grok_build::task::admission::LimitBehavior;
+    use tools::implementations::grok_build::task::admission::LimitBehavior;
     let resolve = SubagentsConfig::resolve_limit_behavior;
     assert_eq!(
             resolve(Some("fail"), Some("queue"), Some("queue")),
@@ -2277,7 +2277,7 @@ fn malformed_zdr_video_output_s3_preserves_zdr_flag() {
 }
 #[test]
 fn media_gen_caps_resolve_env_over_toml_over_remote_over_default() {
-    use xvora_tools::media_gen_limits::{
+    use tools::media_gen_limits::{
         DEFAULT_MAX_PARALLEL_IMAGE_GEN, DEFAULT_MAX_PARALLEL_VIDEO_GEN,
     };
     let config: toml::Value = toml::from_str(
@@ -3196,7 +3196,7 @@ email_domain = "example.com"
 #[test]
 #[serial_test::serial]
 fn project_config_never_sources_feedback_user() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3211,7 +3211,7 @@ fn project_config_never_sources_feedback_user() {
         )
         .unwrap();
     let cwd = repo.path();
-    xvora_workspace::folder_trust::grant_folder_trust(cwd);
+    workspace::folder_trust::grant_folder_trust(cwd);
     assert!(
             resolve_effective_plugins_config(cwd)
                 .paths
@@ -3450,7 +3450,7 @@ fn a_repeated_pin_is_reported_against_the_layer_that_decided() {
 #[test]
 #[serial_test::serial]
 fn apply_requirements_pins_title_refresh_over_the_environment() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _env = EnvGuard::set("GROK_TITLE_REFRESH", "1");
     let mut cfg = crate::agent::config::Config::default();
     let req: toml::Value = toml::from_str("[features]\ntitle_refresh = false\n")
@@ -3805,7 +3805,7 @@ fn validate_hooks_path_accepts_grok_hooks_subdir() {
 #[test]
 fn managed_settings_disables_features_and_requirements_overrides() {
     use crate::agent::config::Feature;
-    use xvora_workspace::permission::resolution::ManagedSettingsFeatures;
+    use workspace::permission::resolution::ManagedSettingsFeatures;
     let mut cfg = crate::agent::config::Config::default();
     cfg.features.telemetry = Some(crate::agent::config::TelemetryMode::Enabled);
     cfg.feature_values.insert(Feature::Feedback, true);
@@ -3845,7 +3845,7 @@ fn managed_settings_disables_features_and_requirements_overrides() {
 #[test]
 fn managed_settings_does_not_override_user_yolo() {
     use crate::agent::config::Feature;
-    use xvora_workspace::permission::resolution::ManagedSettingsFeatures;
+    use workspace::permission::resolution::ManagedSettingsFeatures;
     let mut cfg = crate::agent::config::Config::default();
     cfg.features.telemetry = Some(crate::agent::config::TelemetryMode::Enabled);
     cfg.feature_values.insert(Feature::Feedback, true);
@@ -3872,8 +3872,8 @@ fn managed_settings_does_not_override_user_yolo() {
 }
 /// Simulate a release-stamped build so the folder-trust gate engages (a local/dev build auto-trusts).
 /// Hold the returned guard for the test body.
-fn simulate_release_build() -> xvora_test_support::EnvGuard {
-    xvora_test_support::EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0.0-sim")
+fn simulate_release_build() -> test_support::EnvGuard {
+    test_support::EnvGuard::set(version::TEST_VERSION_ENV, "0.0.0-sim")
 }
 #[test]
 fn project_overlay_tracks_authoritative_trust_transitions() {
@@ -3972,7 +3972,7 @@ fn explicit_grok_root_is_the_only_user_source() {
 #[test]
 #[serial_test::serial]
 fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3998,7 +3998,7 @@ fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
             untrusted.disabled.contains(&proj_disabled),
             "project [plugins].disabled must merge even when untrusted (fail-safe)"
         );
-    xvora_workspace::folder_trust::grant_folder_trust(cwd);
+    workspace::folder_trust::grant_folder_trust(cwd);
     let trusted = resolve_effective_plugins_config(cwd);
     assert!(
             trusted.paths.contains(&proj_path),
@@ -4030,8 +4030,8 @@ fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
 #[test]
 #[serial_test::serial]
 fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
-    use xvora_agent::plugins::{TrustStore, discover_plugins};
-    use xvora_test_support::EnvGuard;
+    use agent::plugins::{TrustStore, discover_plugins};
+    use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -4076,7 +4076,7 @@ fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
             !untrusted_found,
             "untrusted folder must EXCLUDE the ConfigPath plugin from discovery"
         );
-    xvora_workspace::folder_trust::grant_folder_trust(cwd);
+    workspace::folder_trust::grant_folder_trust(cwd);
     crate::agent::folder_trust::resolve_and_record(cwd, None, false);
     let trusted_dc = resolve_effective_plugins_config(cwd).to_discovery_config();
     let trusted_verdict = crate::agent::folder_trust::project_scope_allowed(cwd);
@@ -4103,7 +4103,7 @@ fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
 #[test]
 #[serial_test::serial]
 fn kill_switched_cold_cwd_stays_allowed_through_plugins_config_read() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");

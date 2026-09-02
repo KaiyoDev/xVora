@@ -9,7 +9,7 @@
 //!    carries both versions under a renamed `package = "reqwest"` alias.
 //!    reqwest 0.13 is now a fully private impl detail of [`servers`]; no
 //!    re-export. Consumers reach `rmcp` model types through this namespace
-//!    (`xvora_mcp::rmcp::*`).
+//!    (`mcp::rmcp::*`).
 //!
 //! 2. **Owns MCP-specific integration code**:
 //!    - [`credentials`]: on-disk `$GROK_HOME/mcp_credentials.json` store and the rmcp `CredentialStore` adapter.
@@ -30,7 +30,7 @@ pub fn isolate_grok_home_for_tests() {
         let dir = tempfile::TempDir::new().expect("test grok home").keep();
         // SAFETY: OnceLock-guarded single set; the concurrent env-read race is accepted in tests.
         unsafe { std::env::set_var("GROK_HOME", &dir) };
-        let memo = xvora_config::grok_home();
+        let memo = config::grok_home();
         assert!(
             memo.starts_with(&dir),
             "grok-home memo was warmed before test isolation: {}",

@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::future::Future;
 use std::sync::{Arc, LazyLock};
-use xvora_telemetry::region;
-use xvora_telemetry::region::Parent;
+use telemetry::region;
+use telemetry::region::Parent;
 
 use agent_client_protocol as acp;
 use regex::Regex;
@@ -37,16 +37,16 @@ use crate::auth_status::{HttpAuthDecision, decide_http_auth_from_disk};
 use crate::oauth::OAUTH_DISCOVERY_TIMEOUT;
 use crate::oauth_config::McpOAuthConfig;
 
-use xvora_tools::types::{
+use tools::types::{
     output::{MCPOutput, MCPOutputDetails, ToolOutput},
     tool::{ToolKind, ToolNamespace},
     tool_metadata::ToolMetadata,
 };
-use xvora_tools::util::{ProcessGroup, ProcessScope};
+use tools::util::{ProcessGroup, ProcessScope};
 
 /// MCP tool name delimiter: server names are qualified as `"server__tool"`.
-/// Canonical definition lives in `xvora_workspace_types`; re-exported here for callers that historically imported it from this module.
-pub use xvora_workspace_types::MCP_TOOL_NAME_DELIMITER;
+/// Canonical definition lives in `workspace_types`; re-exported here for callers that historically imported it from this module.
+pub use workspace_types::MCP_TOOL_NAME_DELIMITER;
 
 /// Routing hint for first-party local app MCP endpoints: which agent/session
 /// a request belongs to. **Advisory only, never authentication** — any local
@@ -56,11 +56,11 @@ pub use xvora_workspace_types::MCP_TOOL_NAME_DELIMITER;
 /// it (mirroring the `GROK_SESSION_ID` env protection on stdio servers).
 pub const GROK_AGENT_ID_HEADER: &str = "X-Grok-Agent-ID";
 
-/// Reqwest 0.13 twin of the 0.12 adapters in `xvora_extra_ca`.
+/// Reqwest 0.13 twin of the 0.12 adapters in `extra_ca`.
 fn with_extra_root_certificates(mut builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
     builder = builder.tls_backend_rustls();
-    for der in xvora_extra_ca::extra_root_ders() {
+    for der in extra_ca::extra_root_ders() {
         match reqwest::Certificate::from_der(der) {
             Ok(cert) => builder = builder.add_root_certificate(cert),
             Err(e) => tracing::warn!(
@@ -468,7 +468,7 @@ pub struct McpState {
     pub disabled_tools: HashMap<McpServerName, std::collections::HashSet<ToolName>>,
     /// Stashed registrations for disabled tools so they can be re-enabled without a full MCP re-init (no need to call `list_tools` again).
     pub disabled_tool_registrations: HashMap<String, McpToolRegistration>,
-    event_writer: xvora_session_events::EventWriter,
+    event_writer: session_events::EventWriter,
     /// Sender wired by the session actor to its `StatusDispatcher` task.
     /// When `Some`, the state and every [`McpClient`] reached through [`Self::all_clients`] / [`Self::get_client`] forward [`McpClientEvent`]s here.
     /// Events are coalesced and fanned out as ACP `x.ai/mcp/server_status` notifications.
@@ -507,7 +507,7 @@ impl McpState {
             unreachable_attempt_counter: 0,
             disabled_tools: HashMap::new(),
             disabled_tool_registrations: HashMap::new(),
-            event_writer: xvora_session_events::EventWriter::noop(),
+            event_writer: session_events::EventWriter::noop(),
             client_event_tx: None,
             elicitation_job_tx: None,
         }
@@ -550,11 +550,11 @@ impl McpState {
         self.elicitation_job_tx.clone()
     }
 
-    pub fn set_event_writer(&mut self, writer: xvora_session_events::EventWriter) {
+    pub fn set_event_writer(&mut self, writer: session_events::EventWriter) {
         self.event_writer = writer;
     }
 
-    pub fn event_writer(&self) -> &xvora_session_events::EventWriter {
+    pub fn event_writer(&self) -> &session_events::EventWriter {
         &self.event_writer
     }
 
@@ -1167,10 +1167,10 @@ pub fn parse_mcp_meta_config(
 }
 
 /// MCP initialization strategy. Defined in `xvora-telemetry`; re-exported here so existing call sites continue to work.
-pub use xvora_telemetry::enums::McpInitStrategy;
+pub use telemetry::enums::McpInitStrategy;
 
-/// Parse a non-empty `server__tool` ID with one overlap-aware delimiter and valid [`xvora_tool_protocol::ToolId`] syntax.
-pub fn parse_mcp_qualified_name(name: &str) -> Option<(xvora_tool_protocol::ToolId, &str, &str)> {
+/// Parse a non-empty `server__tool` ID with one overlap-aware delimiter and valid [`tool_protocol::ToolId`] syntax.
+pub fn parse_mcp_qualified_name(name: &str) -> Option<(tool_protocol::ToolId, &str, &str)> {
     let delimiter = MCP_TOOL_NAME_DELIMITER.as_bytes();
     // Byte windows preserve both overlapping `__` boundaries in `___`.
     let mut boundaries = name
@@ -1187,7 +1187,7 @@ pub fn parse_mcp_qualified_name(name: &str) -> Option<(xvora_tool_protocol::Tool
     if server.is_empty() || tool.is_empty() {
         return None;
     }
-    Some((xvora_tool_protocol::ToolId::new(name).ok()?, server, tool))
+    Some((tool_protocol::ToolId::new(name).ok()?, server, tool))
 }
 
 /// Parse an MCP tool name in `server__tool` format into owned segments.
@@ -1243,8 +1243,8 @@ impl McpError {
         matches!(self, Self::Timeout { .. })
     }
 
-    pub fn error_category(&self) -> xvora_session_events::McpErrorCategory {
-        use xvora_session_events::McpErrorCategory;
+    pub fn error_category(&self) -> session_events::McpErrorCategory {
+        use session_events::McpErrorCategory;
         match self {
             Self::SpawnFailed { .. } => McpErrorCategory::SpawnFailed,
             Self::Timeout { .. } => McpErrorCategory::Timeout,
@@ -1528,7 +1528,7 @@ impl McpTool {
 
 /// MCP tool wrapper for runtime dispatch.
 ///
-/// MCP tools are already untyped (JSON in, JSON out), so they implement `xvora_tool_runtime::Tool` directly instead of going through typed wrappers.
+/// MCP tools are already untyped (JSON in, JSON out), so they implement `tool_runtime::Tool` directly instead of going through typed wrappers.
 pub struct McpErasedTool {
     tool: McpTool,
 }
@@ -1556,33 +1556,33 @@ impl ToolMetadata for McpErasedTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for McpErasedTool {
+impl tool_runtime::Tool for McpErasedTool {
     type Args = serde_json::Value;
     type Output = ToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
+    fn id(&self) -> tool_protocol::ToolId {
         // Use the qualified name (server__tool) so that two MCP servers exposing the same raw tool name get distinct LocalRegistry entries
         let qualified = format!(
             "{}{}{}",
             self.tool.server_name, MCP_TOOL_NAME_DELIMITER, self.tool.name
         );
-        xvora_tool_protocol::ToolId::new(&qualified)
-            .unwrap_or_else(|_| xvora_tool_protocol::ToolId::new("mcp_tool").expect("valid"))
+        tool_protocol::ToolId::new(&qualified)
+            .unwrap_or_else(|_| tool_protocol::ToolId::new("mcp_tool").expect("valid"))
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(&self.tool.name, &self.tool.description)
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(&self.tool.name, &self.tool.description)
     }
 
     async fn run(
         &self,
-        _ctx: xvora_tool_runtime::ToolCallContext,
+        _ctx: tool_runtime::ToolCallContext,
         raw: serde_json::Value,
-    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
-        let call_span = xvora_telemetry::region::Region::from_span(tracing::info_span!(
+    ) -> Result<ToolOutput, tool_runtime::ToolError> {
+        let call_span = telemetry::region::Region::from_span(tracing::info_span!(
             "mcp.tool_call",
             server_name = %self.tool.server_name,
             tool_name = %self.tool.name,
@@ -1594,7 +1594,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
         let (client, event_writer) = {
             let state = self.tool.mcp_state.lock().await;
             let c = Arc::clone(state.get_client(&self.tool.server_name).ok_or_else(|| {
-                xvora_tool_runtime::ToolError::custom(
+                tool_runtime::ToolError::custom(
                     "process_manager",
                     format!("MCP server '{}' not found", self.tool.server_name),
                 )
@@ -1607,7 +1607,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
         let tool = &self.tool.name;
         let tool_timeout = client.tool_timeout_for(tool);
         let qualified_name = format!("{}{}{}", server, MCP_TOOL_NAME_DELIMITER, tool);
-        event_writer.emit(xvora_session_events::Event::McpToolCallStarted {
+        event_writer.emit(session_events::Event::McpToolCallStarted {
             server_name: server.clone(),
             tool_name: tool.clone(),
             call_id: qualified_name.clone(),
@@ -1626,7 +1626,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
             Err(first_err) if client.has_auth() => {
                 auth_retry_attempted = true;
                 let reauth_ok = client.force_reauth(false).await;
-                ew.emit(xvora_session_events::Event::McpAuthRetry {
+                ew.emit(session_events::Event::McpAuthRetry {
                     server_name: server.clone(),
                     trigger: "tool_call_failed".to_string(),
                     success: reauth_ok,
@@ -1635,7 +1635,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
                     self.try_call_tool(&client, &raw, &mut reconnect_attempted, &mut is_timeout, ew)
                         .await
                         .map_err(|e| {
-                            xvora_tool_runtime::ToolError::custom("process_manager", e.to_string())
+                            tool_runtime::ToolError::custom("process_manager", e.to_string())
                         })
                 } else {
                     Err(first_err)
@@ -1650,7 +1650,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
         let call_result = match dispatch_result {
             Ok(result) => result,
             Err(e) => {
-                ew.emit(xvora_session_events::Event::McpToolCallCompleted {
+                ew.emit(session_events::Event::McpToolCallCompleted {
                     server_name: server.clone(),
                     tool_name: tool.clone(),
                     call_id: qualified_name,
@@ -1727,7 +1727,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
         } else {
             None
         };
-        event_writer.emit(xvora_session_events::Event::McpToolCallCompleted {
+        event_writer.emit(session_events::Event::McpToolCallCompleted {
             server_name: server.clone(),
             tool_name: tool.clone(),
             call_id: qualified_name.clone(),
@@ -1738,7 +1738,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
             reconnect_attempted,
             auth_retry_attempted,
         });
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::McpToolCalled {
+        telemetry::session_ctx::log_event(telemetry::events::McpToolCalled {
             server_name: server.clone(),
             tool_name: tool.clone(),
             qualified_name,
@@ -1834,8 +1834,8 @@ impl McpErasedTool {
         raw: &serde_json::Value,
         reconnect_attempted: &mut bool,
         is_timeout: &mut bool,
-        ew: &xvora_session_events::EventWriter,
-    ) -> Result<rmcp::model::CallToolResult, xvora_tool_runtime::ToolError> {
+        ew: &session_events::EventWriter,
+    ) -> Result<rmcp::model::CallToolResult, tool_runtime::ToolError> {
         let tool_timeout = client.tool_timeout_for(&self.tool.name);
         let timeout_duration = std::time::Duration::from_secs(tool_timeout);
         let mut params = CallToolRequestParams::new(self.tool.name.clone());
@@ -1862,7 +1862,7 @@ impl McpErasedTool {
                 // SEP-2663 tasks are never advertised by this client, so a conforming server
                 // cannot return one; `CallToolResponse` is also non_exhaustive.
                 _ => {
-                    return Err(xvora_tool_runtime::ToolError::custom(
+                    return Err(tool_runtime::ToolError::custom(
                         "process_manager",
                         format!(
                             "MCP tool '{}' returned an unsupported response kind",
@@ -1879,7 +1879,7 @@ impl McpErasedTool {
             if has_input_requests {
                 input_rounds += 1;
                 if input_rounds > rmcp::model::DEFAULT_MRTR_MAX_ROUNDS {
-                    return Err(xvora_tool_runtime::ToolError::custom(
+                    return Err(tool_runtime::ToolError::custom(
                         "process_manager",
                         format!(
                             "MCP tool '{}' kept requiring input beyond {} rounds",
@@ -1893,7 +1893,7 @@ impl McpErasedTool {
             } else {
                 let started = *pending_since.get_or_insert_with(std::time::Instant::now);
                 if started.elapsed() >= MRTR_PENDING_STATE_TIMEOUT {
-                    return Err(xvora_tool_runtime::ToolError::custom(
+                    return Err(tool_runtime::ToolError::custom(
                         "process_manager",
                         format!(
                             "MCP tool '{}' still awaited an out-of-band interaction after {}s",
@@ -1926,12 +1926,12 @@ impl McpErasedTool {
         tool_timeout: u64,
         reconnect_attempted: &mut bool,
         is_timeout: &mut bool,
-        ew: &xvora_session_events::EventWriter,
-    ) -> Result<rmcp::model::CallToolResponse, xvora_tool_runtime::ToolError> {
+        ew: &session_events::EventWriter,
+    ) -> Result<rmcp::model::CallToolResponse, tool_runtime::ToolError> {
         let mcp_service = client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_tool_runtime::ToolError::custom("process_manager", e.to_string()))?;
+            .map_err(|e| tool_runtime::ToolError::custom("process_manager", e.to_string()))?;
         let result =
             tokio::time::timeout(timeout_duration, mcp_service.call_tool_once(params.clone()))
                 .await;
@@ -1957,7 +1957,7 @@ impl McpErasedTool {
                 )
                 .await
             }
-            Ok(Err(e)) => Err(xvora_tool_runtime::ToolError::custom(
+            Ok(Err(e)) => Err(tool_runtime::ToolError::custom(
                 "process_manager",
                 e.to_string(),
             )),
@@ -1968,7 +1968,7 @@ impl McpErasedTool {
                     client.reset_transport().await;
                     *reconnect_attempted = true;
                 }
-                Err(xvora_tool_runtime::ToolError::custom(
+                Err(tool_runtime::ToolError::custom(
                     "process_manager",
                     format!(
                         "MCP tool '{}' timed out after {} seconds",
@@ -1985,11 +1985,11 @@ impl McpErasedTool {
         &self,
         client: &Arc<McpClient>,
         result: rmcp::model::InputRequiredResult,
-    ) -> Result<(Option<rmcp::model::InputResponses>, Option<String>), xvora_tool_runtime::ToolError>
+    ) -> Result<(Option<rmcp::model::InputResponses>, Option<String>), tool_runtime::ToolError>
     {
         let input_requests = result.input_requests.unwrap_or_default();
         if input_requests.is_empty() && result.request_state.is_none() {
-            return Err(xvora_tool_runtime::ToolError::custom(
+            return Err(tool_runtime::ToolError::custom(
                 "process_manager",
                 format!(
                     "MCP tool '{}' returned input_required with neither inputRequests nor requestState",
@@ -2009,7 +2009,7 @@ impl McpErasedTool {
                     );
                     let elicit_result = client.bridge_elicit(elicit.params).await;
                     let value = serde_json::to_value(elicit_result).map_err(|e| {
-                        xvora_tool_runtime::ToolError::custom(
+                        tool_runtime::ToolError::custom(
                             "process_manager",
                             format!("failed to serialize elicitation response: {e}"),
                         )
@@ -2019,7 +2019,7 @@ impl McpErasedTool {
                 // Sampling and roots are never advertised in our client capabilities,
                 // so a conforming server cannot request them (spec: servers MUST NOT).
                 _ => {
-                    return Err(xvora_tool_runtime::ToolError::custom(
+                    return Err(tool_runtime::ToolError::custom(
                         "process_manager",
                         format!(
                             "MCP server '{}' requested an unsupported input kind ('{key}'); \
@@ -2048,8 +2048,8 @@ impl McpErasedTool {
         original_err: ServiceError,
         reconnect_attempted: &mut bool,
         is_timeout: &mut bool,
-        ew: &xvora_session_events::EventWriter,
-    ) -> Result<rmcp::model::CallToolResponse, xvora_tool_runtime::ToolError> {
+        ew: &session_events::EventWriter,
+    ) -> Result<rmcp::model::CallToolResponse, tool_runtime::ToolError> {
         *reconnect_attempted = true;
         tracing::warn!(
             server = self.tool.server_name.as_str(),
@@ -2057,14 +2057,14 @@ impl McpErasedTool {
             error = %original_err,
             "MCP transport error, attempting reconnect"
         );
-        ew.emit(xvora_session_events::Event::McpTransportError {
+        ew.emit(session_events::Event::McpTransportError {
             server_name: self.tool.server_name.clone(),
             tool_name: self.tool.name.clone(),
             error: original_err.to_string(),
         });
         let mcp_service = match client.recover().await {
             Ok(service) => {
-                ew.emit(xvora_session_events::Event::McpTransportReconnect {
+                ew.emit(session_events::Event::McpTransportReconnect {
                     server_name: self.tool.server_name.clone(),
                     success: true,
                     error: None,
@@ -2072,12 +2072,12 @@ impl McpErasedTool {
                 service
             }
             Err(e) => {
-                ew.emit(xvora_session_events::Event::McpTransportReconnect {
+                ew.emit(session_events::Event::McpTransportReconnect {
                     server_name: self.tool.server_name.clone(),
                     success: false,
                     error: Some(e.to_string()),
                 });
-                return Err(xvora_tool_runtime::ToolError::custom(
+                return Err(tool_runtime::ToolError::custom(
                     "process_manager",
                     original_err.to_string(),
                 ));
@@ -2085,13 +2085,13 @@ impl McpErasedTool {
         };
         match tokio::time::timeout(timeout_duration, mcp_service.call_tool_once(params)).await {
             Ok(Ok(response)) => Ok(response),
-            Ok(Err(retry_err)) => Err(xvora_tool_runtime::ToolError::custom(
+            Ok(Err(retry_err)) => Err(tool_runtime::ToolError::custom(
                 "process_manager",
                 retry_err.to_string(),
             )),
             Err(_) => {
                 *is_timeout = true;
-                Err(xvora_tool_runtime::ToolError::custom(
+                Err(tool_runtime::ToolError::custom(
                     "process_manager",
                     format!(
                         "MCP tool '{}' timed out after {} seconds",
@@ -2341,7 +2341,7 @@ async fn decide_http_auth_over_network(
                     "OAuth discovery timed out"
                 );
                 ctx.event_writer
-                    .emit(xvora_session_events::Event::McpOAuthDiscoveryTimeout {
+                    .emit(session_events::Event::McpOAuthDiscoveryTimeout {
                         server_name: server_name.to_string(),
                         url: url.to_string(),
                     });
@@ -2377,7 +2377,7 @@ async fn decide_http_auth_over_network(
                 }
             };
             ctx.event_writer
-                .emit(xvora_session_events::Event::McpOAuthProbeResolved {
+                .emit(session_events::Event::McpOAuthProbeResolved {
                     server_name: server_name.to_string(),
                     verdict: verdict.to_string(),
                 });
@@ -2430,7 +2430,7 @@ where
     /// It also lets `close` drop the writer; mirrors rmcp's own `AsyncRwTransport`.
     write: Arc<Mutex<Option<W>>>,
     server_name: String,
-    event_writer: xvora_session_events::EventWriter,
+    event_writer: session_events::EventWriter,
 }
 
 /// Max bytes of an offending line copied into the decode-error event.
@@ -2455,7 +2455,7 @@ where
         read: R,
         write: W,
         server_name: String,
-        event_writer: xvora_session_events::EventWriter,
+        event_writer: session_events::EventWriter,
     ) -> Self {
         Self {
             read: BufReader::new(read),
@@ -2479,7 +2479,7 @@ where
             "Skipping undecodable MCP stdout line; keeping transport alive",
         );
         self.event_writer
-            .emit(xvora_session_events::Event::McpTransportDecodeError {
+            .emit(session_events::Event::McpTransportDecodeError {
                 server_name: self.server_name.clone(),
                 error: err.to_string(),
                 sample,
@@ -2637,7 +2637,7 @@ impl SafeTokioChildProcess {
         mut cmd: Command,
         scope: Option<&ProcessScope>,
         server_name: String,
-        event_writer: xvora_session_events::EventWriter,
+        event_writer: session_events::EventWriter,
     ) -> std::io::Result<(Self, Option<ChildStderr>)> {
         cmd.stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
@@ -2843,9 +2843,9 @@ enum PendingTransport {
 /// It passes `tools/list_changed` / `resources/list_changed` notifications through to the session-actor dispatcher.
 pub type McpService = Arc<RunningService<RoleClient, GrokClientHandler>>;
 
-pub(crate) static MCP_SERVERS_CONNECTED: xvora_telemetry::activity::ActivityGauge =
-    xvora_telemetry::activity::ActivityGauge::residency(
-        xvora_telemetry::activity::MCP_SERVERS_CONNECTED_KEY,
+pub(crate) static MCP_SERVERS_CONNECTED: telemetry::activity::ActivityGauge =
+    telemetry::activity::ActivityGauge::residency(
+        telemetry::activity::MCP_SERVERS_CONNECTED_KEY,
     );
 
 /// MCP client connection state machine.
@@ -2871,7 +2871,7 @@ enum ClientState {
     /// Handshake completed; the service is reference-counted via `Arc`.
     Ready {
         service: McpService,
-        _connected: xvora_telemetry::activity::ActivityGaugeGuard,
+        _connected: telemetry::activity::ActivityGaugeGuard,
     },
 }
 
@@ -3739,7 +3739,7 @@ impl McpClient {
         let mut result = self.try_handshake(pending).await;
 
         let handshake_elapsed = handshake_start.elapsed().as_micros() as u64;
-        tracing::info!(target: xvora_telemetry::instrumentation::TARGET, event = "timing", name = "mcp_try_handshake", elapsed_us = handshake_elapsed);
+        tracing::info!(target: telemetry::instrumentation::TARGET, event = "timing", name = "mcp_try_handshake", elapsed_us = handshake_elapsed);
         // On handshake failure, if we have an auth_manager, try refreshing the token and retrying once
         // Handles expired access tokens loaded from disk: the handshake fails at the transport layer before rmcp's transparent 401 refresh kicks in
         // We attempt refresh on any failure (not just auth errors): the cost is low
@@ -3981,7 +3981,7 @@ impl McpClient {
             capabilities,
             Implementation::new(
                 format!("grok-shell-{server_name}"),
-                xvora_version::VERSION.to_string(),
+                version::VERSION.to_string(),
             ),
         )
         // This pin currently equals rmcp 3.2 LATEST
@@ -4449,7 +4449,7 @@ fn sanitize_mcp_log_filename(name: &str) -> String {
 /// Copy an MCP server's stderr to `~/.grok/logs/mcp/<server>.stderr.log`
 /// in a background task. Truncated per spawn.
 fn drain_mcp_stderr_to_log(server_name: &str, mut stderr: tokio::process::ChildStderr) {
-    let log_dir = xvora_config::grok_home().join("logs").join("mcp");
+    let log_dir = config::grok_home().join("logs").join("mcp");
     if let Err(e) = std::fs::create_dir_all(&log_dir) {
         tracing::warn!("MCP stderr drain: failed to create log dir: {e}");
         return;
@@ -4563,7 +4563,7 @@ fn ensure_figma_user_agent(headers: &mut reqwest::header::HeaderMap, server_name
 }
 
 static DEFAULT_USER_AGENT: LazyLock<reqwest::header::HeaderValue> = LazyLock::new(|| {
-    format!("grok-cli/{}", xvora_version::VERSION)
+    format!("grok-cli/{}", version::VERSION)
         .parse()
         .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("grok-cli"))
 });
@@ -4630,7 +4630,7 @@ fn apply_stdio_env(cmd: &mut Command, env: &[acp::EnvVariable], session_id: Opti
 /// Borrowed cross-cutting spawn context whose `scope`, when set, enrolls the stdio child for session-close reaping.
 pub struct McpSpawnCtx<'a> {
     pub(crate) session_id: Option<&'a str>,
-    pub(crate) event_writer: &'a xvora_session_events::EventWriter,
+    pub(crate) event_writer: &'a session_events::EventWriter,
     pub(crate) mode: OauthInteractivity,
     pub(crate) scope: Option<&'a ProcessScope>,
     pub(crate) discovery: McpOauthDiscovery,
@@ -4640,7 +4640,7 @@ pub struct McpSpawnCtx<'a> {
 impl<'a> McpSpawnCtx<'a> {
     pub fn for_session(
         session_id: &'a str,
-        event_writer: &'a xvora_session_events::EventWriter,
+        event_writer: &'a session_events::EventWriter,
         mode: OauthInteractivity,
         scope: Option<&'a ProcessScope>,
     ) -> Self {
@@ -4659,7 +4659,7 @@ impl<'a> McpSpawnCtx<'a> {
         self
     }
 
-    pub fn standalone(event_writer: &'a xvora_session_events::EventWriter) -> Self {
+    pub fn standalone(event_writer: &'a session_events::EventWriter) -> Self {
         Self {
             session_id: None,
             event_writer,
@@ -4707,7 +4707,7 @@ pub async fn start_mcp_server(
             // Scoped to the sync spawn-planning prologue: the timer's
             // Chrome-mode span guard must not cross the spawn await below.
             let cmd = {
-                let _stdio_spawn_timer = xvora_telemetry::instrumentation::timer("mcp_stdio_spawn");
+                let _stdio_spawn_timer = telemetry::instrumentation::timer("mcp_stdio_spawn");
                 let path_override = stdio_path_override(&env);
                 let (program, spawn_args) =
                     plan_stdio_spawn(&command_str, &args, cfg!(windows), |c| {
@@ -4722,7 +4722,7 @@ pub async fn start_mcp_server(
                 let mut cmd = Command::new(&program);
                 cmd.kill_on_drop(true).args(&spawn_args);
                 apply_stdio_env(&mut cmd, &env, ctx.session_id);
-                xvora_tools::util::detach_command(&mut cmd);
+                tools::util::detach_command(&mut cmd);
                 xvora_sandbox::child_net::restrict_child_network(&mut cmd);
                 cmd
             };
@@ -4736,9 +4736,9 @@ pub async fn start_mcp_server(
             .await
             .map_err(|e| {
                 tracing::error!("Failed to spawn MCP server '{}': {}", name, e);
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::McpServerFailed {
+                telemetry::session_ctx::log_event(telemetry::events::McpServerFailed {
                     server_name: name.clone(),
-                    error_type: xvora_telemetry::events::McpErrorType::SpawnFailed,
+                    error_type: telemetry::events::McpErrorType::SpawnFailed,
                     duration_ms: spawn_start.elapsed().as_millis() as u64,
                     timeout_sec: startup_timeout,
                     error_message: Some(e.to_string()),
@@ -5079,9 +5079,9 @@ impl ClientHandler for GrokClientHandler {
             );
             return;
         };
-        if !xvora_tools::mcp_elicitation::chars_within(
+        if !tools::mcp_elicitation::chars_within(
             elicitation_id,
-            xvora_tools::mcp_elicitation::MAX_ELICIT_ID_CHARS,
+            tools::mcp_elicitation::MAX_ELICIT_ID_CHARS,
         ) {
             tracing::warn!(
                 server = %self.server_name,

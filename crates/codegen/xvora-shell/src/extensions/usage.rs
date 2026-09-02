@@ -1,6 +1,6 @@
 //! `x.ai/session/usage`: cumulative session token and cost totals as [`PromptUsage`].
 //!
-//! Reads the in-memory [`xvora_chat_state::UsageLedger`] (main-loop and folded subagent spend).
+//! Reads the in-memory [`chat_state::UsageLedger`] (main-loop and folded subagent spend).
 //! Partial costs are scrubbed, since an absent cost does not mean free.
 //! Totals reset when a session is resumed in a new agent process.
 

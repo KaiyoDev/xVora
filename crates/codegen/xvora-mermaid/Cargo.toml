@@ -17,7 +17,7 @@ tracing = { workspace = true }
 which = { workspace = true }
 # Subprocess infra (MmdcEngine + the out-of-process render child): detached
 # spawning + wall-clock timeout + process-group reaping.
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+tty-utils = { workspace = true }
 wait-timeout = { workspace = true }
 tempfile = { workspace = true }
 # Vendored dagre-based Mermaid -> SVG engine (third_party/mermaid-to-svg, MIT).

@@ -35,20 +35,20 @@ use xvora_pager::app::{
 };
 use xvora_pager::app::{WorkspaceMgmtArgs, WorkspaceMgmtCommand, WorkspaceStartArgs};
 use xvora_pager::client_identity::PAGER_CLIENT_VERSION;
-use xvora_shell::agent::app::{run_headless, run_leader, run_stdio_agent};
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::leader::{
+use shell::agent::app::{run_headless, run_leader, run_stdio_agent};
+use shell::agent::config::Config as AgentConfig;
+use shell::leader::{
     ClientCapabilities, ClientMode, ControlCommand, LeaderCapabilities, LeaderDescriptor,
     LeaderRegistration, LeaderTarget, leader_is_older_than,
 };
-use xvora_shell::leader::{
+use shell::leader::{
     ControlPayload, LeaderClient, LeaderEnvUrls, connect_or_spawn, socket_path_for_ws_url,
 };
-use xvora_telemetry::process_info::{
+use telemetry::process_info::{
     Entrypoint, Interactivity, ProcessIdentity, ReleaseChannel, set_identity, set_release_channel,
 };
 fn process_identity(command: Option<&Command>, is_interactive: bool) -> Option<ProcessIdentity> {
-    use xvora_telemetry::process_info::LeaderMode::Standalone;
+    use telemetry::process_info::LeaderMode::Standalone;
     let (entrypoint, interactivity) = match command {
         Some(Command::Agent(_)) => return None,
         Some(Command::Dashboard) => return None,
@@ -118,7 +118,7 @@ fn command_needs_pre_sandbox_policy_heal(command: Option<&Command>) -> bool {
     }
 }
 use std::env;
-use xvora_update::{UpdateConfig, auto_update, enforce_version_policy_or_exit};
+use update::{UpdateConfig, auto_update, enforce_version_policy_or_exit};
 /// Apply headless args to an existing config, only overriding values that are explicitly set.
 /// Unset args leave the environment defaults in place.
 fn apply_headless_args_to_config(args: &HeadlessArgs, config: &mut AgentConfig) {
@@ -174,7 +174,7 @@ const HEADLESS_ENTRYPOINT: &str = "headless";
 /// Initialize simple tracing for non-TUI agent modes.
 fn init_tracing_simple(app_entrypoint: &'static str) {
     use tracing_subscriber::{EnvFilter, Layer as _, fmt, layer::SubscriberExt as _};
-    use xvora_telemetry::debug_log::RMCP_SSE_NOISE_TARGET;
+    use telemetry::debug_log::RMCP_SSE_NOISE_TARGET;
     let default_filter = if app_entrypoint == HEADLESS_ENTRYPOINT {
         "off"
     } else {
@@ -194,33 +194,33 @@ fn init_tracing_simple(app_entrypoint: &'static str) {
         .with_writer(std::io::stderr);
     let registry = tracing_subscriber::registry()
         .with(fmt_layer.with_filter(env_filter))
-        .with(xvora_telemetry::sampling_log::layer())
-        .with(xvora_telemetry::span_profile::layer(app_entrypoint))
-        .with(xvora_telemetry::instrumentation::layer())
-        .with(xvora_telemetry::hooks_log::layer())
-        .with(xvora_telemetry::otel_layer::build_otel_layer(
-            xvora_telemetry::otel_layer::OtelClientInfo {
+        .with(telemetry::sampling_log::layer())
+        .with(telemetry::span_profile::layer(app_entrypoint))
+        .with(telemetry::instrumentation::layer())
+        .with(telemetry::hooks_log::layer())
+        .with(telemetry::otel_layer::build_otel_layer(
+            telemetry::otel_layer::OtelClientInfo {
                 client_name: "grok-pager",
-                client_version: xvora_version::VERSION,
+                client_version: version::VERSION,
                 service_version: env!("VERSION_WITH_COMMIT"),
                 app_entrypoint,
             },
-            xvora_shell::auth::credential_provider::build_default_otel_layer_config(),
+            shell::auth::credential_provider::build_default_otel_layer_config(),
         ));
-    xvora_telemetry::debug_log::install_firehose(registry, app_entrypoint);
-    xvora_telemetry::external::init(xvora_shell::agent::config::resolve_external_otel_config(
-        xvora_telemetry::external::config::ExternalClientInfo {
+    telemetry::debug_log::install_firehose(registry, app_entrypoint);
+    telemetry::external::init(shell::agent::config::resolve_external_otel_config(
+        telemetry::external::config::ExternalClientInfo {
             service_version: env!("VERSION_WITH_COMMIT").to_owned(),
-            client_version: xvora_version::VERSION.to_owned(),
+            client_version: version::VERSION.to_owned(),
             app_entrypoint: app_entrypoint.to_owned(),
         },
     ));
 }
-/// `grok setup`: rendering and exit codes only; fetch logic lives in `xvora_shell::managed_config`.
+/// `grok setup`: rendering and exit codes only; fetch logic lives in `shell::managed_config`.
 /// `json` prints the served configuration instead of installing it.
 #[tracing::instrument(level = "debug", skip_all)]
 async fn run_setup_command(json: bool) {
-    use xvora_shell::managed_config::{self, SetupOutcome};
+    use shell::managed_config::{self, SetupOutcome};
     if !managed_config::has_principal() {
         eprintln!("No deployment key or team sign-in found.");
         eprintln!();
@@ -291,7 +291,7 @@ async fn run_leader_mgmt(args: LeaderMgmtArgs) -> Result<()> {
     match args.command {
         LeaderMgmtCommand::Kill => kill_leaders().await,
         LeaderMgmtCommand::List { json } => {
-            let leaders = xvora_shell::leader::discover_leaders().await;
+            let leaders = shell::leader::discover_leaders().await;
             if json {
                 let payload: Vec<_> = leaders.iter().map(leader_descriptor_json).collect();
                 println!(
@@ -335,7 +335,7 @@ async fn run_leader_mgmt(args: LeaderMgmtArgs) -> Result<()> {
 }
 #[tracing::instrument(level = "debug", skip_all)]
 async fn kill_leaders() -> Result<()> {
-    let leaders = xvora_shell::leader::discover_leaders().await;
+    let leaders = shell::leader::discover_leaders().await;
     if leaders.is_empty() {
         eprintln!("No leader candidates found.");
         return Ok(());
@@ -346,7 +346,7 @@ async fn kill_leaders() -> Result<()> {
         let Some(pid) = leader_pid(d) else {
             continue;
         };
-        if !xvora_shell::util::is_grok_process(pid) {
+        if !shell::util::is_grok_process(pid) {
             if let Some(ref lock) = d.lock_path {
                 eprintln!("  PID {pid} is not a grok process, removing stale lock");
                 let _ = std::fs::remove_file(lock);
@@ -358,7 +358,7 @@ async fn kill_leaders() -> Result<()> {
             continue;
         }
         eprintln!("  Killing leader PID {pid}");
-        if let Err(e) = xvora_shell::util::kill_process_by_pid(pid) {
+        if let Err(e) = shell::util::kill_process_by_pid(pid) {
             eprintln!("  warning: failed to terminate PID {pid}: {e}");
             continue;
         }
@@ -376,21 +376,21 @@ async fn kill_leaders() -> Result<()> {
 fn resolve_target(args: &LeaderTargetArgs) -> LeaderTarget {
     match args.pid {
         Some(pid) => LeaderTarget::Pid(pid),
-        None => LeaderTarget::Environment(xvora_shell::env::GrokBuildEnvironment::Production),
+        None => LeaderTarget::Environment(shell::env::GrokBuildEnvironment::Production),
     }
 }
 #[tracing::instrument(skip_all)]
 async fn connect_to_leader(
     args: &LeaderTargetArgs,
-) -> Result<(LeaderDescriptor, xvora_shell::leader::LeaderClient)> {
+) -> Result<(LeaderDescriptor, shell::leader::LeaderClient)> {
     let target = resolve_target(args);
-    let selection = xvora_shell::leader::resolve_leader_target(target)
+    let selection = shell::leader::resolve_leader_target(target)
         .await
         .map_err(|e| anyhow::anyhow!("{}", e.message))?;
     let socket_path = selection
         .socket_path()
         .ok_or_else(|| anyhow::anyhow!("resolved leader target did not include a socket path"))?;
-    let client = xvora_shell::leader::LeaderClient::connect(
+    let client = shell::leader::LeaderClient::connect(
         socket_path.to_path_buf(),
         "grok-pager-leader-cli",
         ClientMode::Stdio,
@@ -429,7 +429,7 @@ fn leader_descriptor_json(d: &LeaderDescriptor) -> serde_json::Value {
 fn leader_info_json(
     d: &LeaderDescriptor,
     reg: &LeaderRegistration,
-    info: Option<&xvora_shell::leader::ControlPayload>,
+    info: Option<&shell::leader::ControlPayload>,
 ) -> Result<serde_json::Value> {
     let mut val = leader_descriptor_json(d);
     val["clientId"] = serde_json::json!(reg.client_id);
@@ -465,7 +465,7 @@ fn workspace_command_env_override() -> Option<bool> {
 /// Precedence: the env override, then remote `Some(true)`, then loaded-but-off (`Disabled`), then settings-not-loaded (`Unknown`).
 fn workspace_command_gate(
     env_override: Option<bool>,
-    remote_settings: Option<&xvora_shell::util::config::RemoteSettings>,
+    remote_settings: Option<&shell::util::config::RemoteSettings>,
 ) -> WorkspaceGate {
     if let Some(enabled) = env_override {
         return if enabled {
@@ -489,9 +489,9 @@ fn env_flag_enabled(value: &str) -> bool {
 }
 /// Blocking fetch of remote settings via the startup prefetch path,
 /// capped at the early-prefetch wait so a slow endpoint cannot stall the CLI.
-fn fetch_remote_settings() -> Option<xvora_shell::util::config::RemoteSettings> {
-    xvora_shell::agent::models::startup_prefetch::begin(None);
-    xvora_shell::agent::models::startup_prefetch::wait_settings(EARLY_PREFETCH_WAIT)
+fn fetch_remote_settings() -> Option<shell::util::config::RemoteSettings> {
+    shell::agent::models::startup_prefetch::begin(None);
+    shell::agent::models::startup_prefetch::wait_settings(EARLY_PREFETCH_WAIT)
 }
 #[tracing::instrument(level = "debug", skip_all)]
 async fn run_workspace_mgmt(args: WorkspaceMgmtArgs) -> Result<()> {
@@ -593,7 +593,7 @@ async fn workspace_control(
     json: bool,
     command: ControlCommand,
 ) -> Result<()> {
-    let agent_config = xvora_shell::config::load_agent_config_disk_only()
+    let agent_config = shell::config::load_agent_config_disk_only()
         .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
     let client = connect_workspace_control(&agent_config, target).await?;
     ensure_workspace_caps(client.registration())?;
@@ -606,11 +606,11 @@ async fn workspace_control(
 async fn workspace_start(
     args: WorkspaceStartArgs,
     restart: bool,
-    remote_settings: Option<xvora_shell::util::config::RemoteSettings>,
+    remote_settings: Option<shell::util::config::RemoteSettings>,
 ) -> Result<()> {
-    use xvora_shell::auth::ensure_authenticated;
-    xvora_shell::util::config::set_remote_campaigns_from_settings(remote_settings.as_ref());
-    let raw_config = xvora_shell::config::load_effective_config()
+    use shell::auth::ensure_authenticated;
+    shell::util::config::set_remote_campaigns_from_settings(remote_settings.as_ref());
+    let raw_config = shell::config::load_effective_config()
         .map_err(|e| anyhow::anyhow!("Failed to load config: {e}"))?;
     let agent_config = AgentConfig::new_from_toml_cfg(&raw_config)
         .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
@@ -1079,14 +1079,14 @@ async fn replay_acp_state_after_reconnect(
 /// Does NOT write terminal escape codes; agent mode never enables TUI modes.
 /// The TUI has its own signal handler (`app::signal_handler`) that does the full crossterm teardown.
 fn shutdown_and_flush_telemetry(exit_code: i32) -> ! {
-    xvora_telemetry::sentry::flush_on_shutdown();
-    xvora_telemetry::otel_layer::shutdown_otel();
-    xvora_telemetry::debug_log::flush();
+    telemetry::sentry::flush_on_shutdown();
+    telemetry::otel_layer::shutdown_otel();
+    telemetry::debug_log::flush();
     finalize_span_profile();
     std::process::exit(exit_code);
 }
 fn finalize_span_profile() {
-    if let Some(path) = xvora_telemetry::span_profile::finalize() {
+    if let Some(path) = telemetry::span_profile::finalize() {
         eprintln!("grok: span profile written to {}", path.display());
     }
 }
@@ -1155,29 +1155,29 @@ async fn run_agent_command(
         agent_args.mode,
         Some(AgentCmd::Leader(_) | AgentCmd::Stdio | AgentCmd::Headless(_) | AgentCmd::Serve(_))
     ) {
-        xvora_shell::agent::app::suppress_otel();
+        shell::agent::app::suppress_otel();
     }
     init_tracing_simple("agent");
-    let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
-    xvora_telemetry::instrumentation::install_panic_hook();
+    let _otel_guard = telemetry::otel_layer::otel_guard();
+    telemetry::instrumentation::install_panic_hook();
     if trust {
         match std::env::current_dir() {
-            Ok(cwd) => xvora_workspace::folder_trust::grant_folder_trust(&cwd),
+            Ok(cwd) => workspace::folder_trust::grant_folder_trust(&cwd),
             Err(e) => {
                 tracing::warn!(error = %e, "--trust: failed to resolve cwd; folder not trusted")
             }
         }
     }
-    let had_prefetch = xvora_shell::agent::models::startup_prefetch::begin(None);
-    xvora_shell::agent::mvp_agent::warm_async_http_client();
+    let had_prefetch = shell::agent::models::startup_prefetch::begin(None);
+    shell::agent::mvp_agent::warm_async_http_client();
     let is_stdio = matches!(agent_args.mode, Some(AgentCmd::Stdio));
     let is_leader = matches!(agent_args.mode, Some(AgentCmd::Leader(_)));
     if !is_stdio && !is_leader {
         eprintln!(
             "Grok Build (pager) - v{}",
-            xvora_version::display_version_with_commit(
+            version::display_version_with_commit(
                 env!("VERSION_WITH_COMMIT"),
-                xvora_update::channel_label(),
+                update::channel_label(),
             )
         );
         if should_check_for_updates(no_auto_update) {
@@ -1192,12 +1192,12 @@ async fn run_agent_command(
         }
     }
     let remote_settings = if had_prefetch {
-        xvora_shell::agent::models::startup_prefetch::wait_settings(EARLY_PREFETCH_WAIT)
+        shell::agent::models::startup_prefetch::wait_settings(EARLY_PREFETCH_WAIT)
     } else {
         None
     };
-    xvora_shell::util::config::set_remote_campaigns_from_settings(remote_settings.as_ref());
-    let raw_config = xvora_shell::config::load_effective_config()
+    shell::util::config::set_remote_campaigns_from_settings(remote_settings.as_ref());
+    let raw_config = shell::config::load_effective_config()
         .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?;
     let mut agent_config = AgentConfig::new_from_toml_cfg(&raw_config)
         .map_err(|e| anyhow::anyhow!("Failed to create agent config: {}", e))?;
@@ -1205,8 +1205,8 @@ async fn run_agent_command(
     agent_config.reasoning_effort_override = agent_args
         .reasoning_effort
         .as_deref()
-        .and_then(xvora_shell::sampling::types::parse_canonical_effort_token);
-    let launch_yolo = xvora_shell::util::config::effective_yolo_for_launch(
+        .and_then(shell::sampling::types::parse_canonical_effort_token);
+    let launch_yolo = shell::util::config::effective_yolo_for_launch(
         agent_args.yolo,
         permission_mode_flag.as_deref(),
         None,
@@ -1215,11 +1215,11 @@ async fn run_agent_command(
         eprintln!("grok: {warning}");
     }
     agent_config.default_yolo_mode = launch_yolo.yolo;
-    agent_config.default_auto_mode = xvora_shell::util::config::effective_auto_for_launch(
+    agent_config.default_auto_mode = shell::util::config::effective_auto_for_launch(
         agent_args.yolo,
         permission_mode_flag.as_deref(),
         None,
-        xvora_shell::util::config::PermissionMode::Ask,
+        shell::util::config::PermissionMode::Ask,
     );
     agent_config.agent_profile_path = agent_args
         .agent_profile
@@ -1233,7 +1233,7 @@ async fn run_agent_command(
     }
     apply_agent_endpoint_args(&agent_args, &mut agent_config);
     agent_config.remote_settings = remote_settings.clone();
-    agent_config.resolve_runtime_fields(&xvora_shell::agent::config::RuntimeResolutionContext {
+    agent_config.resolve_runtime_fields(&shell::agent::config::RuntimeResolutionContext {
         raw_config: &raw_config,
         remote_settings: remote_settings.as_ref(),
         is_headless: !is_leader,
@@ -1274,7 +1274,7 @@ async fn run_agent_command(
     if let Some(profile) = disabled_by_confinement {
         warn_leader_disabled_by_sandbox(profile);
     }
-    use xvora_telemetry::process_info::LeaderMode::{Attached, Standalone};
+    use telemetry::process_info::LeaderMode::{Attached, Standalone};
     set_identity(ProcessIdentity {
         entrypoint: match &agent_args.mode {
             Some(AgentCmd::Stdio) => Entrypoint::Embedded,
@@ -1291,7 +1291,7 @@ async fn run_agent_command(
     });
     let managed_install = is_managed_install(
         std::env::current_exe().ok(),
-        &xvora_shell::util::grok_home::grok_home(),
+        &shell::util::grok_home::grok_home(),
     );
     if stdio_auto_update_enabled(
         is_stdio,
@@ -1320,7 +1320,7 @@ async fn run_agent_command(
         use std::sync::Arc;
         use tokio::io::AsyncWriteExt;
         use tokio::sync::Mutex as TokioMutex;
-        use xvora_shell::leader::{
+        use shell::leader::{
             ClientCapabilities, ClientMode, LeaderReconnector, ReconnectPolicy, connect_or_spawn,
         };
         let mode = match &agent_args.mode {
@@ -1328,7 +1328,7 @@ async fn run_agent_command(
             Some(AgentCmd::Headless(_)) | None => ClientMode::Headless,
             _ => ClientMode::Stdio,
         };
-        let env_urls = xvora_shell::leader::LeaderEnvUrls::from(&agent_config.grok_com_config);
+        let env_urls = shell::leader::LeaderEnvUrls::from(&agent_config.grok_com_config);
         let default_model = agent_config
             .default_model_override
             .clone()
@@ -1358,7 +1358,7 @@ async fn run_agent_command(
         let cancel = CancellationToken::new();
         match mode {
             ClientMode::Stdio => {
-                if let Err(error) = xvora_tty_utils::kill_current_process_on_parent_death() {
+                if let Err(error) = tty_utils::kill_current_process_on_parent_death() {
                     tracing::warn!(
                         %error,
                         "failed to bind to parent death; stdio bridge will not die \
@@ -1371,7 +1371,7 @@ async fn run_agent_command(
                 let replay_state_stdin = replay_state.clone();
                 let cancel_stdin = cancel.clone();
                 let stdin_task = tokio::spawn(async move {
-                    let mut stdin_lines = xvora_acp_lib::spawn_stdin_line_reader();
+                    let mut stdin_lines = acp_lib::spawn_stdin_line_reader();
                     loop {
                         tokio::select! {
                             biased;
@@ -1511,12 +1511,12 @@ async fn run_agent_command(
             let mut agent_config = agent_config.clone();
             apply_headless_args_to_config(&a.headless, &mut agent_config);
             let secret = a.get_secret();
-            let server_config = xvora_shell::agent::ServerConfig {
+            let server_config = shell::agent::ServerConfig {
                 bind_addr: a.bind,
                 secret: secret.clone(),
             };
             print_serve_startup_info(a.bind, &secret);
-            xvora_shell::agent::run_agent_server(server_config, agent_config).await
+            shell::agent::run_agent_server(server_config, agent_config).await
         }
         Some(AgentCmd::Leader(a)) => {
             let mut agent_config = agent_config.clone();
@@ -1528,19 +1528,19 @@ async fn run_agent_command(
                 None
             } else {
                 let update_config_for_leader = update_config.clone();
-                Some(xvora_shell::agent::app::LeaderAutoUpdateConfig {
+                Some(shell::agent::app::LeaderAutoUpdateConfig {
                     check_interval: std::time::Duration::from_secs(60 * 60),
                     check_fn: Box::new(move || {
                         let uc = update_config_for_leader.clone();
                         Box::pin(async move {
-                            let current_config = xvora_shell::util::config::load_config().await;
+                            let current_config = shell::util::config::load_config().await;
                             if current_config.cli.auto_update == Some(false) {
                                 return false;
                             }
                             match auto_update::ensure_latest_on_disk(&uc).await {
                                 Ok(outcome) => {
                                     if let Some(v) = &outcome.installed {
-                                        if let Err(e) = xvora_shell::managed_config::sync().await {
+                                        if let Err(e) = shell::managed_config::sync().await {
                                             tracing::warn!(
                                                 "Leader auto-update: managed config refresh failed: {e}"
                                             );
@@ -1821,12 +1821,12 @@ fn jemalloc_stats_dump() -> String {
     out
 }
 #[cfg(all(feature = "jemalloc", unix))]
-fn jemalloc_heap_stats() -> Option<xvora_shell::heap_profile::JemallocStats> {
+fn jemalloc_heap_stats() -> Option<shell::heap_profile::JemallocStats> {
     unsafe {
         tikv_jemalloc_ctl::raw::write(b"epoch\0", 1u64).ok()?;
         let allocated = tikv_jemalloc_ctl::raw::read::<usize>(b"stats.allocated\0").ok()? as u64;
         let resident = tikv_jemalloc_ctl::raw::read::<usize>(b"stats.resident\0").ok()? as u64;
-        Some(xvora_shell::heap_profile::JemallocStats {
+        Some(shell::heap_profile::JemallocStats {
             allocated,
             resident,
         })
@@ -1855,7 +1855,7 @@ fn jemalloc_dump_to_path(path: &std::path::Path) -> Result<(), String> {
 }
 #[cfg(all(feature = "jemalloc", unix))]
 fn install_heap_profile_hooks() {
-    xvora_shell::heap_profile::install(xvora_shell::heap_profile::HeapProfileHooks {
+    shell::heap_profile::install(shell::heap_profile::HeapProfileHooks {
         stats: jemalloc_heap_stats,
         set_prof_active: jemalloc_set_prof_active,
         dump_to_path: jemalloc_dump_to_path,
@@ -1865,7 +1865,7 @@ fn install_heap_profile_hooks() {
 fn version_text(channel_label: &str) -> String {
     format!(
         "grok {}\n",
-        xvora_version::display_version_with_commit(xvora_version::full_version(), channel_label,)
+        version::display_version_with_commit(version::full_version(), channel_label,)
     )
 }
 fn write_version(writer: &mut impl std::io::Write, channel_label: &str) -> std::io::Result<()> {
@@ -1875,7 +1875,7 @@ fn dispatch_version_if_requested(args: &PagerArgs) -> bool {
     if !args.version {
         return false;
     }
-    if let Err(error) = write_version(&mut std::io::stdout().lock(), xvora_update::channel_label())
+    if let Err(error) = write_version(&mut std::io::stdout().lock(), update::channel_label())
     {
         eprintln!("Error: {error}");
         std::process::exit(1);
@@ -1893,8 +1893,8 @@ fn dispatch_doctor_if_requested(args: &PagerArgs) -> bool {
     true
 }
 fn main() {
-    xvora_version::set_full_version(env!("VERSION_WITH_COMMIT"));
-    xvora_telemetry::startup::mark_process_start();
+    version::set_full_version(env!("VERSION_WITH_COMMIT"));
+    telemetry::startup::mark_process_start();
     if let Some(code) = xvora_pager::app::mermaid_worker::maybe_run_render_subprocess() {
         std::process::exit(code);
     }
@@ -1902,7 +1902,7 @@ fn main() {
         std::process::exit(code);
     }
     set_release_channel(ReleaseChannel::from_label(
-        xvora_update::channel_name().unwrap_or_default(),
+        update::channel_name().unwrap_or_default(),
     ));
     let args = PagerArgs::parse_cli();
     if dispatch_version_if_requested(&args) || dispatch_doctor_if_requested(&args) {
@@ -1919,11 +1919,11 @@ fn main() {
     #[cfg(all(feature = "jemalloc", unix))]
     install_heap_profile_hooks();
     unsafe {
-        xvora_shell::agent::external_otel_pin::strip_conflicting_process_env();
+        shell::agent::external_otel_pin::strip_conflicting_process_env();
     }
     xvora_pager::memory_trace::start(xvora_pager::memory_trace::default_dir());
     raise_fd_limit();
-    if let Err(e) = xvora_config::validate_requirements() {
+    if let Err(e) = config::validate_requirements() {
         eprintln!("Couldn't start Grok: {e}");
         eprintln!();
         eprintln!(
@@ -1932,24 +1932,24 @@ fn main() {
         );
         std::process::exit(2);
     }
-    let _sentry_guard = xvora_telemetry::sentry::init(xvora_telemetry::sentry::Config {
+    let _sentry_guard = telemetry::sentry::init(telemetry::sentry::Config {
         client: "grok-pager",
         client_version: PAGER_CLIENT_VERSION,
         release: env!("VERSION_WITH_COMMIT"),
-        disabled: xvora_shell::agent::config::is_error_reporting_disabled_sync(),
+        disabled: shell::agent::config::is_error_reporting_disabled_sync(),
     });
-    xvora_pager::docs::extract_user_guide_docs(&xvora_shell::util::grok_home::grok_home());
-    xvora_crash_handler::install_terminal_restore_only();
-    if xvora_shell::util::config::load_crash_handler_enabled_sync() {
-        let crash_dir = xvora_shell::util::grok_home::grok_home().join("crash");
-        if let Some(report) = xvora_crash_handler::check_previous_crash(&crash_dir) {
+    xvora_pager::docs::extract_user_guide_docs(&shell::util::grok_home::grok_home());
+    crash_handler::install_terminal_restore_only();
+    if shell::util::config::load_crash_handler_enabled_sync() {
+        let crash_dir = shell::util::grok_home::grok_home().join("crash");
+        if let Some(report) = crash_handler::check_previous_crash(&crash_dir) {
             eprintln!("Grok crashed during your last session.");
             eprintln!("  Signal:  {}", report.signal_name);
             eprintln!("  Version: {}", report.app_version);
             eprintln!("  Report:  {}", report.report_path.display());
             eprintln!();
         }
-        if !xvora_crash_handler::install(xvora_crash_handler::CrashHandlerConfig {
+        if !crash_handler::install(crash_handler::CrashHandlerConfig {
             app_version: env!("VERSION_WITH_COMMIT").to_string(),
             crash_dir: crash_dir.clone(),
         }) {
@@ -1959,7 +1959,7 @@ fn main() {
             );
         }
     }
-    let crashed = xvora_active_sessions::collect_crashed().unwrap_or_default();
+    let crashed = active_sessions::collect_crashed().unwrap_or_default();
     if !crashed.is_empty() {
         tracing::info!(
             count = crashed.len(),
@@ -1970,14 +1970,14 @@ fn main() {
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.worker_threads(workers.get()).enable_all();
     let runtime =
-        xvora_tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
+        tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
             eprintln!("grok: failed to start tokio runtime: {e}");
             shutdown_and_flush_telemetry(1);
         });
     let result = run_and_shutdown(runtime, async_main(args), RUNTIME_SHUTDOWN_GRACE);
-    xvora_telemetry::debug_log::flush();
+    telemetry::debug_log::flush();
     if let Err(e) = result {
-        xvora_tty_utils::restore_native_stderr();
+        tty_utils::restore_native_stderr();
         finalize_span_profile();
         match e.downcast_ref::<xvora_pager::app::StartupFailure>() {
             Some(startup) => eprintln!("{}", startup.user_report()),
@@ -1990,7 +1990,7 @@ fn main() {
 }
 #[tracing::instrument(level = "debug", skip_all)]
 async fn async_main(args: PagerArgs) -> Result<()> {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
     let mut args = args.apply_cwd()?;
     if let Some(ref mode) = args.compaction_mode {
         unsafe { std::env::set_var("GROK_COMPACTION_MODE", mode) };
@@ -2000,11 +2000,11 @@ async fn async_main(args: PagerArgs) -> Result<()> {
     }
     if args.chat() {
         unsafe {
-            std::env::set_var(xvora_shell::agent::chat_modes::GROK_CHAT_MODE_ENV, "1");
+            std::env::set_var(shell::agent::chat_modes::GROK_CHAT_MODE_ENV, "1");
         }
     }
     if let Some(ref socket) = args.leader_socket {
-        unsafe { std::env::set_var(xvora_shell::leader::LEADER_SOCKET_ENV, socket) };
+        unsafe { std::env::set_var(shell::leader::LEADER_SOCKET_ENV, socket) };
     }
     if let Some(ref path) = args.debug_file {
         unsafe {
@@ -2043,24 +2043,24 @@ async fn async_main(args: PagerArgs) -> Result<()> {
     };
     if args.trust {
         match std::env::current_dir() {
-            Ok(cwd) => xvora_workspace::folder_trust::grant_folder_trust(&cwd),
+            Ok(cwd) => workspace::folder_trust::grant_folder_trust(&cwd),
             Err(e) => {
                 eprintln!("warning: --trust: failed to resolve cwd; folder not trusted: {e}");
             }
         }
     }
     if command_needs_pre_sandbox_policy_heal(args.command.as_ref()) {
-        match xvora_shell::config::load_agent_config_disk_only() {
+        match shell::config::load_agent_config_disk_only() {
             Ok(agent_cfg) => {
-                let auth_manager = std::sync::Arc::new(xvora_shell::auth::AuthManager::new(
-                    &xvora_shell::util::grok_home::grok_home(),
+                let auth_manager = std::sync::Arc::new(shell::auth::AuthManager::new(
+                    &shell::util::grok_home::grok_home(),
                     agent_cfg.grok_com_config.clone(),
                 ));
                 auth_manager.configure_refresher(
                     agent_cfg.grok_com_config.auth_provider_command.clone(),
                     None,
                 );
-                xvora_shell::managed_config::ensure_managed_policy_present(&auth_manager).await;
+                shell::managed_config::ensure_managed_policy_present(&auth_manager).await;
             }
             Err(e) => {
                 tracing::warn!(
@@ -2070,16 +2070,16 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             }
         }
     }
-    xvora_shell::config::apply_sandbox(None, sandbox_profile_arg.as_deref(), args.cwd.as_deref());
+    shell::config::apply_sandbox(None, sandbox_profile_arg.as_deref(), args.cwd.as_deref());
     flag_dashboard_at_startup_if_requested(&mut args)?;
     let is_interactive = args.command.is_none()
         && args.single.is_none()
         && args.prompt_json.is_none()
         && args.prompt_file.is_none();
-    xvora_shell::http::set_client_name(if is_interactive {
-        xvora_workspace::permission::ClientType::GrokPager
+    shell::http::set_client_name(if is_interactive {
+        workspace::permission::ClientType::GrokPager
     } else {
-        xvora_workspace::permission::ClientType::Generic
+        workspace::permission::ClientType::Generic
     });
     if let Some(identity) = process_identity(args.command.as_ref(), is_interactive) {
         set_identity(identity);
@@ -2091,11 +2091,11 @@ async fn async_main(args: PagerArgs) -> Result<()> {
                 if json {
                     let payload = serde_json::json!({
                         "currentVersion": env!("VERSION_WITH_COMMIT"),
-                        "channel": xvora_update::channel_name().unwrap_or("unknown"),
+                        "channel": update::channel_name().unwrap_or("unknown"),
                     });
                     println!("{}", serde_json::to_string(&payload)?);
                 } else {
-                    write_version(&mut std::io::stdout().lock(), xvora_update::channel_label())?;
+                    write_version(&mut std::io::stdout().lock(), update::channel_label())?;
                 }
                 return Ok(());
             }
@@ -2127,12 +2127,12 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             }
             Command::Inspect { json } => {
                 let cwd = std::env::current_dir().unwrap_or_default();
-                xvora_shell::inspect::inspect(&cwd, json).await?;
+                shell::inspect::inspect(&cwd, json).await?;
                 return Ok(());
             }
             Command::Setup { json } => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+                let _otel_guard = telemetry::otel_layer::otel_guard();
                 run_setup_command(json).await;
                 return Ok(());
             }
@@ -2142,54 +2142,54 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             }
             Command::Plugin(plugin_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+                let _otel_guard = telemetry::otel_layer::otel_guard();
                 return xvora_pager::plugin_cmd::run(plugin_args).await;
             }
             Command::Models => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
-                let agent_config = xvora_shell::config::load_agent_config_disk_only()
+                let _otel_guard = telemetry::otel_layer::otel_guard();
+                let agent_config = shell::config::load_agent_config_disk_only()
                     .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
                 return xvora_pager::models::list_available_models(&agent_config).await;
             }
             Command::Leader(leader_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+                let _otel_guard = telemetry::otel_layer::otel_guard();
                 return run_leader_mgmt(leader_args).await;
             }
             Command::Worktree(worktree_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
-                let agent_config = xvora_shell::config::load_agent_config_disk_only()
+                let _otel_guard = telemetry::otel_layer::otel_guard();
+                let agent_config = shell::config::load_agent_config_disk_only()
                     .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
                 return xvora_pager::worktree_cmd::run(worktree_args, &agent_config).await;
             }
             Command::DiskUsage(disk_usage_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+                let _otel_guard = telemetry::otel_layer::otel_guard();
                 return xvora_pager::disk_usage_cmd::run(disk_usage_args);
             }
             Command::Workspace(workspace_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+                let _otel_guard = telemetry::otel_layer::otel_guard();
                 return run_workspace_mgmt(workspace_args).await;
             }
             Command::Sessions(sessions_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
-                let agent_config = xvora_shell::config::load_agent_config_disk_only()
+                let _otel_guard = telemetry::otel_layer::otel_guard();
+                let agent_config = shell::config::load_agent_config_disk_only()
                     .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
                 return xvora_pager::sessions_cmd::run(sessions_args, &agent_config).await;
             }
             Command::Usage(usage_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+                let _otel_guard = telemetry::otel_layer::otel_guard();
                 return xvora_pager::usage_cmd::run(usage_args);
             }
             Command::Share(ref share_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
-                let agent_config = xvora_shell::config::load_agent_config_disk_only()
+                let _otel_guard = telemetry::otel_layer::otel_guard();
+                let agent_config = shell::config::load_agent_config_disk_only()
                     .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
                 return xvora_pager::share_cmd::run(share_args, &agent_config).await;
             }
@@ -2199,8 +2199,8 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             }
             Command::Trace(trace_args) => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
-                let agent_config = xvora_shell::config::load_agent_config_disk_only()
+                let _otel_guard = telemetry::otel_layer::otel_guard();
+                let agent_config = shell::config::load_agent_config_disk_only()
                     .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
                 return xvora_pager::trace_cmd::run(trace_args, &agent_config).await;
             }
@@ -2219,7 +2219,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
                 auto,
             } => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+                let _otel_guard = telemetry::otel_layer::otel_guard();
                 let channel_switch = get_channel_switch(alpha, stable, enterprise);
                 let trigger = resolve_update_trigger(trigger.as_deref(), auto);
                 return run_update_command(
@@ -2240,19 +2240,19 @@ async fn async_main(args: PagerArgs) -> Result<()> {
                 devbox,
             } => {
                 init_tracing_simple("cli");
-                let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
-                let config = xvora_shell::config::load_agent_config_disk_only()
+                let _otel_guard = telemetry::otel_layer::otel_guard();
+                let config = shell::config::load_agent_config_disk_only()
                     .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
-                xvora_shell::auth::run_cli_login(&config, oauth, device_auth, devbox).await?;
+                shell::auth::run_cli_login(&config, oauth, device_auth, devbox).await?;
                 println!();
-                xvora_shell::instrumentation::finalize_and_exit(0);
+                shell::instrumentation::finalize_and_exit(0);
             }
             Command::Logout => {
                 init_tracing_simple("cli");
-                let config = xvora_shell::config::load_agent_config_disk_only()
+                let config = shell::config::load_agent_config_disk_only()
                     .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
-                xvora_shell::auth::run_cli_logout(&config)?;
-                xvora_shell::instrumentation::finalize_and_exit(0);
+                shell::auth::run_cli_logout(&config)?;
+                shell::instrumentation::finalize_and_exit(0);
             }
             Command::Wrap(ref wrap_args) => {
                 return xvora_pager::wrap_cmd::run(wrap_args);
@@ -2282,9 +2282,9 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             anyhow::bail!("--memory-flush without a prompt requires --resume/-r or --continue/-c");
         }
         init_tracing_simple(HEADLESS_ENTRYPOINT);
-        let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+        let _otel_guard = telemetry::otel_layer::otel_guard();
         enforce_version_policy_or_exit();
-        let launch_yolo = xvora_shell::util::config::effective_yolo_for_launch(
+        let launch_yolo = shell::util::config::effective_yolo_for_launch(
             args.yolo,
             args.permission_mode_flag.as_deref(),
             None,
@@ -2344,7 +2344,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
         .await;
     }
     enforce_version_policy_or_exit();
-    let _otel_guard = xvora_telemetry::otel_layer::otel_guard();
+    let _otel_guard = telemetry::otel_layer::otel_guard();
     type UpdateWaitHandle = tokio::task::JoinHandle<std::io::Result<std::process::ExitStatus>>;
     let bg_update_wait: std::sync::Arc<tokio::sync::Mutex<Option<UpdateWaitHandle>>> =
         std::sync::Arc::new(tokio::sync::Mutex::new(None));
@@ -2435,19 +2435,19 @@ async fn finish_update_on_exit(
 }
 /// Build an [`UpdateConfig`] from the current environment and config files.
 fn build_update_config() -> UpdateConfig {
-    let environment = xvora_shell::env::GrokBuildEnvironment::from_flags(false, false);
+    let environment = shell::env::GrokBuildEnvironment::from_flags(false, false);
     let mut config = UpdateConfig::from_environment(&environment);
     cryptify::flow_stmt!({
         {
             config.deployment_key =
-                xvora_shell::agent::config::EndpointsConfig::default().deployment_key;
+                shell::agent::config::EndpointsConfig::default().deployment_key;
         }
     });
     config.npm_registry = std::env::var(obfstr::obfstr!("GROK_NPM_REGISTRY"))
         .ok()
-        .or_else(xvora_shell::util::config::load_npm_registry_sync);
-    if let Ok(root) = xvora_shell::config::load_effective_config_disk_only()
-        && let Some(ch) = xvora_shell::util::config::channel_from_toml_opt(&root)
+        .or_else(shell::util::config::load_npm_registry_sync);
+    if let Ok(root) = shell::config::load_effective_config_disk_only()
+        && let Some(ch) = shell::util::config::channel_from_toml_opt(&root)
     {
         config.channel = ch;
     }
@@ -2485,7 +2485,7 @@ fn is_managed_install(exe: Option<std::path::PathBuf>, grok_home: &std::path::Pa
     let Some(exe) = exe else {
         return false;
     };
-    let managed = xvora_config::grok_application_in(grok_home);
+    let managed = config::grok_application_in(grok_home);
     match (dunce::canonicalize(&exe), dunce::canonicalize(&managed)) {
         (Ok(exe), Ok(managed)) => exe == managed,
         _ => false,
@@ -2551,15 +2551,15 @@ async fn run_update_command(
             v
         );
     }
-    let telemetry_cfg = xvora_shell::config::load_agent_config_disk_only()
+    let telemetry_cfg = shell::config::load_agent_config_disk_only()
         .map_err(|e| tracing::warn!("grok update: telemetry init skipped (agent config: {e})"))
         .ok();
     if let Some(agent_cfg) = telemetry_cfg {
-        let auth_manager = std::sync::Arc::new(xvora_shell::auth::AuthManager::new(
-            &xvora_shell::util::grok_home::grok_home(),
+        let auth_manager = std::sync::Arc::new(shell::auth::AuthManager::new(
+            &shell::util::grok_home::grok_home(),
             agent_cfg.grok_com_config.clone(),
         ));
-        xvora_shell::agent::init::update_telemetry_config(&agent_cfg, &auth_manager);
+        shell::agent::init::update_telemetry_config(&agent_cfg, &auth_manager);
     }
     let result = auto_update::run_update(
         force_reinstall,
@@ -2572,7 +2572,7 @@ async fn run_update_command(
     if let Ok(Some(installed_version)) = &result {
         signal_leaders_to_relaunch(installed_version).await;
     }
-    xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
+    telemetry::session_ctx::drain_pending(telemetry::session_ctx::CLI_DRAIN).await;
     result?;
     Ok(())
 }
@@ -2583,8 +2583,8 @@ async fn run_update_command(
 /// The leader re-checks the directional version guard authoritatively; the pager-side `live_info` check just avoids connecting to newer leaders.
 #[tracing::instrument(level = "debug", skip_all)]
 async fn signal_leaders_to_relaunch(installed_version: &str) {
-    for d in xvora_shell::leader::discover_leaders().await {
-        if d.classification != xvora_shell::leader::LeaderDiscoveryState::Reachable {
+    for d in shell::leader::discover_leaders().await {
+        if d.classification != shell::leader::LeaderDiscoveryState::Reachable {
             continue;
         }
         let Some(socket_path) = d.socket_path.clone() else {
@@ -2595,7 +2595,7 @@ async fn signal_leaders_to_relaunch(installed_version: &str) {
         {
             continue;
         }
-        let client = match xvora_shell::leader::LeaderClient::connect(
+        let client = match shell::leader::LeaderClient::connect(
             socket_path,
             "grok-pager-update",
             ClientMode::Stdio,
@@ -2619,14 +2619,14 @@ async fn signal_leaders_to_relaunch(installed_version: &str) {
             })
             .await
         {
-            Ok(Ok(xvora_shell::leader::ControlPayload::Relaunching {
+            Ok(Ok(shell::leader::ControlPayload::Relaunching {
                 from_version,
                 to_version,
                 ..
             })) => {
                 eprintln!("  ↻ Relaunching shared session (leader {from_version} → {to_version})…");
             }
-            Ok(Ok(xvora_shell::leader::ControlPayload::RelaunchDeclined { reason })) => {
+            Ok(Ok(shell::leader::ControlPayload::RelaunchDeclined { reason })) => {
                 tracing::debug!(%reason, "Leader declined relaunch");
             }
             Ok(Ok(_)) => {}
@@ -2756,7 +2756,7 @@ mod tests {
     }
     #[test]
     fn version_output_writer_preserves_channel_aware_contract() {
-        xvora_version::set_full_version(env!("VERSION_WITH_COMMIT"));
+        version::set_full_version(env!("VERSION_WITH_COMMIT"));
         for (label, expected_suffix) in [
             (" [alpha]", " [alpha]\n"),
             (" [stable]", " [stable]\n"),
@@ -2822,7 +2822,7 @@ mod tests {
         eprintln!(
             "skip jemalloc prof checks: opt.prof false \
              (release-dist static conf, or MALLOC_CONF=prof:true,prof_active:false,lg_prof_sample={})",
-            xvora_shell::heap_profile::LG_PROF_SAMPLE
+            shell::heap_profile::LG_PROF_SAMPLE
         );
         false
     }
@@ -2853,7 +2853,7 @@ mod tests {
         }
     }
     #[cfg(all(feature = "jemalloc", unix))]
-    fn assert_stats_sane(stats: xvora_shell::heap_profile::JemallocStats) {
+    fn assert_stats_sane(stats: shell::heap_profile::JemallocStats) {
         assert!(stats.allocated > 0, "allocated={}", stats.allocated);
         assert!(stats.resident > 0, "resident={}", stats.resident);
         assert!(
@@ -2908,24 +2908,24 @@ mod tests {
     #[serial_test::serial(jemalloc_heap_profile)]
     fn install_heap_profile_hooks_wires_shell_apis() {
         install_heap_profile_hooks();
-        assert_stats_sane(xvora_shell::heap_profile::stats().expect("shell stats after install"));
+        assert_stats_sane(shell::heap_profile::stats().expect("shell stats after install"));
         if !require_opt_prof() {
-            assert!(!xvora_shell::heap_profile::prof_available());
+            assert!(!shell::heap_profile::prof_available());
             return;
         }
-        assert!(xvora_shell::heap_profile::prof_available());
+        assert!(shell::heap_profile::prof_available());
         assert_prof_active(false);
         {
             let _guard = ProfActiveGuard::set(true);
             assert_prof_active(true);
-            assert!(xvora_shell::heap_profile::set_prof_active(true));
+            assert!(shell::heap_profile::set_prof_active(true));
             assert_prof_active(true);
         }
         assert_prof_active(false);
-        assert!(xvora_shell::heap_profile::set_prof_active(false));
+        assert!(shell::heap_profile::set_prof_active(false));
         assert_prof_active(false);
         let dump = TempHeapDump::new("shell");
-        xvora_shell::heap_profile::dump_to_path(dump.path()).expect("shell dump");
+        shell::heap_profile::dump_to_path(dump.path()).expect("shell dump");
         dump.assert_nonempty_dump();
     }
     #[cfg(unix)]
@@ -3038,7 +3038,7 @@ mod tests {
     }
     #[test]
     fn workspace_command_gate_resolution() {
-        use xvora_shell::util::config::RemoteSettings;
+        use shell::util::config::RemoteSettings;
         let on = RemoteSettings {
             workspace_command_enabled: Some(true),
             ..RemoteSettings::default()

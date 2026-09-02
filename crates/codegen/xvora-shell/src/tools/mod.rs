@@ -17,5 +17,5 @@ pub use self::{
 
 // Re-export key types from xvora-tools for convenience
 pub use self::todo::{TodoId, TodoItem, TodoPriority, TodoStatus};
-pub use xvora_tools::types::output::ToolOutput;
-pub use xvora_tools::types::{MCPToolInput, ToolInput};
+pub use tools::types::output::ToolOutput;
+pub use tools::types::{MCPToolInput, ToolInput};

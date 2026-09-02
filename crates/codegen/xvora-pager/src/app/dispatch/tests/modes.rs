@@ -577,7 +577,7 @@ fn enable_always_approve_sends_response_and_flips_yolo_and_persists() {
 
     let effects = dispatch(
         Action::PermissionSelect(acp::PermissionOptionId::new(Arc::from(
-            xvora_workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID,
+            workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID,
         ))),
         &mut app,
     );
@@ -596,7 +596,7 @@ fn enable_always_approve_sends_response_and_flips_yolo_and_persists() {
         })) => {
             assert_eq!(
                 option_id.0.as_ref(),
-                xvora_workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID,
+                workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID,
                 "the response must echo the picked option_id",
             );
         }
@@ -653,7 +653,7 @@ fn enable_always_approve_is_idempotent_when_yolo_already_on() {
 
     let effects = dispatch(
         Action::PermissionSelect(acp::PermissionOptionId::new(Arc::from(
-            xvora_workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID,
+            workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID,
         ))),
         &mut app,
     );
@@ -716,7 +716,7 @@ fn set_yolo_mode_on_with_no_allow_once_option_sends_cancelled() {
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: xvora_acp_lib::AcpArgs {
+        request: acp_lib::AcpArgs {
             request,
             response_tx,
         },
@@ -797,7 +797,7 @@ fn set_yolo_mode_on_drains_multi_item_queue() {
         );
         let options = request.options.clone();
         agent.permission_queue.push_back(PermissionViewState {
-            request: xvora_acp_lib::AcpArgs {
+            request: acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -874,7 +874,7 @@ fn set_yolo_mode_on_duplicate_dispatch_still_drains_queue() {
         .unwrap()
         .permission_queue
         .push_back(PermissionViewState {
-            request: xvora_acp_lib::AcpArgs {
+            request: acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -1285,7 +1285,7 @@ fn cycle_mode_pre_session_normal_to_plan_does_not_persist_permission_mode() {
 /// No active agent: a no-op (no panic, no effect, no mutation).
 ///
 /// **Telemetry-no-op contract.**
-/// The `set_yolo_mode_inner` early-return at the `app.active_view` guard MUST precede the `xvora_telemetry::log_event` call.
+/// The `set_yolo_mode_inner` early-return at the `app.active_view` guard MUST precede the `telemetry::log_event` call.
 /// Otherwise a no-agent dispatch would leak a `YoloToggled` telemetry event for an action that never happened.
 /// We can't easily intercept the telemetry library from a unit test, but we DO pin that no side effects escape via the SHARED-state checks below.
 /// Effect emission, default_yolo, and current_ui mutation sit behind the same guard as the telemetry call.
@@ -1707,7 +1707,7 @@ fn dispatch_cycle_mode_plan_to_always_approve_drains_queue_via_inner() {
         .unwrap()
         .permission_queue
         .push_back(PermissionViewState {
-            request: xvora_acp_lib::AcpArgs {
+            request: acp_lib::AcpArgs {
                 request,
                 response_tx,
             },

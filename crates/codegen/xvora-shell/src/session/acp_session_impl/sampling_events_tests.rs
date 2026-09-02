@@ -3,7 +3,7 @@ use super::super::replay_buffer_send_update_tests::{
 };
 use super::*;
 
-fn own_request(actor: &SessionActor, request_id: &xvora_sampler::RequestId) {
+fn own_request(actor: &SessionActor, request_id: &sampler::RequestId) {
     let (tx, _rx) = tokio::sync::oneshot::channel();
     actor
         .turn_stream_drained
@@ -21,7 +21,7 @@ fn own_request(actor: &SessionActor, request_id: &xvora_sampler::RequestId) {
 /// The trace upload can then serialize it even when the canonical `record_assistant_response` path is skipped (cancel / max tokens).
 #[tokio::test(flavor = "current_thread")]
 async fn channel_tokens_accumulate_into_streaming_capture() {
-    use xvora_sampler::{RequestId, SamplingChannel, SamplingEvent};
+    use sampler::{RequestId, SamplingChannel, SamplingEvent};
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -100,7 +100,7 @@ async fn channel_tokens_accumulate_into_streaming_capture() {
 /// This guards the `if cap.prompt_id != prompt_id` branch in the `StreamStarted` arm, which the pure-struct tests bypass.
 #[tokio::test(flavor = "current_thread")]
 async fn same_prompt_restart_accumulates_segments_via_handler() {
-    use xvora_sampler::{RequestId, SamplingChannel, SamplingEvent};
+    use sampler::{RequestId, SamplingChannel, SamplingEvent};
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -168,7 +168,7 @@ async fn same_prompt_restart_accumulates_segments_via_handler() {
 /// A completed turn therefore neither re-uploads its own reasoning nor erases earlier uncommitted partials.
 #[tokio::test(flavor = "current_thread")]
 async fn completed_event_clears_slot_keeps_prior_uncommitted_segments() {
-    use xvora_sampler::{InferenceLatencyStats, RequestId, SamplingChannel, SamplingEvent};
+    use sampler::{InferenceLatencyStats, RequestId, SamplingChannel, SamplingEvent};
     use xvora_sampling_types::{ConversationItem, ConversationResponse};
     let local = tokio::task::LocalSet::new();
     local
@@ -264,7 +264,7 @@ async fn completed_event_clears_slot_keeps_prior_uncommitted_segments() {
 /// That splits the assistant message around the tool call on every attached client: the multi-pane "out of order" bug.
 #[tokio::test(flavor = "current_thread")]
 async fn completed_event_releases_stream_drain_barrier_and_timeout_keeps_request_ownership() {
-    use xvora_sampler::{InferenceLatencyStats, RequestId, SamplingChannel, SamplingEvent};
+    use sampler::{InferenceLatencyStats, RequestId, SamplingChannel, SamplingEvent};
     use xvora_sampling_types::{ConversationItem, ConversationResponse};
     let local = tokio::task::LocalSet::new();
     local
@@ -413,7 +413,7 @@ async fn completed_event_releases_stream_drain_barrier_and_timeout_keeps_request
                     request_id: late_req.clone(),
                     attempt: 1,
                     max_retries: 2,
-                    kind: xvora_sampler::SamplingErrorKind::DoomLoopDetected,
+                    kind: sampler::SamplingErrorKind::DoomLoopDetected,
                     reason: "queued retry after timeout".to_string(),
                     doom_loop_triggers: Some(vec!["tail_repetition:8@thinking".to_string()]),
                     doom_loop_aborted_at_chunk: Some(42),
@@ -504,7 +504,7 @@ async fn completed_event_releases_stream_drain_barrier_and_timeout_keeps_request
 
 #[tokio::test(flavor = "current_thread")]
 async fn unowned_stream_events_do_not_mutate_capture_or_notify_the_next_turn() {
-    use xvora_sampler::{RequestId, SamplingChannel, SamplingEvent};
+    use sampler::{RequestId, SamplingChannel, SamplingEvent};
 
     let local = tokio::task::LocalSet::new();
     local
@@ -550,7 +550,7 @@ async fn unowned_stream_events_do_not_mutate_capture_or_notify_the_next_turn() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn unowned_backend_tool_completion_closes_visible_card() {
-    use xvora_sampler::{RequestId, SamplingEvent};
+    use sampler::{RequestId, SamplingEvent};
 
     let local = tokio::task::LocalSet::new();
     local
@@ -593,7 +593,7 @@ async fn unowned_backend_tool_completion_closes_visible_card() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn unowned_retry_does_not_notify_the_next_turn() {
-    use xvora_sampler::{RequestId, SamplingErrorKind, SamplingEvent};
+    use sampler::{RequestId, SamplingErrorKind, SamplingEvent};
 
     let local = tokio::task::LocalSet::new();
     local
@@ -628,7 +628,7 @@ async fn unowned_retry_does_not_notify_the_next_turn() {
 /// The consumer needs to take it via `TakeStreamingCapture` and upload it as `streaming_partial.json`.
 #[tokio::test(flavor = "current_thread")]
 async fn failed_event_preserves_streaming_capture_for_takeout() {
-    use xvora_sampler::{
+    use sampler::{
         RequestId, SamplingChannel, SamplingErrorInfo, SamplingErrorKind, SamplingEvent,
     };
     let local = tokio::task::LocalSet::new();
@@ -803,7 +803,7 @@ async fn failed_event_preserves_streaming_capture_for_takeout() {
 /// The signals only warn on the accepted response.
 #[tokio::test(flavor = "current_thread")]
 async fn observe_only_confident_completion_stays_warn_only() {
-    use xvora_sampler::{RequestId, SamplingChannel, SamplingEvent};
+    use sampler::{RequestId, SamplingChannel, SamplingEvent};
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -898,7 +898,7 @@ async fn observe_only_confident_completion_stays_warn_only() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn exact_repetition_completion_is_tracked_for_incidence_only() {
-    use xvora_sampler::{RequestId, SamplingEvent};
+    use sampler::{RequestId, SamplingEvent};
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -959,7 +959,7 @@ async fn exact_repetition_completion_is_tracked_for_incidence_only() {
 /// Session counters and the per-turn tally are updated along the way.
 #[tokio::test(flavor = "current_thread")]
 async fn doom_loop_recovery_stamps_capture_segments_and_counters() {
-    use xvora_sampler::{RequestId, SamplingChannel, SamplingErrorKind, SamplingEvent};
+    use sampler::{RequestId, SamplingChannel, SamplingErrorKind, SamplingEvent};
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1128,7 +1128,7 @@ async fn doom_loop_recovery_stamps_capture_segments_and_counters() {
 /// It must preserve the reasoning text already accumulated, so a partial taken then shows the model was cut off mid tool-call.
 #[tokio::test(flavor = "current_thread")]
 async fn tool_call_delta_marks_streaming_capture_phase() {
-    use xvora_sampler::{RequestId, SamplingChannel, SamplingEvent};
+    use sampler::{RequestId, SamplingChannel, SamplingEvent};
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1185,7 +1185,7 @@ async fn tool_call_delta_marks_streaming_capture_phase() {
 /// `ToolCallDelta` on an idle (empty, never-begun) slot must not fabricate a phase; there is no partial to attribute it to.
 #[tokio::test(flavor = "current_thread")]
 async fn tool_call_delta_on_idle_slot_leaves_phase_pending() {
-    use xvora_sampler::{RequestId, SamplingEvent};
+    use sampler::{RequestId, SamplingEvent};
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1257,7 +1257,7 @@ fn streaming_capture_appender_respects_byte_cap() {
 /// This simulates the events a reasoning-only doomloop produces; it does not drive the sampler classifier (the mock-HTTP test covers that).
 #[tokio::test(start_paused = true)]
 async fn reasoning_only_doomloop_turn_captures_every_generation_as_segments() {
-    use xvora_sampler::{
+    use sampler::{
         RequestId, SamplingChannel, SamplingErrorInfo, SamplingErrorKind, SamplingEvent,
     };
     use xvora_sampling_types::{EmptyReason, EmptyResponseContext};
@@ -1370,9 +1370,9 @@ async fn reasoning_only_doomloop_turn_captures_every_generation_as_segments() {
             // Take the capture exactly as the trace upload does: through the real `TakeStreamingCapture` command
             // The command finalizes the uncommitted generations for upload
             let (cmd_tx, cmd_rx) = mpsc::unbounded_channel::<SessionCommand>();
-            let (_chat_tx, chat_rx) = mpsc::unbounded_channel::<xvora_chat_state::ChatStateEvent>();
+            let (_chat_tx, chat_rx) = mpsc::unbounded_channel::<chat_state::ChatStateEvent>();
             let codebase_indexes = Arc::new(parking_lot::Mutex::new(
-                xvora_workspace::file_system::CodebaseIndexManager::new(),
+                workspace::file_system::CodebaseIndexManager::new(),
             ));
             tokio::task::spawn_local(super::run_session(
                 actor.clone(),

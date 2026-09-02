@@ -1,24 +1,24 @@
-//! grok-build's L5 wiring onto the shared full-replace engine (`xvora_compaction::code_compaction`).
+//! grok-build's L5 wiring onto the shared full-replace engine (`compaction::code_compaction`).
 //!
 //! The shared engine drives the loop: sample, retry, then classify the result as degenerate or failed.
-//! The loop lives in [`sample_full_replace_summary`](xvora_compaction::sample_full_replace_summary).
+//! The loop lives in [`sample_full_replace_summary`](compaction::sample_full_replace_summary).
 //! This module adapts grok-build's transport and telemetry to the engine's two traits: [`ShellCompactionSampler`] and [`ShellFullReplaceObserver`].
 //!
 //! The **input ladder** (verbatim, then fitted, then lossy) and auto-compaction suppression stay in L5 (`compaction.rs`).
-//! Both are driven by the `context_overflow` / `deterministic` flags on [`FullReplaceError`](xvora_compaction::FullReplaceError).
+//! Both are driven by the `context_overflow` / `deterministic` flags on [`FullReplaceError`](compaction::FullReplaceError).
 
 use std::sync::Mutex;
 use std::time::Duration;
 
 use agent_client_protocol as acp;
 use async_trait::async_trait;
-use xvora_compaction::{
+use compaction::{
     CompactionPrompt, CompactionSampleError, CompactionSampler, FullReplaceAttemptOutcome,
     FullReplaceObserver, LlmCompactionOutput,
 };
-use xvora_sampler::SamplerConfig as SamplingConfig;
+use sampler::SamplerConfig as SamplingConfig;
 use xvora_sampling_types::{ConversationItem, HostedTool, ToolSpec};
-use xvora_telemetry::events::{CompactionRetryDegraded, CompactionTrigger};
+use telemetry::events::{CompactionRetryDegraded, CompactionTrigger};
 
 use chat_state::compaction_utils::{
     CompactionAttempt, MAX_CAPTURED_SUMMARY_CHARS, bound_captured_output,
@@ -313,7 +313,7 @@ impl FullReplaceObserver for ShellFullReplaceObserver {
                     self.estimated_input_tokens
                 ));
                 if *will_retry {
-                    xvora_telemetry::session_ctx::log_event(CompactionRetryDegraded {
+                    telemetry::session_ctx::log_event(CompactionRetryDegraded {
                         trigger: self.trigger,
                         reason: "degenerate_summary",
                         from_stage: None,

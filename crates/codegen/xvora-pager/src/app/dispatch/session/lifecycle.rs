@@ -25,7 +25,7 @@ use crate::scrollback::blocks::SessionEvent;
 use crate::scrollback::state::ScrollbackState;
 use agent_client_protocol as acp;
 use std::time::Instant;
-use xvora_shell::sampling::types::ReasoningEffort;
+use shell::sampling::types::ReasoningEffort;
 /// A deferred model switch to apply once the session exists, plus any effort error to report.
 /// `switch` is still populated when a `-m` model was stashed even if the effort token failed, so an invalid effort never drops the CLI model override.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -173,7 +173,7 @@ pub(in crate::app::dispatch) fn dispatch_new_session(app: &mut AppView) -> Vec<E
 /// The answer routes to [`dispatch_new_session_inner`] or [`dispatch_new_worktree_session`].
 pub(in crate::app::dispatch) fn open_new_session_question(app: &mut AppView) -> Vec<Effect> {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
     let ActiveView::Agent(id) = app.active_view else {
         return vec![];
     };
@@ -224,11 +224,11 @@ pub(in crate::app::dispatch) fn open_new_session_question(app: &mut AppView) -> 
 pub(in crate::app::dispatch) fn open_agent_type_mismatch_question(
     app: &mut AppView,
     model_id: acp::ModelId,
-    effort: Option<xvora_shell::sampling::types::ReasoningEffort>,
+    effort: Option<shell::sampling::types::ReasoningEffort>,
     model_name: &str,
 ) -> Vec<Effect> {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
     let ActiveView::Agent(id) = app.active_view else {
         return vec![];
     };
@@ -499,7 +499,7 @@ pub(in crate::app::dispatch) fn open_delete_current_session_question(
     app: &mut AppView,
 ) -> Vec<Effect> {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
     let ActiveView::Agent(id) = app.active_view else {
         return vec![];
     };
@@ -591,7 +591,7 @@ pub(in crate::app::dispatch) fn dispatch_delete_current_session_answered(
             .map(|task_id| Effect::KillBgTask {
                 session_id: session_id.clone(),
                 task_id,
-                source: xvora_shell::extensions::task::TaskKillSource::Teardown,
+                source: shell::extensions::task::TaskKillSource::Teardown,
             }),
     );
     app.show_toast("Deleting session\u{2026}");
@@ -608,7 +608,7 @@ pub(in crate::app::dispatch) fn dispatch_delete_current_session_answered(
 /// then replay any deferred session startup (only if auth is also done).
 pub(in crate::app::dispatch) fn dispatch_trust_folder(app: &mut AppView) -> Vec<Effect> {
     if let TrustState::Pending { workspace } = &app.trust_state {
-        xvora_workspace::folder_trust::grant_folder_trust(workspace);
+        workspace::folder_trust::grant_folder_trust(workspace);
     }
     finish_trust(app)
 }

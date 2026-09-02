@@ -15,7 +15,7 @@ use crate::auth::error::{AuthError, RefreshTokenError, RefreshTokenFailedReason}
 use crate::auth::manager::AuthManager;
 use crate::auth::model::GrokAuth;
 use crate::auth::token_type::TokenType;
-use xvora_telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
+use telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
 
 /// `manual_auth` KPI reason for a terminal `AuthError`, or `None` when it doesn't force a manual re-login.
 /// Lives here (not on `AuthError`) so the error model stays telemetry-free.
@@ -166,7 +166,7 @@ impl ManualAuthTracker {
             self.emit_count
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
-        xvora_telemetry::session_ctx::log_event(event);
+        telemetry::session_ctx::log_event(event);
     }
 
     #[cfg(test)]
@@ -342,16 +342,16 @@ impl UnauthorizedRecovery {
             // Every ReloadFromDisk outcome must log (adopted, expired, same-as-rejected, no entry)
             // A silent arm hides which path a recovery loop is taking
             // Debug level: the disk-state *transition* is logged once by `read_disk_auth` itself
-            xvora_telemetry::unified_log::debug("auth recovery: no disk entry", None, None);
+            telemetry::unified_log::debug("auth recovery: no disk entry", None, None);
             return None;
         };
         if crate::auth::is_expired(&disk_auth) {
             tracing::debug!("auth recovery: disk token is expired, skipping");
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "auth recovery: disk token expired",
                 None,
                 Some(serde_json::json!({
-                    "disk_key_prefix": xvora_auth::bearer_suffix(&disk_auth.key),
+                    "disk_key_prefix": auth::bearer_suffix(&disk_auth.key),
                     "expires_at": disk_auth.expires_at.map(|e| e.to_rfc3339()),
                 })),
             );
@@ -359,11 +359,11 @@ impl UnauthorizedRecovery {
         }
         if self.is_different_token(&disk_auth) {
             tracing::info!("auth recovery: disk has a different token, accepting");
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth recovery: adopted disk token",
                 None,
                 Some(serde_json::json!({
-                    "adopted_key_prefix": xvora_auth::bearer_suffix(&disk_auth.key),
+                    "adopted_key_prefix": auth::bearer_suffix(&disk_auth.key),
                     "expires_at": disk_auth.expires_at.map(|e| e.to_rfc3339()),
                 })),
             );
@@ -371,7 +371,7 @@ impl UnauthorizedRecovery {
             Some(disk_auth)
         } else {
             tracing::debug!("auth recovery: disk token is same as rejected, skipping");
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "auth recovery: disk token same as rejected",
                 None,
                 None,
@@ -398,11 +398,11 @@ impl UnauthorizedRecovery {
             mint_age_seconds,
             "auth recovery: current token freshly minted, skipping refresh"
         );
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth recovery: fresh mint, refresh skipped",
             None,
             Some(serde_json::json!({
-                "key_prefix": xvora_auth::bearer_suffix(&auth.key),
+                "key_prefix": auth::bearer_suffix(&auth.key),
                 "mint_age_seconds": mint_age_seconds,
                 "guard_seconds": FRESH_MINT_GUARD_SECS,
                 "expires_at": auth.expires_at.map(|e| e.to_rfc3339()),
@@ -436,18 +436,18 @@ impl UnauthorizedRecovery {
                     .await;
                 match &result {
                     Ok(auth) => {
-                        xvora_telemetry::unified_log::info(
+                        telemetry::unified_log::info(
                             "auth recovery: refreshed from authority",
                             None,
                             Some(serde_json::json!({
                                 "token_type": format!("{tt:?}"),
-                                "new_key_prefix": xvora_auth::bearer_suffix(&auth.key),
+                                "new_key_prefix": auth::bearer_suffix(&auth.key),
                                 "expires_at": auth.expires_at.map(|e| e.to_rfc3339()),
                             })),
                         );
                     }
                     Err(e) => {
-                        xvora_telemetry::unified_log::warn(
+                        telemetry::unified_log::warn(
                             "auth recovery: refresh from authority failed",
                             None,
                             Some(serde_json::json!({
@@ -460,7 +460,7 @@ impl UnauthorizedRecovery {
                 result
             }
             TokenType::LegacySession | TokenType::ApiKey => {
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "auth recovery: no refresh authority for token type",
                     None,
                     Some(serde_json::json!({ "token_type": format!("{tt:?}") })),

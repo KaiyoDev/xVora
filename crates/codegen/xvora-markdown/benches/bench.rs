@@ -4,7 +4,7 @@ use std::hint::black_box;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
-use xvora_markdown::{
+use markdown::{
     MarkdownStyle, StreamingMarkdownRenderer, Syntect, render_markdown_ratatui_full,
 };
 

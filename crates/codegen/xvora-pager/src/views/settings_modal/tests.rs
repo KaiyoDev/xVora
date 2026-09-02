@@ -16,7 +16,7 @@ use crate::settings::{
     SettingKind, SettingMeta, SettingOwner, SettingValue, SettingsRegistry, StringValidator,
 };
 use crate::theme::Theme;
-use xvora_shell::agent::config::UiConfig;
+use shell::agent::config::UiConfig;
 
 fn make_state() -> SettingsModalState {
     SettingsModalState::new(
@@ -2867,7 +2867,7 @@ fn fork_secondary_model_picker_opens_on_persisted_model() {
     use agent_client_protocol as acp;
     // Must differ from the baseline slug or the empty-fold arm hides the lookup.
     let slug = "grok-4.5-fast";
-    assert_ne!(slug, xvora_shell::models::default_model());
+    assert_ne!(slug, shell::models::default_model());
     let snapshot = PagerLocalSnapshot {
         available_models: vec![
             ("Grok 3".to_string(), acp::ModelId::new(Arc::from("grok-3"))),

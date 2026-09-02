@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use xvora_status_line::{StatusLineContext, StatusLineItem};
+use status_line::{StatusLineContext, StatusLineItem};
 
 use super::fit_columns;
 

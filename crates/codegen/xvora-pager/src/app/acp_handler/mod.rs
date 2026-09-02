@@ -3,15 +3,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpClientMessage;
+use acp_lib::AcpClientMessage;
 
 use super::actions::Effect;
-use xvora_shell::extensions::notification::{
+use shell::extensions::notification::{
     SessionNotification, SessionUpdate as XaiSessionUpdate, is_reauthable_failure,
 };
-use xvora_shell::tools::todo::todo_item_from_plan_entry;
-use xvora_tools::notification::ScheduledTaskRemovedReason;
-use xvora_workspace::permission::bash_command_splitting::BashCommandHighlights;
+use shell::tools::todo::todo_item_from_plan_entry;
+use tools::notification::ScheduledTaskRemovedReason;
+use workspace::permission::bash_command_splitting::BashCommandHighlights;
 
 use crate::acp::meta::NotificationMeta;
 use crate::acp::tracker::AcpUpdateTracker;
@@ -639,7 +639,7 @@ fn handle_interjection(notif: &acp::ExtNotification, app: &mut AppView) -> bool 
     is_active
 }
 
-fn handle_ext_method(ext: xvora_acp_lib::AcpArgs<acp::ExtRequest>, app: &mut AppView) -> bool {
+fn handle_ext_method(ext: acp_lib::AcpArgs<acp::ExtRequest>, app: &mut AppView) -> bool {
     match ext.request.method.as_ref() {
         "x.ai/ask_user_question" => handle_ask_user_question(ext, app),
         "x.ai/exit_plan_mode" => handle_exit_plan_mode(ext, app),

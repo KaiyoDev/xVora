@@ -360,7 +360,7 @@ fn run_with_deadline(mut cmd: Command, deadline: Instant, label: &str) -> RunOut
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    xvora_tools::util::detach_std_command(&mut cmd);
+    tools::util::detach_std_command(&mut cmd);
     xvora_sandbox::child_net::restrict_child_network_std(&mut cmd);
     #[allow(clippy::disallowed_methods)] // best-effort enrolled in the global ProcessScope below
     let mut child = match cmd.spawn() {
@@ -371,7 +371,7 @@ fn run_with_deadline(mut cmd: Command, deadline: Instant, label: &str) -> RunOut
         }
     };
 
-    let mut group = xvora_tools::util::ProcessGroup::new().ok();
+    let mut group = tools::util::ProcessGroup::new().ok();
     if let Some(g) = group.as_mut()
         && g.attach_std(&child).is_err()
     {
@@ -388,7 +388,7 @@ fn run_with_deadline(mut cmd: Command, deadline: Instant, label: &str) -> RunOut
     };
     // A refused registration means the scope closed; don't trust its best-effort kill
     if let Some(g) = &group
-        && !xvora_tools::util::global_process_scope().register(g)
+        && !tools::util::global_process_scope().register(g)
     {
         kill_and_reap(&mut child);
         return RunOutcome::Failed;
@@ -575,7 +575,7 @@ impl Drop for PipeDrain {
 /// Reap a killed child; abandon a D-state corpse (the zombie pins its pid).
 fn reap_with_timeout(child: &mut std::process::Child, label: &str) {
     if let Ok(None) =
-        wait_timeout::ChildExt::wait_timeout(child, xvora_tty_utils::KILL_REAP_TIMEOUT)
+        wait_timeout::ChildExt::wait_timeout(child, tty_utils::KILL_REAP_TIMEOUT)
     {
         tracing::warn!(
             label,

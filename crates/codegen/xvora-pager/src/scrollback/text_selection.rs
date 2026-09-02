@@ -12,7 +12,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::scrollback::table_geometry::{CellRef, TableGeometry, WrappedCellJoiner};
 use crate::scrollback::types::SelectionBoundary;
 use crate::theme::Theme;
-use xvora_markdown::{CellJoin, TableCopyMeta};
+use markdown::{CellJoin, TableCopyMeta};
 
 // ---------------------------------------------------------------------------
 // Auto-scroll types
@@ -1181,7 +1181,7 @@ pub const DEFAULT_WORD_SEPARATORS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~";
 pub fn configured_word_separators() -> &'static str {
     static CACHED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     CACHED.get_or_init(|| {
-        let root = match xvora_shell::config::load_effective_config() {
+        let root = match shell::config::load_effective_config() {
             Ok(r) => r,
             Err(_) => return DEFAULT_WORD_SEPARATORS.to_owned(),
         };
@@ -1538,7 +1538,7 @@ fn map_inclusive_concat_col(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_markdown::TableCellCopy;
+    use markdown::TableCellCopy;
 
     fn single_line_drag(block_line_idx: usize, width: u16) -> ActiveTextDrag {
         ActiveTextDrag {

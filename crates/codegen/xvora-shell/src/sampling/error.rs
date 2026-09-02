@@ -6,7 +6,7 @@
 pub use xvora_sampling_types::error::*;
 
 // Clients carry this typed kind from parsing the wire error to choosing the user-facing copy; re-exported so the pager shares the exact type
-pub use xvora_sampler::SamplingErrorKind;
+pub use sampler::SamplingErrorKind;
 
 use agent_client_protocol as acp;
 
@@ -163,7 +163,7 @@ pub(crate) fn map_sampling_err_to_acp(err: SamplingError) -> acp::Error {
             acp::Error::internal_error().data(terminal_error_data(
                 err.to_string(),
                 None,
-                xvora_sampler::SamplingErrorKind::MaxTokensTruncation,
+                sampler::SamplingErrorKind::MaxTokensTruncation,
             ))
         }
         SamplingError::IdleTimeout { elapsed_secs } => acp::Error::internal_error().data(format!(
@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn attach_prompt_usage_preserves_error_kind_and_round_trips() {
-        let mut ledger = xvora_chat_state::UsageLedger::default();
+        let mut ledger = chat_state::UsageLedger::default();
         ledger.record_main_loop_call(
             "m",
             &xvora_sampling_types::TokenUsage {
@@ -460,7 +460,7 @@ mod tests {
             acp::Error::internal_error().data(terminal_error_data(
                 "truncated".into(),
                 None,
-                xvora_sampler::SamplingErrorKind::MaxTokensTruncation,
+                sampler::SamplingErrorKind::MaxTokensTruncation,
             )),
             Some(usage.clone()),
         );

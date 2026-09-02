@@ -132,7 +132,7 @@ fn numeric_task_id_is_decoded_tracked_and_reaped() {
     });
     let raw = serde_json::value::to_raw_value(&payload).unwrap();
     let (tx, _rx) = tokio::sync::oneshot::channel();
-    let notif = xvora_acp_lib::AcpArgs {
+    let notif = acp_lib::AcpArgs {
         request: acp::ExtNotification::new("x.ai/task_backgrounded", raw.into()),
         response_tx: tx,
     }
@@ -168,15 +168,15 @@ fn reap_request_for_subagent_cancels_with_typed_id() {
 /// A `task_backgrounded` delivered right at prompt completion is still recorded by the drain.
 #[test]
 fn drain_records_task_backgrounded_delivered_at_exit() {
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let payload = serde_json::json!({
         "sessionId": "sess-1",
         "update": { "sessionUpdate": "task_backgrounded", "task_id": "late-1" },
     });
     let raw = serde_json::value::to_raw_value(&payload).unwrap();
     let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
-    tx.send(xvora_acp_lib::AcpClientMessage::ExtNotification(
-        xvora_acp_lib::AcpArgs {
+    tx.send(acp_lib::AcpClientMessage::ExtNotification(
+        acp_lib::AcpArgs {
             request: acp::ExtNotification::new("x.ai/task_backgrounded", raw.into()),
             response_tx: resp_tx,
         },
@@ -245,7 +245,7 @@ fn post_open_error_carries_real_session_context() {
 }
 
 use super::*;
-use xvora_workspace::permission::types::{RuleAction, ToolFilter};
+use workspace::permission::types::{RuleAction, ToolFilter};
 
 fn s(v: &str) -> String {
     v.to_owned()
@@ -367,7 +367,7 @@ fn domain_mode_web_fetch() {
     assert!(matches!(rules[0].tool, ToolFilter::WebFetch));
     assert_eq!(
         rules[0].pattern_mode,
-        xvora_workspace::permission::types::PatternMode::Domain
+        workspace::permission::types::PatternMode::Domain
     );
     assert_eq!(rules[0].pattern.as_deref(), Some("evil.com"));
 }
@@ -506,10 +506,10 @@ fn parse_json_schema_rejects_non_objects_and_invalid_json() {
 #[test]
 fn handler_answers_ext_method_instead_of_dropping() {
     use agent_client_protocol as acp;
-    use xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
+    use tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
     let raw = serde_json::value::to_raw_value(&serde_json::json!({})).unwrap();
     let (tx, mut rx) = tokio::sync::oneshot::channel();
-    let msg = xvora_acp_lib::AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
+    let msg = acp_lib::AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
         request: acp::ExtRequest::new("x.ai/ask_user_question", raw.into()),
         response_tx: tx,
     });

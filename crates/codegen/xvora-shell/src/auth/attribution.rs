@@ -8,7 +8,7 @@
 //! ([`AuthManager::current_or_expired`] -- hard-expired tokens stay
 //! visible, since most 401s arrive exactly then). The two sinks are:
 //!
-//! 1. [`xvora_telemetry::unified_log::warn`] for the local
+//! 1. [`telemetry::unified_log::warn`] for the local
 //!    `~/.grok/logs/unified.jsonl` file (best-effort; ships to GCS
 //!    only on OIDC refresh failure via `auth/refresh.rs`).
 //! 2. A discrete `tracing::warn_span!("auth_401_attribution", ...)` captured by the OTel layer in `util/otel_layer.rs` and shipped
@@ -36,20 +36,20 @@
 //!
 //! # Cross-crate wiring
 //!
-//! [`xvora_sampler`] is intentionally decoupled from this crate.
-//! It invokes the trait [`xvora_sampler::Auth401AttributionCallback`] at its six 401 arms.
-//! This module provides [`ShellAttribution`], the concrete impl wired into [`xvora_sampler::SamplerConfig::attribution_callback`].
+//! [`sampler`] is intentionally decoupled from this crate.
+//! It invokes the trait [`sampler::Auth401AttributionCallback`] at its six 401 arms.
+//! This module provides [`ShellAttribution`], the concrete impl wired into [`sampler::SamplerConfig::attribution_callback`].
 //! The shell does that wiring at every sampler-construction site.
 //! Non-sampler sites (storage / feedback / registry / idle-resume) call [`record_consumer_401`] directly with their `(consumer_kind, op)` pair.
 
 use std::sync::Arc;
 
 use serde_json::Value as JsonValue;
-use xvora_sampler::{Auth401AttributionCallback, SamplingConsumer};
-use xvora_tools::{Auth401AttributionCallback as ToolAuth401AttributionCallback, ToolConsumer};
+use sampler::{Auth401AttributionCallback, SamplingConsumer};
+use tools::{Auth401AttributionCallback as ToolAuth401AttributionCallback, ToolConsumer};
 
 use crate::auth::{AuthManager, TOKEN_TTL};
-use xvora_auth::bearer_suffix;
+use auth::bearer_suffix;
 
 /// `cfg(test)`-only process-global counter that bumps on every successful `record_auth_401` invocation.
 ///
@@ -93,7 +93,7 @@ impl std::fmt::Debug for ShellAttribution {
 
 impl ShellAttribution {
     /// Construct a shareable attribution callback wired to the given [`AuthManager`].
-    /// Returns `Arc<dyn Trait>` so callers can drop the value directly into [`xvora_sampler::SamplerConfig::attribution_callback`].
+    /// Returns `Arc<dyn Trait>` so callers can drop the value directly into [`sampler::SamplerConfig::attribution_callback`].
     /// That field expects exactly `Arc<dyn Trait>`; keeping the boundary in one place avoids `as Arc<dyn _>` coercions at every call site.
     #[allow(clippy::new_ret_no_self)]
     pub(crate) fn new(
@@ -106,7 +106,7 @@ impl ShellAttribution {
         })
     }
 
-    /// Tool-side counterpart of [`Self::new`]: returns `Arc<dyn xvora_tools::Auth401AttributionCallback>` for the
+    /// Tool-side counterpart of [`Self::new`]: returns `Arc<dyn tools::Auth401AttributionCallback>` for the
     /// `with_attribution_callback(...)` builder on each tool HTTP client (`ImageGenClient`, `VideoGenClient`, `WebSearchClient`).
     /// The two callbacks share the same underlying impl and emit the same `auth_401_attribution` event format.
     /// Only the trait signature differs (`SamplingConsumer` vs. `ToolConsumer`).
@@ -178,13 +178,13 @@ pub(crate) enum ConsumerKind {
     /// Idle-resume model-metadata refresh in `session/acp_session.rs::maybe_refresh_model_metadata_on_resume`.
     /// No per-op discriminator; the consumer string is just `"IdleResumeModelRefresh"`.
     IdleResumeModelRefresh,
-    /// `xvora_tools::ToolConsumer::ImageGen`, the Imagine API (`POST /images/generations`).
+    /// `tools::ToolConsumer::ImageGen`, the Imagine API (`POST /images/generations`).
     /// No per-op discriminator; consumer string is just `"ImageGen"`.
     ImageGen,
-    /// `xvora_tools::ToolConsumer::VideoGenStart` and `VideoGenPoll`, the Video Generation API.
+    /// `tools::ToolConsumer::VideoGenStart` and `VideoGenPoll`, the Video Generation API.
     /// The op string is `"start"` (`POST /videos/generations`) or `"poll"` (`GET /videos/{request_id}`).
     VideoGen,
-    /// `xvora_tools::ToolConsumer::WebSearch`, web search via `POST /responses` with a `WebSearch` tool.
+    /// `tools::ToolConsumer::WebSearch`, web search via `POST /responses` with a `WebSearch` tool.
     /// No per-op discriminator; consumer string is just `"WebSearch"`.
     WebSearch,
 }
@@ -270,7 +270,7 @@ pub(crate) fn record_auth_401(
     // tracing event
     // The local file is reliable but only ships to GCS on OIDC refresh failure (auth/refresh.rs::spawn_diagnostic_upload)
     // By itself it does not show the steady-state 401 population; Sink 2 below provides that
-    xvora_telemetry::unified_log::warn("auth 401 attribution", session_id, Some(payload.clone()));
+    telemetry::unified_log::warn("auth 401 attribution", session_id, Some(payload.clone()));
 
     // Sink 2: discrete OTel span exported via OTLP (util/otel_layer.rs)
     // The schema fields below become OTel span attributes under `attributes.custom.<name>` per the tracing-opentelemetry bridge
@@ -639,7 +639,7 @@ mod tests {
         );
     }
 
-    /// `ShellAttribution` implements `xvora_tools::Auth401AttributionCallback` by routing each `ToolConsumer` variant to the right
+    /// `ShellAttribution` implements `tools::Auth401AttributionCallback` by routing each `ToolConsumer` variant to the right
     /// `(ConsumerKind, op)` pair, which formats to the expected `consumer` string in the emitted payload.
     #[test]
     #[serial_test::serial(attribution_emit_count)]

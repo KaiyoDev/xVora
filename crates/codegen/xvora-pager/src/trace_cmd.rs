@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::session::repo_changes::UploadMethod;
-use xvora_shell::util::grok_home::grok_home;
+use shell::agent::config::Config as AgentConfig;
+use shell::session::repo_changes::UploadMethod;
+use shell::util::grok_home::grok_home;
 
 #[derive(Debug, clap::Args, Clone)]
 pub struct TraceArgs {
@@ -51,7 +51,7 @@ pub async fn run(args: TraceArgs, agent_config: &AgentConfig) -> Result<()> {
         if !args.json {
             eprintln!(
                 "Trace uploads disabled. Set [telemetry] trace_upload = true in {}",
-                crate::util::display_user_grok_path(xvora_config::USER_CONFIG_FILENAME)
+                crate::util::display_user_grok_path(config::USER_CONFIG_FILENAME)
             );
             eprintln!("Falling back to local export.");
         }
@@ -123,7 +123,7 @@ pub fn build_session_tar(
 
         let metadata = ExportMetadata {
             session_id: session_id.to_owned(),
-            grok_version: xvora_version::full_version().to_owned(),
+            grok_version: version::full_version().to_owned(),
             os: std::env::consts::OS.to_owned(),
             arch: std::env::consts::ARCH.to_owned(),
             exported_at: chrono::Utc::now().to_rfc3339(),
@@ -343,7 +343,7 @@ impl std::fmt::Display for UploadMethodDisplay<'_> {
 // ---------------------------------------------------------------------------
 
 pub(crate) fn find_session_dir(session_id: &str) -> Result<PathBuf> {
-    xvora_shell::session::persistence::find_session_dir_by_id(session_id).with_context(|| {
+    shell::session::persistence::find_session_dir_by_id(session_id).with_context(|| {
         format!(
             "Session '{session_id}' not found under {}",
             crate::util::display_user_grok_path("sessions")
@@ -463,7 +463,7 @@ async fn run_upload(
     if bucket_url.is_none()
         && matches!(
             upload_method,
-            xvora_shell::session::repo_changes::UploadMethod::Direct { .. }
+            shell::session::repo_changes::UploadMethod::Direct { .. }
         )
     {
         anyhow::bail!(
@@ -480,7 +480,7 @@ async fn run_upload(
     }
     .to_string();
 
-    let upload_config = xvora_shell::session::repo_changes::TraceExportConfig {
+    let upload_config = shell::session::repo_changes::TraceExportConfig {
         bucket_url: bucket_url.clone(),
         service_account_key: None,
         prefix_dir: None,
@@ -591,7 +591,7 @@ impl UploadAttempt<'_> {
         let _ = writeln!(log, "Trace upload debug log");
         let _ = writeln!(log, "======================");
         let _ = writeln!(log, "Timestamp:    {}", chrono::Utc::now().to_rfc3339());
-        let _ = writeln!(log, "Grok version: {}", xvora_version::full_version());
+        let _ = writeln!(log, "Grok version: {}", version::full_version());
         let _ = writeln!(
             log,
             "OS:           {} {}",
@@ -623,7 +623,7 @@ impl UploadAttempt<'_> {
 const UPLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 async fn upload_with_retries(
-    config: &xvora_shell::session::repo_changes::TraceExportConfig,
+    config: &shell::session::repo_changes::TraceExportConfig,
     object_path: &str,
     archive: &[u8],
 ) -> anyhow::Result<String> {
@@ -637,7 +637,7 @@ async fn upload_with_retries(
     (|| async {
         tokio::time::timeout(
             UPLOAD_TIMEOUT,
-            xvora_file_utils::gcs::upload_bytes(config, object_path, archive, "application/gzip"),
+            file_utils::gcs::upload_bytes(config, object_path, archive, "application/gzip"),
         )
         .await
         .map_err(|_| anyhow::anyhow!("Upload timed out after {}s", UPLOAD_TIMEOUT.as_secs()))?
@@ -656,7 +656,7 @@ async fn upload_with_retries(
 
 pub async fn resolve_upload_method(agent_config: &AgentConfig) -> Option<UploadMethod> {
     // On login failure, fall back to ambient creds rather than erroring.
-    let auth_token = xvora_shell::auth::ensure_authenticated_or_noninteractive(
+    let auth_token = shell::auth::ensure_authenticated_or_noninteractive(
         &agent_config.grok_com_config,
         agent_config.endpoints.has_noninteractive_upload_auth(),
         Some("Authentication required for trace upload."),

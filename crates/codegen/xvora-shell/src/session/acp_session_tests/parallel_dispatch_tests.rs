@@ -6,8 +6,8 @@
 
 use super::*;
 
-use xvora_tools::implementations::grok_build::task::backend::SubagentBackend;
-use xvora_tools::implementations::grok_build::task::types::{
+use tools::implementations::grok_build::task::backend::SubagentBackend;
+use tools::implementations::grok_build::task::types::{
     ActiveAgentMessageOutcome, ActiveAgentMessageRequest, SubagentCancelOutcome,
     SubagentDescribeOutcome, SubagentRequest, SubagentResult, SubagentSnapshot,
     SubagentValidateTypeOutcome,
@@ -23,8 +23,8 @@ impl SubagentBackend for FixedActiveMessageBackend {
         &self,
         _: SubagentRequest,
         _: Option<tokio::sync::oneshot::Sender<()>>,
-    ) -> Result<SubagentResult, xvora_tool_runtime::ToolError> {
-        Err(xvora_tool_runtime::ToolError::custom(
+    ) -> Result<SubagentResult, tool_runtime::ToolError> {
+        Err(tool_runtime::ToolError::custom(
             "unsupported",
             "spawn unsupported",
         ))
@@ -125,8 +125,8 @@ fn active_message_event_names(
 
 #[test]
 fn active_message_outputs_distinguish_uncertain_from_proved_rejection() {
-    use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput;
-    use xvora_tools::types::output::ToolOutput;
+    use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput;
+    use tools::types::output::ToolOutput;
 
     for (label, output, expected) in [
         (
@@ -146,7 +146,7 @@ fn active_message_outputs_distinguish_uncertain_from_proved_rejection() {
         ),
     ] {
         let output = ToolOutput::SendSubagentMessage(output);
-        let result: Result<ToolRunResult, xvora_tool_runtime::ToolError> = Ok(ToolRunResult {
+        let result: Result<ToolRunResult, tool_runtime::ToolError> = Ok(ToolRunResult {
             prompt_text: output.to_prompt_format(),
             output,
             effective_tool_name: None,
@@ -161,8 +161,8 @@ fn active_message_outputs_distinguish_uncertain_from_proved_rejection() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn generic_tool_completion_chokepoint_has_exact_active_message_cardinality() {
-    use xvora_tools::implementations::grok_build::task::backend::SubagentBackendResource;
-    use xvora_tools::implementations::grok_build::task::types::{
+    use tools::implementations::grok_build::task::backend::SubagentBackendResource;
+    use tools::implementations::grok_build::task::types::{
         MAX_ACTIVE_AGENT_MESSAGE_BYTES, SubagentDepthCounter,
     };
 
@@ -170,7 +170,7 @@ async fn generic_tool_completion_chokepoint_has_exact_active_message_cardinality
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
@@ -261,9 +261,9 @@ async fn generic_tool_completion_chokepoint_has_exact_active_message_cardinality
                 events.as_slice(),
                 [
                     crate::session::telemetry::ActiveAgentMessageEvent::Completed(
-                        xvora_telemetry::events::ActiveAgentMessageCompleted {
+                        telemetry::events::ActiveAgentMessageCompleted {
                             requested_operation:
-                                xvora_telemetry::events::ActiveAgentMessageOperation::Queue,
+                                telemetry::events::ActiveAgentMessageOperation::Queue,
                             ..
                         }
                     )

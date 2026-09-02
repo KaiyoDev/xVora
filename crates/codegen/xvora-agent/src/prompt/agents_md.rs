@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use crate::prompt::ignore::{build_gitignore, is_ignored};
 
-use xvora_tools::types::compat::CompatConfig;
+use tools::types::compat::CompatConfig;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AgentConfigFile {
@@ -155,8 +155,8 @@ async fn read_agents_config_with_options(
         working_directory,
         workspace_user_dir,
         compat,
-        xvora_tools::util::grok_home::grok_home(),
-        xvora_dirs::home_dir(),
+        tools::util::grok_home::grok_home(),
+        dirs::home_dir(),
     )
     .await
 }
@@ -277,7 +277,7 @@ async fn read_agents_config_with_roots(
         .filter_map(|candidate| {
             let content = std::fs::read_to_string(&candidate.path).ok()?;
             let content = if candidate.is_rule {
-                xvora_tools::implementations::skills::skill::extract_skill_body(&content)
+                tools::implementations::skills::skill::extract_skill_body(&content)
             } else {
                 content
             };

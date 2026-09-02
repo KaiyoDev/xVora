@@ -35,7 +35,7 @@
 //! # Usage
 //!
 //! ```ignore
-//! use xvora_shell::leader::{connect_or_spawn, ClientCapabilities, ClientMode};
+//! use shell::leader::{connect_or_spawn, ClientCapabilities, ClientMode};
 //!
 //! // Connect to existing leader or spawn a new one
 //! let caps = ClientCapabilities {
@@ -89,7 +89,7 @@ const SPAWN_POLL_INTERVAL: Duration = Duration::from_millis(100);
 /// absence in argv marks an externally supervised daemon (never reclaim).
 const RELAY_ON_DEMAND_FLAG: &str = "--relay-on-demand";
 /// Same source the leader reports, so adoption compares versions like-for-like.
-const CLIENT_LEADER_VERSION: &str = xvora_version::VERSION;
+const CLIENT_LEADER_VERSION: &str = version::VERSION;
 /// Max wait for an evicted leader to exit before force-killing (relaunch drain ~5s).
 const EVICT_WAIT_TIMEOUT: Duration = Duration::from_secs(8);
 /// How long the SAME live grok flock-holder may stay unconnectable before
@@ -583,7 +583,7 @@ pub async fn kill_stale_reachable_leaders(reason: &'static str) {
                             "pid": *pid,
                             "dead_leader_ver": dead_leader_ver,
                             "reason": reason,
-                            "killer_ver": xvora_version::VERSION,
+                            "killer_ver": version::VERSION,
                         })),
                     );
                 }
@@ -1182,7 +1182,7 @@ async fn request_leader_vacate(conn: &LeaderConnection, pid: Option<u32>) {
         };
         ("sigterm", outcome)
     };
-    xvora_telemetry::unified_log::warn(
+    telemetry::unified_log::warn(
         "leader.evict.vacate_requested",
         None,
         Some(serde_json::json!({
@@ -1222,7 +1222,7 @@ async fn evict_leader(conn: LeaderConnection, lock: &LeaderLock) {
     } else {
         "exited"
     };
-    xvora_telemetry::unified_log::warn(
+    telemetry::unified_log::warn(
         "leader.evict.completed",
         None,
         Some(serde_json::json!({
@@ -1422,7 +1422,7 @@ async fn evict_zombie_leader(pid: u32, sock_path: &Path, waited: Duration) {
             "sigkilled"
         }
     };
-    xvora_telemetry::unified_log::warn(
+    telemetry::unified_log::warn(
         "leader.zombie.evicted",
         None,
         Some(serde_json::json!({
@@ -1516,7 +1516,7 @@ pub async fn connect_or_spawn(
                             elapsed_ms,
                             "Adopted sibling-spawned leader after eviction race"
                         );
-                        xvora_telemetry::unified_log::info(
+                        telemetry::unified_log::info(
                             "leader.spawn.sibling_adopted",
                             None,
                             Some(serde_json::json!({
@@ -1567,7 +1567,7 @@ pub async fn connect_or_spawn(
                 let elapsed_ms = start.elapsed().as_millis() as u64;
                 info!(elapsed_ms, "Spawned and connected to leader");
                 if replacing_stale {
-                    xvora_telemetry::unified_log::info(
+                    telemetry::unified_log::info(
                         "leader.spawn.replacement",
                         None,
                         Some(serde_json::json!({
@@ -1646,7 +1646,7 @@ pub async fn connect_or_spawn(
 /// auto-update or `grok update` atomically swaps that symlink, `current_exe()` still resolves (via `/proc/self/exe` on Linux) to the *old* versioned
 /// target, so spawning it would relaunch the stale binary.
 /// The symlink always points to the freshly-installed version.
-/// This mirrors `xvora_update::auto_update::resolve_restart_exe`.
+/// This mirrors `update::auto_update::resolve_restart_exe`.
 ///
 /// For a **dev / out-of-tree binary** (`cargo run`, integration tests, installs not under `grok_home`),
 /// keep `current_exe()` so the spawned leader matches the calling binary.
@@ -1726,7 +1726,7 @@ fn spawn_leader_subprocess(env_urls: &LeaderEnvUrls) -> Result<u32, ConnectionEr
     }
     let leader_log = std::env::var("GROK_LEADER_LOG")
         .or_else(|_| std::env::var("RUST_LOG"))
-        .unwrap_or_else(|_| "xvora_shell=info,xvora_acp_lib=warn,xvora_mcp=warn".into());
+        .unwrap_or_else(|_| "shell=info,acp_lib=warn,mcp=warn".into());
     cmd.env("RUST_LOG", leader_log);
     #[cfg(unix)]
     {
@@ -2016,7 +2016,7 @@ mod tests {
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null());
-            xvora_tty_utils::detach_std_command(&mut cmd);
+            tty_utils::detach_std_command(&mut cmd);
             SpawnedChild(cmd.spawn().expect("spawn test child"))
         };
         let marked = spawn(&["-c", "sleep 30; true", "sh", RELAY_ON_DEMAND_FLAG]);

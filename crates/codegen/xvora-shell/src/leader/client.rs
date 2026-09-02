@@ -658,7 +658,7 @@ mod tests {
             FakeLeaderBehavior::Normal {
                 versions: FakeVersions {
                     protocol_version: Some(999),
-                    binary_version: Some(xvora_version::VERSION.to_string()),
+                    binary_version: Some(version::VERSION.to_string()),
                 },
                 caps: fake_caps(true, false),
             },

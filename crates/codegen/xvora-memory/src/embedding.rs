@@ -69,23 +69,23 @@ impl ApiEmbeddingProvider {
 }
 
 pub(super) fn build_middleware_client(
-    credentials: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider>,
+    credentials: std::sync::Arc<dyn auth::AuthCredentialProvider>,
 ) -> reqwest_middleware::ClientWithMiddleware {
-    xvora_http::with_auth_retry(xvora_http::shared_client(), credentials)
+    http::with_auth_retry(http::shared_client(), credentials)
 }
 
 fn build_static_middleware_client(
     api_key: Option<String>,
 ) -> reqwest_middleware::ClientWithMiddleware {
-    let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> = std::sync::Arc::new(
-        xvora_auth::StaticAuthCredentialProvider::new(Box::new(NoopHttpAuth), api_key),
+    let provider: std::sync::Arc<dyn auth::AuthCredentialProvider> = std::sync::Arc::new(
+        auth::StaticAuthCredentialProvider::new(Box::new(NoopHttpAuth), api_key),
     );
     build_middleware_client(provider)
 }
 
 struct NoopHttpAuth;
 
-impl xvora_auth::HttpAuth for NoopHttpAuth {
+impl auth::HttpAuth for NoopHttpAuth {
     fn apply(&self, builder: reqwest::RequestBuilder, _base_url: &str) -> reqwest::RequestBuilder {
         builder
     }
@@ -127,11 +127,11 @@ impl EmbeddingProvider for ApiEmbeddingProvider {
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                 }
 
-                let request = xvora_http::shared_client()
+                let request = http::shared_client()
                     .post(format!("{}/embeddings", self.api_base))
                     .json(&body_json)
                     .header("X-XAI-Token-Auth", "xvora-cli")
-                    .header("x-grok-client-version", xvora_version::VERSION);
+                    .header("x-grok-client-version", version::VERSION);
 
                 let req = match request.build() {
                     Ok(r) => r,

@@ -181,7 +181,7 @@ pub struct MarketplaceEntry {
     /// Structured inventory from the marketplace catalog (`plugin-index.json`).
     /// `None` means the catalog has no data for this plugin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub components: Option<xvora_hooks_plugins_types::PluginComponents>,
+    pub components: Option<hooks_plugins_types::PluginComponents>,
 }
 
 #[derive(Debug, Clone)]

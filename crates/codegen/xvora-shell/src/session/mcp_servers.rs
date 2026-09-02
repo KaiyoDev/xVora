@@ -1,6 +1,6 @@
 //! MCP server re-exports and shell-side wrappers for timeout override resolution.
 
-pub use xvora_mcp::servers::{
+pub use mcp::servers::{
     AcpServerEntry, HttpConfig, MCP_TOOL_NAME_DELIMITER, McpClient, McpClientTimeoutOverrides,
     McpConfigDiff, McpError, McpInitStrategy, McpMetaConfigMap, McpOauthDiscovery,
     McpServerMetaConfig, McpServerName, McpService, McpSpawnCtx, McpState, McpTool,
@@ -13,8 +13,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use agent_client_protocol as acp;
-use xvora_mcp::oauth_config::{McpOAuthConfig, McpOAuthConfigMap};
-use xvora_mcp::servers as inner;
+use mcp::oauth_config::{McpOAuthConfig, McpOAuthConfigMap};
+use mcp::servers as inner;
 
 fn resolve_overrides(
     server_name: &str,
@@ -41,13 +41,13 @@ fn resolve_overrides(
 pub(crate) fn build_config_resolved_event(
     configs: &[acp::McpServer],
     cwd: &Path,
-) -> xvora_session_events::Event {
+) -> session_events::Event {
     let disabled: Vec<String> = crate::util::config::disabled_mcp_server_names(cwd)
         .into_iter()
         .collect();
     let servers = configs
         .iter()
-        .map(|c| xvora_session_events::McpConfigServer {
+        .map(|c| session_events::McpConfigServer {
             name: inner::mcp_server_name(c).to_string(),
             transport: inner::mcp_transport_str(c).to_string(),
             source:
@@ -58,7 +58,7 @@ pub(crate) fn build_config_resolved_event(
                 .to_string(),
         })
         .collect();
-    xvora_session_events::Event::McpConfigResolved { servers, disabled }
+    session_events::Event::McpConfigResolved { servers, disabled }
 }
 
 pub(crate) async fn start_mcp_server(

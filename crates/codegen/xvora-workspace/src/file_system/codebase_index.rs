@@ -11,7 +11,7 @@ use std::sync::{Arc, Weak};
 
 use codebase_graph::{IndexManager, IndexManagerConfig, IndexManagerHandle};
 
-use xvora_tools::util::grok_home::grok_home;
+use tools::util::grok_home::grok_home;
 
 /// Cache is stored in: `~/.grok/indexes/{url_encoded_cwd}/goto_index.bin`
 pub fn get_index_cache_path(cwd: &Path) -> PathBuf {

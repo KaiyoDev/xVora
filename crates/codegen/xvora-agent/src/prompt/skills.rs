@@ -1,18 +1,18 @@
 //! Skill and command discovery for system prompt injection.
 //!
 //! Discovers skills in priority order across local, repo, optional workspace-user, user, bundled, config-path, and plugin sources.
-//! Parsing primitives live in `xvora_tools::implementations::skills::discovery`.
+//! Parsing primitives live in `tools::implementations::skills::discovery`.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::plugins::discovery::PluginScope;
-use xvora_tools::implementations::skills::types::skill_name_from_path;
-pub use xvora_tools::implementations::skills::types::{SkillInfo, SkillScope};
-/// Re-export so agent-side discovery (and the shell) can name the resolved vendor-compat config without reaching into `xvora_tools` directly.
-pub use xvora_tools::types::compat::CompatConfig;
+use tools::implementations::skills::types::skill_name_from_path;
+pub use tools::implementations::skills::types::{SkillInfo, SkillScope};
+/// Re-export so agent-side discovery (and the shell) can name the resolved vendor-compat config without reaching into `tools` directly.
+pub use tools::types::compat::CompatConfig;
 
-use xvora_tools::implementations::skills::discovery::{
+use tools::implementations::skills::discovery::{
     find_command_paths, find_skill_md_paths, find_skill_paths, is_valid_skill_name,
     normalize_skill_name, parse_skill_files, scan_md_files, walk_for_skill_md,
 };
@@ -86,7 +86,7 @@ pub async fn list_skills_with_plugins(
     let mut skills = list_skills_with_options(
         working_directory,
         workspace_user_dir.as_deref(),
-        &xvora_tools::util::grok_home::grok_home(),
+        &tools::util::grok_home::grok_home(),
         compat,
     )
     .await;
@@ -197,7 +197,7 @@ pub fn collect_skill_config_dirs(
     // Priority 3: Global user dirs. `.grok` comes from `grok_home` (which may be overridden), so it's handled separately.
     // `.agents` is always added, while `.claude`/`.cursor` are gated by the skills compat cells
     try_add(grok_home);
-    if let Some(home) = xvora_dirs::home_dir() {
+    if let Some(home) = dirs::home_dir() {
         try_add(home.join(".agents"));
         if compat.claude.skills {
             try_add(home.join(".claude"));
@@ -225,7 +225,7 @@ pub fn collect_skill_config_dirs(
 /// Determine the skill scope for a config directory based on its location relative to `cwd`, `git_root`, and the user's home directory.
 fn scope_for_config_dir(dir: &Path, cwd: Option<&Path>, git_root: Option<&Path>) -> SkillScope {
     // Home-level dirs (e.g. ~/.grok/, ~/.agents/, ~/.claude/) are User scope.
-    if let Some(home) = xvora_dirs::home_dir()
+    if let Some(home) = dirs::home_dir()
         && dir.parent() == Some(home.as_path())
     {
         return SkillScope::User;
@@ -323,7 +323,7 @@ async fn list_skills_with_options(
 /// Expand a `~`-prefixed path string to an absolute `PathBuf`.
 fn expand_tilde(raw: &str) -> PathBuf {
     if let Some(rest) = raw.strip_prefix("~/")
-        && let Some(home) = xvora_dirs::home_dir()
+        && let Some(home) = dirs::home_dir()
     {
         return home.join(rest);
     }
@@ -368,7 +368,7 @@ fn collect_config_skills(config_paths: &[String], git_root: Option<&Path>) -> Ve
     // Provenance metadata only (scope still drives precedence): lets inspect and UIs tell `[skills].paths` entries from plain user/repo skills
     for skill in &mut skills {
         skill.config_source = Some(
-            xvora_tools::types::config_source::ConfigSource::ConfigToml {
+            tools::types::config_source::ConfigSource::ConfigToml {
                 path: PathBuf::from(&skill.path),
             },
         );
@@ -529,7 +529,7 @@ fn stamp_plugin_fields(skills: &mut [SkillInfo], plugin: &crate::plugins::Loaded
                 skill.display_name = Some(std::mem::replace(&mut skill.name, dir));
             }
         }
-        skill.config_source = Some(xvora_tools::types::config_source::ConfigSource::Plugin {
+        skill.config_source = Some(tools::types::config_source::ConfigSource::Plugin {
             plugin_name: plugin.name.clone(),
             path: PathBuf::from(&skill.path),
         });
@@ -626,7 +626,7 @@ pub(crate) fn format_skill_for_injection(skill: &SkillInfo) -> Option<String> {
         .body
         .as_ref()
         .filter(|b| !b.is_empty())
-        .map(|body| xvora_tools::implementations::skills::skill::build_skill_message(skill, body))
+        .map(|body| tools::implementations::skills::skill::build_skill_message(skill, body))
 }
 
 /// Format multiple skills for prompt injection.
@@ -653,7 +653,7 @@ pub(crate) async fn resolve_preloaded_skills(
     for name in names {
         let skill = discovered.iter().find(|s| {
             s.name.eq_ignore_ascii_case(name)
-                || xvora_tools::implementations::skills::skill::format_skill_name(s)
+                || tools::implementations::skills::skill::format_skill_name(s)
                     .eq_ignore_ascii_case(name)
         });
 
@@ -665,7 +665,7 @@ pub(crate) async fn resolve_preloaded_skills(
             continue;
         };
 
-        match xvora_tools::implementations::skills::skill::load_skill_with_body(skill).await {
+        match tools::implementations::skills::skill::load_skill_with_body(skill).await {
             Ok(loaded) => result.push(loaded),
             Err(e) => {
                 tracing::warn!(
@@ -685,7 +685,7 @@ pub(crate) async fn resolve_preloaded_skills(
 mod tests {
     use super::*;
     use std::fs;
-    use xvora_tools::implementations::skills::discovery::{
+    use tools::implementations::skills::discovery::{
         MAX_BODY_PEEK_BYTES, MAX_SKILL_WALK_DEPTH, SkillParseError, extract_first_paragraph,
         is_valid_skill_name, normalize_skill_name, parse_skill_frontmatter,
     };
@@ -1458,7 +1458,7 @@ mod tests {
 
         assert_eq!(skills.len(), 1);
         match &skills[0].config_source {
-            Some(xvora_tools::types::config_source::ConfigSource::ConfigToml { path }) => {
+            Some(tools::types::config_source::ConfigSource::ConfigToml { path }) => {
                 assert_eq!(path, Path::new(&skills[0].path));
             }
             other => panic!("expected ConfigToml source, got {other:?}"),
@@ -1855,7 +1855,7 @@ mod tests {
         assert!(
             matches!(
                 overlaps[0].config_source,
-                Some(xvora_tools::types::config_source::ConfigSource::ConfigToml { .. })
+                Some(tools::types::config_source::ConfigSource::ConfigToml { .. })
             ),
             "ConfigToml stamp should survive path-dedupe: {:?}",
             overlaps[0].config_source
@@ -1868,7 +1868,7 @@ mod tests {
         let winner = make_skill("same-name", "/some/path/a/SKILL.md");
         let mut loser = make_skill("same-name", "/some/path/b/SKILL.md");
         loser.config_source = Some(
-            xvora_tools::types::config_source::ConfigSource::ConfigToml {
+            tools::types::config_source::ConfigSource::ConfigToml {
                 path: PathBuf::from("/some/path/b/SKILL.md"),
             },
         );

@@ -24,7 +24,7 @@ pub type TracedChannel = Trace<
 /// ```rust
 /// use tonic::transport::Endpoint;
 /// use std::str::FromStr;
-/// use xvora_tracing::traced_channel;
+/// use tracing::traced_channel;
 ///
 /// let channel = Endpoint::from_str("http://foo").unwrap();
 /// //let client = SomeClient::new(traced_channel(channel));

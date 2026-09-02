@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use xvora_tool_protocol::{SessionId, session_event::SessionEvent};
+use tool_protocol::{SessionId, session_event::SessionEvent};
 
 use crate::harness::ToolHarness;
 

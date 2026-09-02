@@ -9,8 +9,8 @@ mod load;
 mod modal;
 mod take_deferred;
 
-fn content_hit(id: &str) -> xvora_shell::extensions::session_search::SearchSessionHit {
-    xvora_shell::extensions::session_search::SearchSessionHit {
+fn content_hit(id: &str) -> shell::extensions::session_search::SearchSessionHit {
+    shell::extensions::session_search::SearchSessionHit {
         session_id: id.into(),
         summary: id.into(),
         cwd: "/repo".into(),

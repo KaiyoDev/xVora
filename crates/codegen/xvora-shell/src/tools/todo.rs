@@ -1,11 +1,11 @@
 //! Types are canonical in `xvora-tools`.
 //! This module adds conversions between ACP plan entries and `TodoItem` since `xvora-tools` is protocol-agnostic.
 
-pub use xvora_tools::implementations::grok_build::todo::TodoId;
-pub use xvora_tools::implementations::grok_build::todo::TodoItem;
-pub use xvora_tools::implementations::grok_build::todo::TodoPriority;
-pub use xvora_tools::implementations::grok_build::todo::TodoState;
-pub use xvora_tools::implementations::grok_build::todo::TodoStatus;
+pub use tools::implementations::grok_build::todo::TodoId;
+pub use tools::implementations::grok_build::todo::TodoItem;
+pub use tools::implementations::grok_build::todo::TodoPriority;
+pub use tools::implementations::grok_build::todo::TodoState;
+pub use tools::implementations::grok_build::todo::TodoStatus;
 
 use agent_client_protocol as acp;
 

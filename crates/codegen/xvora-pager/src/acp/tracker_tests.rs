@@ -744,7 +744,7 @@ fn entry_falls_back_to_now_without_server_timestamp() {
 }
 /// Helper: create a ToolCallUpdate with InProgress status and BashOutput raw_output.
 fn tool_update_in_progress(id: &str, output_bytes: &[u8]) -> acp::SessionUpdate {
-    use xvora_tools::types::output::{BashOutput, ToolOutput};
+    use tools::types::output::{BashOutput, ToolOutput};
     let bash = BashOutput {
         output: output_bytes.to_vec(),
         output_for_prompt: String::new(),
@@ -769,7 +769,7 @@ fn tool_update_in_progress(id: &str, output_bytes: &[u8]) -> acp::SessionUpdate 
 }
 /// Helper: create a completed ToolCallUpdate with BashOutput.
 fn tool_update_completed_bash(id: &str, output_bytes: &[u8], exit_code: i32) -> acp::SessionUpdate {
-    use xvora_tools::types::output::{BashOutput, ToolOutput};
+    use tools::types::output::{BashOutput, ToolOutput};
     let status = if exit_code == 0 {
         acp::ToolCallStatus::Completed
     } else {
@@ -978,7 +978,7 @@ fn streaming_execute_passes_output_through() {
 /// The tracker deserializes with serde_json::from_value::<ToolOutput>(...).
 #[test]
 fn tool_output_bash_serde_roundtrip() {
-    use xvora_tools::types::output::{BashOutput, ToolOutput};
+    use tools::types::output::{BashOutput, ToolOutput};
     let bash = BashOutput {
         output: b"hello world\n".to_vec(),
         output_for_prompt: String::new(),
@@ -1018,7 +1018,7 @@ fn tool_output_bash_serde_roundtrip() {
 #[test]
 fn production_execute_sequence() {
     use serde_json::json;
-    use xvora_tools::types::output::{BashOutput, ToolOutput};
+    use tools::types::output::{BashOutput, ToolOutput};
     let mut sb = ScrollbackState::new();
     let mut tracker = AcpUpdateTracker::new();
     let tc_id = "call_abc123";
@@ -1209,7 +1209,7 @@ fn utf8_decoder_multiple_feeds() {
 /// This was broken: kind from in-progress update was lost, so the completed block rendered as "Other" with no search results.
 #[test]
 fn test_search_tool_call_flow() {
-    use xvora_tools::types::output::{GrepFileMatch, GrepLineMatch, GrepSearchOutput};
+    use tools::types::output::{GrepFileMatch, GrepLineMatch, GrepSearchOutput};
     let mut tracker = AcpUpdateTracker::new();
     let mut scrollback = ScrollbackState::new();
     let tc_id: Arc<str> = Arc::from("toolu_search_001");
@@ -2421,7 +2421,7 @@ fn activity_writing_tool_call_labels_first_party_writing_tools() {
 /// Every taxonomy-mapped spelling must have copy here: a spelling whose kind misses the copy match would silently keep the raw-name fallback.
 #[test]
 fn activity_writing_tool_call_copy_covers_taxonomy_map() {
-    for (name, _) in xvora_tools::tool_taxonomy::WRITING_TOOL_WIRE_NAMES {
+    for (name, _) in tools::tool_taxonomy::WRITING_TOOL_WIRE_NAMES {
         let mut tracker = AcpUpdateTracker::new();
         tracker.note_tool_call_arguments_delta(Some(name), 0);
         let Some(TurnActivity::WritingToolCall(writing)) = tracker.activity() else {
@@ -3839,7 +3839,7 @@ fn task_tool_surfaces_as_subagent_wait_not_run_task() {
 }
 /// Helper: create an InProgress ToolCallUpdate with raw_input containing is_background.
 fn tool_update_in_progress_bg(id: &str, output_bytes: &[u8]) -> acp::SessionUpdate {
-    use xvora_tools::types::output::{BashOutput, ToolOutput};
+    use tools::types::output::{BashOutput, ToolOutput};
     let bash = BashOutput {
         output: output_bytes.to_vec(),
         output_for_prompt: String::new(),
@@ -4033,7 +4033,7 @@ fn real_bash_command_is_not_dropped_on_bg_deferral() {
 /// This mirrors the Execute arm; the output must not be dropped when the kind was never refined to Execute.
 #[test]
 fn completed_other_function_name_preserves_bash_output() {
-    use xvora_tools::types::output::{BashOutput, ToolOutput};
+    use tools::types::output::{BashOutput, ToolOutput};
     let bash = BashOutput {
         output: b"hello from bg\n".to_vec(),
         output_for_prompt: String::new(),
@@ -4622,13 +4622,13 @@ fn video_tool_variants_use_typed_path_not_generic_scrape() {
     let cases: &[(&str, ToolOutput)] = &[
         (
             "ImageToVideo",
-            ToolOutput::ImageToVideo(xvora_tools::types::output::MediaGenOutput::new(
+            ToolOutput::ImageToVideo(tools::types::output::MediaGenOutput::new(
                 video_path.clone(),
             )),
         ),
         (
             "ReferenceToVideo",
-            ToolOutput::ReferenceToVideo(xvora_tools::types::output::MediaGenOutput::new(
+            ToolOutput::ReferenceToVideo(tools::types::output::MediaGenOutput::new(
                 video_path.clone(),
             )),
         ),
@@ -4661,7 +4661,7 @@ fn video_tool_variants_use_typed_path_not_generic_scrape() {
 }
 #[test]
 fn media_gen_ref_skips_uploaded_only_video() {
-    let output = ToolOutput::ImageToVideo(xvora_tools::types::output::MediaGenOutput::uploaded(
+    let output = ToolOutput::ImageToVideo(tools::types::output::MediaGenOutput::uploaded(
         "https://bucket.example/videos/x.mp4".into(),
     ));
     let tc = acp::ToolCall::new(
@@ -4686,7 +4686,7 @@ fn media_gen_ref_skips_uploaded_only_video() {
 fn tier_restricted_media_shows_upsell_text_not_error() {
     let upsell = "Image generation is a SuperGrok feature. Upgrade at \
          https://grok.com/supergrok?referrer=grok-build";
-    let output = ToolOutput::Text(xvora_tools::types::output::TextOutput::from(upsell));
+    let output = ToolOutput::Text(tools::types::output::TextOutput::from(upsell));
     let tc = acp::ToolCall::new(
         acp::ToolCallId::new(Arc::from("tier-restricted-img")),
         "image_gen",

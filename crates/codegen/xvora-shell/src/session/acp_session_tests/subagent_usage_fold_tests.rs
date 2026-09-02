@@ -4,16 +4,16 @@ use super::*;
 
 async fn make_actor() -> SessionActor {
     let (gateway_tx, _gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let (persistence_tx, _persistence_rx) =
         tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await
 }
 
-fn usage_rows() -> Vec<(String, xvora_chat_state::UsageTotals)> {
+fn usage_rows() -> Vec<(String, chat_state::UsageTotals)> {
     vec![(
         "m".into(),
-        xvora_chat_state::UsageTotals {
+        chat_state::UsageTotals {
             input_tokens: 40,
             model_calls: 1,
             ..Default::default()
@@ -139,7 +139,7 @@ async fn queued_fold_then_not_applied_mark_applies_once_and_stains() {
 #[test]
 fn usage_drain_outcome_policy_matches_freeze_and_cancel() {
     use super::turn::UsageDrainOutcome;
-    use xvora_tools::implementations::grok_build::task::types::SubagentOutstandingReply;
+    use tools::implementations::grok_build::task::types::SubagentOutstandingReply;
 
     let none = UsageDrainOutcome::from_outstanding_reply(None);
     assert!(none.fail_closed);
@@ -204,7 +204,7 @@ fn project_from_ledger_never_drops_incomplete_flag() {
             .usage_is_incomplete
     );
 
-    let mut ledger = xvora_chat_state::UsageLedger::default();
+    let mut ledger = chat_state::UsageLedger::default();
     ledger.record_main_loop_call(
         "m",
         &xvora_sampling_types::TokenUsage {
@@ -269,7 +269,7 @@ fn for_error_path_shared_policy() {
             .usage_is_incomplete
     );
 
-    let mut ledger = xvora_chat_state::UsageLedger::default();
+    let mut ledger = chat_state::UsageLedger::default();
     ledger.record_main_loop_call(
         "m",
         &xvora_sampling_types::TokenUsage {
@@ -394,11 +394,11 @@ async fn snapshot_ors_ledger_incomplete_even_when_reply_complete() {
 }
 
 fn scripted_outstanding_responder(
-    replies: Vec<xvora_tools::implementations::grok_build::task::types::SubagentOutstandingReply>,
+    replies: Vec<tools::implementations::grok_build::task::types::SubagentOutstandingReply>,
 ) -> tokio::sync::mpsc::UnboundedSender<
-    xvora_tools::implementations::grok_build::task::types::SubagentEvent,
+    tools::implementations::grok_build::task::types::SubagentEvent,
 > {
-    use xvora_tools::implementations::grok_build::task::types::SubagentEvent;
+    use tools::implementations::grok_build::task::types::SubagentEvent;
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<SubagentEvent>();
     tokio::task::spawn_local(async move {
         let mut queue = replies.into_iter();
@@ -437,7 +437,7 @@ fn scripted_outstanding_responder(
 /// A drain timeout (a wedged foreground child) fails closed: the report and both ledgers are marked incomplete.
 #[tokio::test(flavor = "current_thread")]
 async fn freeze_timeout_marks_report_and_both_ledgers() {
-    use xvora_tools::implementations::grok_build::task::types::SubagentOutstandingReply;
+    use tools::implementations::grok_build::task::types::SubagentOutstandingReply;
     tokio::task::LocalSet::new()
         .run_until(async {
             let mut actor = make_actor().await;
@@ -475,7 +475,7 @@ async fn freeze_timeout_marks_report_and_both_ledgers() {
 /// A live background child flags only the report: no ledger is marked, because its fold still lands on the session ledger at completion.
 #[tokio::test(flavor = "current_thread")]
 async fn freeze_background_only_flags_report_not_ledgers() {
-    use xvora_tools::implementations::grok_build::task::types::SubagentOutstandingReply;
+    use tools::implementations::grok_build::task::types::SubagentOutstandingReply;
     tokio::task::LocalSet::new()
         .run_until(async {
             let mut actor = make_actor().await;
@@ -517,7 +517,7 @@ async fn freeze_background_only_flags_report_not_ledgers() {
 #[tokio::test(flavor = "current_thread")]
 async fn finalize_background_only_flags_report_not_ledgers() {
     use super::turn::UsageDrainOutcome;
-    use xvora_tools::implementations::grok_build::task::types::SubagentOutstandingReply;
+    use tools::implementations::grok_build::task::types::SubagentOutstandingReply;
 
     tokio::task::LocalSet::new()
         .run_until(async {
@@ -657,7 +657,7 @@ async fn apply_miss_matching_pin_stains_prompt_and_session() {
 /// A sticky (session-only) reply is report-only on freeze: the session ledger stays complete.
 #[tokio::test(flavor = "current_thread")]
 async fn freeze_sticky_only_flags_report_not_ledgers() {
-    use xvora_tools::implementations::grok_build::task::types::SubagentOutstandingReply;
+    use tools::implementations::grok_build::task::types::SubagentOutstandingReply;
     tokio::task::LocalSet::new()
         .run_until(async {
             let mut actor = make_actor().await;
@@ -712,7 +712,7 @@ async fn freeze_sticky_only_flags_report_not_ledgers() {
 /// A fold landing mid-drain completes cleanly: neither the report nor the ledgers are marked incomplete.
 #[tokio::test(flavor = "current_thread")]
 async fn freeze_completes_when_fold_lands_mid_drain() {
-    use xvora_tools::implementations::grok_build::task::types::SubagentOutstandingReply;
+    use tools::implementations::grok_build::task::types::SubagentOutstandingReply;
     tokio::task::LocalSet::new()
         .run_until(async {
             let mut actor = make_actor().await;
@@ -757,11 +757,11 @@ async fn freeze_completes_when_fold_lands_mid_drain() {
 
 fn immediate_drain_responder() -> (
     tokio::sync::mpsc::UnboundedSender<
-        xvora_tools::implementations::grok_build::task::types::SubagentEvent,
+        tools::implementations::grok_build::task::types::SubagentEvent,
     >,
     std::rc::Rc<std::cell::Cell<usize>>,
 ) {
-    use xvora_tools::implementations::grok_build::task::types::{
+    use tools::implementations::grok_build::task::types::{
         SubagentEvent, SubagentOutstandingReply,
     };
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<SubagentEvent>();
@@ -809,7 +809,7 @@ async fn empty_live_set_drains_in_one_query() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn drain_timeout_forfeits_background_and_sticky() {
-    use xvora_tools::implementations::grok_build::task::types::{
+    use tools::implementations::grok_build::task::types::{
         SubagentEvent, SubagentOutstandingReply,
     };
     tokio::task::LocalSet::new()

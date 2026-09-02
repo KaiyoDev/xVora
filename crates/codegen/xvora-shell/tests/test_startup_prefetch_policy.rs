@@ -2,8 +2,8 @@
 
 mod common;
 
-use xvora_shell::agent::models::startup_prefetch;
-use xvora_shell::util::config::RemoteSettings;
+use shell::agent::models::startup_prefetch;
+use shell::util::config::RemoteSettings;
 
 #[test]
 fn bootstrap_discards_prefetch_when_repair_disables_remote_fetch() {

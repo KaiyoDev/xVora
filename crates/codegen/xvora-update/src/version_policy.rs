@@ -4,7 +4,7 @@
 use crate::version::get_installed_grok_version;
 use semver::Version;
 use tracing::warn;
-use xvora_shell::util::config::VersionPolicy;
+use shell::util::config::VersionPolicy;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RequiredRangeDecision {

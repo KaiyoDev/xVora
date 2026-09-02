@@ -2,7 +2,7 @@
 
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span, Text};
-use xvora_workspace::permission::{MCP_TOOL_NAME_DELIMITER, mcp_titleize_segment};
+use workspace::permission::{MCP_TOOL_NAME_DELIMITER, mcp_titleize_segment};
 
 use crate::appearance::AppearanceConfig;
 use crate::render::line_utils::truncate_str;

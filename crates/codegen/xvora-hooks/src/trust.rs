@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// Path to the legacy project-hook trust file (`<user_grok_home>/trusted-hook-projects`), or `None` when no user grok home resolves.
 /// It is retained only for the one-time migration into folder-trust.
 pub fn legacy_trust_file_path() -> Option<PathBuf> {
-    Some(xvora_config::user_grok_home()?.join(xvora_config::TRUSTED_HOOK_PROJECTS_FILENAME))
+    Some(config::user_grok_home()?.join(config::TRUSTED_HOOK_PROJECTS_FILENAME))
 }
 
 /// The legacy format is one canonical absolute path per line; blank and `#`-comment lines are skipped.
@@ -161,7 +161,7 @@ fn enable_hook_with_file(hook_name: &str, file: &Path) -> Result<bool, String> {
 
 /// Returns the path to `$GROK_HOME/disabled-hooks`, or `None` when no user grok home resolves.
 fn disabled_hooks_file_path() -> Option<PathBuf> {
-    Some(xvora_config::user_grok_home()?.join("disabled-hooks"))
+    Some(config::user_grok_home()?.join("disabled-hooks"))
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 //! Shared reasoning-effort dropdown levels for `/model` and `/effort`.
 
-use xvora_shell::sampling::types::{ReasoningEffort, ReasoningEffortOption};
+use shell::sampling::types::{ReasoningEffort, ReasoningEffortOption};
 
 use crate::slash::command::ArgItem;
 

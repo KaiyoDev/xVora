@@ -202,7 +202,7 @@ struct WelcomeLayoutInput<'a> {
     compact: bool,
     /// Horizontal-inset compaction (appearance setting) for the stacked slot.
     prompt_compact: bool,
-    announcement: Option<&'a xvora_announcements::RemoteAnnouncement>,
+    announcement: Option<&'a announcements::RemoteAnnouncement>,
     /// Whether a long announcement is expanded inline (vs. collapsed to 2 lines).
     expanded: bool,
     /// Whether the info slot reserves a promo upgrade CTA (spacer and button).
@@ -474,7 +474,7 @@ pub(super) fn render_version_badge(
         spans.push(sep);
     }
 
-    let channel = xvora_update::channel_label();
+    let channel = update::channel_label();
     match &mode {
         VersionBadgeMode::Full { .. } => {
             spans.push(Span::styled(
@@ -484,7 +484,7 @@ pub(super) fn render_version_badge(
                     .add_modifier(Modifier::BOLD),
             ));
             spans.push(Span::styled(
-                format!("{}{}", xvora_version::VERSION, channel),
+                format!("{}{}", version::VERSION, channel),
                 Style::default().fg(theme.gray),
             ));
         }
@@ -504,7 +504,7 @@ pub(super) fn render_version_badge(
                     .add_modifier(Modifier::BOLD),
             ));
             spans.push(Span::styled(
-                xvora_version::VERSION,
+                version::VERSION,
                 Style::default().fg(theme.gray),
             ));
         }
@@ -616,7 +616,7 @@ pub struct WelcomeRenderParams<'a> {
     pub auth_code_cursor_byte: usize,
     pub clipboard_delivery: Option<crate::clipboard::ClipboardDelivery>,
     pub show_raw_url: bool,
-    pub announcement: Option<&'a xvora_announcements::RemoteAnnouncement>,
+    pub announcement: Option<&'a announcements::RemoteAnnouncement>,
     pub tip: Option<&'a str>,
     pub model_name: &'a str,
     pub flags: &'a [PromptFlag<'a>],
@@ -633,15 +633,15 @@ pub struct WelcomeRenderParams<'a> {
     pub startup_warnings: &'a [StartupWarning],
     pub pending_update_version: Option<&'a str>,
     /// Recent foreign session offered on ctrl+u, suppressed by a pending update.
-    pub foreign_resume_hint: Option<&'a xvora_foreign_sessions::RecentForeignSession>,
+    pub foreign_resume_hint: Option<&'a foreign_sessions::RecentForeignSession>,
     pub is_api_key_auth: bool,
     pub session_picker_content_results:
-        Option<&'a [xvora_shell::extensions::session_search::SearchSessionHit]>,
+        Option<&'a [shell::extensions::session_search::SearchSessionHit]>,
     pub session_picker_content_loading: bool,
     /// The query the picker entries were server-fetched with (see [`crate::views::session_picker::effective_filter_query`]).
     pub session_picker_entries_query: Option<&'a str>,
     pub welcome_tick: u64,
-    pub gate: Option<&'a xvora_shell::auth::GateInfo>,
+    pub gate: Option<&'a shell::auth::GateInfo>,
     pub subscription_tier: Option<&'a str>,
     pub session_picker_grouped: bool,
     /// Source filter for the session picker.
@@ -1621,7 +1621,7 @@ fn render_announcement_section(
     area: Rect,
     buf: &mut Buffer,
     theme: &Theme,
-    announcement: &xvora_announcements::RemoteAnnouncement,
+    announcement: &announcements::RemoteAnnouncement,
     min_width_hint: u16,
     content_height: u16,
     expanded: bool,
@@ -2247,7 +2247,7 @@ pub(crate) struct SessionPickerRenderCtx<'a> {
     pub(crate) pending_hint: Option<crate::views::shortcuts_bar::PendingHint>,
     pub(crate) shortcuts_area: Option<Rect>,
     pub(crate) content_results:
-        Option<&'a [xvora_shell::extensions::session_search::SearchSessionHit]>,
+        Option<&'a [shell::extensions::session_search::SearchSessionHit]>,
     pub(crate) content_loading: bool,
     /// The query `sessions` were server-fetched with (see [`crate::views::session_picker::effective_filter_query`]).
     pub(crate) entries_query: Option<&'a str>,
@@ -2643,7 +2643,7 @@ fn masked_auth_token_view(input: &str, cursor_byte: usize, width: usize) -> (Str
     }
     let masked = build_masked_auth_token(input, cursor_byte);
     let buffer =
-        xvora_ratatui_textarea::EditBuffer::from_parts(masked.display.as_str(), masked.cursor_byte);
+        ratatui_textarea::EditBuffer::from_parts(masked.display.as_str(), masked.cursor_byte);
     let viewport = buffer.single_line_viewport(width);
     (
         masked.display[viewport.visible_byte_range].to_owned(),
@@ -2886,7 +2886,7 @@ mod tests {
 
     #[test]
     fn foreign_resume_tip_names_each_tool_and_age() {
-        use xvora_foreign_sessions::ForeignSessionTool;
+        use foreign_sessions::ForeignSessionTool;
 
         let auth = AuthState::Done;
         let trust = TrustState::Done;
@@ -2895,7 +2895,7 @@ mod tests {
             (ForeignSessionTool::Codex, "Codex"),
             (ForeignSessionTool::Cursor, "Cursor"),
         ] {
-            let hint = xvora_foreign_sessions::RecentForeignSession {
+            let hint = foreign_sessions::RecentForeignSession {
                 tool,
                 native_id: "native-id".into(),
                 age: std::time::Duration::from_secs(125),
@@ -2913,8 +2913,8 @@ mod tests {
     fn pending_update_suppresses_foreign_resume_tip() {
         let auth = AuthState::Done;
         let trust = TrustState::Done;
-        let hint = xvora_foreign_sessions::RecentForeignSession {
-            tool: xvora_foreign_sessions::ForeignSessionTool::Cursor,
+        let hint = foreign_sessions::RecentForeignSession {
+            tool: foreign_sessions::ForeignSessionTool::Cursor,
             native_id: "native-id".into(),
             age: std::time::Duration::from_secs(30),
         };
@@ -4005,8 +4005,8 @@ mod tests {
         );
     }
 
-    fn long_ann() -> xvora_announcements::RemoteAnnouncement {
-        xvora_announcements::RemoteAnnouncement {
+    fn long_ann() -> announcements::RemoteAnnouncement {
+        announcements::RemoteAnnouncement {
             title: Some("Security policy".into()),
             message: Some(
                 "Report security incidents to the security team promptly through \
@@ -4049,7 +4049,7 @@ the usual channels. "
     #[test]
     fn announcement_equal_for_short_message() {
         let area = Rect::new(0, 0, 120, 60);
-        let a = xvora_announcements::RemoteAnnouncement {
+        let a = announcements::RemoteAnnouncement {
             title: Some("FYI".into()),
             message: Some("All good.".into()),
             ..Default::default()

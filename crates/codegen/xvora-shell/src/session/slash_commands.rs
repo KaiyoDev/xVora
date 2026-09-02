@@ -2,9 +2,9 @@
 use agent_client_protocol as acp;
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
-use xvora_tools::implementations::grok_build::LoopFireMode;
-use xvora_tools::implementations::skills::skill::format_skill_name;
-use xvora_tools::implementations::skills::types::SkillInfo;
+use tools::implementations::grok_build::LoopFireMode;
+use tools::implementations::skills::skill::format_skill_name;
+use tools::implementations::skills::types::SkillInfo;
 pub(crate) struct BuiltinCommand {
     pub name: &'static str,
     pub description: &'static str,
@@ -1161,10 +1161,10 @@ pub(crate) fn acu_skill_source(is_chat_kind: bool) -> AcuSkillSource {
 ///   Product REST failure still advertises builtins only (empty product skills).
 pub(crate) async fn list_commands(
     cwd: Option<&str>,
-    skills_config: &xvora_agent::prompt::skills::SkillsConfig,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
+    skills_config: &agent::prompt::skills::SkillsConfig,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
     availability: CommandAvailability,
-    compat: xvora_tools::types::compat::CompatConfig,
+    compat: tools::types::compat::CompatConfig,
     include_project_workflows: bool,
     kind: Option<&str>,
     auth: Option<std::sync::Arc<crate::auth::AuthManager>>,
@@ -1180,7 +1180,7 @@ pub(crate) async fn list_commands(
             tools: None,
         });
     }
-    let skills = xvora_agent::prompt::skills::list_skills_with_plugins(
+    let skills = agent::prompt::skills::list_skills_with_plugins(
         cwd,
         skills_config,
         plugin_registry,
@@ -1472,7 +1472,7 @@ pub(super) async fn build_skill_information_for_refs(
     slash_skills: &[SkillInfo],
     session_id: &str,
 ) -> Option<String> {
-    use xvora_tools::implementations::skills::skill::{
+    use tools::implementations::skills::skill::{
         SkillRef, SubstitutionContext, apply_substitutions, build_skill_block,
         build_skill_information, load_skill_content,
     };
@@ -1661,7 +1661,7 @@ pub(super) fn resolve_human_intent(
 /// It stays identical to the pager's `LoopCommand`, so the two front-ends can't drift.
 /// Like the pager, there is no host-side interval default: the model derives the cadence from the request and asks when none is given.
 fn build_loop_prompt_blocks(args: &str, mode: LoopFireMode) -> Vec<acp::ContentBlock> {
-    use xvora_tools::implementations::grok_build::{loop_schedule_instruction, loop_usage_message};
+    use tools::implementations::grok_build::{loop_schedule_instruction, loop_usage_message};
     let text = if args.trim().is_empty() {
         loop_usage_message().to_string()
     } else {

@@ -7,14 +7,14 @@
 
 use std::path::PathBuf;
 
-use xvora_voice::{
+use voice::{
     StaticVoiceAuth, VoiceConfig, VoiceProbeOptions, format_probe_report, run_streaming_probe,
 };
 
 fn main() -> anyhow::Result<()> {
     // Hidden mic-capture helper intercept (macOS): the capture backend re-execs the current binary, here voice-probe itself
     // It runs before any runtime/TLS init so the capture child stays minimal
-    if let Some(code) = xvora_voice::maybe_run_capture_subprocess() {
+    if let Some(code) = voice::maybe_run_capture_subprocess() {
         std::process::exit(code);
     }
     tokio::runtime::Builder::new_multi_thread()
@@ -24,12 +24,12 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run() -> anyhow::Result<()> {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
 
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,xvora_voice=debug".into()),
+                .unwrap_or_else(|_| "info,voice=debug".into()),
         )
         .init();
 
@@ -54,7 +54,7 @@ async fn run() -> anyhow::Result<()> {
         #[cfg(feature = "audio")]
         {
             let (bytes, chunks) =
-                xvora_voice::run_mic_only_probe(config.sample_rate, args.seconds)?;
+                voice::run_mic_only_probe(config.sample_rate, args.seconds)?;
             println!("Mic-only OK: {bytes} bytes in {chunks} chunks");
             if bytes == 0 {
                 println!("WARNING: no audio — grant mic access to the terminal");
@@ -132,7 +132,7 @@ fn load_config(path: Option<&std::path::Path>) -> VoiceConfig {
     {
         return VoiceConfig::from_config_table(&table, env_base.as_deref());
     }
-    if let Some(home) = xvora_dirs::resolve_grok_home()
+    if let Some(home) = dirs::resolve_grok_home()
         && let Ok(raw) = std::fs::read_to_string(home.join("config.toml"))
         && let Ok(table) = toml::from_str::<toml::Table>(&raw)
     {
@@ -150,7 +150,7 @@ Usage:
 
 Environment:
   XAI_API_KEY     required
-  RUST_LOG        optional (default info,xvora_voice=debug)
+  RUST_LOG        optional (default info,voice=debug)
 
 Reads [voice] from ~/.grok/config.toml unless --config PATH is set.
 "#

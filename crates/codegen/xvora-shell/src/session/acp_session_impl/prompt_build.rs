@@ -3,8 +3,8 @@
 #![allow(clippy::items_after_test_module)]
 use super::*;
 use crate::session::repo_status_prefix::RepoStatusSnapshot;
-use xvora_telemetry::region;
-use xvora_telemetry::region::Parent;
+use telemetry::region;
+use telemetry::region::Parent;
 /// Normalize a free-form name (e.g. an MCP server identifier) into a single safe filesystem segment.
 ///
 /// Replaces anything outside `[A-Za-z0-9._-]` with `_` so the result is a portable directory name on macOS/Linux.
@@ -29,13 +29,13 @@ pub(super) fn pick_user_image_url(image: &agent_client_protocol::ImageContent) -
     }
 }
 fn partition_rules_by_scope(
-    files: Vec<xvora_agent::prompt::agents_md::AgentConfigFile>,
+    files: Vec<agent::prompt::agents_md::AgentConfigFile>,
     grok_home: &std::path::Path,
     vendor_homes: &[(std::path::PathBuf, bool)],
     workspace_roots: &[&std::path::Path],
 ) -> (
-    Vec<xvora_agent::prompt::user_message::RuleEntry>,
-    Vec<xvora_agent::prompt::user_message::RuleEntry>,
+    Vec<agent::prompt::user_message::RuleEntry>,
+    Vec<agent::prompt::user_message::RuleEntry>,
 ) {
     let mut workspace = Vec::new();
     let mut user = Vec::new();
@@ -46,7 +46,7 @@ fn partition_rules_by_scope(
             vendor_homes,
             workspace_roots,
         );
-        let entry = xvora_agent::prompt::user_message::RuleEntry::from(file);
+        let entry = agent::prompt::user_message::RuleEntry::from(file);
         if is_user_rule {
             user.push(entry);
         } else {
@@ -59,7 +59,7 @@ fn partition_rules_by_scope(
 mod partition_rules_by_scope_tests {
     use super::partition_rules_by_scope;
     use std::path::Path;
-    use xvora_agent::prompt::agents_md::AgentConfigFile;
+    use agent::prompt::agents_md::AgentConfigFile;
     fn file(path: &str) -> AgentConfigFile {
         AgentConfigFile {
             file_name: Path::new(path)
@@ -71,7 +71,7 @@ mod partition_rules_by_scope_tests {
             content: path.to_string(),
         }
     }
-    fn paths(entries: &[xvora_agent::prompt::user_message::RuleEntry]) -> Vec<&str> {
+    fn paths(entries: &[agent::prompt::user_message::RuleEntry]) -> Vec<&str> {
         entries.iter().map(|entry| entry.content.as_str()).collect()
     }
     #[test]
@@ -214,8 +214,8 @@ mod partition_rules_by_scope_tests {
             &[Path::new("/repo")],
         );
         let rules =
-            xvora_agent::prompt::user_message::format_rules_section(&workspace, &user).unwrap();
-        let reminder = xvora_agent::prompt::agents_md::format_agents_md_section(&files).unwrap();
+            agent::prompt::user_message::format_rules_section(&workspace, &user).unwrap();
+        let reminder = agent::prompt::agents_md::format_agents_md_section(&files).unwrap();
         for body in [
             "repo-agents-body",
             "repo-claude-body",
@@ -535,7 +535,7 @@ impl SessionActor {
             .map(|s| s.as_str())
             .unwrap_or(&self.session_info.cwd);
         let cwd = std::path::Path::new(display_path);
-        use xvora_agent::prompt::user_message::UserMessageTemplate;
+        use agent::prompt::user_message::UserMessageTemplate;
         let (template, include_verification) = {
             let agent = self.agent.borrow();
             let def = agent.definition();
@@ -566,9 +566,9 @@ impl SessionActor {
             let (workspace_rules, mut user_rules) = self.gather_partitioned_rules();
             user_rules.splice(
                 0..0,
-                xvora_agent::prompt::browser_verification::synthetic_user_rules(),
+                agent::prompt::browser_verification::synthetic_user_rules(),
             );
-            xvora_agent::prompt::user_message::append_rules_section(
+            agent::prompt::user_message::append_rules_section(
                 &mut out,
                 &workspace_rules,
                 &user_rules,
@@ -583,12 +583,12 @@ impl SessionActor {
     fn gather_partitioned_rules(
         &self,
     ) -> (
-        Vec<xvora_agent::prompt::user_message::RuleEntry>,
-        Vec<xvora_agent::prompt::user_message::RuleEntry>,
+        Vec<agent::prompt::user_message::RuleEntry>,
+        Vec<agent::prompt::user_message::RuleEntry>,
     ) {
         let files = self.agent.borrow().prompt_context().agents_md_files.clone();
-        let grok_home = xvora_config::grok_home();
-        let vendor_homes = xvora_dirs::home_dir()
+        let grok_home = config::grok_home();
+        let vendor_homes = dirs::home_dir()
             .map(|home_dir| {
                 vec![
                     (
@@ -625,10 +625,10 @@ impl SessionActor {
     async fn build_templated_user_message(
         &self,
         cwd: &std::path::Path,
-        template: xvora_agent::prompt::user_message::UserMessageTemplate,
+        template: agent::prompt::user_message::UserMessageTemplate,
         repo_status: Option<&RepoStatusSnapshot>,
     ) -> Option<String> {
-        use xvora_agent::prompt::user_message::UserMessageContext;
+        use agent::prompt::user_message::UserMessageContext;
         self.wait_for_mcp_templated_prefix_ready(&template).await;
         let bridge = self.agent.borrow().tool_bridge().clone();
         let (vcs_root, vcs_status) = match repo_status {
@@ -647,7 +647,7 @@ impl SessionActor {
         {
             user_rules.splice(
                 0..0,
-                xvora_agent::prompt::browser_verification::synthetic_user_rules(),
+                agent::prompt::browser_verification::synthetic_user_rules(),
             );
         }
         let shell = resolve_session_shell();
@@ -746,8 +746,8 @@ impl SessionActor {
     async fn gather_mcp_servers(
         &self,
         workspace: &std::path::Path,
-    ) -> Vec<xvora_agent::prompt::user_message::McpServerEntry> {
-        use xvora_agent::prompt::user_message::McpServerEntry;
+    ) -> Vec<agent::prompt::user_message::McpServerEntry> {
+        use agent::prompt::user_message::McpServerEntry;
         let mcps_root = Self::workspace_mcps_root(workspace);
         let clients: Vec<(
             String,
@@ -787,8 +787,8 @@ impl SessionActor {
     async fn gather_gateway_mcp_servers(
         &self,
         mcps_root: Option<&std::path::Path>,
-    ) -> Vec<xvora_agent::prompt::user_message::McpServerEntry> {
-        use xvora_agent::prompt::user_message::McpServerEntry;
+    ) -> Vec<agent::prompt::user_message::McpServerEntry> {
+        use agent::prompt::user_message::McpServerEntry;
         let disabled_gateway_tools = crate::util::config::get_all_mcp_disabled_tools(
             std::path::Path::new(&self.session_info.cwd),
         );
@@ -954,7 +954,7 @@ impl SessionActor {
             .map(|p| p.path.to_string_lossy().into_owned())
             .collect();
         let current_query = crate::session::image_describe::strip_template_context_tags(
-            &xvora_chat_state::compaction_utils::extract_user_query(&original_user_message),
+            &chat_state::compaction_utils::extract_user_query(&original_user_message),
         );
         let active_session_config = self.reconstruct_full_config().await;
         let resolved_describe = self
@@ -967,7 +967,7 @@ impl SessionActor {
                 self.client_identifier.clone(),
                 Some(self.max_retries),
             );
-        let client = xvora_sampler::SamplingClient::new(sampler_config).map_err(|e| {
+        let client = sampler::SamplingClient::new(sampler_config).map_err(|e| {
             acp::Error::internal_error().data(format!(
                 "failed to build image-describe sampling client: {e}"
             ))

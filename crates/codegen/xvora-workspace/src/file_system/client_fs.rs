@@ -6,12 +6,12 @@
 //! The list walk excludes symlinks that resolve outside the base and never descends into them.
 //! Listings paginate with stable post-sort slices, and reads are binary-safe (base64 chunks).
 //!
-//! Wire types live in `xvora_workspace_types::rpc::fs` (the `ClientFs*` types), shared with the backend caller.
+//! Wire types live in `workspace_types::rpc::fs` (the `ClientFs*` types), shared with the backend caller.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use xvora_workspace_types::rpc::fs::{
+use workspace_types::rpc::fs::{
     ClientFsListNode as FsListNode, ClientFsListReq as FsListReq, ClientFsListRes as FsListRes,
     ClientFsReadFileReq as FsReadFileReq, ClientFsReadFileRes as FsReadFileRes,
     ClientFsStatReq as FsStatReq, ClientFsStatRes as FsStatRes, FsContentType, FsNodeType,
@@ -328,7 +328,7 @@ pub(crate) async fn read_file(
 #[cfg(test)]
 mod tests {
     use base64::Engine;
-    use xvora_workspace_types::rpc::fs::FsReadEncoding;
+    use workspace_types::rpc::fs::FsReadEncoding;
 
     use super::*;
     use crate::handle::tests::make_handle;

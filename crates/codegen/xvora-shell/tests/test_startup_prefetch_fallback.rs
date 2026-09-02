@@ -2,7 +2,7 @@
 
 mod common;
 
-use xvora_shell::util::config::RemoteSettings;
+use shell::util::config::RemoteSettings;
 
 #[test]
 fn bootstrap_without_prefetch_fetches_each_endpoint_once() {

@@ -41,8 +41,8 @@ impl AgentView {
             return;
         }
         let (chars, words) = crate::views::prompt_suggestion::suggestion_size(&full);
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PromptSuggestion {
-            action: xvora_telemetry::events::PromptSuggestionAction::Shown,
+        telemetry::session_ctx::log_event(telemetry::events::PromptSuggestion {
+            action: telemetry::events::PromptSuggestionAction::Shown,
             chars,
             words,
             model: None,
@@ -540,7 +540,7 @@ impl AgentView {
             } => (plugin_relative_path.clone(), name.clone(), true),
             _ => return,
         };
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PluginCtaConnectClicked {
+        telemetry::session_ctx::log_event(telemetry::events::PluginCtaConnectClicked {
             plugin_name: name.clone(),
             is_retry,
         });
@@ -588,7 +588,7 @@ mod prompt_suggestion_gate_tests {
     fn an_open_question_card_closes_the_suggestion_gate() {
         use crate::views::prompt_widget::StashedPrompt;
         use crate::views::question_view::QuestionViewState;
-        use xvora_tools::implementations::grok_build::ask_user_question::Question;
+        use tools::implementations::grok_build::ask_user_question::Question;
 
         let mut agent = make_agent();
         agent.refresh_prompt_suggestion_gate();
@@ -619,8 +619,8 @@ mod prompt_suggestion_gate_tests {
 mod plugin_cta_notify_tests {
     use super::test_fixtures::make_agent;
 
-    fn cta_entry(name: &str) -> xvora_hooks_plugins_types::MarketplacePluginEntry {
-        xvora_hooks_plugins_types::MarketplacePluginEntry {
+    fn cta_entry(name: &str) -> hooks_plugins_types::MarketplacePluginEntry {
+        hooks_plugins_types::MarketplacePluginEntry {
             name: name.into(),
             version: None,
             description: None,

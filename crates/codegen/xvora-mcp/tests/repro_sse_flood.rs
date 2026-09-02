@@ -13,10 +13,10 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use serde_json::{Value, json};
 
-use xvora_mcp::mcp_http_client::{McpHttpClient, WarnBudget};
-use xvora_mcp::rmcp::ServiceExt;
-use xvora_mcp::rmcp::transport::StreamableHttpClientTransport;
-use xvora_mcp::rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
+use mcp::mcp_http_client::{McpHttpClient, WarnBudget};
+use mcp::rmcp::ServiceExt;
+use mcp::rmcp::transport::StreamableHttpClientTransport;
+use mcp::rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
 
 #[derive(Clone)]
 struct ServerState {

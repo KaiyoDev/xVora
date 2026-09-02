@@ -140,7 +140,7 @@ async fn test_compacted_history_raw_strings() {
         "Summary message should NOT contain system-reminder (it is now separate)"
     );
     let formatted_summary =
-        xvora_chat_state::compaction_utils::format_compact_summary_content(compaction_summary);
+        chat_state::compaction_utils::format_compact_summary_content(compaction_summary);
     assert_eq!(
         msg_summary_text, formatted_summary,
         "Summary message should be the summary text without <user_query> wrapping"

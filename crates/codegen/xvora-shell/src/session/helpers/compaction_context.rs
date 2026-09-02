@@ -1,9 +1,9 @@
-//! Rendering helpers for [`CompactionStateContext`] that depend on shell-specific types (`xvora_tools::MemoryBackend`, memory context).
+//! Rendering helpers for [`CompactionStateContext`] that depend on shell-specific types (`tools::MemoryBackend`, memory context).
 //!
-//! The core [`CompactionStateContext`] struct and its builder live in `xvora_chat_state::compaction_utils`.
+//! The core [`CompactionStateContext`] struct and its builder live in `chat_state::compaction_utils`.
 //! This module adds system-reminder rendering that requires dependencies not available in `xvora-chat-state`.
 //!
-//! The **common** active-agent section (Running Background Tasks: commands, loops, workflows, subagents) plus TODO is formatted by [`xvora_compaction::reminder`].
+//! The **common** active-agent section (Running Background Tasks: commands, loops, workflows, subagents) plus TODO is formatted by [`compaction::reminder`].
 //! That keeps grok-chat and grok-build in lockstep.
 //! Harness-only sections (edited files, AGENTS.md, skills, catalog workflows, MCP, memory) stay here.
 
@@ -15,7 +15,7 @@ pub use chat_state::compaction_utils::{
     WorkflowRunSummary, extract_last_user_query, extract_messages_since_last_user,
     extract_user_query,
 };
-use xvora_compaction::reminder::{
+use compaction::reminder::{
     self, ActiveAgentReminderState, BackgroundTask, RunningSubagent, ScheduledLoop, TodoItem,
     TodoStatus, WorkflowRun,
 };
@@ -48,7 +48,7 @@ pub struct SubagentToolNames {
 pub fn to_system_reminder_sync(
     ctx: &CompactionStateContext,
     discovered_agents_md: &[PathBuf],
-    skills: &[xvora_tools::implementations::skills::types::SkillInfo],
+    skills: &[tools::implementations::skills::types::SkillInfo],
     subagent_tool_names: Option<&SubagentToolNames>,
     mcp_tool_names: Option<&McpToolNames>,
     workflow_listing: Option<&str>,
@@ -70,8 +70,8 @@ pub fn to_system_reminder_sync(
 pub async fn to_system_reminder(
     ctx: &CompactionStateContext,
     discovered_agents_md: &[PathBuf],
-    skills: &[xvora_tools::implementations::skills::types::SkillInfo],
-    memory_backend: Option<&dyn xvora_tools::types::memory_backend::MemoryBackend>,
+    skills: &[tools::implementations::skills::types::SkillInfo],
+    memory_backend: Option<&dyn tools::types::memory_backend::MemoryBackend>,
     subagent_tool_names: Option<&SubagentToolNames>,
     mcp_tool_names: Option<&McpToolNames>,
     workflow_listing: Option<&str>,
@@ -82,7 +82,7 @@ pub async fn to_system_reminder(
         let query = ctx.last_user_query.as_deref().unwrap_or("project context");
         if let Ok(results) = memory.search(query, 3, 0.0).await {
             tracing::debug!(
-                target: xvora_telemetry::memory_log::TARGET,
+                target: telemetry::memory_log::TARGET,
                 results = results.len(),
                 "recovered memory context after compaction"
             );
@@ -105,8 +105,8 @@ pub async fn to_system_reminder(
 fn to_system_reminder_inner(
     ctx: &CompactionStateContext,
     discovered_agents_md: &[PathBuf],
-    skills: &[xvora_tools::implementations::skills::types::SkillInfo],
-    memory_results: &[xvora_tools::types::memory_backend::MemorySearchResult],
+    skills: &[tools::implementations::skills::types::SkillInfo],
+    memory_results: &[tools::types::memory_backend::MemorySearchResult],
     subagent_tool_names: Option<&SubagentToolNames>,
     mcp_tool_names: Option<&McpToolNames>,
     workflow_listing: Option<&str>,
@@ -147,7 +147,7 @@ fn to_system_reminder_inner(
     // Reuse the standard listing renderer so the post-compaction listing matches the startup `<system-reminder>`
     // The shared renderer has no hard-coded tool name and includes `Use when:` triggers and `Absolute path:`
     if let Some(listing) =
-        xvora_tools::types::skill_discovery_tracker::format_compaction_skill_listing(skills)
+        tools::types::skill_discovery_tracker::format_compaction_skill_listing(skills)
     {
         sections.push(format!("## Available Skills\n{listing}"));
     }
@@ -238,7 +238,7 @@ fn to_system_reminder_inner(
 
     // Connected MCP servers (shell-only)
     if !ctx.connected_mcp_servers.is_empty() {
-        use xvora_tools::implementations::search_tool::format_compaction_server_line;
+        use tools::implementations::search_tool::format_compaction_server_line;
         let servers: String = ctx
             .connected_mcp_servers
             .iter()
@@ -502,7 +502,7 @@ mod tests {
             workflows: vec![],
             workflow_tool_name: None,
         };
-        let skills = [xvora_tools::implementations::skills::types::SkillInfo {
+        let skills = [tools::implementations::skills::types::SkillInfo {
             name: "commit".into(),
             description: "Create a git commit.".into(),
             path: "/skills/commit/SKILL.md".into(),

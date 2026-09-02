@@ -3,7 +3,7 @@
 //! On a grant it reloads the now-trusted project servers without a restart.
 //!
 //! Dormant in production: it fires only when the connected client advertised `x.ai/folderTrust.interactive`.
-//! The folder-trust feature flag must also be on, and the verdict must be [`xvora_workspace::folder_trust::TrustOutcome::Prompt`].
+//! The folder-trust feature flag must also be on, and the verdict must be [`workspace::folder_trust::TrustOutcome::Prompt`].
 //! No client advertises the capability until the desktop UI ships, so this is inert by default even with the feature flag on.
 //! The TUI and headless clients never advertise it (they gate trust themselves, client-side), so they are never double-prompted.
 //! The module is a child of `mvp_agent` and glob-imports it (`use super::*`).
@@ -89,7 +89,7 @@ impl MvpAgent {
         if !folder_trust::prompt_warranted(cwd, remote) {
             return;
         }
-        let key = xvora_workspace::trust::workspace_key(cwd);
+        let key = workspace::trust::workspace_key(cwd);
         // Dedup: skip if this workspace was already prompted or decided (a reconnect) or has a prompt in flight (a concurrent sibling session)
         // `insert` returns false when already present
         // The set is owned by the agent, not the process, and is captured into the task so failure or timeout can release the key
@@ -110,7 +110,7 @@ impl MvpAgent {
         // That gap is accepted instead
         let mut targets = Vec::new();
         self.session_registry.for_each_resident(|_, h| {
-            if xvora_workspace::trust::workspace_key(std::path::Path::new(&h.info.cwd)) == key {
+            if workspace::trust::workspace_key(std::path::Path::new(&h.info.cwd)) == key {
                 targets.push(ReloadTarget {
                     cmd_tx: h.cmd_tx.clone(),
                     initial_client_mcp_servers: h.initial_client_mcp_servers.clone(),
@@ -214,7 +214,7 @@ impl MvpAgent {
 
             // Persist the grant, then flip the cached untrusted verdict to trusted
             // The `Some(false)` arm of `resolve_and_record` re-reads the store
-            xvora_workspace::folder_trust::grant_folder_trust(&cwd);
+            workspace::folder_trust::grant_folder_trust(&cwd);
             folder_trust::resolve_and_record(&cwd, remote.as_ref(), false);
 
             reload_project_servers_after_grant(ReloadAfterGrant {
@@ -247,8 +247,8 @@ struct ReloadAfterGrant<'a> {
     gateway: &'a GatewaySender,
     /// Every session sharing the granted workspace, each with its own cwd.
     targets: Vec<ReloadTarget>,
-    plugin_handle: &'a xvora_agent::plugins::SharedPluginRegistryHandle,
-    compat: &'a xvora_tools::types::CompatConfig,
+    plugin_handle: &'a agent::plugins::SharedPluginRegistryHandle,
+    compat: &'a tools::types::CompatConfig,
     /// The prompting session's cwd, used only for the client catalog push.
     prompt_cwd: &'a std::path::Path,
 }

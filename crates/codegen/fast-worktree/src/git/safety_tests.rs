@@ -2,7 +2,7 @@ use super::conversions::hashes_line_up;
 use super::*;
 use crate::test_support::{add_worktree, publish, seed_source};
 use std::path::PathBuf;
-use xvora_test_utils::git::{run_git, run_git_with_env};
+use test_utils::git::{run_git, run_git_with_env};
 
 #[path = "safety_tests/conversions.rs"]
 mod conversions;
@@ -102,7 +102,7 @@ impl Fixture {
 fn seed_module_store(root: &Path, at: &Path) {
     let scratch = root.join("module-scratch");
     std::fs::create_dir_all(&scratch).unwrap();
-    xvora_test_utils::git::git_init_seed(&scratch);
+    test_utils::git::git_init_seed(&scratch);
     std::fs::write(scratch.join("file.txt"), "sub\n").unwrap();
     run_git(&scratch, &["add", "."]);
     run_git(&scratch, &["commit", "-m", "submodule seed"]);

@@ -1,6 +1,6 @@
 #![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
-use xvora_shell::extensions::billing::{BillingConfig, Cent, UsagePeriod};
+use shell::extensions::billing::{BillingConfig, Cent, UsagePeriod};
 /// The invalid-params server detail survives `attach_prompt_usage` wrapping `error.data` as `{message, promptUsage}`.
 #[test]
 fn format_acp_error_reads_detail_from_wrapped_data() {
@@ -58,7 +58,7 @@ fn format_acp_error_typed_truncation_kind_renders_truncation_copy() {
 }
 #[test]
 fn format_acp_error_rate_limit_surfaces_detail_or_fallback() {
-    use xvora_shell::sampling::error::{
+    use shell::sampling::error::{
         FREE_USAGE_USER_MESSAGE, RATE_LIMITED_ERROR_CODE,
         RATE_LIMITED_USER_MESSAGE_API_KEY, RATE_LIMITED_USER_MESSAGE_OAUTH,
     };
@@ -320,7 +320,7 @@ fn session_list_partial_absent_for_healthy_or_meta_less_responses() {
 /// Probing the top level instead was why the tasks-pane ✗ never removed stale (`not_found`) rows after a session resume.
 #[test]
 fn parse_kill_outcome_reads_result_envelope() {
-    use xvora_tools::types::KillOutcome;
+    use tools::types::KillOutcome;
     let resp = r#"{"result":{"taskId":"t-1","outcome":"not_found"}}"#;
     assert_eq!(parse_kill_outcome(resp), Some(KillOutcome::NotFound));
     let resp = r#"{"result":{"taskId":"t-1","outcome":"killed"}}"#;
@@ -332,9 +332,9 @@ fn parse_kill_outcome_reads_result_envelope() {
 /// This guards against the two sides drifting apart.
 #[test]
 fn parse_kill_outcome_round_trips_agent_serialization() {
-    use xvora_shell::extensions::task::KillTaskResponse;
-    use xvora_shell::session::result::ExtMethodResult;
-    use xvora_tools::types::KillOutcome;
+    use shell::extensions::task::KillTaskResponse;
+    use shell::session::result::ExtMethodResult;
+    use tools::types::KillOutcome;
     let wire = serde_json::to_string(
             &ExtMethodResult::success(KillTaskResponse {
                 task_id: "t-1".into(),
@@ -412,7 +412,7 @@ fn parse_subagent_kill_outcome_unknown_kind_falls_back_to_legacy_bool() {
 /// Round-trip through the agent's own serializer guards the two sides against drifting apart.
 #[test]
 fn parse_subagent_kill_outcome_round_trips_agent_serialization() {
-    use xvora_shell::extensions::task::{
+    use shell::extensions::task::{
         CancelSubagentResponse, SubagentCancelOutcomeDto,
     };
     let wire = serde_json::to_string(
@@ -726,7 +726,7 @@ fn credit_balance_effective_blends_budget_for_legacy_shape_under_100() {
 }
 #[test]
 fn parse_worktree_restore_payload_full() {
-    use xvora_workspace::session::git::RestoreDegree;
+    use workspace::session::git::RestoreDegree;
     let value = serde_json::json!({
             "codeRestored": true,
             "restoreSummary": "checked out abc12345, staged: true, unstaged: false, untracked: 3",
@@ -739,7 +739,7 @@ fn parse_worktree_restore_payload_full() {
 }
 #[test]
 fn parse_worktree_restore_payload_head_only() {
-    use xvora_workspace::session::git::RestoreDegree;
+    use workspace::session::git::RestoreDegree;
     let value = serde_json::json!({
             "codeRestored": true,
             "restoreSummary": "checked out abc (session registry disabled — staged/unstaged/untracked not restored)",
@@ -769,7 +769,7 @@ fn parse_worktree_restore_payload_rejects_unknown_degree() {
 }
 #[test]
 fn parse_session_load_restore_meta_full_shape() {
-    use xvora_workspace::session::git::RestoreDegree;
+    use workspace::session::git::RestoreDegree;
     let meta = serde_json::json!({
             "codeRestore": {
                 "restored": true,
@@ -907,13 +907,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Spawn a fake ACP agent that counts `x.ai/yolo_mode_changed` notifications.
 /// Exits when the channel closes.
 fn spawn_fake_acp_agent(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpAgentMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpAgentMessage>,
 ) -> Arc<AtomicUsize> {
     let counter = Arc::new(AtomicUsize::new(0));
     let counter_clone = counter.clone();
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
-            if let xvora_acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
+            if let acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
                 if args.request.method.as_ref() == "x.ai/yolo_mode_changed" {
                     counter_clone.fetch_add(1, Ordering::SeqCst);
                 }
@@ -932,7 +932,7 @@ fn setup_grok_home_in_tempdir() -> tempfile::TempDir {
     tmp
 }
 fn register_session_in(root: &std::path::Path, id: &str) -> acp::SessionId {
-    use xvora_active_sessions::{ActiveSession, register_in};
+    use active_sessions::{ActiveSession, register_in};
     let session_id = acp::SessionId::new(id);
     register_in(
             root,
@@ -953,7 +953,7 @@ fn unregister_best_effort_removes_entry_when_lock_free() {
     let sid = register_session_in(dir.path(), "s1");
     unregister_active_session_best_effort_in(dir.path(), &sid);
     assert!(
-            xvora_active_sessions::list_in(dir.path())
+            active_sessions::list_in(dir.path())
                 .expect("list")
                 .is_empty(),
             "lock-free unregister must remove the entry",
@@ -991,7 +991,7 @@ fn unregister_best_effort_is_nonblocking_under_lock_contention() {
             "contended unregister blocked on the shared flock instead of skipping",
         );
     assert_eq!(
-            xvora_active_sessions::list_in(dir.path())
+            active_sessions::list_in(dir.path())
                 .expect("list")
                 .len(),
             1,
@@ -1335,7 +1335,7 @@ fn marketplace_outcome_succeeded_only_accepts_success_status() {
 async fn check_marketplace_updates_dispatches_update_and_skips_failed_notifications() {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    use xvora_acp_lib::AcpAgentMessage;
+    use acp_lib::AcpAgentMessage;
     use hooks_plugins_types::{ActionOutcome, MarketplaceAction, OutcomeStatus};
     let action_calls = Arc::new(AtomicUsize::new(0));
     let saw_update = Arc::new(AtomicBool::new(false));
@@ -1386,7 +1386,7 @@ async fn check_marketplace_updates_dispatches_update_and_skips_failed_notificati
                     }
                     "x.ai/marketplace/action" => {
                         action_calls_for_task.fetch_add(1, Ordering::SeqCst);
-                        let req: xvora_hooks_plugins_types::MarketplaceActionRequest = serde_json::from_str(
+                        let req: hooks_plugins_types::MarketplaceActionRequest = serde_json::from_str(
                                 args.request.params.get(),
                             )
                             .expect("parse marketplace action request");
@@ -1476,7 +1476,7 @@ async fn foreign_scan_task_echoes_sequence_without_enabled_sources() {
     execute(
         Effect::ScanForeignSessions {
             cwd: PathBuf::from("/path/that/must/not/be-read"),
-            compat: xvora_foreign_sessions::EnabledForeignSessionSources::default(),
+            compat: foreign_sessions::EnabledForeignSessionSources::default(),
             grok_home: PathBuf::from("/path/that/must/not/be-read"),
             coordinator: app_coordinator.clone(),
             seq: 41,
@@ -1529,7 +1529,7 @@ async fn foreign_resume_detection_runs_as_task_result() {
     let (quit, _) = execute(
         Effect::DetectForeignResumeHint {
             canonical_cwd: canonical_cwd.clone(),
-            compat: xvora_foreign_sessions::EnabledForeignSessionSources::default(),
+            compat: foreign_sessions::EnabledForeignSessionSources::default(),
             grok_home: PathBuf::from("/path/that/must/not-be-read"),
             launch_token: 8,
         },
@@ -1558,7 +1558,7 @@ async fn foreign_resume_detection_runs_as_task_result() {
 #[tokio::test]
 async fn fetch_session_list_pushes_query_and_echoes_seq() {
     use std::sync::{Arc, Mutex};
-    use xvora_acp_lib::AcpAgentMessage;
+    use acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1704,7 +1704,7 @@ async fn fetch_session_list_pushes_query_and_echoes_seq() {
 #[tokio::test]
 async fn fetch_dashboard_sessions_explicitly_excludes_headless() {
     use std::sync::{Arc, Mutex};
-    use xvora_acp_lib::AcpAgentMessage;
+    use acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Option<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1743,7 +1743,7 @@ async fn fetch_dashboard_sessions_explicitly_excludes_headless() {
 #[tokio::test]
 async fn fetch_session_list_sends_kind_facet_filter() {
     use std::sync::{Arc, Mutex};
-    use xvora_acp_lib::AcpAgentMessage;
+    use acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1790,7 +1790,7 @@ async fn fetch_session_list_sends_kind_facet_filter() {
 #[tokio::test]
 async fn fetch_workflows_list_sends_session_id() {
     use std::sync::{Arc, Mutex};
-    use xvora_acp_lib::AcpAgentMessage;
+    use acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1877,7 +1877,7 @@ async fn debounce_session_search_echoes_query_and_seq() {
 async fn deep_search_sessions_echoes_routing_and_policy() {
     use std::sync::{Arc, Mutex};
     use crate::views::session_picker_surface::SessionPickerHost;
-    use xvora_acp_lib::AcpAgentMessage;
+    use acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<(String, serde_json::Value)>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1907,7 +1907,7 @@ async fn deep_search_sessions_echoes_routing_and_policy() {
             generation: 11,
             query: "abc".into(),
             seq: 4,
-            headless_policy: xvora_shell::session::unified_list::HeadlessPolicy::Only,
+            headless_policy: shell::session::unified_list::HeadlessPolicy::Only,
         },
         &mut tasks,
         &tx,
@@ -1976,7 +1976,7 @@ async fn load_card_detail_echoes_identity_and_zeroes_missing_session() {
 #[test]
 fn agent_profile_names_are_valid_builtins() {
     use std::str::FromStr;
-    use xvora_agent::config::BuiltinAgentName;
+    use agent::config::BuiltinAgentName;
     let test_cases: &[(SessionFlags, &str)] = &[
         (
             SessionFlags {
@@ -2526,7 +2526,7 @@ fn to_meta_yolo_suppresses_auto_mode() {
 #[test]
 fn agent_profile_definitions_have_correct_names() {
     use std::str::FromStr;
-    use xvora_agent::config::BuiltinAgentName;
+    use agent::config::BuiltinAgentName;
     for name in [
         "grok-build-plan",
         "grok-build-plan-no-subagents",
@@ -2545,9 +2545,9 @@ fn make_session_info(
     resolved: Option<&str>,
     used: u64,
     total: u64,
-) -> xvora_shell::session::SessionInfoResponse {
-    use xvora_shell::session::acp_types::{ContextInfo, SessionInfoData};
-    xvora_shell::session::SessionInfoResponse {
+) -> shell::session::SessionInfoResponse {
+    use shell::session::acp_types::{ContextInfo, SessionInfoData};
+    shell::session::SessionInfoResponse {
         session_id: "test-session-id".into(),
         cwd: "/tmp/test".into(),
         data: SessionInfoData {
@@ -2646,7 +2646,7 @@ async fn lookup_session_title_loads_single_summary_by_cwd() {
     let dir = root
         .path()
         .join("sessions")
-        .join(xvora_shell::util::grok_home::encode_cwd_dirname(cwd))
+        .join(shell::util::grok_home::encode_cwd_dirname(cwd))
         .join("sess-1");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -2700,7 +2700,7 @@ fn format_session_info_hides_model_hash_for_coding_slug_without_flag() {
 }
 #[test]
 fn session_picker_summary_strips_skill_xml() {
-    use xvora_tools::implementations::skills::skill::extract_skill_display_text;
+    use tools::implementations::skills::skill::extract_skill_display_text;
     let summary = "<command-name>pr-babysit</command-name>\n\
                         <command-message>/pr-babysit</command-message>\n\
                         <command-args>check</command-args>"
@@ -2710,14 +2710,14 @@ fn session_picker_summary_strips_skill_xml() {
 }
 #[test]
 fn session_picker_summary_preserves_normal_text() {
-    use xvora_tools::implementations::skills::skill::extract_skill_display_text;
+    use tools::implementations::skills::skill::extract_skill_display_text;
     let summary = "Fix authentication bug in login flow".to_string();
     let display = extract_skill_display_text(&summary).unwrap_or(summary);
     assert_eq!(display, "Fix authentication bug in login flow");
 }
 #[test]
 fn sanitize_user_error_rewrites_shared_service_names() {
-    for (pattern, replacement) in xvora_shell::sampling::error::SERVICE_NAME_REWRITES {
+    for (pattern, replacement) in shell::sampling::error::SERVICE_NAME_REWRITES {
         for variant in [pattern.to_string(), pattern.to_ascii_uppercase()] {
             assert_eq!(
                     sanitize_user_error(&format!("ACP error: {variant} unreachable")),

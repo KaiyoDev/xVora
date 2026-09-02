@@ -1,7 +1,7 @@
 //! Applies a reasoning-effort hint only when the model supports it; shared by session creation, model switch, and the summary client.
 
 use agent_client_protocol as acp;
-use xvora_sampler::SamplerConfig;
+use sampler::SamplerConfig;
 use xvora_sampling_types::ReasoningEffort;
 
 use crate::agent::models::ModelsManager;

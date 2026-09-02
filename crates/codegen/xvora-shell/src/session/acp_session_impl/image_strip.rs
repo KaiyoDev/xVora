@@ -8,7 +8,7 @@
 //!   A rebuild replaying `updates.jsonl` (e.g. a remote pull) restores the image and pays one more strip cycle.
 
 use chat_state::StripOutcome;
-use xvora_sampler::{RequestId, StripReason};
+use sampler::{RequestId, StripReason};
 
 use crate::extensions::notification::SessionUpdate as XaiSessionUpdate;
 use crate::session::acp_session::{PendingImageStrip, SessionActor};
@@ -176,7 +176,7 @@ impl SessionActor {
             );
             enforce_pending_image_strip_bound(&mut pending, Some(&request_id));
         }
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "shell.turn.images_stripped",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -233,7 +233,7 @@ impl SessionActor {
             StripOutcome::WriteFailed { .. } => ("write_failed", 0),
             StripOutcome::ActorUnavailable => ("actor_unavailable", 0),
         };
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "shell.turn.images_strip_persisted",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({

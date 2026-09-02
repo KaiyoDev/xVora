@@ -118,7 +118,7 @@ pub fn folder_trust_inert() -> bool {
 fn is_local_build() -> bool {
     // Runtime escape hatch: a pinned GROK_TEST_VERSION simulates a release build
     // Tests/CI run unstamped, so they look like local builds; this lets them exercise the gate
-    if std::env::var(xvora_version::TEST_VERSION_ENV).is_ok() {
+    if std::env::var(version::TEST_VERSION_ENV).is_ok() {
         return false;
     }
     option_env!("GROK_VERSION").is_none()
@@ -146,8 +146,8 @@ fn feature_enabled_for_build(remote: Option<&RemoteSettings>, is_local_build: bo
     fn from_toml(v: Option<&TomlValue>) -> Option<bool> {
         v?.get("folder_trust")?.get("enabled")?.as_bool()
     }
-    let user = xvora_config::load_from_disk().ok();
-    let managed = xvora_config::load_managed_config().ok();
+    let user = config::load_from_disk().ok();
+    let managed = config::load_managed_config().ok();
     BoolFlag::env("GROK_FOLDER_TRUST")
         .config(from_toml(user.as_ref()))
         .managed(from_toml(managed.as_ref()))
@@ -295,7 +295,7 @@ fn collect_repo_config_kinds(cwd: &Path, first_only: bool) -> Vec<&'static str> 
     // On a non-git dir each discover walks to the filesystem root, and Windows taxes every such syscall 10-100x
     // The `.claude` settings-compat check keeps its own cheap `.git`-existence walk on purpose; see that check
     // Checks run cheap to expensive and short-circuit on the first hit when `first_only`
-    let chain = xvora_agent::repo::RepoDirChain::resolve(cwd);
+    let chain = agent::repo::RepoDirChain::resolve(cwd);
     let mut kinds: Vec<&'static str> = Vec::new();
     // Record a distinct kind; when `first_only`, return as soon as one is found
     macro_rules! hit {
@@ -318,7 +318,7 @@ fn collect_repo_config_kinds(cwd: &Path, first_only: bool) -> Vec<&'static str> 
     // `[plugins].paths` loads as auto-trusted ConfigPath plugins; `[permission]` allow/deny/ask rules auto-approve or block tools
     // A clone whose ONLY repo-local config is either must still be gated (else it resolves Trusted and the loader runs ungated)
     for path in crate::project_config::find_project_configs_in(&chain.dirs) {
-        let Ok(root) = xvora_config::load_config_file(&path) else {
+        let Ok(root) = config::load_config_file(&path) else {
             continue;
         };
         let has_mcp_servers = root
@@ -378,13 +378,13 @@ fn collect_repo_config_kinds(cwd: &Path, first_only: bool) -> Vec<&'static str> 
     // Project PLUGIN dirs: project-scoped plugins fall under folder-trust too, so a repo-local plugin dir is repo-controlled code-exec (hooks/MCP)
     // Else a plugin clone (e.g. `.grok/plugins/evil/`, even one in a subdir launched via `cd sub && grok`) would resolve trusted and run ungated.
     // Uses the shared cwd-to-git-root walk so detection matches exactly what `discover_plugins` scans for Project scope, erring on the secure side
-    if !xvora_agent::plugins::project_plugin_dirs_in(&chain.dirs).is_empty() {
+    if !agent::plugins::project_plugin_dirs_in(&chain.dirs).is_empty() {
         hit!("plugins");
     }
     // Project AGENT dirs (`.grok/agents` / `.claude/agents`): an agents-only clone must still be gated
     // A project agent definition can carry an inline `hooks:` block (repo-controlled code-exec) and can shadow a built-in subagent by name
     // Uses the shared cwd-to-git-root walk so detection can't drift from agent discovery (same pattern as the plugin check above)
-    if !xvora_agent::discovery::project_agent_dirs_in(&chain.dirs).is_empty() {
+    if !agent::discovery::project_agent_dirs_in(&chain.dirs).is_empty() {
         hit!("agents");
     }
     // Presence matches exact-cwd discovery without parsing repository content.
@@ -408,7 +408,7 @@ fn collect_repo_config_kinds(cwd: &Path, first_only: bool) -> Vec<&'static str> 
 /// Display names under `~/.claude.json projects.<cwd>.mcpServers`, or `None` when the file/entry is absent or the object is empty.
 /// Both [`claude_project_mcp_present`] and the shell's `project_scoped_mcp_names` derive from this one reader, so they never drift.
 pub fn claude_project_mcp_names(cwd: &Path) -> Option<Vec<String>> {
-    let home = xvora_dirs::home_dir()?;
+    let home = dirs::home_dir()?;
     let content = std::fs::read_to_string(home.join(".claude.json")).ok()?;
     let value = serde_json::from_str::<serde_json::Value>(&content).ok()?;
     let cwd_key = cwd.to_string_lossy();
@@ -874,7 +874,7 @@ mod tests {
     /// Simulate a release-stamped build so store I/O runs (a local/dev build makes grant/revoke no-ops).
     /// Hold the returned guard for the test body.
     fn simulate_release_build() -> EnvVarGuard {
-        EnvVarGuard::set(xvora_version::TEST_VERSION_ENV, Path::new("0.0.0-sim"))
+        EnvVarGuard::set(version::TEST_VERSION_ENV, Path::new("0.0.0-sim"))
     }
 
     #[test]
@@ -954,12 +954,12 @@ mod tests {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // A pinned GROK_TEST_VERSION simulates a release build, so it is not a local build
         {
-            let _sim = EnvVarGuard::set(xvora_version::TEST_VERSION_ENV, Path::new("0.0.0-sim"));
+            let _sim = EnvVarGuard::set(version::TEST_VERSION_ENV, Path::new("0.0.0-sim"));
             assert!(!is_local_build());
         }
         // With it unset, an unstamped build (no GROK_VERSION) is a local build.
         // Guard to the unstamped case so a release-stamped test binary (CI release) doesn't spuriously fail this arm
-        let _unset = EnvVarGuard::unset(xvora_version::TEST_VERSION_ENV);
+        let _unset = EnvVarGuard::unset(version::TEST_VERSION_ENV);
         if option_env!("GROK_VERSION").is_none() {
             assert!(is_local_build());
         }
@@ -974,7 +974,7 @@ mod tests {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
         let _home = EnvVarGuard::set("GROK_HOME", home.path());
-        let _unset = EnvVarGuard::unset(xvora_version::TEST_VERSION_ENV);
+        let _unset = EnvVarGuard::unset(version::TEST_VERSION_ENV);
         if option_env!("GROK_VERSION").is_some() {
             return; // a release-stamped test binary is not a local build
         }
@@ -1112,8 +1112,8 @@ mod tests {
         let _home = EnvVarGuard::set("GROK_HOME", home.path());
         // TrustStore writes through user_grok_home(), which reads the grok_home() OnceLock
         // Bazel rust_test is one process, so the test denies persistence at the cached home
-        let store_home = xvora_config::user_grok_home().expect("GROK_HOME is set");
-        let deny_path = store_home.join(xvora_config::TRUSTED_FOLDERS_FILENAME);
+        let store_home = config::user_grok_home().expect("GROK_HOME is set");
+        let deny_path = store_home.join(config::TRUSTED_FOLDERS_FILENAME);
         if deny_path.is_file() {
             std::fs::remove_file(&deny_path).unwrap();
         }
@@ -1155,7 +1155,7 @@ mod tests {
     fn decide_inputs_flags_home_key_unrecordable() {
         // Case-2 wiring: cwd == $HOME, git-init'd so workspace_key discovers it as the home git root
         // The gather flags key_recordable=false and decide() trusts it despite configs and interactive
-        // Pin HOME and USERPROFILE so xvora_dirs::home_dir() sees the tempdir on Windows
+        // Pin HOME and USERPROFILE so dirs::home_dir() sees the tempdir on Windows
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
         let _home = EnvVarGuard::set("HOME", home.path());

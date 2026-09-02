@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use xvora_tool_protocol::ToolCallId;
+use tool_protocol::ToolCallId;
 
 /// Open typed-extension store keyed by `TypeId`.
 #[derive(Clone, Default)]
@@ -182,7 +182,7 @@ pub struct WorkspaceBindMetadata {
         deserialize_with = "ok_or_default",
         skip_serializing_if = "Vec::is_empty"
     )]
-    pub tools: Vec<xvora_tools_api::ToolConfigEntry>,
+    pub tools: Vec<tools_api::ToolConfigEntry>,
     #[serde(
         default,
         deserialize_with = "ok_or_default",
@@ -260,7 +260,7 @@ mod bind_metadata_tests {
         let md = WorkspaceBindMetadata {
             preset: Some("explore".to_owned()),
             capability_mode: Some("read_only".to_owned()),
-            tools: vec![xvora_tools_api::ToolConfigEntry {
+            tools: vec![tools_api::ToolConfigEntry {
                 id: "GrokBuild:grep".to_owned(),
                 ..Default::default()
             }],

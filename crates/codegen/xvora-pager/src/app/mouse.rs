@@ -188,7 +188,7 @@ impl AgentView {
                     && !self.pos_occluded(mouse.column, mouse.row)
                 {
                     return InputOutcome::Action(Action::AnnouncementsOpenCta(
-                        xvora_telemetry::events::AnnouncementCtaSurface::Banner,
+                        telemetry::events::AnnouncementCtaSurface::Banner,
                     ));
                 }
                 if self
@@ -199,12 +199,12 @@ impl AgentView {
                         &self.plugin_cta.phase
                 {
                     let plugin_id = name.clone();
-                    if let Err(e) = xvora_shell::config::add_dismissed_plugin_cta(&plugin_id) {
+                    if let Err(e) = shell::config::add_dismissed_plugin_cta(&plugin_id) {
                         tracing::warn!(error = %e, "couldn't persist plugin CTA dismissal");
                     }
                     self.plugin_cta.dismissed.insert(plugin_id.clone());
-                    xvora_telemetry::session_ctx::log_event(
-                        xvora_telemetry::events::PluginCtaDismissed {
+                    telemetry::session_ctx::log_event(
+                        telemetry::events::PluginCtaDismissed {
                             plugin_name: plugin_id,
                         },
                     );
@@ -241,7 +241,7 @@ impl AgentView {
                     && !self.pos_occluded(mouse.column, mouse.row)
                 {
                     return InputOutcome::Action(Action::AnnouncementsOpenCta(
-                        xvora_telemetry::events::AnnouncementCtaSurface::Header,
+                        telemetry::events::AnnouncementCtaSurface::Header,
                     ));
                 }
                 if self.hit_cwd.contains(mouse.column, mouse.row) {

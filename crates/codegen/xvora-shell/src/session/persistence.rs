@@ -26,7 +26,7 @@ use crate::remote::RemoteSync;
 use crate::sampling::Client as OaiCompatClient;
 use crate::sampling::ConversationItem;
 use crate::session::export::ExportedMetadata;
-use xvora_workspace::session::file_state::RewindPoint;
+use workspace::session::file_state::RewindPoint;
 
 use crate::session::signals::SessionSignals;
 use crate::session::storage::relocation::{RelocationError, RelocationView};
@@ -35,7 +35,7 @@ use crate::session::visibility::ClassifiedSessionKind;
 use crate::tools::todo::TodoState;
 use crate::util::grok_home::grok_home;
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_sampling_types::ReasoningEffort;
 
 use crate::extensions::notification::{
@@ -219,7 +219,7 @@ pub enum PersistenceMsg {
     AppendCwdSwitchAndAck {
         item: ConversationItem,
         respond_to: tokio::sync::oneshot::Sender<
-            Result<xvora_chat_state::StrictAppendAck, xvora_chat_state::StrictAppendError>,
+            Result<chat_state::StrictAppendAck, chat_state::StrictAppendError>,
         >,
     },
     /// Replace the entire chat history (used for compaction)
@@ -333,7 +333,7 @@ pub enum PersistenceMsg {
     },
 }
 
-pub use xvora_shared::session::session_dir;
+pub use shared::session::session_dir;
 
 type RelocationResult<T> = crate::session::storage::relocation::Result<T>;
 type SummaryReader = fn(&Path) -> RelocationResult<Summary>;
@@ -1026,7 +1026,7 @@ pub fn default_model_id() -> acp::ModelId {
 impl Summary {
     pub(crate) fn new(info: &Info, model_id: acp::ModelId) -> std::io::Result<Self> {
         let git_metadata =
-            xvora_workspace::session::git::resolve_persisted_session_git_metadata_sync(
+            workspace::session::git::resolve_persisted_session_git_metadata_sync(
                 std::path::Path::new(&info.cwd),
             );
         let mut summary = Self {
@@ -1868,12 +1868,12 @@ impl SessionPersistence {
                         .await
                         .map_err(|error| match error {
                             crate::session::storage::AppendCwdSwitchError::NotCommitted(error) => {
-                                xvora_chat_state::StrictAppendError::NotCommitted(error)
+                                chat_state::StrictAppendError::NotCommitted(error)
                             }
                             crate::session::storage::AppendCwdSwitchError::Committed {
                                 acknowledgement,
                                 source,
-                            } => xvora_chat_state::StrictAppendError::Committed {
+                            } => chat_state::StrictAppendError::Committed {
                                 acknowledgement,
                                 source,
                             },
@@ -2254,7 +2254,7 @@ impl SessionPersistence {
 
 /// Collect MCP server stderr logs from `~/.grok/logs/mcp/` for inclusion in the session archive.
 fn collect_mcp_stderr_logs(files: &mut Vec<CopiedSessionFile>) {
-    let mcp_log_dir = xvora_config::grok_home().join("logs").join("mcp");
+    let mcp_log_dir = config::grok_home().join("logs").join("mcp");
     let Ok(entries) = std::fs::read_dir(&mcp_log_dir) else {
         return;
     };
@@ -2839,7 +2839,7 @@ pub async fn delete_session_history(
     cwd: Option<&str>,
     needs_remote: bool,
     auth_manager: Arc<crate::auth::AuthManager>,
-    search_index: Option<&xvora_session_search::SearchIndexManager>,
+    search_index: Option<&session_search::SearchIndexManager>,
 ) -> Result<SessionDeletion, DeleteSessionError> {
     let sid = acp::SessionId::new(Arc::from(session_id));
 
@@ -2955,7 +2955,7 @@ pub(crate) fn cleanup_stale_sessions(skip_session_dir: Option<&Path>) {
         let sessions_root = grok_home().join("sessions");
 
         tracing::info!(
-            target: "xvora_shell::session::persistence",
+            target: "shell::session::persistence",
             sessions_root = %sessions_root.display(),
             ttl_days,
             skip = ?skip_session_dir.map(|p| p.display().to_string()),
@@ -2970,7 +2970,7 @@ pub(crate) fn cleanup_stale_sessions(skip_session_dir: Option<&Path>) {
         );
 
         tracing::info!(
-            target: "xvora_shell::session::persistence",
+            target: "shell::session::persistence",
             sessions_root = %sessions_root.display(),
             files_deleted = stats.files_deleted,
             dirs_removed = stats.dirs_removed,
@@ -3039,7 +3039,7 @@ fn cleanup_stale_sessions_inner(
             Ok(e) => e,
             Err(e) => {
                 tracing::debug!(
-                    target: "xvora_shell::session::persistence",
+                    target: "shell::session::persistence",
                     error = %e,
                     "SESSION_CLEANUP_READ_ERROR"
                 );
@@ -3088,7 +3088,7 @@ fn cleanup_stale_sessions_inner(
                     Err(error) => {
                         stats.errors += 1;
                         tracing::debug!(
-                            target: "xvora_shell::session::persistence",
+                            target: "shell::session::persistence",
                             path = %summary.display(),
                             %error,
                             "SESSION_CLEANUP_METADATA_ERROR"
@@ -3111,7 +3111,7 @@ fn cleanup_stale_sessions_inner(
             if child_stats.files_deleted > 0 && std::fs::remove_dir(&path).is_ok() {
                 stats.dirs_removed += 1;
                 tracing::debug!(
-                    target: "xvora_shell::session::persistence",
+                    target: "shell::session::persistence",
                     dir = %path.display(),
                     "SESSION_CLEANUP_RMDIR"
                 );
@@ -3122,7 +3122,7 @@ fn cleanup_stale_sessions_inner(
             if std::fs::remove_file(&path).is_ok() {
                 stats.files_deleted += 1;
                 tracing::debug!(
-                    target: "xvora_shell::session::persistence",
+                    target: "shell::session::persistence",
                     file = %path.display(),
                     "SESSION_CLEANUP_DELETE"
                 );

@@ -7,7 +7,7 @@ use crate::app::app_view::{ActiveView, AppView};
 use crate::scrollback::block::{BlockContent, RenderBlock};
 use crate::scrollback::blocks::ToolCallBlock;
 use agent_client_protocol as acp;
-use xvora_telemetry::session_ctx::log_event;
+use telemetry::session_ctx::log_event;
 
 /// Copy the selected block's content to the system clipboard.
 ///
@@ -479,7 +479,7 @@ fn toast_session_only_slash(app: &mut AppView, name: &str) {
 pub(super) fn dispatch_open_extensions_modal(
     app: &mut AppView,
     tab: crate::views::extensions_modal::ExtensionsTab,
-    trigger: xvora_telemetry::events::ExtensionsModalTrigger,
+    trigger: telemetry::events::ExtensionsModalTrigger,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::ExtensionsModalState;
 
@@ -496,7 +496,7 @@ pub(super) fn dispatch_open_extensions_modal(
     let mut modal = ExtensionsModalState::new(tab);
     modal.session_team_id = app.team_id.clone();
     agent.extensions_modal = Some(modal);
-    log_event(xvora_telemetry::events::ExtensionsModalOpened {
+    log_event(telemetry::events::ExtensionsModalOpened {
         trigger,
         tab: tab.telemetry_tab(),
     });
@@ -544,7 +544,7 @@ pub(super) fn dispatch_open_config_agents_modal(
     let session_id = agent.session.session_id.clone();
     let active_agent = agent.session_agent_name.clone();
     // One-shot plugin discovery (same gating as `/mcp doctor` and `inspect`) so plugin-provided agents are listed alongside native ones
-    let plugin_registry = xvora_shell::util::config::load_cli_plugin_registry(&cwd);
+    let plugin_registry = shell::util::config::load_cli_plugin_registry(&cwd);
     let plugin_registry = (!plugin_registry.is_empty()).then_some(plugin_registry);
     let mut modal = AgentsModalState::new(
         &cwd,
@@ -643,7 +643,7 @@ pub(super) fn dispatch_dump_input_log(app: &mut AppView) -> Vec<Effect> {
         }
     };
 
-    let grok_home = xvora_tools::util::grok_home::grok_home();
+    let grok_home = tools::util::grok_home::grok_home();
     let logs_dir = grok_home.join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
     let ts = now.format("%Y%m%d-%H%M%S");
@@ -673,7 +673,7 @@ pub(super) fn dispatch_dump_input_log(app: &mut AppView) -> Vec<Effect> {
 pub(super) fn handle_hooks_list_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::HooksListResponse, String>,
+    result: Result<hooks_plugins_types::HooksListResponse, String>,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::TabDataState;
     if let Some(agent) = app.agents.get_mut(&agent_id)
@@ -694,7 +694,7 @@ pub(super) fn handle_hooks_list_loaded(
 pub(super) fn handle_plugins_list_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::PluginsListResponse, String>,
+    result: Result<hooks_plugins_types::PluginsListResponse, String>,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::TabDataState;
     if let Some(agent) = app.agents.get_mut(&agent_id)
@@ -772,7 +772,7 @@ pub(super) fn handle_marketplace_updates_available(
 pub(super) fn handle_marketplace_list_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+    result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::TabDataState;
     let mut effects = Vec::new();
@@ -809,7 +809,7 @@ pub(super) fn handle_marketplace_list_loaded(
 pub(super) fn handle_skills_toggle_done(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<Vec<xvora_tools::implementations::skills::types::SkillInfo>, String>,
+    result: Result<Vec<tools::implementations::skills::types::SkillInfo>, String>,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::TabDataState;
     if let Some(agent) = app.agents.get_mut(&agent_id)

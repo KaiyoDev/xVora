@@ -70,7 +70,7 @@ fn trigger_retention_is_bounded_by_count_and_bytes() {
 fn unowned_awaited_metadata_cannot_rebook_after_cancel_reset() {
     let mut tally = DoomLoopTurnTally::default();
     let triggers = vec!["tail_repetition:8@thinking".to_owned()];
-    let attempts = vec![xvora_sampler::DoomLoopRecoveryAttempt {
+    let attempts = vec![sampler::DoomLoopRecoveryAttempt {
         triggers: triggers.clone(),
         aborted_at_chunk: Some(42),
     }];

@@ -1,5 +1,5 @@
 //! The single owner of the fail-closed gate that decides whether customer-owned OTEL telemetry may ship.
-//! It drives the process-global flag in [`xvora_telemetry::external`]:
+//! It drives the process-global flag in [`telemetry::external`]:
 //!
 //! 1. Startup (no leader instance yet): [`suppress`] closes the gate before telemetry init.
 //!    [`open_at_startup`] re-opens it when nothing will deliver a fleet policy to this process ([`should_open_at_startup`]).
@@ -14,8 +14,8 @@ pub(crate) const SETTINGS_GATE_MAX_WAIT: Duration = crate::http::SETTINGS_REAPPL
 
 /// Closes the gate. It is process-global, idempotent, and callable before any `AgentConfig` exists.
 pub(crate) fn suppress() {
-    xvora_telemetry::external::set_settings_gate_max_wait(SETTINGS_GATE_MAX_WAIT);
-    xvora_telemetry::external::suppress_external_otel_until_settings();
+    telemetry::external::set_settings_gate_max_wait(SETTINGS_GATE_MAX_WAIT);
+    telemetry::external::suppress_external_otel_until_settings();
 }
 
 /// Whether an xAI fleet policy can govern this process.
@@ -88,7 +88,7 @@ pub(crate) fn is_session_pending(
 
 /// Opens the gate at startup once [`should_open_at_startup`] holds; a later session re-resolves via [`OtelGate::resolve`].
 pub(crate) fn open_at_startup() {
-    xvora_telemetry::external::mark_external_otel_settings_resolved();
+    telemetry::external::mark_external_otel_settings_resolved();
 }
 
 /// Remembers, per leader, which credential identity the process-global external-OTEL gate was resolved for.
@@ -134,7 +134,7 @@ impl OtelGate {
     /// Applies the tighten-only fleet policy from `settings` (`None` on a `401`), then opens the gate and records `identity`.
     fn apply_and_open(&self, identity: &str, settings: Option<&RemoteSettings>) {
         crate::agent::config::apply_external_otel_remote_policy(settings);
-        xvora_telemetry::external::mark_external_otel_settings_resolved();
+        telemetry::external::mark_external_otel_settings_resolved();
         *self.resolved_for.borrow_mut() = Some(identity.to_owned());
     }
 
@@ -147,7 +147,7 @@ impl OtelGate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_telemetry::external::{
+    use telemetry::external::{
         is_settings_gate_open, mark_external_otel_settings_resolved,
         suppress_external_otel_until_settings,
     };

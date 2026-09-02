@@ -298,7 +298,7 @@ pub(crate) fn flatten_transcript_for_classifier(
                     let _ = writeln!(
                         out,
                         "[agent_message] {} {}",
-                        xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL,
+                        chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL,
                         truncate(&text)
                     );
                 } else {
@@ -392,15 +392,15 @@ pub(crate) fn neutralize_transcript_user_text(s: &str) -> String {
     out
 }
 
-const CLASSIFIER_TURN_MAX_LEN: usize = xvora_workspace::permission::CLASSIFIER_TURN_MAX_LEN;
+const CLASSIFIER_TURN_MAX_LEN: usize = workspace::permission::CLASSIFIER_TURN_MAX_LEN;
 const LEGACY_TOOL_IMAGE_FOLLOWUP: &str = "[Image extracted from tool result above]";
 
 /// Project the complete resident conversation, retaining only trusted user intent and assistant tool calls.
 /// Every projected field is neutralized and capped.
 pub(crate) fn build_classifier_turns(
     items: &[ConversationItem],
-) -> Vec<xvora_workspace::permission::ClassifierTurn> {
-    use xvora_workspace::permission::ClassifierTurn;
+) -> Vec<workspace::permission::ClassifierTurn> {
+    use workspace::permission::ClassifierTurn;
     let mut turns = Vec::new();
     for item in items {
         match item {
@@ -414,18 +414,18 @@ pub(crate) fn build_classifier_turns(
                         .any(|part| matches!(part, ContentPart::Image { .. }));
                 let text = if user.synthetic_reason == Some(SyntheticReason::Interjection) {
                     item_text
-                } else if xvora_chat_state::compaction_utils::is_real_user_turn(item)
+                } else if chat_state::compaction_utils::is_real_user_turn(item)
                     && !is_project_instructions(item)
                     && !is_legacy_tool_image
                 {
-                    xvora_chat_state::compaction_utils::extract_user_query(&item_text)
+                    chat_state::compaction_utils::extract_user_query(&item_text)
                 } else {
                     continue;
                 };
                 if !text.is_empty() {
                     let text = neutralize_transcript_user_text(&text);
                     let text =
-                        xvora_tools::util::truncate_str_with_marker(&text, CLASSIFIER_TURN_MAX_LEN)
+                        tools::util::truncate_str_with_marker(&text, CLASSIFIER_TURN_MAX_LEN)
                             .into_owned();
                     turns.push(ClassifierTurn::UserText(text));
                 }
@@ -437,11 +437,11 @@ pub(crate) fn build_classifier_turns(
                         .unwrap_or_else(|_| tc.arguments.to_string());
                     let args = neutralize_transcript_user_text(&args);
                     let args =
-                        xvora_tools::util::truncate_str_with_marker(&args, CLASSIFIER_TURN_MAX_LEN)
+                        tools::util::truncate_str_with_marker(&args, CLASSIFIER_TURN_MAX_LEN)
                             .into_owned();
                     let tool = neutralize_transcript_user_text(&tc.name);
                     let tool =
-                        xvora_tools::util::truncate_str_with_marker(&tool, CLASSIFIER_TURN_MAX_LEN)
+                        tools::util::truncate_str_with_marker(&tool, CLASSIFIER_TURN_MAX_LEN)
                             .into_owned();
                     turns.push(ClassifierTurn::AssistantToolUse { tool, args });
                 }

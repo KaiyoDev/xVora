@@ -124,7 +124,7 @@ pub(crate) fn bounded_goal_transcript(items: &[ConversationItem]) -> String {
             {
                 (
                     "agent_message",
-                    Some(xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL),
+                    Some(chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL),
                 )
             }
             ConversationItem::User(_) => ("user", None),
@@ -142,7 +142,7 @@ pub(crate) fn bounded_goal_transcript(items: &[ConversationItem]) -> String {
         if trimmed.is_empty() {
             continue;
         }
-        let capped = xvora_tools::util::truncate_str(trimmed, ITEM_MAX_BYTES);
+        let capped = tools::util::truncate_str(trimmed, ITEM_MAX_BYTES);
         let row = format!("[{role}] {capped}");
         let row_cost = row.len().saturating_add(2);
         if !selected.is_empty() && used.saturating_add(row_cost) > TRANSCRIPT_MAX_BYTES {
@@ -184,7 +184,7 @@ pub(crate) fn build_goal_evaluator_request(
         x_grok_conv_id: Some(session_id.to_owned()),
         x_grok_req_id: Some(format!("xvora-goal-eval-{}", uuid::Uuid::new_v4())),
         x_grok_session_id: Some(session_id.to_owned()),
-        x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+        x_grok_agent_id: Some(telemetry::id::agent_id()),
         ..ConversationRequest::default()
     }
 }
@@ -255,7 +255,7 @@ mod tests {
             transcript,
             format!(
                 "[agent_message] {} review this change",
-                xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+                chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
             )
         );
     }

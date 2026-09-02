@@ -23,21 +23,21 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use xvora_computer_hub_sdk::ToolHarness;
-use xvora_tools::types::output::ToolRunResult;
+use computer_hub_sdk::ToolHarness;
+use tools::types::output::ToolRunResult;
 use xvora_workspace_client::{WorkspaceClient, is_transport_fatal};
-pub use xvora_workspace_types::rpc::agents_md::DiscoverAgentsMdReq;
-pub use xvora_workspace_types::rpc::code_nav::{
+pub use workspace_types::rpc::agents_md::DiscoverAgentsMdReq;
+pub use workspace_types::rpc::code_nav::{
     CodeFindDefinitionsReq, CodeFindReferencesReq, CodeGotoDefinitionReq, CodeGotoReferencesReq,
     CodeIndexStats, CodeIndexStatusReq, CodeIndexStatusResponse, CodeNavLocation, CodeNavResponse,
 };
-pub use xvora_workspace_types::rpc::export_github::ExportGithubReq;
-pub use xvora_workspace_types::rpc::fs::{
+pub use workspace_types::rpc::export_github::ExportGithubReq;
+pub use workspace_types::rpc::fs::{
     ClientFsListNode, ClientFsListReq, ClientFsListRes, ClientFsReadFileReq, ClientFsReadFileRes,
     ClientFsStatReq, ClientFsStatRes, GetFileEntry, GetFileResult, GetFilesReq, GetFilesRes,
     PutFileEntry, PutFileResult, PutFilesReq, PutFilesRes,
 };
-pub use xvora_workspace_types::rpc::git::{
+pub use workspace_types::rpc::git::{
     BinaryFileInfoData, CheckoutCommitResponse, CommitWithPatchData, DetectVcsKindReq,
     DiffStatsSummary, GitBranchesReq, GitCheckoutCommitReq, GitCheckoutReq, GitCollectChangesReq,
     GitCollectChangesResponse, GitCommitReq, GitCurrentCommitReq, GitDiffReq, GitDiscardReq,
@@ -46,10 +46,10 @@ pub use xvora_workspace_types::rpc::git::{
     GitStatusFormat, GitStatusReq, GitSyncBaseReq, GitUnstageReq, IdentityData, PublicBaseData,
     RepoInfo, UNTRACKED_CONTENT_THRESHOLD, UncommittedChangesData, UntrackedFileData,
 };
-pub use xvora_workspace_types::rpc::hooks::{
+pub use workspace_types::rpc::hooks::{
     HookEventNameWire, HookRegistryReq, HookRegistryWire, HookSpecWire,
 };
-pub use xvora_workspace_types::rpc::hunks::{
+pub use workspace_types::rpc::hunks::{
     BulkHunkActionResponse, FileContentEntryWire, FileContentStatusWire, FileContentViewWire,
     FileSummary, FilteredHunksResponse, HunkActionKind, HunkActionReq, HunkActionResponse,
     HunkAllActionReq, HunkFileActionReq, HunkGetAllFileContentsReq, HunkGetAllHunksReq,
@@ -57,20 +57,20 @@ pub use xvora_workspace_types::rpc::hunks::{
     HunkGetStagedFilesReq, HunkLineInfoWire, HunkSingleActionReq, HunkSourceWire,
     HunkTurnActionReq, HunkWire, SessionStatsWire, SessionSummaryWire, TurnSummaryWire,
 };
-pub use xvora_workspace_types::rpc::repos::{
+pub use workspace_types::rpc::repos::{
     ProvisionedRepo, RepoManifest, ReposListReq, ReposListResponse,
 };
-pub use xvora_workspace_types::rpc::search::{FuzzyChangeReq, FuzzyCloseReq, FuzzyOpenReq};
-pub use xvora_workspace_types::rpc::session::{BeginPromptReq, EndPromptReq, RewindToReq};
-pub use xvora_workspace_types::rpc::skills::DiscoverSkillsReq;
-pub use xvora_workspace_types::rpc::workspace::WorkspaceInfoReq;
-pub use xvora_workspace_types::rpc::worktree::{
+pub use workspace_types::rpc::search::{FuzzyChangeReq, FuzzyCloseReq, FuzzyOpenReq};
+pub use workspace_types::rpc::session::{BeginPromptReq, EndPromptReq, RewindToReq};
+pub use workspace_types::rpc::skills::DiscoverSkillsReq;
+pub use workspace_types::rpc::workspace::WorkspaceInfoReq;
+pub use workspace_types::rpc::worktree::{
     CreateWorktreeFromWorktreeRequestWire, CreateWorktreeFromWorktreeSyncReq,
     PrepareWorktreeFromWorktreeResponse, WorktreeCleanArtifactsReq, WorktreeDbPathReq,
     WorktreeDbPathResponse, WorktreeDbRebuildReq, WorktreeDbStatsReq, WorktreeDetachReq,
     WorktreeGcReq, WorktreeListReq, WorktreeSalvageReq, WorktreeShowReq,
 };
-pub use xvora_workspace_types::rpc::{RpcActivityClass, WorkspaceRpc};
+pub use workspace_types::rpc::{RpcActivityClass, WorkspaceRpc};
 /// Implements [`WorkspaceRpc`] for request types whose responses reference crate-internal types and so cannot live in the types crate.
 /// The activity class is a required argument for the same reason the trait const has no default: every method's author must decide.
 macro_rules! workspace_rpc {
@@ -97,7 +97,7 @@ pub trait WorkspaceOp: WorkspaceRpc + DeserializeOwned + Send + Sync {
 /// Prepare a worktree fork from an existing worktree (validation + path resolution).
 /// Returns a serialized result with `spawn_task` flag and the response.
 fn hub_transfer_client() -> WorkspaceResult<reqwest::Client> {
-    xvora_extra_ca::build_reqwest_client(|builder| {
+    extra_ca::build_reqwest_client(|builder| {
         builder.timeout(std::time::Duration::from_secs(600))
     })
     .map_err(|e| WorkspaceError::HubError(format!("failed to create HTTP client: {e}")))
@@ -146,7 +146,7 @@ impl WorkspaceRpc for GetRewindPointsReq {
     const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = Vec<crate::session::file_state::RewindPoint>;
 }
-fn hunk_line_info_to_wire(info: &xvora_hunk_tracker::types::HunkLineInfo) -> HunkLineInfoWire {
+fn hunk_line_info_to_wire(info: &hunk_tracker::types::HunkLineInfo) -> HunkLineInfoWire {
     HunkLineInfoWire {
         old_start: info.old_start,
         old_count: info.old_count,
@@ -154,7 +154,7 @@ fn hunk_line_info_to_wire(info: &xvora_hunk_tracker::types::HunkLineInfo) -> Hun
         new_count: info.new_count,
     }
 }
-fn hunk_source_to_wire(source: xvora_hunk_tracker::types::HunkSource) -> HunkSourceWire {
+fn hunk_source_to_wire(source: hunk_tracker::types::HunkSource) -> HunkSourceWire {
     use hunk_tracker::types::HunkSource as S;
     match source {
         S::AgentEdit { prompt_index } => HunkSourceWire::AgentEdit { prompt_index },
@@ -162,7 +162,7 @@ fn hunk_source_to_wire(source: xvora_hunk_tracker::types::HunkSource) -> HunkSou
         S::External => HunkSourceWire::External,
     }
 }
-fn hunk_to_wire(hunk: &xvora_hunk_tracker::types::Hunk) -> HunkWire {
+fn hunk_to_wire(hunk: &hunk_tracker::types::Hunk) -> HunkWire {
     HunkWire {
         id: hunk.id.as_str().to_owned(),
         path: hunk.path.clone(),
@@ -175,7 +175,7 @@ fn hunk_to_wire(hunk: &xvora_hunk_tracker::types::Hunk) -> HunkWire {
     }
 }
 fn file_content_status_to_wire(
-    status: xvora_hunk_tracker::types::FileContentStatus,
+    status: hunk_tracker::types::FileContentStatus,
 ) -> FileContentStatusWire {
     use hunk_tracker::types::FileContentStatus as S;
     match status {
@@ -188,7 +188,7 @@ fn file_content_status_to_wire(
     }
 }
 fn file_content_view_to_wire(
-    view: xvora_hunk_tracker::types::FileContentView,
+    view: hunk_tracker::types::FileContentView,
 ) -> FileContentViewWire {
     FileContentViewWire {
         status: file_content_status_to_wire(view.status),
@@ -196,7 +196,7 @@ fn file_content_view_to_wire(
         content: view.content,
     }
 }
-fn file_content_entry_to_wire(entry: xvora_hunk_tracker::FileContentEntry) -> FileContentEntryWire {
+fn file_content_entry_to_wire(entry: hunk_tracker::FileContentEntry) -> FileContentEntryWire {
     FileContentEntryWire {
         path: entry.path,
         baseline: file_content_view_to_wire(entry.baseline),
@@ -205,7 +205,7 @@ fn file_content_entry_to_wire(entry: xvora_hunk_tracker::FileContentEntry) -> Fi
         staged: entry.staged,
     }
 }
-fn session_stats_to_wire(stats: &xvora_hunk_tracker::types::SessionStats) -> SessionStatsWire {
+fn session_stats_to_wire(stats: &hunk_tracker::types::SessionStats) -> SessionStatsWire {
     SessionStatsWire {
         accepted_hunks: stats.accepted_hunks,
         rejected_hunks: stats.rejected_hunks,
@@ -215,7 +215,7 @@ fn session_stats_to_wire(stats: &xvora_hunk_tracker::types::SessionStats) -> Ses
         rejected_lines_removed: stats.rejected_lines_removed,
     }
 }
-fn turn_summary_to_wire(turn: xvora_hunk_tracker::types::TurnSummary) -> TurnSummaryWire {
+fn turn_summary_to_wire(turn: hunk_tracker::types::TurnSummary) -> TurnSummaryWire {
     TurnSummaryWire {
         prompt_index: turn.prompt_index,
         files: turn.files,
@@ -224,7 +224,7 @@ fn turn_summary_to_wire(turn: xvora_hunk_tracker::types::TurnSummary) -> TurnSum
         lines_removed: turn.lines_removed,
     }
 }
-fn session_summary_to_wire(summary: xvora_hunk_tracker::SessionSummary) -> SessionSummaryWire {
+fn session_summary_to_wire(summary: hunk_tracker::SessionSummary) -> SessionSummaryWire {
     SessionSummaryWire {
         stats: session_stats_to_wire(&summary.stats),
         turns: summary
@@ -240,17 +240,17 @@ fn session_summary_to_wire(summary: xvora_hunk_tracker::SessionSummary) -> Sessi
         unattributed_pending: summary.unattributed_pending,
     }
 }
-fn tracker_action(kind: HunkActionKind) -> xvora_hunk_tracker::types::HunkAction {
+fn tracker_action(kind: HunkActionKind) -> hunk_tracker::types::HunkAction {
     match kind {
-        HunkActionKind::Accept => xvora_hunk_tracker::types::HunkAction::Accept,
-        HunkActionKind::Reject => xvora_hunk_tracker::types::HunkAction::Reject,
+        HunkActionKind::Accept => hunk_tracker::types::HunkAction::Accept,
+        HunkActionKind::Reject => hunk_tracker::types::HunkAction::Reject,
     }
 }
 /// Access the per-session hunk tracker; the op must carry a session.
 fn session_tracker(
     ws: &WorkspaceHandle,
     session_id: Option<&str>,
-) -> WorkspaceResult<xvora_hunk_tracker::HunkTrackerHandle> {
+) -> WorkspaceResult<hunk_tracker::HunkTrackerHandle> {
     let sid = session_id
         .ok_or_else(|| WorkspaceError::HubError("per-session hunk op requires a session".into()))?;
     let session = ws
@@ -267,15 +267,15 @@ const REPOS_MANIFEST_MAX_ANCESTOR_HOPS: usize = 16;
 /// Does not escape the sandbox workspace or load `~/.grok/repos.json` /
 /// `$GROK_HOME/repos.json` (user-global, not a provisioned workspace).
 fn repos_manifest_search_dirs(start: &std::path::Path) -> Vec<std::path::PathBuf> {
-    let rel = xvora_workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH;
-    let home = xvora_dirs::home_dir();
+    let rel = workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH;
+    let home = dirs::home_dir();
     let mut global_manifests = Vec::with_capacity(2);
     if let Some(v) = std::env::var_os("GROK_HOME")
         && !v.is_empty()
     {
         global_manifests.push(std::path::PathBuf::from(v).join("repos.json"));
     }
-    if let Some(user_home) = xvora_config::user_grok_home() {
+    if let Some(user_home) = config::user_grok_home() {
         global_manifests.push(user_home.join("repos.json"));
     }
     let mut out = Vec::new();
@@ -306,7 +306,7 @@ impl WorkspaceOp for ReposListReq {
         ws: &WorkspaceHandle,
         _session_id: Option<&str>,
     ) -> WorkspaceResult<Self::Response> {
-        let rel = xvora_workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH;
+        let rel = workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH;
         let start = ws.root_cwd()?;
         let mut manifest = RepoManifest::new(Vec::new());
         for d in repos_manifest_search_dirs(&start) {
@@ -357,7 +357,7 @@ pub(crate) async fn materialized_git_roots(
     Ok(manifest.materialized_mounts(&root))
 }
 async fn load_repos_manifest(root: &std::path::Path) -> WorkspaceResult<RepoManifest> {
-    let path = root.join(xvora_workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH);
+    let path = root.join(workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH);
     match tokio::fs::read(&path).await {
         Ok(bytes) => RepoManifest::from_json_bytes(&bytes)
             .map_err(|e| WorkspaceError::HubError(e.to_string())),
@@ -746,7 +746,7 @@ impl WorkspaceOp for HunkSingleActionReq {
         ws: &WorkspaceHandle,
         session_id: Option<&str>,
     ) -> WorkspaceResult<Self::Response> {
-        let hunk_id = xvora_hunk_tracker::types::HunkId::from_string(self.action.hunk_id.clone());
+        let hunk_id = hunk_tracker::types::HunkId::from_string(self.action.hunk_id.clone());
         let hunk_action = tracker_action(self.action.action);
         session_tracker(ws, session_id)?
             .hunk_action(hunk_id, hunk_action)
@@ -905,7 +905,7 @@ impl WorkspaceOp for HunkGetFileSummariesReq {
             let path_str = h.path.to_string_lossy().to_string();
             let is_agent = matches!(
                 h.source,
-                xvora_hunk_tracker::types::HunkSource::AgentEdit { .. }
+                hunk_tracker::types::HunkSource::AgentEdit { .. }
             );
             let entry = file_map.entry(path_str).or_insert((0, false));
             entry.0 += 1;
@@ -1113,7 +1113,7 @@ fn resolve_index_for_workspace(
     ws: &WorkspaceHandle,
     root: Option<&std::path::Path>,
 ) -> WorkspaceResult<(
-    std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>,
+    std::sync::Arc<codebase_graph::IndexManagerHandle>,
     std::path::PathBuf,
 )> {
     let index_root = index_root_for(ws, root)?;
@@ -1125,7 +1125,7 @@ fn resolve_index_for_file(
     root: Option<&std::path::Path>,
     file: &str,
 ) -> WorkspaceResult<(
-    std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>,
+    std::sync::Arc<codebase_graph::IndexManagerHandle>,
     std::path::PathBuf,
 )> {
     if root.is_none() {
@@ -1239,7 +1239,7 @@ impl WorkspaceOp for CodeIndexStatusReq {
     }
 }
 fn query_result_to_response(
-    result: Result<xvora_codebase_graph::QueryResult, xvora_codebase_graph::QueryError>,
+    result: Result<codebase_graph::QueryResult, codebase_graph::QueryError>,
 ) -> CodeNavResponse {
     match result {
         Ok(qr) => CodeNavResponse {
@@ -1257,7 +1257,7 @@ fn query_result_to_response(
     }
 }
 fn symbol_locations_to_response(
-    locations: Vec<xvora_codebase_graph::SymbolLocation>,
+    locations: Vec<codebase_graph::SymbolLocation>,
 ) -> CodeNavResponse {
     CodeNavResponse {
         locations: locations
@@ -1422,7 +1422,7 @@ impl WorkspaceOp for WorktreeDbStatsReq {
 ///
 /// - **`Local`** wraps a [`WorkspaceHandle`].
 ///   Extensions dispatch through the handle.
-///   Tool calls dispatch through the workspace session's [`FinalizedToolset`](xvora_tools::registry::types::FinalizedToolset).
+///   Tool calls dispatch through the workspace session's [`FinalizedToolset`](tools::registry::types::FinalizedToolset).
 ///   Call [`bind_local_session`](Self::bind_local_session) after building the agent to install the toolset on the workspace session.
 ///
 /// - **`Proxy`** wraps a [`WorkspaceClient`] connected to a remote hub.
@@ -1486,9 +1486,9 @@ impl WorkspaceOps {
         &self,
         session_id: &str,
         cwd: std::path::PathBuf,
-        hunk_tracker: xvora_hunk_tracker::HunkTrackerHandle,
-        toolset: Arc<xvora_tools::registry::types::FinalizedToolset>,
-        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+        hunk_tracker: hunk_tracker::HunkTrackerHandle,
+        toolset: Arc<tools::registry::types::FinalizedToolset>,
+        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     ) -> WorkspaceResult<()> {
         let Self::Local { handle } = self else {
             return Ok(());
@@ -1523,7 +1523,7 @@ impl WorkspaceOps {
     pub async fn on_before_turn(
         &self,
         session_id: &str,
-        payload: &xvora_tool_protocol::turn_hook::BeforeTurnPayload,
+        payload: &tool_protocol::turn_hook::BeforeTurnPayload,
     ) {
         match self {
             Self::Local { handle } => {
@@ -1537,7 +1537,7 @@ impl WorkspaceOps {
     pub async fn on_after_turn(
         &self,
         session_id: &str,
-        payload: &xvora_tool_protocol::turn_hook::AfterTurnPayload,
+        payload: &tool_protocol::turn_hook::AfterTurnPayload,
     ) {
         match self {
             Self::Local { handle } => {
@@ -1600,7 +1600,7 @@ impl WorkspaceOps {
     /// It is `None` before the first bind or against servers predating the field.
     pub fn server_version(&self) -> Option<String> {
         match self {
-            Self::Local { .. } => Some(xvora_version::VERSION.to_owned()),
+            Self::Local { .. } => Some(version::VERSION.to_owned()),
             Self::Proxy { client } => client.server_binary_version(),
         }
     }
@@ -1668,7 +1668,7 @@ impl WorkspaceOps {
     }
     /// Dispatch a tool call through the workspace.
     ///
-    /// - **Local**: dispatches through the workspace session's [`FinalizedToolset`](xvora_tools::registry::types::FinalizedToolset) (in-process).
+    /// - **Local**: dispatches through the workspace session's [`FinalizedToolset`](tools::registry::types::FinalizedToolset) (in-process).
     ///   Requires `session_id` to look up the session.
     /// - **Proxy**: routes through the server `ToolHarness` (remote).
     pub async fn call_tool(
@@ -1677,17 +1677,17 @@ impl WorkspaceOps {
         args: Value,
         call_id: &str,
         session_id: Option<&str>,
-    ) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+    ) -> Result<ToolRunResult, tool_runtime::ToolError> {
         match self {
             Self::Local { handle } => {
                 let session_id = session_id.ok_or_else(|| {
-                    xvora_tool_runtime::ToolError::custom(
+                    tool_runtime::ToolError::custom(
                         "missing_session",
                         "session_id required for local tool dispatch",
                     )
                 })?;
                 let session = handle.session(session_id).ok_or_else(|| {
-                    xvora_tool_runtime::ToolError::custom(
+                    tool_runtime::ToolError::custom(
                         "session_not_found",
                         format!(
                             "workspace session not found: {session_id} \
@@ -1699,20 +1699,20 @@ impl WorkspaceOps {
             }
             Self::Proxy { client } => {
                 if !client.is_connected() {
-                    return Err(xvora_tool_runtime::ToolError::network_error(
+                    return Err(tool_runtime::ToolError::network_error(
                         "The workspace server connection was lost. \
                          Please restart your session to reconnect.",
                     ));
                 }
-                let tool_id = xvora_tool_protocol::ToolId::new(name).map_err(|e| {
-                    xvora_tool_runtime::ToolError::custom(
+                let tool_id = tool_protocol::ToolId::new(name).map_err(|e| {
+                    tool_runtime::ToolError::custom(
                         "hub_proxy_error",
                         format!("invalid tool name: {e}"),
                     )
                 })?;
-                let mut ctx = xvora_tool_runtime::ToolCallContext::default();
+                let mut ctx = tool_runtime::ToolCallContext::default();
                 ctx.call_id =
-                    xvora_tool_protocol::ToolCallId::new(call_id.to_owned()).unwrap_or(ctx.call_id);
+                    tool_protocol::ToolCallId::new(call_id.to_owned()).unwrap_or(ctx.call_id);
                 let mut stream = client.harness().call(tool_id, args, ctx).await;
                 let typed = crate::hub_channel::consume_stream_terminal(&mut stream)
                     .await
@@ -1722,7 +1722,7 @@ impl WorkspaceOps {
                         }
                     })?;
                 serde_json::from_value::<ToolRunResult>(typed.value).map_err(|e| {
-                    xvora_tool_runtime::ToolError::custom(
+                    tool_runtime::ToolError::custom(
                         "tool_result_deserialize",
                         format!("tool result deserialization failed: {e}"),
                     )
@@ -1807,7 +1807,7 @@ mod tests {
         assert!(empty.repos.is_empty(), "missing manifest → empty list");
         assert_eq!(
             empty.version,
-            xvora_workspace_types::rpc::repos::REPOS_MANIFEST_VERSION
+            workspace_types::rpc::repos::REPOS_MANIFEST_VERSION
         );
         let one = RepoManifest::new(vec![ProvisionedRepo {
             name: "app".into(),
@@ -1819,7 +1819,7 @@ mod tests {
         std::fs::create_dir_all(tmp.path().join(".grok")).unwrap();
         std::fs::write(
             tmp.path()
-                .join(xvora_workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH),
+                .join(workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH),
             one.to_json_bytes().unwrap(),
         )
         .unwrap();
@@ -1844,7 +1844,7 @@ mod tests {
         ]);
         std::fs::write(
             tmp.path()
-                .join(xvora_workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH),
+                .join(workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH),
             many.to_json_bytes().unwrap(),
         )
         .unwrap();
@@ -1867,7 +1867,7 @@ mod tests {
         }]);
         std::fs::create_dir_all(sandbox_ws.join(".grok")).unwrap();
         std::fs::write(
-            sandbox_ws.join(xvora_workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH),
+            sandbox_ws.join(workspace_types::rpc::repos::REPOS_MANIFEST_RELATIVE_PATH),
             one.to_json_bytes().unwrap(),
         )
         .unwrap();
@@ -1975,12 +1975,12 @@ mod tests {
         };
         let sid = "sess-teardown";
         let toolset =
-            std::sync::Arc::new(xvora_tools::registry::types::FinalizedToolset::empty_for_test());
+            std::sync::Arc::new(tools::registry::types::FinalizedToolset::empty_for_test());
         let weak = std::sync::Arc::downgrade(&toolset);
         ops.bind_local_session(
             sid,
             handle.root_cwd().unwrap(),
-            xvora_hunk_tracker::HunkTrackerHandle::noop(),
+            hunk_tracker::HunkTrackerHandle::noop(),
             toolset,
             None,
         )

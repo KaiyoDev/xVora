@@ -17,7 +17,7 @@ use crate::remote::BackendClient;
 use crate::session::export::{ExportedMessage, ExportedMetadata};
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use xvora_telemetry::id::agent_id;
+use telemetry::id::agent_id;
 
 /// Max buffered notifications before triggering an emergency flush.
 /// Sized to keep memory under ~50MB even with large notifications.

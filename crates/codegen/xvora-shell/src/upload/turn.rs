@@ -1,7 +1,7 @@
 use crate::session::repo_changes::TraceExportConfig;
 use futures::FutureExt as _;
 use tokio::sync::oneshot;
-use xvora_workspace::permission::PermissionEvent;
+use workspace::permission::PermissionEvent;
 /// Request to upload a trace for a synthetic auto-wake turn.
 ///
 /// The notification bridge sends it for bash task completions; the subagent coordinator sends it for subagent completions.
@@ -51,7 +51,7 @@ pub(crate) enum UploadWait {
 /// Turn-message capture handed to [`complete_prompt_trace`].
 #[derive(Debug)]
 pub(crate) enum TurnMessages {
-    Captured(xvora_chat_state::TurnCapture),
+    Captured(chat_state::TurnCapture),
     Missing(MissingTurnMessages),
 }
 /// Why there is no capture to upload — answered-empty must not be conflated
@@ -67,8 +67,8 @@ pub(crate) enum MissingTurnMessages {
     /// without an answer — a real miss, recorded as a failure.
     ChannelDropped,
 }
-impl From<Option<xvora_chat_state::TurnCapture>> for TurnMessages {
-    fn from(capture: Option<xvora_chat_state::TurnCapture>) -> Self {
+impl From<Option<chat_state::TurnCapture>> for TurnMessages {
+    fn from(capture: Option<chat_state::TurnCapture>) -> Self {
         match capture {
             Some(capture) => Self::Captured(capture),
             None => Self::Missing(MissingTurnMessages::Empty),
@@ -76,7 +76,7 @@ impl From<Option<xvora_chat_state::TurnCapture>> for TurnMessages {
     }
 }
 /// Why trace uploads are enabled or disabled for a given prompt.
-pub(crate) use xvora_telemetry::session_metrics::TraceUploadReason;
+pub(crate) use telemetry::session_metrics::TraceUploadReason;
 #[derive(Clone)]
 pub(crate) struct PromptTraceContext {
     pub(crate) gcs_config: TraceExportConfig,
@@ -84,7 +84,7 @@ pub(crate) struct PromptTraceContext {
     pub(crate) turn_number: u64,
     pub(crate) session_handle: crate::session::SessionHandle,
     pub(crate) session_registry_enabled: bool,
-    pub(crate) upload_queue: Option<xvora_file_utils::queue::UploadQueue>,
+    pub(crate) upload_queue: Option<file_utils::queue::UploadQueue>,
     pub(crate) artifact_tracker: super::manifest::ArtifactTracker,
     pub(crate) auth_manager: std::sync::Arc<crate::auth::AuthManager>,
 }
@@ -146,7 +146,7 @@ where
                 prompt_id = %prompt_id,
                 session_id = %session_id,
             );
-            xvora_file_utils::trace_context::link_span_to_current(&root);
+            file_utils::trace_context::link_span_to_current(&root);
             root
         }
     };
@@ -258,7 +258,7 @@ pub(crate) async fn complete_prompt_trace(
     use super::manifest::{build_manifest, resolve_upload_method, write_upload_manifest};
     let upload_method = resolve_upload_method(&ctx.gcs_config);
     let method_str = upload_method.as_str();
-    xvora_telemetry::session_ctx::log_session_event(
+    telemetry::session_ctx::log_session_event(
         crate::agent::session_metrics::TraceUploadAttempted {
             session_id: ctx.session_info.id.0.to_string(),
             turn_number: ctx.turn_number,
@@ -318,7 +318,7 @@ pub(crate) async fn complete_prompt_trace(
     };
     match terminal_failure {
         Some((error_category, status_code)) => {
-            xvora_telemetry::session_ctx::log_session_event(
+            telemetry::session_ctx::log_session_event(
                 crate::agent::session_metrics::TraceUploadFailed {
                     session_id: ctx.session_info.id.0.to_string(),
                     turn_number: ctx.turn_number,
@@ -329,7 +329,7 @@ pub(crate) async fn complete_prompt_trace(
             );
         }
         None => {
-            xvora_telemetry::session_ctx::log_session_event(
+            telemetry::session_ctx::log_session_event(
                 crate::agent::session_metrics::TraceUploadSucceeded {
                     session_id: ctx.session_info.id.0.to_string(),
                     turn_number: ctx.turn_number,
@@ -398,10 +398,10 @@ fn record_missing_turn_messages(
 /// Returns `None` if absent or invalid.
 pub(crate) fn parse_agent_profile_from_meta(
     meta: Option<&agent_client_protocol::Meta>,
-) -> Option<xvora_agent::AgentDefinition> {
+) -> Option<agent::AgentDefinition> {
     let value = meta?.get("agentProfile")?;
     if value.is_object() {
-        return match xvora_agent::AgentDefinition::from_json(value) {
+        return match agent::AgentDefinition::from_json(value) {
             Ok(def) => {
                 tracing::info!(
                     agent_name = %def.name,
@@ -423,7 +423,7 @@ pub(crate) fn parse_agent_profile_from_meta(
             agent_name = %name,
             "Resolving agent from _meta.agentProfile (string name)"
         );
-        return xvora_agent::discovery::by_name(name);
+        return agent::discovery::by_name(name);
     }
     tracing::warn!(
         "Ignoring _meta.agentProfile: expected a JSON object or string, got {:?}",

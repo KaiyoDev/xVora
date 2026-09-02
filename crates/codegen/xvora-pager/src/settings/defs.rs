@@ -10,9 +10,9 @@ use crate::appearance::ScrollMode;
 use crate::appearance::TextSelection;
 use crate::appearance::permission_cursor::DefaultSelectedPermission;
 
-use xvora_shell::agent::config::UiConfig;
-use xvora_shell::util::config::DISPLAY_REFRESH_DEFAULT_AUTO_CADENCE_ENABLED;
-use xvora_tools::implementations::grok_build::ask_user_question;
+use shell::agent::config::UiConfig;
+use shell::util::config::DISPLAY_REFRESH_DEFAULT_AUTO_CADENCE_ENABLED;
+use tools::implementations::grok_build::ask_user_question;
 
 // ---------------------------------------------------------------------------
 // Int bounds for `max_thoughts_width`.
@@ -330,7 +330,7 @@ const VOICE_CAPTURE_MODE_CHOICES: &[EnumChoice] = &[
 
 // Voice STT language choices for the settings modal.
 //
-// Concrete codes must match `xvora_voice::STT_LANGUAGES`, the official Grok STT catalog
+// Concrete codes must match `voice::STT_LANGUAGES`, the official Grok STT catalog
 // The catalog is documented at https://docs.x.ai/developers/model-capabilities/audio/speech-to-text
 // `auto` is client-only; the voice crate resolves it to a concrete code before the STT handshake
 // Order: English (default), System, then the remaining languages A to Z by English name
@@ -856,7 +856,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             ],
             kind: SettingKind::Bool {
                 // The const is shared with the resolver, so the modal shows the effective default when the user layer is unset
-                default: xvora_shell::util::config::DEFAULT_REMEMBER_TOOL_APPROVALS,
+                default: shell::util::config::DEFAULT_REMEMBER_TOOL_APPROVALS,
             },
             restart_required: true,
             hidden_in_minimal: false,
@@ -1441,7 +1441,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
         },
         // SHELL-owned, persisted to `[ui].voice_stt_language`. Applied live to the next voice capture (no restart).
         // Default English; System (`auto`) follows the process locale when it maps to a Grok STT language
-        // The catalog is the official STT languages (see xvora_voice::STT_LANGUAGES)
+        // The catalog is the official STT languages (see voice::STT_LANGUAGES)
         SettingMeta {
             key: "voice_stt_language",
             category: SettingCategory::Editor,

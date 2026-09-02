@@ -1,6 +1,6 @@
 use super::*;
 use serial_test::serial;
-use xvora_test_support::EnvGuard;
+use test_support::EnvGuard;
 #[test]
 fn main_cli_tools_override_preserves_profile_injection_policy() {
     let overrides = CliAgentOverrides {
@@ -19,7 +19,7 @@ fn main_cli_tools_override_preserves_profile_injection_policy() {
 /// The lean shape is all scalars/enums, so no custom tolerant deserializer is needed.
 #[test]
 fn auto_mode_config_parses_from_toml_and_json_equivalently() {
-    use xvora_workspace::permission::ClassifierPromptType;
+    use workspace::permission::ClassifierPromptType;
     let toml_src = r#"
 enabled = true
 prompt_type = "no_user_tool_prefix"
@@ -56,7 +56,7 @@ reasoning_effort = "low"
 /// `prompt_type` wire values are the snake_case `ClassifierPromptType` names.
 #[test]
 fn auto_mode_prompt_type_parses_snake_case() {
-    use xvora_workspace::permission::ClassifierPromptType;
+    use workspace::permission::ClassifierPromptType;
     for (s, variant) in [
         ("full", ClassifierPromptType::Full),
         (
@@ -483,7 +483,7 @@ async fn aux_model_with_auth_provider_never_reroutes() {
 fn session_resolver_is_not_stamped_onto_third_party_samplers() {
     #[derive(Debug)]
     struct SessionResolver;
-    impl xvora_sampler::BearerResolver for SessionResolver {
+    impl sampler::BearerResolver for SessionResolver {
         fn current_bearer(&self) -> Option<String> {
             Some("session-jwt".into())
         }
@@ -732,13 +732,13 @@ fn shell_environment_policy_typo_does_not_fail_config() {
 }
 #[test]
 fn shell_environment_policy_known_keys_track_the_policy_struct() {
-    let xvora_tools::util::ShellEnvironmentPolicy {
+    let tools::util::ShellEnvironmentPolicy {
         inherit: _,
         ignore_default_excludes: _,
         exclude: _,
         set: _,
         include_only: _,
-    } = xvora_tools::util::ShellEnvironmentPolicy::default();
+    } = tools::util::ShellEnvironmentPolicy::default();
     let ShellEnvironmentPolicyKnownKeys {
         inherit: _,
         ignore_default_excludes: _,
@@ -874,7 +874,7 @@ async fn static_key_shadows_defined_provider_through_pipeline() {
     let _ = provider.ensure_fresh_token(None).await;
     let creds = resolve_credentials(model, Some("session-jwt"));
     assert_eq!(creds.api_key.as_deref(), Some("sk-house-key"));
-    assert_eq!(creds.auth_type, xvora_chat_state::AuthType::ApiKey);
+    assert_eq!(creds.auth_type, chat_state::AuthType::ApiKey);
     assert_eq!(creds.base_url, "https://switchboard.example/v1");
 }
 #[test]
@@ -928,7 +928,7 @@ async fn resolve_credentials_serves_cached_provider_token() {
 /// A set `env_key` shadows even a warm provider cache at resolve time, so the static credential wins on the wire and the provider never governs.
 #[tokio::test]
 async fn set_env_key_shadows_warm_provider_at_resolve_time() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let var = "GROK_TEST_ENVKEY_SHADOW";
     let _guard = EnvGuard::set(var, "env-token");
     let mut model = test_model_entry("m", "https://litellm.example/v1", None, Some(var), None);
@@ -1122,7 +1122,7 @@ fn sampling_config_uses_fallback_when_no_model_api_key() {
         ResolvedCredentials {
             api_key: Some("fallback-key".to_string()),
             base_url: model.info().base_url.clone(),
-            auth_type: xvora_chat_state::AuthType::ApiKey,
+            auth_type: chat_state::AuthType::ApiKey,
             auth_scheme: AuthScheme::Bearer,
         },
         None,
@@ -1200,7 +1200,7 @@ fn default_models_dual_endpoint_routing() {
                 .api_base_url
                 .clone()
                 .unwrap_or(entry.info().base_url.clone()),
-            auth_type: xvora_chat_state::AuthType::ApiKey,
+            auth_type: chat_state::AuthType::ApiKey,
             auth_scheme: AuthScheme::Bearer,
         };
         assert_eq!(
@@ -1285,7 +1285,7 @@ fn env_keys_resolve_skips_whitespace_only_value() {
 #[test]
 #[serial]
 fn first_own_credential_empty_api_key_falls_through_to_env_key() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let var = "GROK_TEST_FIRST_OWN_CRED_ENV";
     let _guard = EnvGuard::set(var, "env-token");
     let env_key = EnvKeys::single(var);
@@ -1337,7 +1337,7 @@ fn resolve_credentials_multi_env_key_uses_lc_alias() {
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_session() {
     use chat_state::AuthType;
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let primary = "GROK_TEST_EMPTY_ENV_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_LC_ALIAS";
     let _primary = EnvGuard::set(primary, "");
@@ -1354,7 +1354,7 @@ fn resolve_credentials_empty_env_key_falls_through_to_session() {
 fn resolve_credentials_empty_env_key_falls_through_to_global_key() {
     use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
     use chat_state::AuthType;
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let sentinel = "xvora-global-sentinel-key";
     let primary = "GROK_TEST_EMPTY_ENV_GLOBAL_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_GLOBAL_ALIAS";
@@ -1477,13 +1477,13 @@ fn proxy_messages_models_use_bearer_auth_scheme() {
 fn resolve_credentials_no_session_key_returns_api_key() {
     let model = test_model_entry("m", "https://example.com/v1", None, None, None);
     let creds = resolve_credentials(&model, None);
-    assert_eq!(creds.auth_type, xvora_chat_state::AuthType::ApiKey);
+    assert_eq!(creds.auth_type, chat_state::AuthType::ApiKey);
 }
 fn api_key_creds(base_url: &str) -> ResolvedCredentials {
     ResolvedCredentials {
         api_key: Some("xvora-secret".to_string()),
         base_url: base_url.to_string(),
-        auth_type: xvora_chat_state::AuthType::ApiKey,
+        auth_type: chat_state::AuthType::ApiKey,
         auth_scheme: Default::default(),
     }
 }
@@ -1568,12 +1568,12 @@ fn x_api_key_auth_scheme_flows_from_config_to_sampler() {
     model.info.auth_scheme = AuthScheme::XApiKey;
     let creds = resolve_credentials(&model, None);
     assert_eq!(creds.auth_scheme, AuthScheme::XApiKey);
-    assert_eq!(creds.auth_type, xvora_chat_state::AuthType::ApiKey);
+    assert_eq!(creds.auth_type, chat_state::AuthType::ApiKey);
     assert_eq!(creds.api_key, Some("sk-ant-test-key".to_string()));
     let config = sampling_config_for_model(&model, creds, None, None, None, None);
     assert_eq!(config.auth_scheme, AuthScheme::XApiKey);
     assert_eq!(config.api_backend, ApiBackend::Messages);
-    let client = xvora_sampler::SamplingClient::new(config).expect("client should build");
+    let client = sampler::SamplingClient::new(config).expect("client should build");
     let info = client.auth_info();
     assert_eq!(info.auth_type, "x-api-key");
 }
@@ -1591,7 +1591,7 @@ fn auth_scheme_defaults_to_bearer_when_not_set_in_config() {
     assert_eq!(creds.auth_scheme, AuthScheme::Bearer);
     let config = sampling_config_for_model(&model, creds, None, None, None, None);
     assert_eq!(config.auth_scheme, AuthScheme::Bearer);
-    let client = xvora_sampler::SamplingClient::new(config).expect("client should build");
+    let client = sampler::SamplingClient::new(config).expect("client should build");
     let info = client.auth_info();
     assert_eq!(info.auth_type, "bearer");
 }
@@ -1817,19 +1817,19 @@ fn compaction_mode_precedence_env_over_config_over_remote_over_default() {
     );
     assert_eq!(
         resolve_compaction_mode_from(None, Some("segments"), Some("summary")),
-        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
+        CompactionMode::Segments(chat_state::CompactionDetail::default())
     );
     assert_eq!(
         resolve_compaction_mode_from(None, None, Some("segments")),
-        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
+        CompactionMode::Segments(chat_state::CompactionDetail::default())
     );
     assert_eq!(
         resolve_compaction_mode_from(Some("garbage"), None, Some("segments")),
-        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
+        CompactionMode::Segments(chat_state::CompactionDetail::default())
     );
     assert_eq!(
         resolve_compaction_mode_from(None, None, None),
-        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
+        CompactionMode::Segments(chat_state::CompactionDetail::default())
     );
 }
 /// Detail shares the env>config>remote>default combinator that the mode test exercises.
@@ -3975,7 +3975,7 @@ fn doom_loop_recovery_section_parses_from_toml() {
 #[test]
 #[serial]
 fn worktree_auto_gc_section_parses_from_toml() {
-    unsafe { xvora_fast_worktree::clear_auto_gc_env_for_test() };
+    unsafe { fast_worktree::clear_auto_gc_env_for_test() };
     let raw: toml::Value = toml::from_str(
         r#"
             [worktree.auto_gc]
@@ -3999,12 +3999,12 @@ fn worktree_auto_gc_section_parses_from_toml() {
     assert!(p.dry_run);
     assert_eq!(
         p.max_age_by_kind
-            .get(&xvora_fast_worktree::WorktreeKind::Subagent),
+            .get(&fast_worktree::WorktreeKind::Subagent),
         Some(&Some(3600))
     );
     assert_eq!(
         p.max_age_by_kind
-            .get(&xvora_fast_worktree::WorktreeKind::Manual),
+            .get(&fast_worktree::WorktreeKind::Manual),
         Some(&None)
     );
 }
@@ -5732,8 +5732,8 @@ fn ext_env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> + use<> {
         .collect();
     move |name: &str| map.get(name).cloned()
 }
-fn ext_client() -> xvora_telemetry::external::config::ExternalClientInfo {
-    xvora_telemetry::external::config::ExternalClientInfo::default()
+fn ext_client() -> telemetry::external::config::ExternalClientInfo {
+    telemetry::external::config::ExternalClientInfo::default()
 }
 #[test]
 fn external_otel_default_off_and_double_opt_in() {
@@ -6057,7 +6057,7 @@ fn external_otel_pin_protocol_hides_unlisted_file_siblings() {
     .expect("stream active");
     assert_eq!(
         cfg.logs_transport,
-        xvora_telemetry::external::config::OtlpTransport::HttpProtobuf,
+        telemetry::external::config::OtlpTransport::HttpProtobuf,
         "unlisted file protocol sibling must not win"
     );
 }
@@ -6171,7 +6171,7 @@ fn external_otel_pin_exporter_beats_none() {
     .expect("pinned exporter must beat OTEL_LOGS_EXPORTER=none");
     assert_eq!(
         cfg.logs_exporter,
-        xvora_telemetry::external::config::ExporterSelection::Otlp
+        telemetry::external::config::ExporterSelection::Otlp
     );
 }
 #[test]
@@ -6970,7 +6970,7 @@ default = "grok-4.5"
     )
     .unwrap();
     let v = semver::Version::parse("1.8.0").unwrap();
-    xvora_config::apply_version_overrides(&mut value, &v).unwrap();
+    config::apply_version_overrides(&mut value, &v).unwrap();
     let cfg = Config::new_from_toml_cfg(&value).unwrap();
     assert_eq!(cfg.models.default.as_deref(), Some("grok-4.5"));
 }
@@ -7870,44 +7870,44 @@ fn mcp_recursive_config_watch_feature_flag_used_when_no_higher_layer() {
 #[test]
 #[serial_test::serial(remote_sig_disarm)]
 fn remote_settings_disarm_managed_config_signatures() {
-    xvora_config::signed_policy::apply_remote_managed_config_signature_verification(
+    config::signed_policy::apply_remote_managed_config_signature_verification(
         Some(true),
         true,
     );
-    assert!(xvora_config::signed_policy::verification_active());
+    assert!(config::signed_policy::verification_active());
     let settings = crate::util::config::RemoteSettings {
         managed_config_signature_verification: Some(false),
         ..Default::default()
     };
     apply_remote_settings_side_effects(Some(&settings));
-    assert!(!xvora_config::signed_policy::verification_active());
+    assert!(!config::signed_policy::verification_active());
     let settings = crate::util::config::RemoteSettings {
         managed_config_signature_verification: Some(true),
         ..Default::default()
     };
     apply_remote_settings_side_effects(Some(&settings));
-    assert!(xvora_config::signed_policy::verification_active());
-    xvora_config::signed_policy::apply_remote_managed_config_signature_verification(
+    assert!(config::signed_policy::verification_active());
+    config::signed_policy::apply_remote_managed_config_signature_verification(
         Some(false),
         true,
     );
     apply_remote_settings_side_effects(None);
-    assert!(!xvora_config::signed_policy::verification_active());
-    xvora_config::signed_policy::apply_remote_managed_config_signature_verification(
+    assert!(!config::signed_policy::verification_active());
+    config::signed_policy::apply_remote_managed_config_signature_verification(
         Some(true),
         true,
     );
-    assert!(xvora_config::signed_policy::verification_active());
+    assert!(config::signed_policy::verification_active());
 }
 /// Keyed path: prod proxy origin can disarm; env override cannot.
 #[test]
 #[serial_test::serial(remote_sig_disarm)]
 fn remote_settings_disarm_requires_prod_proxy_when_keys_embedded() {
-    xvora_config::signed_policy::apply_remote_managed_config_signature_verification(
+    config::signed_policy::apply_remote_managed_config_signature_verification(
         Some(true),
         true,
     );
-    assert!(xvora_config::signed_policy::verification_active());
+    assert!(config::signed_policy::verification_active());
     let settings = crate::util::config::RemoteSettings {
         managed_config_signature_verification: Some(false),
         ..Default::default()
@@ -7917,14 +7917,14 @@ fn remote_settings_disarm_requires_prod_proxy_when_keys_embedded() {
     }
     apply_remote_settings_side_effects(Some(&settings));
     assert!(
-        !xvora_config::signed_policy::verification_active(),
+        !config::signed_policy::verification_active(),
         "prod proxy origin must allow disarm when keys are embedded"
     );
-    xvora_config::signed_policy::apply_remote_managed_config_signature_verification(
+    config::signed_policy::apply_remote_managed_config_signature_verification(
         Some(true),
         true,
     );
-    assert!(xvora_config::signed_policy::verification_active());
+    assert!(config::signed_policy::verification_active());
     unsafe {
         std::env::set_var(
             "GROK_CLI_CHAT_PROXY_BASE_URL",
@@ -7933,13 +7933,13 @@ fn remote_settings_disarm_requires_prod_proxy_when_keys_embedded() {
     }
     apply_remote_settings_side_effects(Some(&settings));
     assert!(
-        xvora_config::signed_policy::verification_active(),
+        config::signed_policy::verification_active(),
         "env-overridden proxy must not be able to disarm keyed verification"
     );
     unsafe {
         std::env::remove_var("GROK_CLI_CHAT_PROXY_BASE_URL");
     }
-    xvora_config::signed_policy::apply_remote_managed_config_signature_verification(
+    config::signed_policy::apply_remote_managed_config_signature_verification(
         Some(true),
         true,
     );

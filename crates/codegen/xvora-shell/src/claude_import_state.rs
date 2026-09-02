@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::warn;
 
-use xvora_workspace::permission::claude_settings::find_claude_settings_paths;
+use workspace::permission::claude_settings::find_claude_settings_paths;
 
 // Types
 
@@ -120,11 +120,11 @@ fn compute_settings_hash(paths: &[PathBuf]) -> String {
 
 /// Compute hash for global Claude settings (`~/.claude/settings*.json`, `~/.claude.json`).
 ///
-/// `xvora_dirs::home_dir()` resolves home the way the imported tool itself does (Node `os.homedir()`: `USERPROFILE` on Windows).
+/// `dirs::home_dir()` resolves home the way the imported tool itself does (Node `os.homedir()`: `USERPROFILE` on Windows).
 /// So the hash covers the files that tool actually wrote even under a redirected profile.
 fn compute_global_hash() -> (String, Vec<PathBuf>) {
     let mut paths = Vec::new();
-    if let Some(home) = xvora_dirs::home_dir() {
+    if let Some(home) = dirs::home_dir() {
         paths.push(home.join(".claude").join("settings.json"));
         paths.push(home.join(".claude").join("settings.local.json"));
         paths.push(home.join(".claude.json"));
@@ -139,7 +139,7 @@ fn compute_global_hash() -> (String, Vec<PathBuf>) {
 fn compute_project_hash(cwd: &Path) -> (String, Vec<PathBuf>) {
     // Use find_claude_settings_paths but filter to only project-level paths (exclude global ~/.claude/ paths)
     let all_paths = find_claude_settings_paths(cwd);
-    let home = xvora_dirs::home_dir();
+    let home = dirs::home_dir();
 
     let project_paths: Vec<PathBuf> = all_paths
         .into_iter()

@@ -2,8 +2,8 @@
 
 use std::time::Duration;
 
-use xvora_sampler::{SamplingErrorInfo, SamplingErrorKind};
-use xvora_telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
+use sampler::{SamplingErrorInfo, SamplingErrorKind};
+use telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RateLimitWaitConfig {
@@ -192,7 +192,7 @@ impl BudgetState {
             };
         }
         let attempt = self.attempts + 1;
-        let wait = xvora_sampler::retry_after_or_backoff(attempt, retry_after_secs);
+        let wait = sampler::retry_after_or_backoff(attempt, retry_after_secs);
         // An over-budget wait stops rather than truncating, which would resubmit before the server's window clears
         if self.total_waited + wait > self.config.max_total_wait {
             self.outcome = WaitOutcome::BudgetSpent;
@@ -217,7 +217,7 @@ impl BudgetState {
 impl Drop for RateLimitWaitBudget {
     fn drop(&mut self) {
         if let Some(event) = self.telemetry_event() {
-            xvora_telemetry::session_ctx::log_event(event);
+            telemetry::session_ctx::log_event(event);
         }
     }
 }

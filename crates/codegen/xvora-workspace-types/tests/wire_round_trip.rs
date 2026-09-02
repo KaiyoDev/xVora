@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use chrono::{DateTime, TimeZone, Utc};
-use xvora_workspace_types::*;
+use workspace_types::*;
 
 fn round_trip<T>(value: T)
 where

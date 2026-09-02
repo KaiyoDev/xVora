@@ -40,7 +40,7 @@ fn progress_sequence(state: ProgressState, ctx: &TerminalContext) -> Option<Stri
 
 pub fn emit_progress(state: ProgressState, ctx: &TerminalContext) {
     if let Some(seq) = progress_sequence(state, ctx) {
-        xvora_shell::util::with_locked_stderr(|stderr| {
+        shell::util::with_locked_stderr(|stderr| {
             let _ = stderr.write_all(seq.as_bytes());
             let _ = stderr.flush();
         });

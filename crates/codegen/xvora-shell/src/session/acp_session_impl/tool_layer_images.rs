@@ -2,7 +2,7 @@
 //! Nothing here depends on `SessionActor`, so tests call these as plain functions.
 
 use super::*;
-use xvora_tools::util::base64_images::ExtractedImage;
+use tools::util::base64_images::ExtractedImage;
 
 /// Drains the images the tool layer extracted from `output`, before truncation, so the session can attach them as vision content.
 pub(super) fn drain_tool_layer_extracted_images(
@@ -62,10 +62,10 @@ mod tests {
         DrainedToolSuccess, drain_tool_layer_extracted_images, split_tool_layer_for_harness,
     };
     use std::path::PathBuf;
-    use xvora_tools::types::output::{
+    use tools::types::output::{
         FileContent, MCPOutput, ReadFileOutput, SearchToolOutput, ToolOutput, ToolRunResult,
     };
-    use xvora_tools::util::base64_images::{ExtractedImage, IMAGE_CONTENT_PLACEHOLDER};
+    use tools::util::base64_images::{ExtractedImage, IMAGE_CONTENT_PLACEHOLDER};
 
     fn img(data: &str, mime: &str) -> ExtractedImage {
         ExtractedImage {

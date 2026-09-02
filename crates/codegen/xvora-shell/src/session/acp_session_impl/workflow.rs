@@ -365,7 +365,7 @@ fn format_workflow_runs_overview(
             let _ = write!(
                 out,
                 "\n  Objective: {}",
-                xvora_tools::util::truncate_str(
+                tools::util::truncate_str(
                     &objective,
                     super::reminders::WORKFLOW_OBJECTIVE_REMINDER_CAP
                 )

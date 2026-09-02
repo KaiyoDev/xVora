@@ -1,11 +1,11 @@
 use super::support::*;
 use super::*;
-use xvora_tool_types::{
+use tool_types::{
     KillTaskOutput, KillTaskResult, MultiTaskOutputResult, SubagentCompletedOutput,
     TaskOutputOutput, TaskOutputResult,
 };
-use xvora_tools::reminders::task_completion::consumed_completion_ids;
-use xvora_tools::types::output::{BashOutput, TextOutput, ToolOutput};
+use tools::reminders::task_completion::consumed_completion_ids;
+use tools::types::output::{BashOutput, TextOutput, ToolOutput};
 fn input_with_origin(prompt_id: &str, origin: crate::session::PromptOrigin) -> InputItem {
     input_with_origin_rx(prompt_id, origin).0
 }
@@ -137,7 +137,7 @@ async fn drain_batches_monitor_notifications_into_formatted_block() {
     local
         .run_until(async {
             let (gateway_tx, _) = tokio::sync::mpsc::unbounded_channel::<
-                xvora_acp_lib::AcpClientMessage,
+                acp_lib::AcpClientMessage,
             >();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<
                 PersistenceMsg,
@@ -214,7 +214,7 @@ async fn cancel_barrier_rejects_task_completion_wake_without_reporting_it() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             let reservations = actor
@@ -273,15 +273,15 @@ async fn cancel_barrier_rejects_task_completion_wake_without_reporting_it() {
             assert!(reservations.contains("bg-suppressed"));
             let res = resources.lock().await;
             assert!(
-                res.get::<xvora_tools::types::resources::State<
-                    xvora_tools::reminders::task_completion::ReportedTaskCompletions,
+                res.get::<tools::types::resources::State<
+                    tools::reminders::task_completion::ReportedTaskCompletions,
                 >>()
                 .is_none(),
                 "declined admission must not report before user re-engagement"
             );
             drop(res);
-            let reminder = xvora_tools::reminders::TaskCompletionReminder;
-            let reminders = xvora_tools::types::tool::Reminder::collect_reminders(
+            let reminder = tools::reminders::TaskCompletionReminder;
+            let reminders = tools::types::tool::Reminder::collect_reminders(
                 &reminder,
                 resources,
                 &ToolOutput::Dynamic(serde_json::Value::Null.into()),
@@ -299,7 +299,7 @@ async fn closed_admission_ack_stores_fallback_before_prompt_rejection() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             let origin = crate::session::PromptOrigin::TaskCompleted {
@@ -335,7 +335,7 @@ async fn non_task_prompt_is_not_subject_to_task_wake_barrier() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.state.lock().await.notifications_suppressed = true;
@@ -367,7 +367,7 @@ async fn task_completion_wake_is_admitted_without_cancel_barrier() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = std::sync::Arc::new(
                 create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await,
@@ -422,8 +422,8 @@ async fn task_completion_wake_is_admitted_without_cancel_barrier() {
                 resources
                     .lock()
                     .await
-                    .get::<xvora_tools::types::resources::State<
-                        xvora_tools::reminders::task_completion::ReportedTaskCompletions,
+                    .get::<tools::types::resources::State<
+                        tools::reminders::task_completion::ReportedTaskCompletions,
                     >>()
                     .is_none(),
                 "queue acceptance alone must not mark the completion reported"
@@ -478,7 +478,7 @@ async fn disk_full_refusal_still_clears_task_completion_reservation() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             tokio::task::spawn_local(async move {
@@ -537,13 +537,13 @@ async fn genuine_user_start_consumes_deferred_completions_without_notification_t
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = std::sync::Arc::new(
                 create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await,
             );
-            let body = xvora_tools::reminders::task_completion::format_monitor_completion(
-                &xvora_tools::types::TaskSnapshot {
+            let body = tools::reminders::task_completion::format_monitor_completion(
+                &tools::types::TaskSnapshot {
                     task_id: "mon-quiet".to_string(),
                     command: "tail -f quiet.log".to_string(),
                     display_command: Some("[monitor] quiet logs".to_string()),
@@ -556,7 +556,7 @@ async fn genuine_user_start_consumes_deferred_completions_without_notification_t
                     exit_code: Some(0),
                     signal: None,
                     completed: true,
-                    kind: xvora_tools::computer::types::TaskKind::Monitor,
+                    kind: tools::computer::types::TaskKind::Monitor,
                     block_waited: false,
                     explicitly_killed: false,
                     kill_result_delivered: false,
@@ -671,7 +671,7 @@ async fn accepted_reservation_survives_user_start() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = std::sync::Arc::new(
                 create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await,
@@ -734,7 +734,7 @@ async fn same_id_bash_completion_does_not_suppress_monitor_event() {
     local
         .run_until(async {
             let (gateway_tx, _) = tokio::sync::mpsc::unbounded_channel::<
-                xvora_acp_lib::AcpClientMessage,
+                acp_lib::AcpClientMessage,
             >();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<
                 PersistenceMsg,
@@ -784,7 +784,7 @@ async fn task_output_completed_drops_matching_pending_input() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -830,7 +830,7 @@ async fn sweep_never_drops_running_turns_own_slot() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -870,7 +870,7 @@ async fn user_prompt_preempt_keeps_running_synthetic_slot() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             let reservations = actor
@@ -918,7 +918,7 @@ async fn await_text_completed_drops_matching_pending_input() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -960,7 +960,7 @@ async fn kill_task_drops_matching_pending_input() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -998,7 +998,7 @@ async fn subagent_completed_drops_matching_pending_input() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -1059,7 +1059,7 @@ async fn multi_task_output_drops_each_completed_id() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -1106,7 +1106,7 @@ async fn task_output_running_does_not_drop_pending_input() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -1175,7 +1175,7 @@ async fn sweep_clears_matching_pending_notifications() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -1215,7 +1215,7 @@ async fn shutdown_drops_pending_synthetic_inputs() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -1268,7 +1268,7 @@ async fn handle_bridge_tool_success_runs_consumed_completion_sweep() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -1321,8 +1321,8 @@ async fn handle_bridge_tool_success_runs_consumed_completion_sweep() {
 /// Once marked, the per-tool-call `TaskCompletionReminder` won't resurface the id.
 /// It mirrors the resource access in `SessionActor::mark_completions_reported`.
 async fn already_reported(actor: &SessionActor, task_id: &str) -> bool {
-    use xvora_tools::reminders::task_completion::ReportedTaskCompletions;
-    use xvora_tools::types::resources::State;
+    use tools::reminders::task_completion::ReportedTaskCompletions;
+    use tools::types::resources::State;
     let bridge = actor.agent.borrow().tool_bridge().clone();
     let resources = bridge.shared_resources().await;
     let mut res = resources.lock().await;
@@ -1382,7 +1382,7 @@ async fn drain_drops_goal_turn_origin_when_status_none_and_marks_reported() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = std::sync::Arc::new(
                 create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await,
@@ -1429,7 +1429,7 @@ async fn reparented_harness_subagent_task_suppressed_when_status_not_active() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = std::sync::Arc::new(
                 create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await,
@@ -1471,7 +1471,7 @@ async fn reparented_record_is_noop_without_goal_harness() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.record_reparented_goal_turn_task_ids(["bg-user".to_string()]);
@@ -1487,14 +1487,14 @@ async fn reparented_record_is_noop_without_goal_harness() {
 /// It lands again as the "While you were idle, N background subagent(s) completed" reminder.
 #[tokio::test(flavor = "current_thread")]
 async fn between_turn_drain_suppresses_reserved_subagents() {
-    use xvora_tools::implementations::grok_build::task::types::{
+    use tools::implementations::grok_build::task::types::{
         SubagentCompletionSummary, SubagentEvent,
     };
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor
@@ -1570,7 +1570,7 @@ async fn set_goal_loop_active_resource_mirrors_into_gate() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             assert!(!actor.tool_context.goal_loop_active_gate.load(Relaxed));
@@ -1590,47 +1590,47 @@ async fn set_goal_loop_active_resource_mirrors_into_gate() {
 /// It lets the bash arm of the between-turn drain (`drain_between_turn_bash_completions` calling `list_tasks`) run without a real background command.
 #[derive(Debug)]
 struct OneTaskTerminal {
-    tasks: Vec<xvora_tools::computer::types::TaskSnapshot>,
+    tasks: Vec<tools::computer::types::TaskSnapshot>,
 }
 #[async_trait::async_trait]
-impl xvora_tools::computer::types::TerminalBackend for OneTaskTerminal {
+impl tools::computer::types::TerminalBackend for OneTaskTerminal {
     async fn run(
         &self,
-        _: xvora_tools::computer::types::TerminalRunRequest,
+        _: tools::computer::types::TerminalRunRequest,
     ) -> Result<
-        xvora_tools::computer::types::TerminalRunResult,
-        xvora_tools::computer::types::ComputerError,
+        tools::computer::types::TerminalRunResult,
+        tools::computer::types::ComputerError,
     > {
         unimplemented!()
     }
     async fn run_background(
         &self,
-        _: xvora_tools::computer::types::TerminalRunRequest,
+        _: tools::computer::types::TerminalRunRequest,
     ) -> Result<
-        xvora_tools::computer::types::BackgroundHandle,
-        xvora_tools::computer::types::ComputerError,
+        tools::computer::types::BackgroundHandle,
+        tools::computer::types::ComputerError,
     > {
         unimplemented!()
     }
-    async fn get_task(&self, _: &str) -> Option<xvora_tools::computer::types::TaskSnapshot> {
+    async fn get_task(&self, _: &str) -> Option<tools::computer::types::TaskSnapshot> {
         None
     }
-    async fn kill_task(&self, _: &str) -> xvora_tools::computer::types::KillOutcome {
-        xvora_tools::computer::types::KillOutcome::NotFound
+    async fn kill_task(&self, _: &str) -> tools::computer::types::KillOutcome {
+        tools::computer::types::KillOutcome::NotFound
     }
     async fn wait_for_completion(
         &self,
         _: &str,
         _: Option<std::time::Duration>,
-    ) -> Option<xvora_tools::computer::types::TaskSnapshot> {
+    ) -> Option<tools::computer::types::TaskSnapshot> {
         None
     }
-    async fn list_tasks(&self) -> Vec<xvora_tools::computer::types::TaskSnapshot> {
+    async fn list_tasks(&self) -> Vec<tools::computer::types::TaskSnapshot> {
         self.tasks.clone()
     }
 }
-fn completed_bash_task(id: &str) -> xvora_tools::computer::types::TaskSnapshot {
-    xvora_tools::computer::types::TaskSnapshot {
+fn completed_bash_task(id: &str) -> tools::computer::types::TaskSnapshot {
+    tools::computer::types::TaskSnapshot {
         task_id: id.into(),
         command: "echo done".into(),
         display_command: None,
@@ -1660,7 +1660,7 @@ async fn state_is_busy_reflects_queued_inputs() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             {
@@ -1695,7 +1695,7 @@ async fn is_busy_reflects_active_work() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             assert!(
@@ -1721,7 +1721,7 @@ async fn is_busy_reflects_parked_plan_approval() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             assert!(!actor.is_busy().await, "a fresh actor must not be busy");

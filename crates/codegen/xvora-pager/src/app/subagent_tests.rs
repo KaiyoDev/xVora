@@ -517,7 +517,7 @@ fn a_replay_locates_the_transcript_via_the_child_cwd_hint() {
     let session_dir = home
         .path()
         .join("sessions")
-        .join(xvora_config::encode_cwd_dirname(child_cwd))
+        .join(config::encode_cwd_dirname(child_cwd))
         .join(child_sid);
     std::fs::create_dir_all(&session_dir).unwrap();
     std::fs::write(session_dir.join("summary.json"), "{}").unwrap();

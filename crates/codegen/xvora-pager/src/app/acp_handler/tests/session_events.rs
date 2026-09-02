@@ -171,7 +171,7 @@
 
     #[test]
     fn retry_exhausted_rate_limited_empty_reason_uses_oauth_fallback() {
-        use xvora_shell::sampling::error::RATE_LIMITED_USER_MESSAGE_OAUTH;
+        use shell::sampling::error::RATE_LIMITED_USER_MESSAGE_OAUTH;
 
         let empty = RetryState::Exhausted {
             attempts: 3,
@@ -215,7 +215,7 @@
 
     #[test]
     fn retry_exhausted_api_key_rewrites_consumer_subscription_upsell() {
-        use xvora_shell::sampling::error::RATE_LIMITED_USER_MESSAGE_API_KEY;
+        use shell::sampling::error::RATE_LIMITED_USER_MESSAGE_API_KEY;
 
         let rpm = RetryState::Exhausted {
             attempts: 2,
@@ -300,7 +300,7 @@
 
     #[test]
     fn apply_retry_state_disk_full_pushes_session_event() {
-        use xvora_shell::extensions::notification::{
+        use shell::extensions::notification::{
             DISK_FULL_ERROR_TYPE, DISK_FULL_USER_MESSAGE,
         };
         let mut session = make_session(Some("s1"));
@@ -614,7 +614,7 @@
     /// `PromptResponse` then suppresses the redundant `TurnFailed`.
     #[test]
     fn apply_retry_state_context_length_shows_context_too_large() {
-        use xvora_shell::extensions::notification::CONTEXT_LENGTH_ERROR_TYPE;
+        use shell::extensions::notification::CONTEXT_LENGTH_ERROR_TYPE;
         let mut session = make_session(Some("s1"));
         let mut scrollback = ScrollbackState::new();
         apply_retry_state(
@@ -665,7 +665,7 @@
     /// The overflow path then does NOT stack a second `ContextTooLarge` prompt on top.
     #[test]
     fn apply_retry_state_context_length_does_not_duplicate_compaction_failed() {
-        use xvora_shell::extensions::notification::CONTEXT_LENGTH_ERROR_TYPE;
+        use shell::extensions::notification::CONTEXT_LENGTH_ERROR_TYPE;
         let mut session = make_session(Some("s1"));
         let mut scrollback = ScrollbackState::new();
         scrollback.push_block(RenderBlock::session_event(SessionEvent::CompactionFailed {
@@ -834,7 +834,7 @@
         let failed = XaiSessionUpdate::AutoCompactFailed { error: "e".into() };
         assert_eq!(compaction_context_refresh(&failed), None);
         let cancelled = XaiSessionUpdate::AutoCompactCancelled {
-            reason: xvora_shell::extensions::notification::AutoCompactCancelReason::UserCancelled,
+            reason: shell::extensions::notification::AutoCompactCancelReason::UserCancelled,
         };
         assert_eq!(compaction_context_refresh(&cancelled), None);
     }
@@ -892,7 +892,7 @@
             .subagent_sessions
             .insert(child_sid.into(), make_subagent_info(child_sid));
         let mut child_view = make_agent(Some(child_sid));
-        child_view.context_state = Some(xvora_shell::session::ContextInfo::from_notification(
+        child_view.context_state = Some(shell::session::ContextInfo::from_notification(
             90_000, 131_072,
         ));
         agent
@@ -1159,7 +1159,7 @@
         let raw = serde_json::value::to_raw_value(&payload).unwrap();
         let request = acp::ExtNotification::new("x.ai/session_notification", raw.into());
         let changed = handle(
-            AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),
@@ -1182,7 +1182,7 @@
 
     #[test]
     fn retry_failed_encrypted_content_sets_model_incompatible() {
-        use xvora_shell::extensions::notification::RetryState;
+        use shell::extensions::notification::RetryState;
         let mut session = make_session(Some("s1"));
         let mut scrollback = ScrollbackState::new();
 
@@ -1202,7 +1202,7 @@
 
     #[test]
     fn retry_failed_other_type_does_not_set_model_incompatible() {
-        use xvora_shell::extensions::notification::RetryState;
+        use shell::extensions::notification::RetryState;
         let mut session = make_session(Some("s1"));
         let mut scrollback = ScrollbackState::new();
 
@@ -1225,7 +1225,7 @@
         title_is_manual: bool,
     ) -> acp::ExtNotification {
         let meta = if title_is_manual {
-            Some(xvora_shell::extensions::notification::title_is_manual_meta())
+            Some(shell::extensions::notification::title_is_manual_meta())
         } else {
             None
         };
@@ -1370,7 +1370,7 @@
 
     #[test]
     fn auto_title_notification_strips_controls_and_caps() {
-        use xvora_shell::session::persistence::MAX_TITLE_SCALARS;
+        use shell::session::persistence::MAX_TITLE_SCALARS;
         let mut app = make_app_with_agent("sess-1");
         let dirty = format!(
             "ok\u{1b}]0;PWNED\u{07}{}",
@@ -1398,7 +1398,7 @@
 
     #[test]
     fn manual_title_notification_strips_controls_and_caps() {
-        use xvora_shell::session::persistence::MAX_TITLE_SCALARS;
+        use shell::session::persistence::MAX_TITLE_SCALARS;
         let mut app = make_app_with_agent("sess-1");
         let dirty = format!("ok\u{1b}]0;PWNED\u{07}{}", "é".repeat(MAX_TITLE_SCALARS + 5));
         assert!(handle_session_notification(
@@ -1422,7 +1422,7 @@
 
     fn hooks_changed_ext(
         session_id: &str,
-        hooks: Vec<xvora_hooks_plugins_types::HookInfo>,
+        hooks: Vec<hooks_plugins_types::HookInfo>,
     ) -> acp::ExtNotification {
         let notif = SessionNotification {
             session_id: acp::SessionId::new(session_id),
@@ -1437,11 +1437,11 @@
         acp::ExtNotification::new("x.ai/session_notification", std::sync::Arc::from(raw))
     }
 
-    fn push_hook(name: &str, source_dir: &str) -> xvora_hooks_plugins_types::HookInfo {
-        xvora_hooks_plugins_types::HookInfo {
+    fn push_hook(name: &str, source_dir: &str) -> hooks_plugins_types::HookInfo {
+        hooks_plugins_types::HookInfo {
             name: name.to_string(),
-            event: xvora_hooks_plugins_types::HookEvent::PreToolUse,
-            handler_type: xvora_hooks_plugins_types::HookHandlerType::Command,
+            event: hooks_plugins_types::HookEvent::PreToolUse,
+            handler_type: hooks_plugins_types::HookHandlerType::Command,
             matcher: None,
             command: Some("/bin/true".to_string()),
             url: None,

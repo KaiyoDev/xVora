@@ -18,7 +18,7 @@ impl SessionActor {
             } else {
                 crate::agent::auth_method::AUTH_ERROR_API_KEY
             };
-            xvora_telemetry::unified_log::error(
+            telemetry::unified_log::error(
                 "sampling auth error",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -68,7 +68,7 @@ impl SessionActor {
     pub(super) async fn inject_baseline_skill_reminder(
         &self,
         conversation: &mut Vec<ConversationItem>,
-    ) -> Option<xvora_tools::types::skill_discovery_tracker::SkillUpdateEffects> {
+    ) -> Option<tools::types::skill_discovery_tracker::SkillUpdateEffects> {
         let bridge = self.agent.borrow().tool_bridge().clone();
         let is_cursor = self.is_cursor_harness();
         if is_cursor {
@@ -86,7 +86,7 @@ impl SessionActor {
         let skill_text = effects.as_ref().and_then(|update| {
             if is_cursor
                 && update.kind
-                    == xvora_tools::types::skill_discovery_tracker::SkillUpdateKind::BaselineChange
+                    == tools::types::skill_discovery_tracker::SkillUpdateKind::BaselineChange
             {
                 None
             } else {
@@ -108,7 +108,7 @@ impl SessionActor {
     pub(super) async fn build_prefix_background(&self) -> String {
         let start = std::time::Instant::now();
         if matches!(self.mcp_strategy.get(), McpInitStrategy::Blocking) {
-            use xvora_agent::prompt::user_message::UserMessageTemplate;
+            use agent::prompt::user_message::UserMessageTemplate;
             let mcp_wait = match self.agent.borrow().definition().user_message_template {
                 UserMessageTemplate::Default => std::time::Duration::from_secs(15),
                 _ => std::time::Duration::from_secs(60),
@@ -196,7 +196,7 @@ impl SessionActor {
         let cwd = &self.session_info.cwd;
         let skills_config = crate::util::config::load_config().await.skills;
         let plugin_snapshot = self.plugin_registry.borrow().clone();
-        let new_skills = xvora_agent::prompt::skills::list_skills_with_plugins(
+        let new_skills = agent::prompt::skills::list_skills_with_plugins(
             Some(cwd),
             &skills_config,
             plugin_snapshot.as_deref(),
@@ -222,7 +222,7 @@ impl SessionActor {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) async fn slash_skills_for_resolve(
         &self,
-    ) -> Vec<xvora_tools::implementations::skills::types::SkillInfo> {
+    ) -> Vec<tools::implementations::skills::types::SkillInfo> {
         #[cfg(test)]
         crate::session::slash_authority::record_skill_catalog_call();
         match slash_commands::acu_skill_source(self.is_chat_kind) {
@@ -286,9 +286,9 @@ impl SessionActor {
     /// The preamble cannot list those.
     pub(super) fn wrap_skill_reminder(
         &self,
-        effects: &xvora_tools::types::skill_discovery_tracker::SkillUpdateEffects,
+        effects: &tools::types::skill_discovery_tracker::SkillUpdateEffects,
     ) -> Option<ConversationItem> {
-        use xvora_tools::types::skill_discovery_tracker::SkillUpdateKind;
+        use tools::types::skill_discovery_tracker::SkillUpdateKind;
         let is_cursor = self.is_cursor_harness();
         if is_cursor && effects.kind == SkillUpdateKind::BaselineChange {
             return None;
@@ -314,7 +314,7 @@ impl SessionActor {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(super) async fn apply_skill_update_effects(
         &self,
-        effects: xvora_tools::types::skill_discovery_tracker::SkillUpdateEffects,
+        effects: tools::types::skill_discovery_tracker::SkillUpdateEffects,
     ) {
         if effects.send_available_commands {
             self.send_available_commands_update().await;
@@ -402,7 +402,7 @@ impl SessionActor {
             return;
         };
         let _ = am.auth().await;
-        let provider: Arc<dyn xvora_auth::AuthCredentialProvider> = Arc::new(
+        let provider: Arc<dyn auth::AuthCredentialProvider> = Arc::new(
             crate::auth::credential_provider::ShellAuthCredentialProvider::new(
                 am.clone(),
                 None,
@@ -427,7 +427,7 @@ impl SessionActor {
         let mut request = middleware_client
             .get(&url)
             .header("X-XAI-Token-Auth", "xvora-cli")
-            .header("x-grok-client-version", xvora_version::VERSION)
+            .header("x-grok-client-version", version::VERSION)
             .header(
                 crate::http::CLIENT_MODE_HEADER,
                 crate::http::process_client_mode(),
@@ -441,7 +441,7 @@ impl SessionActor {
             }
         };
         let (response, stamp) =
-            match xvora_auth::execute_with_stamp(&middleware_client, built).await {
+            match auth::execute_with_stamp(&middleware_client, built).await {
                 Ok(r) => r,
                 Err(e) => {
                     tracing::warn!(error = %e, "Failed to fetch models for idle refresh");
@@ -572,7 +572,7 @@ impl SessionActor {
         self.agent
             .borrow()
             .tool_bridge()
-            .update_resource(xvora_tools::types::resources::DenyReadGlobs(
+            .update_resource(tools::types::resources::DenyReadGlobs(
                 self.deny_read_globs.clone(),
             ))
             .await;
@@ -606,7 +606,7 @@ impl SessionActor {
         let system_message = self.chat_state_handle.get_system_message().await;
         let system_prompt_tokens = system_message
             .as_ref()
-            .map(xvora_chat_state::estimate_system_message_tokens)
+            .map(chat_state::estimate_system_message_tokens)
             .unwrap_or(0);
         let backend_search_active = self.backend_search_active();
         let tool_defs: Vec<_> = self
@@ -617,12 +617,12 @@ impl SessionActor {
             .collect();
         let tool_definitions_count = tool_defs.len();
         let tool_definitions_tokens =
-            xvora_chat_state::estimate_tool_definitions_tokens(&tool_defs);
+            chat_state::estimate_tool_definitions_tokens(&tool_defs);
         let message_count = self.chat_state_handle.get_conversation_len().await;
         let message_tokens = self.chat_state_handle.get_estimated_messages_tokens().await;
         let usage_categories = self.usage_categories().await;
-        let free_tokens = xvora_token_estimation::free_tokens(context_window, total_tokens);
-        let usage_pct = xvora_token_estimation::usage_percentage_u8(total_tokens, context_window);
+        let free_tokens = token_estimation::free_tokens(context_window, total_tokens);
+        let usage_pct = token_estimation::usage_percentage_u8(total_tokens, context_window);
         let api_backend = config.as_ref().map(|c| format!("{:?}", c.api_backend));
         let agent_name = self.agent.borrow().definition().name.clone();
         let conversation_id = None;

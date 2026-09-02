@@ -43,7 +43,7 @@ async fn write_compaction_segment_numbers_and_indexes_resume_safely() {
     let seg = |summary: &str| CompactionSegmentFile {
         items: vec![ConversationItem::user("a"), ConversationItem::user("b")],
         summary: summary.to_string(),
-        detail: xvora_chat_state::CompactionDetail::Verbose,
+        detail: chat_state::CompactionDetail::Verbose,
         timestamp: "2026-01-01T00:00:00Z".to_string(),
     };
     let adapter = JsonlStorageAdapter::with_root(temp_dir.path().to_path_buf());
@@ -51,7 +51,7 @@ async fn write_compaction_segment_numbers_and_indexes_resume_safely() {
     adapter.write_compaction_segment(&info, &seg("second")).await.unwrap();
     let base = adapter
         .session_dir(&info)
-        .join(xvora_compaction_transcript::COMPACTION_DIR);
+        .join(compaction_transcript::COMPACTION_DIR);
     let read = |p: &str| std::fs::read_to_string(base.join(p)).unwrap();
     assert!(read("segment_000.md").contains("# HISTORICAL -- DO NOT EDIT"));
     assert!(read("segment_001.md").contains("second"));
@@ -319,7 +319,7 @@ async fn workflow_restore_rejects_symlinks_and_caps_run_count() {
 /// `load_session_without_updates` always defers rewind points while the full `load_session` / `load_rewind_points` still return them.
 #[tokio::test]
 async fn load_session_without_updates_defers_rewind_points() {
-    use xvora_workspace::session::file_state::RewindPoint;
+    use workspace::session::file_state::RewindPoint;
     let temp_dir = TempDir::new().unwrap();
     let info = create_test_info();
     let adapter = JsonlStorageAdapter::with_root(temp_dir.path().to_path_buf());
@@ -336,7 +336,7 @@ async fn load_session_without_updates_defers_rewind_points() {
 /// The disk-authoritative ConversationOnly merge persists the correct merged/truncated set.
 #[tokio::test]
 async fn merge_rewind_points_from_persists_merged_set() {
-    use xvora_workspace::session::file_state::RewindPoint;
+    use workspace::session::file_state::RewindPoint;
     let temp_dir = TempDir::new().unwrap();
     let info = create_test_info();
     let adapter = JsonlStorageAdapter::with_root(temp_dir.path().to_path_buf());
@@ -371,7 +371,7 @@ async fn merge_rewind_points_from_aborts_on_malformed_without_writing() {
 #[tokio::test]
 async fn merge_rewind_points_from_round_trips_file_snapshots() {
     use xvora_paths::RelPathBuf;
-    use xvora_workspace::session::file_state::{FileSnapshot, RewindPoint};
+    use workspace::session::file_state::{FileSnapshot, RewindPoint};
     let temp_dir = TempDir::new().unwrap();
     let info = create_test_info();
     let adapter = JsonlStorageAdapter::with_root(temp_dir.path().to_path_buf());
@@ -407,7 +407,7 @@ async fn merge_rewind_points_from_round_trips_file_snapshots() {
 /// A `write_jsonl`-backed rewrite (here `truncate_rewind_points_from`) renames the target into place and leaves NO `*.jsonl.tmp` behind.
 #[tokio::test]
 async fn write_jsonl_leaves_no_temp_and_renames_target() {
-    use xvora_workspace::session::file_state::RewindPoint;
+    use workspace::session::file_state::RewindPoint;
     let temp_dir = TempDir::new().unwrap();
     let info = create_test_info();
     let adapter = JsonlStorageAdapter::with_root(temp_dir.path().to_path_buf());
@@ -436,7 +436,7 @@ async fn write_jsonl_leaves_no_temp_and_renames_target() {
 /// The resume/read paths must not mutate the on-disk `updates.jsonl` or `rewind_points.jsonl`, and ACU lines stay on disk.
 #[tokio::test]
 async fn reads_never_modify_rewind_or_updates_files() {
-    use xvora_workspace::session::file_state::{FileStateTracker, RewindPoint};
+    use workspace::session::file_state::{FileStateTracker, RewindPoint};
     let temp_dir = TempDir::new().unwrap();
     let info = create_test_info();
     let adapter = JsonlStorageAdapter::with_root(temp_dir.path().to_path_buf());
@@ -2275,12 +2275,12 @@ async fn retry_after_lost_ack_converges_memory_and_disk_to_authoritative_item() 
                 .map_err(|error| match error {
                     crate::session::storage::AppendCwdSwitchError::NotCommitted(
                         error,
-                    ) => xvora_chat_state::StrictAppendError::NotCommitted(error),
+                    ) => chat_state::StrictAppendError::NotCommitted(error),
                     crate::session::storage::AppendCwdSwitchError::Committed {
                         acknowledgement,
                         source,
                     } => {
-                        xvora_chat_state::StrictAppendError::Committed {
+                        chat_state::StrictAppendError::Committed {
                             acknowledgement,
                             source,
                         }
@@ -2295,7 +2295,7 @@ async fn retry_after_lost_ack_converges_memory_and_disk_to_authoritative_item() 
     });
     let persistence = crate::session::chat_persistence::ChannelChatPersistence::new(tx);
     let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel();
-    let chat = xvora_chat_state::ChatStateActor::spawn(
+    let chat = chat_state::ChatStateActor::spawn(
         vec![],
         xvora_sampling_types::SamplingConfig {
             base_url: String::new(),
@@ -2321,7 +2321,7 @@ async fn retry_after_lost_ack_converges_memory_and_disk_to_authoritative_item() 
                 std::num::NonZeroU64::new(5).unwrap(),
             )
             .await,
-            Err(xvora_chat_state::StrictAppendError::Indeterminate(_))
+            Err(chat_state::StrictAppendError::Indeterminate(_))
         ));
     assert!(chat.get_conversation().await.is_empty());
     assert!(matches!(
@@ -2331,7 +2331,7 @@ async fn retry_after_lost_ack_converges_memory_and_disk_to_authoritative_item() 
             )
             .await
             .unwrap(),
-            xvora_chat_state::StrictAppendAck::AlreadyPresent(item)
+            chat_state::StrictAppendAck::AlreadyPresent(item)
                 if item.text_content() == "authoritative A"
         ));
     let memory = chat.get_conversation().await;
@@ -2361,7 +2361,7 @@ async fn acknowledged_chat_append_preserves_existing_file_bytes_and_appends_once
                 .append_cwd_switch_commit_aware(&info, &switch)
                 .await
                 .unwrap(),
-            xvora_chat_state::StrictAppendAck::Appended
+            chat_state::StrictAppendAck::Appended
         ));
     let after = std::fs::read(&path).unwrap();
     assert!(after.starts_with(&prefix));

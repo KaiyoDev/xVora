@@ -2,7 +2,7 @@
 use crate::agent::config::Config as AgentConfig;
 use agent_client_protocol as acp;
 use anyhow::Result;
-use xvora_acp_lib::{AcpAgentTx, acp_send};
+use acp_lib::{AcpAgentTx, acp_send};
 /// Status for the `grok models` banner (the display order is not the sampling priority; see [`AuthStatus::resolve`]).
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthStatus {
@@ -100,7 +100,7 @@ mod tests {
     use crate::agent::config::Config;
     use crate::auth::{AuthMode, GrokAuth};
     use serial_test::serial;
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     const EXPECTED_LOGIN_HOST: &str = "grok.com";
     /// A session the compiled-in backend recognises as its own, which `AuthBackend::owns` requires.
     fn session_credential() -> GrokAuth {

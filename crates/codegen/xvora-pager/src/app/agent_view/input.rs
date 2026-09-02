@@ -1190,7 +1190,7 @@ impl AgentView {
             );
             return InputOutcome::Action(Action::OpenExtensionsModal {
                 tab: crate::views::extensions_modal::ExtensionsTab::Plugins,
-                trigger: xvora_telemetry::events::ExtensionsModalTrigger::KeyboardShortcut,
+                trigger: telemetry::events::ExtensionsModalTrigger::KeyboardShortcut,
             });
         }
         if let Event::Key(key) = ev
@@ -1330,7 +1330,7 @@ impl AgentView {
             ActionId::ToggleYolo => {
                 if self.pinned_upgrade_cta_live {
                     InputOutcome::Action(Action::AnnouncementsOpenCta(
-                        xvora_telemetry::events::AnnouncementCtaSurface::Keyboard,
+                        telemetry::events::AnnouncementCtaSurface::Keyboard,
                     ))
                 } else {
                     InputOutcome::Action(Action::SetYoloMode(!self.session.is_yolo()))
@@ -1513,7 +1513,7 @@ mod background_and_tasks_shortcut_tests {
             .expect("file-search context");
         agent.prompt.file_search.set_test_state(
             context,
-            vec![xvora_workspace::file_system::FuzzyMatchResult {
+            vec![workspace::file_system::FuzzyMatchResult {
                 path: nucleo::Utf32String::from("src/lib.rs"),
                 score: 100,
                 indices: Vec::new(),
@@ -2311,8 +2311,8 @@ mod esc_would_cancel_turn_tests {
             entry_id: crate::scrollback::entry::EntryId::new(1),
             prompt_index: 0,
             original: "sent".into(),
-            textarea: xvora_ratatui_textarea::TextArea::new(),
-            textarea_state: xvora_ratatui_textarea::TextAreaState::default(),
+            textarea: ratatui_textarea::TextArea::new(),
+            textarea_state: ratatui_textarea::TextAreaState::default(),
             last_text_area: None,
             last_rect: None,
         });
@@ -2572,7 +2572,7 @@ mod rich_textarea_paste_routing_tests {
     use crate::app::inline_edit::InlineEditState;
     use crate::scrollback::entry::EntryId;
     use crossterm::event::Event;
-    use xvora_ratatui_textarea::{TextArea, TextAreaState};
+    use ratatui_textarea::{TextArea, TextAreaState};
     #[test]
     fn inline_edit_receives_raw_multiline_paste_without_touching_prompt() {
         let mut agent = make_agent();

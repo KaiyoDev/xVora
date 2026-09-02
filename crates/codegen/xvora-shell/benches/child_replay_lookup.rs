@@ -22,8 +22,8 @@ use criterion::{
     BenchmarkId, Criterion, SamplingMode, Throughput, criterion_group, criterion_main,
 };
 use tempfile::TempDir;
-use xvora_config::encode_cwd_dirname;
-use xvora_shell::session::storage::{
+use config::encode_cwd_dirname;
+use shell::session::storage::{
     ReplayEmission, ReplayLookupFallback, ReplayPathHint, stream_replay_updates_at_hinted,
 };
 

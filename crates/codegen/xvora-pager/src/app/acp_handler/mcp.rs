@@ -9,7 +9,7 @@ pub(super) fn push_server_status_enabled() -> bool {
     use std::sync::OnceLock;
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| {
-        xvora_shell::util::config::resolve_mcp_push_server_status(
+        shell::util::config::resolve_mcp_push_server_status(
             /* requirements */ None, /* user */ None, /* managed */ None,
         )
     })
@@ -49,7 +49,7 @@ pub(super) fn handle_mcp_init_progress(notif: &acp::ExtNotification, app: &mut A
 /// (toggle-tool ~L6661, `emit_mcp_tools_changed_notifications` ~L8997, post-handshake ~L10156, and `mcp_initialized` ~L10157):
 ///
 /// 1. Try `notif.params.sessionId`.
-///    All `tools_changed` emit sites carry `sessionId` via the typed [`xvora_shell::extensions::mcp::McpToolsChanged`] struct.
+///    All `tools_changed` emit sites carry `sessionId` via the typed [`shell::extensions::mcp::McpToolsChanged`] struct.
 ///    `mcp_initialized` already carried it.
 ///    So the sessionId branch is the primary path for current builds.
 ///
@@ -158,7 +158,7 @@ pub(super) fn agent_has_pending_mcps_fetch(app: &AppView, agent_id: AgentId) -> 
 /// - the named server is not present in the cached `servers` vec ([`patch_server_row`] silently returns).
 ///
 /// Re-uses the shell's canonical wire types instead of re-declaring a parallel pager enum.
-/// The types: [`xvora_shell::extensions::mcp::McpServerStatusPayload`] and [`xvora_shell::extensions::mcp::McpServerStatus`].
+/// The types: [`shell::extensions::mcp::McpServerStatusPayload`] and [`shell::extensions::mcp::McpServerStatus`].
 /// Later variants (e.g. `RestartSucceeded` / `RestartFailed`) ride through automatically without a pager code change.
 ///
 /// `status` is **not** `serde(default)`; a malformed payload falls into the `tracing::warn!` arm rather than silently re-painting the row red.
@@ -170,7 +170,7 @@ pub(super) fn agent_has_pending_mcps_fetch(app: &AppView, agent_id: AgentId) -> 
 pub(super) fn handle_mcp_server_status(notif: &acp::ExtNotification, app: &mut AppView) -> bool {
     use crate::views::extensions_modal::TabDataState;
     use crate::views::mcps_modal::{McpServerDisplayStatus, McpToolDetail, patch_server_row};
-    use xvora_shell::extensions::mcp::{McpServerStatus, McpServerStatusPayload, McpToolEntry};
+    use shell::extensions::mcp::{McpServerStatus, McpServerStatusPayload, McpToolEntry};
 
     let Ok(payload) = serde_json::from_str::<McpServerStatusPayload>(notif.params.get()) else {
         tracing::warn!(
@@ -237,7 +237,7 @@ pub(super) fn handle_mcp_server_status(notif: &acp::ExtNotification, app: &mut A
 
 /// Handle `x.ai/mcp/elicit_complete`: dismiss the matched agent's URL-mode elicitation card that is still waiting on this `elicitation_id`.
 pub(super) fn handle_mcp_elicit_complete(notif: &acp::ExtNotification, app: &mut AppView) -> bool {
-    let Ok(payload) = serde_json::from_str::<xvora_tools::mcp_elicitation::McpElicitCompletePayload>(
+    let Ok(payload) = serde_json::from_str::<tools::mcp_elicitation::McpElicitCompletePayload>(
         notif.params.get(),
     ) else {
         return false;

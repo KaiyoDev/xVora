@@ -3,7 +3,7 @@
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use xvora_status_line::{ResolvedStatusLine, StatusLineConfig, StatusLineItem, StatusLineType};
+use status_line::{ResolvedStatusLine, StatusLineConfig, StatusLineItem, StatusLineType};
 
 use super::draws_a_row;
 
@@ -56,7 +56,7 @@ impl StatusLineMetrics {
             return;
         }
         self.draws_a_row.store(draws_a_row(cfg), Ordering::Relaxed);
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::StatusLineConfigured {
+        telemetry::session_ctx::log_event(telemetry::events::StatusLineConfigured {
             kind,
             // Answers for the row, not the section: a rejected value in a section already switched off reserves nothing
             row_shows_a_problem: cfg.problem_to_paint().is_some(),
@@ -89,12 +89,12 @@ impl StatusLineMetrics {
 
     pub(crate) fn report_health(&self) {
         if let Some(event) = self.health_event() {
-            xvora_telemetry::session_ctx::log_event(event);
+            telemetry::session_ctx::log_event(event);
         }
     }
 
     /// `None` when there is nothing to report: both exit paths call this and the first wins, and a session with no row would dilute the signal.
-    fn health_event(&self) -> Option<xvora_telemetry::events::StatusLineHealth> {
+    fn health_event(&self) -> Option<telemetry::events::StatusLineHealth> {
         if !self.draws_a_row.load(Ordering::Relaxed) {
             return None;
         }
@@ -103,7 +103,7 @@ impl StatusLineMetrics {
         if self.reported.swap(true, Ordering::Relaxed) {
             return None;
         }
-        Some(xvora_telemetry::events::StatusLineHealth {
+        Some(telemetry::events::StatusLineHealth {
             kind,
             had_content: self.had_content.load(Ordering::Relaxed),
             runs_ok: self.ok.load(Ordering::Relaxed),

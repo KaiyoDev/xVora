@@ -18,7 +18,7 @@ use tokio::sync::{Mutex as TokioMutex, mpsc};
 use tokio::time::Duration;
 use tokio_util::compat::{TokioAsyncReadCompatExt as _, TokioAsyncWriteCompatExt as _};
 use tracing::{debug, info, warn};
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
@@ -158,7 +158,7 @@ fn spawn_agent_local(
     });
     tokio::task::spawn_local(
         GatewayReceiver::new(gw_rx, conn)
-            .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
+            .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
             .run(),
     );
     handle_io
@@ -182,7 +182,7 @@ where
     W: tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
     let cwd = std::env::current_dir().unwrap_or_default();
-    let workspace_user_dir = xvora_agent::prompt::workspace_user::optional_workspace_user_dir();
+    let workspace_user_dir = agent::prompt::workspace_user::optional_workspace_user_dir();
     let (mut watcher, mut skills_rx) = crate::config::watcher::SkillsFileWatcher::start(
         Some(cwd.as_path()),
         workspace_user_dir.as_deref(),
@@ -220,11 +220,11 @@ where
     });
     Some(task)
 }
-/// Register the process-lifetime runtime for shared filesystem watchers ([`xvora_fsnotify::shared`]).
+/// Register the process-lifetime runtime for shared filesystem watchers ([`fsnotify::shared`]).
 /// Their event loops then run on a runtime that outlives individual sessions (each session builds its own short-lived runtime).
 /// Idempotent; safe to call from every agent entrypoint.
 fn register_fs_watch_runtime() {
-    xvora_fsnotify::set_runtime_handle(tokio::runtime::Handle::current());
+    fsnotify::set_runtime_handle(tokio::runtime::Handle::current());
 }
 #[tracing::instrument(level = "debug", skip_all)]
 pub async fn run_stdio_agent(
@@ -233,17 +233,17 @@ pub async fn run_stdio_agent(
     memory_config: Option<crate::config::MemoryConfig>,
 ) -> anyhow::Result<()> {
     register_fs_watch_runtime();
-    if let Err(error) = xvora_tty_utils::kill_current_process_on_parent_death() {
+    if let Err(error) = tty_utils::kill_current_process_on_parent_death() {
         tracing::warn!(
             %error,
             "failed to bind to parent death; agent will not die with its \
              parent — stdin EOF remains the only cleanup"
         );
     }
-    xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
-    xvora_file_utils::queue::cleanup_orphaned_uploads(
+    telemetry::unified_log::set_version(version::VERSION);
+    file_utils::queue::cleanup_orphaned_uploads(
         &grok_home::grok_home(),
-        xvora_file_utils::queue::DEFAULT_MAX_AGE,
+        file_utils::queue::DEFAULT_MAX_AGE,
     );
     if let Ok(version) = std::env::var("GROK_CLIENT_VERSION") {
         crate::unified_log::info(
@@ -260,7 +260,7 @@ pub async fn run_stdio_agent(
     let acp_incoming_tx = Arc::new(TokioMutex::new(acp_incoming_tx));
     let stdin_tx = acp_incoming_tx.clone();
     let (stdin_closed_tx, stdin_closed_rx) = tokio::sync::oneshot::channel();
-    let mut stdin_lines = xvora_acp_lib::spawn_stdin_line_reader();
+    let mut stdin_lines = acp_lib::spawn_stdin_line_reader();
     tokio::spawn(async move {
         while let Some(line) = stdin_lines.recv().await {
             let mut tx = stdin_tx.lock().await;
@@ -303,7 +303,7 @@ pub async fn run_stdio_agent(
         .await;
     agent_cancel.cancel();
     crate::terminal::pty_session::close_all().await;
-    xvora_telemetry::session_ctx::drain_at_process_exit().await;
+    telemetry::session_ctx::drain_at_process_exit().await;
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     result
 }
@@ -314,15 +314,15 @@ pub async fn run_headless(
     memory_config: Option<crate::config::MemoryConfig>,
 ) -> anyhow::Result<()> {
     register_fs_watch_runtime();
-    xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
+    telemetry::unified_log::set_version(version::VERSION);
     crate::http::set_process_client_mode_headless();
     use crate::agent::relay::spawn_relay_connection_with_callback;
     use tokio_util::sync::CancellationToken;
     const HEADLESS_NO_SESSION: &str = "Headless mode requires a grok.com session. \
         Run `grok login` to sign in, or use `grok agent stdio` for API-key access.";
-    xvora_file_utils::queue::cleanup_orphaned_uploads(
+    file_utils::queue::cleanup_orphaned_uploads(
         &grok_home::grok_home(),
-        xvora_file_utils::queue::DEFAULT_MAX_AGE,
+        file_utils::queue::DEFAULT_MAX_AGE,
     );
     let mut agent_config = agent_config.clone();
     agent_config.mode = crate::agent::config::AgentMode::Headless;
@@ -449,7 +449,7 @@ pub async fn run_headless(
                 tokio::task::spawn_local(
                     GatewayReceiver::new(gw_rx, conn)
                         .with_on_meta(
-                            xvora_file_utils::trace_context::span_from_meta_traceparent,
+                            file_utils::trace_context::span_from_meta_traceparent,
                         )
                         .run(),
                 );
@@ -715,11 +715,11 @@ pub async fn run_leader(
     use tokio::sync::watch;
     use tokio_util::sync::CancellationToken;
     register_fs_watch_runtime();
-    xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
+    telemetry::unified_log::set_version(version::VERSION);
     tokio::task::spawn_blocking(|| {
-        xvora_file_utils::queue::cleanup_orphaned_uploads(
+        file_utils::queue::cleanup_orphaned_uploads(
             &grok_home::grok_home(),
-            xvora_file_utils::queue::DEFAULT_MAX_AGE,
+            file_utils::queue::DEFAULT_MAX_AGE,
         );
     });
     let mut agent_config = agent_config.clone();
@@ -790,7 +790,7 @@ pub async fn run_leader(
         socket_path: socket_path.clone(),
         lock_path: lock.lock_path().clone(),
         ws_url_suffix: compute_ws_url_suffix(ws_url),
-        leader_binary_version: xvora_version::VERSION.to_string(),
+        leader_binary_version: version::VERSION.to_string(),
     })
     .with_default_hub_url(agent_config.hub.url.clone());
     let workspace_control = control_state.workspace.clone();
@@ -936,7 +936,7 @@ pub async fn run_leader(
                 tokio::task::spawn_local(
                     GatewayReceiver::new(gw_rx, conn)
                         .with_on_meta(
-                            xvora_file_utils::trace_context::span_from_meta_traceparent,
+                            file_utils::trace_context::span_from_meta_traceparent,
                         )
                         .run(),
                 );
@@ -1068,11 +1068,11 @@ pub async fn run_leader(
             let mut watch_paths = crate::config::find_project_configs(&cwd_for_watcher);
             watch_paths
                 .extend(crate::util::config::mcp_json_candidate_paths(&cwd_for_watcher));
-            if let Some(home) = xvora_dirs::home_dir() {
+            if let Some(home) = dirs::home_dir() {
                 watch_paths.push(home.join(".claude.json"));
             }
             let auth_scope = agent_config.grok_com_config.auth_scope();
-            let initial_auth_key_hash = xvora_config::user_grok_home()
+            let initial_auth_key_hash = config::user_grok_home()
                 .map(|g| g.join("auth.json"))
                 .and_then(|auth_path| crate::auth::read_auth_json(&auth_path).ok())
                 .and_then(|store| {
@@ -1141,7 +1141,7 @@ pub async fn run_leader(
                                 expires_at = ?auth.expires_at,
                                 "Auth token hot-reloaded from config watcher"
                             );
-                            xvora_telemetry::unified_log::info(
+                            telemetry::unified_log::info(
                                 "auth hot-swapped from disk",
                                 None,
                                 Some(
@@ -1185,7 +1185,7 @@ pub async fn run_leader(
                                 warn!(error = %e, "failed to inject auth-cleared cleanup into ACP stream");
                             }
                             models_manager_for_config.on_auth_changed().await;
-                            xvora_telemetry::unified_log::warn(
+                            telemetry::unified_log::warn(
                                 "auth cleared from disk",
                                 None,
                                 None,
@@ -1421,7 +1421,7 @@ mod tests {
     #[serial_test::serial]
     fn embedded_otel_gate_keeps_a_session_user_fail_closed() {
         use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
-        use xvora_telemetry::external::{
+        use telemetry::external::{
             is_settings_gate_open, mark_external_otel_settings_resolved,
         };
         unsafe fn set_or_clear(key: &str, value: Option<std::ffi::OsString>) {

@@ -11,9 +11,9 @@ chrono = { workspace = true }
 futures = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
-xvora-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
-xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
+tool-protocol = { workspace = true }
+tool-runtime = { workspace = true }
+tool-types = { workspace = true }
 
 [dev-dependencies]
 dashmap = { workspace = true }

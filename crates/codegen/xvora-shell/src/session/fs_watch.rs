@@ -1,4 +1,4 @@
-//! The mechanism (OS watch, coalesce, refcount) lives in `xvora_fsnotify`.
+//! The mechanism (OS watch, coalesce, refcount) lives in `fsnotify`.
 //! This module decides which consumers exist, fans events through three explicit phases, and owns one `select!` loop.
 //! The loop serves the event hot path and the debounced refresh.
 
@@ -12,9 +12,9 @@ use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
 use tokio::sync::mpsc;
 use tokio::time::sleep_until;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_fsnotify::{FsEvent, FsEventKind};
-use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use fsnotify::{FsEvent, FsEventKind};
+use workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 
 use crate::session::acp_session::SessionActor;
 use crate::session::persistence::PersistenceMsg;
@@ -91,7 +91,7 @@ pub(crate) fn git_head_dedup_key(
 fn fs_event_to_codebase_graph_event(
     paths: &[PathBuf],
     kind: FsEventKind,
-) -> xvora_codebase_graph::FileEvent {
+) -> codebase_graph::FileEvent {
     use codebase_graph::{FileEvent, FileEventKind};
     let kind = match kind {
         FsEventKind::Created => FileEventKind::Created,
@@ -108,8 +108,8 @@ fn fs_event_to_delta(
     paths: &[PathBuf],
     kind: FsEventKind,
     root: &Path,
-) -> xvora_workspace::file_system::FileIndexDelta {
-    use xvora_workspace::file_system::FileIndexDelta;
+) -> workspace::file_system::FileIndexDelta {
+    use workspace::file_system::FileIndexDelta;
     let stripped: Vec<String> = paths
         .iter()
         .filter_map(|p| {
@@ -155,26 +155,26 @@ const GIT_DIFF_REBUILD_THRESHOLD: usize = 500;
 fn parse_diff_name_status_line(
     line: &str,
     repo_root: &Path,
-) -> Option<xvora_codebase_graph::FileEvent> {
+) -> Option<codebase_graph::FileEvent> {
     let mut parts = line.splitn(3, '\t');
     let status = parts.next()?.trim();
     let path = parts.next()?;
 
     match status.chars().next()? {
-        'A' => Some(xvora_codebase_graph::FileEvent::created(
+        'A' => Some(codebase_graph::FileEvent::created(
             repo_root.join(path),
         )),
-        'D' => Some(xvora_codebase_graph::FileEvent::removed(
+        'D' => Some(codebase_graph::FileEvent::removed(
             repo_root.join(path),
         )),
         'R' | 'C' => {
             let new_path = parts.next()?;
-            Some(xvora_codebase_graph::FileEvent::renamed(
+            Some(codebase_graph::FileEvent::renamed(
                 repo_root.join(path),
                 repo_root.join(new_path),
             ))
         }
-        _ => Some(xvora_codebase_graph::FileEvent::modified(
+        _ => Some(codebase_graph::FileEvent::modified(
             repo_root.join(path),
         )),
     }
@@ -183,15 +183,15 @@ fn parse_diff_name_status_line(
 /// After a HEAD change, diff ORIG_HEAD..HEAD and send targeted events to the codebase graph.
 /// Falls back to a full rebuild when too many files changed.
 async fn refresh_codebase_graph_after_head_change(
-    idx: &xvora_codebase_graph::IndexManagerHandle,
+    idx: &codebase_graph::IndexManagerHandle,
     repo_root: &Path,
 ) {
     let mut cmd = tokio::process::Command::new("git");
     cmd.args(["diff", "--name-status", "ORIG_HEAD", "HEAD"])
         .current_dir(repo_root)
         .stdin(std::process::Stdio::null());
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     let diff_output = cmd.output().await;
 
     match diff_output {
@@ -501,9 +501,9 @@ struct GitHead {
 impl GitHead {
     /// Notify the client on branch/worktree/repo change; also persist commit/branch.
     async fn emit(&self) {
-        let branch = xvora_workspace::session::git::get_branch(&self.cwd).await;
-        let commit = xvora_workspace::session::git::get_current_commit(&self.cwd).await;
-        let worktree = xvora_workspace::session::git::get_worktree_info(&self.cwd).await;
+        let branch = workspace::session::git::get_branch(&self.cwd).await;
+        let commit = workspace::session::git::get_current_commit(&self.cwd).await;
+        let worktree = workspace::session::git::get_worktree_info(&self.cwd).await;
         let (is_worktree, main_repo) = worktree.unwrap_or((false, None));
 
         let dedup_key = git_head_dedup_key(
@@ -522,7 +522,7 @@ impl GitHead {
             }
         };
         if changed {
-            let params = xvora_workspace::session::git::GitHeadChanged {
+            let params = workspace::session::git::GitHeadChanged {
                 session_id: self.session_id.clone(),
                 branch: branch.clone(),
                 is_worktree,
@@ -554,7 +554,7 @@ pub(crate) struct FsWatchPlan {
     hunk: Option<HunkTracking>,
     index: Option<CodebaseIndex>,
     git_head: Option<GitHead>,
-    fs_config: xvora_fsnotify::FsConfig,
+    fs_config: fsnotify::FsConfig,
     cwd: PathBuf,
 }
 
@@ -572,7 +572,7 @@ impl FsWatchPlan {
         });
 
         let hunk = (caps.hunk_tracking && deps.hunk_tracking_enabled).then(|| {
-            let git_root = xvora_workspace::session::git::find_git_root_from_path(&deps.cwd).ok();
+            let git_root = workspace::session::git::find_git_root_from_path(&deps.cwd).ok();
             HunkTracking {
                 handle: deps.hunk_tracker,
                 cwd: deps.cwd.clone(),
@@ -867,9 +867,9 @@ pub(crate) fn spawn(plan: FsWatchPlan) -> FsWatchHandle {
             timer.with_field("cwd", cwd.to_string_lossy().as_ref());
             let init_cwd = cwd.clone();
             let result =
-                tokio::task::spawn_blocking(move || xvora_fsnotify::shared(init_cwd, fs_config))
+                tokio::task::spawn_blocking(move || fsnotify::shared(init_cwd, fs_config))
                     .await;
-            let ws = xvora_fsnotify::stats();
+            let ws = fsnotify::stats();
             timer.with_field("live_watchers", ws.live_watchers as u64);
             timer.with_field("watchers_created_total", ws.created_total);
             timer.with_field("watchers_reused_total", ws.reused_total);
@@ -980,7 +980,7 @@ pub(crate) fn spawn(plan: FsWatchPlan) -> FsWatchHandle {
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use xvora_workspace::file_system::FileIndexDelta;
+    use workspace::file_system::FileIndexDelta;
 
     #[test]
     fn fs_event_to_delta_create() {
@@ -1381,7 +1381,7 @@ mod tests {
         pick_period: Duration,
         pick_duration: Duration,
     ) -> usize {
-        let settle = Duration::from_millis(xvora_fsnotify::SETTLE_MS);
+        let settle = Duration::from_millis(fsnotify::SETTLE_MS);
         // Uniform cadence: either every re-lock lands inside the previous pick's settle window (one merged op) or none does (per-pick pairs)
         let merged = pick_period - pick_duration <= settle;
 
@@ -1581,7 +1581,7 @@ mod tests {
 
         match on_event(
             FsEvent::GitMetaChanged {
-                kind: xvora_fsnotify::GitMetaKind::RefsChanged,
+                kind: fsnotify::GitMetaKind::RefsChanged,
             },
             &mut in_op,
             &mut op_buffer,

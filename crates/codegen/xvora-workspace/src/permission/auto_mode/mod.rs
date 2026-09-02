@@ -1223,7 +1223,7 @@ pub fn mcp_access_detail(name: &str, input: &serde_json::Value) -> String {
         return name.to_string();
     }
     let compact = serde_json::to_string(input).unwrap_or_default();
-    xvora_tools::util::truncate_line(&format!("{name} {compact}"), MCP_ACCESS_DETAIL_MAX_LEN)
+    tools::util::truncate_line(&format!("{name} {compact}"), MCP_ACCESS_DETAIL_MAX_LEN)
         .into_owned()
 }
 
@@ -1234,7 +1234,7 @@ pub fn permission_decision_args(access: &AccessKind, access_detail: Option<&str>
         AccessKind::Bash(cmd) => serde_json::json!({ "command": cmd }).to_string(),
         _ => access_detail.unwrap_or("(none)").to_owned(),
     };
-    xvora_tools::util::truncate_str_with_marker(&raw, CLASSIFIER_TURN_MAX_LEN).into_owned()
+    tools::util::truncate_str_with_marker(&raw, CLASSIFIER_TURN_MAX_LEN).into_owned()
 }
 
 /// Trailing JSON-shape instruction (omitted for `JustCommand`, where the request's `json_schema` still constrains the output).
@@ -1353,7 +1353,7 @@ fn classifier_reason(v: &serde_json::Value) -> Option<String> {
         .and_then(|r| r.as_str())
         .map(|r| r.split_whitespace().collect::<Vec<_>>().join(" "))
         .filter(|r| !r.is_empty())
-        .map(|r| xvora_tools::util::truncate_line(&r, CLASSIFIER_REASON_MAX_LEN).into_owned())
+        .map(|r| tools::util::truncate_line(&r, CLASSIFIER_REASON_MAX_LEN).into_owned())
 }
 
 pub fn parse_classifier_model_output(text: &str) -> ClassifierOutcome {

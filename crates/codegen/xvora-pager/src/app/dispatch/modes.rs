@@ -6,7 +6,7 @@ use super::settings::ui::{refresh_open_settings_modals, save_success_toast};
 use crate::app::actions::Effect;
 use crate::app::app_view::{ActiveView, AppView};
 use agent_client_protocol as acp;
-use xvora_telemetry::session_ctx::log_event;
+use telemetry::session_ctx::log_event;
 
 /// Show the current plan: if a plan file exists, open it in the preview overlay popover.
 /// If no plan has been written yet, show a toast.
@@ -168,9 +168,9 @@ pub(super) fn set_plan_mode(
     // If the user was in `Ask` (shell-injection only), that preference is silently dropped
     // See `PLAN_MODE_CHOICES` in `settings/defs.rs`
     let mode_id = acp::SessionModeId::new(if new {
-        xvora_tools::types::SessionMode::Plan.as_id()
+        tools::types::SessionMode::Plan.as_id()
     } else {
-        xvora_tools::types::SessionMode::Default.as_id()
+        tools::types::SessionMode::Default.as_id()
     });
 
     vec![Effect::SetSessionMode {
@@ -325,10 +325,10 @@ pub(super) fn set_yolo_mode_inner(app: &mut AppView, new: bool) {
         } else {
             "default"
         };
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::YoloToggled {
+        telemetry::session_ctx::log_event(telemetry::events::YoloToggled {
             enabled: new,
             previous_state,
-            trigger: xvora_telemetry::events::YoloTrigger::Pager,
+            trigger: telemetry::events::YoloTrigger::Pager,
             from_mode: Some(from_mode.to_owned()),
         });
         tracing::info!(target: "settings", key = "permission_mode", value = new, "setting changed");
@@ -526,9 +526,9 @@ pub(super) fn dispatch_cycle_mode(app: &mut AppView) -> Vec<Effect> {
         && let Some(agent) = app.agents.get_mut(&id)
         && agent.plan_mode_pending.unwrap_or(agent.plan_mode_active)
     {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::PlanMode,
-            action: xvora_telemetry::events::ContextualTipAction::Accepted,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::PlanMode,
+            action: telemetry::events::ContextualTipAction::Accepted,
         });
         // Retire the now-stale nudge so one impression maps to at most one acceptance
         // A full mode loop back to Plan within the ~3s TTL would otherwise re-emit; the undo and image tips clear on accept the same way
@@ -635,7 +635,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
             // Normal to Plan
             (false, false, false) => {
                 agent.plan_mode_pending = Some(true);
-                agent.deferred_session_mode = Some(xvora_tools::types::SessionMode::Plan);
+                agent.deferred_session_mode = Some(tools::types::SessionMode::Plan);
                 agent.show_mode_switch_banner("Plan");
                 tracing::info!("Mode cycle (pre-session): Normal → Plan");
                 None
@@ -746,7 +746,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
             tracing::info!("Mode cycle: Normal → Plan");
             vec![Effect::SetSessionMode {
                 session_id,
-                mode_id: acp::SessionModeId::new(xvora_tools::types::SessionMode::Plan.as_id()),
+                mode_id: acp::SessionModeId::new(tools::types::SessionMode::Plan.as_id()),
             }]
         }
         // Plan to Auto (classifier mode; exit plan, not always-approve)
@@ -770,7 +770,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
                         Effect::SetSessionMode {
                             session_id: session_id.clone(),
                             mode_id: acp::SessionModeId::new(
-                                xvora_tools::types::SessionMode::Default.as_id(),
+                                tools::types::SessionMode::Default.as_id(),
                             ),
                         },
                         Effect::PersistPermissionMode {
@@ -791,7 +791,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
                     Effect::SetSessionMode {
                         session_id: session_id.clone(),
                         mode_id: acp::SessionModeId::new(
-                            xvora_tools::types::SessionMode::Default.as_id(),
+                            tools::types::SessionMode::Default.as_id(),
                         ),
                     },
                     Effect::PersistPermissionMode {
@@ -812,7 +812,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
                 Effect::SetSessionMode {
                     session_id: session_id.clone(),
                     mode_id: acp::SessionModeId::new(
-                        xvora_tools::types::SessionMode::Default.as_id(),
+                        tools::types::SessionMode::Default.as_id(),
                     ),
                 },
                 Effect::PersistPermissionMode {
@@ -882,7 +882,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
                 Effect::SetSessionMode {
                     session_id: session_id.clone(),
                     mode_id: acp::SessionModeId::new(
-                        xvora_tools::types::SessionMode::Default.as_id(),
+                        tools::types::SessionMode::Default.as_id(),
                     ),
                 },
                 Effect::PersistPermissionMode {
@@ -912,7 +912,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
                 effects.push(Effect::SetSessionMode {
                     session_id: session_id.clone(),
                     mode_id: acp::SessionModeId::new(
-                        xvora_tools::types::SessionMode::Default.as_id(),
+                        tools::types::SessionMode::Default.as_id(),
                     ),
                 });
             }

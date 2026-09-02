@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use xvora_config::grok_home;
+use config::grok_home;
 
 /// Binary version stamped into every log entry.
 /// Set once at startup via [`set_version()`]; entries emitted before that get `None`.

@@ -1,7 +1,7 @@
 //! Integration tests for the actor and request_task layer.
 //!
 //! They live in `tests/` because they need a real `tokio::runtime` and a mock axum HTTP server for the `SamplingClient` to talk to.
-//! Happy-path SSE payloads come from `xvora_test_support::sse`.
+//! Happy-path SSE payloads come from `test_support::sse`.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use serde_json::json;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot};
 
-use xvora_sampler::{
+use sampler::{
     ApiBackend, RequestId, RetryPolicy, SamplerActor, SamplerConfig, SamplingChannel,
     SamplingErrorKind, SamplingEvent, StripReason,
 };
@@ -26,7 +26,7 @@ use xvora_sampling_types::{
     ConversationItem, ConversationRequest, DoomLoopRecoveryPolicy, INVALID_IMAGE_ERROR_CODE,
     UserItem,
 };
-use xvora_test_support::{SseEvent, sse};
+use test_support::{SseEvent, sse};
 
 // ---------------------------------------------------------------------------
 // Mock server harness
@@ -489,7 +489,7 @@ async fn invalid_image_code_strips_and_retries() {
         events.iter().any(|e| match e {
             SamplingEvent::ImagesStripped {
                 stripped_urls,
-                reason: xvora_sampler::StripReason::ServerRejected,
+                reason: sampler::StripReason::ServerRejected,
                 ..
             } => stripped_urls.len() == 1 && stripped_urls[0].as_ref() == IMAGE_URI,
             _ => false,

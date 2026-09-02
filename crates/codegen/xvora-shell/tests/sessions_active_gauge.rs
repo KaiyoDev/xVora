@@ -8,7 +8,7 @@ use acp_harness::{AutoApproveClient, RPC_TIMEOUT, connect_and_auth, new_session,
 use agent_client_protocol::{self as acp, Agent as _};
 
 fn sessions_active() -> u32 {
-    xvora_telemetry::activity::gauge_value(xvora_telemetry::activity::SESSIONS_ACTIVE_KEY)
+    telemetry::activity::gauge_value(telemetry::activity::SESSIONS_ACTIVE_KEY)
 }
 
 #[test]

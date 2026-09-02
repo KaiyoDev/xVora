@@ -1,7 +1,7 @@
 // Per-test-case module for the `pty_e2e` integration test crate.
 #[allow(unused_imports)]
 use super::common::*;
-use xvora_workspace::trust::{TRUST_FILE_NAME, TrustStore};
+use workspace::trust::{TRUST_FILE_NAME, TrustStore};
 
 /// `$HOME` is itself a git repo (dotfiles in home) and the session launches in a subdir (`<home>/proj`) with its own repo-local `.mcp.json`.
 /// The trust question must render for the subdir and the accepted grant must persist keyed on the subdir, never on `$HOME`.

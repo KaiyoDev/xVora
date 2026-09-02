@@ -16,7 +16,7 @@ pub use crate::event::GateKind;
 pub struct RunContext<'a> {
     pub session_id: &'a str,
     pub workspace_root: &'a str,
-    pub process_scope: Option<xvora_tools::util::ProcessScope>,
+    pub process_scope: Option<tools::util::ProcessScope>,
 }
 
 #[derive(Debug)]

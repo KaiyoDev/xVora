@@ -19,9 +19,9 @@ pub const GIT_AUTH_SUPPRESSION_ENVS: [(&str, &str); 4] = [
 /// Git command with auth/LFS/SSH prompt suppression and `--no-optional-locks`.
 pub(crate) fn git_command() -> Command {
     let mut cmd = Command::new("git");
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
-    cmd.envs(xvora_tty_utils::pager_env());
+    cmd.envs(tty_utils::pager_env());
     for &(key, val) in &GIT_AUTH_SUPPRESSION_ENVS {
         cmd.env(key, val);
     }
@@ -649,11 +649,11 @@ fn rehydrate_worktree_from_ref_inner(
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
 
     #[test]
     fn test_git_reset_hard_command() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         init_git_repo(temp.path());
 
@@ -680,7 +680,7 @@ mod tests {
 
     #[test]
     fn test_worktree_has_tracked_changes() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         init_git_repo(temp.path());
         std::fs::write(temp.path().join("file.txt"), "original").unwrap();
@@ -704,7 +704,7 @@ mod tests {
 
     #[test]
     fn test_has_staged_changes() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         init_git_repo(temp.path());
         std::fs::write(temp.path().join("file.txt"), "original").unwrap();
@@ -739,7 +739,7 @@ mod tests {
 
     #[test]
     fn test_worktree_at_ref() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         init_git_repo(temp.path());
         std::fs::write(temp.path().join("file.txt"), "v1").unwrap();
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_worktree_captures_tracked_and_untracked() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (_repo, wt) = repo_with_worktree(&temp);
 
@@ -826,7 +826,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_excludes_ignored_files() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (_repo, wt) = repo_with_worktree(&temp);
 
@@ -852,7 +852,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_captures_tracked_then_ignored_file() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
 
         // Commit the file FIRST so it is tracked in HEAD...
@@ -894,7 +894,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_clean_tree_equals_head_tree() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         // A clean, committed repo: nothing pending in the working tree.
         let repo_path = temp.path().join("repo");
@@ -917,7 +917,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_overwrites_ref_on_second_call() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (_repo, wt) = repo_with_worktree(&temp);
         let ref_name = "refs/grok/snapshots/overwrite";
@@ -942,7 +942,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_survives_worktree_removal() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (repo_path, wt) = repo_with_worktree(&temp);
 
@@ -979,7 +979,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_does_not_mutate_real_index() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (_repo, wt) = repo_with_worktree(&temp);
 
@@ -1003,7 +1003,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_preserves_crlf_under_autocrlf_config() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (_repo, wt) = repo_with_worktree(&temp);
 
@@ -1034,7 +1034,7 @@ mod tests {
 
     #[test]
     fn test_snapshot_captures_non_ascii_spaced_path() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (_repo, wt) = repo_with_worktree(&temp);
 
@@ -1057,7 +1057,7 @@ mod tests {
 
     #[test]
     fn test_rehydrate_round_trip_restores_working_state() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
 
         // Base repo with several committed files so the round trip exercises
@@ -1141,7 +1141,7 @@ mod tests {
 
     #[test]
     fn test_rehydrate_base_missing_falls_back_to_snapshot() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (repo_path, wt) = repo_with_worktree(&temp);
 
@@ -1191,7 +1191,7 @@ mod tests {
 
     #[test]
     fn test_rehydrate_self_heals_over_leftover_dest_dir() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (repo_path, wt) = repo_with_worktree(&temp);
 
@@ -1224,7 +1224,7 @@ mod tests {
     /// paths were not visible from the container mount namespace.
     #[test]
     fn test_rehydrate_clears_only_its_own_stale_registration() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let (repo_path, wt) = repo_with_worktree(&temp);
 
@@ -1264,7 +1264,7 @@ mod tests {
 
     #[test]
     fn test_transfer_snapshot_to_repo_makes_standalone_ref_durable() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let repo_path = temp.path().join("repo");
         std::fs::create_dir(&repo_path).unwrap();
@@ -1329,7 +1329,7 @@ mod tests {
     #[cfg(feature = "metadata")]
     #[test]
     fn test_rehydrate_registers_worktree_in_db() {
-        xvora_test_utils::require_git!();
+        test_utils::require_git!();
         let temp = TempDir::new().unwrap();
 
         // Isolate the worktree DB (lock + GROK_HOME → private tmp + restore).

@@ -2,7 +2,7 @@ use agent_client_protocol as acp;
 use serde::{Deserialize, Serialize};
 
 use crate::util::config as cli_config;
-use xvora_agent::prompt::skills::{
+use agent::prompt::skills::{
     CompatConfig, SkillInfo, SkillsConfig, list_skills_with_plugins,
 };
 
@@ -112,7 +112,7 @@ pub struct SkillsConfigResponse {
 #[tracing::instrument(skip_all, fields(cwd))]
 async fn reload_skills(
     cwd: &str,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
     compat: CompatConfig,
 ) -> Vec<SkillInfo> {
     let config = cli_config::load_config().await.skills;
@@ -139,11 +139,11 @@ fn resolve_skill_path(raw: &str, cwd: &str) -> String {
 
     // Expand ~ to the home directory
     let expanded = if let Some(rest) = raw.strip_prefix("~/") {
-        xvora_dirs::home_dir()
+        dirs::home_dir()
             .map(|home| home.join(rest))
             .unwrap_or_else(|| PathBuf::from(raw))
     } else if raw == "~" {
-        xvora_dirs::home_dir().unwrap_or_else(|| PathBuf::from(raw))
+        dirs::home_dir().unwrap_or_else(|| PathBuf::from(raw))
     } else {
         PathBuf::from(raw)
     };
@@ -166,7 +166,7 @@ fn resolve_skill_path(raw: &str, cwd: &str) -> String {
 /// Collect auto-discovered skill source directories and their counts.
 fn discover_auto_sources(cwd: &str, skills: &[SkillInfo]) -> Vec<(String, usize)> {
     let cwd_path = std::path::PathBuf::from(cwd);
-    let grok_home = xvora_tools::util::grok_home::grok_home();
+    let grok_home = tools::util::grok_home::grok_home();
     let git_root = git2::Repository::discover(&cwd_path)
         .ok()
         .and_then(|repo| repo.workdir().map(|p| p.to_path_buf()));
@@ -213,7 +213,7 @@ fn discover_auto_sources(cwd: &str, skills: &[SkillInfo]) -> Vec<(String, usize)
         try_add_source(grok_home.join(subdir), None);
     }
 
-    if let Some(home_path) = xvora_dirs::home_dir() {
+    if let Some(home_path) = dirs::home_dir() {
         for subdir in &subdirs {
             try_add_source(home_path.join(".agents").join(subdir), None);
         }
@@ -264,7 +264,7 @@ fn extra_skill_dirs_from_config() -> Vec<String> {
 pub async fn handle(
     agent: &crate::agent::mvp_agent::MvpAgent,
     args: &acp::ExtRequest,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
     compat: CompatConfig,
 ) -> ExtResult {
     match args.method.as_ref() {
@@ -286,7 +286,7 @@ pub async fn handle(
             })
             .await
             {
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillAdded {
+                telemetry::session_ctx::log_event(telemetry::events::SkillAdded {
                     added_count: 0,
                     total_skills: 0,
                     success: false,
@@ -310,7 +310,7 @@ pub async fn handle(
                 total,
             );
 
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillAdded {
+            telemetry::session_ctx::log_event(telemetry::events::SkillAdded {
                 added_count: added_count as u32,
                 total_skills: total as u32,
                 success: true,
@@ -337,7 +337,7 @@ pub async fn handle(
             })
             .await
             {
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillRemoved {
+                telemetry::session_ctx::log_event(telemetry::events::SkillRemoved {
                     success: false,
                 });
                 return super::to_ext_response(Err::<SkillsRemoveResponse, _>(anyhow::anyhow!(
@@ -354,7 +354,7 @@ pub async fn handle(
                 if total == 1 { "" } else { "s" },
             );
 
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillRemoved {
+            telemetry::session_ctx::log_event(telemetry::events::SkillRemoved {
                 success: true,
             });
             super::to_ext_response(Ok(SkillsRemoveResponse {
@@ -603,13 +603,13 @@ mod tests {
         );
     }
 
-    /// Pin both HOME and USERPROFILE to the temp dir; `xvora_dirs::home_dir()` prefers USERPROFILE on Windows.
+    /// Pin both HOME and USERPROFILE to the temp dir; `dirs::home_dir()` prefers USERPROFILE on Windows.
     /// Remote sandboxes (missing HOME, symlink-resolved homes, a pre-existing ~/my-skills) can make `starts_with($HOME)` fail spuriously.
     /// Serial because env mutation is process-global.
     #[test]
     #[serial_test::serial]
     fn test_resolve_tilde_path() {
-        use xvora_test_support::env::EnvGuard;
+        use test_support::env::EnvGuard;
 
         let tmp = tempfile::tempdir().unwrap();
         let home = tmp.path().to_path_buf();

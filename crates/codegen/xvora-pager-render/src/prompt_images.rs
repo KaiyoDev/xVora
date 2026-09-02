@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
-use xvora_ratatui_textarea::ElementId;
+use ratatui_textarea::ElementId;
 
 /// Tracing target for image-pipeline diagnostics.
 ///
@@ -45,7 +45,7 @@ pub struct ImageViewerState {
 
 pub fn decode_image_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     // Unrestricted: accepts any format `image` recognises so paste previews don't fail for non-allow-listed types
-    xvora_tools::util::image_validate::validate_image_bytes_unrestricted(bytes, false)
+    tools::util::image_validate::validate_image_bytes_unrestricted(bytes, false)
         .ok()
         .map(|(w, h, _)| (w, h))
 }
@@ -92,7 +92,7 @@ impl ImageViewerState {
         let display_bytes = crate::terminal::image::prepare_overlay_image_bytes(&bytes)
             .unwrap_or_else(|| bytes.clone());
 
-        let mime_type = xvora_shared::clipboard::mime_from_bytes(&bytes).to_owned();
+        let mime_type = shared::clipboard::mime_from_bytes(&bytes).to_owned();
         let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned());
 
         Some(Self {
@@ -201,7 +201,7 @@ pub fn load_image_data(path: &std::path::Path) -> ImageLoadResult {
     };
     let display_bytes = crate::terminal::image::prepare_overlay_image_bytes(&bytes)
         .unwrap_or_else(|| bytes.clone());
-    let mime_type = xvora_shared::clipboard::mime_from_bytes(&bytes).to_owned();
+    let mime_type = shared::clipboard::mime_from_bytes(&bytes).to_owned();
 
     ImageLoadResult::Loaded(LoadedImageData {
         image_bytes: bytes,
@@ -302,7 +302,7 @@ impl VideoViewerState {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut ffmpeg_cmd);
+        tty_utils::detach_std_command(&mut ffmpeg_cmd);
         let status = ffmpeg_cmd.status();
 
         match &status {
@@ -420,7 +420,7 @@ pub fn extract_poster_frame(path: &std::path::Path) -> Option<(Vec<u8>, u32, u32
             .arg("-")
             .stdin(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         cmd.output()
             .ok()
             .filter(|o| o.status.success() && !o.stdout.is_empty())
@@ -476,7 +476,7 @@ fn ffprobe_metadata(path: &std::path::Path) -> Option<(u32, u32, f64, f64)> {
     .arg(path)
     .stdin(std::process::Stdio::null())
     .stderr(std::process::Stdio::null());
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     let output = match cmd.output() {
         Ok(o) => o,
         Err(e) => {
@@ -545,7 +545,7 @@ pub struct InlineMediaInfo {
     pub alt_text: String,
 }
 
-use xvora_shared::clipboard::mime_to_extension;
+use shared::clipboard::mime_to_extension;
 
 /// A single image pasted into the prompt.
 ///
@@ -914,7 +914,7 @@ fn read_image_at_path(path: &std::path::Path) -> Option<PastedImage> {
         return None;
     }
 
-    let mime_type = xvora_shared::clipboard::mime_from_bytes(&data);
+    let mime_type = shared::clipboard::mime_from_bytes(&data);
     if mime_type == "application/octet-stream" {
         return None;
     }
@@ -1251,11 +1251,11 @@ pub fn session_images_dir(
     cwd: &std::path::Path,
 ) -> Option<PathBuf> {
     let sid = session_id?;
-    let info = xvora_shared::session::info::Info {
+    let info = shared::session::info::Info {
         id: sid.clone(),
         cwd: cwd.to_string_lossy().into_owned(),
     };
-    Some(xvora_shared::session::session_dir(&info).join("images"))
+    Some(shared::session::session_dir(&info).join("images"))
 }
 
 /// Derive the `mermaid/` cache directory for a session.
@@ -1268,11 +1268,11 @@ pub fn session_mermaid_dir(
     cwd: &std::path::Path,
 ) -> Option<PathBuf> {
     let sid = session_id?;
-    let info = xvora_shared::session::info::Info {
+    let info = shared::session::info::Info {
         id: sid.clone(),
         cwd: cwd.to_string_lossy().into_owned(),
     };
-    Some(xvora_shared::session::session_dir(&info).join("mermaid"))
+    Some(shared::session::session_dir(&info).join("mermaid"))
 }
 
 // -------------------------------------------------------------------------
@@ -1340,7 +1340,7 @@ pub fn load_for_send(img: &PastedImage) -> Option<(Vec<u8>, String)> {
 ///   On failure the placeholder is stripped from the forwarded text and a `tracing::warn!` is emitted (no UI alert exists today).
 /// - When `workspace_cwd` is `None`, the orphan placeholder is left in the text unchanged (legacy behaviour, used by unit tests).
 ///
-/// The shared helper is [`xvora_shell::session::placeholder_images::load_placeholder_image`].
+/// The shared helper is [`shell::session::placeholder_images::load_placeholder_image`].
 /// Path validation, the extension allowlist, and the 50-MB size cap come from it, so the TUI and the server use the same rules.
 pub fn build_content_blocks_with_workspace(
     text: String,
@@ -1348,7 +1348,7 @@ pub fn build_content_blocks_with_workspace(
     workspace_cwd: Option<&std::path::Path>,
 ) -> Vec<agent_client_protocol::ContentBlock> {
     let allowed: Option<Vec<std::path::PathBuf>> =
-        workspace_cwd.map(xvora_shared::placeholder_images::default_allowed_prefixes);
+        workspace_cwd.map(shared::placeholder_images::default_allowed_prefixes);
     build_content_blocks_with_prefixes(text, images, allowed.as_deref())
 }
 
@@ -1365,13 +1365,13 @@ pub fn build_content_blocks_with_prefixes(
         text,
         images,
         allowed_prefixes,
-        xvora_shared::placeholder_images::MAX_PLACEHOLDER_AGGREGATE_BYTES,
+        shared::placeholder_images::MAX_PLACEHOLDER_AGGREGATE_BYTES,
     )
 }
 
 /// Test-injectable variant of [`build_content_blocks_with_prefixes`] that takes an explicit aggregate-bytes cap.
 ///
-/// Mirrors the server-side [`xvora_shell::session::placeholder_images::recover_orphan_placeholders_with_prefixes_and_caps`].
+/// Mirrors the server-side [`shell::session::placeholder_images::recover_orphan_placeholders_with_prefixes_and_caps`].
 /// The cap check matches: `aggregate + image.len() > cap` breaks the loop, so a running total exactly equal to the cap is admitted.
 pub fn build_content_blocks_with_prefixes_and_caps(
     text: String,
@@ -1389,7 +1389,7 @@ pub fn build_content_blocks_with_prefixes_and_caps(
 
     // Phase 2: rewrite `[Image #N: <path>]` to `[Image #N]`. The path tempts the model into a redundant `Read` on its own attachment.
     let rewritten_text =
-        xvora_shared::placeholder_images::strip_paths_from_image_placeholders(rewritten_text);
+        shared::placeholder_images::strip_paths_from_image_placeholders(rewritten_text);
 
     let mut blocks = Vec::with_capacity(1 + images.len() + orphan_images.len());
     blocks.push(ContentBlock::Text(TextContent::new(rewritten_text)));
@@ -1416,7 +1416,7 @@ pub fn build_content_blocks_with_prefixes_and_caps(
             ImageContent::new(data, mime_type)
                 .uri(uri)
                 // Record the `[Image #N]` display number so the server resolves the token by number, not list position. See `AttachedImages`.
-                .meta(Some(xvora_shared::placeholder_images::display_number_meta(
+                .meta(Some(shared::placeholder_images::display_number_meta(
                     img.display_number,
                 ))),
         ));
@@ -1453,7 +1453,7 @@ fn resolve_orphan_placeholders(
     let attached_numbers: std::collections::HashSet<usize> =
         images.iter().map(|i| i.display_number).collect();
 
-    let placeholders = xvora_shared::placeholder_images::extract_placeholders(&text);
+    let placeholders = shared::placeholder_images::extract_placeholders(&text);
     if placeholders.is_empty() {
         return (text, Vec::new());
     }
@@ -1467,7 +1467,7 @@ fn resolve_orphan_placeholders(
         if attached_numbers.contains(&ph.display_number) {
             continue; // PastedImage already supplies these bytes.
         }
-        match xvora_shared::placeholder_images::load_placeholder_image(&ph.path, allowed) {
+        match shared::placeholder_images::load_placeholder_image(&ph.path, allowed) {
             Ok(loaded) => {
                 let next_total = aggregate_bytes.saturating_add(loaded.data.len());
                 if next_total > aggregate_max {
@@ -1489,7 +1489,7 @@ fn resolve_orphan_placeholders(
                     ImageContent::new(data, loaded.mime_type)
                         .uri(uri)
                         // Same `[Image #N]` display-number mapping as inline images
-                        .meta(Some(xvora_shared::placeholder_images::display_number_meta(
+                        .meta(Some(shared::placeholder_images::display_number_meta(
                             ph.display_number,
                         ))),
                 );
@@ -3800,7 +3800,7 @@ mod tests {
             panic!("expected Image block");
         };
         assert_eq!(
-            xvora_shared::placeholder_images::display_number_from_meta(ic.meta.as_ref()),
+            shared::placeholder_images::display_number_from_meta(ic.meta.as_ref()),
             Some(3),
             "image block _meta must carry the real display number for token resolution"
         );

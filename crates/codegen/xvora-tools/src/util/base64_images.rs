@@ -738,7 +738,7 @@ mod tests {
         }
     }
 
-    /// Contract with `xvora_mcp::servers::format_mcp_image` dual-emit:
+    /// Contract with `mcp::servers::format_mcp_image` dual-emit:
     /// the data URI becomes a vision token; the raw `<mcp_image_base64>`
     /// block survives verbatim for agent decoding (e.g. `send_file`).
     #[test]

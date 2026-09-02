@@ -5,7 +5,7 @@
 //! types. Harness locations: `fixtures/bot_relay/README.md`.
 
 use serde_json::{Value, json};
-use xvora_tool_protocol::{
+use tool_protocol::{
     BotBindConversationParams, BotCommandParams, BotEmptyResult, BotEventChannel, BotEventEnvelope,
     BotRelayError, BotRelayErrorCode, BotRosterResult, BotStatusResult, BotSubscribeParams,
     BotTranscriptOffboxParams, BotTranscriptOffboxResult, BotVncDescriptorParams,
@@ -676,7 +676,7 @@ fn method_roster_status_subscribe_bind() {
     let status: BotStatusResult = serde_json::from_str(METHOD_STATUS_RESULT).expect("status");
     assert_eq!(
         status.run_state,
-        xvora_tool_protocol::BotRunState::Hibernated
+        tool_protocol::BotRunState::Hibernated
     );
 
     let sub: BotSubscribeParams = serde_json::from_str(METHOD_SUBSCRIBE_PARAMS).expect("subscribe");

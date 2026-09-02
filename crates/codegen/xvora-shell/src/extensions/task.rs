@@ -1,8 +1,8 @@
 use agent_client_protocol as acp;
 use serde::{Deserialize, Serialize};
-use xvora_tools::types::{KillOutcome, KillSource, TaskSnapshot};
+use tools::types::{KillOutcome, KillSource, TaskSnapshot};
 
-use xvora_tools::implementations::grok_build::task::types::{
+use tools::implementations::grok_build::task::types::{
     SubagentCancelOutcome, SubagentInspection, SubagentProvenance, SubagentSnapshot,
     SubagentSnapshotStatus,
 };

@@ -273,9 +273,9 @@ impl AskUserQuestionTool {
     async fn fallback_fire_and_forget(
         &self,
         input: &AskUserQuestionInput,
-        ctx: &xvora_tool_runtime::ToolCallContext,
+        ctx: &tool_runtime::ToolCallContext,
         resources: &SharedResources,
-    ) -> Result<AskUserQuestionOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<AskUserQuestionOutput, tool_runtime::ToolError> {
         let question_count = input.questions.len();
 
         let questions_json = serde_json::to_value(&input.questions)
@@ -320,28 +320,28 @@ impl AskUserQuestionTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for AskUserQuestionTool {
+impl tool_runtime::Tool for AskUserQuestionTool {
     type Args = AskUserQuestionInput;
     type Output = AskUserQuestionOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("ask_user_question").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("ask_user_question").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "ask_user_question",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
+            tool_scope: Some(tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -353,9 +353,9 @@ impl xvora_tool_runtime::Tool for AskUserQuestionTool {
     )]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: AskUserQuestionInput,
-    ) -> Result<AskUserQuestionOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<AskUserQuestionOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -373,7 +373,7 @@ impl xvora_tool_runtime::Tool for AskUserQuestionTool {
             let mut seen = std::collections::HashSet::new();
             for q in &input.questions {
                 if !seen.insert(&q.question) {
-                    return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
+                    return Err(tool_runtime::ToolError::invalid_arguments(format!(
                         "Duplicate question text: \"{}\"",
                         q.question
                     )));
@@ -399,7 +399,7 @@ impl xvora_tool_runtime::Tool for AskUserQuestionTool {
                         .fallback_fire_and_forget(&input, &ctx, &resources)
                         .await;
                 }
-                return Err(xvora_tool_runtime::ToolError::custom(
+                return Err(tool_runtime::ToolError::custom(
                     "missing_resource",
                     "UserQuestionSender".to_string(),
                 ));
@@ -417,8 +417,8 @@ impl xvora_tool_runtime::Tool for AskUserQuestionTool {
         };
 
         if sender.0.send(request).is_err() {
-            return Err(xvora_tool_runtime::ToolError::execution(
-                xvora_tool_protocol::ToolId::new("ask_user_question").expect("valid"),
+            return Err(tool_runtime::ToolError::execution(
+                tool_protocol::ToolId::new("ask_user_question").expect("valid"),
                 "User question session ended unexpectedly (coordinator channel closed)",
             ));
         }
@@ -461,8 +461,8 @@ impl xvora_tool_runtime::Tool for AskUserQuestionTool {
         let result = match outcome {
             Ok(Ok(r)) => r,
             Ok(Err(_recv_error)) => {
-                return Err(xvora_tool_runtime::ToolError::execution(
-                    xvora_tool_protocol::ToolId::new("ask_user_question").expect("valid"),
+                return Err(tool_runtime::ToolError::execution(
+                    tool_protocol::ToolId::new("ask_user_question").expect("valid"),
                     "User question session ended unexpectedly (client may have disconnected)",
                 ));
             }
@@ -517,14 +517,14 @@ impl xvora_tool_runtime::Tool for AskUserQuestionTool {
                 message: unanswered.to_string(),
             }),
             Err(UserQuestionError::TransportError(msg)) => {
-                Err(xvora_tool_runtime::ToolError::execution(
-                    xvora_tool_protocol::ToolId::new("ask_user_question").expect("valid"),
+                Err(tool_runtime::ToolError::execution(
+                    tool_protocol::ToolId::new("ask_user_question").expect("valid"),
                     format!("Failed to reach the client for user question: {msg}"),
                 ))
             }
             Err(UserQuestionError::MalformedResponse(msg)) => {
-                Err(xvora_tool_runtime::ToolError::execution(
-                    xvora_tool_protocol::ToolId::new("ask_user_question").expect("valid"),
+                Err(tool_runtime::ToolError::execution(
+                    tool_protocol::ToolId::new("ask_user_question").expect("valid"),
                     format!("Client returned an invalid response to user question: {msg}"),
                 ))
             }
@@ -589,14 +589,14 @@ mod tests {
     fn tool_name_and_description() {
         let tool = AskUserQuestionTool;
         assert_eq!(
-            xvora_tool_runtime::Tool::id(&tool).as_str(),
+            tool_runtime::Tool::id(&tool).as_str(),
             "ask_user_question"
         );
     }
 
     #[test]
     fn tool_is_read_only() {
-        assert!(xvora_tool_runtime::Tool::capabilities(&AskUserQuestionTool).is_read_only);
+        assert!(tool_runtime::Tool::capabilities(&AskUserQuestionTool).is_read_only);
     }
 
     #[test]
@@ -675,7 +675,7 @@ mod tests {
         };
 
         let result =
-            xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
+            tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
                 .await
                 .unwrap();
 
@@ -703,7 +703,7 @@ mod tests {
         };
 
         let result =
-            xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
+            tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
                 .await
                 .unwrap();
 
@@ -734,7 +734,7 @@ mod tests {
             use_id_keyed_format: false,
         };
 
-        xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "call-q"), input)
+        tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "call-q"), input)
             .await
             .unwrap();
 
@@ -764,7 +764,7 @@ mod tests {
         };
 
         let err =
-            xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
+            tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "test-call"), input)
                 .await
                 .unwrap_err();
 
@@ -788,7 +788,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-1"), input)
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-1"), input)
                     .await
             }
         });
@@ -831,7 +831,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-4"), input)
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-4"), input)
                     .await
             }
         });
@@ -869,7 +869,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-ni"), input)
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-ni"), input)
                     .await
             }
         });
@@ -911,7 +911,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(
+                tool_runtime::Tool::run(
                     &tool,
                     test_ctx_with_call_id(shared, "tc-ni-timeout"),
                     input,
@@ -954,7 +954,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(
+                tool_runtime::Tool::run(
                     &tool,
                     test_ctx_with_call_id(shared, "tc-timeout"),
                     input,
@@ -994,7 +994,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-ok"), input)
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-ok"), input)
                     .await
             }
         });
@@ -1081,7 +1081,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(
+                tool_runtime::Tool::run(
                     &tool,
                     test_ctx_with_call_id(shared, "tc-short"),
                     input,
@@ -1121,7 +1121,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(
+                tool_runtime::Tool::run(
                     &tool,
                     test_ctx_with_call_id(shared, "tc-forever"),
                     input,
@@ -1168,7 +1168,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-5"), input)
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-5"), input)
                     .await
             }
         });
@@ -1194,7 +1194,7 @@ mod tests {
         let handle = tokio::spawn({
             let shared = shared.clone();
             async move {
-                xvora_tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-6"), input)
+                tool_runtime::Tool::run(&tool, test_ctx_with_call_id(shared, "tc-6"), input)
                     .await
             }
         });

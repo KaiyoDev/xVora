@@ -5,7 +5,7 @@ use documented::{Documented, DocumentedFields};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use toml_edit::{DocumentMut, Item, RawString};
-use xvora_shared::ui_config::UiConfig;
+use shared::ui_config::UiConfig;
 
 // ============================================================================
 // Runtime Config (used by render code)
@@ -1801,7 +1801,7 @@ static PAGER_TOML_SAVE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 pub fn persist_respect_manual_folds(enabled: bool) -> std::io::Result<()> {
     use std::io::{Error, ErrorKind};
 
-    if xvora_config::user_grok_home().is_none() {
+    if config::user_grok_home().is_none() {
         return Err(Error::new(
             ErrorKind::NotFound,
             "no user grok home resolved; refusing to write a cwd-relative pager.toml \

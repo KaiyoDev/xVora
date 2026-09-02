@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use xvora_tools::registry::types::{SessionContext, ToolRegistryBuilder, ToolServerConfig};
+use tools::registry::types::{SessionContext, ToolRegistryBuilder, ToolServerConfig};
 /// Default capacity for the workspace event broadcast channel.
 pub const DEFAULT_EVENT_BUFFER_CAPACITY: usize = 64;
 /// A session-lifetime terminal backend (background-task registry and persistent shell) paired with its explicit shutdown hook.
@@ -16,7 +16,7 @@ pub const DEFAULT_EVENT_BUFFER_CAPACITY: usize = 64;
 /// Teardown at `drop_session`/evict is an explicit act rather than a side effect of the last `Arc` drop.
 #[derive(Clone)]
 pub struct SessionTerminalBackend {
-    backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
+    backend: Arc<dyn tools::computer::types::TerminalBackend>,
     shutdown: Arc<dyn Fn() + Send + Sync>,
 }
 impl SessionTerminalBackend {
@@ -25,15 +25,15 @@ impl SessionTerminalBackend {
     /// The fields are private, so [`SessionContextFactory`] implementors whose backend is not a `LocalTerminalBackend` must build one here.
     /// In-repo factories use [`Self::local`].
     pub fn new(
-        backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
+        backend: Arc<dyn tools::computer::types::TerminalBackend>,
         shutdown: Arc<dyn Fn() + Send + Sync>,
     ) -> Self {
         Self { backend, shutdown }
     }
     /// Wrap a [`LocalTerminalBackend`], wiring the shutdown hook to its cancel token.
     ///
-    /// [`LocalTerminalBackend`]: xvora_tools::computer::local::LocalTerminalBackend
-    pub fn local(backend: xvora_tools::computer::local::LocalTerminalBackend) -> Self {
+    /// [`LocalTerminalBackend`]: tools::computer::local::LocalTerminalBackend
+    pub fn local(backend: tools::computer::local::LocalTerminalBackend) -> Self {
         let canceller = backend.clone();
         Self {
             backend: Arc::new(backend),
@@ -41,7 +41,7 @@ impl SessionTerminalBackend {
         }
     }
     /// The type-erased backend, as injected into toolset resolves.
-    pub fn backend(&self) -> &Arc<dyn xvora_tools::computer::types::TerminalBackend> {
+    pub fn backend(&self) -> &Arc<dyn tools::computer::types::TerminalBackend> {
         &self.backend
     }
     /// Explicitly shut the backend down: kills all of its child process groups and stops its actor.
@@ -68,7 +68,7 @@ pub trait SessionContextFactory: Send + Sync {
         session_id: &str,
         cwd: PathBuf,
         session_env: Arc<HashMap<String, String>>,
-        backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
+        backend: Arc<dyn tools::computer::types::TerminalBackend>,
     ) -> SessionContext;
     /// Build the session-lifetime terminal backend for a new session.
     /// Called once per session create/fork; toolset re-resolves reuse the session's stored backend instead of building another.
@@ -95,11 +95,11 @@ pub struct WorkspaceBindConfig {
     /// Fully-specified toolset in the runtime serde shape. Takes precedence over `tools`.
     pub tool_config: Option<ToolServerConfig>,
     /// Per-user feature-flag bag. `None` on legacy payloads means tools fall back to their safe defaults.
-    pub viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+    pub viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     /// Initial auto-approve (YOLO) state. `None` on legacy payloads fails closed (false).
     pub yolo_mode: Option<bool>,
     /// Plane-configured toolset in the gRPC wire shape. An empty list is treated as unset (proto3 repeated default).
-    pub tools: Option<Vec<xvora_tools_api::ToolConfigEntry>>,
+    pub tools: Option<Vec<tools_api::ToolConfigEntry>>,
     pub manifest_version: Option<String>,
     pub manifest_hash: Option<String>,
     /// Opt-in: forward `BackgroundTaskCompleted` system notifications for this session.
@@ -119,7 +119,7 @@ pub enum ResolvedToolset {
     /// No explicit toolset was specified and the workspace requires one (sandbox-launched standalone servers): fail closed.
     MissingToolConfig,
     /// `tools` entries were specified but at least one failed to convert.
-    InvalidToolConfig(xvora_tools::registry::proto_convert::ToolConfigEntryError),
+    InvalidToolConfig(tools::registry::proto_convert::ToolConfigEntryError),
 }
 /// A resolved toolset plus the pinned entries this binary could not serve.
 #[derive(Debug)]
@@ -139,10 +139,10 @@ impl ResolvedTools {
 }
 impl WorkspaceBindConfig {
     /// Parse hub `session.bind` metadata.
-    /// The envelope is the shared [`xvora_tool_runtime::WorkspaceBindMetadata`], the same type the emitter serializes.
+    /// The envelope is the shared [`tool_runtime::WorkspaceBindMetadata`], the same type the emitter serializes.
     /// `tool_config` is a consumer-only raw escape hatch read separately.
     pub fn from_metadata(metadata: &serde_json::Value) -> Self {
-        let wire: xvora_tool_runtime::WorkspaceBindMetadata =
+        let wire: tool_runtime::WorkspaceBindMetadata =
             serde_json::from_value(metadata.clone()).unwrap_or_default();
         Self {
             preset: wire.preset,
@@ -180,7 +180,7 @@ impl WorkspaceBindConfig {
     ) -> ResolvedToolset {
         if let Some(cfg) = &self.tool_config {
             for (idx, tool) in cfg.tools.iter().enumerate() {
-                if let Err(err) = xvora_tools_api::config_validation::validate_name_override(
+                if let Err(err) = tools_api::config_validation::validate_name_override(
                     idx,
                     &tool.id,
                     tool.name_override.as_deref(),
@@ -198,7 +198,7 @@ impl WorkspaceBindConfig {
                     unserved_tool_ids.push(entry.id.clone());
                     continue;
                 }
-                match xvora_tools::registry::proto_convert::tool_config_from_entry(
+                match tools::registry::proto_convert::tool_config_from_entry(
                     idx,
                     entry.clone(),
                 ) {
@@ -211,7 +211,7 @@ impl WorkspaceBindConfig {
                 tracing::warn!(
                     unserved = ?unserved_tool_ids,
                     config_manifest_version = ?self.manifest_version,
-                    running_version = xvora_version::VERSION,
+                    running_version = version::VERSION,
                     "session.bind: serving known subset of pinned tools"
                 );
             }
@@ -719,7 +719,7 @@ impl BindMcpConfig {
     /// but waiting a short grace lets fast discovery land in the bind's own
     /// install, so the first turn usually sees the tools. The cap keeps the
     /// wait well under the hub's bind ack window
-    /// ([`xvora_tool_protocol::SESSION_BIND_ACK_TIMEOUT`], which the hub's ws
+    /// ([`tool_protocol::SESSION_BIND_ACK_TIMEOUT`], which the hub's ws
     /// router uses as its bind timeout; `bind_mcp_config_tests` pins the
     /// headroom), so one stalling MCP endpoint can never turn into a
     /// hub-visible bind failure. The convergence itself always runs on the
@@ -786,7 +786,7 @@ impl BindMcpConfig {
     /// whose setup already consumed the window skips the wait entirely and
     /// lets discovery ride `tools_changed`.
     pub fn bind_converge_grace_within(&self, elapsed_since_bind_start: Duration) -> Duration {
-        let remaining = xvora_tool_protocol::SESSION_BIND_ACK_TIMEOUT
+        let remaining = tool_protocol::SESSION_BIND_ACK_TIMEOUT
             .saturating_sub(Self::BIND_ACK_SAFETY_MARGIN)
             .saturating_sub(elapsed_since_bind_start);
         self.bind_converge_grace().min(remaining)
@@ -822,7 +822,7 @@ pub struct WorkspaceConfig {
     pub hub_config: Option<HubConfig>,
     /// Auth provider for xAI service calls made from workspace-scoped code.
     /// `None` for workspaces that do not configure service auth.
-    pub auth_provider: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
+    pub auth_provider: Option<computer_hub_sdk::SharedAuthProvider>,
     /// Metadata attached to the tool server registration.
     /// Propagated through the server to `ServerInfo.metadata` in `servers.list` responses.
     /// Harness clients use it to identify the sandbox that started the tool server.
@@ -844,7 +844,7 @@ pub struct WorkspaceConfig {
 }
 /// Metadata a tool server announces so hub consumers can identify and route to it.
 /// Re-export of the protocol crate's single catalog of well-known registration-metadata keys; every field is optional and independently sourced.
-pub use xvora_tool_protocol::ServerIdentityMetadata as WorkspaceServerMetadata;
+pub use tool_protocol::ServerIdentityMetadata as WorkspaceServerMetadata;
 /// Merge an env-sourced logical session id into caller-supplied tool-server metadata (`None` on the restore/local path).
 ///
 /// `env_session_id` is the raw `GROK_SESSION_ID`; empty is normalized to absent.
@@ -866,7 +866,7 @@ impl WorkspaceConfig {
         root_cwd: PathBuf,
         session_factory: Arc<dyn SessionContextFactory>,
         hub_config: HubConfig,
-        auth_provider: xvora_computer_hub_sdk::SharedAuthProvider,
+        auth_provider: computer_hub_sdk::SharedAuthProvider,
         server_metadata: Option<serde_json::Value>,
         status_config: crate::status_config::StatusConfig,
         tool_config: ToolServerConfig,
@@ -980,7 +980,7 @@ mod bind_mcp_config_tests {
     /// uses as its bind timeout. The grace a bind waits for the session's
     /// MCP convergence must stay under it with headroom, or one stalling
     /// MCP endpoint turns into a hub-visible bind failure.
-    const HUB_BIND_ACK_TIMEOUT: Duration = xvora_tool_protocol::SESSION_BIND_ACK_TIMEOUT;
+    const HUB_BIND_ACK_TIMEOUT: Duration = tool_protocol::SESSION_BIND_ACK_TIMEOUT;
     /// Duplicate names dedupe at the same chokepoint as the caps, LAST
     /// definition wins (JSON-object semantics): the session maps hold one
     /// slot per name, so without this, discovery would start one client per
@@ -1000,7 +1000,7 @@ mod bind_mcp_config_tests {
         let names: Vec<&str> = config
             .servers()
             .iter()
-            .map(xvora_mcp::servers::mcp_server_name)
+            .map(mcp::servers::mcp_server_name)
             .collect();
         assert_eq!(
             names,
@@ -1028,9 +1028,9 @@ mod bind_mcp_config_tests {
             ))
         }));
         assert_eq!(config.servers().len(), BindMcpConfig::MAX_SERVERS);
-        let first = xvora_mcp::servers::mcp_server_name(&config.servers()[0]);
+        let first = mcp::servers::mcp_server_name(&config.servers()[0]);
         let last =
-            xvora_mcp::servers::mcp_server_name(&config.servers()[BindMcpConfig::MAX_SERVERS - 1]);
+            mcp::servers::mcp_server_name(&config.servers()[BindMcpConfig::MAX_SERVERS - 1]);
         assert_eq!(first, "server-000");
         assert_eq!(
             last,

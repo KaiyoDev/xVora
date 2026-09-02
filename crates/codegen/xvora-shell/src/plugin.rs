@@ -7,9 +7,9 @@
 
 use std::path::{Path, PathBuf};
 
-use xvora_agent::plugins::discovery::PluginScope;
-use xvora_agent::plugins::git_install::{self, UpdateStatus};
-use xvora_agent::plugins::install_registry::{
+use agent::plugins::discovery::PluginScope;
+use agent::plugins::git_install::{self, UpdateStatus};
+use agent::plugins::install_registry::{
     InstallError, InstallKind, InstallRegistry, InstalledRepo, MarketplaceProvenance,
 };
 use xvora_plugin_marketplace::git::{self, SourceCacheLease};
@@ -157,7 +157,7 @@ pub fn uninstall_plugin(
 
     if !keep_data {
         // Plugins under $HOME are user-scope; everything else is config-path scope.
-        let scope = match xvora_dirs::home_dir() {
+        let scope = match dirs::home_dir() {
             Some(home) if repo.path.starts_with(&home) => PluginScope::User,
             _ => PluginScope::ConfigPath,
         };
@@ -292,7 +292,7 @@ fn update_marketplace_repo(
 }
 
 fn marketplace_root_for_provenance(
-    provenance: &xvora_agent::plugins::install_registry::MarketplaceProvenance,
+    provenance: &agent::plugins::install_registry::MarketplaceProvenance,
 ) -> Result<MarketplaceSourceRoot, InstallError> {
     let source = &provenance.source_url_or_path;
     if let Some((url, branch)) = configured_marketplace_git_source(source) {
@@ -500,7 +500,7 @@ pub fn classify_marketplace_add_input(input: &str, cwd: &Path) -> MarketplaceAdd
 /// Expand a leading `~` to the home directory, the same expansion the marketplace loader applies to `path =` config entries.
 fn expand_tilde(input: &str) -> PathBuf {
     match input.strip_prefix('~') {
-        Some(rest) => xvora_dirs::home_dir()
+        Some(rest) => dirs::home_dir()
             .map(|h| h.join(rest.strip_prefix('/').unwrap_or(rest)))
             .unwrap_or_else(|| PathBuf::from(input)),
         None => PathBuf::from(input),
@@ -702,7 +702,7 @@ fn bullet_list(items: &[String]) -> String {
 /// Read from the overlay-free layer merge (the overlay-free contract in `ConfigLayers::env_overlay`).
 /// That way an overlay `require_sha = false` cannot defeat a disk-set `true`.
 pub(crate) fn marketplace_require_sha() -> bool {
-    xvora_config::ConfigLayers::load()
+    config::ConfigLayers::load()
         .map(|layers| {
             xvora_plugin_marketplace::load_require_sha(
                 &layers.effective_config_base_without_overlay(),
@@ -725,13 +725,13 @@ pub(crate) fn load_marketplace_sources() -> Vec<MarketplaceSource> {
 /// Install paths must use this so policy cannot be bypassed.
 pub(crate) fn load_filtered_marketplace_sources() -> Vec<MarketplaceSource> {
     let allowlist =
-        &xvora_workspace::permission::resolution::managed_settings().marketplace_allowlist;
+        &workspace::permission::resolution::managed_settings().marketplace_allowlist;
     filter_sources_by_allowlist(load_marketplace_sources(), allowlist)
 }
 
 fn filter_sources_by_allowlist(
     mut sources: Vec<MarketplaceSource>,
-    allowlist: &xvora_workspace::permission::resolution::MarketplaceAllowlist,
+    allowlist: &workspace::permission::resolution::MarketplaceAllowlist,
 ) -> Vec<MarketplaceSource> {
     if allowlist.is_restricted() {
         sources.retain(|source| match &source.kind {
@@ -1125,7 +1125,7 @@ pub fn uninstall_marketplace_source_plugins(source_identity: &str) -> Vec<String
         if let Err(e) = git_install::remove_repo_path(path) {
             tracing::warn!("failed to remove plugin dir for {key}: {e}");
         }
-        let scope = match xvora_dirs::home_dir() {
+        let scope = match dirs::home_dir() {
             Some(home) if path.starts_with(&home) => PluginScope::User,
             _ => PluginScope::ConfigPath,
         };
@@ -1189,8 +1189,8 @@ pub fn remove_toml_marketplace_block(content: &str, source_identity: &str) -> Op
 pub fn try_remove_source_from_json_files(source_url_or_path: &str) -> bool {
     // Resolve user grok via user_grok_home() (None when no home resolves) and home separately
     // Removal then still runs from $GROK_HOME when no home dir exists, and never touches a cwd-relative .grok
-    let home = xvora_dirs::home_dir();
-    let grok = xvora_config::user_grok_home();
+    let home = dirs::home_dir();
+    let grok = config::user_grok_home();
 
     let mut settings_candidates: Vec<std::path::PathBuf> = Vec::new();
     if let Some(ref grok) = grok {
@@ -1376,7 +1376,7 @@ mod tests {
             MarketplaceAddInput::LocalPath(PathBuf::from("/work/../plugins"))
         );
         // Tilde expands to home.
-        if let Some(home) = xvora_dirs::home_dir() {
+        if let Some(home) = dirs::home_dir() {
             assert_eq!(
                 classify_marketplace_add_input("~/plugins", cwd),
                 MarketplaceAddInput::LocalPath(home.join("plugins"))
@@ -1500,7 +1500,7 @@ mod tests {
     #[test]
     fn remove_toml_matches_tilde_path_entry_by_expanded_identity() {
         // Loaded sources carry expanded paths, so removal by identity must still find a hand-written `path = "~/x"` entry
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return;
         };
         let content = "[[marketplace.sources]]\nname = \"dev\"\npath = \"~/dev/plugins\"\n";
@@ -2061,8 +2061,8 @@ mod tests {
 
     fn marketplace_allowlist(
         urls: &[&str],
-    ) -> xvora_workspace::permission::resolution::MarketplaceAllowlist {
-        xvora_workspace::permission::resolution::MarketplaceAllowlist {
+    ) -> workspace::permission::resolution::MarketplaceAllowlist {
+        workspace::permission::resolution::MarketplaceAllowlist {
             allowed_urls: urls.iter().map(|u| u.to_string()).collect(),
             source_path: None,
         }
@@ -2083,7 +2083,7 @@ mod tests {
 
     #[test]
     fn filter_sources_by_allowlist_unrestricted_passes_everything() {
-        let allowlist = xvora_workspace::permission::resolution::MarketplaceAllowlist::default();
+        let allowlist = workspace::permission::resolution::MarketplaceAllowlist::default();
         let sources = vec![
             git_source("Any Git", "https://github.com/bad/repo.git"),
             local_source("Local", "/tmp/p"),

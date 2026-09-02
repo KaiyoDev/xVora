@@ -34,7 +34,7 @@ account = "other@example.com"
 #[serial_test::serial(GROK_HOME)]
 async fn set_consent_answer_is_monotonic_per_account() {
     let home = tempfile::tempdir().expect("home");
-    let _guard = xvora_test_support::env::EnvGuard::set("GROK_HOME", home.path());
+    let _guard = test_support::env::EnvGuard::set("GROK_HOME", home.path());
 
     let answers = || {
         let root = crate::config::load_from_disk().expect("read config");

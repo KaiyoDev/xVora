@@ -40,7 +40,7 @@ use crate::permission::rules::DefaultPermissionMode;
 use crate::permission::types::{PermissionRule, Sourced};
 
 /// Managed MCP + plugin + marketplace policy from Claude `managed-settings.json`
-/// ([`xvora_config::claude_managed_settings_path`]; no `managed-settings.d/`,
+/// ([`config::claude_managed_settings_path`]; no `managed-settings.d/`,
 /// MDM plist, or registry delivery yet) plus every `managed_config.toml` /
 /// `requirements.toml` layer. Strictest-wins: any deny wins, every restricted
 /// source must allow, pins only tighten. Loaded once per process.
@@ -68,11 +68,11 @@ pub fn managed_settings() -> &'static ManagedSettings {
 }
 
 fn load_managed_settings() -> ManagedSettings {
-    let claude = xvora_config::claude_managed_settings_path()
+    let claude = config::claude_managed_settings_path()
         .and_then(|path| read_managed_settings_json(&path).map(|json| (json, path)));
     let toml_layers = managed_toml_policy_layers(
-        xvora_config::managed_config_layers(),
-        xvora_config::requirements_layers(),
+        config::managed_config_layers(),
+        config::requirements_layers(),
     );
     resolve_managed_settings(claude, toml_layers)
 }
@@ -81,8 +81,8 @@ fn load_managed_settings() -> ManagedSettings {
 /// test can feed real fixture files through `managed_config_layers_at` and
 /// prove layer discovery still reaches the policy engine.
 fn managed_toml_policy_layers(
-    managed: Vec<xvora_config::ManagedConfigLayer>,
-    requirements: Vec<xvora_config::RequirementsLayer>,
+    managed: Vec<config::ManagedConfigLayer>,
+    requirements: Vec<config::RequirementsLayer>,
 ) -> Vec<PolicyLayer> {
     let mut toml_layers: Vec<PolicyLayer> = Vec::new();
     for layer in managed {
@@ -99,7 +99,7 @@ fn managed_toml_policy_layers(
     for layer in requirements {
         toml_layers.push(PolicyLayer {
             tier: match layer.source {
-                xvora_config::RequirementsSource::Mdm => PolicyLayerTier::Mdm,
+                config::RequirementsSource::Mdm => PolicyLayerTier::Mdm,
                 _ if layer.is_system => PolicyLayerTier::SystemRequirements,
                 _ => PolicyLayerTier::UserRequirements,
             },

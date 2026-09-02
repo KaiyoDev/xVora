@@ -6,7 +6,7 @@ pub use xvora_sampling_types::types::*;
 
 // Tests for the types live in the xvora-sampling-types crate
 
-use xvora_tools::types::output::ImageContent as ToolsImageContent;
+use tools::types::output::ImageContent as ToolsImageContent;
 
 /// Render an `ImageContent` produced by the read-file tool as a URL string suitable for an `image_url` content block.
 /// Passes the explicit `uri` through if present, otherwise builds a `data:<mime>;base64,<data>` URI.

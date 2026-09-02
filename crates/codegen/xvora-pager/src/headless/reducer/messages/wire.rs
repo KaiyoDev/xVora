@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::headless::reducer::McpServer;
-use xvora_shell::extensions::notification::ResponseUsage;
+use shell::extensions::notification::ResponseUsage;
 
 pub(super) fn new_uuid() -> String {
     uuid::Uuid::new_v4().to_string()

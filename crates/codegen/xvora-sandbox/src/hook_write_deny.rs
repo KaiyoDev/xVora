@@ -5,15 +5,15 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use xvora_config::{
+use config::{
     GlobalHookSource, missing_configured_sources, resolve_global_hook_sources,
     resolve_trust_boundary_sources,
 };
 
 #[cfg(unix)]
-use xvora_config::validated_hook_json_files_for_sources;
+use config::validated_hook_json_files_for_sources;
 #[cfg(target_os = "linux")]
-use xvora_config::{ensure_grok_hook_slots, unique_ancestors_rootward};
+use config::{ensure_grok_hook_slots, unique_ancestors_rootward};
 
 use crate::paths::grok_home;
 use crate::profiles::ProfileName;
@@ -52,8 +52,8 @@ pub enum HookWriteDenyError {
     JsonSnapshotChanged { dir: PathBuf },
 }
 
-impl From<xvora_config::GlobalHookSourceError> for HookWriteDenyError {
-    fn from(e: xvora_config::GlobalHookSourceError) -> Self {
+impl From<config::GlobalHookSourceError> for HookWriteDenyError {
+    fn from(e: config::GlobalHookSourceError) -> Self {
         Self::Resolve(e.to_string())
     }
 }
@@ -130,7 +130,7 @@ pub fn revalidate_path_identity(id: &PathIdentity) -> Result<(), HookWriteDenyEr
 #[cfg(unix)]
 fn reject_hardlinked_files(sources: &[GlobalHookSource]) -> Result<(), HookWriteDenyError> {
     use std::os::unix::fs::MetadataExt;
-    use xvora_config::GlobalHookSourceKind;
+    use config::GlobalHookSourceKind;
     for s in sources {
         let is_file_slot = matches!(
             s.kind,
@@ -253,7 +253,7 @@ pub fn enforcement_leaf_paths(
 
 #[cfg(target_os = "linux")]
 fn capture_dir_json_snapshot(dir: &Path) -> Result<DirJsonSnapshot, HookWriteDenyError> {
-    use xvora_config::{list_direct_hook_json_files, validate_direct_hook_json_file};
+    use config::{list_direct_hook_json_files, validate_direct_hook_json_file};
     let listed = list_direct_hook_json_files(dir).map_err(|e| HookWriteDenyError::VerifyIo {
         path: dir.to_path_buf(),
         detail: e.to_string(),

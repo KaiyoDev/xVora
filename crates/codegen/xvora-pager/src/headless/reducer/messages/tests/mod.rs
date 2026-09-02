@@ -9,7 +9,7 @@ use crate::headless::reducer::acp::AcpReducer;
 use crate::headless::reducer::{McpServer, skill_names, tool_call_event};
 use serde::Serialize;
 use serde_json::{Value, json};
-use xvora_shell::extensions::notification::ResponseUsage;
+use shell::extensions::notification::ResponseUsage;
 
 fn tool_call_ev() -> ToolCallEvent {
     ToolCallEvent {

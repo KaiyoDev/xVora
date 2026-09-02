@@ -5,7 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use xvora_tools::types::tool::ToolKind;
+use tools::types::tool::ToolKind;
 
 /// Canonical path fields on write and edit tools.
 /// Client-facing names come from `${{ params.<kind>.<param> }}` via [`path_param_names_for_kind`].
@@ -119,7 +119,7 @@ pub(super) async fn snapshot_authored_workflow(
         return None;
     }
 
-    let path = xvora_tools::types::resources::resolve_model_path(cwd, display_cwd, input);
+    let path = tools::types::resources::resolve_model_path(cwd, display_cwd, input);
     let resolution_path = path.clone();
     let cwd = cwd.to_path_buf();
     let session_dir = session_dir.to_path_buf();

@@ -878,7 +878,7 @@ impl AgentView {
         bundle_state: &crate::app::bundle::BundleState,
         in_dashboard_overlay: bool,
         overlay_can_cycle: bool,
-        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
         app_params: AppRenderParams<'_>,
     ) -> (
         Option<(u16, u16)>,
@@ -937,7 +937,7 @@ impl AgentView {
                 || self.active_modal.is_some())
         {
             self.inline_media_active = false;
-            xvora_shell::util::with_locked_stderr(|stderr| {
+            shell::util::with_locked_stderr(|stderr| {
                 for &id in self.inline_media_ids.values() {
                     let clear = crate::terminal::image::clear_kitty_image(id);
                     let _ = std::io::Write::write_all(stderr, clear.as_bytes());
@@ -948,7 +948,7 @@ impl AgentView {
         }
         if let Some(ref child_sid) = self.active_subagent.clone() {
             if let Some(esc) = self.take_own_inline_media_clear_escapes() {
-                xvora_shell::util::with_locked_stderr(|stderr| {
+                shell::util::with_locked_stderr(|stderr| {
                     let _ = std::io::Write::write_all(stderr, esc.as_bytes());
                 });
             }
@@ -967,7 +967,7 @@ impl AgentView {
             );
         }
         if let Some(esc) = self.take_subagent_inline_media_clear_escapes() {
-            xvora_shell::util::with_locked_stderr(|stderr| {
+            shell::util::with_locked_stderr(|stderr| {
                 let _ = std::io::Write::write_all(stderr, esc.as_bytes());
             });
         }
@@ -1550,7 +1550,7 @@ impl AgentView {
             }
         }
         agent::fill_background(buf, area, layout_cfg, compact, &theme);
-        let mut status_line_link_spans: Vec<xvora_ratatui_inline::LinkSpan> = Vec::new();
+        let mut status_line_link_spans: Vec<ratatui_inline::LinkSpan> = Vec::new();
         if let Some(padding) = status_line.padding()
             && layout.status_line.height > 0
         {
@@ -1880,7 +1880,7 @@ impl AgentView {
                     search.is_composing(),
                     !search.is_composing(),
                     None,
-                    viewport.unwrap_or(xvora_ratatui_textarea::SingleLineViewport {
+                    viewport.unwrap_or(ratatui_textarea::SingleLineViewport {
                         visible_byte_range: 0..rendered_query.len(),
                         cursor_display_column: 0,
                     }),
@@ -4567,7 +4567,7 @@ impl AgentView {
                             link.presentation,
                         )
                         .and_then(|resolved| resolved.osc8_url)
-                        .map(|url| xvora_ratatui_inline::LinkSpan {
+                        .map(|url| ratatui_inline::LinkSpan {
                             row: link.screen_row,
                             col_start: link.col_start,
                             col_end: link.col_end,
@@ -4970,7 +4970,7 @@ mod permission_hint_tests {
         perm.description = vec!["Warning: this file is protected".into()];
         perm.options = vec![acp::PermissionOption::new(
             acp::PermissionOptionId::new(Arc::from(
-                xvora_workspace::permission::ALLOW_EDITS_SESSION_OPTION_ID,
+                workspace::permission::ALLOW_EDITS_SESSION_OPTION_ID,
             )),
             "Allow all edits this session".to_owned(),
             acp::PermissionOptionKind::AllowAlways,
@@ -5007,7 +5007,7 @@ mod feedback_input_tests {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState, feedback_input};
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
-    use xvora_tools::implementations::grok_build::ask_user_question::Question;
+    use tools::implementations::grok_build::ask_user_question::Question;
     /// Agent with the bare `/feedback` pane open and focused for typing.
     fn feedback_agent() -> AgentView {
         let mut agent = make_agent();
@@ -5192,7 +5192,7 @@ mod status_line_draw_tests {
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
     use ratatui::style::Color;
-    use xvora_tools::implementations::grok_build::ask_user_question::Question;
+    use tools::implementations::grok_build::ask_user_question::Question;
     fn draw_script(output: &str, rows: u16) -> Buffer {
         draw_script_for(&mut make_agent(), output, rows)
     }

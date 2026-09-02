@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use xvora_workspace::session::git::VcsKind;
+use workspace::session::git::VcsKind;
 
 // Re-export from xvora-chat-state; the canonical definition lives there
 pub(crate) use chat_state::compaction_utils::extract_user_query;
@@ -69,7 +69,7 @@ fn resolve_shell_display() -> String {
 
     #[cfg(not(unix))]
     {
-        xvora_config::shell::detect_windows_shell()
+        config::shell::detect_windows_shell()
             .name()
             .to_string()
     }
@@ -94,6 +94,6 @@ pub(crate) fn format_vcs_status_block(status: &str, vcs_kind: VcsKind) -> String
     format!("\n\n<{tag}>\n{description}\n{status}\n</{tag}>\n")
 }
 
-// Tests for extract_user_query now live in xvora_chat_state::compaction_utils.
+// Tests for extract_user_query now live in chat_state::compaction_utils.
 // The `<user_info>` + status block is assembled by `SessionActor::construct_legacy_prefix`
 // (see `acp_session_impl/prompt_build.rs`) from a single `RepoStatusSnapshot`.

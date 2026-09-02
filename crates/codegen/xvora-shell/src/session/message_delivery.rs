@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot};
-use xvora_message_delivery_core::{
+use message_delivery_core::{
     AgentSource, DeliveryEnvelope, DeliveryIdentity, HumanSource, Operation, OperationSet,
     authorize_operation,
 };
-use xvora_tools::implementations::grok_build::task::coordinator::ActiveMessageAdmission;
-use xvora_tools::implementations::grok_build::task::types::{
+use tools::implementations::grok_build::task::coordinator::ActiveMessageAdmission;
+use tools::implementations::grok_build::task::types::{
     ActiveAgentMessageDelivery, ActiveAgentMessageOperation,
 };
 
@@ -152,7 +152,7 @@ impl MessageDeliveryHandle {
             AgentDeliveryIdentity,
         >,
         receipt_sink: mpsc::Sender<crate::agent::subagent::PromptTurnReceipt>,
-        parent_telemetry_ctx: xvora_telemetry::TelemetryCtx,
+        parent_telemetry_ctx: telemetry::TelemetryCtx,
     ) -> ActiveMessageAdmission {
         let (operation, content, identity, grant) = envelope.into_parts();
         let delivery = grant.delivery;

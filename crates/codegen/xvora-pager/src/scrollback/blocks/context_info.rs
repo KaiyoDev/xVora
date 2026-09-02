@@ -13,7 +13,7 @@ use crate::render::wrapping::word_wrap_lines;
 use crate::scrollback::block::BlockContent;
 use crate::scrollback::types::{AccentStyle, BlockContext, BlockLine, BlockOutput};
 use crate::theme::{Theme, quantize};
-use xvora_shell::session::{ContextInfo, count_detail};
+use shell::session::{ContextInfo, count_detail};
 
 /// Block that renders a `/context` snapshot in scrollback.
 ///
@@ -622,7 +622,7 @@ impl BlockContent for ContextInfoBlock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_shell::session::TokenUsageCategory;
+    use shell::session::TokenUsageCategory;
 
     fn snapshot() -> ContextInfo {
         ContextInfo {

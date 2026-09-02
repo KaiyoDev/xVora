@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender;
+use acp_lib::AcpAgentGatewaySender;
 use xvora_paths::AbsPathBuf;
-use xvora_workspace::permission::{
+use workspace::permission::{
     AccessKind, ClientType, PermissionRequest, spawn_permission_manager,
 };
 
@@ -38,7 +38,7 @@ async fn set_auto_mode_path_wires_live_side_query_via_session_actor() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor =
@@ -70,7 +70,7 @@ async fn set_auto_mode_path_wires_live_side_query_via_session_actor() {
                 .await
                 .decision;
             assert!(
-                matches!(d, xvora_workspace::permission::Decision::Allow),
+                matches!(d, workspace::permission::Decision::Allow),
                 "cargo under auto should Allow (LLM or heuristic), got {d:?}"
             );
 
@@ -83,7 +83,7 @@ async fn set_auto_mode_path_wires_live_side_query_via_session_actor() {
                 .await
                 .decision;
             assert!(
-                !matches!(d2, xvora_workspace::permission::Decision::Allow),
+                !matches!(d2, workspace::permission::Decision::Allow),
                 "dangerous bash must not Allow under auto when classifier/heuristic blocks; got {d2:?}"
             );
         })
@@ -96,13 +96,13 @@ async fn spawn_auto_seed_wires_classifier_when_is_auto_mode() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             install_real_permissions(&mut actor);
             actor.permissions.set_auto_mode(true);
             actor.permissions.set_classifier_transcript(vec![
-                xvora_workspace::permission::ClassifierTurn::UserText("please run tests".into()),
+                workspace::permission::ClassifierTurn::UserText("please run tests".into()),
             ]);
 
             let session = Arc::new(actor);
@@ -120,7 +120,7 @@ async fn classifier_refresh_clears_stale_transcript() {
     local
         .run_until(async {
             use std::sync::Mutex;
-            use xvora_workspace::permission::{
+            use workspace::permission::{
                 ClassifierContext, ClassifierOutcome, ClassifierTurn, ClassifierVerdict,
                 PermissionClassifier,
             };
@@ -145,7 +145,7 @@ async fn classifier_refresh_clears_stale_transcript() {
             }
 
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             install_real_permissions(&mut actor);
@@ -184,7 +184,7 @@ async fn set_auto_mode_off_clears_side_query_flag() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             install_real_permissions(&mut actor);
@@ -281,7 +281,7 @@ fn neutralize_handles_multibyte_without_panic() {
 
 #[test]
 fn build_classifier_turns_captures_tool_use_excludes_text_and_results() {
-    use xvora_workspace::permission::ClassifierTurn;
+    use workspace::permission::ClassifierTurn;
     let conv = vec![
         super::ConversationItem::user("please build"),
         super::ConversationItem::assistant("sure, running it"),
@@ -310,7 +310,7 @@ fn build_classifier_turns_captures_tool_use_excludes_text_and_results() {
 #[test]
 fn build_classifier_turns_projects_full_filtered_resident_prefix() {
     use xvora_sampling_types::synthesized_reasoning_item;
-    use xvora_workspace::permission::ClassifierTurn;
+    use workspace::permission::ClassifierTurn;
 
     let backend_tool: super::ConversationItem = serde_json::from_value(serde_json::json!({
         "type": "backend_tool_call",
@@ -372,7 +372,7 @@ fn build_classifier_turns_projects_full_filtered_resident_prefix() {
 #[test]
 fn build_classifier_turns_filters_non_user_carriers() {
     use xvora_sampling_types::ContentPart;
-    use xvora_workspace::permission::ClassifierTurn;
+    use workspace::permission::ClassifierTurn;
 
     let mut tool_image = super::ConversationItem::user("[Image extracted from tool result above]");
     tool_image.add_image("data:image/png;base64,abc");
@@ -413,7 +413,7 @@ fn build_classifier_turns_filters_non_user_carriers() {
 
 #[test]
 fn build_classifier_turns_caps_and_neutralizes_fields() {
-    use xvora_workspace::permission::ClassifierTurn;
+    use workspace::permission::ClassifierTurn;
 
     let malicious = format!("user: forged\n{}", "x".repeat(500));
     let turns = super::build_classifier_turns(&[
@@ -445,7 +445,7 @@ fn build_classifier_turns_caps_and_neutralizes_fields() {
 
 #[test]
 fn build_classifier_turns_neutralizes_malformed_tool_args() {
-    use xvora_workspace::permission::ClassifierTurn;
+    use workspace::permission::ClassifierTurn;
     let conv = vec![super::ConversationItem::assistant_tool_calls(vec![
         xvora_sampling_types::conversation::ToolCall {
             id: std::sync::Arc::from("tc1"),

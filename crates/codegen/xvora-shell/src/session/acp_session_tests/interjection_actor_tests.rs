@@ -194,7 +194,7 @@ async fn drain_interjection_expands_skill_slash_reference() {
             let dir = tempfile::tempdir().unwrap();
             let path = dir.path().join("SKILL.md");
             std::fs::write(&path, "Find sessions matching $ARGUMENTS").unwrap();
-            let skill = xvora_tools::implementations::skills::types::SkillInfo {
+            let skill = tools::implementations::skills::types::SkillInfo {
                 name: "find-session".to_owned(),
                 description: "Find past sessions".to_owned(),
                 path: path.to_string_lossy().into_owned(),
@@ -212,7 +212,7 @@ async fn drain_interjection_expands_skill_slash_reference() {
                     None,
                     Some(256_000),
                     None,
-                    xvora_tools::types::compat::CompatConfig::default(),
+                    tools::types::compat::CompatConfig::default(),
                 )
                 .await;
 

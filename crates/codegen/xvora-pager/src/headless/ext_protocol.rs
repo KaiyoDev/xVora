@@ -3,7 +3,7 @@
 //! This module owns the wire envelope shapes and the method-to-event mapping, kept out of `headless.rs`.
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpArgsBox, AcpResult};
+use acp_lib::{AcpArgsBox, AcpResult};
 
 use crate::headless::reducer::{Lifecycle, StreamEvent};
 
@@ -17,8 +17,8 @@ fn ext_response_from<T: serde::Serialize>(value: &T) -> AcpResult<acp::ExtRespon
 /// Answer a reverse `ext_method` request without a UI.
 /// Known interaction methods get a policy reply; dropping `response_tx` instead would fail the whole turn with a channel `recv_failed`.
 pub(crate) fn reply_headless_ext_method(args: AcpArgsBox<acp::ExtRequest>) {
-    use xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
-    use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse;
+    use tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
+    use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse;
 
     let method = args.request.method.as_ref();
     // Known methods are answered without parsing params: even a malformed request gets the policy reply rather than a dropped channel
@@ -26,7 +26,7 @@ pub(crate) fn reply_headless_ext_method(args: AcpArgsBox<acp::ExtRequest>) {
         // The model sees the tool's NO_OPERATOR_TEXT (headless sessions are non-interactive), not the interactive "user declined" cancel text
         "x.ai/ask_user_question" => ext_response_from(&AskUserQuestionExtResponse::Cancelled),
         "x.ai/mcp/elicit" => {
-            use xvora_tools::mcp_elicitation::McpElicitExtResponse;
+            use tools::mcp_elicitation::McpElicitExtResponse;
             ext_response_from(&McpElicitExtResponse::Cancel)
         }
         // The model sees "Your plan has been approved. You can now start coding.".
@@ -78,7 +78,7 @@ pub(crate) enum ExtEvent {
 }
 
 pub(crate) fn handle_ext_notification(
-    notif: &xvora_acp_lib::AcpArgsBox<acp::ExtNotification>,
+    notif: &acp_lib::AcpArgsBox<acp::ExtNotification>,
 ) -> ExtEvent {
     let method = notif.request.method.as_ref();
     let params = notif.request.params.get();
@@ -255,7 +255,7 @@ fn decode_session_notification(method: &str, params: &str) -> ExtEvent {
             #[serde(default)]
             stop_reason: Option<String>,
             #[serde(default)]
-            usage: Option<xvora_shell::extensions::notification::ResponseUsage>,
+            usage: Option<shell::extensions::notification::ResponseUsage>,
             #[serde(default)]
             signature: Option<String>,
             #[serde(default)]

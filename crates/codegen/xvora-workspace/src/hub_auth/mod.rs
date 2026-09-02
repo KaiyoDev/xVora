@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use url::Url;
-use xvora_computer_hub_sdk::{
+use computer_hub_sdk::{
     AuthCredential, AuthIdentity, AuthProvider, OidcAuthProviderBuilder, OnRefreshCallback,
     RefreshEvent,
 };
@@ -79,7 +79,7 @@ struct AuthEntry {
 }
 
 pub fn default_auth_path() -> anyhow::Result<PathBuf> {
-    let grok = xvora_config::user_grok_home()
+    let grok = config::user_grok_home()
         .ok_or_else(|| anyhow::anyhow!("no user grok home (set $GROK_HOME or $HOME)"))?;
     Ok(grok.join("auth.json"))
 }
@@ -558,7 +558,7 @@ mod tests {
         assert_eq!(kind, OidcProviderKind::Sdk);
         let cred = provider.current();
         match cred {
-            xvora_computer_hub_sdk::AuthCredential::Bearer { token } => {
+            computer_hub_sdk::AuthCredential::Bearer { token } => {
                 assert_eq!(token, "eyJ.tok");
             }
             _ => panic!("expected Bearer"),

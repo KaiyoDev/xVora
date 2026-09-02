@@ -74,7 +74,7 @@ pub fn display_number_from_meta(meta: Option<&agent_client_protocol::Meta>) -> O
 }
 
 /// Build the per-turn registry mapping `[Image #N]` numbers to references from the user's inline attached images.
-/// See [`AttachedImages`](xvora_tools::types::resources::AttachedImages).
+/// See [`AttachedImages`](tools::types::resources::AttachedImages).
 ///
 /// The display number comes from each block's `_meta` (set by the TUI), falling back to 1-based position for callers that don't record it.
 /// The reference is one `image_edit`'s resolver can read directly.
@@ -258,7 +258,7 @@ pub enum PlaceholderLoadError {
 /// If `dunce::canonicalize(workspace_cwd)` fails (transient permission, missing dir), the workspace prefix is dropped entirely.
 /// `$HOME` itself is **not** an allowed prefix: that would let arbitrary placeholders read files under `~/.ssh`, `~/.aws`, `~/.config`, etc.
 pub fn default_allowed_prefixes(workspace_cwd: &Path) -> Vec<PathBuf> {
-    default_allowed_prefixes_with_home(workspace_cwd, xvora_dirs::home_dir())
+    default_allowed_prefixes_with_home(workspace_cwd, dirs::home_dir())
 }
 
 /// Variant of [`default_allowed_prefixes`] for tests: an explicit `home` avoids depending on the ambient `$HOME`.
@@ -402,7 +402,7 @@ pub fn load_canonical_placeholder_image(
 /// Header-only validation via the shared image_validate helper.
 /// Returns the matching MIME type, or `None` if the bytes fail validation.
 fn decode_image_mime(data: &[u8]) -> Option<&'static str> {
-    xvora_tools::util::image_validate::validate_image_bytes_with(data, false)
+    tools::util::image_validate::validate_image_bytes_with(data, false)
         .ok()
         .map(|(_, _, mime)| mime)
 }
@@ -412,7 +412,7 @@ fn decode_image_mime(data: &[u8]) -> Option<&'static str> {
 /// Production wrapper over [`recover_orphan_placeholders_with_prefixes`].
 /// It derives the prefix allowlist from `workspace_cwd` via [`default_allowed_prefixes`].
 ///
-/// This wrapper reads the ambient process `$HOME` via `xvora_dirs::home_dir()` to construct [`HOME_IMAGE_SUBDIRS`] prefixes.
+/// This wrapper reads the ambient process `$HOME` via `dirs::home_dir()` to construct [`HOME_IMAGE_SUBDIRS`] prefixes.
 /// An end-to-end test driving `handle_prompt` therefore inherits the test runner's `$HOME`.
 /// Any subdirectories the runner creates (`~/Downloads`, etc.) land in the allowlist.
 /// For hermetic isolation, call [`recover_orphan_placeholders_with_prefixes`] directly with an explicit prefix list.

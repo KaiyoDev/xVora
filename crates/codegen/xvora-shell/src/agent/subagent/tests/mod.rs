@@ -20,12 +20,12 @@ use super::handle_request::{
 };
 use crate::test_support::lsp_runtime::{ctx_with_toggle, test_gateway_with_receiver};
 use xvora_subagent_resolution::resolve_effective_overrides;
-use xvora_tools::implementations::grok_build::task::coordinator::{
+use tools::implementations::grok_build::task::coordinator::{
     ChildCompletion, CompletionDisposition,
 };
 #[test]
 fn canonical_total_tokens_does_not_double_count_reasoning() {
-    let totals = xvora_chat_state::UsageTotals {
+    let totals = chat_state::UsageTotals {
         input_tokens: 100,
         output_tokens: 40,
         reasoning_tokens: 25,
@@ -46,7 +46,7 @@ async fn usage_ack_precedes_terminal_presentation() {
     ctx.parent_cmd_tx = Some(parent_cmd_tx);
     let by_model = vec![(
             "test-model".to_string(),
-            xvora_chat_state::UsageTotals {
+            chat_state::UsageTotals {
                 input_tokens: 10,
                 output_tokens: 4,
                 ..Default::default()
@@ -190,11 +190,11 @@ fn wedged_child_handle() -> (
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
     let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel();
     let (hunk_event_tx, _hunk_event_rx) = mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test".to_string(),
         PathBuf::from("/tmp"),
         hunk_event_tx,
-        xvora_hunk_tracker::TrackingMode::AllDirty,
+        hunk_tracker::TrackingMode::AllDirty,
         CancellationToken::new(),
     );
     let (signals_handle, signals_actor) = crate::session::signals::SessionSignalsActor::new();
@@ -215,7 +215,7 @@ fn wedged_child_handle() -> (
             scheduler_background_loops: true,
         },
         hunk_tracker_handle,
-        chat_state_handle: xvora_chat_state::ChatStateHandle::noop(),
+        chat_state_handle: chat_state::ChatStateHandle::noop(),
         signals_handle,
         gateway_enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
         status_line_enabled: std::sync::Arc::new(
@@ -234,7 +234,7 @@ fn wedged_child_handle() -> (
         tool_context: crate::tools::ToolContext::new_local_context(
             xvora_paths::AbsPathBuf::new(PathBuf::from("/tmp")).unwrap(),
             std::sync::Arc::new(
-                xvora_workspace::file_system::LocalFs::new(PathBuf::from("/tmp")),
+                workspace::file_system::LocalFs::new(PathBuf::from("/tmp")),
             ),
             std::sync::Arc::new(crate::terminal::LocalTerminalRunner),
         ),
@@ -251,14 +251,14 @@ fn wedged_child_handle() -> (
             ),
         ),
         force_compact: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-        permission_handle: xvora_workspace::permission::PermissionHandle::allow_all(),
+        permission_handle: workspace::permission::PermissionHandle::allow_all(),
         attribution_callback: None,
         agent_name: "grok-build".to_string(),
         managed_mcp_proxy_base_url: String::new(),
         session_default_agent_profile: None,
         allowed_subagent_types: None,
         hook_registry: None,
-        workspace_ops: xvora_workspace::WorkspaceOps::for_test(),
+        workspace_ops: workspace::WorkspaceOps::for_test(),
         terminal_backend: None,
         tools_notification_handle: None,
         scheduler_handle: None,
@@ -342,7 +342,7 @@ async fn usage_fold_is_bounded_when_parent_never_services_commands() {
     let (parent_cmd_tx, _parent_cmd_rx) = mpsc::unbounded_channel();
     let by_model = vec![(
             "test-model".to_string(),
-            xvora_chat_state::UsageTotals {
+            chat_state::UsageTotals {
                 input_tokens: 10,
                 ..Default::default()
             },
@@ -445,54 +445,54 @@ async fn usage_not_applied_mark_goes_straight_to_coordinator_without_parent() {
 /// actor starved by a busy turn.
 struct StarvedTerminal;
 #[async_trait::async_trait]
-impl xvora_tools::computer::types::TerminalBackend for StarvedTerminal {
+impl tools::computer::types::TerminalBackend for StarvedTerminal {
     async fn run(
         &self,
-        _request: xvora_tools::computer::types::TerminalRunRequest,
+        _request: tools::computer::types::TerminalRunRequest,
     ) -> Result<
-        xvora_tools::computer::types::TerminalRunResult,
-        xvora_tools::computer::types::ComputerError,
+        tools::computer::types::TerminalRunResult,
+        tools::computer::types::ComputerError,
     > {
         std::future::pending().await
     }
     async fn run_background(
         &self,
-        _request: xvora_tools::computer::types::TerminalRunRequest,
+        _request: tools::computer::types::TerminalRunRequest,
     ) -> Result<
-        xvora_tools::computer::types::BackgroundHandle,
-        xvora_tools::computer::types::ComputerError,
+        tools::computer::types::BackgroundHandle,
+        tools::computer::types::ComputerError,
     > {
         std::future::pending().await
     }
     async fn get_task(
         &self,
         _task_id: &str,
-    ) -> Option<xvora_tools::computer::types::TaskSnapshot> {
+    ) -> Option<tools::computer::types::TaskSnapshot> {
         std::future::pending().await
     }
     async fn kill_task(
         &self,
         _task_id: &str,
-    ) -> xvora_tools::computer::types::KillOutcome {
+    ) -> tools::computer::types::KillOutcome {
         std::future::pending().await
     }
     async fn wait_for_completion(
         &self,
         _task_id: &str,
         _timeout: Option<std::time::Duration>,
-    ) -> Option<xvora_tools::computer::types::TaskSnapshot> {
+    ) -> Option<tools::computer::types::TaskSnapshot> {
         std::future::pending().await
     }
-    async fn list_tasks(&self) -> Vec<xvora_tools::computer::types::TaskSnapshot> {
+    async fn list_tasks(&self) -> Vec<tools::computer::types::TaskSnapshot> {
         std::future::pending().await
     }
     async fn reparent_notifications(
         &self,
         _old_owner_session_id: &str,
         _new_owner_session_id: &str,
-        _new_handle: xvora_tools::notification::types::ToolNotificationHandle,
+        _new_handle: tools::notification::types::ToolNotificationHandle,
         _backend_weak: std::sync::Weak<
-            dyn xvora_tools::computer::types::TerminalBackend,
+            dyn tools::computer::types::TerminalBackend,
         >,
     ) {
         std::future::pending().await
@@ -505,9 +505,9 @@ impl xvora_tools::computer::types::TerminalBackend for StarvedTerminal {
 #[tokio::test(start_paused = true)]
 async fn reparent_is_bounded_when_terminal_actor_never_answers() {
     let parent_tb: std::sync::Arc<
-        dyn xvora_tools::computer::types::TerminalBackend,
+        dyn tools::computer::types::TerminalBackend,
     > = std::sync::Arc::new(StarvedTerminal);
-    let notif_handle = xvora_tools::notification::types::ToolNotificationHandle::noop();
+    let notif_handle = tools::notification::types::ToolNotificationHandle::noop();
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel();
     tokio::time::timeout(
             20 * PARENT_ACK_TIMEOUT,
@@ -534,7 +534,7 @@ async fn reparent_is_bounded_when_terminal_actor_never_answers() {
 /// They flow through `resolve_agent_definition` so the spawn path can't skip them.
 #[tokio::test]
 async fn subagent_inherits_session_cli_overrides() {
-    use xvora_agent::config::{AgentDefinition, PermissionMode};
+    use agent::config::{AgentDefinition, PermissionMode};
     let mut probe = AgentDefinition::general_purpose();
     probe.name = "session-override-probe".into();
     probe.permission_mode = PermissionMode::Plan;
@@ -564,8 +564,8 @@ async fn subagent_inherits_session_cli_overrides() {
 }
 #[test]
 fn subagent_bypass_permission_mode_gated_by_policy_pin() {
-    use xvora_agent::config::PermissionMode;
-    const PIN: &str = xvora_workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode
+    use agent::config::PermissionMode;
+    const PIN: &str = workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode
         .message();
     assert_eq!(
             resolve_subagent_permission_mode(PermissionMode::BypassPermissions, false, None),
@@ -622,7 +622,7 @@ async fn emit_subagent_notification_stamps_one_event_id_on_both_paths() {
     };
     assert!(persisted_id.starts_with("parent-sess-"));
     let broadcast_id = match gateway_rx.try_recv().expect("broadcast must fire") {
-        xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+        acp_lib::AcpClientMessage::ExtNotification(args) => {
             let params: serde_json::Value = serde_json::from_str(
                     args.request.params.get(),
                 )
@@ -792,7 +792,7 @@ fn completed_followup_wakes_parent_with_exactly_one_prompt() {
 #[test]
 fn inject_subagent_completed_prompt_sends_prompt_and_marks_delivered() {
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel::<SessionCommand>();
-    let reservations = xvora_tools::reminders::task_completion::TaskCompletionReservations::default();
+    let reservations = tools::reminders::task_completion::TaskCompletionReservations::default();
     let mut request = auto_wake_test_request("sa-1");
     request.runtime_overrides.loop_task_id = Some("loop-123".into());
     let result = SubagentResult {
@@ -871,7 +871,7 @@ fn inject_subagent_completed_prompt_omits_cleanup_without_loop_task() {
 #[test]
 fn inject_subagent_completed_prompt_bails_when_goal_loop_activates_in_gap() {
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel::<SessionCommand>();
-    let reservations = xvora_tools::reminders::task_completion::TaskCompletionReservations::default();
+    let reservations = tools::reminders::task_completion::TaskCompletionReservations::default();
     reservations.reserve("sa-goal".into());
     inject_subagent_completed_prompt(InjectParams {
         subagent_id: "sa-goal",
@@ -896,7 +896,7 @@ fn inject_subagent_completed_prompt_bails_when_goal_loop_activates_in_gap() {
 fn inject_subagent_completed_prompt_releases_reservation_when_parent_closed() {
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel::<SessionCommand>();
     drop(cmd_rx);
-    let reservations = xvora_tools::reminders::task_completion::TaskCompletionReservations::default();
+    let reservations = tools::reminders::task_completion::TaskCompletionReservations::default();
     reservations.reserve("sa-closed".into());
     reservations.reserve("sa-closed".into());
     let (trace_tx, mut trace_rx) = mpsc::unbounded_channel();
@@ -979,7 +979,7 @@ fn partial_override_fills_from_role() {
     assert_eq!(resolved.model.as_deref(), Some("explicit-model"));
     assert_eq!(
             resolved.capability_mode,
-            Some(xvora_tool_types::SubagentCapabilityMode::Execute)
+            Some(tool_types::SubagentCapabilityMode::Execute)
         );
 }
 #[test]
@@ -1906,8 +1906,8 @@ fn validate_subagent_type_recognizes_cli_agent_by_name() {
 }
 #[test]
 fn summarize_tool_config_uses_name_override_and_strips_namespace() {
-    use xvora_tools::registry::types::{ToolConfig, ToolServerConfig};
-    use xvora_tools::types::tool::ToolKind;
+    use tools::registry::types::{ToolConfig, ToolServerConfig};
+    use tools::types::tool::ToolKind;
     let mut read = ToolConfig::from_id("GrokBuild:read_file");
     read.kind = Some(ToolKind::Read);
     let mut read_dup = ToolConfig::from_id("Codex:read_file");
@@ -1952,7 +1952,7 @@ fn describe_subagent_type_unknown_returns_sorted_available() {
 /// The planner gate must therefore key on the Edit capability.
 #[test]
 fn describe_default_host_general_purpose_has_edit_not_write() {
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::tool::ToolKind;
     let ctx = ctx_with_toggle(HashMap::new());
     let SubagentDescribeOutcome::Ok(summary) = describe_subagent_type(
         "general-purpose",
@@ -1992,7 +1992,7 @@ fn goal_harness_override_unresolvable_returns_unknown() {
 /// A custom profile running a stock/vision model leaves subagents on the default harness, so they keep native image input.
 #[test]
 fn subagent_keeps_default_flavor_when_parent_model_is_non_strict() {
-    use xvora_agent::config::BuiltinAgentName;
+    use agent::config::BuiltinAgentName;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.parent_agent_name = Some("ai-oncall-bot".to_string());
     ctx.parent_model_agent_type = Some(
@@ -2086,7 +2086,7 @@ async fn cancel_pending_shell_child_presents_one_cancelled_finish() {
     while let Ok(message) = gateway_rx.try_recv() {
         if matches!(
                 message,
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.params.get().contains("\"status\":\"cancelled\"")
             ) {
             live += 1;
@@ -2126,8 +2126,8 @@ async fn run_promote_cancel_with_worktree(
 /// A pending cancel removes a freshly-created worktree but preserves a resumed child worktree owned by its source.
 #[tokio::test]
 async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    test_utils::require_git!();
+    use test_utils::git::{git_commit_all, init_git_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = temp.path().join("repo");
     std::fs::create_dir(&repo).unwrap();
@@ -2135,7 +2135,7 @@ async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
     std::fs::write(repo.join("tracked.txt"), "original").unwrap();
     git_commit_all(&repo, "initial");
     let fresh = temp.path().join("subagent-fresh");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &fresh)
+    fast_worktree::WorktreeBuilder::new(&repo, &fresh)
         .standalone(true)
         .create()
         .unwrap();
@@ -2146,7 +2146,7 @@ async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
             "freshly-created worktree must be removed on pending-kill"
         );
     let resumed = temp.path().join("subagent-resumed");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &resumed)
+    fast_worktree::WorktreeBuilder::new(&repo, &resumed)
         .standalone(true)
         .create()
         .unwrap();
@@ -2305,7 +2305,7 @@ async fn startup_admission_timeout_is_failed_not_cancelled() {
     while let Ok(message) = gateway_rx.try_recv() {
         if matches!(
                 message,
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.params.get().contains("\"status\":\"failed\"")
             ) {
             live += 1;
@@ -2577,11 +2577,11 @@ fn test_sampling_config(model_slug: &str) -> xvora_sampling_types::SamplingConfi
         stream_tool_calls: None,
     }
 }
-fn spawn_test_parent_chat_state(model_slug: &str) -> xvora_chat_state::ChatStateHandle {
-    let (mock, _persistence_rx) = xvora_chat_state::MockChatPersistence::new();
+fn spawn_test_parent_chat_state(model_slug: &str) -> chat_state::ChatStateHandle {
+    let (mock, _persistence_rx) = chat_state::MockChatPersistence::new();
     let (event_tx, _event_rx) = mpsc::unbounded_channel();
     let token = tokio_util::sync::CancellationToken::new();
-    xvora_chat_state::ChatStateActor::spawn(
+    chat_state::ChatStateActor::spawn(
         vec![],
         test_sampling_config(model_slug),
         Box::new(mock),

@@ -82,8 +82,8 @@ async fn gh_pr_view_by_branch(cwd: &str, branch: &str) -> Option<PrData> {
     ])
     .current_dir(cwd)
     .stdin(std::process::Stdio::null());
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     // gh colorizes even piped --json output under CLICOLOR_FORCE or GH_FORCE_TTY (inherited from terminal-launched dev environments)
     // Forcing beats NO_COLOR in gh's precedence and gh has no --no-color flag; CLICOLOR_FORCE=0 is gh's documented off-switch
     cmd.env("NO_COLOR", "1");
@@ -135,8 +135,8 @@ async fn gh_pr_is_in_merge_queue(cwd: &str, pr_url: &str) -> bool {
     ])
     .current_dir(cwd)
     .stdin(std::process::Stdio::null());
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     // Forcing (CLICOLOR_FORCE/GH_FORCE_TTY) beats NO_COLOR in gh's precedence.
     cmd.env("NO_COLOR", "1");
     cmd.env("CLICOLOR_FORCE", "0");

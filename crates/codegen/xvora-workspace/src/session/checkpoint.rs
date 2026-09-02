@@ -11,7 +11,7 @@ use crate::session::git;
 use hunk_tracker::{HunkId, HunkTrackerSnapshot, HunkTurnDelta};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+use tool_protocol::turn_hook::TurnHookOutcome;
 /// A turn/prompt boundary routed through [`WorkspaceHandle::on_turn_boundary`].
 ///
 /// `prompt_index` selects the origin and keeps the two effect sets disjoint:
@@ -94,12 +94,12 @@ pub struct RewindCheckpoint {
 }
 /// Resolve `workspace_rewind_hunks` from `GROK_WORKSPACE_REWIND_HUNKS` (default off).
 pub(crate) fn rewind_hunks_enabled() -> bool {
-    xvora_config::env_bool("GROK_WORKSPACE_REWIND_HUNKS").unwrap_or(false)
+    config::env_bool("GROK_WORKSPACE_REWIND_HUNKS").unwrap_or(false)
 }
 /// Resolve `workspace_rewind_durable` from `GROK_WORKSPACE_REWIND_DURABLE` (default off).
 /// Off keeps the legacy in-memory-only path with no disk I/O.
 pub(crate) fn rewind_durable_enabled() -> bool {
-    xvora_config::env_bool("GROK_WORKSPACE_REWIND_DURABLE").unwrap_or(false)
+    config::env_bool("GROK_WORKSPACE_REWIND_DURABLE").unwrap_or(false)
 }
 impl WorkspaceSession {
     /// Capture the hunk delta for `prompt_index` into the in-memory store.
@@ -156,7 +156,7 @@ impl WorkspaceSession {
         prompts.sort_unstable();
         let mut file_states: HashMap<
             std::path::PathBuf,
-            xvora_hunk_tracker::FileHunkStateSnapshot,
+            hunk_tracker::FileHunkStateSnapshot,
         > = HashMap::new();
         let mut turn_index: HashMap<usize, HashSet<HunkId>> = HashMap::new();
         for idx in prompts {
@@ -230,7 +230,7 @@ impl WorkspaceHandle {
         &self,
         session_id: &str,
         boundary: TurnBoundary,
-    ) -> Option<tokio::task::JoinHandle<xvora_file_utils::queue::EnqueueOutcome>> {
+    ) -> Option<tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>> {
         match boundary {
             TurnBoundary::Start {
                 prompt_index: Some(idx),
@@ -981,7 +981,7 @@ mod tests {
             .create_session_with_tracker_and_viewer_ctx(
                 "main",
                 handle.root_cwd().unwrap(),
-                xvora_hunk_tracker::HunkTrackerHandle::noop(),
+                hunk_tracker::HunkTrackerHandle::noop(),
                 None,
                 crate::capability::CapabilityMode::All,
                 None,

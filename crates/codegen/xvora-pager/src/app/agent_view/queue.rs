@@ -92,9 +92,9 @@ impl AgentView {
         if matches!(outcome, InputOutcome::Action(_))
             && self.ephemeral_tip.current_key() == Some(crate::tips::send_now::SEND_NOW_TIP_KEY)
         {
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::ContextualTip {
-                tip: xvora_telemetry::events::ContextualTipKind::SendNow,
-                action: xvora_telemetry::events::ContextualTipAction::Accepted,
+            telemetry::session_ctx::log_event(telemetry::events::ContextualTip {
+                tip: telemetry::events::ContextualTipKind::SendNow,
+                action: telemetry::events::ContextualTipAction::Accepted,
             });
             self.ephemeral_tip
                 .clear(crate::tips::send_now::SEND_NOW_TIP_KEY);

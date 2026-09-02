@@ -32,15 +32,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_agent::config::{McpInheritance, ModelOverride, PermissionMode};
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent::config::{McpInheritance, ModelOverride, PermissionMode};
 use xvora_sampling_types::conversation::ConversationItem;
-use xvora_session_events::types::CancellationCategory;
+use session_events::types::CancellationCategory;
 use xvora_subagent_resolution::ResumeSourceData;
-use xvora_tools::implementations::grok_build::monitor::types::MonitorEventBuffer;
-use xvora_tools::implementations::grok_build::task::types::*;
-use xvora_tools::types::tool::ToolKind;
-use xvora_workspace::file_system::AsyncFileSystem;
+use tools::implementations::grok_build::monitor::types::MonitorEventBuffer;
+use tools::implementations::grok_build::task::types::*;
+use tools::types::tool::ToolKind;
+use workspace::file_system::AsyncFileSystem;
 mod attempt_runner;
 mod spawn;
 pub(crate) use spawn::{
@@ -110,18 +110,18 @@ impl AutoCompactThresholdTiers {
 /// Built by `MvpAgent::build_subagent_spawn_context()`.
 pub(crate) struct SubagentSpawnContext {
     /// Parent's LSP runtime, inherited via ToolContext, same as fs/terminal.
-    pub lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
+    pub lsp: Option<std::sync::Arc<dyn tools::implementations::lsp::LspBackend>>,
     /// Root session's process scope, inherited so the subagent's own child processes are reaped when the parent session closes.
     /// It is the root's, not an intermediate parent's.
     /// The Spawn arm of `handle_command` in xvora-tools task/coordinator.rs re-parents nested Spawn requests to the root parent.
     /// Every subagent therefore resolves back to the root session.
-    pub process_scope: Option<xvora_tty_utils::ProcessScope>,
+    pub process_scope: Option<tty_utils::ProcessScope>,
     /// Parent's client-registered hooks, inherited so the subagent's tool calls hit the same PreToolUse gate.
     /// Its events fire the same observe hooks over the parent's connection.
     /// Empty when the parent has none.
     /// Filled by the coordinator after the context is built (an async snapshot from the parent session actor).
     pub client_hooks: crate::extensions::hooks::ClientHooks,
-    pub sampling_config: xvora_sampler::SamplerConfig,
+    pub sampling_config: sampler::SamplerConfig,
     pub managed_mcp_proxy_base_url: String,
     /// The staging auth header value propagated from the parent.
     /// Used when building subagent `SamplerConfig`s for auth-flow tracking and for `inject_url_derived_headers` in the construction helpers.
@@ -140,7 +140,7 @@ pub(crate) struct SubagentSpawnContext {
     pub parent_depth: u32,
     pub subagents_max_depth: u32,
     pub workflow_max_concurrent_agents: usize,
-    pub media_gen_batch_limits: xvora_tools::media_gen_limits::MediaGenBatchLimits,
+    pub media_gen_batch_limits: tools::media_gen_limits::MediaGenBatchLimits,
     /// Inference idle timeout (secs), resolved from the parent's model config at spawn-context creation time.
     pub inference_idle_timeout_secs: u64,
     pub parent_compaction: crate::session::CompactionPins,
@@ -159,26 +159,26 @@ pub(crate) struct SubagentSpawnContext {
     pub terminal: Arc<dyn AsyncTerminalRunner>,
     /// Parent's terminal backend, shared so background tasks, monitors, and scheduled tasks survive subagent exit.
     /// When `Some`, the subagent session reuses this backend instead of creating a new `LocalTerminalBackend`.
-    pub parent_terminal_backend: Option<Arc<dyn xvora_tools::computer::types::TerminalBackend>>,
+    pub parent_terminal_backend: Option<Arc<dyn tools::computer::types::TerminalBackend>>,
     /// Parent's notification handle for reparenting on subagent exit.
     /// When a subagent exits, its surviving tasks (monitors, bg commands) need their notification handles swapped to this.
     /// Events then route to the parent's notification bridge.
     pub parent_notification_handle:
-        Option<xvora_tools::notification::types::ToolNotificationHandle>,
+        Option<tools::notification::types::ToolNotificationHandle>,
     /// Parent's scheduler handle.
     /// When `Some`, the subagent reuses the parent's scheduler actor so scheduled tasks survive subagent exit.
     pub parent_scheduler_handle:
-        Option<xvora_tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
+        Option<tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
     /// Parent's session environment variables (.envrc and color settings), shared so the child inherits the same env without re-loading.
     pub session_env: Arc<HashMap<String, String>>,
     /// Parent's memory config, shared so the child can access the same cross-session memory store.
     pub memory_config: Option<crate::config::MemoryConfig>,
-    pub web_search_sampling_config: Option<xvora_sampler::SamplerConfig>,
-    pub web_fetch_config: xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig,
-    pub image_gen_config: xvora_tools::implementations::grok_build::image_gen::ImageGenConfig,
-    pub video_gen_config: xvora_tools::implementations::grok_build::video_gen::VideoGenConfig,
+    pub web_search_sampling_config: Option<sampler::SamplerConfig>,
+    pub web_fetch_config: tools::implementations::grok_build::web_fetch::WebFetchConfig,
+    pub image_gen_config: tools::implementations::grok_build::image_gen::ImageGenConfig,
+    pub video_gen_config: tools::implementations::grok_build::video_gen::VideoGenConfig,
     pub app_builder_deployer_config:
-        xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig,
+        tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig,
     pub write_file_enabled: bool,
     /// Whether goal mode (`/goal`) is enabled.
     pub goal_enabled: bool,
@@ -203,7 +203,7 @@ pub(crate) struct SubagentSpawnContext {
         std::collections::HashMap<String, xvora_subagent_resolution::config::SubagentPersona>,
     /// Parent session's ChatStateHandle, used to read the actual live sampling config and credentials from the parent session actor (async).
     /// Cheap Clone (mpsc sender). `None` when the parent SessionHandle is not found.
-    pub parent_chat_state: Option<xvora_chat_state::ChatStateHandle>,
+    pub parent_chat_state: Option<chat_state::ChatStateHandle>,
     /// Parent session's resolved turn limit, for subagent inheritance.
     pub parent_max_turns: Option<usize>,
     /// All available models for resolving model IDs from overrides.
@@ -234,12 +234,12 @@ pub(crate) struct SubagentSpawnContext {
     /// Inherited from the parent session.
     pub path_not_found_hints: bool,
     /// Plugin registry for plugin-aware agent lookup.
-    pub plugin_registry: Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>>,
+    pub plugin_registry: Option<std::sync::Arc<agent::plugins::PluginRegistry>>,
     /// Shared models manager for etag-triggered refresh.
     pub models_manager: crate::agent::models::ModelsManager,
     /// Pre-resolved file tool overrides (hashline vs standard) from the parent.
     /// `None` means use the standard (default) file tools.
-    pub file_tool_overrides: Option<Vec<xvora_tools::registry::types::ToolConfig>>,
+    pub file_tool_overrides: Option<Vec<tools::registry::types::ToolConfig>>,
     /// Parent session's agent config snapshot.
     pub agent_config: Option<crate::agent::config::Config>,
     /// GCS bucket URL for trace uploads.
@@ -248,11 +248,11 @@ pub(crate) struct SubagentSpawnContext {
     /// GCS upload method (direct or proxy).
     pub gcs_upload_method: Option<crate::session::repo_changes::UploadMethod>,
     pub hook_registry: Option<std::sync::Arc<xvora_hooks::discovery::HookRegistry>>,
-    pub permission_handle: Option<xvora_workspace::permission::PermissionHandle>,
+    pub permission_handle: Option<workspace::permission::PermissionHandle>,
     pub worktree_type: crate::util::config::WorktreeType,
-    pub api_key_provider: Option<xvora_tools::types::SharedApiKeyProvider>,
+    pub api_key_provider: Option<tools::types::SharedApiKeyProvider>,
     pub image_description_model: String,
-    pub workspace_ops: xvora_workspace::WorkspaceOps,
+    pub workspace_ops: workspace::WorkspaceOps,
     pub auth_manager: std::sync::Arc<crate::auth::AuthManager>,
     /// The parent SessionActor's live `Auth401AttributionCallback`, captured at spawn time.
     /// Subagents inherit this so the child's `OaiCompatClient` 401 sites emit attribution under the parent's session id.
@@ -260,7 +260,7 @@ pub(crate) struct SubagentSpawnContext {
     ///
     /// Reading from `ctx.sampling_config.attribution_callback` would not work.
     /// The baseline `MvpAgent.sampling_config` goes through `agent/config.rs::sampling_config_for_model`, which always sets that field to `None`.
-    pub attribution_callback: Option<xvora_sampler::SharedAttributionCallback>,
+    pub attribution_callback: Option<sampler::SharedAttributionCallback>,
     /// Parent session's agent name (e.g. "grok-build").
     pub parent_agent_name: Option<String>,
     /// `agent_type` of the parent's current model: the harness-flavor fallback when `parent_agent_name` is not a recognized harness.
@@ -281,14 +281,14 @@ pub(crate) struct SubagentSpawnContext {
     /// Exact parent tool schema for verbatim non-workflow forks.
     pub parent_tool_definitions: Option<Vec<xvora_sampling_types::ToolSpec>>,
     /// Pre-discovered skills from the parent session, captured at spawn time.
-    pub parent_skills: Option<Vec<xvora_tools::implementations::skills::types::SkillInfo>>,
+    pub parent_skills: Option<Vec<tools::implementations::skills::types::SkillInfo>>,
     /// Parent's skills config for the child's SkillManager.
-    pub parent_skills_config: xvora_agent::prompt::skills::SkillsConfig,
+    pub parent_skills_config: agent::prompt::skills::SkillsConfig,
     /// Parent's resolved vendor-compat config, inherited by the child so its skills / rules / AGENTS.md discovery honors the same vendor toggles.
-    pub parent_compat: xvora_tools::types::compat::CompatConfig,
+    pub parent_compat: tools::types::compat::CompatConfig,
     /// Shared completion reservations held by auto-wake prompts.
     pub task_completion_reservations:
-        Option<xvora_tools::reminders::task_completion::TaskCompletionReservations>,
+        Option<tools::reminders::task_completion::TaskCompletionReservations>,
     /// Channel for requesting trace uploads for synthetic auto-wake turns.
     pub synthetic_trace_tx:
         Option<tokio::sync::mpsc::UnboundedSender<crate::upload::turn::SyntheticTurnTraceRequest>>,
@@ -315,7 +315,7 @@ pub(crate) fn strip_ask_user_question_tool(tools: &mut Vec<xvora_sampling_types:
     tools.retain(|tool| tool.name != "ask_user_question");
 }
 pub(crate) fn strip_workflow_tool(tools: &mut Vec<xvora_sampling_types::ToolSpec>) {
-    tools.retain(|tool| !xvora_tools::implementations::grok_build::is_workflow_tool_id(&tool.name));
+    tools.retain(|tool| !tools::implementations::grok_build::is_workflow_tool_id(&tool.name));
 }
 impl SubagentSpawnContext {
     /// Would installing a live bearer resolver strip this subagent's only credential?
@@ -361,7 +361,7 @@ impl SubagentSpawnContext {
         )
     }
     /// Bind a spawned subagent by the parent session's `--tools`/`--disallowed-tools`/`--permission-mode` restrictions.
-    fn apply_session_cli_overrides(&self, def: &mut xvora_agent::config::AgentDefinition) {
+    fn apply_session_cli_overrides(&self, def: &mut agent::config::AgentDefinition) {
         if let Some(ref cfg) = self.agent_config {
             cfg.cli_agent_overrides.apply_to_subagent_definition(def);
         }
@@ -394,14 +394,14 @@ impl SubagentSpawnContext {
         )
     }
     pub(crate) fn snapshot_parent_compaction_pins(
-        resolved_mode: xvora_chat_state::CompactionMode,
+        resolved_mode: chat_state::CompactionMode,
         resolved_two_pass: bool,
         parent_agent_name: Option<&str>,
         parent_model_agent_type: Option<&str>,
         parent_cwd: &Path,
     ) -> crate::session::CompactionPins {
         let current = parent_agent_name
-            .and_then(|name| xvora_agent::discovery::by_name_in_cwd(name, parent_cwd))
+            .and_then(|name| agent::discovery::by_name_in_cwd(name, parent_cwd))
             .map(|d| d.user_message_template)
             .unwrap_or_default();
         let template = crate::agent::mvp_agent::inherited_harness_template(
@@ -418,7 +418,7 @@ impl SubagentSpawnContext {
     }
     pub(crate) fn compaction_pins_for_child(
         &self,
-        child_template: &xvora_agent::prompt::user_message::UserMessageTemplate,
+        child_template: &agent::prompt::user_message::UserMessageTemplate,
     ) -> crate::session::CompactionPins {
         crate::session::cursor_compaction_pins(
             self.parent_compaction.mode,
@@ -427,7 +427,7 @@ impl SubagentSpawnContext {
         )
     }
     /// Env > parent config features > this context's remote settings > default.
-    pub(crate) fn resolve_compaction_mode(&self) -> xvora_chat_state::CompactionMode {
+    pub(crate) fn resolve_compaction_mode(&self) -> chat_state::CompactionMode {
         crate::agent::config::resolve_compaction_mode_from(
             crate::agent::config::env_string("GROK_COMPACTION_MODE").as_deref(),
             self.agent_config
@@ -456,7 +456,7 @@ impl SubagentSpawnContext {
 pub(crate) struct ShellCompletionData {
     auto_wake_enabled: bool,
     task_completion_reservations:
-        Option<xvora_tools::reminders::task_completion::TaskCompletionReservations>,
+        Option<tools::reminders::task_completion::TaskCompletionReservations>,
     parent_cmd_tx: Option<mpsc::UnboundedSender<SessionCommand>>,
     task_output_tool_name: String,
     scheduler_delete_tool_name: Option<String>,
@@ -513,9 +513,9 @@ impl SubagentPresentation {
 #[tracing::instrument(level = "debug", skip_all)]
 async fn resolve_subagent_sampling_config(
     agent_name: &str,
-    agent_model: &xvora_agent::config::ModelOverride,
+    agent_model: &agent::config::ModelOverride,
     ctx: &SubagentSpawnContext,
-) -> (xvora_sampler::SamplerConfig, acp::ModelId) {
+) -> (sampler::SamplerConfig, acp::ModelId) {
     let (parent_config, parent_mid) = read_parent_sampling_config(ctx).await;
     let try_pin = |model_id: &str, source: &'static str, unknown_msg: &'static str| {
         match resolve_model_override_to_config(model_id, ctx) {
@@ -575,9 +575,9 @@ async fn resolve_subagent_sampling_config(
 async fn resolve_effective_model_config(
     runtime_override_model: Option<&str>,
     subagent_type: &str,
-    definition_model: &xvora_agent::config::ModelOverride,
+    definition_model: &agent::config::ModelOverride,
     ctx: &SubagentSpawnContext,
-) -> (xvora_sampler::SamplerConfig, acp::ModelId) {
+) -> (sampler::SamplerConfig, acp::ModelId) {
     if let Some(model_id) = runtime_override_model {
         if let Some(resolved) = resolve_model_override_to_config(model_id, ctx) {
             return resolved;
@@ -601,14 +601,14 @@ fn key_prefix(key: &Option<String>) -> String {
 fn log_subagent_model_resolution(
     agent_name: &str,
     priority: &str,
-    resolved: &xvora_sampler::SamplerConfig,
+    resolved: &sampler::SamplerConfig,
     resolved_id: &acp::ModelId,
-    parent: &xvora_sampler::SamplerConfig,
+    parent: &sampler::SamplerConfig,
 ) {
     let child_key = key_prefix(&resolved.api_key);
     let parent_key = key_prefix(&parent.api_key);
     let keys_match = resolved.api_key == parent.api_key;
-    xvora_telemetry::unified_log::debug(
+    telemetry::unified_log::debug(
         "subagent model resolved",
         None,
         Some(serde_json::json!({
@@ -631,7 +631,7 @@ fn session_bearer_resolver(
     ctx: &SubagentSpawnContext,
     byok: crate::agent::auth_method::ModelByok,
     base_url: &str,
-) -> Option<xvora_sampler::SharedBearerResolver> {
+) -> Option<sampler::SharedBearerResolver> {
     use crate::agent::auth_method;
     auth_method::session_token_auth_gate(
         auth_method::is_session_based_method(&ctx.auth_method_id),
@@ -647,7 +647,7 @@ fn inherited_bearer_resolver(
     ctx: &SubagentSpawnContext,
     model: &str,
     base_url: &str,
-) -> Option<xvora_sampler::SharedBearerResolver> {
+) -> Option<sampler::SharedBearerResolver> {
     let byok = crate::agent::config::resolve_model_auth_facts_and_provider(model)
         .0
         .byok;
@@ -667,7 +667,7 @@ fn parent_catalog_model_id(ctx: &SubagentSpawnContext, routing_model: &str) -> a
 #[tracing::instrument(level = "debug", skip_all)]
 async fn read_parent_sampling_config(
     ctx: &SubagentSpawnContext,
-) -> (xvora_sampler::SamplerConfig, acp::ModelId) {
+) -> (sampler::SamplerConfig, acp::ModelId) {
     if let Some(ref chat_state) = ctx.parent_chat_state {
         if let Some(cfg) = chat_state.get_sampling_config().await {
             let creds = chat_state.get_credentials().await;
@@ -691,7 +691,7 @@ async fn read_parent_sampling_config(
                 &cfg.api_backend,
                 &cfg.base_url,
             );
-            let inherited = xvora_sampler::SamplerConfig {
+            let inherited = sampler::SamplerConfig {
                 api_key: creds.api_key,
                 base_url: cfg.base_url,
                 model: cfg.model.clone(),
@@ -733,7 +733,7 @@ async fn read_parent_sampling_config(
             };
             let model_id = ctx.model_id.clone();
             let global_model_id = ctx.models_manager.current_model_id();
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "subagent read parent config (live)",
                 None,
                 Some(serde_json::json!({
@@ -752,7 +752,7 @@ async fn read_parent_sampling_config(
              falling back to spawn context baseline"
         );
     }
-    xvora_telemetry::unified_log::warn(
+    telemetry::unified_log::warn(
         "subagent read parent config (fallback)",
         None,
         Some(serde_json::json!({
@@ -791,20 +791,20 @@ async fn read_parent_sampling_config(
 fn subagent_auth_type(
     model: Option<&crate::agent::config::ModelEntry>,
     auth_method_id: &acp::AuthMethodId,
-) -> xvora_chat_state::AuthType {
+) -> chat_state::AuthType {
     if model.is_some_and(|m| m.has_own_credentials()) {
-        xvora_chat_state::AuthType::ApiKey
+        chat_state::AuthType::ApiKey
     } else if crate::agent::auth_method::is_session_based_method(auth_method_id) {
-        xvora_chat_state::AuthType::SessionToken
+        chat_state::AuthType::SessionToken
     } else {
-        xvora_chat_state::AuthType::ApiKey
+        chat_state::AuthType::ApiKey
     }
 }
 /// Resolve a model override string (config key or model ID) to a `(SamplerConfig, ModelId)` pair.
 fn resolve_model_override_to_config(
     model_id: &str,
     ctx: &SubagentSpawnContext,
-) -> Option<(xvora_sampler::SamplerConfig, acp::ModelId)> {
+) -> Option<(sampler::SamplerConfig, acp::ModelId)> {
     let entry = crate::agent::config::find_model_by_id(&ctx.available_models, model_id).cloned()?;
     if !entry.info.user_selectable {
         let user_picker_only = ctx
@@ -834,7 +834,7 @@ fn resolve_model_override_to_config(
         ctx.sampling_config.user_id.clone(),
     );
     config.bearer_resolver = if !ctx.would_strip_fallback_key(config.api_key.as_deref())
-        && resolved_auth_type == xvora_chat_state::AuthType::SessionToken
+        && resolved_auth_type == chat_state::AuthType::SessionToken
     {
         session_bearer_resolver(
             ctx,
@@ -848,7 +848,7 @@ fn resolve_model_override_to_config(
     } else {
         None
     };
-    xvora_telemetry::unified_log::debug(
+    telemetry::unified_log::debug(
         "subagent resolve_model_override_to_config",
         None,
         Some(serde_json::json!({
@@ -969,7 +969,7 @@ fn verbatim_or_normalize_fork(
             verbatim_fork: false,
         };
     }
-    let estimated_tokens = xvora_chat_state::estimate_conversation_tokens(&items);
+    let estimated_tokens = chat_state::estimate_conversation_tokens(&items);
     const SAFE_FORK_PERCENT: u64 = 80;
     let threshold = child_context_window * SAFE_FORK_PERCENT / 100;
     if estimated_tokens <= threshold && conversation_tail_is_complete(&items) {
@@ -1124,7 +1124,7 @@ async fn bootstrap_initial_context(
                     }
                 };
                 let estimated_tokens =
-                    xvora_chat_state::estimate_conversation_tokens(&conversation);
+                    chat_state::estimate_conversation_tokens(&conversation);
                 let context_window = window.context_window;
                 if !window.fits(estimated_tokens) {
                     let limit = window.token_limit();
@@ -1375,7 +1375,7 @@ fn durable_resume_source_for(
 /// Returns `None` when there is no parent pool or `inheritance` is [`McpInheritance::None`] (avoids an empty import call downstream).
 fn resolve_inherited_mcp_pool(
     parent_pool: Option<crate::session::mcp_servers::SharedMcpPool>,
-    inheritance: &xvora_agent::config::McpInheritance,
+    inheritance: &agent::config::McpInheritance,
 ) -> Option<crate::session::mcp_servers::SharedMcpPool> {
     parent_pool.and_then(|pool| filter_pool_by_inheritance(pool, inheritance))
 }
@@ -1385,7 +1385,7 @@ fn resolve_inherited_mcp_pool(
 /// For `Named`/`Except`, retains or removes the matching server names in-place.
 fn filter_pool_by_inheritance(
     mut pool: crate::session::mcp_servers::SharedMcpPool,
-    inheritance: &xvora_agent::config::McpInheritance,
+    inheritance: &agent::config::McpInheritance,
 ) -> Option<crate::session::mcp_servers::SharedMcpPool> {
     match inheritance {
         McpInheritance::All => Some(pool),
@@ -1419,7 +1419,7 @@ fn filter_pool_by_inheritance(
 fn resolve_agent_definition(
     subagent_type: &str,
     ctx: &SubagentSpawnContext,
-) -> Option<xvora_agent::config::AgentDefinition> {
+) -> Option<agent::config::AgentDefinition> {
     let cli_agents = ctx
         .agent_config
         .as_ref()
@@ -1458,7 +1458,7 @@ fn available_agent_names(ctx: &SubagentSpawnContext) -> Vec<String> {
 #[derive(Default)]
 pub(crate) struct SubagentValidationContext {
     pub parent_cwd: PathBuf,
-    pub plugin_registry: Option<Arc<xvora_agent::plugins::PluginRegistry>>,
+    pub plugin_registry: Option<Arc<agent::plugins::PluginRegistry>>,
     pub subagent_toggle: HashMap<String, bool>,
     pub allowed_subagent_types: Option<Vec<String>>,
     pub cli_agent_names: Vec<String>,
@@ -1547,7 +1547,7 @@ fn resolve_subagent_toolset(
     subagent_type: &str,
     harness_agent_type: Option<&str>,
     ctx: &SubagentSpawnContext,
-    definition: &mut xvora_agent::config::AgentDefinition,
+    definition: &mut agent::config::AgentDefinition,
 ) {
     let resolution_context = xvora_subagent_resolution::HarnessToolsetContext {
         harness_override: harness_agent_type,
@@ -1572,7 +1572,7 @@ fn resolve_subagent_toolset(
 /// `default_id` is the unqualified tool id (the `"<namespace>:"` prefix on `tc.id` is stripped).
 /// The read/search/execute flags are what the per-role capability gates key on.
 fn summarize_tool_config(
-    config: &xvora_tools::registry::types::ToolServerConfig,
+    config: &tools::registry::types::ToolServerConfig,
 ) -> SubagentTypeSummary {
     let mut tool_names: HashMap<ToolKind, String> = HashMap::new();
     for tc in &config.tools {
@@ -1678,10 +1678,10 @@ fn parent_source_cwd(ctx: &SubagentSpawnContext) -> std::path::PathBuf {
 /// Under the pin, `bypassPermissions` downgrades to `Default` so a repo/profile/`--agents` def can't restore auto-approve.
 /// Caller logs it.
 fn resolve_subagent_permission_mode(
-    requested: xvora_agent::config::PermissionMode,
+    requested: agent::config::PermissionMode,
     is_plugin: bool,
     policy_block: Option<&'static str>,
-) -> xvora_agent::config::PermissionMode {
+) -> agent::config::PermissionMode {
     if is_plugin {
         return PermissionMode::Default;
     }
@@ -1694,7 +1694,7 @@ fn resolve_subagent_permission_mode(
 /// Both arms MUST resolve this identically.
 fn resolve_subagent_source_repo(ctx: &SubagentSpawnContext) -> std::path::PathBuf {
     let source_cwd = parent_source_cwd(ctx);
-    xvora_workspace::session::git::find_main_repo_root_from_path(&source_cwd).unwrap_or(source_cwd)
+    workspace::session::git::find_main_repo_root_from_path(&source_cwd).unwrap_or(source_cwd)
 }
 enum SubagentWaitOutcome {
     Cancelled,
@@ -1722,7 +1722,7 @@ async fn signals_snapshot_counts(child_handle: &SessionHandle) -> Option<(u32, u
     .map(|snapshot| (snapshot.tool_call_count, snapshot.turn_count))
 }
 fn cancellation_error_message(
-    category: Option<xvora_session_events::types::CancellationCategory>,
+    category: Option<session_events::types::CancellationCategory>,
     context: Option<&crate::session::commands::CancellationContext>,
 ) -> String {
     let detail = context.and_then(|ctx| {
@@ -1758,13 +1758,13 @@ fn cancellation_error_message(
         _ => "Subagent turn was cancelled".to_string(),
     }
 }
-fn telemetry_owner_kind(request: &SubagentRequest) -> xvora_telemetry::events::SubagentOwnerKind {
+fn telemetry_owner_kind(request: &SubagentRequest) -> telemetry::events::SubagentOwnerKind {
     if request.owner.is_workflow() {
-        xvora_telemetry::events::SubagentOwnerKind::Workflow
+        telemetry::events::SubagentOwnerKind::Workflow
     } else if request.from_scheduler_loop() {
-        xvora_telemetry::events::SubagentOwnerKind::SchedulerLoop
+        telemetry::events::SubagentOwnerKind::SchedulerLoop
     } else {
-        xvora_telemetry::events::SubagentOwnerKind::Task
+        telemetry::events::SubagentOwnerKind::Task
     }
 }
 fn failure_result(request: &SubagentRequest, error: &str) -> SubagentResult {
@@ -1855,7 +1855,7 @@ impl UnpromotedChildDisposition {
 async fn cancel_pending_shell_child(
     child_cmd_tx: &mpsc::UnboundedSender<SessionCommand>,
     child_thread: crate::session::SessionThread,
-    workspace_ops: &xvora_workspace::WorkspaceOps,
+    workspace_ops: &workspace::WorkspaceOps,
     subagent_id: &str,
     child_session_id: &acp::SessionId,
     subagent_meta_dir: &Path,
@@ -2465,7 +2465,7 @@ fn completed_finish_from_inspection(inspection: &SubagentInspection) -> Option<S
 #[tracing::instrument(skip_all)]
 pub(crate) async fn reconcile_orphaned_subagents_with_backend(
     unfinished: &[(String, String)],
-    backend: &xvora_tools::implementations::grok_build::task::backend::ChannelBackend,
+    backend: &tools::implementations::grok_build::task::backend::ChannelBackend,
     session_dir: &Path,
     parent_session_id: &str,
     gateway: &GatewaySender,
@@ -2590,7 +2590,7 @@ pub(crate) async fn reconcile_orphaned_subagents_with_backend(
 /// Persist-first plus the per-parent lock make a second tick, sequential or overlapping, a no-op.
 #[tracing::instrument(level = "debug", skip_all)]
 pub(crate) async fn reconcile_live_orphaned_subagents(
-    backend: &xvora_tools::implementations::grok_build::task::backend::ChannelBackend,
+    backend: &tools::implementations::grok_build::task::backend::ChannelBackend,
     session_dir: &Path,
     parent_session_id: &str,
     gateway: &GatewaySender,

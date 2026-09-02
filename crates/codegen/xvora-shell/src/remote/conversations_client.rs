@@ -128,7 +128,7 @@ impl ConversationsClient {
                 self.auth.grok_com_config().token_header.clone(),
             )
             .header("x-userid", &auth.user_id)
-            .header("x-grok-client-version", xvora_version::VERSION)
+            .header("x-grok-client-version", version::VERSION)
             .header(
                 "x-grok-client-identifier",
                 crate::http::process_client_identifier(),
@@ -141,7 +141,7 @@ impl ConversationsClient {
         if let Some(email) = &auth.email {
             builder = builder.header("x-email", email);
         }
-        xvora_file_utils::trace_context::inject_trace_context_into_request(builder)
+        file_utils::trace_context::inject_trace_context_into_request(builder)
     }
 
     pub async fn list_conversations(

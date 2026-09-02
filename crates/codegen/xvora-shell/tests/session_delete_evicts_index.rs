@@ -4,15 +4,15 @@
 use std::sync::{Arc, OnceLock};
 
 use agent_client_protocol as acp;
-use xvora_shell::auth::{AuthManager, GrokComConfig};
-use xvora_shell::session::info::Info;
-use xvora_shell::session::persistence::delete_session_history;
-use xvora_shell::session::storage::search::{
+use shell::auth::{AuthManager, GrokComConfig};
+use shell::session::info::Info;
+use shell::session::persistence::delete_session_history;
+use shell::session::storage::search::{
     IndexDecision, SearchIndex, SearchIndexManager, SessionSearchRequest, execute_search,
     start_if_enabled,
 };
-use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
-use xvora_test_support::EnvGuard;
+use shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
+use test_support::EnvGuard;
 
 fn home() -> &'static std::path::Path {
     static HOME: OnceLock<(tempfile::TempDir, EnvGuard)> = OnceLock::new();
@@ -28,7 +28,7 @@ fn home() -> &'static std::path::Path {
 /// `start_if_enabled` is the only way to get a manager, so the test calls it with `GROK_SESSION_SEARCH` left at its default.
 fn start_index() -> SearchIndexManager {
     let _default_on = EnvGuard::unset("GROK_SESSION_SEARCH");
-    match start_if_enabled(&xvora_shell::agent::config::Config::default()) {
+    match start_if_enabled(&shell::agent::config::Config::default()) {
         SearchIndex::Started(index) => index,
         SearchIndex::Off { reason } => {
             panic!("session search is on by default, got off: {reason}")
@@ -93,7 +93,7 @@ async fn deleting_a_session_clears_only_its_own_search_row() {
     let auth = Arc::new(AuthManager::new(root, GrokComConfig::default()));
 
     let session_dir =
-        xvora_shell::util::grok_home::sessions_cwd_dir_in(root, "/ws-a").join("orphan");
+        shell::util::grok_home::sessions_cwd_dir_in(root, "/ws-a").join("orphan");
     std::fs::remove_dir_all(&session_dir).unwrap();
     let deletion = delete_session_history("orphan", None, false, auth.clone(), Some(&index))
         .await
@@ -160,17 +160,17 @@ fn loading_config_applies_requirement_pins() {
     let pin = home().join("requirements.toml");
     std::fs::write(&pin, "[features]\nsession_search = false\n").unwrap();
 
-    let loaded = xvora_shell::config::load_agent_config_disk_only();
+    let loaded = shell::config::load_agent_config_disk_only();
     std::fs::remove_file(&pin).unwrap();
     let config = loaded.expect("config loads");
 
-    let resolved = config.feature(xvora_shell::agent::config::Feature::SessionSearch);
+    let resolved = config.feature(shell::agent::config::Feature::SessionSearch);
     assert!(
         !resolved.value,
         "a one-shot command must apply pins, or the environment outranks them",
     );
     assert_eq!(
         resolved.source,
-        xvora_shell::agent::config::ConfigSource::Requirement
+        shell::agent::config::ConfigSource::Requirement
     );
 }

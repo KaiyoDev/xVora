@@ -1,10 +1,10 @@
 //! Its own binary: the grok home resolves once per process.
 
 use agent_client_protocol as acp;
-use xvora_shell::session::info::Info;
-use xvora_shell::session::storage::search::{IndexDecision, SessionSearchRequest, execute_search};
-use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
-use xvora_test_support::EnvGuard;
+use shell::session::info::Info;
+use shell::session::storage::search::{IndexDecision, SessionSearchRequest, execute_search};
+use shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
+use test_support::EnvGuard;
 
 #[tokio::test]
 async fn saved_session_is_neither_indexed_nor_found_with_search_off() {
@@ -13,8 +13,8 @@ async fn saved_session_is_neither_indexed_nor_found_with_search_off() {
     let _home = EnvGuard::set("GROK_HOME", root);
     let _off = EnvGuard::set("GROK_SESSION_SEARCH", "0");
 
-    let config = xvora_shell::config::load_agent_config_disk_only().expect("config loads");
-    let search = xvora_shell::session::storage::search::start_if_enabled(&config);
+    let config = shell::config::load_agent_config_disk_only().expect("config loads");
+    let search = shell::session::storage::search::start_if_enabled(&config);
     assert!(
         search.index().is_none(),
         "the switch is off, so no index is started"

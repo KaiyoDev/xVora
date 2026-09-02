@@ -1,6 +1,6 @@
 //! Config-value resolution leaf types and per-model laziness config, extracted from xvora-shell so crates the shell depends on can use them.
 
-use xvora_config::env_bool;
+use config::env_bool;
 
 /// Where a resolved config value came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]

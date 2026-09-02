@@ -19,13 +19,13 @@ use agent_client_protocol::{self as acp, Agent as _};
 use serde_json::json;
 use tempfile::TempDir;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::agent::mvp_agent::MvpAgent;
-use xvora_test_support::{MockInferenceServer, MockModelEntry};
+use shell::agent::config::Config as AgentConfig;
+use shell::agent::mvp_agent::MvpAgent;
+use test_support::{MockInferenceServer, MockModelEntry};
 
 const DUPLEX_BUFFER_BYTES: usize = 8 * 1024 * 1024;
 const RPC_TIMEOUT: Duration = Duration::from_secs(60);
@@ -174,7 +174,7 @@ async fn connect(
         });
     tokio::task::spawn_local(
         GatewayReceiver::new(gw_rx, agent_conn)
-            .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
+            .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
             .run(),
     );
     tokio::task::spawn_local(agent_io);
@@ -255,7 +255,7 @@ fn ambient_mint_endpoints() -> Vec<String> {
 
 #[test]
 fn expired_external_credential_routes_to_the_provider_login_flow() {
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
 
     let mock_rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)

@@ -8,7 +8,7 @@ mod otlp_collector;
 use std::sync::Arc;
 
 use otlp_collector as col;
-use xvora_telemetry::external;
+use telemetry::external;
 
 #[test]
 fn ambient_ctx_injects_session_turn_and_prompt_id() {
@@ -37,16 +37,16 @@ fn ambient_ctx_injects_session_turn_and_prompt_id() {
 
     // Emit inside a session ctx (turn_number = 3) so the ambient snapshot is populated
     // `log_event` is synchronous and runs within the task-local scope of `with_session_ctx`
-    let ctx = xvora_telemetry::TelemetryCtx::new(
+    let ctx = telemetry::TelemetryCtx::new(
         "sess-ctx".to_owned(),
         Arc::new(tokio::sync::Mutex::new(3usize)),
     );
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .expect("current-thread runtime");
-    rt.block_on(xvora_telemetry::with_session_ctx(ctx, async {
-        xvora_telemetry::session_ctx::begin_prompt_id();
-        xvora_telemetry::log_event(xvora_telemetry::events::PromptSubmitted {
+    rt.block_on(telemetry::with_session_ctx(ctx, async {
+        telemetry::session_ctx::begin_prompt_id();
+        telemetry::log_event(telemetry::events::PromptSubmitted {
             prompt_length: 42,
             model_id: "grok-4".into(),
             client_identifier: None,
@@ -54,7 +54,7 @@ fn ambient_ctx_injects_session_turn_and_prompt_id() {
             prompt_text: None,
             command_name: None,
         });
-        xvora_telemetry::log_event(xvora_telemetry::events::ModelResponseReceived {
+        telemetry::log_event(telemetry::events::ModelResponseReceived {
             model_id: "grok-4".into(),
             duration_ms: 5,
             stop_reason: Some("stop".into()),

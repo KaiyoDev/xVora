@@ -16,7 +16,7 @@ use crate::theme::system_appearance::{self, SystemAppearanceWatcher};
 use crate::theme::{Theme, ThemeKind, cache as theme_cache};
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpClientMessage, acp_send};
+use acp_lib::{AcpClientMessage, acp_send};
 
 use super::actions::{Action, Effect, TaskResult};
 use super::app_view::{
@@ -367,17 +367,17 @@ fn reconnect_restore_outcome(
 
 /// Compute the folder-trust verdict for the session cwd and seed [`AppView::trust_state`].
 /// Pager-side mirror of the agent's resolve.
-/// Reads the local store, scans for repo-local code-exec config, and runs the pure [`decide`](xvora_workspace::folder_trust::decide) precedence.
+/// Reads the local store, scans for repo-local code-exec config, and runs the pure [`decide`](workspace::folder_trust::decide) precedence.
 ///
 /// `TrustOutcome::Prompt` (interactive and untrusted, with repo configs present) becomes `TrustState::Pending` (show the question).
 /// Everything else becomes `TrustState::Done`.
 /// The feature-off fast path (kill-switch / opt-out / local build) short-circuits before any I/O.
-fn seed_trust_state(app: &mut AppView, remote: Option<&xvora_shell::util::config::RemoteSettings>) {
+fn seed_trust_state(app: &mut AppView, remote: Option<&shell::util::config::RemoteSettings>) {
     use std::io::IsTerminal;
-    use xvora_workspace::folder_trust::{
+    use workspace::folder_trust::{
         TrustOutcome, decide, decide_inputs_with_interactive, feature_enabled,
     };
-    use xvora_workspace::trust::workspace_key;
+    use workspace::trust::workspace_key;
 
     let feature = feature_enabled(remote);
     if !feature {
@@ -402,12 +402,12 @@ fn seed_trust_state(app: &mut AppView, remote: Option<&xvora_shell::util::config
 /// Must run before the first render, or the startup-intent block opens a session behind the gate and the first frame shows the normal welcome.
 pub(crate) fn seed_consent_state_from_gate(
     app: &mut AppView,
-    gate: Option<&xvora_shell::util::config::ConsentGate>,
+    gate: Option<&shell::util::config::ConsentGate>,
 ) {
     use crate::app::consent::{ConsentInputs, consent_verdict};
-    let stored = xvora_shell::config::load_from_disk()
+    let stored = shell::config::load_from_disk()
         .ok()
-        .map(|root| xvora_shell::util::config::load_config_from_toml(&root).consent)
+        .map(|root| shell::util::config::load_config_from_toml(&root).consent)
         .unwrap_or_default();
     app.consent_state = consent_verdict(&ConsentInputs {
         gate,
@@ -489,7 +489,7 @@ fn suspend_for_child(
     // Reports arriving there (the Ctrl+G key *releases*, a focus event) are echoed as visible escape codes
     let kitty_pushed = crate::app::kitty_flags_pushed();
     let mouse_captured = crate::app::MOUSE_CAPTURE_ENABLED.load(Ordering::Acquire);
-    xvora_shell::util::with_locked_stderr(|stderr| {
+    shell::util::with_locked_stderr(|stderr| {
         if kitty_pushed {
             let _ = crossterm::execute!(stderr, crossterm::event::PopKeyboardEnhancementFlags);
         }
@@ -506,13 +506,13 @@ fn suspend_for_child(
     run_child();
     let _ = crossterm::terminal::enable_raw_mode();
     if screen_mode.is_fullscreen() {
-        xvora_shell::util::with_locked_stderr(|stderr| {
+        shell::util::with_locked_stderr(|stderr| {
             let _ = crossterm::execute!(stderr, crossterm::terminal::EnterAlternateScreen);
         });
     }
     // Re-arm everything quiesced above, plus whatever the child reset on its own exit (vim disables mouse, focus and bracketed paste)
     // Losing bracketed paste turns the next paste into raw keystrokes
-    xvora_shell::util::with_locked_stderr(|stderr| {
+    shell::util::with_locked_stderr(|stderr| {
         if kitty_pushed {
             let _ = crossterm::execute!(
                 stderr,
@@ -1073,22 +1073,22 @@ fn minimal_will_open_session(term_state: &TerminalState, app: &AppView) -> bool 
 pub(crate) async fn run(
     terminal: &mut PagerTerminal,
     connection: crate::acp::AcpConnection,
-    pending_startup: xvora_telemetry::startup::PendingStartup,
+    pending_startup: telemetry::startup::PendingStartup,
     tracing_handle: crate::tracing::TracingHandle,
     config_watcher: &mut ConfigWatcher,
     args: &PagerArgs,
     session_cwd: Option<std::path::PathBuf>,
-    remote_settings: Option<xvora_shell::util::config::RemoteSettings>,
+    remote_settings: Option<shell::util::config::RemoteSettings>,
     mut term_state: TerminalState,
     materialized: crate::app::session_startup::MaterializedStartup,
     bg_update_rx: Option<
-        tokio::sync::oneshot::Receiver<Option<xvora_update::auto_update::UpdateAvailable>>,
+        tokio::sync::oneshot::Receiver<Option<update::auto_update::UpdateAvailable>>,
     >,
     mut writer_event_rx: tokio::sync::mpsc::UnboundedReceiver<crate::render::draw::WriterEvent>,
 ) -> anyhow::Result<RunResult> {
     crate::unified_log::init(connection.tx.clone());
     crate::unified_log::info("pager started", None, None);
-    xvora_telemetry::startup::enter(xvora_telemetry::startup::StartupPhase::AppInit);
+    telemetry::startup::enter(telemetry::startup::StartupPhase::AppInit);
     let mut app = AppView::new(
         connection.tx,
         connection.models,
@@ -1121,25 +1121,25 @@ pub(crate) async fn run(
     let remote_permission_mode = remote_settings
         .as_ref()
         .and_then(|s| s.permission_mode.as_deref());
-    let launch_yolo = xvora_shell::util::config::effective_yolo_for_launch(
+    let launch_yolo = shell::util::config::effective_yolo_for_launch(
         args.yolo,
         args.permission_mode_flag.as_deref(),
         remote_permission_mode,
     );
     app.default_yolo = launch_yolo.yolo;
     // Hoisted so it can be re-applied after `load_initial_ui_config()` replaces `current_ui` below
-    let launch_auto = xvora_shell::util::config::effective_auto_for_launch(
+    let launch_auto = shell::util::config::effective_auto_for_launch(
         args.yolo,
         args.permission_mode_flag.as_deref(),
         remote_permission_mode,
-        xvora_shell::util::config::default_interactive_permission_mode(),
+        shell::util::config::default_interactive_permission_mode(),
     );
     if launch_auto {
         app.current_ui.permission_mode = Some("auto".into());
     }
     // One effective-config read for launch-mode ownership, the display resolve below, and the plugin-CTA marketplace key
     // The launch resolvers above keep their own internal read
-    let launch_effective_config = xvora_shell::config::load_effective_config().ok();
+    let launch_effective_config = shell::config::load_effective_config().ok();
     let launch_effective_ui = launch_effective_config
         .as_ref()
         .and_then(|root| root.get("ui").cloned());
@@ -1147,7 +1147,7 @@ pub(crate) async fn run(
     let cli_owns_mode = args.yolo || args.permission_mode_flag.is_some();
     let toml_owns_mode = launch_effective_ui
         .as_ref()
-        .and_then(xvora_shell::util::config::permission_mode_from_ui_if_set)
+        .and_then(shell::util::config::permission_mode_from_ui_if_set)
         .is_some();
     app.permission_mode_from_soft_default = !cli_owns_mode && !toml_owns_mode;
     // Cached pin snapshot gating dispatch's runtime always-approve toggles
@@ -1159,7 +1159,7 @@ pub(crate) async fn run(
         // Consumed by `switch_to_agent` once the first agent view opens.
         app.yolo_launch_block_notice = Some(warning);
     }
-    app.require_plan_approval = xvora_shell::util::config::load_require_plan_approval();
+    app.require_plan_approval = shell::util::config::load_require_plan_approval();
     app.plan_mode = !args.no_plan;
     app.subagents = !args.no_subagents;
     app.ask_user = !args.no_ask_user;
@@ -1180,7 +1180,7 @@ pub(crate) async fn run(
     if let Some(ref agent) = args.agent {
         match crate::headless::resolve_agent_arg(agent) {
             crate::headless::ResolvedAgent::FilePath(path) => {
-                match xvora_shell::agent::config::AgentDefinition::from_file(&path) {
+                match shell::agent::config::AgentDefinition::from_file(&path) {
                     Ok(def) => app.agent_override = Some(def.to_json_value()),
                     Err(e) => {
                         tracing::warn!("--agent: failed to load agent file: {e}");
@@ -1222,7 +1222,7 @@ pub(crate) async fn run(
         .and_then(|s| s.show_resolved_model)
         .unwrap_or(true);
     app.sharing_enabled = false;
-    app.privacy_notice_rollout = xvora_config::env_bool("GROK_PRIVACY_NOTICE_ROLLOUT")
+    app.privacy_notice_rollout = config::env_bool("GROK_PRIVACY_NOTICE_ROLLOUT")
         .or_else(|| {
             remote_settings
                 .as_ref()
@@ -1238,18 +1238,18 @@ pub(crate) async fn run(
                 .and_then(|s| s.privacy_banner_reshow_days)
         });
     // Local dismiss timestamp for the coding-data privacy banner.
-    app.privacy_banner_acked = xvora_shell::config::load_from_disk().ok().and_then(|root| {
-        xvora_shell::util::config::load_config_from_toml(&root)
+    app.privacy_banner_acked = shell::config::load_from_disk().ok().and_then(|root| {
+        shell::util::config::load_config_from_toml(&root)
             .privacy
             .privacy_banner_acked
     });
-    app.plugin_cta_enabled = xvora_config::env_bool("GROK_PLUGIN_CTA")
+    app.plugin_cta_enabled = config::env_bool("GROK_PLUGIN_CTA")
         .or_else(|| remote_settings.as_ref().and_then(|s| s.plugin_cta))
         .unwrap_or(false);
     app.plugin_cta_marketplace = launch_effective_config
         .as_ref()
         .and_then(plugin_cta_marketplace_from);
-    app.workspace_dashboard_enabled = xvora_config::env_bool("GROK_WORKSPACE_DASHBOARD")
+    app.workspace_dashboard_enabled = config::env_bool("GROK_WORKSPACE_DASHBOARD")
         .or_else(|| {
             remote_settings
                 .as_ref()
@@ -1265,7 +1265,7 @@ pub(crate) async fn run(
             _ => None,
         })
         .or_else(|| {
-            xvora_shell::config::load_effective_config()
+            shell::config::load_effective_config()
                 .ok()
                 .and_then(|cfg| cfg.get("cli")?.get("session_picker_grouped")?.as_bool())
         })
@@ -1342,7 +1342,7 @@ pub(crate) async fn run(
             // preferred_method pin unavailable: no advertised method to start
             app.auth_state = super::app_view::AuthState::Pending {
                 error: Some(
-                    xvora_shell::agent::auth_method::PREFERRED_API_KEY_UNAVAILABLE.to_string(),
+                    shell::agent::auth_method::PREFERRED_API_KEY_UNAVAILABLE.to_string(),
                 ),
             };
             vec![]
@@ -1357,7 +1357,7 @@ pub(crate) async fn run(
         crate::slash::commands::usage::detect_external_auth_provider(&app.auth_methods);
 
     if let Some(meta) = connection.auth_meta.as_ref() {
-        match serde_json::from_value::<xvora_shell::auth::AuthMeta>(meta.clone()) {
+        match serde_json::from_value::<shell::auth::AuthMeta>(meta.clone()) {
             Ok(auth_meta) => app.apply_auth_meta(&auth_meta),
             Err(e) => tracing::warn!("failed to deserialize auth_meta: {e}"),
         }
@@ -1366,7 +1366,7 @@ pub(crate) async fn run(
         app.is_api_key_auth = app
             .auth_methods
             .iter()
-            .any(|m| m.id().0.as_ref() == xvora_shell::agent::auth_method::XAI_API_KEY_METHOD_ID);
+            .any(|m| m.id().0.as_ref() == shell::agent::auth_method::XAI_API_KEY_METHOD_ID);
         // No AuthMeta on this path: API keys / external auth have no consumer billing surface
         // External auth also hides `/usage`
         if app.is_api_key_auth || app.has_external_auth_provider {
@@ -1404,26 +1404,26 @@ pub(crate) async fn run(
     }
 
     // Load persisted per-ID hidden state
-    app.hidden_announcement_ids = xvora_announcements::read_hidden_announcement_ids().await;
+    app.hidden_announcement_ids = announcements::read_hidden_announcement_ids().await;
 
     // Load config layers once, resolve announcements, tips, and feature flags.
-    let requirements = xvora_shell::config::load_merged_requirements();
-    let user_config = xvora_shell::config::load_from_disk().ok();
-    let managed_config = xvora_shell::config::load_managed_config().ok();
+    let requirements = shell::config::load_merged_requirements();
+    let user_config = shell::config::load_from_disk().ok();
+    let managed_config = shell::config::load_managed_config().ok();
 
     // Full merge when every layer parses; partial merge below if any layer fails.
-    let effective_config = match xvora_shell::config::load_effective_config() {
+    let effective_config = match shell::config::load_effective_config() {
         Ok(raw) => Some(raw),
         Err(e) => {
             tracing::debug!(error = %e, "failed to load effective config, using partial layers");
             None
         }
     };
-    let compat = xvora_shell::agent::config::resolve_compat_sessions_from_raw(
+    let compat = shell::agent::config::resolve_compat_sessions_from_raw(
         effective_config.as_ref().ok_or(()),
         remote_settings.as_ref(),
     );
-    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
         claude: compat.claude.sessions,
         codex: compat.codex.sessions,
         cursor: compat.cursor.sessions,
@@ -1437,10 +1437,10 @@ pub(crate) async fn run(
         if let Some(table) = raw.as_table() {
             // Voice inherits the same resolved endpoints base as chat (config > GROK_XAI_API_BASE_URL env > default)
             let endpoints_base =
-                xvora_shell::agent::config::EndpointsConfig::from_config_value(raw)
+                shell::agent::config::EndpointsConfig::from_config_value(raw)
                     .xvora_api_base_url;
             app.voice_config =
-                xvora_voice::VoiceConfig::from_config_table(table, Some(&endpoints_base));
+                voice::VoiceConfig::from_config_table(table, Some(&endpoints_base));
         }
     }
     // Stamp request-identity headers so the STT handshake attributes voice usage to grok-cli server-side (mirrors sampler / imagine)
@@ -1449,7 +1449,7 @@ pub(crate) async fn run(
     app.voice_config.client_identifier = crate::client_identity::HEADLESS_CLIENT_TYPE.to_string();
     app.voice_config.user_agent = crate::client_identity::client_user_agent();
 
-    app.zdr_access_enabled = xvora_shell::util::config::resolve_zdr_access_enabled(
+    app.zdr_access_enabled = shell::util::config::resolve_zdr_access_enabled(
         requirements.as_ref(),
         user_config.as_ref(),
         managed_config.as_ref(),
@@ -1462,7 +1462,7 @@ pub(crate) async fn run(
 
     // Full layered resolve (env/requirements/remote may beat plain `[ui]`).
     crate::appearance::cache::set_show_thinking_blocks(
-        xvora_shell::util::config::resolve_show_thinking_blocks(
+        shell::util::config::resolve_show_thinking_blocks(
             requirements.as_ref(),
             user_config.as_ref(),
             managed_config.as_ref(),
@@ -1471,7 +1471,7 @@ pub(crate) async fn run(
         .value,
     );
     crate::appearance::cache::set_group_tool_verbs(
-        xvora_shell::util::config::resolve_group_tool_verbs(
+        shell::util::config::resolve_group_tool_verbs(
             requirements.as_ref(),
             user_config.as_ref(),
             managed_config.as_ref(),
@@ -1480,7 +1480,7 @@ pub(crate) async fn run(
         .value,
     );
     crate::appearance::cache::set_collapsed_edit_blocks(
-        xvora_shell::util::config::resolve_collapsed_edit_blocks(
+        shell::util::config::resolve_collapsed_edit_blocks(
             requirements.as_ref(),
             user_config.as_ref(),
             managed_config.as_ref(),
@@ -1494,7 +1494,7 @@ pub(crate) async fn run(
     // But `/loop` can be reached from the session-less dashboard and from a session whose response has not landed yet; both need an answer now
     // This is the same resolver the shell runs at spawn, so the seed agrees with the flag as it stands today
     app.scheduler_background_loops_seed =
-        xvora_shell::util::config::resolve_scheduler_background_loops(
+        shell::util::config::resolve_scheduler_background_loops(
             remote_settings
                 .as_ref()
                 .and_then(|s| s.scheduler_background_loops),
@@ -1509,7 +1509,7 @@ pub(crate) async fn run(
     }
 
     {
-        use xvora_shell::util::config::{
+        use shell::util::config::{
             resolve_announcements, resolve_slash_command_tags, resolve_tips,
         };
 
@@ -1522,7 +1522,7 @@ pub(crate) async fn run(
             managed_config.as_ref(),
             remote_announcements,
         );
-        app.active_announcements = xvora_announcements::filter_expired(announcements);
+        app.active_announcements = announcements::filter_expired(announcements);
         if !app.active_announcements.is_empty() {
             use rand::Rng;
             let idx = rand::rng().random_range(0..app.active_announcements.len());
@@ -1539,8 +1539,8 @@ pub(crate) async fn run(
         );
 
         if !app.tips.is_empty() {
-            let grok_home = xvora_tools::util::grok_home::grok_home();
-            app.tip = xvora_shell::util::tips::pick_and_advance(&app.tips, &grok_home);
+            let grok_home = tools::util::grok_home::grok_home();
+            app.tip = shell::util::tips::pick_and_advance(&app.tips, &grok_home);
         }
 
         // Slash-command dropdown tags: remote base, local [slash_command_tags] wins per key
@@ -1553,7 +1553,7 @@ pub(crate) async fn run(
         *app.command_tags.borrow_mut() = resolve_slash_command_tags(tags_config, remote_slash_tags);
     }
 
-    let hints = xvora_shell::util::config::resolve_hints(
+    let hints = shell::util::config::resolve_hints(
         effective_config.as_ref(),
         requirements.as_ref(),
         user_config.as_ref(),
@@ -1681,11 +1681,11 @@ pub(crate) async fn run(
         "always-approve"
     } else if let Some(cli) = args.permission_mode_flag.as_deref() {
         // CLI always-approve/auto that did not become launch_yolo/launch_auto (policy pin / gate) display as Ask
-        xvora_shell::util::config::clamped_display_permission_mode(
-            xvora_shell::util::config::parse_permission_mode_canonical(cli),
+        shell::util::config::clamped_display_permission_mode(
+            shell::util::config::parse_permission_mode_canonical(cli),
         )
     } else {
-        xvora_shell::util::config::resolved_display_permission_mode(
+        shell::util::config::resolved_display_permission_mode(
             launch_effective_ui.as_ref(),
             remote_permission_mode,
         )
@@ -1710,7 +1710,7 @@ pub(crate) async fn run(
     );
     // Resolve the per-tip contextual hints now that `current_ui` is hydrated and propagate the prompt-relevant tips to any agents built at startup
     // New agents adopt the gates at creation; settings toggles re-apply at runtime
-    let resolved_hints = xvora_shell::util::config::resolve_contextual_hints(
+    let resolved_hints = shell::util::config::resolve_contextual_hints(
         &app.current_ui.contextual_hints,
         app.remote_contextual_hints.as_ref(),
     );
@@ -1720,7 +1720,7 @@ pub(crate) async fn run(
     // Off unless explicitly enabled
     // Resolved in shell config (env override > effective config > parsed `UiConfig` field)
     // A partial `UiConfig` deserialize failure thus cannot silently drop it
-    let mouse_toggle = xvora_shell::util::config::resolve_mouse_reporting_toggle(
+    let mouse_toggle = shell::util::config::resolve_mouse_reporting_toggle(
         effective_config.as_ref(),
         &app.current_ui,
     );
@@ -1896,7 +1896,7 @@ pub(crate) async fn run(
     // `AUDIO_SUPPORTED` reflects whether mic capture is compiled in
     // It is true for production CLI builds on macOS/Windows (cpal) and Linux (subprocess recorder)
     // It is false for Bazel builds (no capture in the test sandbox)
-    let mut voice_rx = None::<tokio::sync::mpsc::Receiver<xvora_voice::VoiceEvent>>;
+    let mut voice_rx = None::<tokio::sync::mpsc::Receiver<voice::VoiceEvent>>;
     let voice_auth_factory = connection.auth_manager.clone();
 
     // Animation tick: only scheduled when there are running entries.
@@ -2090,7 +2090,7 @@ pub(crate) async fn run(
         presenter.request_presentation(&mut app, terminal, false);
     } else if args.initial_prompt().is_none() && !minimal_will_open_session(&term_state, &app) {
         // No session work follows: startup ends at interactive.
-        app.finish_startup(xvora_telemetry::startup::StartupOutcome::Ok);
+        app.finish_startup(telemetry::startup::StartupOutcome::Ok);
     }
 
     // Initial prompt from the CLI positional (`grok "fix the bug"`)
@@ -2109,7 +2109,7 @@ pub(crate) async fn run(
             presenter.request_presentation(&mut app, terminal, false);
         } else {
             // ZDR drops the prompt; no session follows, so startup ends at interactive.
-            app.finish_startup(xvora_telemetry::startup::StartupOutcome::Ok);
+            app.finish_startup(telemetry::startup::StartupOutcome::Ok);
         }
     }
 
@@ -2256,7 +2256,7 @@ pub(crate) async fn run(
             &mut suspend_retry_after,
             &mut suspend_wait_reports,
         ) {
-            app.finish_startup(xvora_telemetry::startup::StartupOutcome::Error);
+            app.finish_startup(telemetry::startup::StartupOutcome::Error);
             flush_pending_stall(&mut stall_rollup);
             return Err(e);
         }
@@ -2286,7 +2286,7 @@ pub(crate) async fn run(
                 let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(32);
                 let (event_tx, event_rx) = tokio::sync::mpsc::channel(128);
                 let voice_config = app.voice_config.clone();
-                tokio::spawn(xvora_voice::run_voice_pipeline(
+                tokio::spawn(voice::run_voice_pipeline(
                     voice_config,
                     voice_auth.clone(),
                     cmd_rx,
@@ -2500,7 +2500,7 @@ pub(crate) async fn run(
 
             writer_event = writer_event_rx.recv() => {
                 let Some(writer_event) = writer_event else {
-                    app.finish_startup(xvora_telemetry::startup::StartupOutcome::Error);
+                    app.finish_startup(telemetry::startup::StartupOutcome::Error);
                     flush_pending_stall(&mut stall_rollup);
                     return Err(anyhow::anyhow!("terminal writer stopped"));
                 };
@@ -2509,7 +2509,7 @@ pub(crate) async fn run(
                 {
                     Ok(sequence) => sequence,
                     Err(e) => {
-                        app.finish_startup(xvora_telemetry::startup::StartupOutcome::Error);
+                        app.finish_startup(telemetry::startup::StartupOutcome::Error);
                         flush_pending_stall(&mut stall_rollup);
                         return Err(e);
                     }
@@ -3069,9 +3069,9 @@ pub(crate) async fn run(
                                 let mut loads = Vec::with_capacity(load_plans.len());
                                 for (agent_id, plan) in load_plans {
                                     // Reconnect path: no resolved compat in scope; the default (all-on) preserves existing behavior
-                                    let mcp_servers = xvora_shell::util::config::load_mcp_servers(
+                                    let mcp_servers = shell::util::config::load_mcp_servers(
                                         &plan.cwd,
-                                        &xvora_tools::types::compat::CompatConfig::default(),
+                                        &tools::types::compat::CompatConfig::default(),
                                     );
                                     let load_req = acp::LoadSessionRequest::new(plan.session_id, plan.cwd).mcp_servers(mcp_servers).meta(plan.meta.as_object().cloned());
                                     match acp_send(load_req, &acp_tx).await {
@@ -3301,13 +3301,13 @@ pub(crate) async fn run(
 /// `[ui]` as it was on disk at startup, or the default if it could not be read.
 /// Read once for the process: the status line capability is advertised from this at connect and the row is rendered from it later.
 /// A second read could answer the two differently.
-pub(crate) fn load_initial_ui_config() -> xvora_shell::agent::config::UiConfig {
-    use xvora_shell::agent::config::UiConfig;
+pub(crate) fn load_initial_ui_config() -> shell::agent::config::UiConfig {
+    use shell::agent::config::UiConfig;
     static INITIAL_UI: std::sync::OnceLock<UiConfig> = std::sync::OnceLock::new();
 
     INITIAL_UI
         .get_or_init(|| {
-            let Ok(root) = xvora_shell::config::load_effective_config() else {
+            let Ok(root) = shell::config::load_effective_config() else {
                 return UiConfig::default();
             };
             let Some(ui_value) = root.get("ui").cloned() else {
@@ -3328,7 +3328,7 @@ struct InitialConfigSessionBools {
 }
 
 fn load_initial_config_session_bools() -> InitialConfigSessionBools {
-    let Ok(root) = xvora_shell::config::load_effective_config() else {
+    let Ok(root) = shell::config::load_effective_config() else {
         return InitialConfigSessionBools::default();
     };
     let cli_bool = |key: &str| -> Option<bool> { root.get("cli")?.get(key)?.as_bool() };
@@ -3451,7 +3451,7 @@ fn sync_appearance_watcher(watcher: &mut Option<SystemAppearanceWatcher>) {
 }
 
 fn emit_event_loop_stall(window: super::event_loop_stall::StallWindow) {
-    xvora_telemetry::session_ctx::log_event(super::event_loop_stall::event_loop_stall_event(
+    telemetry::session_ctx::log_event(super::event_loop_stall::event_loop_stall_event(
         window,
     ));
 }
@@ -3644,7 +3644,7 @@ async fn drain_and_process(
                 // X10 column-coordinate bytes of 95 or more then corrupt into typed characters
                 // Idempotent everywhere else, and gated so a deliberate capture-off state is never undone
                 if crate::app::MOUSE_CAPTURE_ENABLED.load(std::sync::atomic::Ordering::Acquire) {
-                    xvora_shell::util::with_locked_stderr(|stderr| {
+                    shell::util::with_locked_stderr(|stderr| {
                         let _ = crossterm::execute!(stderr, crossterm::event::EnableMouseCapture);
                     });
                 }
@@ -3741,7 +3741,7 @@ async fn drain_and_process(
         // See `voice_chord_claims_event` for the exact press/release/hold gating
         if let Event::Key(ke) = ev
             && app.voice_mode_enabled
-            && xvora_voice::AUDIO_SUPPORTED
+            && voice::AUDIO_SUPPORTED
             && is_voice_chord(ke)
             && voice_chord_claims_event(
                 ke.kind,
@@ -4841,7 +4841,7 @@ mod tests {
         ));
 
         let request = match acp_rx.recv().await.expect("session/new request") {
-            xvora_acp_lib::AcpAgentMessage::NewSession(args) => args.request,
+            acp_lib::AcpAgentMessage::NewSession(args) => args.request,
             other => panic!("expected session/new, got {other:?}"),
         };
         let meta = request.meta.expect("permission metadata");
@@ -4943,7 +4943,7 @@ mod tests {
         assert!(!result.should_quit);
         assert!(matches!(
             acp_rx.recv().await.expect("session/new request"),
-            xvora_acp_lib::AcpAgentMessage::NewSession(_)
+            acp_lib::AcpAgentMessage::NewSession(_)
         ));
         assert_eq!(
             app.agents[&crate::app::agent::AgentId(0)].prompt.text(),
@@ -6499,7 +6499,7 @@ mod tests {
 
     #[test]
     fn plugin_cta_marketplace_from_managed_layer() {
-        let layers = xvora_config::ConfigLayers {
+        let layers = config::ConfigLayers {
             managed: toml::from_str(
                 "[marketplace]\nplugin_cta_marketplace = \"SpaceX Marketplace\"\n",
             )
@@ -6514,7 +6514,7 @@ mod tests {
 
     #[test]
     fn plugin_cta_marketplace_from_user_wins_over_managed() {
-        let layers = xvora_config::ConfigLayers {
+        let layers = config::ConfigLayers {
             managed: toml::from_str(
                 "[marketplace]\nplugin_cta_marketplace = \"Managed Marketplace\"\n",
             )
@@ -6531,12 +6531,12 @@ mod tests {
 
     #[test]
     fn plugin_cta_marketplace_from_unset_or_empty_is_none() {
-        let unset = xvora_config::ConfigLayers::default();
+        let unset = config::ConfigLayers::default();
         assert_eq!(
             plugin_cta_marketplace_from(&unset.effective_config_base()),
             None
         );
-        let empty = xvora_config::ConfigLayers {
+        let empty = config::ConfigLayers {
             managed: toml::from_str("[marketplace]\nplugin_cta_marketplace = \"\"\n").unwrap(),
             ..Default::default()
         };
@@ -6544,7 +6544,7 @@ mod tests {
             plugin_cta_marketplace_from(&empty.effective_config_base()),
             None
         );
-        let blank = xvora_config::ConfigLayers {
+        let blank = config::ConfigLayers {
             user: toml::from_str("[marketplace]\nplugin_cta_marketplace = \"   \"\n").unwrap(),
             ..Default::default()
         };

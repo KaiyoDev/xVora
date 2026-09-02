@@ -131,7 +131,7 @@ mod tests {
     }
 
     /// Unlike the others, this reads ambient host state and warms process-wide caches; the asserted fields still come only from the injected map.
-    fn snapshot(pairs: &[(&str, &str)]) -> xvora_telemetry::events::TerminalTelemetry {
+    fn snapshot(pairs: &[(&str, &str)]) -> telemetry::events::TerminalTelemetry {
         build_terminal_context_from_env(&env_from(pairs)).telemetry_snapshot()
     }
 

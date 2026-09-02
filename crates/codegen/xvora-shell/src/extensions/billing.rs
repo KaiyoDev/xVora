@@ -205,7 +205,7 @@ async fn handle_get_billing(agent: &MvpAgent) -> ExtResult {
             crate::auth::GrokComConfig::default().token_header,
         )
         .header("x-userid", &auth.user_id)
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),
@@ -215,7 +215,7 @@ async fn handle_get_billing(agent: &MvpAgent) -> ExtResult {
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "billing: upstream request failed");
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "billing: upstream request failed",
                 None,
                 Some(serde_json::json!({ "error": e.to_string() })),
@@ -233,7 +233,7 @@ async fn handle_get_billing(agent: &MvpAgent) -> ExtResult {
             .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from))
             .unwrap_or_else(|| format!("HTTP {status}"));
 
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "billing: upstream error",
             None,
             Some(serde_json::json!({
@@ -247,7 +247,7 @@ async fn handle_get_billing(agent: &MvpAgent) -> ExtResult {
 
     let mut billing: BillingConfigResponse = credits_resp.json().await.map_err(|e| {
         tracing::error!(error = %e, "billing: failed to parse response");
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "billing: failed to parse response",
             None,
             Some(serde_json::json!({ "error": e.to_string() })),
@@ -266,7 +266,7 @@ async fn handle_get_billing(agent: &MvpAgent) -> ExtResult {
 
     // Every prompt, `/usage`, and poll path hits `x.ai/billing`
     // Log the fetched credits snapshot so support can correlate the limit UI with real balances
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "billing: fetched credits config",
         None,
         Some(billing_unified_log_ctx(&billing)),
@@ -295,7 +295,7 @@ async fn handle_get_auto_topup_rule(agent: &MvpAgent) -> ExtResult {
             crate::auth::GrokComConfig::default().token_header,
         )
         .header("x-userid", &auth.user_id)
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),

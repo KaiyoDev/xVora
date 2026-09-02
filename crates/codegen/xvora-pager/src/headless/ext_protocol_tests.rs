@@ -45,7 +45,7 @@ fn capture_logs(f: impl FnOnce()) -> String {
 fn make_ext_notif(
     method: &str,
     update: serde_json::Value,
-) -> xvora_acp_lib::AcpArgsBox<acp::ExtNotification> {
+) -> acp_lib::AcpArgsBox<acp::ExtNotification> {
     make_raw_ext_notif(
         method,
         serde_json::json!({
@@ -58,10 +58,10 @@ fn make_ext_notif(
 fn make_raw_ext_notif(
     method: &str,
     params: serde_json::Value,
-) -> xvora_acp_lib::AcpArgsBox<acp::ExtNotification> {
+) -> acp_lib::AcpArgsBox<acp::ExtNotification> {
     let raw = serde_json::value::to_raw_value(&params).unwrap();
     let (tx, _rx) = tokio::sync::oneshot::channel();
-    xvora_acp_lib::AcpArgs {
+    acp_lib::AcpArgs {
         request: acp::ExtNotification::new(method, raw.into()),
         response_tx: tx,
     }
@@ -365,7 +365,7 @@ fn headless_session_update_unknown_method_is_none() {
     });
     let raw = serde_json::value::to_raw_value(&payload).unwrap();
     let (tx, _rx) = tokio::sync::oneshot::channel();
-    let notif = xvora_acp_lib::AcpArgs {
+    let notif = acp_lib::AcpArgs {
         request: acp::ExtNotification::new("x.ai/other", raw.into()),
         response_tx: tx,
     }
@@ -517,11 +517,11 @@ fn headless_session_notification_unknown_tag_is_clean_ignore() {
 fn ext_method_reply(
     method: &str,
     params: serde_json::Value,
-) -> xvora_acp_lib::AcpResult<acp::ExtResponse> {
+) -> acp_lib::AcpResult<acp::ExtResponse> {
     let raw = serde_json::value::to_raw_value(&params).unwrap();
     let (tx, mut rx) = tokio::sync::oneshot::channel();
     reply_headless_ext_method(
-        xvora_acp_lib::AcpArgs {
+        acp_lib::AcpArgs {
             request: acp::ExtRequest::new(method, raw.into()),
             response_tx: tx,
         }
@@ -535,7 +535,7 @@ fn ext_method_reply(
 /// malformed params are still answered (known methods do not parse params).
 #[test]
 fn mcp_elicit_replies_cancelled() {
-    use xvora_tools::mcp_elicitation::McpElicitExtResponse;
+    use tools::mcp_elicitation::McpElicitExtResponse;
     let raw = ext_method_reply("x.ai/mcp/elicit", serde_json::json!({}))
         .expect("policy reply, not an error");
     let typed: McpElicitExtResponse = serde_json::from_str(raw.0.get()).expect("typed cancel");
@@ -544,7 +544,7 @@ fn mcp_elicit_replies_cancelled() {
 
 #[test]
 fn ask_user_question_replies_cancelled() {
-    use xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
+    use tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
     for params in [
         serde_json::json!({
             "sessionId": "s", "toolCallId": "t", "questions": [], "mode": "default",
@@ -562,7 +562,7 @@ fn ask_user_question_replies_cancelled() {
 /// `x.ai/exit_plan_mode` is approved (no feedback) so the shell executes the exit and the model proceeds to implement.
 #[test]
 fn exit_plan_mode_replies_approved() {
-    use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse;
+    use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse;
     let resp = ext_method_reply(
         "x.ai/exit_plan_mode",
         serde_json::json!({"sessionId": "s", "toolCallId": "t"}),
@@ -601,7 +601,7 @@ fn dropped_receiver_does_not_panic() {
     let (tx, rx) = tokio::sync::oneshot::channel();
     drop(rx);
     reply_headless_ext_method(
-        xvora_acp_lib::AcpArgs {
+        acp_lib::AcpArgs {
             request: acp::ExtRequest::new("x.ai/ask_user_question", raw.into()),
             response_tx: tx,
         }

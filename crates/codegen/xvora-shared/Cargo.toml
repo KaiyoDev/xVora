@@ -7,7 +7,7 @@ edition.workspace = true
 agent-client-protocol = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
-xvora-dirs = { workspace = true }
+dirs = { workspace = true }
 dunce = { workspace = true }
 image = { workspace = true, features = ["png", "jpeg", "gif", "webp"] }
 parking_lot = { workspace = true }
@@ -19,11 +19,11 @@ tempfile = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
-xvora-config-types = { workspace = true }
-xvora-models = { workspace = true }
-xvora-status-line = { workspace = true }
-xvora-tools = { workspace = true }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+config-types = { workspace = true }
+models = { workspace = true }
+status-line = { workspace = true }
+tools = { workspace = true }
+tty-utils = { workspace = true }
 
 [dev-dependencies]
 uuid = { workspace = true, features = ["v4"] }

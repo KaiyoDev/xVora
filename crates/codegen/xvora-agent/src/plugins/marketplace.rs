@@ -154,7 +154,7 @@ struct KnownMarketplaceEntry {
 /// Plugin dirs are filtered to names listed in `~/.claude/settings{.local}.json` `enabledPlugins`, so never-installed catalog plugins are skipped.
 /// A `false` entry there is an installed-but-disabled plugin; it is still discovered so its state can be mirrored.
 pub fn resolve_known_marketplaces() -> Vec<ResolvedMarketplace> {
-    let Some(home) = xvora_dirs::home_dir() else {
+    let Some(home) = dirs::home_dir() else {
         return vec![];
     };
     resolve_known_marketplaces_in(&home.join(".claude"))

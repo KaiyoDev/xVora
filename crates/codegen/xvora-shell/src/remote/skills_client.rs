@@ -19,8 +19,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Deserialize;
-use xvora_tools::implementations::skills::skill::extract_skill_body;
-use xvora_tools::implementations::skills::types::{SkillInfo, SkillScope};
+use tools::implementations::skills::skill::extract_skill_body;
+use tools::implementations::skills::types::{SkillInfo, SkillScope};
 
 use crate::auth::AuthManager;
 
@@ -402,7 +402,7 @@ impl SkillsClient {
                 self.auth.grok_com_config().token_header.clone(),
             )
             .header("x-userid", user_id)
-            .header("x-grok-client-version", xvora_version::VERSION)
+            .header("x-grok-client-version", version::VERSION)
             .header(
                 "x-grok-client-identifier",
                 crate::http::process_client_identifier(),
@@ -415,7 +415,7 @@ impl SkillsClient {
         if let Some(email) = email {
             builder = builder.header("x-email", email);
         }
-        xvora_file_utils::trace_context::inject_trace_context_into_request(builder)
+        file_utils::trace_context::inject_trace_context_into_request(builder)
     }
 
     /// Grok.com product Skills require first-party session auth (the same gate as managed MCP and sibling grok.com clients), not plain BYOK API keys.

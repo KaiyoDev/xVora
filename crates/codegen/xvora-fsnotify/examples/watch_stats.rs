@@ -23,7 +23,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use xvora_fsnotify::{FsConfig, FsEventSource};
+use fsnotify::{FsConfig, FsEventSource};
 
 fn make_dirs(base: &Path, count: usize, fanout: usize) {
     for i in 0..count {

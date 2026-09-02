@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use xvora_tools::implementations::search_tool::ServerFingerprint;
+use tools::implementations::search_tool::ServerFingerprint;
 
 /// Persisted announcement tracking state.
 ///

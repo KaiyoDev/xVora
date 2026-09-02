@@ -504,7 +504,7 @@ fn run_single_iteration(
 // ============================================================================
 
 fn count_tracked_files(source: &Path) -> Result<usize> {
-    xvora_fast_worktree::count_tracked_files(source)
+    fast_worktree::count_tracked_files(source)
 }
 
 fn compute_summary(iterations: &[IterationResult]) -> BenchmarkSummary {

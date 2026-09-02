@@ -1,5 +1,5 @@
 use anyhow::Result;
-use xvora_shell::agent::config::Config as AgentConfig;
+use shell::agent::config::Config as AgentConfig;
 
 #[derive(Debug, clap::Args, Clone)]
 pub struct ShareArgs {

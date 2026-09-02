@@ -49,7 +49,7 @@ struct ToolsContext {
 /// `${{ tools.by_kind.read }}` / `${{ params.edit.old_string }}`.
 ///
 /// Shell flags are computed once in [`TemplateRenderer::new`] from
-/// [`xvora_config::shell`].
+/// [`config::shell`].
 #[derive(Debug, Clone, serde::Serialize)]
 struct TemplateContext {
     tools: ToolsContext,
@@ -215,8 +215,8 @@ impl TemplateRenderer {
                 is_windows: cfg!(not(unix)),
                 // `chain_separator()` returns `"&&"` on Unix, so the
                 // comparison is naturally false there — no cfg guard needed.
-                shell_uses_semicolon: xvora_config::shell::chain_separator() == ";",
-                has_unix_utilities: xvora_config::shell::has_unix_utilities(),
+                shell_uses_semicolon: config::shell::chain_separator() == ";",
+                has_unix_utilities: config::shell::has_unix_utilities(),
                 system_reminders_enabled: true,
             },
         }
@@ -331,12 +331,12 @@ impl TemplateRenderer {
     pub async fn resolve(
         resources: &crate::types::resources::SharedResources,
         template: &str,
-    ) -> Result<String, xvora_tool_runtime::ToolError> {
+    ) -> Result<String, tool_runtime::ToolError> {
         let res = resources.lock().await;
         let renderer = res.require::<Self>()?;
         renderer
             .render(template)
-            .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))
+            .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))
     }
 
     /// Look up a tool's client-facing name by kind from shared resources.

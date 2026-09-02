@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use agent_client_protocol as acp;
 use agent_client_protocol::Client as _;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_mcp::elicitation::{
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use mcp::elicitation::{
     ElicitationInbox, ElicitationJob, cancel_result, elicit_result_from_wire,
 };
-use xvora_mcp::wire::MCP_ELICIT;
-use xvora_tools::mcp_elicitation::{McpElicitExtRequest, McpElicitExtResponse};
+use mcp::wire::MCP_ELICIT;
+use tools::mcp_elicitation::{McpElicitExtRequest, McpElicitExtResponse};
 
 use crate::session::pending_interaction::{
     PendingInteractionGuard, PendingInteractions, PendingKind,
@@ -155,12 +155,12 @@ async fn handle_one_job(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_mcp::elicitation::wire_mode_and_fields;
-    use xvora_mcp::rmcp::model::{
+    use mcp::elicitation::wire_mode_and_fields;
+    use mcp::rmcp::model::{
         ElicitRequestParams, ElicitationAction, ElicitationSchema, PrimitiveSchemaDefinition,
         StringSchema,
     };
-    use xvora_tools::mcp_elicitation::McpElicitModeFields;
+    use tools::mcp_elicitation::McpElicitModeFields;
 
     #[test]
     fn wire_fields_form() {

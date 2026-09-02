@@ -28,7 +28,7 @@ fn session_create_emits_a_timer_for_each_serial_subphase() {
         std::env::set_var("GROK_INSTRUMENTATION_LOG", &log_path);
     }
     let _ = tracing_subscriber::registry()
-        .with(xvora_shell::instrumentation::layer::<Registry>())
+        .with(shell::instrumentation::layer::<Registry>())
         .try_init();
 
     run_agent_test(|cwd, _server| async move {
@@ -36,7 +36,7 @@ fn session_create_emits_a_timer_for_each_serial_subphase() {
         let _session_id = new_session(&conn, &cwd).await;
     });
 
-    let _ = xvora_shell::instrumentation::finalize();
+    let _ = shell::instrumentation::finalize();
     let deadline = Instant::now() + Duration::from_secs(5);
     let log = loop {
         let log = std::fs::read_to_string(&log_path).unwrap_or_default();

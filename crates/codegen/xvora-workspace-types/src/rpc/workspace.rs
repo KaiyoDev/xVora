@@ -144,7 +144,7 @@ impl WorkspaceRpc for RefreshPluginsReq {
     type Response = Value;
 }
 
-/// One still-running background terminal command (a slim, dependency-free DTO over `xvora_tools`'s `TaskSnapshot`).
+/// One still-running background terminal command (a slim, dependency-free DTO over `tools`'s `TaskSnapshot`).
 /// `tool_name`, when set, is the model-facing name of the tool that created the task.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BackgroundTaskSummaryWire {
@@ -175,7 +175,7 @@ impl WorkspaceRpc for ListBackgroundTasksReq {
     type Response = ListBackgroundTasksResponse;
 }
 
-/// One outstanding background terminal task, with the fields client task UI needs (a slim DTO over `xvora_tools`'s `TaskSnapshot`).
+/// One outstanding background terminal task, with the fields client task UI needs (a slim DTO over `tools`'s `TaskSnapshot`).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BackgroundTaskSnapshotWire {
     /// Background task registry id (pairs with the `task.*` push events).
@@ -225,7 +225,7 @@ impl WorkspaceRpc for TasksSnapshotReq {
     type Response = TasksSnapshotResponse;
 }
 
-/// Outcome of `workspace.kill_task`, mirroring `xvora_tools::KillOutcome` wire tags (`killed` / `already_exited` / `not_found`).
+/// Outcome of `workspace.kill_task`, mirroring `tools::KillOutcome` wire tags (`killed` / `already_exited` / `not_found`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KillTaskOutcome {
@@ -277,7 +277,7 @@ impl WorkspaceRpc for DeleteScheduledTaskReq {
     type Response = DeleteScheduledTaskResponse;
 }
 
-/// One TODO list item (slim DTO over `xvora_tools`'s `TodoState`).
+/// One TODO list item (slim DTO over `tools`'s `TodoState`).
 /// `status` is the snake_case tag: `pending` | `in_progress` | `completed` | `cancelled`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TodoSummaryWire {
@@ -315,7 +315,7 @@ pub struct WorkspaceInfo {
     /// Shell basename (e.g. `"bash"`); `"sh"` when `$SHELL` is unset.
     pub shell: String,
     pub cwd: String,
-    /// Server binary version (`xvora_version::VERSION`); `None` on servers predating the field.
+    /// Server binary version (`version::VERSION`); `None` on servers predating the field.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
 }

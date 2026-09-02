@@ -16,11 +16,11 @@ use crate::extensions::notification::{SessionNotification, SessionUpdate};
 use crate::session::SessionCommand;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-pub(crate) use xvora_tools::implementations::grok_build::task::coordinator::{
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+pub(crate) use tools::implementations::grok_build::task::coordinator::{
     self, ChildCompletion, ChildRunOutput, StartedChild,
 };
-use xvora_tools::implementations::grok_build::task::types::{SubagentRequest, SubagentResult};
+use tools::implementations::grok_build::task::types::{SubagentRequest, SubagentResult};
 /// Floor keeps the pool responsive when `available_parallelism` is tiny.
 const MIN_WORKER_THREADS: usize = 2;
 /// Four suffice for 32 children (each runs on its own OS thread); `GROK_SUBAGENT_WORKER_THREADS` overrides.
@@ -57,7 +57,7 @@ fn build_worker_runtime() -> std::io::Result<tokio::runtime::Runtime> {
     builder
         .worker_threads(workers)
         .thread_name("subagent-worker");
-    xvora_tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
+    tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
 }
 struct ShellChildRunner {
     agent_ref: LocalRef<MvpAgent>,
@@ -65,7 +65,7 @@ struct ShellChildRunner {
     presentations: std::cell::RefCell<Vec<tokio_util::task::AbortOnDropHandle<()>>>,
 }
 pub(crate) fn subagent_coordinator_channel() -> (
-    xvora_tools::implementations::grok_build::task::backend::SubagentCoordinatorSender,
+    tools::implementations::grok_build::task::backend::SubagentCoordinatorSender,
     coordinator::SubagentCoordinatorReceiver,
 ) {
     coordinator::SubagentCoordinator::<ShellChildRunner>::channel()
@@ -84,10 +84,10 @@ impl coordinator::ChildRunner for ShellChildRunner {
     type CompletionData = crate::agent::subagent::ShellCompletionData;
     type RunFuture = coordinator::LocalBoxFuture<coordinator::ChildRunOutput<Self::CompletionData>>;
     type ValidateFuture = coordinator::LocalBoxFuture<
-        xvora_tools::implementations::grok_build::task::types::SubagentValidateTypeOutcome,
+        tools::implementations::grok_build::task::types::SubagentValidateTypeOutcome,
     >;
     type DescribeFuture = coordinator::LocalBoxFuture<
-        xvora_tools::implementations::grok_build::task::types::SubagentDescribeOutcome,
+        tools::implementations::grok_build::task::types::SubagentDescribeOutcome,
     >;
     fn run(&self, run: coordinator::ChildRunRequest<Self::Control>) -> Self::RunFuture {
         let agent_ref = self.agent_ref.clone();
@@ -101,7 +101,7 @@ impl coordinator::ChildRunner for ShellChildRunner {
                     "Spawn for unknown or evicted parent session"
                 );
                 return coordinator::ChildRunOutput {
-                    result: xvora_tools::implementations::grok_build::task::types::SubagentResult {
+                    result: tools::implementations::grok_build::task::types::SubagentResult {
                         success: false,
                         error: Some(
                             "Parent session not found (evicted or torn down); cannot spawn subagent."
@@ -142,7 +142,7 @@ impl coordinator::ChildRunner for ShellChildRunner {
                     );
                     return coordinator::ChildRunOutput {
                         result:
-                            xvora_tools::implementations::grok_build::task::types::SubagentResult {
+                            tools::implementations::grok_build::task::types::SubagentResult {
                                 success: false,
                                 error: Some(format!(
                                     "Failed to start the subagent worker runtime: {err}"
@@ -195,7 +195,7 @@ impl coordinator::ChildRunner for ShellChildRunner {
                         subagent_type,
                         "DescribeType for unknown/evicted parent session, replying Unavailable",
                     );
-                    xvora_tools::implementations::grok_build::task::types::SubagentDescribeOutcome::Unavailable
+                    tools::implementations::grok_build::task::types::SubagentDescribeOutcome::Unavailable
                 }
             }
         })
@@ -253,7 +253,7 @@ impl coordinator::ChildRunner for ShellChildRunner {
 /// Coordinator limit sink; the coordinator cannot link telemetry directly.
 fn log_limit_notice(notice: coordinator::SubagentLimitNotice) {
     use coordinator::{LimitedSpawnOrigin, SubagentLimitDecision};
-    use xvora_telemetry::events::{SubagentLimitDisposition, SubagentLimitHit, SubagentOwnerKind};
+    use telemetry::events::{SubagentLimitDisposition, SubagentLimitHit, SubagentOwnerKind};
     let (disposition, limit) = match notice.decision {
         SubagentLimitDecision::QueuedAtConcurrentLimit { limit } => {
             (SubagentLimitDisposition::Queued, limit as u64)
@@ -262,7 +262,7 @@ fn log_limit_notice(notice: coordinator::SubagentLimitNotice) {
             (SubagentLimitDisposition::Failed, limit as u64)
         }
     };
-    xvora_telemetry::session_ctx::log_event(SubagentLimitHit::session_concurrent(
+    telemetry::session_ctx::log_event(SubagentLimitHit::session_concurrent(
         notice.parent_session_id,
         disposition,
         limit,
@@ -281,7 +281,7 @@ fn log_limit_notice(notice: coordinator::SubagentLimitNotice) {
 pub(crate) fn spawn_subagent_coordinator(
     agent_ref: LocalRef<MvpAgent>,
     rx: coordinator::SubagentCoordinatorReceiver,
-    limits: xvora_tools::implementations::grok_build::task::admission::SubagentLimits,
+    limits: tools::implementations::grok_build::task::admission::SubagentLimits,
 ) {
     let runner = ShellChildRunner {
         agent_ref,
@@ -289,7 +289,7 @@ pub(crate) fn spawn_subagent_coordinator(
     };
     let limit_sink: coordinator::SubagentLimitSink = std::sync::Arc::new(log_limit_notice);
     let config = coordinator::CoordinatorConfig {
-        foreground_budget: xvora_tools::implementations::grok_build::task::backend::env_duration_or(
+        foreground_budget: tools::implementations::grok_build::task::backend::env_duration_or(
             "GROK_SUBAGENT_AWAIT_BUDGET_MS",
             std::time::Duration::from_secs(600),
         ),
@@ -401,7 +401,7 @@ pub(crate) struct InjectParams<'a> {
     pub result: &'a SubagentResult,
     pub request: &'a SubagentRequest,
     pub task_completion_reservations:
-        &'a Option<xvora_tools::reminders::task_completion::TaskCompletionReservations>,
+        &'a Option<tools::reminders::task_completion::TaskCompletionReservations>,
     pub parent_cmd_tx: Option<&'a mpsc::UnboundedSender<SessionCommand>>,
     pub task_output_tool_name: &'a str,
     pub scheduler_delete_tool_name: Option<&'a str>,
@@ -435,13 +435,13 @@ pub(crate) fn inject_subagent_completed_prompt(params: InjectParams) {
         return;
     };
     let summary =
-        xvora_tools::implementations::grok_build::task::completion_summary(request, result);
-    let message = xvora_tools::reminders::task_completion::format_subagent_completion(
+        tools::implementations::grok_build::task::completion_summary(request, result);
+    let message = tools::reminders::task_completion::format_subagent_completion(
         &summary,
         Some(task_output_tool_name),
         scheduler_delete_tool_name,
     );
-    let wrapped = xvora_tools::reminders::wrap_reminder(&message);
+    let wrapped = tools::reminders::wrap_reminder(&message);
     let prompt_id = format!("subagent-completed-{subagent_id}");
     let before_rx = if synthetic_trace_tx.is_some() {
         let (before_tx, before_rx) = tokio::sync::oneshot::channel();

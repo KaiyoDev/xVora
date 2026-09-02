@@ -8,7 +8,7 @@ description = "Grok tools library"
 [dependencies]
 anyhow = { workspace = true }
 arc-swap = { workspace = true }
-xvora-dirs = { workspace = true }
+dirs = { workspace = true }
 derive_more = { workspace = true, features = ["from", "try_into"] }
 dunce = { workspace = true }
 encoding_rs = { workspace = true, optional = true }
@@ -16,12 +16,12 @@ fs2 = { workspace = true }
 educe = { workspace = true, features = ["Debug"] }
 async-openai = { workspace = true }
 tty-utils = { workspace = true, package = "xvora-tty-utils" }
-xvora-auth = { workspace = true }
+auth = { workspace = true }
 xvora-config = { path = "../xvora-config" }
 extra-ca = { workspace = true }
 xvora-tools-api = { path = "../xvora-tools-api" }
 xvora-workspace-types = { path = "../xvora-workspace-types" }
-xvora-version = { workspace = true }
+version = { workspace = true }
 interjection-core = { workspace = true, package = "xvora-interjection-core" }
 token-estimation = { workspace = true, package = "xvora-token-estimation" }
 async-lsp = { workspace = true }
@@ -80,7 +80,7 @@ unicode-normalization = { workspace = true, optional = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
 wildmatch = { workspace = true }
-xvora-env = { workspace = true }
+env = { workspace = true }
 serde_yaml = { workspace = true }
 shellexpand = "3.1"
 tempfile = { workspace = true }
@@ -111,7 +111,7 @@ pretty_assertions = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 wiremock = { workspace = true }
-xvora-test-support = { workspace = true }
+test-support = { workspace = true }
 test-utils = { workspace = true, package = "xvora-test-utils" }
 
 [build-dependencies]

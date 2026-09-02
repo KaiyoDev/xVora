@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-pub(crate) type GatewayOut = <acp::AgentSide as xvora_acp_lib::AcpSide>::OutMessage;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+pub(crate) type GatewayOut = <acp::AgentSide as acp_lib::AcpSide>::OutMessage;
 pub(crate) fn test_gateway() -> GatewaySender {
     let (tx, _rx) = mpsc::unbounded_channel();
     GatewaySender::new(tx)
@@ -22,7 +22,7 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         process_scope: None,
         parent_max_turns: None,
         client_hooks: Default::default(),
-        sampling_config: xvora_sampler::SamplerConfig {
+        sampling_config: sampler::SamplerConfig {
             api_key: None,
             base_url: String::new(),
             model: String::new(),
@@ -64,9 +64,9 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         inherited_tool_overrides: None,
         yolo_mode: false,
         subagent_event_tx: tx,
-        hunk_tracker_handle: xvora_hunk_tracker::HunkTrackerHandle::noop(),
+        hunk_tracker_handle: hunk_tracker::HunkTrackerHandle::noop(),
         hunk_tracking_enabled: false,
-        fs: Arc::new(xvora_workspace::file_system::LocalFs::new(PathBuf::from(
+        fs: Arc::new(workspace::file_system::LocalFs::new(PathBuf::from(
             "/tmp",
         ))),
         terminal: Arc::new(crate::terminal::TerminalRunner::new(
@@ -108,10 +108,10 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         gcs_upload_method: None,
         hook_registry: None,
         parent_depth: 0,
-        subagents_max_depth: xvora_tools::implementations::grok_build::task::MAX_SUBAGENT_DEPTH,
+        subagents_max_depth: tools::implementations::grok_build::task::MAX_SUBAGENT_DEPTH,
         workflow_max_concurrent_agents:
             crate::session::workflow::host_service::DEFAULT_WORKFLOW_MAX_CONCURRENT_AGENTS,
-        media_gen_batch_limits: xvora_tools::media_gen_limits::MediaGenBatchLimits::default(),
+        media_gen_batch_limits: tools::media_gen_limits::MediaGenBatchLimits::default(),
         inference_idle_timeout_secs: 600,
         parent_compaction: crate::session::CompactionPins::default(),
         auto_compact_threshold_tiers: crate::agent::subagent::AutoCompactThresholdTiers::default(),
@@ -119,7 +119,7 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         worktree_type: crate::util::config::WorktreeType::Linked,
         api_key_provider: None,
         image_description_model: crate::test_support::TEST_MODEL.to_owned(),
-        workspace_ops: xvora_workspace::WorkspaceOps::for_test(),
+        workspace_ops: workspace::WorkspaceOps::for_test(),
         auth_manager: Arc::new(crate::auth::AuthManager::new(
             std::path::Path::new("/tmp/nonexistent-grok-test"),
             crate::auth::GrokComConfig::default(),
@@ -134,11 +134,11 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         parent_mcp_pool: None,
         parent_tool_definitions: None,
         parent_skills: None,
-        parent_skills_config: xvora_agent::prompt::skills::SkillsConfig::default(),
-        parent_compat: xvora_tools::types::compat::CompatConfig::default(),
+        parent_skills_config: agent::prompt::skills::SkillsConfig::default(),
+        parent_compat: tools::types::compat::CompatConfig::default(),
         task_completion_reservations: None,
         synthetic_trace_tx: None,
-        task_output_tool_name: xvora_tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL
+        task_output_tool_name: tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL
             .to_string(),
         scheduler_delete_tool_name: None,
         auto_wake_enabled: true,
@@ -147,7 +147,7 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         parent_notification_handle: None,
         parent_scheduler_handle: None,
         subagent_sampling_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(
-            xvora_tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
+            tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
         )),
     }
 }

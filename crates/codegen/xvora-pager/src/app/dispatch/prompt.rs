@@ -25,7 +25,7 @@ use crate::scrollback::block::RenderBlock;
 use crate::scrollback::blocks::SessionEvent;
 use crate::slash::command::DoctorRequest;
 use agent_client_protocol as acp;
-use xvora_telemetry::session_ctx::log_event;
+use telemetry::session_ctx::log_event;
 
 /// Shared by every submit guard that refuses while the session reconnects.
 pub(super) const RECONNECTING_NOTICE: &str = "Reconnecting, please wait...";
@@ -126,7 +126,7 @@ pub(super) fn open_doctor_fix_question(
     plan: Box<crate::diagnostics::FixPlan>,
 ) {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
 
     let Some(agent) = app.agents.get_mut(&target.agent_id) else {
         return;
@@ -226,9 +226,9 @@ pub(super) fn dispatch_show_undo_tip(app: &mut AppView) -> Vec<Effect> {
         crate::tips::clear_detector::undo_tip(),
         &mut app.tip_seen_counts,
     ) {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::Undo,
-            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::Undo,
+            action: telemetry::events::ContextualTipAction::Shown,
         });
     }
     vec![]
@@ -255,9 +255,9 @@ pub(in crate::app) fn show_small_screen_tip(app: &mut AppView) {
         crate::tips::small_screen::small_screen_tip(),
         &mut app.tip_seen_counts,
     ) {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::SmallScreen,
-            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::SmallScreen,
+            action: telemetry::events::ContextualTipAction::Shown,
         });
     }
 }
@@ -277,9 +277,9 @@ pub(in crate::app) fn show_ssh_wrap_tip(app: &mut AppView) {
         crate::tips::ssh_wrap::ssh_wrap_tip(),
         &mut app.tip_seen_counts,
     ) {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::SshWrap,
-            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::SshWrap,
+            action: telemetry::events::ContextualTipAction::Shown,
         });
     }
 }
@@ -300,9 +300,9 @@ pub(super) fn dispatch_show_plan_nudge(app: &mut AppView) -> Vec<Effect> {
         crate::tips::plan_nudge::plan_nudge_tip(),
         &mut app.tip_seen_counts,
     ) {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::PlanMode,
-            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::PlanMode,
+            action: telemetry::events::ContextualTipAction::Shown,
         });
     }
     vec![]
@@ -328,9 +328,9 @@ pub(super) fn dispatch_show_word_select_tip(app: &mut AppView) -> Vec<Effect> {
         crate::tips::word_select::word_select_tip(),
         &mut app.tip_seen_counts,
     ) {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::WordSelect,
-            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::WordSelect,
+            action: telemetry::events::ContextualTipAction::Shown,
         });
     }
     // Snapshot the prompt as of this double-click (also on a same-key TTL refresh: a new double-click is a new moment)
@@ -357,9 +357,9 @@ pub(in crate::app) fn present_export_copy_tip(
     }
     let shown = agent.show_ephemeral_tip(crate::tips::export_copy::export_copy_tip(), seen_counts);
     if shown {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::ExportCopy,
-            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::ExportCopy,
+            action: telemetry::events::ContextualTipAction::Shown,
         });
     }
     shown
@@ -383,9 +383,9 @@ pub(super) fn dispatch_accept_word_select_tip(app: &mut AppView) -> Vec<Effect> 
         .ephemeral_tip
         .clear(crate::tips::word_select::WORD_SELECT_TIP_KEY);
     agent.word_select_tip_prompt_snapshot = None;
-    log_event(xvora_telemetry::events::ContextualTip {
-        tip: xvora_telemetry::events::ContextualTipKind::WordSelect,
-        action: xvora_telemetry::events::ContextualTipAction::Accepted,
+    log_event(telemetry::events::ContextualTip {
+        tip: telemetry::events::ContextualTipKind::WordSelect,
+        action: telemetry::events::ContextualTipAction::Accepted,
     });
     super::settings::setters::set_keep_text_selection(
         app,
@@ -417,9 +417,9 @@ fn maybe_show_send_now_tip(app: &mut AppView) {
         crate::tips::send_now::send_now_tip(),
         &mut app.tip_seen_counts,
     ) {
-        log_event(xvora_telemetry::events::ContextualTip {
-            tip: xvora_telemetry::events::ContextualTipKind::SendNow,
-            action: xvora_telemetry::events::ContextualTipAction::Shown,
+        log_event(telemetry::events::ContextualTip {
+            tip: telemetry::events::ContextualTipKind::SendNow,
+            action: telemetry::events::ContextualTipAction::Shown,
         });
     }
 }
@@ -587,8 +587,8 @@ pub(super) fn dispatch_send_prompt_inner(
                     (is_builtin, command)
                 };
                 {
-                    use xvora_telemetry::events::{PagerCommandSource, PagerSlashCommand};
-                    use xvora_telemetry::session_ctx::log_event;
+                    use telemetry::events::{PagerCommandSource, PagerSlashCommand};
+                    use telemetry::session_ctx::log_event;
                     let source = if is_builtin {
                         PagerCommandSource::Builtin
                     } else {
@@ -1208,7 +1208,7 @@ pub(super) fn handle_prompt_response(
             || result
                 .as_ref()
                 .err()
-                .is_some_and(|e| xvora_shell::sampling::error::is_free_usage_exhausted_error(e));
+                .is_some_and(|e| shell::sampling::error::is_free_usage_exhausted_error(e));
         let model_incompatible = agent.session.model_incompatible;
         // Context overflow: the RetryState handler already pushed the actionable block, so the generic TurnFailed and error toast are redundant
         // Derived from the scrollback (mirrors reauth), not a session flag
@@ -1239,7 +1239,7 @@ pub(super) fn handle_prompt_response(
         let reauth_prompted = scrollback_has_recent_reauth_prompt(&agent.scrollback)
             || (http_status == Some(401)
                 && result.as_ref().err().is_some_and(|e| {
-                    e.contains(xvora_shell::extensions::notification::HTTP_401_NEEDLE)
+                    e.contains(shell::extensions::notification::HTTP_401_NEEDLE)
                 }));
         let request_failed_shown = scrollback_has_recent_request_failed(&agent.scrollback);
         // A dedicated prompt/modal/banner replaces the generic TurnFailed marker and error toast

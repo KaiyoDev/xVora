@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use xvora_tools::types::config_source::ConfigSource;
+use tools::types::config_source::ConfigSource;
 
 use crate::config::{AgentDefinition, AgentScope, BuiltinAgentName};
 use crate::error::AgentBuildError;
@@ -62,11 +62,11 @@ pub enum SubagentSource {
 /// Project-level agents shadow built-ins with the same name.
 /// User-level and bundled agents with built-in names are skipped, keeping `visible == callable`.
 pub fn all_subagents(cwd: &Path, toggle: &HashMap<String, bool>) -> Vec<SubagentEntry> {
-    let grok = xvora_config::user_grok_home();
+    let grok = config::user_grok_home();
     all_subagents_with_home(
         cwd,
         toggle,
-        xvora_dirs::home_dir().as_deref(),
+        dirs::home_dir().as_deref(),
         grok.as_deref(),
     )
 }
@@ -217,8 +217,8 @@ pub(crate) fn user_agent_dirs(
 }
 
 pub fn discover(cwd: &Path) -> Vec<AgentDefinition> {
-    let grok = xvora_config::user_grok_home();
-    discover_with_home(cwd, xvora_dirs::home_dir().as_deref(), grok.as_deref())
+    let grok = config::user_grok_home();
+    discover_with_home(cwd, dirs::home_dir().as_deref(), grok.as_deref())
 }
 
 fn discover_with_home(
@@ -242,8 +242,8 @@ fn discover_with_home(
 
 /// Checks built-ins first, then user-level dirs, then bundled.
 pub fn by_name(name: &str) -> Option<AgentDefinition> {
-    let grok = xvora_config::user_grok_home();
-    by_name_with_home(name, xvora_dirs::home_dir().as_deref(), grok.as_deref())
+    let grok = config::user_grok_home();
+    by_name_with_home(name, dirs::home_dir().as_deref(), grok.as_deref())
 }
 
 fn by_name_with_home(
@@ -274,11 +274,11 @@ fn by_name_with_home(
 
 /// Project-level `.grok/agents/` has highest priority, then falls back to built-ins, user-level, and finally bundled definitions.
 pub fn by_name_in_cwd(name: &str, cwd: &Path) -> Option<AgentDefinition> {
-    let grok = xvora_config::user_grok_home();
+    let grok = config::user_grok_home();
     by_name_in_cwd_with_home(
         name,
         cwd,
-        xvora_dirs::home_dir().as_deref(),
+        dirs::home_dir().as_deref(),
         grok.as_deref(),
     )
 }
@@ -389,12 +389,12 @@ pub fn all_subagents_with_plugins(
     toggle: &HashMap<String, bool>,
     plugins: Option<&crate::plugins::PluginRegistry>,
 ) -> Vec<SubagentEntry> {
-    let grok = xvora_config::user_grok_home();
+    let grok = config::user_grok_home();
     all_subagents_with_plugins_and_home(
         cwd,
         toggle,
         plugins,
-        xvora_dirs::home_dir().as_deref(),
+        dirs::home_dir().as_deref(),
         grok.as_deref(),
     )
 }
@@ -446,12 +446,12 @@ pub fn by_name_in_cwd_with_plugins(
     cwd: &Path,
     plugins: Option<&crate::plugins::PluginRegistry>,
 ) -> Option<AgentDefinition> {
-    let grok = xvora_config::user_grok_home();
+    let grok = config::user_grok_home();
     by_name_in_cwd_with_plugins_and_home(
         name,
         cwd,
         plugins,
-        xvora_dirs::home_dir().as_deref(),
+        dirs::home_dir().as_deref(),
         grok.as_deref(),
     )
 }

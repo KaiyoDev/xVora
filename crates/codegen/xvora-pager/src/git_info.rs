@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex, OnceLock};
 use std::time::{Duration, Instant};
-use xvora_telemetry::region;
-use xvora_telemetry::region::Parent;
+use telemetry::region;
+use telemetry::region::Parent;
 
 use crate::host::HostOs;
 use crate::terminal::{TerminalName, terminal_context};
@@ -262,7 +262,7 @@ fn compute_snapshot(cwd: &Path) -> GitSnapshot {
 /// Intended to be built once (e.g. when a directory picker opens) and reused for many path lookups, avoiding a DB open per candidate.
 pub fn worktree_label_index() -> std::collections::HashMap<PathBuf, String> {
     let mut map = std::collections::HashMap::new();
-    let Ok(db) = xvora_fast_worktree::db::WorktreeDb::open_default() else {
+    let Ok(db) = fast_worktree::db::WorktreeDb::open_default() else {
         return map;
     };
     let Ok(records) = db.list(&Default::default()) else {
@@ -284,7 +284,7 @@ pub fn worktree_label_index() -> std::collections::HashMap<PathBuf, String> {
 /// Returns `(None, None)` silently on any error (missing DB, no record).
 /// Called from `spawn_blocking` so DB I/O is fine.
 fn lookup_worktree_record(cwd: &Path) -> (Option<String>, Option<PathBuf>) {
-    let Ok(db) = xvora_fast_worktree::db::WorktreeDb::open_default() else {
+    let Ok(db) = fast_worktree::db::WorktreeDb::open_default() else {
         return (None, None);
     };
     // Try exact match first, then walk up ancestors to find the worktree root.
@@ -377,7 +377,7 @@ fn decide_nerd_fonts(nerd_fonts: Option<&str>, host: HostOs, brand: TerminalName
 }
 
 pub(crate) fn home_dir() -> Option<String> {
-    xvora_dirs::home_dir().map(|home| home.to_string_lossy().into_owned())
+    dirs::home_dir().map(|home| home.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]
@@ -629,17 +629,17 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         // serial(GROK_HOME) orders peers; EnvVarGuard restores on drop so later `open_default()` callers do not see a deleted temp home
         let _grok_home = crate::test_util::EnvVarGuard::set("GROK_HOME", home.path());
-        let _ = xvora_fast_worktree::db::WorktreeDb::open(home.path());
+        let _ = fast_worktree::db::WorktreeDb::open(home.path());
 
         let wt = crate::test_util::TempGitRepo::init("wt-branch");
         let canon_wt = dunce::canonicalize(&wt.path).unwrap_or_else(|_| wt.path.clone());
-        let db = xvora_fast_worktree::db::WorktreeDb::open(home.path()).unwrap();
-        db.register(&xvora_fast_worktree::db::WorktreeRecord {
+        let db = fast_worktree::db::WorktreeDb::open(home.path()).unwrap();
+        db.register(&fast_worktree::db::WorktreeRecord {
             id: "db-wt".into(),
             path: canon_wt,
             source_repo: PathBuf::from("/src/main-repo"),
             repo_name: "main-repo".into(),
-            kind: xvora_fast_worktree::db::WorktreeKind::Session,
+            kind: fast_worktree::db::WorktreeKind::Session,
             creation_mode: "standalone".into(),
             git_ref: None,
             head_commit: None,
@@ -647,7 +647,7 @@ mod tests {
             creator_pid: None,
             created_at: 1,
             last_accessed_at: None,
-            status: xvora_fast_worktree::db::WorktreeStatus::Alive,
+            status: fast_worktree::db::WorktreeStatus::Alive,
             metadata: Some(serde_json::json!({ "label": "db-label" })),
         })
         .unwrap();

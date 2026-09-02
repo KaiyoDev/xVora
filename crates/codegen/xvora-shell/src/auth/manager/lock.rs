@@ -16,8 +16,8 @@ use std::time::Duration as StdDuration;
 
 use fs2::FileExt;
 
-use xvora_telemetry::events::{AuthLockTimeout, AuthLockWait};
-use xvora_telemetry::session_ctx::log_event;
+use telemetry::events::{AuthLockTimeout, AuthLockWait};
+use telemetry::session_ctx::log_event;
 
 use crate::auth::storage::AuthFileLock;
 use crate::unified_log;

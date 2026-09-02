@@ -1,7 +1,7 @@
-use xvora_tools::computer::local::{LocalTerminalBackend, MockFs};
-use xvora_tools::computer::types::{AsyncFileSystem, TerminalBackend};
-use xvora_tools::notification::ToolNotificationHandle;
-use xvora_tools::registry::types::{SessionContext, ToolConfig, ToolServerConfig};
+use tools::computer::local::{LocalTerminalBackend, MockFs};
+use tools::computer::types::{AsyncFileSystem, TerminalBackend};
+use tools::notification::ToolNotificationHandle;
+use tools::registry::types::{SessionContext, ToolConfig, ToolServerConfig};
 
 /// A ToolBridge built with a custom FileSystem must route writes through it.
 #[tokio::test]
@@ -65,7 +65,7 @@ async fn tool_bridge_routes_writes_through_injected_fs() {
         api_key_provider: None,
         auth_provider: None,
         attribution_callback: None,
-        system_reminder_tag: xvora_tools::reminders::DEFAULT_REMINDER_TAG,
+        system_reminder_tag: tools::reminders::DEFAULT_REMINDER_TAG,
     };
     let bridge = crate::tools::bridge::ToolBridge::finalize_builder(builder, config, ctx)
         .await

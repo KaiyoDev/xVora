@@ -2808,8 +2808,8 @@ fn apply_user_info_enrichment_preserves_token_fields() {
 #[tokio::test]
 #[serial_test::serial]
 async fn current_api_key_async_drives_refresh_chain() {
-    use xvora_test_support::EnvGuard;
-    use xvora_tools::types::ApiKeyProvider;
+    use test_support::EnvGuard;
+    use tools::types::ApiKeyProvider;
     let _xai = EnvGuard::unset("XAI_API_KEY");
     let _legacy = EnvGuard::unset("GROK_CODE_XAI_API_KEY");
     let dir = tempfile::tempdir().unwrap();
@@ -3543,7 +3543,7 @@ async fn shared_api_key_provider_resolves_live_bearer() {
 #[tokio::test]
 #[serial_test::serial]
 async fn shared_api_key_provider_static_fallthrough() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(dir.path(), GrokComConfig::default()));
     let provider = shared_api_key_provider(mgr.clone());
@@ -3581,7 +3581,7 @@ async fn shared_api_key_provider_static_fallthrough() {
 #[tokio::test]
 #[serial_test::serial]
 async fn shared_api_key_provider_kill_switch_blocks_static() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _key = EnvGuard::set("XAI_API_KEY", "blocked");
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(
@@ -3599,7 +3599,7 @@ async fn shared_api_key_provider_kill_switch_blocks_static() {
 #[tokio::test]
 #[serial_test::serial]
 async fn shared_api_key_provider_oidc_preferred_blocks_static() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _key = EnvGuard::set("XAI_API_KEY", "should-not-use");
     let dir = tempfile::tempdir().unwrap();
     let mgr = Arc::new(AuthManager::new(
@@ -3618,7 +3618,7 @@ async fn shared_api_key_provider_oidc_preferred_blocks_static() {
 #[tokio::test]
 #[serial_test::serial]
 async fn shared_api_key_provider_api_key_preferred_skips_session() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _legacy = EnvGuard::unset("GROK_CODE_XAI_API_KEY");
     let _key = EnvGuard::set("XAI_API_KEY", "static-preferred");
     let dir = tempfile::tempdir().unwrap();
@@ -3647,7 +3647,7 @@ async fn shared_api_key_provider_api_key_preferred_skips_session() {
 #[tokio::test]
 #[serial_test::serial]
 async fn shared_api_key_provider_sync_falls_through_when_session_expired() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _legacy = EnvGuard::unset("GROK_CODE_XAI_API_KEY");
     let _key = EnvGuard::set("XAI_API_KEY", "static-after-expiry");
     let dir = tempfile::tempdir().unwrap();
@@ -3674,8 +3674,8 @@ async fn shared_api_key_provider_sync_falls_through_when_session_expired() {
 #[tokio::test]
 #[serial_test::serial]
 async fn shared_api_key_provider_sync_buffered_session_beats_static() {
-    use xvora_test_support::EnvGuard;
-    use xvora_tools::types::ApiKeyProvider;
+    use test_support::EnvGuard;
+    use tools::types::ApiKeyProvider;
     let _legacy = EnvGuard::unset("GROK_CODE_XAI_API_KEY");
     let _key = EnvGuard::set("XAI_API_KEY", "leftover-static");
     let dir = tempfile::tempdir().unwrap();
@@ -3694,7 +3694,7 @@ async fn shared_api_key_provider_sync_buffered_session_beats_static() {
 #[tokio::test]
 #[serial_test::serial]
 async fn shared_api_key_provider_disk_memo_follows_rewrites() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _xai = EnvGuard::unset("XAI_API_KEY");
     let _legacy = EnvGuard::unset("GROK_CODE_XAI_API_KEY");
     let dir = tempfile::tempdir().unwrap();
@@ -3712,7 +3712,7 @@ async fn shared_api_key_provider_disk_memo_follows_rewrites() {
 #[serial_test::serial]
 async fn process_key_from_model_env_key() {
     use crate::agent::config::{Config, resolve_model_list};
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     const ENV: &str = "TEST_MODEL_ENV_KEY";
     const TOKEN: &str = "model-env-token";
     let _xai = EnvGuard::unset("XAI_API_KEY");
@@ -3749,7 +3749,7 @@ async fn process_key_from_model_env_key() {
 #[tokio::test]
 #[serial_test::serial]
 async fn process_key_precedence() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _xai = EnvGuard::unset("XAI_API_KEY");
     let _legacy = EnvGuard::unset("GROK_CODE_XAI_API_KEY");
     let dir = tempfile::tempdir().unwrap();
@@ -4060,7 +4060,7 @@ fn dark_wake_defer_budget_survives_powered_on_during_dark_wake() {
 #[test]
 #[serial_test::serial(force_dark_wake_env)]
 fn is_dark_wake_false_when_power_listener_not_started() {
-    let _unset = xvora_test_support::EnvGuard::unset("GROK_AUTH_FORCE_DARK_WAKE");
+    let _unset = test_support::EnvGuard::unset("GROK_AUTH_FORCE_DARK_WAKE");
     let dir = tempfile::tempdir().unwrap();
     let mgr = AuthManager::new(dir.path(), GrokComConfig::default());
     assert!(
@@ -4074,7 +4074,7 @@ fn is_dark_wake_false_when_power_listener_not_started() {
 #[test]
 #[serial_test::serial(force_dark_wake_env)]
 fn is_dark_wake_env_override_forces_both_states() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let dir = tempfile::tempdir().unwrap();
     let mgr = AuthManager::new(dir.path(), GrokComConfig::default());
     {
@@ -4274,7 +4274,7 @@ fn sleep_ack_hold_times_out_when_refresh_never_drains() {
 fn manual_auth_reason_maps_terminal_and_skips_non_forcing() {
     use crate::auth::error::RefreshTokenFailedReason as Reason;
     use crate::auth::recovery::manual_auth_reason;
-    use xvora_telemetry::events::ManualAuthReason as R;
+    use telemetry::events::ManualAuthReason as R;
     let permanent = |reason: Reason| manual_auth_reason(&AuthError::permanent(reason));
     assert_eq!(
         permanent(Reason::RefreshTokenRejected),
@@ -4339,7 +4339,7 @@ fn relay_should_cancel_gives_up_only_on_terminal_failures() {
 #[tokio::test]
 async fn manual_auth_capture_attributes_and_recorder_debounces() {
     use crate::auth::recovery::{ManualAuthTracker, RejectedAuth};
-    use xvora_telemetry::events::{AuthTokenKind, ManualAuthSurface};
+    use telemetry::events::{AuthTokenKind, ManualAuthSurface};
     let auth = GrokAuth {
         key: "dead-token".into(),
         user_id: "user-1".into(),
@@ -4410,7 +4410,7 @@ async fn manual_auth_emits_only_for_user_facing_source() {
         .await
         .unwrap_err();
     assert!(matches!(err, AuthError::ServerRejectedNoRecovery));
-    use xvora_telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
+    use telemetry::events::{AuthTokenKind, ManualAuth, ManualAuthReason, ManualAuthSurface};
     assert_eq!(
         turn.manual_auth_last_emit(),
         Some(ManualAuth {

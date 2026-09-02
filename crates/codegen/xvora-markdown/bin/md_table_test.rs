@@ -25,11 +25,11 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, StatefulWidgetRef, Wrap};
 
-use xvora_markdown::{
+use markdown::{
     MarkdownBuffers, MarkdownStyle, StreamingMarkdownRenderer,
     render_markdown_ratatui_with_buffers_width,
 };
-use xvora_ratatui_textarea::{TextArea, TextAreaState};
+use ratatui_textarea::{TextArea, TextAreaState};
 
 // ── Tokyo Night Storm palette (matches xvora-pager) ──────────────────────
 

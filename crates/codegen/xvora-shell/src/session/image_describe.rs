@@ -20,7 +20,7 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use xvora_sampling_types::conversation::{ContentPart, ConversationItem, UserItem};
-use xvora_tools::util::truncate::truncate_middle;
+use tools::util::truncate::truncate_middle;
 /// Per-entry character cap for the conversation outline sent to the vision model.
 /// Mirrors the compat-harness behavior.
 pub(crate) const OUTLINE_PER_ENTRY_CAP: usize = 1_500;
@@ -250,7 +250,7 @@ impl ImageDescribeCache {
     /// Returns a cached description when `(source, path_key, bytes, prompt)` matches a prior successful describe.
     pub(crate) async fn get_or_describe(
         &self,
-        client: xvora_sampler::SamplingClient,
+        client: sampler::SamplingClient,
         model: &str,
         raw_bytes: &[u8],
         mime_type: &str,

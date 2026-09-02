@@ -46,7 +46,7 @@ pub enum WorkspaceError {
     ExportArchiveLimitExceeded(String),
     #[error("github export error: {message}")]
     ExportGithub {
-        kind: xvora_workspace_types::rpc::export_github::ExportGithubError,
+        kind: workspace_types::rpc::export_github::ExportGithubError,
         message: String,
     },
     /// The workspace is draining/shutting down and is no longer accepting new sessions.

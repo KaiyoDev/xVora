@@ -215,7 +215,7 @@ impl McpCredentialStore {
 
     /// Default path: `$GROK_HOME/mcp_credentials.json`.
     fn default_path() -> Option<PathBuf> {
-        Some(xvora_config::user_grok_home()?.join(CREDENTIALS_FILENAME))
+        Some(config::user_grok_home()?.join(CREDENTIALS_FILENAME))
     }
 }
 

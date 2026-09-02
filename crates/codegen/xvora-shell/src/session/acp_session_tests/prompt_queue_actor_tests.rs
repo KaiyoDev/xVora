@@ -319,7 +319,7 @@ async fn two_enqueues_drain_fifo_and_stale_edit_is_noop() {
             // The final broadcast must reflect the empty queue.
             let mut last: Option<crate::session::prompt_queue::QueueChanged> = None;
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref()
                         == crate::session::prompt_queue::QUEUE_CHANGED_METHOD
                 {
@@ -1372,7 +1372,7 @@ async fn interject_after_cancel_does_nothing_and_keeps_prompt_queued() {
             // The interject no-op still rebroadcasts so clients reconcile.
             let mut saw_broadcast = false;
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref()
                         == crate::session::prompt_queue::QUEUE_CHANGED_METHOD
                 {
@@ -1563,7 +1563,7 @@ async fn interject_queued_bash_row_noop_keeps_row_queued() {
 
             let mut saw_broadcast = false;
             while let Ok(msg) = gateway_rx.try_recv() {
-                if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg
+                if let acp_lib::AcpClientMessage::ExtNotification(args) = msg
                     && args.request.method.as_ref()
                         == crate::session::prompt_queue::QUEUE_CHANGED_METHOD
                 {
@@ -3112,7 +3112,7 @@ async fn agent_rebuild_republishes_the_configured_cutoff() {
                 }),
                 web_search: None,
             };
-            let mut seeded = xvora_agent::AgentDefinition::default_grok_build();
+            let mut seeded = agent::AgentDefinition::default_grok_build();
             seeded.tool_overrides = Some(seed.clone());
             actor
                 .handle_rebuild_agent_for_definition(seeded)
@@ -3130,7 +3130,7 @@ async fn agent_rebuild_republishes_the_configured_cutoff() {
             // Rebuilding to a seedless definition must clear the cell; a stale bound is a divergence.
             actor
                 .handle_rebuild_agent_for_definition(
-                    xvora_agent::AgentDefinition::default_grok_build(),
+                    agent::AgentDefinition::default_grok_build(),
                 )
                 .await
                 .expect("second rebuild should succeed");
@@ -3660,7 +3660,7 @@ async fn bash_turn_sets_committed_flag_before_running_the_command() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let (actor, _ev) = create_test_actor_with_terminal(
                 0,

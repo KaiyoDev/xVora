@@ -26,12 +26,12 @@ pub fn is_ignored(path: &Path, gitignore: Option<&Gitignore>, repo_root: Option<
     let Some(gi) = gitignore else {
         return false;
     };
-    xvora_tools::gitignore::is_ignored(gi, path, repo_root)
+    tools::gitignore::is_ignored(gi, path, repo_root)
 }
 
 fn get_global_gitignore_path() -> Option<PathBuf> {
     git2::Config::open_default()
         .ok()
         .and_then(|cfg| cfg.get_path("core.excludesFile").ok())
-        .or_else(|| xvora_dirs::home_dir().map(|home| home.join(".gitignore")))
+        .or_else(|| dirs::home_dir().map(|home| home.join(".gitignore")))
 }

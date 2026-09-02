@@ -80,7 +80,7 @@ fn maybe_request_wrap_host_image_with(
 
 fn write_request_osc() -> std::io::Result<()> {
     use std::io::Write;
-    xvora_shell::util::with_locked_stderr(|stderr| {
+    shell::util::with_locked_stderr(|stderr| {
         stderr.write_all(&request_osc_bytes())?;
         stderr.flush()
     })

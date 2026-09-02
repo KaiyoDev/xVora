@@ -35,7 +35,7 @@ use crate::session::storage::StorageAdapter;
 use crate::session::storage::jsonl::JsonlStorageAdapter;
 use crate::session::unified_list::SessionKind;
 use crate::session::{ExtMethodResult, SessionCommand};
-use xvora_telemetry::id::agent_id;
+use telemetry::id::agent_id;
 
 #[tracing::instrument(skip_all, fields(method = %args.method))]
 pub(crate) async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {

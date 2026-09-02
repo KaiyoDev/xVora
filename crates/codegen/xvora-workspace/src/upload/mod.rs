@@ -8,8 +8,8 @@ use file_utils::{TraceExportConfig, UploadMethod};
 use prometheus::{IntCounterVec, IntGauge, register_int_counter_vec, register_int_gauge};
 use std::sync::Arc;
 use std::sync::LazyLock;
-use xvora_auth::{AuthCredentialProvider, CredentialSnapshot};
-use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
+use auth::{AuthCredentialProvider, CredentialSnapshot};
+use computer_hub_sdk::auth::{AuthCredential, AuthProvider};
 /// `…_pending_bytes` is the series the mandatory queue-memory alert fires on.
 static UPLOAD_QUEUE_PENDING_BYTES: LazyLock<IntGauge> = LazyLock::new(|| {
     register_int_gauge!(
@@ -130,7 +130,7 @@ struct HubAuthCredentialProvider {
     /// Resolved workspace owner so `snapshot` can attribute uploads (and 401s) to the real `user_id`/`team_id`.
     identity: WorkspaceIdentity,
 }
-impl xvora_auth::visibility::HttpAuth for HubAuthCredentialProvider {
+impl auth::visibility::HttpAuth for HubAuthCredentialProvider {
     fn apply(&self, builder: reqwest::RequestBuilder, _base_url: &str) -> reqwest::RequestBuilder {
         let cred = self.auth.current();
         match &cred {
@@ -313,7 +313,7 @@ pub(crate) async fn upload_tool_state_queued(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_computer_hub_sdk::auth::AuthCredential;
+    use computer_hub_sdk::auth::AuthCredential;
     fn proxy_config() -> Arc<ProxyStorageConfig> {
         proxy_config_with_identity(WorkspaceIdentity::default())
     }
@@ -430,7 +430,7 @@ mod tests {
         Arc::new(UploadQueue::spawn(
             home,
             source,
-            xvora_file_utils::queue::UploadRetryPolicy::default(),
+            file_utils::queue::UploadRetryPolicy::default(),
         ))
     }
     /// Pins the tool-state path contract: bytes enqueued at exactly `{session_id}/turn_{N}/tool_state.json`.

@@ -3,7 +3,7 @@
 //! Follows the `memory_cmd.rs`, `sessions_cmd.rs`, and `worktree_cmd` pattern: clap args and handler logic co-located in a dedicated module.
 //! The pager's `main.rs` dispatches here with a one-liner.
 //!
-//! Business logic lives in `xvora_shell::plugin` and lower crates (`xvora-agent`, `xvora-plugin-marketplace`).
+//! Business logic lives in `shell::plugin` and lower crates (`xvora-agent`, `xvora-plugin-marketplace`).
 //! This module is a thin CLI wrapper: parse args, call ops, format output, emit telemetry.
 
 use std::path::{Path, PathBuf};
@@ -12,11 +12,11 @@ use anyhow::{Result, bail};
 use clap::Subcommand;
 use serde::Serialize;
 
-use xvora_agent::plugins::install_registry::{InstallKind, InstallRegistry};
-use xvora_agent::plugins::manifest::{ManifestLoadResult, PluginManifest, load_manifest};
+use agent::plugins::install_registry::{InstallKind, InstallRegistry};
+use agent::plugins::manifest::{ManifestLoadResult, PluginManifest, load_manifest};
 use xvora_plugin_marketplace::SourceKind;
 use xvora_plugin_marketplace::git::SourceCacheLease;
-use xvora_shell::plugin::{self, RepoUpdateOutcome, UninstallError};
+use shell::plugin::{self, RepoUpdateOutcome, UninstallError};
 
 // ── JSON output types ───────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ enum PluginEntry {
         has_agents: bool,
         has_mcp: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
-        components: Option<xvora_hooks_plugins_types::PluginComponents>,
+        components: Option<hooks_plugins_types::PluginComponents>,
     },
 }
 
@@ -292,7 +292,7 @@ fn cmd_list(json: bool, available: bool) -> Result<()> {
 }
 
 fn installed_plugins(
-    repos: &[(&str, &xvora_agent::plugins::install_registry::InstalledRepo)],
+    repos: &[(&str, &agent::plugins::install_registry::InstalledRepo)],
 ) -> Vec<PluginEntry> {
     repos
         .iter()
@@ -320,7 +320,7 @@ fn installed_plugins(
 }
 
 fn available_plugins(registry: &InstallRegistry) -> Vec<PluginEntry> {
-    let config = xvora_shell::config::load_effective_config()
+    let config = shell::config::load_effective_config()
         .ok()
         .unwrap_or(toml::Value::Table(toml::map::Map::new()));
     let mut sources = xvora_plugin_marketplace::load_sources(&config);
@@ -390,20 +390,20 @@ fn resolve_marketplace_root(
     }
 }
 
-fn install_kind(is_git: bool) -> xvora_telemetry::events::InstallKind {
+fn install_kind(is_git: bool) -> telemetry::events::InstallKind {
     if is_git {
-        xvora_telemetry::events::InstallKind::Git
+        telemetry::events::InstallKind::Git
     } else {
-        xvora_telemetry::events::InstallKind::Local
+        telemetry::events::InstallKind::Local
     }
 }
 
 fn log_plugin_installed(
-    install_kind: xvora_telemetry::events::InstallKind,
+    install_kind: telemetry::events::InstallKind,
     success: bool,
     error_category: Option<String>,
 ) {
-    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PluginInstalled {
+    telemetry::session_ctx::log_event(telemetry::events::PluginInstalled {
         install_kind,
         success,
         trust: true,
@@ -419,7 +419,7 @@ fn cmd_install(source: &str, trust: bool) -> Result<()> {
     let cwd = std::env::current_dir().unwrap_or_default();
 
     if !trust {
-        use xvora_agent::plugins::git_install::{self, InstallSource};
+        use agent::plugins::git_install::{self, InstallSource};
         let subject = match git_install::parse_install_source(source, &cwd) {
             InstallSource::Git { url, .. } => format!("from git repo {url}"),
             InstallSource::Local { path, .. } => format!("from directory {}", path.display()),
@@ -444,7 +444,7 @@ fn cmd_install(source: &str, trust: bool) -> Result<()> {
         Err(e) => {
             let cat = plugin::classify_install_error(&e);
             // On failure we don't know the kind; default to Git (matches canonical).
-            log_plugin_installed(xvora_telemetry::events::InstallKind::Git, false, Some(cat));
+            log_plugin_installed(telemetry::events::InstallKind::Git, false, Some(cat));
             bail!("{e}");
         }
     }
@@ -509,7 +509,7 @@ fn cmd_install_marketplace(
         Err(e) => {
             // On failure we don't know the kind; default to Git (matches canonical).
             log_plugin_installed(
-                xvora_telemetry::events::InstallKind::Git,
+                telemetry::events::InstallKind::Git,
                 false,
                 Some(e.category()),
             );
@@ -521,7 +521,7 @@ fn cmd_install_marketplace(
 fn cmd_uninstall(name: &str, confirm: bool, keep_data: bool) -> Result<()> {
     match plugin::uninstall_plugin(name, confirm, keep_data) {
         Ok(outcome) => {
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PluginUninstalled {
+            telemetry::session_ctx::log_event(telemetry::events::PluginUninstalled {
                 confirmed: true,
                 success: true,
             });
@@ -599,10 +599,10 @@ fn cmd_enable(name: &str) -> Result<()> {
                Run `grok plugin list` to see installed plugins."
         );
     }
-    if let Err(e) = xvora_shell::config::remove_disabled_plugin(name) {
+    if let Err(e) = shell::config::remove_disabled_plugin(name) {
         tracing::warn!("failed to remove from disabled list: {e}");
     }
-    xvora_shell::config::add_enabled_plugin(name)
+    shell::config::add_enabled_plugin(name)
         .map_err(|e| anyhow::anyhow!("Failed to enable plugin: {e}"))?;
     println!("Enabled plugin: {name}");
     Ok(())
@@ -616,10 +616,10 @@ fn cmd_disable(name: &str) -> Result<()> {
                Run `grok plugin list` to see installed plugins."
         );
     }
-    if let Err(e) = xvora_shell::config::remove_enabled_plugin(name) {
+    if let Err(e) = shell::config::remove_enabled_plugin(name) {
         tracing::warn!("failed to remove from enabled list: {e}");
     }
-    xvora_shell::config::add_disabled_plugin(name)
+    shell::config::add_disabled_plugin(name)
         .map_err(|e| anyhow::anyhow!("Failed to disable plugin: {e}"))?;
     println!("Disabled plugin: {name}");
     Ok(())
@@ -778,7 +778,7 @@ fn cmd_tag(path: &str, push: bool, force: bool, dry_run: bool) -> Result<()> {
 // ── Marketplace subcommands ─────────────────────────────────────────
 
 async fn run_marketplace(cmd: MarketplaceCommand) -> Result<()> {
-    let config = xvora_shell::config::load_effective_config()
+    let config = shell::config::load_effective_config()
         .ok()
         .unwrap_or(toml::Value::Table(toml::map::Map::new()));
     let mut sources = xvora_plugin_marketplace::load_sources(&config);
@@ -841,7 +841,7 @@ fn marketplace_add(
     url: &str,
     force: bool,
 ) -> Result<()> {
-    use xvora_shell::plugin::MarketplaceAddInput;
+    use shell::plugin::MarketplaceAddInput;
 
     let url = url.trim();
     if url.is_empty() {
@@ -868,7 +868,7 @@ fn marketplace_add(
 
     // Local paths never match the git-URL allowlist, so a restricted strictKnownMarketplaces policy blocks them; intentionally fail-closed
     let allowlist =
-        &xvora_workspace::permission::resolution::managed_settings().marketplace_allowlist;
+        &workspace::permission::resolution::managed_settings().marketplace_allowlist;
     if allowlist.is_restricted() && !allowlist.is_url_allowed(&identity) {
         bail!("Marketplace source blocked: {}", allowlist.block_reason());
     }
@@ -902,7 +902,7 @@ fn marketplace_add(
         MarketplaceAddInput::GitUrl(u) => plugin::name_from_url(u),
         MarketplaceAddInput::LocalPath(p) => plugin::name_from_path(p),
     };
-    let config_path = xvora_config::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let config_path = config::grok_home().join(config::USER_CONFIG_FILENAME);
 
     let content = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut doc: toml_edit::DocumentMut = content
@@ -966,7 +966,7 @@ fn find_removal_source<'a>(
     let exp_norm = expanded.trim_end_matches(".git");
     // Loaded local sources carry expanded paths, so expand `~` and relative inputs the same way `marketplace add` does before comparing
     let local_input = match plugin::classify_marketplace_add_input(input, cwd) {
-        xvora_shell::plugin::MarketplaceAddInput::LocalPath(p) => Some(p),
+        shell::plugin::MarketplaceAddInput::LocalPath(p) => Some(p),
         _ => None,
     };
 
@@ -1010,7 +1010,7 @@ fn marketplace_remove(
 
     let uninstalled = plugin::uninstall_marketplace_source_plugins(&identity);
 
-    let config_path = xvora_config::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let config_path = config::grok_home().join(config::USER_CONFIG_FILENAME);
     let mut removed_from_config = false;
     if let Ok(content) = std::fs::read_to_string(&config_path)
         && let Some(new) = plugin::remove_toml_marketplace_block(&content, &identity)

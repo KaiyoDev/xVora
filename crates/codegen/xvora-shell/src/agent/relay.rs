@@ -179,7 +179,7 @@ async fn attempt_auth_recovery(
                 timeout_secs = AUTH_RECOVERY_TIMEOUT_SECS,
                 "auth recovery: relay {context}, refresh timed out"
             );
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth recovery: relay refresh timed out",
                 None,
                 Some(serde_json::json!({
@@ -193,24 +193,24 @@ async fn attempt_auth_recovery(
     match recovered {
         Ok(new_auth) if new_auth.key == config.auth.key => {
             info!("auth recovery: relay {context}, token unchanged, backing off");
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth recovery: relay token unchanged, backing off",
                 None,
                 Some(serde_json::json!({
                     "context": context,
-                    "key_prefix": xvora_auth::bearer_suffix(&new_auth.key),
+                    "key_prefix": auth::bearer_suffix(&new_auth.key),
                 })),
             );
             false
         }
         Ok(new_auth) => {
             info!("auth recovery: relay {context}, recovered, reconnecting");
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth recovery: relay recovered",
                 None,
                 Some(serde_json::json!({
                     "context": context,
-                    "new_key_prefix": xvora_auth::bearer_suffix(&new_auth.key),
+                    "new_key_prefix": auth::bearer_suffix(&new_auth.key),
                 })),
             );
             config.auth = new_auth;
@@ -218,7 +218,7 @@ async fn attempt_auth_recovery(
         }
         Err(e) if crate::auth::recovery::relay_should_cancel(&e) => {
             teprintln!("{e}");
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth recovery: relay giving up (terminal)",
                 None,
                 Some(serde_json::json!({ "context": context, "error": format!("{e}") })),
@@ -228,7 +228,7 @@ async fn attempt_auth_recovery(
         }
         Err(e) => {
             warn!(error = %e, "auth recovery: relay {context}, refresh failed");
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "auth recovery: relay refresh failed",
                 None,
                 Some(serde_json::json!({ "context": context, "error": format!("{e}") })),
@@ -377,7 +377,7 @@ fn build_relay_request(config: &RelayConfig) -> anyhow::Result<axum::http::Reque
     );
     req.headers_mut().insert(
         "x-grok-client-version",
-        axum::http::header::HeaderValue::from_static(xvora_version::VERSION),
+        axum::http::header::HeaderValue::from_static(version::VERSION),
     );
     req.headers_mut().insert(
         crate::http::CLIENT_MODE_HEADER,
@@ -421,7 +421,7 @@ async fn connect_to_relay(
             } else {
                 // The default connector never sees the shared trust config.
                 let connector =
-                    tokio_tungstenite::Connector::Rustls(xvora_extra_ca::rustls_client_config());
+                    tokio_tungstenite::Connector::Rustls(extra_ca::rustls_client_config());
                 connect_async_tls_with_config(req, None, false, Some(connector))
                     .await
                     .map_err(|e| anyhow::Error::from(e).context("WebSocket connection failed"))
@@ -486,7 +486,7 @@ where
                             timeout_secs = liveness.as_secs(),
                             "no WS traffic within liveness window, treating connection as dead"
                         );
-                        xvora_telemetry::unified_log::warn(
+                        telemetry::unified_log::warn(
                             "relay: read liveness timeout, reconnecting",
                             None,
                             Some(serde_json::json!({

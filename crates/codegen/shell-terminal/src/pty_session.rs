@@ -14,14 +14,14 @@ use std::sync::{Arc, LazyLock};
 
 use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 use tokio::sync::{Mutex, mpsc};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
-use xvora_workspace::file_system::TargetClientId;
+use workspace::file_system::TargetClientId;
 
 use crate::{TerminalExtError, TerminalInfo, TerminalStatus};
 
 /// Inject `targetClientId` into `_meta` and fire-and-forget an ext notification.
-/// Mirrors `xvora_shell::extensions::routing::send_routed_notification` so this crate does not depend on the shell.
+/// Mirrors `shell::extensions::routing::send_routed_notification` so this crate does not depend on the shell.
 fn send_routed_notification(
     gateway: &GatewaySender,
     method: &str,
@@ -699,7 +699,7 @@ fn resolve_pty_shell(shell: Option<&str>) -> (String, Vec<String>) {
 
     #[cfg(not(unix))]
     {
-        use xvora_config::shell::{WindowsShell, detect_windows_shell};
+        use config::shell::{WindowsShell, detect_windows_shell};
         match detect_windows_shell() {
             WindowsShell::GitBash(path) => (path.clone(), vec!["-l".to_string()]),
             WindowsShell::Pwsh => ("pwsh".to_string(), vec!["-NoLogo".to_string()]),
@@ -826,7 +826,7 @@ mod tests {
     use std::time::Duration;
 
     use agent_client_protocol as acp;
-    use xvora_acp_lib::acp_gateway;
+    use acp_lib::acp_gateway;
 
     type RecordedNotifications = Rc<RefCell<Vec<(String, serde_json::Value)>>>;
 

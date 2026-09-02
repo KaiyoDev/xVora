@@ -172,7 +172,7 @@ fn status_finds_suffix(
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use xvora_test_utils::git::run_git;
+    use test_utils::git::run_git;
 
     #[test]
     fn compute_from_table() {
@@ -403,10 +403,10 @@ mod nproc_tests {
                 // Refund one slot per soft scaffolding spawn on the
                 // into_index_worktree_iter path so those succeed and the NEXT
                 // spawn to fail is `gitoxide.in_parallel.produce.N`, whose
-                // expect("valid name") panics on `xvora_gix_status::index_as_worktree`:
+                // expect("valid name") panics on `gix_status::index_as_worktree`:
                 //   slot 1 funds gix::status::index_worktree::producer (soft map_err(SpawnThread))
-                //   slot 2 funds xvora_gix_status::dirwalk (soft map_err(SpawnThread))
-                //   slot 3 funds xvora_gix_status::index_as_worktree (soft map_err(SpawnThread))
+                //   slot 2 funds gix_status::dirwalk (soft map_err(SpawnThread))
+                //   slot 3 funds gix_status::index_as_worktree (soft map_err(SpawnThread))
                 // Same-UID churn may eat refunds first; the parent then insists
                 // the resulting scan error is itself a spawn failure.
                 for _ in 0..SCAFFOLD_SLOTS {
@@ -539,7 +539,7 @@ mod nproc_tests {
         // name") panic surfaces as stderr markers plus a nonzero exit; the
         // SIGABRT arm covers abort-configured harnesses.
         let aborted = signal == Some(libc::SIGABRT)
-            || stderr.contains("xvora_gix_status::index_as_worktree")
+            || stderr.contains("gix_status::index_as_worktree")
             || stderr.contains("valid name");
         // Refund race: same-UID processes may consume the refunded slots, so a
         // soft scaffolding spawn fails first — accept only if the printed gix

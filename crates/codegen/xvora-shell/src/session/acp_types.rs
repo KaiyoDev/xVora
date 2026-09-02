@@ -360,7 +360,7 @@ impl TokenUsageCategory {
     pub fn skills_listing(text: &str, skill_count: usize) -> Self {
         Self {
             label: "Skills".to_string(),
-            tokens: xvora_token_estimation::estimate_tokens(text),
+            tokens: token_estimation::estimate_tokens(text),
             detail: Some(count_detail(skill_count as u64, "skill")),
         }
     }
@@ -369,7 +369,7 @@ impl TokenUsageCategory {
     pub fn workflows_listing(text: &str, workflow_count: usize) -> Self {
         Self {
             label: "Workflows".to_string(),
-            tokens: xvora_token_estimation::estimate_tokens(text),
+            tokens: token_estimation::estimate_tokens(text),
             detail: Some(count_detail(workflow_count as u64, "workflow")),
         }
     }
@@ -378,7 +378,7 @@ impl TokenUsageCategory {
     pub fn mcp_servers(text: &str, server_count: usize) -> Self {
         Self {
             label: "MCP servers".to_string(),
-            tokens: xvora_token_estimation::estimate_tokens(text),
+            tokens: token_estimation::estimate_tokens(text),
             detail: Some(count_detail(server_count as u64, "server")),
         }
     }
@@ -387,7 +387,7 @@ impl TokenUsageCategory {
     pub fn agents_md(text: &str, file_count: usize) -> Self {
         Self {
             label: "AGENTS.md".to_string(),
-            tokens: xvora_token_estimation::estimate_tokens(text),
+            tokens: token_estimation::estimate_tokens(text),
             detail: Some(count_detail(file_count as u64, "file")),
         }
     }
@@ -435,8 +435,8 @@ impl ContextInfo {
         Self {
             used,
             total,
-            usage_pct: xvora_token_estimation::usage_percentage_u8(used, total),
-            free_tokens: xvora_token_estimation::free_tokens(total, used),
+            usage_pct: token_estimation::usage_percentage_u8(used, total),
+            free_tokens: token_estimation::free_tokens(total, used),
             auto_compact_threshold_percent: DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT,
             ..Self::default()
         }
@@ -581,8 +581,8 @@ pub struct StartupHints {
 
 impl StartupHints {
     /// Shared by the spawn path and the resident re-attach path so both resolve identically.
-    pub(crate) fn resolve_mcp_strategy(&self) -> xvora_telemetry::enums::McpInitStrategy {
-        use xvora_telemetry::enums::McpInitStrategy;
+    pub(crate) fn resolve_mcp_strategy(&self) -> telemetry::enums::McpInitStrategy {
+        use telemetry::enums::McpInitStrategy;
         match std::env::var("MCP_INIT_STRATEGY") {
             Ok(v) if !v.trim().is_empty() => McpInitStrategy::from(v),
             _ if self.non_interactive => McpInitStrategy::Blocking,

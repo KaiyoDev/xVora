@@ -16,13 +16,13 @@ use std::path::{Path, PathBuf};
 
 use serial_test::serial;
 use tempfile::TempDir;
-use xvora_agent::plugins::SharedPluginRegistryHandle;
-use xvora_agent::plugins::discovery::DiscoveryConfig;
-use xvora_agent::plugins::git_install::{InstallSource, install_from_source};
-use xvora_agent::plugins::install_registry::{
+use agent::plugins::SharedPluginRegistryHandle;
+use agent::plugins::discovery::DiscoveryConfig;
+use agent::plugins::git_install::{InstallSource, install_from_source};
+use agent::plugins::install_registry::{
     InstallKind, InstallRegistry, InstalledRepo, RepoPlugin,
 };
-use xvora_test_support::*;
+use test_support::*;
 
 fn write_minimal_plugin(dir: &Path, name: &str) {
     std::fs::create_dir_all(dir).unwrap();
@@ -149,7 +149,7 @@ fn trusted_local_refresh_surfaces_new_agent_via_discovery() {
     );
 
     // The new agent must show up in discovery (the reported symptom)
-    let agents = xvora_agent::discovery::all_subagents_with_plugins(
+    let agents = agent::discovery::all_subagents_with_plugins(
         &cwd,
         &HashMap::new(),
         Some(plugin_registry.as_ref()),
@@ -182,7 +182,7 @@ fn trusted_local_refresh_surfaces_new_agent_via_discovery() {
     let plugin = registry
         .get("session-plugin")
         .expect("session plugin discovered");
-    assert_eq!(plugin.scope, xvora_agent::plugins::PluginScope::CliOverride);
+    assert_eq!(plugin.scope, agent::plugins::PluginScope::CliOverride);
     assert!(plugin.trusted && plugin.enabled);
     assert_eq!(registry.session_plugin_dirs(), session_dirs.as_slice());
 
@@ -273,7 +273,7 @@ async fn headless_session_refreshes_trusted_local_plugin_and_writes_session_json
     let plugin_registry = SharedPluginRegistryHandle::new(None, Vec::new())
         .build_for_cwd(workdir.workspace(), &config, &[], true)
         .expect("registry built from refreshed snapshot");
-    let agents = xvora_agent::discovery::all_subagents_with_plugins(
+    let agents = agent::discovery::all_subagents_with_plugins(
         workdir.workspace(),
         &HashMap::new(),
         Some(plugin_registry.as_ref()),

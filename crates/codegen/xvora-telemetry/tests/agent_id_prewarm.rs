@@ -8,8 +8,8 @@ fn prefetched_agent_id_resolves_and_persists() {
         std::env::remove_var("GROK_AGENT_ID");
         std::env::set_var("GROK_HOME", home.path());
     }
-    xvora_telemetry::id::prefetch_agent_id();
-    let id = xvora_telemetry::id::agent_id();
+    telemetry::id::prefetch_agent_id();
+    let id = telemetry::id::agent_id();
     assert_eq!(
         std::fs::read_to_string(home.path().join("agent_id"))
             .expect("agent_id cache")

@@ -34,7 +34,7 @@ use std::sync::OnceLock;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Returns a process-wide test `GROK_HOME`, initialized exactly once per test binary.
-/// Once initialized, `xvora_config::grok_home()` will resolve to this directory for the lifetime of the process.
+/// Once initialized, `config::grok_home()` will resolve to this directory for the lifetime of the process.
 ///
 /// Also clears env vars that the auto-update code consults so a parent shell's values can't pollute the baseline.
 /// For example, running tests from `npm run` would otherwise inherit `npm_config_user_agent` and `NPM_TOKEN`.
@@ -104,9 +104,9 @@ pub fn host_platform() -> String {
     format!("{os}-{arch}")
 }
 
-/// Minimal [`xvora_update::UpdateConfig`] for install tests.
-pub fn make_update_config(channel: &str) -> xvora_update::UpdateConfig {
-    xvora_update::UpdateConfig {
+/// Minimal [`update::UpdateConfig`] for install tests.
+pub fn make_update_config(channel: &str) -> update::UpdateConfig {
+    update::UpdateConfig {
         proxy_base_url: "http://test.invalid/v1".to_string(),
         auth_scope: "test".to_string(),
         deployment_key: None,

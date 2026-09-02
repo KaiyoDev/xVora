@@ -14,9 +14,9 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use xvora_tools::bridge::ToolBridge;
-use xvora_tools::implementations::skills::types::SkillInfo;
-use xvora_tools::types::skill_discovery_tracker::{XmlRenderMode, format_announcement_xml};
+use tools::bridge::ToolBridge;
+use tools::implementations::skills::types::SkillInfo;
+use tools::types::skill_discovery_tracker::{XmlRenderMode, format_announcement_xml};
 /// Date format for the `Today's date` field of the user-message preamble (e.g. "Friday Apr 24, 2026").
 /// Any format change is observable to the model.
 pub const USER_MESSAGE_DATE_FORMAT: &str = "%A %b %-d, %Y";
@@ -241,7 +241,7 @@ pub struct UserMessageContext {
     ///
     /// This is `"<kernel> <release>"` (e.g. `"darwin 24.6.0"`, `"linux 6.5.0-..."`), not the OS family (`std::env::consts::OS`, e.g. `"macos"`).
     /// Producers that don't have a uname-style string available may pass `std::env::consts::OS` as a fallback.
-    /// Callers that need the full string should use `xvora_shell::util::uname::os_kernel_and_release` (or equivalent).
+    /// Callers that need the full string should use `shell::util::uname::os_kernel_and_release` (or equivalent).
     pub os_family: String,
     /// `$SHELL` env, basename only (e.g. "zsh", "bash").
     pub shell: String,

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde::Serialize;
-use xvora_tools::types::config_source::ConfigSource;
+use tools::types::config_source::ConfigSource;
 
 use crate::session::mcp_servers;
 
@@ -91,7 +91,7 @@ struct DiscoveredServer {
 }
 
 fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServer>) {
-    let trust_store = xvora_agent::plugins::TrustStore::load();
+    let trust_store = agent::plugins::TrustStore::load();
     let mut plugins_cfg: crate::agent::config::PluginsConfig =
         crate::config::load_effective_config()
             .ok()
@@ -103,14 +103,14 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
     // The doctor report then shows an untrusted folder's project-plugin MCP servers as blocked
     // No session resolve has run for a one-shot doctor, so resolve and record the verdict here, then gate plugins on it
     let project_trusted = crate::agent::folder_trust::resolve_and_record(cwd, None, false);
-    let discovered_plugins = xvora_agent::plugins::discover_plugins(
+    let discovered_plugins = agent::plugins::discover_plugins(
         Some(cwd),
         &plugin_config,
         &trust_store,
         project_trusted,
     );
     plugin_config.populate_plugin_lists(&discovered_plugins);
-    let plugin_registry = xvora_agent::plugins::PluginRegistry::from_discovered(
+    let plugin_registry = agent::plugins::PluginRegistry::from_discovered(
         discovered_plugins,
         &plugin_config.disabled,
         &plugin_config.enabled,
@@ -120,7 +120,7 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
     let sourced = crate::session::managed_mcp::merge_managed_mcp_servers_sourced(
         cwd,
         Some(&plugin_registry),
-        &xvora_tools::types::compat::CompatConfig::default(),
+        &tools::types::compat::CompatConfig::default(),
     );
 
     let mut config_count = 0usize;
@@ -143,7 +143,7 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
 
     let mut sources = Vec::new();
 
-    let grok_home = xvora_tools::util::grok_home::grok_home();
+    let grok_home = tools::util::grok_home::grok_home();
     let user_config = grok_home.join("config.toml");
     if user_config.is_file() {
         sources.push(ConfigSourceStatus {
@@ -185,7 +185,7 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
                 reason: "claude_compat imported = true".to_string(),
             },
         });
-    } else if let Some(home) = xvora_dirs::home_dir() {
+    } else if let Some(home) = dirs::home_dir() {
         let claude_path = home.join(".claude.json");
         if claude_path.is_file() {
             sources.push(ConfigSourceStatus {
@@ -252,7 +252,7 @@ fn resolve_command(command: &str) -> Option<String> {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null());
-    xvora_tools::util::detach_std_command(&mut cmd);
+    tools::util::detach_std_command(&mut cmd);
     cmd.output()
         .ok()
         .filter(|o| o.status.success())
@@ -279,7 +279,7 @@ async fn check_server_start(
     cwd: &Path,
 ) -> Result<(mcp_servers::McpClient, Check), Check> {
     let start = std::time::Instant::now();
-    let noop = xvora_session_events::EventWriter::noop();
+    let noop = session_events::EventWriter::noop();
     let ctx = mcp_servers::McpSpawnCtx::standalone(&noop)
         .with_oauth_discovery(mcp_servers::McpOauthDiscovery::Network);
     match mcp_servers::start_mcp_server(acp_server, Some(cwd), None, None, &ctx).await {
@@ -310,7 +310,7 @@ async fn check_handshake(
 }
 
 async fn check_tools_list(service: &mcp_servers::McpService) -> Check {
-    use xvora_mcp::rmcp::model::PaginatedRequestParams;
+    use mcp::rmcp::model::PaginatedRequestParams;
     match service
         .list_tools(Some(PaginatedRequestParams::default()))
         .await
@@ -425,7 +425,7 @@ async fn check_server(
 pub async fn run_doctor(cwd: &Path, name_filter: Option<&str>) -> DoctorReport {
     let (mut sources, discovered) = discover_servers(cwd);
 
-    let allowlist = &xvora_workspace::permission::resolution::managed_settings().mcp_allowlist;
+    let allowlist = &workspace::permission::resolution::managed_settings().mcp_allowlist;
     if allowlist.is_restricted() {
         let path = allowlist
             .source_path

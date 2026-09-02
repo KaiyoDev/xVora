@@ -7,7 +7,7 @@ license = "Apache-2.0"
 [dependencies]
 # TTY safety
 dunce = { workspace = true }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+tty-utils = { workspace = true }
 
 # Rendering
 ratatui = { workspace = true, features = [
@@ -27,7 +27,7 @@ linkify = { workspace = true }
 tui-scrollbar = { workspace = true }
 
 # Markdown / syntax highlighting
-xvora-markdown = { workspace = true }
+markdown = { workspace = true }
 syntect = { workspace = true }
 anstyle = { workspace = true }
 supports-color = { workspace = true }
@@ -61,16 +61,16 @@ tokio = { workspace = true, features = [
 tracing = { workspace = true }
 
 # Prompt text input
-xvora-ratatui-textarea = { workspace = true, package = "xvora-ratatui-textarea" }
-xvora-ratatui-inline = { workspace = true, package = "xvora-ratatui-inline" }
+ratatui-textarea = { workspace = true }
+ratatui-inline = { workspace = true }
 
 # ACP
 agent-client-protocol = { workspace = true }
-xvora-config = { workspace = true }
-xvora-shared = { workspace = true }
-xvora-workspace = { workspace = true }
-xvora-telemetry = { workspace = true }
-xvora-tools = { workspace = true }
+config = { workspace = true }
+shared = { workspace = true }
+workspace = { workspace = true }
+telemetry = { workspace = true }
+tools = { workspace = true }
 xvora-paths = { path = "../xvora-paths" }
 xvora-gboom = { path = "../xvora-gboom" }
 
@@ -84,7 +84,7 @@ image = { workspace = true, features = ["png", "jpeg", "tiff", "gif", "webp"] }
 uuid = { workspace = true, features = ["v4"] }
 
 # Path computation
-xvora-dirs = { workspace = true }
+dirs = { workspace = true }
 shellexpand = "3.1"
 
 # Parsing

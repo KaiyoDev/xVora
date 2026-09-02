@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
-use xvora_telemetry::events::ResourceReportTrigger;
+use telemetry::events::ResourceReportTrigger;
 
 use super::*;
 
@@ -61,10 +61,10 @@ impl ReportCadence {
 impl MvpAgent {
     /// The sample is taken after the session is removed, so a leak reads as a rising tail across releases.
     pub(super) fn log_resource_usage(&self, trigger: ResourceReportTrigger) {
-        let usage = xvora_tty_utils::sample_process_resources();
+        let usage = tty_utils::sample_process_resources();
         CADENCE.with_borrow_mut(|cadence| cadence.record(Instant::now(), usage.rss_bytes));
-        xvora_telemetry::session_ctx::log_event(
-            xvora_telemetry::events::ProcessResourceUsage {
+        telemetry::session_ctx::log_event(
+            telemetry::events::ProcessResourceUsage {
                 trigger,
                 rss_bytes: usage.rss_bytes,
                 peak_rss_bytes: usage.peak_rss_bytes,
@@ -74,7 +74,7 @@ impl MvpAgent {
                 open_files: usage.open_files,
                 resident_sessions: self.session_registry.resident_count(),
                 session_threads: self.session_registry.counts().session_threads,
-                idle: xvora_telemetry::activity::work_is_idle(),
+                idle: telemetry::activity::work_is_idle(),
             },
         );
     }
@@ -83,7 +83,7 @@ impl MvpAgent {
     /// Every tick pays one memory read (`/proc/self/status` on Linux, one `proc_pidinfo` on macOS), which also carries the thread count.
     /// Only a tick that reports pays for the descriptor scan.
     pub(super) fn report_resource_usage_if_due(&self) {
-        let memory = xvora_tty_utils::sample_process_memory();
+        let memory = tty_utils::sample_process_memory();
         let due = CADENCE.with_borrow(|cadence| cadence.is_due(Instant::now(), memory.rss_bytes));
         if due {
             self.log_resource_usage(ResourceReportTrigger::Periodic);

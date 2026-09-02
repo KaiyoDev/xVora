@@ -3,7 +3,7 @@
 //!
 //! The per-spawn model override [`RoleSpawnOverride`] and the spawn-and-retry-once wrapper live in [`goal_planner`](crate::session::goal_planner).
 
-use xvora_tools::types::tool::ToolKind;
+use tools::types::tool::ToolKind;
 
 /// Resolved client-facing tool names for a role's prompt placeholders.
 ///
@@ -96,7 +96,7 @@ impl RoleToolNames {
     /// Explicit-pair path: names come from the role's `describe_subagent_type` summary (the `name_override`-aware client name per kind).
     /// `{TOOLSET_TOOLS}` enumerates the toolset.
     pub(crate) fn from_summary(
-        summary: &xvora_tools::implementations::grok_build::task::types::SubagentTypeSummary,
+        summary: &tools::implementations::grok_build::task::types::SubagentTypeSummary,
     ) -> Self {
         let get = |kind: ToolKind| summary.tool_names.get(&kind).cloned();
         Self::from_parts(
@@ -211,7 +211,7 @@ fn enumerate_toolset_tools(tool_names: &std::collections::HashMap<ToolKind, Stri
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use xvora_tools::implementations::grok_build::task::types::SubagentTypeSummary;
+    use tools::implementations::grok_build::task::types::SubagentTypeSummary;
 
     /// Build a `SubagentTypeSummary` from `(ToolKind, name)` pairs for the per-agent_type rendering tests.
     /// Shared with the planner / classifier / strategist render tests.

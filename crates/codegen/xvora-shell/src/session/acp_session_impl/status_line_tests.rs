@@ -10,8 +10,8 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::sync::mpsc::UnboundedReceiver;
-use xvora_acp_lib::AcpClientMessage;
-use xvora_workspace::session::git::normalize_repo_url;
+use acp_lib::AcpClientMessage;
+use workspace::session::git::normalize_repo_url;
 
 #[test]
 fn session_usage_splits_fresh_input_from_the_cache_buckets() {
@@ -40,7 +40,7 @@ fn a_turn_is_on_the_wire_only_while_one_is_running() {
 
     assert_eq!(
         live_turn(Some(started), Some("prompt-1")),
-        Some(xvora_status_line::StatusLineTurn {
+        Some(status_line::StatusLineTurn {
             started_at_ms: started
         })
     );

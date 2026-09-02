@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use bm25::{Language, SearchEngineBuilder};
-use xvora_tools::types::tool_index::{
+use tools::types::tool_index::{
     SearchSnapshot, ServerSummary, ToolSearchIndex, ToolSearchResult,
 };
 

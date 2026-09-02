@@ -122,7 +122,7 @@ pub(crate) fn backup_corrupt_auth_file(path: &Path) -> Option<PathBuf> {
             );
             // Must reach unified.jsonl: the tracing line above is invisible in production captures
             // This is the only record of both the corruption and where the original bytes went
-            xvora_telemetry::unified_log::error(
+            telemetry::unified_log::error(
                 "auth: corrupt auth.json backed up",
                 None,
                 Some(serde_json::json!({
@@ -134,7 +134,7 @@ pub(crate) fn backup_corrupt_auth_file(path: &Path) -> Option<PathBuf> {
         }
         Err(e) => {
             tracing::warn!(error = %e, "auth: failed to rename corrupt auth.json for backup");
-            xvora_telemetry::unified_log::error(
+            telemetry::unified_log::error(
                 "auth: corrupt auth.json backup failed",
                 None,
                 Some(serde_json::json!({
@@ -199,7 +199,7 @@ fn write_auth_json_with(
             );
             // Must reach unified.jsonl: a silent in-memory-only credential (the prior behavior) leaves sibling processes with a stale refresh token
             // Without the log there is no record of why
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth: disk full, falling back to non-atomic in-place write",
                 None,
                 Some(serde_json::json!({

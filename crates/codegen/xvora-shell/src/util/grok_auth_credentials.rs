@@ -111,7 +111,7 @@ impl GrokAuthCredentials {
         builder
     }
 }
-impl xvora_auth::HttpAuth for GrokAuthCredentials {
+impl auth::HttpAuth for GrokAuthCredentials {
     fn apply(&self, builder: RequestBuilder, base_url: &str) -> RequestBuilder {
         GrokAuthCredentials::apply(self, builder, base_url)
     }

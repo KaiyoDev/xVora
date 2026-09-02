@@ -14,8 +14,8 @@ rmcp = { version = "3.2", features = [
     "transport-streamable-http-client-reqwest",
     "reqwest",
 ] }
-xvora-extra-ca = { workspace = true }
-xvora-version = { workspace = true }
+extra-ca = { workspace = true }
+version = { workspace = true }
 # reqwest 0.13 feature set for MCP transports. Notably:
 # - `blocking` is for build-script style use (not actually used here today, but
 #   kept for future MCP transports that may need it).
@@ -40,7 +40,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 webbrowser = { workspace = true }
-xvora-config = { workspace = true }
+config = { workspace = true }
 
 # For mcp_http_client.rs (rmcp trait signatures). Must match rmcp 3.x's own
 # versions or the trait types won't unify.
@@ -49,7 +49,7 @@ sse-stream = "0.2"
 
 # Deps for servers.rs.
 agent-client-protocol = { workspace = true }
-xvora-session-events = { workspace = true }
+session-events = { workspace = true }
 futures = { workspace = true }
 regex = { workspace = true }
 which = { workspace = true }
@@ -58,12 +58,12 @@ tempfile = { workspace = true }
 # Child-network restriction on stdio server spawns; enforce is feature-unified
 # from the binary crate, matching the other consumers.
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-xvora-tools = { workspace = true }
-xvora-telemetry = { workspace = true }
-xvora-workspace-types = { workspace = true }
-xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
-xvora-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
-xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
+tools = { workspace = true }
+telemetry = { workspace = true }
+workspace-types = { workspace = true }
+tool-protocol = { workspace = true }
+tool-runtime = { workspace = true }
+tool-types = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
@@ -73,7 +73,7 @@ libc = { workspace = true }
 serial_test = { workspace = true }
 # Used in servers.rs test `test_same_raw_name_different_servers_no_local_registry_collision`
 # to verify MCP tools register into a `LocalRegistry` without collision.
-xvora-computer-hub-sdk = { workspace = true, package = "xvora-computer-hub-sdk" }
+computer-hub-sdk = { workspace = true }
 # `test-util` enables `tokio::time::pause` / `advance`, required by
 # the deterministic timing tests in `liveness.rs`.
 tokio = { workspace = true, features = ["test-util"] }

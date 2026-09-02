@@ -11,7 +11,7 @@ use agent_client_protocol as acp;
 // ---------------------------------------------------------------------------
 
 use crate::views::permission_view::{McpScope, PermissionFocus, PermissionViewState};
-use xvora_workspace::permission::{BashCommandSelectedTerms, McpScopeSelection};
+use workspace::permission::{BashCommandSelectedTerms, McpScopeSelection};
 
 /// Free-form pattern taken from the editor on confirm.
 pub(super) struct EditedPattern {
@@ -113,7 +113,7 @@ pub(super) fn build_selection_meta(
 ///
 /// Pops the front request, sends the response, and handles queue transitions (prompt restore on empty, prompt clear on next-front).
 ///
-/// Special case for [`xvora_workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID`]:
+/// Special case for [`workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID`]:
 /// when the user picks the prepended "Yes, and don't ask again for anything"
 /// option, this dispatcher (a) sends the standard `Selected` response so the
 /// in-flight request is allowed once (the shell's `map_selected_outcome`
@@ -143,7 +143,7 @@ pub(super) fn dispatch_permission_select(
     // Detect the "enable always-approve mode" id BEFORE moving option_id into the response
     // Cheap str compare on the `Arc<str>` interior
     let enable_always_approve =
-        option_id.0.as_ref() == xvora_workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID;
+        option_id.0.as_ref() == workspace::permission::ENABLE_ALWAYS_APPROVE_OPTION_ID;
 
     // Remember the user's choice (by option kind) so the next prompt's cursor sticks to it
     // Allow-flavored choices only: a rejection must not steer a later prompt's cursor onto a reject row
@@ -152,7 +152,7 @@ pub(super) fn dispatch_permission_select(
     //  - "allow all edits during this session" is edit-scoped (kind `AllowAlways`)
     //    Letting it stick would steer an unrelated later prompt onto its "always allow this command" row, escalating scope
     let steers_next_cursor = !enable_always_approve
-        && option_id.0.as_ref() != xvora_workspace::permission::ALLOW_EDITS_SESSION_OPTION_ID;
+        && option_id.0.as_ref() != workspace::permission::ALLOW_EDITS_SESSION_OPTION_ID;
     if steers_next_cursor
         && let Some(kind) = perm
             .options

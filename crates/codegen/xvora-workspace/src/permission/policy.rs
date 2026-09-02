@@ -8,7 +8,7 @@ use crate::permission::types::{
     AccessKind, Decision, PatternMode, PermissionConfig, PermissionRule, RuleAction, ToolFilter,
 };
 use xvora_paths::normalize_lexically;
-use xvora_tools::implementations::grok_build::web_fetch::domain::normalize_domain;
+use tools::implementations::grok_build::web_fetch::domain::normalize_domain;
 
 /// A security-gate escalation with `Ask` provenance.
 /// The bash-command and shell-file gates only escalate (rule `Allow` is dropped), so these three arms cover every gate outcome.
@@ -1284,9 +1284,9 @@ mod tests {
     #[test]
     fn write_scoped_access_respects_edit_deny_and_not_read_allow() {
         use crate::permission::rules::parse_permission_rule;
-        use xvora_tool_types::TaskToolInput;
-        use xvora_tools::implementations::opencode::edit::EditInput;
-        use xvora_tools::types::ToolInput;
+        use tool_types::TaskToolInput;
+        use tools::implementations::opencode::edit::EditInput;
+        use tools::types::ToolInput;
 
         let edit = AccessKind::from(&ToolInput::from(EditInput {
             file_path: "/tmp/denied.txt".into(),

@@ -115,7 +115,7 @@ impl MvpAgent {
         if resident {
             self.remove_session_terminal(id, SessionLiveState::Completed);
         }
-        xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+        tools::implementations::grok_build::task::backend::ChannelBackend::new(
             self.subagent_event_tx.event_sender().0,
         )
         .teardown_session_and_drain(&id.0, stage_budget(deadline, DRAIN_SUBAGENTS_WAIT))
@@ -194,7 +194,7 @@ impl MvpAgent {
     pub(crate) fn remove_session(&self, id: &acp::SessionId) {
         let _ = self
             .subagent_event_tx
-            .send(xvora_tools::implementations::grok_build::task::types::SubagentEvent::TeardownSession {
+            .send(tools::implementations::grok_build::task::types::SubagentEvent::TeardownSession {
                 parent_session_id: id.0.to_string(),
                 respond_to: None,
             });
@@ -206,7 +206,7 @@ impl MvpAgent {
         if let Some(ops) = self.workspace_ops.borrow().as_ref() {
             ops.end_local_session(id.0.as_ref());
         }
-        self.log_resource_usage(xvora_telemetry::events::ResourceReportTrigger::SessionClose);
+        self.log_resource_usage(telemetry::events::ResourceReportTrigger::SessionClose);
     }
     /// Per-session prompt-intake lock: prompts land in submission order and a cancel cannot overtake the prompt it targets.
     /// Keep the work done while holding it short.
@@ -470,7 +470,7 @@ impl MvpAgent {
     /// Counts for `x.ai/debug/agent`, including maps outside the registry.
     pub(crate) async fn registry_snapshot(&self) -> RegistrySnapshot {
         let subagents =
-            xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(
+            tools::implementations::grok_build::task::backend::ChannelBackend::new(
                 self.subagent_event_tx.event_sender().0,
             )
             .registry_counts()

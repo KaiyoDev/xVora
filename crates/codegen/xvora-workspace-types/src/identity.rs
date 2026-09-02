@@ -74,7 +74,7 @@ impl From<&str> for ToolCallId {
 
 /// Unique hunk identifier produced by the hunk tracker.
 ///
-/// TODO(workspace): align with `xvora_hunk_tracker::HunkId` (currently
+/// TODO(workspace): align with `hunk_tracker::HunkId` (currently
 /// `pub struct HunkId(pub Arc<str>)`) when the tracker's wire surface
 /// gets extracted into this crate.
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

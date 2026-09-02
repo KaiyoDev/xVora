@@ -3,8 +3,8 @@
 
 use super::*;
 use crate::auth::backend::{ActiveAuthBackend, AuthBackend};
-use xvora_telemetry::region;
-use xvora_telemetry::region::Parent;
+use telemetry::region;
+use telemetry::region::Parent;
 
 const CLASSIFIER_REQUEST_TOKEN_RESERVE: u64 = 16_384;
 
@@ -81,8 +81,8 @@ pub(super) fn transient_backoff_delay(attempts_used: u32) -> std::time::Duration
 
 /// Stream stalls (never retried internally), transport errors, retryable 5xx.
 /// Vetoes mirror `is_retry_vetoed`. Status-less `Api` fails closed; other kinds keep their dedicated recovery or terminal path.
-pub(super) fn transient_retry_eligible(error: &xvora_sampler::SamplingErrorInfo) -> bool {
-    use xvora_sampler::SamplingErrorKind;
+pub(super) fn transient_retry_eligible(error: &sampler::SamplingErrorInfo) -> bool {
+    use sampler::SamplingErrorKind;
     if error.should_retry == Some(false)
         || xvora_sampling_types::is_context_length_error(&error.message)
         // Deterministic rejection however the proxy wrapped it (400 or 500); the sampler's own classifier already stripped images and gave up
@@ -160,7 +160,7 @@ impl LengthSalvageStreak {
 ///
 /// String fallbacks remain for tools that report auth failures without going through the structured `HttpFailure` path.
 /// Examples: JSON-only `invalid_token` payloads, BYOK key-validation messages.
-pub(super) fn is_auth_tool_error(err: &xvora_tool_runtime::ToolError) -> bool {
+pub(super) fn is_auth_tool_error(err: &tool_runtime::ToolError) -> bool {
     // When the error carries a structured HTTP status code in details, trust it as the authoritative signal
     // This replaces the legacy `HttpFailure { status, .. }` variant matching.
     if let Some(details) = &err.details
@@ -219,13 +219,13 @@ pub(super) async fn call_with_auth_retry<F, Fut>(
     shared_recovery: Option<&tokio::sync::OnceCell<bool>>,
     tool_name: &str,
     mut call: F,
-) -> Result<xvora_tools::types::output::ToolRunResult, xvora_tool_runtime::ToolError>
+) -> Result<tools::types::output::ToolRunResult, tool_runtime::ToolError>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<
             Output = Result<
-                xvora_tools::types::output::ToolRunResult,
-                xvora_tool_runtime::ToolError,
+                tools::types::output::ToolRunResult,
+                tool_runtime::ToolError,
             >,
         >,
 {
@@ -251,7 +251,7 @@ where
         call().await
     } else {
         tracing::warn!(tool = tool_name, "auth recovery: tool 401, refresh failed");
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "auth recovery: tool 401, refresh failed",
             None,
             Some(serde_json::json!({ "tool": tool_name })),
@@ -279,8 +279,8 @@ async fn stream_drain_outcome(rx: tokio::sync::oneshot::Receiver<()>) -> StreamD
 
 fn error_after_stream_drain(
     outcome: StreamDrainOutcome,
-    original: xvora_sampler::SamplingErrorInfo,
-) -> xvora_sampler::SamplingErrorInfo {
+    original: sampler::SamplingErrorInfo,
+) -> sampler::SamplingErrorInfo {
     if outcome == StreamDrainOutcome::Revoked {
         revoked_sampling_info()
     } else {
@@ -288,9 +288,9 @@ fn error_after_stream_drain(
     }
 }
 
-fn revoked_sampling_info() -> xvora_sampler::SamplingErrorInfo {
-    xvora_sampler::SamplingErrorInfo {
-        kind: xvora_sampler::SamplingErrorKind::Api,
+fn revoked_sampling_info() -> sampler::SamplingErrorInfo {
+    sampler::SamplingErrorInfo {
+        kind: sampler::SamplingErrorKind::Api,
         status_code: None,
         message: "sampling result revoked by turn cancellation or rewind".to_string(),
         is_retryable: false,
@@ -506,7 +506,7 @@ impl SessionActor {
                     model = %model_id,
                     "auth provider pre-turn refresh failed"
                 );
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "auth provider pre-turn refresh failed",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -536,7 +536,7 @@ impl SessionActor {
                 provider = %provider.name,
                 "auth recovery: sampler 401, provider re-mint declined or failed"
             );
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth recovery: sampler 401, provider re-mint declined or failed",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({ "provider": provider.name })),
@@ -548,7 +548,7 @@ impl SessionActor {
             provider = %provider.name,
             "auth recovery: sampler 401, auth provider re-mint, retrying"
         );
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth recovery: sampler 401, auth provider re-mint, retrying",
             Some(self.session_info.id.0.as_ref()),
             None,
@@ -588,13 +588,13 @@ impl SessionActor {
         });
         let sid = Some(self.session_info.id.0.as_ref());
         if refresh_active {
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "auth gate: Unknown BYOK on first-party endpoint — session-token refresh kept active",
                 sid,
                 Some(ctx),
             );
         } else {
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth gate: Unknown BYOK on non-first-party endpoint — refresh withheld (may surface stale-token 401)",
                 sid,
                 Some(ctx),
@@ -608,9 +608,9 @@ impl SessionActor {
         #[allow(clippy::items_after_statements)]
         #[derive(Debug)]
         struct TraceContextInjector;
-        impl xvora_sampler::HeaderInjector for TraceContextInjector {
+        impl sampler::HeaderInjector for TraceContextInjector {
             fn inject(&self, headers: &mut reqwest::header::HeaderMap) {
-                if let Some(tp) = xvora_file_utils::trace_context::current_traceparent()
+                if let Some(tp) = file_utils::trace_context::current_traceparent()
                     && let Ok(v) = reqwest::header::HeaderValue::from_str(&tp)
                 {
                     headers.insert("traceparent", v);
@@ -798,9 +798,9 @@ impl SessionActor {
             crate::util::config::auto_mode_classifier_defaults(&auto_cfg, effective_supports_re);
         let classify_timeout = crate::util::config::auto_mode_classify_timeout(&auto_cfg);
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(
-            Vec<xvora_workspace::permission::ClassifierMessage>,
+            Vec<workspace::permission::ClassifierMessage>,
             tokio::sync::oneshot::Sender<
-                Result<String, xvora_workspace::permission::ClassifierFailure>,
+                Result<String, workspace::permission::ClassifierFailure>,
             >,
         )>();
         let session = Arc::clone(self);
@@ -819,8 +819,8 @@ impl SessionActor {
                             let context_window = config.context_window;
                             let model = config.model.clone();
                             let client =
-                                xvora_sampler::SamplingClient::new(config).map_err(|e| {
-                                    xvora_workspace::permission::ClassifierFailure::TransportError(
+                                sampler::SamplingClient::new(config).map_err(|e| {
+                                    workspace::permission::ClassifierFailure::TransportError(
                                         e.to_string(),
                                     )
                                 })?;
@@ -831,18 +831,18 @@ impl SessionActor {
                     let items = messages
                         .into_iter()
                         .map(|m| match m.role {
-                            xvora_workspace::permission::ClassifierMessageRole::System => {
+                            workspace::permission::ClassifierMessageRole::System => {
                                 ConversationItem::system(m.text)
                             }
-                            xvora_workspace::permission::ClassifierMessageRole::User => {
+                            workspace::permission::ClassifierMessageRole::User => {
                                 ConversationItem::user(m.text)
                             }
                         })
                         .collect::<Vec<_>>();
-                    let input_tokens = xvora_chat_state::estimate_conversation_tokens(&items);
+                    let input_tokens = chat_state::estimate_conversation_tokens(&items);
                     if !classifier_request_fits_context(input_tokens, context_window) {
                         return Err(
-                            xvora_workspace::permission::ClassifierFailure::TransportError(
+                            workspace::permission::ClassifierFailure::TransportError(
                                 "permission auto classifier request exceeds context window"
                                     .to_owned(),
                             ),
@@ -860,7 +860,7 @@ impl SessionActor {
                         // Structured output: constrain the model to the {thinking, shouldBlock, reason} schema
                         // The response is then guaranteed parseable (parity with forced-classify tooling)
                         json_schema: Some(
-                            xvora_workspace::permission::classifier_output_json_schema(),
+                            workspace::permission::classifier_output_json_schema(),
                         ),
                         // Resolved `[auto_mode]` effort: explicit config/remote, else the built-in `Low` default when the model supports it
                         // None means the provider default
@@ -868,15 +868,15 @@ impl SessionActor {
                         x_grok_conv_id: Some(format!("perm-classifier-{}", uuid::Uuid::new_v4())),
                         x_grok_req_id: Some(format!("xvora-perm-auto-{}", uuid::Uuid::new_v4())),
                         x_grok_session_id: Some(session_id),
-                        x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+                        x_grok_agent_id: Some(telemetry::id::agent_id()),
                         ..ConversationRequest::default()
                     };
                     let fut = sampling_client.conversation_collect(request);
                     let response = tokio::time::timeout(classify_timeout, fut)
                         .await
-                        .map_err(|_| xvora_workspace::permission::ClassifierFailure::Timeout)?
+                        .map_err(|_| workspace::permission::ClassifierFailure::Timeout)?
                         .map_err(|e| {
-                            xvora_workspace::permission::ClassifierFailure::TransportError(
+                            workspace::permission::ClassifierFailure::TransportError(
                                 e.to_string(),
                             )
                         })?;
@@ -891,7 +891,7 @@ impl SessionActor {
             }
         });
         let clf =
-            xvora_workspace::permission::LlmPermissionClassifier::with_channel(tx, prompt_type);
+            workspace::permission::LlmPermissionClassifier::with_channel(tx, prompt_type);
         debug_assert!(
             clf.has_side_query(),
             "channel-wired classifier must report has_side_query"
@@ -910,7 +910,7 @@ impl SessionActor {
     pub(super) async fn resolve_aux_sampler_config(
         &self,
         slug: &str,
-    ) -> Option<xvora_sampler::SamplerConfig> {
+    ) -> Option<sampler::SamplerConfig> {
         let creds = self.chat_state_handle.get_credentials().await;
         let session_key = self
             .auth_manager
@@ -940,7 +940,7 @@ impl SessionActor {
     async fn resolve_auto_classifier_sampler(
         &self,
         slug: &str,
-    ) -> Option<(xvora_sampler::SamplingClient, String, u64)> {
+    ) -> Option<(sampler::SamplingClient, String, u64)> {
         let active_session_config = self.reconstruct_full_config().await;
         let mut cfg = self.resolve_aux_sampler_config(slug).await?;
         crate::agent::config::stamp_session_local_sampler_fields(
@@ -951,7 +951,7 @@ impl SessionActor {
         );
         let model = cfg.model.clone();
         let context_window = cfg.context_window;
-        let client = xvora_sampler::SamplingClient::new(cfg)
+        let client = sampler::SamplingClient::new(cfg)
             .map_err(
                 |e| tracing::warn!(error = %e, "auto classifier aux sampler build failed; using session model"),
             )
@@ -967,14 +967,14 @@ impl SessionActor {
     pub(super) async fn prepare_chat_completion(
         &self,
         force_http1: bool,
-    ) -> Result<xvora_sampler::SamplingClient, acp::Error> {
+    ) -> Result<sampler::SamplingClient, acp::Error> {
         // Check if the JWT token is expired/near-expiration and refresh from config if needed
         self.refresh_token_if_expired().await;
 
         let mut full_config = self.reconstruct_full_config().await;
         full_config.force_http1 = force_http1;
         let sampling_client =
-            xvora_sampler::SamplingClient::new(full_config).map_err(|e| self.to_acp_error(e))?;
+            sampler::SamplingClient::new(full_config).map_err(|e| self.to_acp_error(e))?;
 
         Ok(sampling_client)
     }
@@ -1007,7 +1007,7 @@ impl SessionActor {
         message: String,
         status_code: Option<u16>,
     ) -> (&'static str, String) {
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "auth: turn failure classified",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1030,7 +1030,7 @@ impl SessionActor {
     /// Executing more calls is not converging, so report the pre-salvage `MaxTokensTruncation` failure.
     /// The sampler emitted only Completed events for these samples, so the error signal is recorded here.
     pub(crate) async fn fail_turn_length_salvage_exhausted(&self) -> acp::Error {
-        let kind = xvora_sampler::SamplingErrorKind::MaxTokensTruncation;
+        let kind = sampler::SamplingErrorKind::MaxTokensTruncation;
         let message = xvora_sampling_types::SamplingError::MaxTokensTruncation.to_string();
         self.signals_handle().record_error_typed(kind.as_str());
         self.log_terminal_failure(kind.as_str(), None, &message);
@@ -1075,7 +1075,7 @@ impl SessionActor {
             .as_ref()
             .and_then(|am| am.current_or_expired());
         let reauthable = is_reauthable_failure(Some(error_type), message);
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "turn.terminal_failure",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1083,7 +1083,7 @@ impl SessionActor {
                 "status_code": status_code,
                 "reauthable": reauthable,
                 "auth_mode": auth.as_ref().map(|a| format!("{:?}", a.auth_mode)),
-                "key_prefix": auth.as_ref().map(|a| xvora_auth::bearer_suffix(&a.key).to_owned()),
+                "key_prefix": auth.as_ref().map(|a| auth::bearer_suffix(&a.key).to_owned()),
                 "expires_at": auth
                     .as_ref()
                     .and_then(|a| a.expires_at.map(|e| e.to_rfc3339())),
@@ -1108,12 +1108,12 @@ impl SessionActor {
     /// `transient`: turn-loop retry state (the loop owns the counters).
     pub(crate) async fn handle_sampling_failure(
         self: &Arc<Self>,
-        error: xvora_sampler::SamplingErrorInfo,
+        error: sampler::SamplingErrorInfo,
         rate_limit_waits: u32,
         transient: TransientRetryState,
         mid_salvage_continuation: bool,
     ) -> Result<SamplerFailureRecovery, acp::Error> {
-        use xvora_sampler::SamplingErrorKind;
+        use sampler::SamplingErrorKind;
 
         // On an in-flight salvage continuation, a max-tokens failure or a probable context overflow is not terminal
         // For an overflow, compact-and-resubmit would delete the continue reminder and split the report
@@ -1197,7 +1197,7 @@ impl SessionActor {
                 .expect("should_compact_on_error guarantees context_window");
             {
                 let total_tokens = self.chat_state_handle.get_estimated_total_tokens().await;
-                let percentage = xvora_token_estimation::usage_percentage_u8(total_tokens, cw);
+                let percentage = token_estimation::usage_percentage_u8(total_tokens, cw);
 
                 // Update the in-memory sampling config's `context_window` if the model reported a different value (mirror the legacy path's bookkeeping)
                 if let Some(mut cfg) = self.chat_state_handle.get_sampling_config().await
@@ -1298,7 +1298,7 @@ impl SessionActor {
                     endpoint_is_first_party = gate.endpoint_is_first_party,
                     "auth recovery: sampler 401 not refreshable (api-key auth) — surfacing 401",
                 );
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "auth recovery: sampler 401 not eligible (api-key auth)",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -1326,7 +1326,7 @@ impl SessionActor {
             && error.status_code == Some(401)
             && auth_provider.is_none()
         {
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth recovery: sampler 401 not eligible (non-auth error kind)",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1350,7 +1350,7 @@ impl SessionActor {
                 .await
             {
                 tracing::info!(session_id = %self.session_info.id.0, "auth recovery: sampler 401, recovered, retrying");
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "auth recovery: sampler 401, recovered, retrying",
                     Some(self.session_info.id.0.as_ref()),
                     None,
@@ -1362,7 +1362,7 @@ impl SessionActor {
                 });
             }
             tracing::warn!(session_id = %self.session_info.id.0, "auth recovery: sampler 401, refresh failed");
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "auth recovery: sampler 401, refresh failed",
                 Some(self.session_info.id.0.as_ref()),
                 None,
@@ -1393,7 +1393,7 @@ impl SessionActor {
                     status_code: error.status_code,
                 });
             }
-            xvora_telemetry::unified_log::error(
+            telemetry::unified_log::error(
                 "shell.turn.transient_retry_exhausted",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1457,7 +1457,7 @@ impl SessionActor {
             .map(|a| a.auth_mode)
             .unwrap_or(crate::auth::AuthMode::ApiKey);
         let auth_mode_str = format!("{auth_mode:?}");
-        let client_version = xvora_version::VERSION;
+        let client_version = version::VERSION;
 
         // 5c. Legacy WebLogin auth: always show a deprecation message regardless of error type.
         if auth_mode == crate::auth::AuthMode::WebLogin {
@@ -1571,7 +1571,7 @@ impl SessionActor {
 
     async fn wait_for_stream_drain(
         &self,
-        request_id: &xvora_sampler::RequestId,
+        request_id: &sampler::RequestId,
         stream_drained_rx: tokio::sync::oneshot::Receiver<()>,
         timeout_message: &'static str,
     ) -> StreamDrainOutcome {
@@ -1643,9 +1643,9 @@ impl SessionActor {
     async fn submit_turn_request(
         self: &Arc<Self>,
         request: ConversationRequest,
-    ) -> Result<SamplerTurnOutcome, xvora_sampler::SamplingErrorInfo> {
+    ) -> Result<SamplerTurnOutcome, sampler::SamplingErrorInfo> {
         // Install the per-request stream-drain barrier before submitting so the drainer can acknowledge the fully processed terminal event
-        let request_id = xvora_sampler::RequestId::random();
+        let request_id = sampler::RequestId::random();
         let stream_drained_rx = {
             let (tx, rx) = tokio::sync::oneshot::channel();
             self.turn_stream_drained
@@ -1756,7 +1756,7 @@ impl SessionActor {
             Err(rich_err) => {
                 // Detector labels are already merged from the awaited result.
                 // Wait briefly for the UI/error event rail, then fail open so a stuck drainer cannot prevent recovery or turn teardown
-                let original = xvora_sampler::SamplingErrorInfo::from(&rich_err);
+                let original = sampler::SamplingErrorInfo::from(&rich_err);
                 let outcome = if terminal_event_queued {
                     self.wait_for_stream_drain(
                         &request_id,
@@ -1781,7 +1781,7 @@ impl SessionActor {
 
     async fn recover_from_sampling_failure(
         self: &Arc<Self>,
-        info: xvora_sampler::SamplingErrorInfo,
+        info: sampler::SamplingErrorInfo,
         budget: &RateLimitWaitBudget,
         transient: TransientRetryState,
         mid_salvage_continuation: bool,
@@ -1824,7 +1824,7 @@ impl SessionActor {
         );
         // Per-wait unified-log marker so each pause is visible in session logs like auth backoff
         // The terminal give-up alone (the `subagent_rate_limit_exhausted` marker) is not enough
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "shell.turn.subagent_rate_limit_backoff",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1852,7 +1852,7 @@ impl SessionActor {
     fn log_rate_limit_budget_spent(
         &self,
         decision: RateLimitWaitDecision,
-        error: &xvora_sampler::SamplingErrorInfo,
+        error: &sampler::SamplingErrorInfo,
     ) {
         let RateLimitWaitDecision::BudgetSpent { attempts, limit } = decision else {
             return;
@@ -1863,7 +1863,7 @@ impl SessionActor {
             retry_after_secs = ?error.retry_after_secs,
             "subagent stopped waiting out rate limits; failing the turn"
         );
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "shell.turn.subagent_rate_limit_exhausted",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1923,7 +1923,7 @@ impl SessionActor {
                             model = %model_id,
                             "auth: preflight get_valid_token failed"
                         );
-                        xvora_telemetry::unified_log::warn(
+                        telemetry::unified_log::warn(
                             "auth.preflight.refresh_failed",
                             Some(self.session_info.id.0.as_ref()),
                             Some(serde_json::json!({
@@ -1937,7 +1937,7 @@ impl SessionActor {
                 }
             }
         } else {
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "token refresh skipped: no auth manager",
                 Some(self.session_info.id.0.as_ref()),
                 None,
@@ -2214,8 +2214,8 @@ mod stream_drain_tests {
 
     #[test]
     fn failed_drain_revocation_supersedes_original_error() {
-        let original = xvora_sampler::SamplingErrorInfo {
-            kind: xvora_sampler::SamplingErrorKind::RateLimited,
+        let original = sampler::SamplingErrorInfo {
+            kind: sampler::SamplingErrorKind::RateLimited,
             status_code: Some(429),
             message: "original sampling failure".to_string(),
             is_retryable: true,

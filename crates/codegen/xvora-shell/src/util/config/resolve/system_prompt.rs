@@ -1,6 +1,6 @@
 pub const ENV_SYSTEM_PROMPT_LABEL: &str = "GROK_SYSTEM_PROMPT_LABEL";
 
-pub const DEFAULT_SYSTEM_PROMPT_LABEL: &str = xvora_agent::DEFAULT_SYSTEM_PROMPT_LABEL;
+pub const DEFAULT_SYSTEM_PROMPT_LABEL: &str = agent::DEFAULT_SYSTEM_PROMPT_LABEL;
 
 /// Precedence: env > config per-model > `[agent]` > GB per-model > GB global > `"Grok"`.
 /// Empty/whitespace falls through.

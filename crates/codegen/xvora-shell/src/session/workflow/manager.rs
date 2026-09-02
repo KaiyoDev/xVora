@@ -19,9 +19,9 @@ use super::tracker::WorkflowTracker;
 pub(crate) const WORKFLOW_MAX_ACTIVE_RUNS_PER_SESSION: usize = 4;
 pub(crate) const WORKFLOW_DEFAULT_AGENT_BUDGET: u64 = xvora_workflow::DEFAULT_AGENT_BUDGET;
 
-static WORKFLOW_RUNS_ACTIVE: xvora_telemetry::activity::ActivityGauge =
-    xvora_telemetry::activity::ActivityGauge::work(
-        xvora_telemetry::activity::WORKFLOW_RUNS_ACTIVE_KEY,
+static WORKFLOW_RUNS_ACTIVE: telemetry::activity::ActivityGauge =
+    telemetry::activity::ActivityGauge::work(
+        telemetry::activity::WORKFLOW_RUNS_ACTIVE_KEY,
     );
 
 struct ActiveRun {
@@ -68,7 +68,7 @@ pub(crate) struct WorkflowManager {
     store: WorkflowRunStore,
     notify: WorkflowNotifySender,
     subagent_event_tx:
-        mpsc::UnboundedSender<xvora_tools::implementations::grok_build::task::types::SubagentEvent>,
+        mpsc::UnboundedSender<tools::implementations::grok_build::task::types::SubagentEvent>,
     telemetry: TelemetryHook,
     session_cmd_tx: mpsc::UnboundedSender<crate::session::commands::SessionCommand>,
     templates: HashMap<String, String>,
@@ -88,7 +88,7 @@ impl WorkflowManager {
         store: WorkflowRunStore,
         notify: WorkflowNotifySender,
         subagent_event_tx: mpsc::UnboundedSender<
-            xvora_tools::implementations::grok_build::task::types::SubagentEvent,
+            tools::implementations::grok_build::task::types::SubagentEvent,
         >,
         telemetry: TelemetryHook,
         session_cmd_tx: mpsc::UnboundedSender<crate::session::commands::SessionCommand>,
@@ -397,7 +397,7 @@ impl WorkflowManager {
                     RunEndMetadata {
                         run_id: &watcher_run_id,
                         parent_session_id: &watcher_session_id,
-                        status: xvora_telemetry::events::WorkflowRunEndStatus::Superseded,
+                        status: telemetry::events::WorkflowRunEndStatus::Superseded,
                         duration_ms: elapsed,
                         agents_used,
                         agent_budget,
@@ -414,7 +414,7 @@ impl WorkflowManager {
                     RunEndMetadata {
                         run_id: &watcher_run_id,
                         parent_session_id: &watcher_session_id,
-                        status: xvora_telemetry::events::WorkflowRunEndStatus::Interrupted,
+                        status: telemetry::events::WorkflowRunEndStatus::Interrupted,
                         duration_ms: 0,
                         agents_used: 0,
                         agent_budget: None,
@@ -501,7 +501,7 @@ impl WorkflowManager {
         let store = WorkflowRunStore::new(session_dir.clone(), persist_tx.clone());
         let notify = super::notify::WorkflowNotifySender::new(
             agent_client_protocol::SessionId::new("test-session"),
-            xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+            acp_lib::AcpAgentGatewaySender::new(gateway_tx),
             persist_tx,
             store.clone(),
         );
@@ -562,10 +562,10 @@ impl WorkflowManager {
         let (respond_to, _response) = oneshot::channel();
         self.subagent_event_tx
             .send(
-                xvora_tools::implementations::grok_build::task::types::SubagentEvent::Cancel(
-                    xvora_tools::implementations::grok_build::task::types::SubagentCancelRequest {
+                tools::implementations::grok_build::task::types::SubagentEvent::Cancel(
+                    tools::implementations::grok_build::task::types::SubagentCancelRequest {
                         parent_session_id: Some(self.session_id.clone()),
-                        target: xvora_tools::implementations::grok_build::task::types::SubagentCancelTarget::WorkflowRunId(
+                        target: tools::implementations::grok_build::task::types::SubagentCancelTarget::WorkflowRunId(
                             run_id.to_owned(),
                         ),
                         respond_to,
@@ -760,8 +760,8 @@ fn log_run_started(
     max_concurrent_agents: usize,
     resumed: bool,
 ) {
-    use xvora_telemetry::events::{WorkflowRunStarted, WorkflowSourceKind};
-    xvora_telemetry::session_ctx::log_event(WorkflowRunStarted {
+    use telemetry::events::{WorkflowRunStarted, WorkflowSourceKind};
+    telemetry::session_ctx::log_event(WorkflowRunStarted {
         run_id: run_id.to_owned(),
         parent_session_id: parent_session_id.to_owned(),
         source: match source {
@@ -780,14 +780,14 @@ fn log_run_started(
 struct RunEndMetadata<'a> {
     run_id: &'a str,
     parent_session_id: &'a str,
-    status: xvora_telemetry::events::WorkflowRunEndStatus,
+    status: telemetry::events::WorkflowRunEndStatus,
     duration_ms: u64,
     agents_used: u64,
     agent_budget: Option<u64>,
 }
 
 fn log_run_ended(episode: RunEndMetadata<'_>, stats: &super::host_service::WorkflowAgentStats) {
-    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::WorkflowRunEnded {
+    telemetry::session_ctx::log_event(telemetry::events::WorkflowRunEnded {
         run_id: episode.run_id.to_owned(),
         parent_session_id: episode.parent_session_id.to_owned(),
         status: episode.status,
@@ -805,9 +805,9 @@ fn log_run_ended(episode: RunEndMetadata<'_>, stats: &super::host_service::Workf
 /// Exhaustive so a new tracker status forces a decision here.
 fn run_ended_status(
     status: crate::session::workflow::tracker::WorkflowRunStatus,
-) -> xvora_telemetry::events::WorkflowRunEndStatus {
+) -> telemetry::events::WorkflowRunEndStatus {
     use crate::session::workflow::tracker::WorkflowRunStatus as S;
-    use xvora_telemetry::events::WorkflowRunEndStatus as E;
+    use telemetry::events::WorkflowRunEndStatus as E;
     match status {
         S::Active => E::Active,
         S::UserPaused => E::UserPaused,
@@ -830,11 +830,11 @@ mod tests {
     use crate::session::workflow::registry::resolve_inline;
 
     type SubagentEventRx = mpsc::UnboundedReceiver<
-        xvora_tools::implementations::grok_build::task::types::SubagentEvent,
+        tools::implementations::grok_build::task::types::SubagentEvent,
     >;
     type CancelLog = Arc<
         parking_lot::Mutex<
-            Vec<xvora_tools::implementations::grok_build::task::types::SubagentCancelTarget>,
+            Vec<tools::implementations::grok_build::task::types::SubagentCancelTarget>,
         >,
     >;
 
@@ -846,7 +846,7 @@ mod tests {
     fn test_manager_with_cancels(
         session_dir: Option<PathBuf>,
     ) -> (WorkflowManager, SubagentEventRx, CancelLog) {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentCancelOutcome, SubagentEvent,
         };
 
@@ -882,7 +882,7 @@ mod tests {
         let store = WorkflowRunStore::new(session_dir.clone(), persist_tx.clone());
         let notify = WorkflowNotifySender::new(
             agent_client_protocol::SessionId::new("test-session"),
-            xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+            acp_lib::AcpAgentGatewaySender::new(gateway_tx),
             persist_tx,
             store.clone(),
         );
@@ -930,8 +930,8 @@ mod tests {
 
     async fn recv_spawn(
         rx: &mut SubagentEventRx,
-    ) -> xvora_tools::implementations::grok_build::task::types::SubagentSpawnRequest {
-        use xvora_tools::implementations::grok_build::task::types::SubagentEvent;
+    ) -> tools::implementations::grok_build::task::types::SubagentSpawnRequest {
+        use tools::implementations::grok_build::task::types::SubagentEvent;
         match tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv()).await {
             Ok(Some(SubagentEvent::Spawn(req))) => req,
             Ok(Some(_)) => panic!("expected spawn, got a non-spawn event"),
@@ -941,9 +941,9 @@ mod tests {
     }
 
     fn complete_spawn(
-        req: xvora_tools::implementations::grok_build::task::types::SubagentSpawnRequest,
+        req: tools::implementations::grok_build::task::types::SubagentSpawnRequest,
     ) {
-        use xvora_tools::implementations::grok_build::task::types::SubagentResult;
+        use tools::implementations::grok_build::task::types::SubagentResult;
         let id = req.id.clone();
         let _ = req.result_tx.send(SubagentResult {
             success: true,
@@ -1061,7 +1061,7 @@ mod tests {
 
     #[tokio::test]
     async fn resume_reuses_immutable_launch_effort() {
-        use xvora_tools::implementations::grok_build::task::types::SubagentEvent;
+        use tools::implementations::grok_build::task::types::SubagentEvent;
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1154,7 +1154,7 @@ mod tests {
         let resolved = resolve_inline(script.into()).unwrap();
         let (run_id, outcome_rx) = manager.launch(resolved, spec()).unwrap();
 
-        use xvora_tools::implementations::grok_build::task::types::SubagentEvent;
+        use tools::implementations::grok_build::task::types::SubagentEvent;
         let spawn_req = subagent_rx.recv().await.expect("spawn request");
         let SubagentEvent::Spawn(_spawn) = spawn_req else {
             panic!("expected spawn request");
@@ -1185,7 +1185,7 @@ mod tests {
             )
             .unwrap();
         let spawn_req = subagent_rx.recv().await.expect("respawned agent");
-        use xvora_tools::implementations::grok_build::task::types::SubagentResult;
+        use tools::implementations::grok_build::task::types::SubagentResult;
         if let SubagentEvent::Spawn(req) = spawn_req {
             let id = req.id.clone();
             let _ = req.result_tx.send(SubagentResult {
@@ -1208,7 +1208,7 @@ mod tests {
 
     #[tokio::test]
     async fn resume_reconciles_agents_used_from_journal_no_double_charge() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
 
@@ -1340,7 +1340,7 @@ mod tests {
 
     #[tokio::test]
     async fn completed_and_interrupted_runs_are_not_resumable() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
 
@@ -1447,7 +1447,7 @@ mod tests {
 
     #[tokio::test]
     async fn workflow_spawns_await_to_completion() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
 
@@ -1476,7 +1476,7 @@ mod tests {
         );
         assert_eq!(
             req.runtime_overrides.model_override_provenance,
-            xvora_tools::implementations::grok_build::task::types::ModelOverrideProvenance::Tool,
+            tools::implementations::grok_build::task::types::ModelOverrideProvenance::Tool,
             "script model overrides are untrusted tool provenance"
         );
         assert_eq!(req.runtime_overrides.reasoning_effort, None);
@@ -1493,7 +1493,7 @@ mod tests {
 
     #[tokio::test]
     async fn launch_effort_applies_to_children_and_child_override_wins() {
-        use xvora_tools::implementations::grok_build::task::types::SubagentEvent;
+        use tools::implementations::grok_build::task::types::SubagentEvent;
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1681,7 +1681,7 @@ mod tests {
 
     #[tokio::test]
     async fn output_schema_stays_host_side_with_one_corrective_retry() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
 
@@ -1763,7 +1763,7 @@ mod tests {
 
     #[tokio::test]
     async fn explicit_max_output_tokens_is_ignored_and_run_charges_totals() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
 
@@ -1810,7 +1810,7 @@ mod tests {
 
     #[tokio::test]
     async fn children_spawn_without_output_clamp() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
 
@@ -1840,7 +1840,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancellation_uses_run_owned_cancel_event_without_parent_detach() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentCancelTarget, SubagentEvent,
         };
 
@@ -1883,7 +1883,7 @@ mod tests {
 
     #[tokio::test]
     async fn backgrounded_stub_fails_loudly() {
-        use xvora_tools::implementations::grok_build::task::types::{
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentResult,
         };
 

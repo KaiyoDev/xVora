@@ -10,7 +10,7 @@
 //! Unicode-confusable hint.
 
 /// Query tools present on the tool server's `$PATH`, each `Some(name)` when
-/// detected; see [`xvora_config::shell::is_command_available`].
+/// detected; see [`config::shell::is_command_available`].
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct QueryTools {
     /// `jq`, if present.
@@ -27,7 +27,7 @@ impl QueryTools {
     /// Probe `$PATH` for the tools the steer may suggest; resolved once.
     pub(crate) fn detect() -> Self {
         use std::sync::OnceLock;
-        use xvora_config::shell::is_command_available;
+        use config::shell::is_command_available;
         static DETECTED: OnceLock<QueryTools> = OnceLock::new();
         *DETECTED.get_or_init(|| {
             let present = |name: &'static str| is_command_available(name).then_some(name);

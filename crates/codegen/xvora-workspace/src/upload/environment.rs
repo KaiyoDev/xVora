@@ -75,11 +75,11 @@ impl WorkspaceIdentity {
     }
 }
 
-/// Derive the workspace owner identity from the server auth provider's [`AuthIdentity`](xvora_computer_hub_sdk::AuthIdentity).
+/// Derive the workspace owner identity from the server auth provider's [`AuthIdentity`](computer_hub_sdk::AuthIdentity).
 /// The two types carry the same principal fields.
 /// This is the single conversion point so the workspace reads identity from `HubConfig.auth` instead of a separate auth.json read.
-impl From<xvora_computer_hub_sdk::AuthIdentity> for WorkspaceIdentity {
-    fn from(id: xvora_computer_hub_sdk::AuthIdentity) -> Self {
+impl From<computer_hub_sdk::AuthIdentity> for WorkspaceIdentity {
+    fn from(id: computer_hub_sdk::AuthIdentity) -> Self {
         Self::new(id.user_id, id.principal_type, id.principal_id)
     }
 }

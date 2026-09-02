@@ -2,7 +2,7 @@
 
 mod common;
 
-use xvora_shell::agent::models::startup_prefetch;
+use shell::agent::models::startup_prefetch;
 
 #[test]
 fn prefetch_never_starts_while_policy_repair_is_pending() {
@@ -11,12 +11,12 @@ fn prefetch_never_starts_while_policy_repair_is_pending() {
         let server = common::start_seeded_mock(home.path()).await;
         // A team principal with no serving managed policy: `ensure_managed_policy_present`
         // will run a session-start repair, so no prefetch may egress before it.
-        let scope = xvora_shell::auth::GrokComConfig::default().auth_scope();
+        let scope = shell::auth::GrokComConfig::default().auth_scope();
         let auth = serde_json::json!({
             scope: {
                 "key": "team-session-token",
                 "auth_mode": "oidc",
-                "oidc_issuer": xvora_shell::auth::xvora_oauth2_issuer(),
+                "oidc_issuer": shell::auth::xvora_oauth2_issuer(),
                 "create_time": "2026-01-01T00:00:00Z",
                 "expires_at": "2099-01-01T00:00:00Z",
                 "user_id": "test-user",
@@ -27,7 +27,7 @@ fn prefetch_never_starts_while_policy_repair_is_pending() {
         std::fs::write(home.path().join("auth.json"), auth.to_string())
             .expect("write team auth.json");
 
-        startup_prefetch::begin_before_policy_gate(&xvora_shell::agent::config::Config::default());
+        startup_prefetch::begin_before_policy_gate(&shell::agent::config::Config::default());
 
         assert!(
             !startup_prefetch::inflight_for_tests(),

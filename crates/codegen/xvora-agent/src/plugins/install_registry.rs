@@ -243,15 +243,15 @@ impl InstallRegistry {
             return dir;
         }
 
-        xvora_config::grok_home().join(DEFAULT_INSTALL_DIR_NAME)
+        config::grok_home().join(DEFAULT_INSTALL_DIR_NAME)
     }
 
     /// Read `[plugins].install_dir` from the effective config (managed_config.toml merged under config.toml; user wins).
     fn read_install_dir_from_config() -> Option<PathBuf> {
-        let root = xvora_config::load_effective_config_disk_only().ok()?;
+        let root = config::load_effective_config_disk_only().ok()?;
         let value = root.get("plugins")?.get("install_dir")?.as_str()?;
         let expanded = if let Some(stripped) = value.strip_prefix("~/") {
-            xvora_dirs::home_dir()?.join(stripped)
+            dirs::home_dir()?.join(stripped)
         } else {
             PathBuf::from(value)
         };

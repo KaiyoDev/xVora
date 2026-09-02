@@ -19,7 +19,7 @@ fn external_stream_grpc_mtls_fails_without_client_identity() {
         tls.ca_cert_pem.clone(),
     );
 
-    let mut cfg = xvora_telemetry::external::ExternalOtelConfig::resolve_with(
+    let mut cfg = telemetry::external::ExternalOtelConfig::resolve_with(
         |name| match name {
             "GROK_EXTERNAL_OTEL" => Some("1".into()),
             "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
@@ -34,25 +34,25 @@ fn external_stream_grpc_mtls_fails_without_client_identity() {
     )
     .expect("config must resolve without client identity");
     assert!(cfg.logs_client_certificate.is_none());
-    cfg.client = xvora_telemetry::external::config::ExternalClientInfo {
+    cfg.client = telemetry::external::config::ExternalClientInfo {
         service_version: "0.0.0-test".into(),
         client_version: "0.0.0-test".into(),
         app_entrypoint: "cli".into(),
     };
 
-    xvora_telemetry::external::init(Some(cfg));
+    telemetry::external::init(Some(cfg));
     assert!(
-        xvora_telemetry::external::is_active(),
+        telemetry::external::is_active(),
         "stream must build and activate so zero collector records mean rejection, \
          not a construction failure"
     );
 
-    xvora_telemetry::log_event(xvora_telemetry::events::SessionHarness {
+    telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-grpc-mtls-no-client".into(),
         client_identifier: Some("grok-pager".into()),
         model_id: "grok-4".into(),
         agent_name: "grok-build-plan".into(),
-        permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
+        permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![],
         plugin_names: vec![],
         skill_names: vec![],
@@ -60,14 +60,14 @@ fn external_stream_grpc_mtls_fails_without_client_identity() {
         hook_names: vec![],
         agents_md_dir_names: vec![],
         memory_enabled: false,
-        memory_retrieval_mode: xvora_telemetry::events::MemoryRetrievalMode::Disabled,
+        memory_retrieval_mode: telemetry::events::MemoryRetrievalMode::Disabled,
         is_git_repo: true,
         auto_update: None,
     });
-    xvora_telemetry::external::flush();
+    telemetry::external::flush();
 
     std::thread::sleep(std::time::Duration::from_millis(800));
-    let health = xvora_telemetry::external::export_health()
+    let health = telemetry::external::export_health()
         .expect("active stream must expose export health");
     assert!(
         health.export_failures > 0,
@@ -79,5 +79,5 @@ fn external_stream_grpc_mtls_fails_without_client_identity() {
         "mTLS-required collector must reject clients without identity"
     );
 
-    xvora_telemetry::external::shutdown();
+    telemetry::external::shutdown();
 }

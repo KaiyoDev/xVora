@@ -155,9 +155,9 @@ fn scan_filesystem(root: &Path) -> Vec<MarketplaceEntry> {
 
 fn scan_single_plugin(plugin_dir: &Path, relative_path: &str) -> MarketplaceEntry {
     // Load manifest using runtime conventions.
-    let manifest_result = xvora_agent::plugins::manifest::load_manifest(plugin_dir);
+    let manifest_result = agent::plugins::manifest::load_manifest(plugin_dir);
     let manifest = match &manifest_result {
-        Ok(xvora_agent::plugins::manifest::ManifestLoadResult::Found(m)) => Some(m.as_ref()),
+        Ok(agent::plugins::manifest::ManifestLoadResult::Found(m)) => Some(m.as_ref()),
         _ => None,
     };
     let dir_name = plugin_dir

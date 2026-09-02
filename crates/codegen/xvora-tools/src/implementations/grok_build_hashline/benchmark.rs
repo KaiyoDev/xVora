@@ -6,7 +6,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use xvora_tools::implementations::grok_build_hashline::benchmark::*;
+//! use tools::implementations::grok_build_hashline::benchmark::*;
 //!
 //! let corpus = vec![
 //!     ("small.rs", "fn main() {}\n"),

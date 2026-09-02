@@ -2,19 +2,19 @@
 use std::path::Path;
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use xvora_acp_lib::{AcpAgentTx, acp_send};
+use acp_lib::{AcpAgentTx, acp_send};
 use super::actions::{PermissionModePersist, SubagentKillOutcome, TaskResult};
 use super::agent::AgentId;
 use crate::unified_log as ulog;
-use xvora_shell::sampling::error::{
+use shell::sampling::error::{
     RATE_LIMITED_ERROR_CODE, error_detail_from_data, error_kind_str_from_error,
     format_rate_limited_user_message, http_status_from_error,
 };
-use xvora_shell::session::ExtMethodResult;
-use xvora_shell::session::helpers::session_compact::{
+use shell::session::ExtMethodResult;
+use shell::session::helpers::session_compact::{
     COMPACT_CANCELLED_MSG, CompactErrorKind, compact_error_kind,
 };
-use xvora_shell::session::unified_list::ListScope;
+use shell::session::unified_list::ListScope;
 /// Floor for the session create/load RPCs.
 const SESSION_RPC_FLOOR: std::time::Duration = std::time::Duration::from_secs(180);
 /// Headroom over the agent-side `.envrc` budget for the rest of session setup.
@@ -22,7 +22,7 @@ const SESSION_RPC_SLACK: std::time::Duration = std::time::Duration::from_secs(50
 /// Always covers the agent-side `.envrc` budget so the backstop cannot fire before the agent's own deadline.
 /// Reads `GROK_ENVRC_TIMEOUT_SECS` in this process; the agent inherits the same environment.
 pub(super) fn session_rpc_timeout() -> std::time::Duration {
-    SESSION_RPC_FLOOR.max(xvora_workspace::envrc::loader_budget() + SESSION_RPC_SLACK)
+    SESSION_RPC_FLOOR.max(workspace::envrc::loader_budget() + SESSION_RPC_SLACK)
 }
 /// `acp_send` bounded by [`session_rpc_timeout`]; on expiry, an error naming `action` instead of an eternal spinner.
 pub(super) async fn acp_send_bounded<R, T>(
@@ -31,8 +31,8 @@ pub(super) async fn acp_send_bounded<R, T>(
     action: &str,
 ) -> Result<T::Response, acp::Error>
 where
-    T: xvora_acp_lib::AcpRequest,
-    R: From<xvora_acp_lib::AcpArgs<T>> + std::fmt::Debug,
+    T: acp_lib::AcpRequest,
+    R: From<acp_lib::AcpArgs<T>> + std::fmt::Debug,
 {
     let timeout = session_rpc_timeout();
     match tokio::time::timeout(timeout, acp_send(request, tx)).await {
@@ -197,7 +197,7 @@ pub(super) fn format_restore_elapsed(d: std::time::Duration) -> String {
 /// Any other code consuming the `codeRestored` / `restoreSummary` / `restoreDegree` shape MUST go through this function; do not re-implement.
 pub(super) fn parse_worktree_restore_payload(
     result_obj: &serde_json::Value,
-) -> (bool, Option<String>, Option<xvora_workspace::session::git::RestoreDegree>) {
+) -> (bool, Option<String>, Option<workspace::session::git::RestoreDegree>) {
     let code_restored = result_obj
         .get("codeRestored")
         .and_then(|v| v.as_bool())
@@ -216,7 +216,7 @@ pub(super) fn parse_worktree_restore_payload(
 /// Any other code consuming this shape MUST go through this function; do not re-implement.
 pub(super) fn parse_session_load_restore_meta(
     resp_meta: Option<&acp::Meta>,
-) -> (bool, Option<String>, Option<xvora_workspace::session::git::RestoreDegree>) {
+) -> (bool, Option<String>, Option<workspace::session::git::RestoreDegree>) {
     let code_restore = resp_meta.and_then(|m| m.get("codeRestore"));
     let code_restored = code_restore
         .and_then(|r| r.get("restored"))
@@ -256,14 +256,14 @@ pub(crate) fn parse_session_scheduler_background_loops(
 ) -> Option<bool> {
     resp_meta
         .and_then(|m| {
-            m.get(xvora_shell::session::SCHEDULER_BACKGROUND_LOOPS_META_KEY)
+            m.get(shell::session::SCHEDULER_BACKGROUND_LOOPS_META_KEY)
         })
         .and_then(|v| v.as_bool())
 }
 /// Whether `raw` is (or wraps) a disk-full / ENOSPC failure.
 pub(crate) fn is_disk_full_error(raw: &str) -> bool {
-    raw.contains(xvora_fast_worktree::OUT_OF_DISK_CONTEXT)
-        || raw.contains(xvora_fast_worktree::ENOSPC_OS_MESSAGE)
+    raw.contains(fast_worktree::OUT_OF_DISK_CONTEXT)
+        || raw.contains(fast_worktree::ENOSPC_OS_MESSAGE)
         || raw.contains("Disk quota exceeded") || raw.contains("Out of disk space")
 }
 /// Sanitize an error string before showing it to the user.
@@ -271,7 +271,7 @@ pub(crate) fn is_disk_full_error(raw: &str) -> bool {
 /// Strips protocol jargon (ACP, JSON-RPC) and other technical noise that would be meaningless in a toast, and collapses known disk-full markers.
 pub(crate) fn sanitize_user_error(raw: &str) -> String {
     if is_disk_full_error(raw) {
-        return xvora_fast_worktree::ENOSPC_OS_MESSAGE.to_string();
+        return fast_worktree::ENOSPC_OS_MESSAGE.to_string();
     }
     static REPLACEMENTS: &[(&str, &str)] = &[
         ("ACP error:", "error:"),
@@ -283,7 +283,7 @@ pub(crate) fn sanitize_user_error(raw: &str) -> String {
         ("Authentication required: ", ""),
         ("Authentication failed: ", ""),
     ];
-    let mut result = xvora_shell::sampling::error::rewrite_service_names(raw);
+    let mut result = shell::sampling::error::rewrite_service_names(raw);
     for (pattern, replacement) in REPLACEMENTS {
         result = result.replace(pattern, replacement);
     }
@@ -585,10 +585,10 @@ pub(crate) struct EffectMeta {
 ///
 /// Returns the first line of the `<user_query>` content (if present), or the first line of the raw user message text.
 pub(super) fn extract_first_user_prompt(
-    info: &xvora_shell::session::info::Info,
+    info: &shell::session::info::Info,
 ) -> Option<String> {
     use std::io::BufRead;
-    let history_path = xvora_shell::session::persistence::session_dir(info)
+    let history_path = shell::session::persistence::session_dir(info)
         .join("chat_history.jsonl");
     let file = std::fs::File::open(history_path).ok()?;
     let reader = std::io::BufReader::new(file);
@@ -628,7 +628,7 @@ pub(super) fn extract_first_user_prompt(
 /// Synthetic user messages (auto-continue, doom-loop) are excluded.
 pub(super) fn count_chat_history_stats(history_path: &Path) -> (usize, usize) {
     use std::io::BufRead;
-    use xvora_shell::sampling::{AssistantItem, ConversationItem, UserItem};
+    use shell::sampling::{AssistantItem, ConversationItem, UserItem};
     let mut turn_count = 0usize;
     let mut tool_call_count = 0usize;
     let Ok(file) = std::fs::File::open(history_path) else {
@@ -755,7 +755,7 @@ pub(super) fn parse_session_picker_entries(
                     parsed_created.unwrap_or(chrono::DateTime::<chrono::Utc>::UNIX_EPOCH)
                 }
             };
-            use xvora_tools::implementations::skills::skill::extract_skill_display_text;
+            use tools::implementations::skills::skill::extract_skill_display_text;
             let display = if let Some(ref fp) = first_prompt {
                 if let Some(d) = extract_skill_display_text(fp) {
                     d
@@ -772,7 +772,7 @@ pub(super) fn parse_session_picker_entries(
                     .and_then(|s| s.as_str())
                     .unwrap_or_default()
                     .to_string();
-                let info = xvora_shell::session::info::Info {
+                let info = shell::session::info::Info {
                     id: acp::SessionId::new(id.clone()),
                     cwd: info_cwd,
                 };
@@ -857,7 +857,7 @@ pub(super) fn parse_session_picker_entries(
                 }
             }
             if e.source == "remote"
-                && xvora_shell::session::resolve_local_session_any_cwd(&e.id)
+                && shell::session::resolve_local_session_any_cwd(&e.id)
                     .is_some()
             {
                 e.source = "local".to_string();
@@ -1043,7 +1043,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("compact_mode", "Bool", &value));
             };
-            xvora_shell::util::config::set_compact_mode(b)
+            shell::util::config::set_compact_mode(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1051,7 +1051,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("trace_upload", "Bool", &value));
             };
-            xvora_shell::util::config::set_trace_upload(b)
+            shell::util::config::set_trace_upload(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1059,7 +1059,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("feedback_trace_card", "Bool", &value));
             };
-            xvora_shell::util::config::set_feedback_trace_card(b)
+            shell::util::config::set_feedback_trace_card(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1067,7 +1067,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("show_timestamps", "Bool", &value));
             };
-            xvora_shell::util::config::set_show_timestamps(b)
+            shell::util::config::set_show_timestamps(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1075,7 +1075,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("page_flip_on_send", "Bool", &value));
             };
-            xvora_shell::util::config::set_page_flip_on_send(b)
+            shell::util::config::set_page_flip_on_send(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1083,7 +1083,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("confirm_before_rewind", "Bool", &value));
             };
-            xvora_shell::util::config::set_confirm_before_rewind(b)
+            shell::util::config::set_confirm_before_rewind(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1091,7 +1091,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("combine_queued_prompts", "Bool", &value));
             };
-            xvora_shell::util::config::set_combine_queued_prompts(b)
+            shell::util::config::set_combine_queued_prompts(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1099,7 +1099,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("follow_up_behavior", "Enum", &value));
             };
-            xvora_shell::util::config::set_follow_up_behavior(s.to_string())
+            shell::util::config::set_follow_up_behavior(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1107,7 +1107,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("show_timeline", "Bool", &value));
             };
-            xvora_shell::util::config::set_show_timeline(b)
+            shell::util::config::set_show_timeline(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1115,7 +1115,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("simple_mode", "Bool", &value));
             };
-            xvora_shell::util::config::set_simple_mode(b)
+            shell::util::config::set_simple_mode(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1123,7 +1123,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("contextual_hints.undo", "Bool", &value));
             };
-            xvora_shell::util::config::set_contextual_hint_undo(b)
+            shell::util::config::set_contextual_hint_undo(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1131,7 +1131,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("contextual_hints.plan_mode", "Bool", &value));
             };
-            xvora_shell::util::config::set_contextual_hint_plan_mode(b)
+            shell::util::config::set_contextual_hint_plan_mode(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1141,7 +1141,7 @@ pub(crate) async fn persist_setting(
                     kind_mismatch("contextual_hints.image_input", "Bool", &value),
                 );
             };
-            xvora_shell::util::config::set_contextual_hint_image_input(b)
+            shell::util::config::set_contextual_hint_image_input(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1149,7 +1149,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("contextual_hints.send_now", "Bool", &value));
             };
-            xvora_shell::util::config::set_contextual_hint_send_now(b)
+            shell::util::config::set_contextual_hint_send_now(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1159,7 +1159,7 @@ pub(crate) async fn persist_setting(
                     kind_mismatch("contextual_hints.small_screen", "Bool", &value),
                 );
             };
-            xvora_shell::util::config::set_contextual_hint_small_screen(b)
+            shell::util::config::set_contextual_hint_small_screen(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1169,7 +1169,7 @@ pub(crate) async fn persist_setting(
                     kind_mismatch("contextual_hints.word_select", "Bool", &value),
                 );
             };
-            xvora_shell::util::config::set_contextual_hint_word_select(b)
+            shell::util::config::set_contextual_hint_word_select(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1179,7 +1179,7 @@ pub(crate) async fn persist_setting(
                     kind_mismatch("contextual_hints.export_copy", "Bool", &value),
                 );
             };
-            xvora_shell::util::config::set_contextual_hint_export_copy(b)
+            shell::util::config::set_contextual_hint_export_copy(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1187,7 +1187,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("contextual_hints.ssh_wrap", "Bool", &value));
             };
-            xvora_shell::util::config::set_contextual_hint_ssh_wrap(b)
+            shell::util::config::set_contextual_hint_ssh_wrap(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1195,7 +1195,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("theme", "Enum", &value));
             };
-            xvora_shell::util::config::set_theme(s.to_string())
+            shell::util::config::set_theme(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1203,7 +1203,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("auto_dark_theme", "Enum", &value));
             };
-            xvora_shell::util::config::set_auto_dark_theme(s.to_string())
+            shell::util::config::set_auto_dark_theme(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1211,7 +1211,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("auto_light_theme", "Enum", &value));
             };
-            xvora_shell::util::config::set_auto_light_theme(s.to_string())
+            shell::util::config::set_auto_light_theme(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1219,7 +1219,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::String(s) = value else {
                 return Err(kind_mismatch("default_model", "String", &value));
             };
-            xvora_shell::util::config::set_default_model(s)
+            shell::util::config::set_default_model(s)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1227,7 +1227,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Int(i) = value else {
                 return Err(kind_mismatch("scroll_speed", "Int", &value));
             };
-            xvora_shell::util::config::set_scroll_speed(i)
+            shell::util::config::set_scroll_speed(i)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1235,7 +1235,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("scroll_mode", "Enum", &value));
             };
-            xvora_shell::util::config::set_scroll_mode(s.to_string())
+            shell::util::config::set_scroll_mode(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1243,7 +1243,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("invert_scroll", "Bool", &value));
             };
-            xvora_shell::util::config::set_invert_scroll(b)
+            shell::util::config::set_invert_scroll(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1253,7 +1253,7 @@ pub(crate) async fn persist_setting(
                     kind_mismatch("display_refresh_auto_cadence", "Bool", &value),
                 );
             };
-            xvora_shell::util::config::set_display_refresh_auto_cadence(b)
+            shell::util::config::set_display_refresh_auto_cadence(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1261,7 +1261,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Int(i) = value else {
                 return Err(kind_mismatch("scroll_lines", "Int", &value));
             };
-            xvora_shell::util::config::set_scroll_lines(i)
+            shell::util::config::set_scroll_lines(i)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1269,7 +1269,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("default_selected_permission", "Enum", &value));
             };
-            xvora_shell::util::config::set_default_selected_permission(s.to_string())
+            shell::util::config::set_default_selected_permission(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1279,7 +1279,7 @@ pub(crate) async fn persist_setting(
                     kind_mismatch("cancel_subagents_on_turn_cancel", "Enum", &value),
                 );
             };
-            xvora_shell::util::config::set_cancel_subagents_on_turn_cancel(
+            shell::util::config::set_cancel_subagents_on_turn_cancel(
                     s.to_string(),
                 )
                 .await
@@ -1289,7 +1289,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("vim_mode", "Bool", &value));
             };
-            xvora_shell::util::config::set_vim_mode(b)
+            shell::util::config::set_vim_mode(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1297,7 +1297,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("remember_tool_approvals", "Bool", &value));
             };
-            xvora_shell::util::config::set_remember_tool_approvals(b)
+            shell::util::config::set_remember_tool_approvals(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1311,7 +1311,7 @@ pub(crate) async fn persist_setting(
                     ),
                 );
             };
-            xvora_shell::util::config::set_ask_user_question_timeout_enabled(b)
+            shell::util::config::set_ask_user_question_timeout_enabled(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1319,7 +1319,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("show_thinking_blocks", "Bool", &value));
             };
-            xvora_shell::util::config::set_show_thinking_blocks(b)
+            shell::util::config::set_show_thinking_blocks(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1327,7 +1327,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("group_tool_verbs", "Bool", &value));
             };
-            xvora_shell::util::config::set_group_tool_verbs(b)
+            shell::util::config::set_group_tool_verbs(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1335,7 +1335,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("collapsed_edit_blocks", "Bool", &value));
             };
-            xvora_shell::util::config::set_collapsed_edit_blocks(b)
+            shell::util::config::set_collapsed_edit_blocks(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1343,7 +1343,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("prompt_suggestions", "Bool", &value));
             };
-            xvora_shell::util::config::set_prompt_suggestions(b)
+            shell::util::config::set_prompt_suggestions(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1351,7 +1351,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("keep_text_selection", "Enum", &value));
             };
-            xvora_shell::util::config::set_keep_text_selection(s.to_string())
+            shell::util::config::set_keep_text_selection(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1370,7 +1370,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("render_mermaid", "Enum", &value));
             };
-            xvora_shell::util::config::set_render_mermaid(s.to_string())
+            shell::util::config::set_render_mermaid(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1378,7 +1378,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("hunk_tracker_mode", "Enum", &value));
             };
-            xvora_shell::util::config::set_hunk_tracker_mode(s.to_string())
+            shell::util::config::set_hunk_tracker_mode(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1386,7 +1386,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("screen_mode", "Enum", &value));
             };
-            xvora_shell::util::config::set_screen_mode(s.to_string())
+            shell::util::config::set_screen_mode(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1394,7 +1394,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("voice_keybind_enabled", "Bool", &value));
             };
-            xvora_shell::util::config::set_voice_keybind_enabled(b)
+            shell::util::config::set_voice_keybind_enabled(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1402,7 +1402,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("voice_capture_mode", "Enum", &value));
             };
-            xvora_shell::util::config::set_voice_capture_mode(s.to_string())
+            shell::util::config::set_voice_capture_mode(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1410,7 +1410,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Enum(s) = value else {
                 return Err(kind_mismatch("voice_stt_language", "Enum", &value));
             };
-            xvora_shell::util::config::set_voice_stt_language(s.to_string())
+            shell::util::config::set_voice_stt_language(s.to_string())
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1418,7 +1418,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Int(i) = value else {
                 return Err(kind_mismatch("max_thoughts_width", "Int", &value));
             };
-            xvora_shell::util::config::set_max_thoughts_width(i)
+            shell::util::config::set_max_thoughts_width(i)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1426,7 +1426,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("show_tips", "Bool", &value));
             };
-            xvora_shell::util::config::set_show_tips(b)
+            shell::util::config::set_show_tips(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1434,7 +1434,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("auto_update", "Bool", &value));
             };
-            xvora_shell::util::config::set_auto_update(b)
+            shell::util::config::set_auto_update(b)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1442,7 +1442,7 @@ pub(crate) async fn persist_setting(
             let SettingValue::String(s) = value else {
                 return Err(kind_mismatch("fork_secondary_model", "String", &value));
             };
-            xvora_shell::util::config::set_fork_secondary_model(s)
+            shell::util::config::set_fork_secondary_model(s)
                 .await
                 .map_err(|e| e.to_string())
         }
@@ -1463,7 +1463,7 @@ pub(crate) async fn persist_permission_mode_and_notify(
     let enabled = canonical == "always-approve";
     let auto_mode = canonical == "auto";
     let config_str: &'static str = canonical;
-    let disk_result = xvora_shell::util::config::update_config(|cfg| {
+    let disk_result = shell::util::config::update_config(|cfg| {
             cfg.ui.permission_mode = Some(config_str.to_string());
         })
         .await;
@@ -1500,22 +1500,22 @@ pub(super) fn should_send_yolo_acp_notification(
     }
 }
 pub(super) fn marketplace_outcome_succeeded(
-    outcome: &xvora_hooks_plugins_types::ActionOutcome,
+    outcome: &hooks_plugins_types::ActionOutcome,
 ) -> bool {
-    outcome.status == xvora_hooks_plugins_types::OutcomeStatus::Success
+    outcome.status == hooks_plugins_types::OutcomeStatus::Success
 }
 /// Extract the typed kill outcome from an `x.ai/task/kill` ext response.
 ///
 /// The agent serializes `ExtMethodResult<KillTaskResponse>`, so the outcome lives at `result.outcome` (`{"result":{"taskId":..,"outcome":"not_found"}}`).
 /// Deserializes through the same wire DTOs the agent serializes so the contract stays typed end-to-end.
-/// Those DTOs are `xvora_shell::extensions::task::KillTaskResponse` and `xvora_shell::session::result::ExtMethodResult`.
+/// Those DTOs are `shell::extensions::task::KillTaskResponse` and `shell::session::result::ExtMethodResult`.
 /// Returns `None` for error envelopes (`result: null`) or unparseable payloads; the dispatcher treats that as "clear pending state, keep the row".
 /// Probing the top level with untyped JSON here was why the tasks-pane ✗ never removed stale (`not_found`) rows after a session resume.
 pub(super) fn parse_kill_outcome(
     resp: &str,
-) -> Option<xvora_tools::types::KillOutcome> {
-    use xvora_shell::extensions::task::KillTaskResponse;
-    use xvora_shell::session::result::ExtMethodResult;
+) -> Option<tools::types::KillOutcome> {
+    use shell::extensions::task::KillTaskResponse;
+    use shell::session::result::ExtMethodResult;
     serde_json::from_str::<ExtMethodResult<KillTaskResponse>>(resp)
         .ok()
         .and_then(|envelope| envelope.result)
@@ -1525,7 +1525,7 @@ pub(super) fn parse_kill_outcome(
 /// Prefers the typed `outcome`; falls back to the legacy `cancelled` bool for an older shell or an unknown future `kind`.
 /// An error/unparseable body is `RpcFailed` (the subagent may still be running, so leave the row alone).
 pub(super) fn parse_subagent_kill_outcome(resp: &str) -> SubagentKillOutcome {
-    use xvora_shell::extensions::task::{
+    use shell::extensions::task::{
         CancelSubagentResponse, SubagentCancelOutcomeDto,
     };
     let Some(payload) = serde_json::from_str::<
@@ -1617,7 +1617,7 @@ pub(super) fn persist_hint(
 /// Falls back to the deprecated `monthly_limit`/`used`/`billing_period_end`.
 /// Shared by `Effect::FetchBilling` and `Effect::FetchAppBilling` so every pager UI path derives identical usage values from the same config.
 pub(super) fn credit_balance_from_config(
-    c: xvora_shell::extensions::billing::BillingConfig,
+    c: shell::extensions::billing::BillingConfig,
 ) -> crate::views::credit_bar::CreditBalance {
     let limit = c.monthly_limit.map(|v| v.val).unwrap_or(0);
     let used = c.used.map(|v| v.val).unwrap_or(0);
@@ -1684,7 +1684,7 @@ pub(super) fn has_prepaid_credits(
 /// Fetch the user's auto top-up rule via the `x.ai/auto-topup-rule` extension.
 /// A transport failure yields [`AutoTopupFetch::Unchanged`] so the caller keeps any cached rule rather than treating the blip as "no auto top-up".
 pub(super) async fn fetch_auto_topup_info(
-    tx: &xvora_acp_lib::AcpAgentTx,
+    tx: &acp_lib::AcpAgentTx,
 ) -> crate::views::credit_bar::AutoTopupFetch {
     use crate::views::credit_bar::AutoTopupFetch;
     let req = acp::ExtRequest::new(
@@ -1708,7 +1708,7 @@ pub(super) fn parse_auto_topup_response(
     result: &serde_json::Value,
 ) -> crate::views::credit_bar::AutoTopupFetch {
     use crate::views::credit_bar::{AutoTopupFetch, AutoTopupInfo};
-    use xvora_shell::extensions::billing::GetAutoTopupRuleResponse;
+    use shell::extensions::billing::GetAutoTopupRuleResponse;
     match serde_json::from_value::<GetAutoTopupRuleResponse>(result.clone()) {
         Ok(parsed) => {
             AutoTopupFetch::Resolved(
@@ -1732,7 +1732,7 @@ pub(super) fn parse_auto_topup_response(
 /// is best-effort, so skip on contention.
 pub(super) fn unregister_active_session_best_effort(session_id: &acp::SessionId) {
     unregister_active_session_best_effort_in(
-        &xvora_shell::util::grok_home::grok_home(),
+        &shell::util::grok_home::grok_home(),
         session_id,
     );
 }
@@ -1740,7 +1740,7 @@ pub(super) fn unregister_active_session_best_effort_in(
     root: &Path,
     session_id: &acp::SessionId,
 ) {
-    match xvora_active_sessions::try_unregister_in(root, session_id) {
+    match active_sessions::try_unregister_in(root, session_id) {
         Ok(true) => {}
         Ok(false) => {
             tracing::debug!(

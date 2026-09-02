@@ -179,7 +179,7 @@ async fn probe_xai_api_key_at_url(key: &str, url: &str, timeout: Duration) -> Ap
     }
 
     let elapsed_ms = started.elapsed().as_millis() as u64;
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "auth: first-party API key probe",
         None,
         Some(serde_json::json!({

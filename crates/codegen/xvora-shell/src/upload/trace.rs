@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use url::Url;
-use xvora_workspace::permission::PermissionEvent;
+use workspace::permission::PermissionEvent;
 /// Upload the canonical tool definitions trace and wait for completion.
 ///
 /// `ToolDefinition` serializes in Chat Completions format: `{ "type": "function", "function": { ... } }`.
@@ -37,7 +37,7 @@ pub(crate) async fn upload_tool_definitions(
         format!("{prefix}/tool_definitions.json")
     };
     use crate::upload::gcs::WithAuth as _;
-    let ok = xvora_file_utils::gcs::upload_bytes(
+    let ok = file_utils::gcs::upload_bytes(
         &gcs_config.with_auth(auth_manager),
         &object_path,
         &bytes,
@@ -207,9 +207,9 @@ pub(super) fn record_upload_failure(ctx: &PromptTraceContext, f: UploadFailure<'
         "phase": f.phase,
     }));
     if level == UploadFailureLogLevel::Warn {
-        xvora_telemetry::unified_log::warn(&msg, sid, log_ctx);
+        telemetry::unified_log::warn(&msg, sid, log_ctx);
     } else {
-        xvora_telemetry::unified_log::error(&msg, sid, log_ctx);
+        telemetry::unified_log::error(&msg, sid, log_ctx);
     }
 }
 /// Increment when making breaking changes to PromptMetadata structure.
@@ -258,7 +258,7 @@ fn classify_workspace(cwd: &str) -> String {
     let path = std::path::Path::new(cwd);
     if path.ancestors().any(|p| p.join(".git").exists()) {
         "git".to_owned()
-    } else if xvora_file_utils::workspace_classifier::is_project_dir(path) {
+    } else if file_utils::workspace_classifier::is_project_dir(path) {
         "project".to_owned()
     } else {
         "non_project".to_owned()
@@ -401,7 +401,7 @@ pub(crate) async fn upload_subagent_metadata(
     let config = base_config.with_auth(Some(auth_manager));
     match tokio::time::timeout(
         SUBAGENT_METADATA_UPLOAD_BOUND,
-        xvora_file_utils::gcs::upload_bytes(&config, &gcs_path, &json, "application/json"),
+        file_utils::gcs::upload_bytes(&config, &gcs_path, &json, "application/json"),
     )
     .await
     {
@@ -491,9 +491,9 @@ pub(crate) async fn upload_full_prompt_txt(
 /// Uploaded as `plugins.json` alongside other per-turn trace artifacts.
 pub(crate) async fn upload_plugin_state(
     ctx: &PromptTraceContext,
-    registry: Option<&xvora_agent::plugins::PluginRegistry>,
+    registry: Option<&agent::plugins::PluginRegistry>,
 ) {
-    use xvora_agent::plugins::discovery::PluginScope;
+    use agent::plugins::discovery::PluginScope;
     #[derive(serde::Serialize)]
     struct PluginEntry {
         name: String,
@@ -598,7 +598,7 @@ pub(crate) async fn upload_artifact_to_gcs(
         }
         Err(e) => {
             let status_code = e
-                .downcast_ref::<xvora_file_utils::storage_client::HttpUploadError>()
+                .downcast_ref::<file_utils::storage_client::HttpUploadError>()
                 .map(|e| e.status_code);
             record_upload_failure(
                 ctx,
@@ -845,7 +845,7 @@ pub(crate) async fn upload_session_metadata(
 pub(crate) async fn upload_unified_log(ctx: &PromptTraceContext, wait: UploadWait) {
     let session_id = ctx.session_info.id.0.to_string();
     let log_bytes = match tokio::task::spawn_blocking(move || {
-        xvora_telemetry::unified_log::snapshot_session_log(&session_id)
+        telemetry::unified_log::snapshot_session_log(&session_id)
     })
     .await
     {
@@ -882,7 +882,7 @@ pub(crate) async fn upload_unified_log(ctx: &PromptTraceContext, wait: UploadWai
     )
     .await;
     let full_log_bytes =
-        tokio::task::spawn_blocking(xvora_telemetry::unified_log::snapshot_log).await;
+        tokio::task::spawn_blocking(telemetry::unified_log::snapshot_log).await;
     let user_id = ctx
         .auth_manager
         .current_or_expired()
@@ -933,7 +933,7 @@ pub(crate) async fn upload_permission_events(
 }
 pub(crate) async fn upload_turn_messages(
     ctx: &PromptTraceContext,
-    _capture: xvora_chat_state::TurnCapture,
+    _capture: chat_state::TurnCapture,
     _wait: UploadWait,
 ) -> bool {
     super::manifest::skip_artifact(
@@ -1016,10 +1016,10 @@ pub(crate) async fn build_chat_history_session_state(
     }
 }
 pub(crate) async fn build_chat_history_then_move_capture(
-    capture: xvora_chat_state::TurnCapture,
+    capture: chat_state::TurnCapture,
 ) -> (
     Result<Vec<u8>, SessionStateBuildError>,
-    xvora_chat_state::TurnCapture,
+    chat_state::TurnCapture,
 ) {
     let session_state = build_chat_history_session_state(&capture.messages).await;
     (session_state, capture)
@@ -1070,14 +1070,14 @@ impl TraceExportSource for DynamicResolver {
     }
     fn proxy_attribution(
         &self,
-    ) -> Option<Arc<dyn xvora_file_utils::storage_client::Auth401AttributionCallback>> {
-        xvora_file_utils::gcs::StorageConfig::proxy_attribution(&self.with_auth())
+    ) -> Option<Arc<dyn file_utils::storage_client::Auth401AttributionCallback>> {
+        file_utils::gcs::StorageConfig::proxy_attribution(&self.with_auth())
     }
-    fn proxy_credentials(&self) -> Option<Arc<dyn xvora_auth::AuthCredentialProvider>> {
-        xvora_file_utils::gcs::StorageConfig::proxy_credentials(&self.with_auth())
+    fn proxy_credentials(&self) -> Option<Arc<dyn auth::AuthCredentialProvider>> {
+        file_utils::gcs::StorageConfig::proxy_credentials(&self.with_auth())
     }
     fn proxy_http_client(&self) -> Option<reqwest::Client> {
-        xvora_file_utils::gcs::StorageConfig::proxy_http_client(&self.with_auth())
+        file_utils::gcs::StorageConfig::proxy_http_client(&self.with_auth())
     }
     fn has_usable_credential(&self) -> bool {
         if let crate::session::repo_changes::UploadMethod::Proxy {
@@ -1178,13 +1178,13 @@ pub(crate) fn spawn_startup_spill_reconcile(
         match queue {
             Some(queue) => {
                 let report =
-                    xvora_workspace::recovery::run_startup_recovery(&grok_home, &queue).await;
+                    workspace::recovery::run_startup_recovery(&grok_home, &queue).await;
                 tracing::info!(?report, "startup spill recovery complete");
-                queue.cleanup_orphans(xvora_file_utils::queue::DEFAULT_MAX_AGE);
+                queue.cleanup_orphans(file_utils::queue::DEFAULT_MAX_AGE);
             }
             None => {
                 let purged = tokio::task::spawn_blocking(move || {
-                    xvora_workspace::recovery::purge_spilled_items(&grok_home)
+                    workspace::recovery::purge_spilled_items(&grok_home)
                 })
                 .await;
                 match purged {
@@ -2529,11 +2529,11 @@ pub(crate) mod tests {
     }
     /// Project dir under $HOME so `is_project_dir` passes; None in sandboxes or git-repo homes.
     fn home_project_dir() -> Option<tempfile::TempDir> {
-        let home = xvora_dirs::home_dir()?;
+        let home = dirs::home_dir()?;
         if home.ancestors().any(|p| p.join(".git").exists()) {
             return None;
         }
-        if !xvora_file_utils::workspace_classifier::is_project_dir(&home.join("probe")) {
+        if !file_utils::workspace_classifier::is_project_dir(&home.join("probe")) {
             return None;
         }
         tempfile::tempdir_in(home).ok()

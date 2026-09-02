@@ -185,7 +185,7 @@ impl SandboxManager {
             return Ok(());
         }
         if requires_hook_write_deny(&self.profile, workspace) {
-            xvora_config::ensure_grok_hook_slots(paths::grok_home().as_path())
+            config::ensure_grok_hook_slots(paths::grok_home().as_path())
                 .map_err(|e| anyhow::anyhow!("hook write-deny ensure failed: {e}"))?;
         }
         hook_write_deny::maybe_install_namespace_lockdown_inside_bwrap(&self.profile, workspace)
@@ -807,9 +807,9 @@ mod tests {
         let parent = root.join("sessions");
         let leaf = parent.join("extra-hooks");
         std::fs::create_dir_all(&leaf).unwrap();
-        let sources = [xvora_config::GlobalHookSource {
+        let sources = [config::GlobalHookSource {
             path: leaf.clone(),
-            kind: xvora_config::GlobalHookSourceKind::ConfiguredSource,
+            kind: config::GlobalHookSourceKind::ConfiguredSource,
         }];
         let plan = hook_write_deny::build_bwrap_plan(&sources).expect("plan");
         assert!(
@@ -927,7 +927,7 @@ mod tests {
         let ws = std::env::temp_dir().join(format!("grok-{tag}-{}-{nanos}", std::process::id()));
         let grok = ws.join(".grok");
         std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join(xvora_config::SANDBOX_CONFIG_FILENAME), toml_body).unwrap();
+        std::fs::write(grok.join(config::SANDBOX_CONFIG_FILENAME), toml_body).unwrap();
         ws
     }
     /// Create a temp workspace defining a `denytest` profile (extends `workspace`) with the given `deny` list.

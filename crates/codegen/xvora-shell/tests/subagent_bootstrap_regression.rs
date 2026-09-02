@@ -11,7 +11,7 @@ mod perf_harness;
 mod support;
 use support::*;
 use tempfile::TempDir;
-use xvora_shell::waterfall;
+use shell::waterfall;
 
 #[test]
 #[ignore = "perf regression tier; drives real subagent bursts; run with --ignored --nocapture"]

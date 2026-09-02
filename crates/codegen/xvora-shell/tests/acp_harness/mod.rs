@@ -7,12 +7,12 @@ use std::time::Duration;
 use agent_client_protocol::{self as acp, Agent as _};
 use serde_json::json;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::agent::mvp_agent::MvpAgent;
+use shell::agent::config::Config as AgentConfig;
+use shell::agent::mvp_agent::MvpAgent;
 
 /// Matches production's `MAX_BUFFER_SIZE` in `agent::app`.
 pub const DUPLEX_BUFFER_BYTES: usize = 8 * 1024 * 1024;
@@ -75,7 +75,7 @@ pub fn spawn_agent_local() -> AgentPipes {
         });
     tokio::task::spawn_local(
         GatewayReceiver::new(gw_rx, agent_conn)
-            .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
+            .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
             .run(),
     );
     tokio::task::spawn_local(agent_io);
@@ -250,24 +250,24 @@ fn set_test_env(grok_home: &std::path::Path, server_url: &str) {
 /// since each test wants a different `acp::Client`.
 pub fn run_agent_test<F, Fut>(body: F)
 where
-    F: FnOnce(std::path::PathBuf, std::rc::Rc<xvora_test_support::MockInferenceServer>) -> Fut,
+    F: FnOnce(std::path::PathBuf, std::rc::Rc<test_support::MockInferenceServer>) -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
     run_agent_test_with_models(
-        vec![xvora_test_support::MockModelEntry::new("test-model")],
+        vec![test_support::MockModelEntry::new("test-model")],
         body,
     )
 }
 
 /// [`run_agent_test`] with a custom `/v1/models` catalog.
 #[allow(dead_code)]
-pub fn run_agent_test_with_models<F, Fut>(models: Vec<xvora_test_support::MockModelEntry>, body: F)
+pub fn run_agent_test_with_models<F, Fut>(models: Vec<test_support::MockModelEntry>, body: F)
 where
-    F: FnOnce(std::path::PathBuf, std::rc::Rc<xvora_test_support::MockInferenceServer>) -> Fut,
+    F: FnOnce(std::path::PathBuf, std::rc::Rc<test_support::MockInferenceServer>) -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
     let _env_guard = hold_global_env();
-    xvora_extra_ca::ensure_default_crypto_provider();
+    extra_ca::ensure_default_crypto_provider();
 
     // Own thread: agent startup blocks on a models prefetch and would starve the mock.
     let mock_rt = tokio::runtime::Builder::new_multi_thread()
@@ -277,7 +277,7 @@ where
         .expect("mock runtime");
     let server = std::rc::Rc::new(
         mock_rt
-            .block_on(xvora_test_support::MockInferenceServer::start_with_models(
+            .block_on(test_support::MockInferenceServer::start_with_models(
                 models,
             ))
             .expect("mock server"),

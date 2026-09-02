@@ -23,7 +23,7 @@ use std::sync::Arc;
 use educe::Educe;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
-use xvora_tool_types::{SubagentCapabilityMode, SubagentIsolationMode, WaitMode};
+use tool_types::{SubagentCapabilityMode, SubagentIsolationMode, WaitMode};
 
 use crate::register_resource;
 
@@ -207,8 +207,8 @@ pub struct SubagentRuntimeOverrides {
     pub loop_task_id: Option<String>,
 }
 
-/// Re-export of [`xvora_tool_types::is_not_sentinel`] for existing call sites.
-pub use xvora_tool_types::is_not_sentinel;
+/// Re-export of [`tool_types::is_not_sentinel`] for existing call sites.
+pub use tool_types::is_not_sentinel;
 
 /// Sanitize a model-emitted `cwd` argument for the `task` tool.
 ///

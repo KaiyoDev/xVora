@@ -34,10 +34,10 @@ fn auth_provider_env_set() -> bool {
 }
 
 fn auth_provider_config_set() -> bool {
-    let Ok(raw) = xvora_shell::config::load_effective_config() else {
+    let Ok(raw) = shell::config::load_effective_config() else {
         return false;
     };
-    let Ok(cfg) = xvora_shell::agent::config::Config::new_from_toml_cfg(&raw) else {
+    let Ok(cfg) = shell::agent::config::Config::new_from_toml_cfg(&raw) else {
         return false;
     };
     cfg.grok_com_config

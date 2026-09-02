@@ -1,7 +1,7 @@
 //! Tests for session loading, restore, pickers, and deep search.
 use super::*;
 use crate::views::modal::ActiveModal;
-use xvora_shell::session::unified_list::ListScope;
+use shell::session::unified_list::ListScope;
 /// Opening the cancel-turn picker while scrollback is focused must hand keyboard focus to the picker.
 /// Otherwise up/down keys go to scrollback and the modal is only navigable via mouse.
 #[test]
@@ -42,7 +42,7 @@ fn session_loaded_with_restore_shows_summary_in_scrollback() {
             restore_summary: Some(
                 "checked out abc12345, staged: true, unstaged: false, untracked: 3".into(),
             ),
-            restore_degree: Some(xvora_workspace::session::git::RestoreDegree::Full),
+            restore_degree: Some(workspace::session::git::RestoreDegree::Full),
             running_prompt_id: None,
             scheduler_background_loops: None,
         }),
@@ -71,7 +71,7 @@ fn session_loaded_with_restore_shows_summary_in_scrollback() {
     assert!(has_restore_msg, "expected restore summary in scrollback");
     assert_eq!(
         app.agents[&id].session.restore_degree,
-        Some(xvora_workspace::session::git::RestoreDegree::Full),
+        Some(workspace::session::git::RestoreDegree::Full),
         "SessionLoaded must store restore_degree on the session"
     );
 }
@@ -231,7 +231,7 @@ fn session_title_hydration_skips_control_only_title() {
 /// Dirty-but-nonempty on-disk titles are stripped then capped before restore.
 #[test]
 fn session_title_hydration_sanitizes_and_caps_dirty_title() {
-    use xvora_shell::session::persistence::MAX_TITLE_SCALARS;
+    use shell::session::persistence::MAX_TITLE_SCALARS;
     let mut app = test_app();
     dispatch(
         Action::LoadSession("sess-title".into(), None, false),
@@ -686,7 +686,7 @@ fn session_loaded_without_restore_resets_restore_degree() {
             models: None,
             code_restored: true,
             restore_summary: Some("checked out abc".into()),
-            restore_degree: Some(xvora_workspace::session::git::RestoreDegree::Full),
+            restore_degree: Some(workspace::session::git::RestoreDegree::Full),
             running_prompt_id: None,
             scheduler_background_loops: None,
         }),
@@ -694,7 +694,7 @@ fn session_loaded_without_restore_resets_restore_degree() {
     );
     assert_eq!(
         app.agents[&id].session.restore_degree,
-        Some(xvora_workspace::session::git::RestoreDegree::Full)
+        Some(workspace::session::git::RestoreDegree::Full)
     );
     dispatch(
         Action::TaskComplete(TaskResult::SessionLoaded {
@@ -889,7 +889,7 @@ fn session_restored_sticky_chat_sets_conversation_entry() {
     );
     assert_eq!(
         agent.rename_kind(),
-        xvora_shell::session::unified_list::SessionKind::Chat
+        shell::session::unified_list::SessionKind::Chat
     );
 }
 /// Completing a mid-session login restores the agent view instead of running the startup load-session flow.
@@ -2334,7 +2334,7 @@ fn build_welcome_esc_dismisses_spinner_only_loading_picker() {
 /// It cannot leak its rows or query stamp into the replacement Exclude-policy modal.
 #[test]
 fn build_mode_close_and_reopen_drop_opposite_policy_response() {
-    use xvora_shell::session::unified_list::HeadlessPolicy;
+    use shell::session::unified_list::HeadlessPolicy;
     let mut app = test_app_with_agent();
     assert!(!app.chat_mode);
     let _ = dispatch(Action::ShowSessionPicker, &mut app);

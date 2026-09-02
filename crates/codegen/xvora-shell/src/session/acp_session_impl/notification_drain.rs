@@ -127,7 +127,7 @@ impl SessionActor {
             if state.running_task.is_some() || state.finalization_gate.is_active() {
                 let queue_depth = state.pending_inputs.len();
                 if queue_depth > 0 {
-                    xvora_telemetry::unified_log::debug(
+                    telemetry::unified_log::debug(
                         "shell.prompt.start_blocked",
                         Some(self.session_info.id.0.as_ref()),
                         Some(serde_json::json!({
@@ -176,7 +176,7 @@ impl SessionActor {
         }
 
         if state.hook_block_held() {
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "shell.prompt.start_blocked",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -252,7 +252,7 @@ impl SessionActor {
         {
             let front_prompt_id = front.prompt_id.as_str();
             let queue_depth = state.pending_inputs.len();
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "shell.prompt.start_blocked",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -331,7 +331,7 @@ impl SessionActor {
                 gate.set(false);
             }
             state.notifications_suppressed = false;
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "shell.task_wake.gate_cleared",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({ "reason": "queued_user_promotion" })),
@@ -350,7 +350,7 @@ impl SessionActor {
             .borrow()
             .tool_bridge()
             .update_resource(
-                xvora_tools::implementations::grok_build::task::types::CurrentPromptIdResource(
+                tools::implementations::grok_build::task::types::CurrentPromptIdResource(
                     prompt_id.clone(),
                 ),
             )
@@ -411,7 +411,7 @@ impl SessionActor {
         };
         let session_dir = crate::session::persistence::session_dir(&self.session_info);
         let backend =
-            xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(event_tx);
+            tools::implementations::grok_build::task::backend::ChannelBackend::new(event_tx);
         let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel();
         crate::agent::subagent::reconcile_live_orphaned_subagents(
             &backend,
@@ -434,12 +434,12 @@ impl SessionActor {
     #[cfg(test)]
     pub(super) async fn list_running_subagents(
         &self,
-    ) -> Vec<xvora_tools::implementations::grok_build::task::types::SubagentInspection> {
+    ) -> Vec<tools::implementations::grok_build::task::types::SubagentInspection> {
         self.reconcile_live_orphaned_subagents().await;
         let Some(event_tx) = self.tool_context.subagent_event_tx.clone() else {
             return Vec::new();
         };
-        xvora_tools::implementations::grok_build::task::backend::ChannelBackend::new(event_tx)
+        tools::implementations::grok_build::task::backend::ChannelBackend::new(event_tx)
             .list_running(self.session_info.id.0.as_ref())
             .await
     }
@@ -564,7 +564,7 @@ impl SessionActor {
         }
         for contributor in self.extension_registry.session_lifecycle_contributors() {
             contributor
-                .on_session_idle(&xvora_agent_lifecycle::SessionIdleInput)
+                .on_session_idle(&agent_lifecycle::SessionIdleInput)
                 .await;
         }
     }
@@ -580,7 +580,7 @@ impl SessionActor {
         let Some(buffer) = &self.tool_context.monitor_event_buffer else {
             return;
         };
-        for event in xvora_tools::implementations::grok_build::monitor::types::drain_owned(
+        for event in tools::implementations::grok_build::monitor::types::drain_owned(
             buffer,
             Some(self.session_info.id.0.as_ref()),
         ) {
@@ -631,7 +631,7 @@ impl SessionActor {
         notifications: &[PendingNotification],
         task_output_tool_name: &str,
     ) -> Vec<acp::ContentBlock> {
-        use xvora_tools::implementations::grok_build::monitor::types::MonitorEventNotification;
+        use tools::implementations::grok_build::monitor::types::MonitorEventNotification;
 
         let completion_task_ids: std::collections::HashSet<&str> = notifications
             .iter()
@@ -677,7 +677,7 @@ impl SessionActor {
         }
         if let (Some(index), Some(batch)) = (
             monitor_section_idx,
-            xvora_tools::reminders::task_completion::format_monitor_events(
+            tools::reminders::task_completion::format_monitor_events(
                 &monitor_events,
                 Some(task_output_tool_name),
             ),
@@ -762,7 +762,7 @@ mod live_orphan_hook_tests {
     use crate::agent::subagent::{LIVE_ORPHAN_RECONCILE_REASON, SubagentMeta};
     use crate::extensions::notification::SessionUpdate;
     use crate::session::persistence::PersistenceMsg;
-    use xvora_tools::implementations::grok_build::task::types::{
+    use tools::implementations::grok_build::task::types::{
         SubagentEvent, SubagentInspection, SubagentSnapshot, SubagentSnapshotStatus,
     };
 

@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::sync::Once;
 
-use xvora_sampler::{SamplerConfig, SamplingClient};
+use sampler::{SamplerConfig, SamplingClient};
 use xvora_sampling_types::{ContentPart, ConversationItem, ConversationRequest, UserItem};
 
 /// These wire tests own a dedicated binary: the pinned env latches

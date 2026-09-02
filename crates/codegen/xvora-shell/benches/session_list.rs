@@ -30,10 +30,10 @@ use criterion::{
 use fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 use filetime::{FileTime, set_file_mtime};
 use tempfile::TempDir;
-use xvora_shell::session::info::Info;
-use xvora_shell::session::persistence::Summary;
-use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
-use xvora_shell::session::unified_list::{ListReq, UnifiedListResult, build_unified_list};
+use shell::session::info::Info;
+use shell::session::persistence::Summary;
+use shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
+use shell::session::unified_list::{ListReq, UnifiedListResult, build_unified_list};
 
 const WORKSPACE_COUNT: usize = 3_000;
 // Bump whenever the shape of the workload changes, even if aggregate counts do not
@@ -106,7 +106,7 @@ impl Fixture {
             } else {
                 benchmark_unrelated_cwd(workspace_index - SAME_REPO_CANDIDATE_COUNT)
             };
-            let encoded = xvora_shell::util::grok_home::encode_cwd_dirname(&cwd);
+            let encoded = shell::util::grok_home::encode_cwd_dirname(&cwd);
             let cwd_dir = sessions_root.join(encoded);
             fs::create_dir(&cwd_dir).expect("create encoded cwd directory");
             let session_count = if same_repo {
@@ -195,7 +195,7 @@ impl Fixture {
     }
 
     fn assert_correct(&self, runtime: &tokio::runtime::Runtime) {
-        let discovered = xvora_shell::session::worktree::candidate_worktree_cwds_for_same_repo(
+        let discovered = shell::session::worktree::candidate_worktree_cwds_for_same_repo(
             Path::new(&self.picker_cwd),
         )
         .expect("discover same-repo candidate cwd paths");
@@ -314,7 +314,7 @@ fn create_same_repo_cwds(home: &Path) -> SameRepoTopology {
         .expect("create initial git commit");
 
     let main = dunce::canonicalize(&repo_dir).expect("canonicalize main checkout");
-    let worktree_base = xvora_shell::session::worktree::worktree_base_dir(&main);
+    let worktree_base = shell::session::worktree::worktree_base_dir(&main);
     fs::create_dir_all(&worktree_base).expect("create worktree base");
     let canonical_worktree_base =
         dunce::canonicalize(&worktree_base).expect("canonicalize worktree base");
@@ -355,7 +355,7 @@ fn create_same_repo_cwds(home: &Path) -> SameRepoTopology {
             created_at: index as i64 + 1,
             last_accessed_at: None,
             status: WorktreeStatus::Alive,
-            metadata: Some(xvora_shell::session::worktree::build_label_metadata(
+            metadata: Some(shell::session::worktree::build_label_metadata(
                 label, false,
             )),
         })
@@ -375,7 +375,7 @@ fn create_same_repo_cwds(home: &Path) -> SameRepoTopology {
         created_at: DB_TRACKED_WORKTREE_COUNT as i64,
         last_accessed_at: None,
         status: WorktreeStatus::Dead,
-        metadata: Some(xvora_shell::session::worktree::build_label_metadata(
+        metadata: Some(shell::session::worktree::build_label_metadata(
             &db_only_label,
             false,
         )),
@@ -563,7 +563,7 @@ fn bench_session_list(c: &mut Criterion) {
     unsafe {
         std::env::set_var("GROK_HOME", home.path());
     }
-    assert_eq!(xvora_shell::util::grok_home::grok_home(), home.path());
+    assert_eq!(shell::util::grok_home::grok_home(), home.path());
     let fixture = Fixture::new(home);
 
     let runtime = tokio::runtime::Builder::new_current_thread()

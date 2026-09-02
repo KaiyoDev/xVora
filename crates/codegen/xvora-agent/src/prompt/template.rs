@@ -56,8 +56,8 @@ pub const COMPACT_SYSTEM_PROMPT: &str = "You are an AI coding agent. You operate
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    use xvora_tools::types::template_renderer::TemplateRenderer;
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::template_renderer::TemplateRenderer;
+    use tools::types::tool::ToolKind;
 
     /// Verify the pre-generated encrypted file matches the current template sources.
     /// If this fails, run: `python3 scripts/encrypt_templates.py`

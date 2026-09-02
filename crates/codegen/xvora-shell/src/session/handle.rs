@@ -72,7 +72,7 @@ pub struct SessionHandle {
         std::sync::Arc<arc_swap::ArcSwapOption<xvora_sampling_types::ToolOverrides>>,
     pub spawn_snapshot: SpawnSnapshot,
     pub hunk_tracker_handle: HunkTrackerHandle,
-    pub chat_state_handle: xvora_chat_state::ChatStateHandle,
+    pub chat_state_handle: chat_state::ChatStateHandle,
     /// Handle to session signals (used for completion tracking)
     pub signals_handle: super::signals::SessionSignalsHandle,
     /// Shared gate controlling whether the session actor forwards notifications to the client via the gateway.
@@ -135,11 +135,11 @@ pub struct SessionHandle {
     /// Consumed (reset to `false`) atomically on use via `compare_exchange`.
     /// Set via `x.ai/debug/arm_auto_compact`.
     pub force_compact: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    pub permission_handle: xvora_workspace::permission::PermissionHandle,
+    pub permission_handle: workspace::permission::PermissionHandle,
     /// The parent SessionActor's live `Auth401AttributionCallback` (if any).
     /// Exposed on the handle so `MvpAgent::build_subagent_spawn_context` can copy it into the spawn context.
     /// Subagents then inherit the parent's callback rather than getting a fresh one, preserving the parent's session_id on the child's emits.
-    pub attribution_callback: Option<xvora_sampler::SharedAttributionCallback>,
+    pub attribution_callback: Option<sampler::SharedAttributionCallback>,
     /// The agent definition name for this session.
     pub agent_name: String,
     pub managed_mcp_proxy_base_url: String,
@@ -149,15 +149,15 @@ pub struct SessionHandle {
     /// Hook registry for this session (snapshot from spawn time).
     pub hook_registry: Option<std::sync::Arc<xvora_hooks::discovery::HookRegistry>>,
     /// Typed workspace operations handle (agent sessions use local ops).
-    pub workspace_ops: xvora_workspace::WorkspaceOps,
+    pub workspace_ops: workspace::WorkspaceOps,
     /// Subagents inherit the parent's backend so background tasks and monitors survive the subagent's exit.
-    pub terminal_backend: Option<std::sync::Arc<dyn xvora_tools::computer::types::TerminalBackend>>,
+    pub terminal_backend: Option<std::sync::Arc<dyn tools::computer::types::TerminalBackend>>,
     /// Notification handle for this session's tool bridge.
     /// Subagents use this to reparent surviving tasks' notification handles on exit so events route to the parent's notification bridge.
-    pub tools_notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
+    pub tools_notification_handle: Option<tools::notification::types::ToolNotificationHandle>,
     /// Subagents inherit the parent's handle so scheduled tasks survive the subagent's exit.
     pub scheduler_handle:
-        Option<xvora_tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
+        Option<tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
 }
 impl SessionHandle {
     pub(crate) fn message_delivery(&self) -> super::message_delivery::MessageDeliveryHandle {
@@ -167,7 +167,7 @@ impl SessionHandle {
         )
     }
     /// Last assistant `model_id` / `model_fingerprint` in conversation (global, not turn-scoped).
-    pub(crate) async fn get_model_metadata(&self) -> xvora_chat_state::ModelMetadata {
+    pub(crate) async fn get_model_metadata(&self) -> chat_state::ModelMetadata {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -176,7 +176,7 @@ impl SessionHandle {
         {
             rx.await.unwrap_or_default()
         } else {
-            xvora_chat_state::ModelMetadata::default()
+            chat_state::ModelMetadata::default()
         }
     }
     /// Move a foreground bash command to background by tool_call_id.
@@ -199,8 +199,8 @@ impl SessionHandle {
     pub(crate) async fn kill_background_task(
         &self,
         task_id: &str,
-        source: xvora_tools::types::KillSource,
-    ) -> Result<xvora_tools::types::KillOutcome, String> {
+        source: tools::types::KillSource,
+    ) -> Result<tools::types::KillOutcome, String> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -242,7 +242,7 @@ impl SessionHandle {
     }
     /// List all background tasks.
     /// Routes through the session actor to the ToolBridge's TerminalBackend.
-    pub async fn list_tasks(&self) -> Option<Vec<xvora_tools::types::TaskSnapshot>> {
+    pub async fn list_tasks(&self) -> Option<Vec<tools::types::TaskSnapshot>> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -256,7 +256,7 @@ impl SessionHandle {
     /// Get hooks list for the pager modal.
     pub(crate) async fn get_hooks_list(
         &self,
-    ) -> Option<xvora_hooks_plugins_types::HooksListResponse> {
+    ) -> Option<hooks_plugins_types::HooksListResponse> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -270,8 +270,8 @@ impl SessionHandle {
     /// Execute a hooks management action from the pager modal.
     pub(crate) async fn execute_hooks_action(
         &self,
-        action: xvora_hooks_plugins_types::HooksAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
+        action: hooks_plugins_types::HooksAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -288,8 +288,8 @@ impl SessionHandle {
     /// Execute a plugins management action from the pager modal.
     pub(crate) async fn execute_plugins_action(
         &self,
-        action: xvora_hooks_plugins_types::PluginsAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
+        action: hooks_plugins_types::PluginsAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -306,7 +306,7 @@ impl SessionHandle {
     /// This session's plugin registry, including plugins loaded via `_meta.pluginDirs`.
     pub(crate) async fn plugins_list(
         &self,
-    ) -> Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>> {
+    ) -> Option<std::sync::Arc<agent::plugins::PluginRegistry>> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx

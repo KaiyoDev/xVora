@@ -17,7 +17,7 @@ tokio = { workspace = true, features = ["sync", "rt", "macros"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 # `CompactionDetail`, embedded in `CompactionMode::Segments`.
-xvora-compaction-transcript = { workspace = true }
+compaction-transcript = { workspace = true }
 xvora-compaction = { path = "../../common/xvora-compaction" }
 xvora-sampling-types = { path = "../xvora-sampling-types" }
 token-estimation = { workspace = true, package = "xvora-token-estimation" }

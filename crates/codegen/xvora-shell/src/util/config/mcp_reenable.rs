@@ -8,7 +8,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use agent_client_protocol as acp;
-use xvora_workspace::permission::resolution::McpServerAllowlist;
+use workspace::permission::resolution::McpServerAllowlist;
 
 use crate::session::managed_mcp::{McpDiscoveryInputs, discover_mcp_definitions_ignoring_disable};
 
@@ -109,7 +109,7 @@ pub(crate) fn reenableable_disabled_stubs(
         return BTreeSet::new();
     }
     let index = McpDefinitionIndex::build(inputs);
-    let settings = xvora_workspace::permission::resolution::managed_settings();
+    let settings = workspace::permission::resolution::managed_settings();
     index.reenableable_for_list(disabled_names, catalog_names, &settings.mcp_allowlist)
 }
 
@@ -117,8 +117,8 @@ pub(crate) fn reenableable_disabled_stubs(
 mod tests {
     use super::*;
     use crate::session::managed_mcp::mcp_server_name;
-    use xvora_tools::types::compat::CompatConfig;
-    use xvora_workspace::permission::resolution::AllowedMcpServer;
+    use tools::types::compat::CompatConfig;
+    use workspace::permission::resolution::AllowedMcpServer;
 
     fn unrestricted() -> McpServerAllowlist {
         McpServerAllowlist::new(vec![], vec![], None)
@@ -160,15 +160,15 @@ mod tests {
     /// Isolate HOME/GROK_HOME so ambient user MCP config cannot pad discovery.
     fn isolated_home() -> (
         tempfile::TempDir,
-        xvora_test_support::EnvGuard,
-        xvora_test_support::EnvGuard,
+        test_support::EnvGuard,
+        test_support::EnvGuard,
     ) {
         let home = tempfile::tempdir().unwrap();
         let grok_home = home.path().join(".grok");
         std::fs::create_dir_all(&grok_home).unwrap();
         std::fs::write(grok_home.join("config.toml"), "").unwrap();
-        let home_guard = xvora_test_support::EnvGuard::set("HOME", home.path());
-        let grok_guard = xvora_test_support::EnvGuard::set("GROK_HOME", &grok_home);
+        let home_guard = test_support::EnvGuard::set("HOME", home.path());
+        let grok_guard = test_support::EnvGuard::set("GROK_HOME", &grok_home);
         (home, home_guard, grok_guard)
     }
 

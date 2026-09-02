@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::Value;
-use xvora_tool_runtime::{
+use tool_runtime::{
     ContentBlock, ToolChatCompletionResponse, ToolError, ToolProgress, TypedToolOutput,
 };
 

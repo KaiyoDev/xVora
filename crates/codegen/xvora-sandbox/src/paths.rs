@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 /// Grok state directory (`$GROK_HOME` or `~/.grok`).
 pub(crate) fn grok_home() -> PathBuf {
-    xvora_config::grok_home()
+    config::grok_home()
 }
 
 /// On-disk JSONL audit log under the sessions directory.

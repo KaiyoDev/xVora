@@ -70,7 +70,7 @@ fn set_yolo_mode_on_drains_permission_queue_with_allow_once() {
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: xvora_acp_lib::AcpArgs {
+        request: acp_lib::AcpArgs {
             request,
             response_tx,
         },
@@ -520,7 +520,7 @@ fn push_bash_allow_always(
 ) -> tokio::sync::oneshot::Receiver<Result<acp::RequestPermissionResponse, acp::Error>> {
     use crate::views::permission_view::PermissionViewState;
     use std::sync::Arc;
-    use xvora_workspace::permission::bash_command_splitting::BashCommandHighlights;
+    use workspace::permission::bash_command_splitting::BashCommandHighlights;
 
     let (tx, rx) = tokio::sync::oneshot::channel();
     let request = acp::RequestPermissionRequest::new(
@@ -544,7 +544,7 @@ fn push_bash_allow_always(
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: xvora_acp_lib::AcpArgs {
+        request: acp_lib::AcpArgs {
             request,
             response_tx: tx,
         },
@@ -574,7 +574,7 @@ fn push_bash_allow_always(
 
 fn selected_terms(
     resp: acp::RequestPermissionResponse,
-) -> xvora_workspace::permission::BashCommandSelectedTerms {
+) -> workspace::permission::BashCommandSelectedTerms {
     let meta = resp.meta.expect("bash selection meta");
     serde_json::from_value(serde_json::Value::Object(meta)).expect("selection terms")
 }

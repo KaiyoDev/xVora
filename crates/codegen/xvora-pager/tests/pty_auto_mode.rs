@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use xvora_pager_pty_harness::{PtyHarness, pager_binary};
-use xvora_test_support::TestSandbox;
+use test_support::TestSandbox;
 
 const ROWS: u16 = 40;
 const COLS: u16 = 120;
@@ -80,7 +80,7 @@ fn prepare_sandbox(sandbox: &mut TestSandbox, gate_on: bool) -> Vec<(String, Str
         ("TMUX".into(), "".into()),
     ];
     // Pin the feature gate explicitly so the cycle is deterministic regardless of the developer's shell
-    // `GROK_AUTO_PERMISSION_MODE` is the highest gate layer below requirements; "1" and "0" parse to on and off (`xvora_config::env_bool`)
+    // `GROK_AUTO_PERMISSION_MODE` is the highest gate layer below requirements; "1" and "0" parse to on and off (`config::env_bool`)
     // portable-pty merges this over the inherited environment, so a value exported in the shell can't flip the result
     // Auto is in the ring with the gate on and skipped with it off
     env.push((

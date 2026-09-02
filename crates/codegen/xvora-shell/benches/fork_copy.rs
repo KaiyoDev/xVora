@@ -12,9 +12,9 @@ use criterion::{
     BenchmarkId, Criterion, SamplingMode, Throughput, criterion_group, criterion_main,
 };
 use tempfile::TempDir;
-use xvora_shell::session::info::Info;
-use xvora_shell::session::storage::{CopySessionOptions, JsonlStorageAdapter, StorageAdapter};
-use xvora_shell::session::testkit::synth::make_session_with_size_blocking;
+use shell::session::info::Info;
+use shell::session::storage::{CopySessionOptions, JsonlStorageAdapter, StorageAdapter};
+use shell::session::testkit::synth::make_session_with_size_blocking;
 
 fn bench_fork_copy(c: &mut Criterion) {
     let target_mb: u64 = std::env::var("FORK_BENCH_MB")

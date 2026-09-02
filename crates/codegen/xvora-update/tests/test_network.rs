@@ -9,8 +9,8 @@
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
-use xvora_update::auto_update::{download_silent, download_with_progress};
-use xvora_update::version::fetch_gcs_version_from_base;
+use update::auto_update::{download_silent, download_with_progress};
+use update::version::fetch_gcs_version_from_base;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Happy-path tests (fast, no retries triggered).

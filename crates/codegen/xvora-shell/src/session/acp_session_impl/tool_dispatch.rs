@@ -12,10 +12,10 @@ const BASH_MODE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60
 ///
 /// Agent sessions always use local workspace ops (in-process toolset).
 pub(super) async fn dispatch_tool(
-    workspace_ops: &xvora_workspace::WorkspaceOps,
+    workspace_ops: &workspace::WorkspaceOps,
     prepared: &PreparedToolCall,
     session_id: &str,
-) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+) -> Result<ToolRunResult, tool_runtime::ToolError> {
     tracing::debug!(
         tool = %prepared.tool_name,
         call_id = %prepared.tool_call_id.0,
@@ -87,15 +87,15 @@ fn canonicalize_existing_ancestor(path: &Path) -> Option<PathBuf> {
 
 /// Pull the path a read/list tool targets and classify it against the store.
 /// Keys span harnesses: `read_file` uses `target_file`, grep uses `path`, `list_dir` uses `target_directory`.
-/// The path grammar lives in `xvora_compaction_transcript`.
+/// The path grammar lives in `compaction_transcript`.
 pub(super) fn compaction_artifact_read(
     args: &serde_json::Value,
-) -> Option<xvora_compaction_transcript::CompactionArtifact> {
+) -> Option<compaction_transcript::CompactionArtifact> {
     let path = str_arg(
         args,
         &["target_file", "file_path", "path", "target_directory"],
     )?;
-    xvora_compaction_transcript::classify_compaction_path(path)
+    compaction_transcript::classify_compaction_path(path)
 }
 
 /// Map a backend-hosted tool name to a user-facing title, ACP ToolKind, and `raw_input` JSON for display in the pager's tool call UI.
@@ -168,7 +168,7 @@ pub(super) fn resolve_session_shell() -> String {
 
     #[cfg(not(unix))]
     {
-        xvora_config::shell::detect_windows_shell()
+        config::shell::detect_windows_shell()
             .name()
             .to_string()
     }
@@ -238,9 +238,9 @@ impl SessionActor {
 
         // Send initial ToolCall to register with TUI
 
-        use xvora_tools::types::ToolInput;
+        use tools::types::ToolInput;
         // Use the stripped command as the description so the pager shows the real command (not a generic label) while satisfying the required field
-        let title_command = xvora_tools::util::strip_redundant_session_cd(
+        let title_command = tools::util::strip_redundant_session_cd(
             &command,
             self.tool_context.cwd.as_path(),
         );
@@ -257,7 +257,7 @@ impl SessionActor {
             agent
                 .tool_bridge()
                 .toolset()
-                .tool_name_for_kind(xvora_tools::types::tool::ToolKind::Execute)
+                .tool_name_for_kind(tools::types::tool::ToolKind::Execute)
         };
         let bash_meta = match exec_wire {
             Some(wire) => self.stamp_tool_meta(bash_marker.clone(), &wire, Some(&tool_input)),
@@ -404,7 +404,7 @@ pub(crate) const MAX_ARGS_IN_ERROR: usize = 2_000;
 /// The JSON position (e.g. a missing `"` before a key name) lets the model fix a one-character typo rather than regenerating a thousand-line file.
 pub(super) fn build_tool_parse_error_message(
     function_name: &str,
-    err: &xvora_tool_runtime::ToolError,
+    err: &tool_runtime::ToolError,
     raw_arguments: &str,
 ) -> String {
     let mut msg = format!("Failed to parse arguments for tool `{function_name}`: {err}");

@@ -23,7 +23,7 @@ use std::time::{Duration, Instant};
 /// re-parents to pid 1 and whether that init reaps it promptly is
 /// environmental; the harness's contract is that it stops *running*.
 fn pid_is_running(pid: u32) -> bool {
-    !xvora_tty_utils::process_not_running(pid)
+    !tty_utils::process_not_running(pid)
 }
 
 /// Holder-fixture binary: cargo sets `CARGO_BIN_EXE_pty_orphan_holder`; Bazel
@@ -53,17 +53,17 @@ fn assert_no_orphan_after_holder_killed_by(signal: libc::c_int) {
         .stderr(Stdio::inherit());
     // Detach from the test runner's controlling TTY (workspace spawn hygiene;
     // composable with the pdeathsig arm below — setsid does not clear it).
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     // The regression test must not itself leak: if THIS test process dies
     // ungracefully while blocked below, the kernel takes the holder (and the
     // holder's death takes its pdeathsig-armed PTY child).
-    xvora_tty_utils::kill_on_parent_death_std(&mut cmd);
+    tty_utils::kill_on_parent_death_std(&mut cmd);
     // Killed+reaped on drop: an assertion failure between spawn and the
     // explicit kill (bad stdout, parse failure, sanity assert) must not leak
     // the holder's infinite loop either.
     #[allow(clippy::disallowed_methods)] // guarded by KillOnDrop below
     let mut holder =
-        xvora_tty_utils::KillOnDrop::new(cmd.spawn().expect("spawn pty_orphan_holder fixture"));
+        tty_utils::KillOnDrop::new(cmd.spawn().expect("spawn pty_orphan_holder fixture"));
 
     // Bounded read of the CHILD_PID line: a wedged holder must fail the test
     // (and be killed by the guard), not hang it. The reader thread exits on

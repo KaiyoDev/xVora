@@ -13,7 +13,7 @@ use serde::Serialize;
 
 use crate::agent::session_registry_client::{SessionRecord, SessionRegistryClient};
 use crate::session::persistence::{Summary, list_summaries};
-use xvora_workspace::session::git::normalize_repo_url;
+use workspace::session::git::normalize_repo_url;
 
 pub const REMOTE_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -212,7 +212,7 @@ pub(crate) async fn fetch_lanes(
             return Vec::new();
         }
         cwd.map(|c| {
-            xvora_workspace::session::git::resolve_normalized_remote_urls(std::path::Path::new(c))
+            workspace::session::git::resolve_normalized_remote_urls(std::path::Path::new(c))
         })
         .unwrap_or_default()
     };

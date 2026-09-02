@@ -52,6 +52,6 @@ pub use persistence::{
 };
 pub use types::*;
 pub use usage::{UsageLedger, UsageTotals};
-// Re-exported so `xvora_chat_state::CompactionDetail` stays a working path for
+// Re-exported so `chat_state::CompactionDetail` stays a working path for
 // existing callers.
-pub use xvora_compaction_transcript::CompactionDetail;
+pub use compaction_transcript::CompactionDetail;

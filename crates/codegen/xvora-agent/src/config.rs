@@ -7,14 +7,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use strum::{AsRefStr, Display, EnumIter, EnumString, IntoStaticStr};
-use xvora_tools::implementations::codex;
-use xvora_tools::implementations::grok_build;
-use xvora_tools::implementations::grok_build_concise;
-use xvora_tools::implementations::memory;
-use xvora_tools::implementations::opencode;
-use xvora_tools::implementations::search_tool;
-use xvora_tools::implementations::use_tool;
-use xvora_tools::registry::types::{ToolConfig, ToolServerConfig};
+use tools::implementations::codex;
+use tools::implementations::grok_build;
+use tools::implementations::grok_build_concise;
+use tools::implementations::memory;
+use tools::implementations::opencode;
+use tools::implementations::search_tool;
+use tools::implementations::use_tool;
+use tools::registry::types::{ToolConfig, ToolServerConfig};
 /// Process-global registry of externally-provided toolset presets.
 ///
 /// Public presets are enumerated by [`preset_names`] / [`all_toolset_presets`] and resolvable via [`toolset_for_preset`].
@@ -297,9 +297,9 @@ fn grok_build_concise_toolset() -> ToolServerConfig {
 /// `hashline_tools` should be the 3 hashline `ToolConfig` entries produced by `FileToolset::Hashline.tool_configs(&hashline_config)`.
 /// They carry the scheme parameters as tool params.
 pub fn grok_build_hashline_toolset(
-    hashline_tools: Vec<xvora_tools::registry::types::ToolConfig>,
+    hashline_tools: Vec<tools::registry::types::ToolConfig>,
 ) -> ToolServerConfig {
-    let mut tools: Vec<xvora_tools::registry::types::ToolConfig> = vec![bash_tool_config()];
+    let mut tools: Vec<tools::registry::types::ToolConfig> = vec![bash_tool_config()];
     tools.extend(hashline_tools);
     tools.extend([
         (&grok_build::ListDirTool).into(),
@@ -710,7 +710,7 @@ pub struct AgentDefinition {
     /// Runtime capability mode that constrains which tool kinds the agent can use.
     /// Applied during subagent spawn in `handle_subagent_request` by filtering the definition's `tool_config` before session creation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub capability_mode: Option<xvora_tool_types::SubagentCapabilityMode>,
+    pub capability_mode: Option<tool_types::SubagentCapabilityMode>,
     #[serde(default)]
     pub permission_mode: PermissionMode,
     #[serde(default)]
@@ -1092,7 +1092,7 @@ impl MemoryScope {
     pub fn resolve_dir(self, agent_name: &str, project_cwd: &std::path::Path) -> ResolvedMemoryDir {
         match self {
             Self::User => ResolvedMemoryDir {
-                path: xvora_config::grok_home()
+                path: config::grok_home()
                     .join("agent-memory")
                     .join(agent_name),
                 is_project_scoped: false,
@@ -1194,7 +1194,7 @@ impl serde::Serialize for McpServerRef {
 /// Bash tool config overrides (agent-definition layer).
 ///
 /// NOTE: Uses `camelCase` for YAML frontmatter.
-/// The `AgentBuilder` maps these into `xvora_tools::registry::types::ToolsetConfig.bash` which uses the tools crate's `BashToolConfig` type.
+/// The `AgentBuilder` maps these into `tools::registry::types::ToolsetConfig.bash` which uses the tools crate's `BashToolConfig` type.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BashConfig {
@@ -1310,8 +1310,8 @@ impl AgentDefinition {
     }
     fn scope_from_path(path: &Path) -> AgentScope {
         let path_str = path.to_string_lossy();
-        let grok = xvora_config::user_grok_home();
-        let home = xvora_dirs::home_dir();
+        let grok = config::user_grok_home();
+        let home = dirs::home_dir();
         for (dir, scope) in crate::discovery::user_agent_dirs(home.as_deref(), grok.as_deref()) {
             if path.starts_with(&dir) {
                 return scope;
@@ -1388,7 +1388,7 @@ impl AgentDefinition {
     /// Never grants a slot the definition doesn't already have (read-only toolsets stay read-only).
     pub fn override_file_tools(
         &mut self,
-        file_tools: Vec<xvora_tools::registry::types::ToolConfig>,
+        file_tools: Vec<tools::registry::types::ToolConfig>,
     ) {
         const FILE_TOOL_SLOTS: &[[&str; 2]] = &[
             ["GrokBuild:read_file", "GrokBuildHashline:hashline_read"],
@@ -1521,7 +1521,7 @@ impl AgentDefinition {
     pub fn general_purpose() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: xvora_tool_types::GENERAL_PURPOSE_SUBAGENT
+            description: tool_types::GENERAL_PURPOSE_SUBAGENT
                 .description
                 .to_string(),
             tool_config: general_purpose_toolset(),
@@ -1532,7 +1532,7 @@ impl AgentDefinition {
     pub fn explore() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: xvora_tool_types::EXPLORE_SUBAGENT.description.to_string(),
+            description: tool_types::EXPLORE_SUBAGENT.description.to_string(),
             tool_config: explore_toolset(),
             permission_mode: PermissionMode::Plan,
             prompt_body: Some(subagent_prompts::EXPLORE_PROMPT.to_string()),
@@ -1543,7 +1543,7 @@ impl AgentDefinition {
     pub fn plan() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: xvora_tool_types::PLAN_SUBAGENT.description.to_string(),
+            description: tool_types::PLAN_SUBAGENT.description.to_string(),
             tool_config: plan_toolset(),
             permission_mode: PermissionMode::Plan,
             prompt_body: Some(subagent_prompts::PLAN_PROMPT.to_string()),
@@ -1630,7 +1630,7 @@ mod tests {
         let name = task_tool_config()
             .name_override
             .expect("task tool is renamed");
-        assert!(xvora_tools::is_task_tool_id(&name));
+        assert!(tools::is_task_tool_id(&name));
     }
     /// Pins the `run_terminal_command` rename to the writing-phase taxonomy so a future rename can't silently degrade the spinner label.
     #[test]
@@ -1639,8 +1639,8 @@ mod tests {
             .name_override
             .expect("bash tool is renamed");
         assert_eq!(
-            xvora_tools::tool_taxonomy::writing_tool_kind(&name),
-            Some(xvora_tools::types::tool::ToolKind::Execute)
+            tools::tool_taxonomy::writing_tool_kind(&name),
+            Some(tools::types::tool::ToolKind::Execute)
         );
     }
     /// Native presets only.

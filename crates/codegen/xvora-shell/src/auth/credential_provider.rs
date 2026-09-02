@@ -3,22 +3,22 @@ use crate::auth::backend::{ActiveAuthBackend, AuthBackend};
 use crate::util::grok_auth_credentials::GrokAuthCredentials;
 use reqwest::RequestBuilder;
 use std::sync::Arc;
-use xvora_auth::{
+use auth::{
     AuthCredentialProvider, CredentialSnapshot, HttpAuth, StaticAuthCredentialProvider,
 };
 /// `api_key.id` for the active credential: hash the stable API key, never the OIDC bearer (which rotates).
 /// `None` for non-API-key auth.
 fn api_key_id_for(auth: Option<&crate::auth::GrokAuth>) -> Option<String> {
     auth.filter(|a| matches!(a.auth_mode, crate::auth::AuthMode::ApiKey))
-        .map(|a| xvora_telemetry::config::deployment_id_from_key(&a.key))
+        .map(|a| telemetry::config::deployment_id_from_key(&a.key))
 }
-/// Sampler [`BearerResolver`](xvora_sampler::BearerResolver) over a live [`AuthManager`].
+/// Sampler [`BearerResolver`](sampler::BearerResolver) over a live [`AuthManager`].
 /// Wire-valid only: it never stamps a hard-expired access token (the client auth contract).
 /// Shared by the session sampler and subagent configs so the contract can't drift between them.
 pub(crate) struct WireValidBearerResolver(pub(crate) Arc<AuthManager>);
 impl WireValidBearerResolver {
     /// The one constructor both the session sampler and subagent configs use, so the wire-valid contract cannot drift between the call sites.
-    pub(crate) fn shared(auth_manager: Arc<AuthManager>) -> xvora_sampler::SharedBearerResolver {
+    pub(crate) fn shared(auth_manager: Arc<AuthManager>) -> sampler::SharedBearerResolver {
         Arc::new(Self(auth_manager))
     }
 }
@@ -27,7 +27,7 @@ impl std::fmt::Debug for WireValidBearerResolver {
         f.debug_struct("WireValidBearerResolver").finish()
     }
 }
-impl xvora_sampler::BearerResolver for WireValidBearerResolver {
+impl sampler::BearerResolver for WireValidBearerResolver {
     fn current_bearer(&self) -> Option<String> {
         if !ActiveAuthBackend::default().is_xai_authority() {
             return None;
@@ -119,13 +119,13 @@ impl AuthCredentialProvider for ShellAuthCredentialProvider {
 pub(crate) fn embedding_session_credentials(
     embed_base_url: &str,
     auth_manager: Option<&Arc<AuthManager>>,
-    api_key_provider: Option<xvora_tools::types::SharedApiKeyProvider>,
-) -> xvora_memory::EndpointScopedCredentials {
+    api_key_provider: Option<tools::types::SharedApiKeyProvider>,
+) -> memory::EndpointScopedCredentials {
     let auth_credentials = auth_manager.map(|am| {
         Arc::new(ShellAuthCredentialProvider::new(am.clone(), None, None))
             as Arc<dyn AuthCredentialProvider>
     });
-    xvora_memory::EndpointScopedCredentials::for_endpoint(
+    memory::EndpointScopedCredentials::for_endpoint(
         embed_base_url,
         crate::util::is_xai_api_bearer_url,
         auth_credentials,
@@ -159,7 +159,7 @@ pub fn build_storage_client_for_proxy(
     user_token: Option<String>,
     session_id: Option<String>,
     client_identifier: &str,
-) -> xvora_file_utils::storage_client::StorageClient {
+) -> file_utils::storage_client::StorageClient {
     let http_client = crate::http::shared_upload_client();
     if let Some(am) = auth_manager {
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(ShellAuthCredentialProvider::new(
@@ -167,14 +167,14 @@ pub fn build_storage_client_for_proxy(
             deployment_key,
             alpha_test_key,
         ));
-        let bridge: Arc<dyn xvora_file_utils::storage_client::Auth401AttributionCallback> =
+        let bridge: Arc<dyn file_utils::storage_client::Auth401AttributionCallback> =
             Arc::new(StorageClientAttributionBridge::new(am, session_id));
-        xvora_file_utils::storage_client::StorageClient::with_provider(
+        file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
         )
-        .with_client_identity(xvora_version::VERSION, client_identifier)
+        .with_client_identity(version::VERSION, client_identifier)
         .with_client_mode(crate::http::process_client_mode())
         .with_attribution(bridge)
     } else {
@@ -188,12 +188,12 @@ pub fn build_storage_client_for_proxy(
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(
             StaticAuthCredentialProvider::new(Box::new(creds), wire_bearer),
         );
-        xvora_file_utils::storage_client::StorageClient::with_provider(
+        file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
         )
-        .with_client_identity(xvora_version::VERSION, client_identifier)
+        .with_client_identity(version::VERSION, client_identifier)
         .with_client_mode(crate::http::process_client_mode())
     }
 }
@@ -217,7 +217,7 @@ impl StorageClientAttributionBridge {
         }
     }
 }
-impl xvora_file_utils::storage_client::Auth401AttributionCallback
+impl file_utils::storage_client::Auth401AttributionCallback
     for StorageClientAttributionBridge
 {
     fn record_401(&self, operation: &str, sent_bearer_prefix: Option<&str>) {
@@ -406,9 +406,9 @@ pub(crate) fn oauth_gateway_email_from_auth(auth: &crate::auth::GrokAuth) -> Opt
 pub(crate) fn sync_external_otel_identity() {
     if let Some(provider) = OTEL_PROVIDER.get() {
         let snapshot = provider.snapshot();
-        let mut attrs = xvora_telemetry::external::IdentityAttrs::from_snapshot(&snapshot);
+        let mut attrs = telemetry::external::IdentityAttrs::from_snapshot(&snapshot);
         attrs.email = provider.oauth_gateway_email();
-        xvora_telemetry::external::set_identity(attrs);
+        telemetry::external::set_identity(attrs);
     }
 }
 /// No-ops if the OTel layer was never initialized.
@@ -423,10 +423,10 @@ pub(crate) fn wire_otel_deployment_key(key: String) {
 ///
 /// The credential provider starts in bootstrap mode (disk-read-only).
 /// Call [`wire_otel_auth_manager`] after agent init to upgrade to the live `AuthManager` with active refresh.
-pub fn build_default_otel_layer_config() -> xvora_telemetry::otel_layer::OtelLayerConfig {
+pub fn build_default_otel_layer_config() -> telemetry::otel_layer::OtelLayerConfig {
     let endpoints = crate::agent::config::EndpointsConfig::default();
     let grok_com_config = crate::auth::GrokComConfig::default();
-    let exporter = xvora_telemetry::otel_layer::OtelExporterConfig {
+    let exporter = telemetry::otel_layer::OtelExporterConfig {
         traces_url: endpoints.resolve_otlp_traces_endpoint(),
         extra_headers: endpoints.resolve_otlp_headers(),
         export_interval: endpoints.resolve_otlp_export_interval(),
@@ -439,7 +439,7 @@ pub fn build_default_otel_layer_config() -> xvora_telemetry::otel_layer::OtelLay
     let bootstrap = Arc::new(AuthManager::new(&grok_home, grok_com_config));
     let provider = Arc::new(OtelAuthCredentialProvider::new(bootstrap));
     let _ = OTEL_PROVIDER.set(provider.clone());
-    xvora_telemetry::otel_layer::OtelLayerConfig {
+    telemetry::otel_layer::OtelLayerConfig {
         credentials: provider as Arc<dyn AuthCredentialProvider>,
         token_header_value,
         alpha_test_key: None,
@@ -454,7 +454,7 @@ mod tests {
     use crate::auth::manager::AuthManager;
     use chrono::{Duration as ChronoDuration, Utc};
     use std::sync::Mutex;
-    use xvora_auth::AuthCredentialProvider;
+    use auth::AuthCredentialProvider;
     /// Serializes tests that pin `GROK_AUTH_EARLY_INVALIDATION_SECS`, since env vars are process-global and parallel tests would race.
     static EARLY_INVALIDATION_LOCK: Mutex<()> = Mutex::new(());
     /// RAII guard: pins `GROK_AUTH_EARLY_INVALIDATION_SECS` to the production default (300s) while held, restoring the previous value on drop.
@@ -510,7 +510,7 @@ mod tests {
     /// The same resolver serves all three states without a client rebuild.
     #[test]
     fn wire_valid_resolver_tracks_manager_across_expiry_and_refresh() {
-        use xvora_sampler::BearerResolver;
+        use sampler::BearerResolver;
         let _guard = EarlyInvalidationGuard::pin_to_default();
         let dir = tempfile::tempdir().unwrap();
         let mgr = make_manager(
@@ -649,7 +649,7 @@ mod tests {
             &dir,
             Some(make_auth("xvora-session-token", ChronoDuration::hours(1))),
         );
-        let api_key_provider: xvora_tools::types::SharedApiKeyProvider =
+        let api_key_provider: tools::types::SharedApiKeyProvider =
             Arc::new(crate::auth::manager::SharedAuthKeyProvider(mgr.clone()));
         for denied in ["https://byok.attacker.example/v1", "http://api.x.ai/v1"] {
             let resolved =
@@ -678,7 +678,7 @@ mod tests {
     }
     #[test]
     fn snapshot_populates_tenant_id_per_auth_mode() {
-        use xvora_telemetry::config::deployment_id_from_key;
+        use telemetry::config::deployment_id_from_key;
         let _guard = EarlyInvalidationGuard::pin_to_default();
         let dir = tempfile::tempdir().unwrap();
         let dep = ShellAuthCredentialProvider::new(

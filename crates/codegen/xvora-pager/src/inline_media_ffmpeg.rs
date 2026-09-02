@@ -18,7 +18,7 @@ pub fn ffmpeg_available() -> bool {
         return true;
     }
 
-    let available = xvora_config::shell::is_command_available("ffmpeg");
+    let available = config::shell::is_command_available("ffmpeg");
     if available {
         FOUND.store(true, Ordering::Relaxed);
     }
@@ -82,7 +82,7 @@ pub fn ffmpeg_install_cmd() -> Option<&'static str> {
         return Some(*cmd);
     }
     for (manager, cmd) in ffmpeg_install_candidates() {
-        if xvora_config::shell::is_command_available(manager) {
+        if config::shell::is_command_available(manager) {
             let _ = FOUND.set(*cmd);
             return Some(*cmd);
         }

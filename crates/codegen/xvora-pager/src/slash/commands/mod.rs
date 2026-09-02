@@ -765,7 +765,7 @@ mod tests {
     /// Add new names there when adding a pager builtin.
     #[test]
     fn pager_builtin_triggers_are_reserved_in_shell() {
-        let reserved: std::collections::HashSet<&str> = xvora_shell::session::PAGER_COMMAND_KEYS
+        let reserved: std::collections::HashSet<&str> = shell::session::PAGER_COMMAND_KEYS
             .iter()
             .copied()
             .collect();
@@ -787,7 +787,7 @@ mod tests {
     }
     #[test]
     fn pager_blocked_acp_names_are_reserved_in_shell() {
-        let reserved: std::collections::HashSet<&str> = xvora_shell::session::PAGER_COMMAND_KEYS
+        let reserved: std::collections::HashSet<&str> = shell::session::PAGER_COMMAND_KEYS
             .iter()
             .copied()
             .collect();

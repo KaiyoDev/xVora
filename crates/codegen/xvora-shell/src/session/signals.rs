@@ -76,7 +76,7 @@ pub struct ToolDuration {
 }
 
 /// How a PR creation was performed (shared with the `pr_created` telemetry event so signal and event values can never diverge).
-pub use xvora_telemetry::enums::PrCreationSource;
+pub use telemetry::enums::PrCreationSource;
 
 /// A PR created during a turn, recorded for PR metrics.
 ///
@@ -728,7 +728,7 @@ impl SessionSignalsHandle {
     /// Snapshot GCS upload queue stats into signals.
     ///
     /// Reads the atomics from `UploadQueueStats` once and sends plain u64 values to the actor; the Arc is NOT retained in the signal event.
-    pub(crate) fn snapshot_gcs_queue(&self, stats: &xvora_file_utils::queue::UploadQueueStats) {
+    pub(crate) fn snapshot_gcs_queue(&self, stats: &file_utils::queue::UploadQueueStats) {
         use std::sync::atomic::Ordering;
         let _ = self.tx.send(SignalEvent::RecordGcsQueueSnapshot {
             enqueued: stats.enqueued.load(Ordering::Relaxed),
@@ -738,7 +738,7 @@ impl SessionSignalsHandle {
             circuit_breaker_trips: stats.circuit_breaker_trips.load(Ordering::Relaxed),
             pending: stats.pending.load(Ordering::Relaxed),
             pending_bytes: stats.pending_bytes.load(Ordering::Relaxed),
-            orphans_cleaned: xvora_file_utils::queue::last_orphans_cleaned(),
+            orphans_cleaned: file_utils::queue::last_orphans_cleaned(),
         });
     }
 

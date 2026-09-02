@@ -19,9 +19,9 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::auth::ForceLoginTeam;
-use xvora_tools::types::config_source::ConfigSource;
-use xvora_tools::util::truncate::estimate_tokens;
-use xvora_workspace::permission::resolution::{
+use tools::types::config_source::ConfigSource;
+use tools::util::truncate::estimate_tokens;
+use workspace::permission::resolution::{
     ManagedSettingsFeatures, YoloPolicyLock, claude_bypass_lock_request,
 };
 
@@ -124,7 +124,7 @@ pub(crate) struct PermissionsReport {
     pub enforced: Vec<EnforcedPolicy>,
     /// A Claude managed-settings `disableBypassPermissionsMode` request, which grok
     /// deliberately does not enforce
-    /// ([`claude_bypass_lock_request`](xvora_workspace::permission::resolution::claude_bypass_lock_request)).
+    /// ([`claude_bypass_lock_request`](workspace::permission::resolution::claude_bypass_lock_request)).
     /// Always emitted so "no request" is distinguishable from an old binary.
     pub claude_bypass_lock_advisory: bool,
 }
@@ -344,7 +344,7 @@ async fn build_report(cwd: &Path) -> InspectReport {
     crate::agent::folder_trust::resolve_and_record(cwd, None, false);
     let project_trusted = crate::agent::folder_trust::project_scope_allowed(cwd);
 
-    let trust_store = xvora_agent::plugins::TrustStore::load();
+    let trust_store = agent::plugins::TrustStore::load();
     let mut plugins_cfg: crate::agent::config::PluginsConfig = effective_config
         .get("plugins")
         .and_then(|v| v.clone().try_into().ok())
@@ -353,7 +353,7 @@ async fn build_report(cwd: &Path) -> InspectReport {
     let mut plugin_config = plugins_cfg.to_discovery_config();
     // Project plugins gate on the same folder-trust verdict as hooks and the live session/doctor sites
     // The listing's `enabled` flags therefore match runtime gating
-    let discovered_plugins = xvora_agent::plugins::discover_plugins(
+    let discovered_plugins = agent::plugins::discover_plugins(
         Some(cwd),
         &plugin_config,
         &trust_store,
@@ -361,7 +361,7 @@ async fn build_report(cwd: &Path) -> InspectReport {
     );
     plugin_config.populate_plugin_lists(&discovered_plugins);
 
-    let plugin_registry = xvora_agent::plugins::PluginRegistry::from_discovered(
+    let plugin_registry = agent::plugins::PluginRegistry::from_discovered(
         discovered_plugins.clone(),
         &plugin_config.disabled,
         &plugin_config.enabled,
@@ -421,7 +421,7 @@ async fn build_report(cwd: &Path) -> InspectReport {
     let mcp_config_problems = crate::util::config::load_mcp_server_problems_with_project(cwd);
 
     InspectReport {
-        grok_version: xvora_version::VERSION.to_string(),
+        grok_version: version::VERSION.to_string(),
         channel: crate::util::config::channel_name_from_cache()
             .unwrap_or("unknown")
             .to_string(),
@@ -520,14 +520,14 @@ fn instruction_file_type(
 /// Wraps the production instruction discovery (`agents_md::read_agents_config_with_paths`).
 async fn list_instructions(cwd: &Path) -> Vec<InstructionFile> {
     // Discover with all vendors ON so inspect shows the full set.
-    let configs = xvora_agent::prompt::agents_md::read_agents_config_with_paths(
+    let configs = agent::prompt::agents_md::read_agents_config_with_paths(
         &cwd.display().to_string(),
-        xvora_agent::prompt::skills::CompatConfig::default(),
+        agent::prompt::skills::CompatConfig::default(),
     )
     .await;
 
     let grok_home = crate::util::grok_home::grok_home();
-    let vendor_homes = xvora_dirs::home_dir()
+    let vendor_homes = dirs::home_dir()
         .map(|home_dir| {
             vec![
                 (home_dir.join(".claude"), true),
@@ -549,7 +549,7 @@ async fn list_instructions(cwd: &Path) -> Vec<InstructionFile> {
     // through to a no-op match.
     //
     // TODO(phase-3): `extra_rule_dirs` only re-classifies files that
-    // `xvora_agent::prompt::agents_md::read_agents_config_with_paths`
+    // `agent::prompt::agents_md::read_agents_config_with_paths`
     // has already discovered. Plumbing `extra_rule_dirs` through to that
     // discovery (so files in arbitrary user-configured dirs are surfaced as
     // rules instead of being missed entirely) is out of scope for this stack
@@ -585,7 +585,7 @@ async fn list_instructions(cwd: &Path) -> Vec<InstructionFile> {
 
 /// Builds the report from the production permission resolver.
 async fn list_permissions(cwd: &Path, project_trusted: bool) -> PermissionsReport {
-    use xvora_workspace::permission::resolution;
+    use workspace::permission::resolution;
 
     let ms = resolution::managed_settings();
     let format_entry = |e: &resolution::AllowedMcpServer| match e {
@@ -721,13 +721,13 @@ fn login_policy_report(config: Option<&crate::agent::config::Config>) -> LoginPo
 fn list_hooks(
     git_root: Option<&Path>,
     project_trusted: bool,
-    discovered_plugins: &[xvora_agent::plugins::DiscoveredPlugin],
+    discovered_plugins: &[agent::plugins::DiscoveredPlugin],
 ) -> Vec<HookEntry> {
-    let all_on = xvora_tools::types::compat::CompatConfig::default();
+    let all_on = tools::types::compat::CompatConfig::default();
     // Route through the same assembly as session startup
     // Config-layer hooks (config.toml / managed_config.toml / requirements.toml) then appear in `/hooks` status alongside file hooks
     // Each carries its provenance name prefix
-    let config_layers = xvora_config::hook_config_layers();
+    let config_layers = config::hook_config_layers();
     let (registry, _errors) =
         crate::util::hooks::assemble_hooks(&config_layers, git_root, &all_on, project_trusted);
 
@@ -743,13 +743,13 @@ fn list_hooks(
             let path = h.source_dir.clone();
             let source = match xvora_hooks::config::hook_origin(h) {
                 O::SystemManaged | O::Managed => ConfigSource::Managed {
-                    path: Some(config_file(xvora_config::MANAGED_CONFIG_FILENAME)),
+                    path: Some(config_file(config::MANAGED_CONFIG_FILENAME)),
                 },
                 O::Requirements => ConfigSource::Managed {
-                    path: Some(config_file(xvora_config::REQUIREMENTS_FILENAME)),
+                    path: Some(config_file(config::REQUIREMENTS_FILENAME)),
                 },
                 O::UserConfig => ConfigSource::ConfigToml {
-                    path: config_file(xvora_config::USER_CONFIG_FILENAME),
+                    path: config_file(config::USER_CONFIG_FILENAME),
                 },
                 O::ProjectFile => ConfigSource::Project { path },
                 // File/plugin/agent/unknown hooks are user-scoped for display.
@@ -813,15 +813,15 @@ fn list_hooks(
 
 async fn list_skills(
     cwd: &Path,
-    plugin_registry: &xvora_agent::plugins::PluginRegistry,
-    skills_config: &xvora_agent::prompt::skills::SkillsConfig,
+    plugin_registry: &agent::plugins::PluginRegistry,
+    skills_config: &agent::prompt::skills::SkillsConfig,
 ) -> Vec<SkillEntry> {
     // Discover with all vendors ON so inspect shows the full set.
-    let skills = xvora_agent::prompt::skills::list_skills_with_plugins(
+    let skills = agent::prompt::skills::list_skills_with_plugins(
         Some(&cwd.display().to_string()),
         skills_config,
         Some(plugin_registry),
-        xvora_agent::prompt::skills::CompatConfig::default(),
+        agent::prompt::skills::CompatConfig::default(),
     )
     .await;
 
@@ -848,13 +848,13 @@ async fn list_skills(
         .collect()
 }
 
-fn slash_name_counts(skills: &[xvora_agent::prompt::skills::SkillInfo]) -> HashMap<String, usize> {
+fn slash_name_counts(skills: &[agent::prompt::skills::SkillInfo]) -> HashMap<String, usize> {
     let mut counts: HashMap<String, usize> = HashMap::new();
     for skill in skills.iter().filter(|s| s.user_invocable && s.enabled) {
         *counts.entry(skill.name.to_lowercase()).or_default() += 1;
         *counts
             .entry(
-                xvora_tools::implementations::skills::skill::format_skill_name(skill)
+                tools::implementations::skills::skill::format_skill_name(skill)
                     .to_lowercase(),
             )
             .or_default() += 1;
@@ -863,7 +863,7 @@ fn slash_name_counts(skills: &[xvora_agent::prompt::skills::SkillInfo]) -> HashM
 }
 
 fn slash_collision(
-    skill: &xvora_agent::prompt::skills::SkillInfo,
+    skill: &agent::prompt::skills::SkillInfo,
     name_counts: &HashMap<String, usize>,
 ) -> (Option<String>, Option<String>) {
     if !skill.user_invocable || !skill.enabled {
@@ -876,7 +876,7 @@ fn slash_collision(
         return (None, None);
     }
     let qualified =
-        xvora_tools::implementations::skills::skill::format_skill_name(skill).to_lowercase();
+        tools::implementations::skills::skill::format_skill_name(skill).to_lowercase();
     let invocable_as = name_counts
         .get(&qualified)
         .is_some_and(|n| *n == 1)
@@ -885,8 +885,8 @@ fn slash_collision(
 }
 
 /// Prefers the `config_source` stamped at discovery (plugin skills, `[skills].paths` entries), then falls back to the discovered scope.
-fn skill_entry_source(s: &xvora_agent::prompt::skills::SkillInfo) -> ConfigSource {
-    use xvora_tools::implementations::skills::types::SkillScope;
+fn skill_entry_source(s: &agent::prompt::skills::SkillInfo) -> ConfigSource {
+    use tools::implementations::skills::types::SkillScope;
 
     if let Some(source) = s.config_source.clone() {
         return source;
@@ -906,9 +906,9 @@ fn skill_entry_source(s: &xvora_agent::prompt::skills::SkillInfo) -> ConfigSourc
 
 fn list_agents(
     cwd: &Path,
-    plugin_registry: &xvora_agent::plugins::PluginRegistry,
+    plugin_registry: &agent::plugins::PluginRegistry,
 ) -> Vec<AgentEntry> {
-    let agents = xvora_agent::discovery::all_subagents_with_plugins(
+    let agents = agent::discovery::all_subagents_with_plugins(
         cwd,
         &HashMap::new(),
         Some(plugin_registry),
@@ -925,15 +925,15 @@ fn list_agents(
 }
 
 /// Maps pre-discovered plugins (from `discover_plugins`) to inspect entries.
-fn list_plugins(discovered: &[xvora_agent::plugins::DiscoveredPlugin]) -> Vec<PluginEntry> {
+fn list_plugins(discovered: &[agent::plugins::DiscoveredPlugin]) -> Vec<PluginEntry> {
     discovered
         .iter()
         .map(|p| {
             let scope = match p.scope {
-                xvora_agent::plugins::PluginScope::CliOverride => Scope::Cli,
-                xvora_agent::plugins::PluginScope::Project => Scope::Project,
-                xvora_agent::plugins::PluginScope::User => Scope::User,
-                xvora_agent::plugins::PluginScope::ConfigPath => Scope::Config,
+                agent::plugins::PluginScope::CliOverride => Scope::Cli,
+                agent::plugins::PluginScope::Project => Scope::Project,
+                agent::plugins::PluginScope::User => Scope::User,
+                agent::plugins::PluginScope::ConfigPath => Scope::Config,
             };
             PluginEntry {
                 name: p.manifest.name.clone(),
@@ -943,7 +943,7 @@ fn list_plugins(discovered: &[xvora_agent::plugins::DiscoveredPlugin]) -> Vec<Pl
                 provides: PluginProvides {
                     // Count the SKILL.md files discovered (root-level or in subdirs), not the number of configured skill dirs
                     // The reported count then matches what the skills registry loads
-                    skills: xvora_agent::plugins::registry::skill_md_paths(&p.skill_dirs).len(),
+                    skills: agent::plugins::registry::skill_md_paths(&p.skill_dirs).len(),
                     agents: p.agent_dirs.len(),
                     hooks: p.hooks_path.is_some(),
                     mcp_servers: if p.mcp_config_path.is_some() { 1 } else { 0 },
@@ -958,7 +958,7 @@ fn list_marketplaces(git_root: Option<&Path>) -> Vec<MarketplaceEntry> {
     let Some(root) = git_root else {
         return vec![];
     };
-    xvora_agent::plugins::marketplace::resolve(root)
+    agent::plugins::marketplace::resolve(root)
         .into_iter()
         .map(|m| MarketplaceEntry {
             name: m.name,
@@ -971,11 +971,11 @@ fn list_marketplaces(git_root: Option<&Path>) -> Vec<MarketplaceEntry> {
 /// Discovers MCPs with every vendor enabled so compatibility can be annotated later.
 fn list_mcp_servers(
     cwd: &Path,
-    plugin_registry: &xvora_agent::plugins::PluginRegistry,
+    plugin_registry: &agent::plugins::PluginRegistry,
 ) -> Vec<McpServerEntry> {
-    use xvora_workspace::permission::resolution;
+    use workspace::permission::resolution;
 
-    let all_on = xvora_tools::types::compat::CompatConfig::default();
+    let all_on = tools::types::compat::CompatConfig::default();
     let sourced = crate::session::managed_mcp::merge_managed_mcp_servers_sourced(
         cwd,
         Some(plugin_registry),
@@ -1030,7 +1030,7 @@ fn list_mcp_servers(
 /// Wraps the production LSP loader (`load_servers_with_plugins_sourced`).
 fn list_lsp_servers(
     cwd: &Path,
-    discovered_plugins: &[xvora_agent::plugins::DiscoveredPlugin],
+    discovered_plugins: &[agent::plugins::DiscoveredPlugin],
 ) -> Vec<LspServerEntry> {
     let trusted: Vec<_> = discovered_plugins.iter().filter(|p| p.trusted).collect();
     let plugin_lsp_paths: Vec<std::path::PathBuf> = trusted
@@ -1054,7 +1054,7 @@ fn list_lsp_servers(
         plugin_inline_lsp.iter().map(|(v, _)| *v).collect();
     let inline_names: Vec<&str> = plugin_inline_lsp.iter().map(|(_, n)| *n).collect();
 
-    let servers = xvora_tools::implementations::lsp::config::load_servers_with_plugins_sourced(
+    let servers = tools::implementations::lsp::config::load_servers_with_plugins_sourced(
         cwd,
         &plugin_lsp_paths,
         &inline_values,
@@ -1701,8 +1701,8 @@ fn print_human(r: &InspectReport, out: &mut impl Write) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_agent::prompt::skills::{SkillInfo, SkillsConfig};
-    use xvora_tools::implementations::skills::types::SkillScope;
+    use agent::prompt::skills::{SkillInfo, SkillsConfig};
+    use tools::implementations::skills::types::SkillScope;
 
     #[test]
     fn harness_compatibility_human_output_stays_compact() {
@@ -2049,8 +2049,8 @@ mod tests {
         disable_yolo: Option<bool>,
         disable_telemetry: Option<bool>,
         disable_feedback: Option<bool>,
-    ) -> xvora_workspace::permission::resolution::ManagedSettingsFeatures {
-        xvora_workspace::permission::resolution::ManagedSettingsFeatures {
+    ) -> workspace::permission::resolution::ManagedSettingsFeatures {
+        workspace::permission::resolution::ManagedSettingsFeatures {
             disable_telemetry,
             disable_feedback,
             disable_yolo,
@@ -2093,10 +2093,10 @@ mod tests {
     /// managed-settings file.
     #[test]
     fn requirements_lock_reports_always_approve_enforced() {
-        let lock = xvora_workspace::permission::resolution::YoloPolicyLock {
+        let lock = workspace::permission::resolution::YoloPolicyLock {
             source_label: "/etc/grok/requirements.toml".to_string(),
             reason:
-                xvora_workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
+                workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
         };
         let PermissionPolicyReport {
             enforced,
@@ -2122,10 +2122,10 @@ mod tests {
     /// carry the MDM layer's label.
     #[test]
     fn mdm_pin_attributes_enforced_row_to_mdm_layer() {
-        let lock = xvora_workspace::permission::resolution::YoloPolicyLock {
+        let lock = workspace::permission::resolution::YoloPolicyLock {
             source_label: crate::config::MDM_REQUIREMENTS_SOURCE.to_string(),
             reason:
-                xvora_workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
+                workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
         };
 
         let PermissionPolicyReport {
@@ -2389,7 +2389,7 @@ mod tests {
             disabled: vec!["inspect-cfg-extra".to_string()],
             ..Default::default()
         };
-        let registry = xvora_agent::plugins::PluginRegistry::from_discovered(vec![], &[], &[]);
+        let registry = agent::plugins::PluginRegistry::from_discovered(vec![], &[], &[]);
 
         let entries = list_skills(cwd.path(), &registry, &config).await;
 

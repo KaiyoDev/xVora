@@ -38,7 +38,7 @@ use crate::config::{AuthScheme, OriginClientInfo, SamplerConfig};
 use crate::events::SamplingErrorInfo;
 use crate::span_timing::{ERROR, STATUS_CODE, SUCCESS, StreamSpanTiming};
 use crate::stream_classify::{chat_chunk_class, message_event_class, responses_event_class};
-use xvora_auth::bearer_suffix;
+use auth::bearer_suffix;
 
 pub use xvora_sampling_types::ApiBackend;
 
@@ -445,7 +445,7 @@ impl PlatformInfo {
 }
 
 fn agent_version() -> String {
-    xvora_version::VERSION.to_string()
+    version::VERSION.to_string()
 }
 
 /// Render a User-Agent string for the given origin client.
@@ -2646,7 +2646,7 @@ mod tests {
 
     #[test]
     fn user_agent_collapses_when_origin_matches_agent() {
-        let agent_version = xvora_version::VERSION.to_string();
+        let agent_version = version::VERSION.to_string();
         let origin = OriginClientInfo {
             product: AGENT_PRODUCT.to_string(),
             version: Some(agent_version.clone()),

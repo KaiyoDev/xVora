@@ -8,15 +8,15 @@ fn plugin_cta_catalog_loaded_sanitizes_components_at_ingestion() {
     let id = AgentId(0);
 
     let mut entry = cta_entry("dirty", "not_installed");
-    entry.components = Some(xvora_hooks_plugins_types::PluginComponents {
-        skills: vec![xvora_hooks_plugins_types::ComponentItem {
+    entry.components = Some(hooks_plugins_types::PluginComponents {
+        skills: vec![hooks_plugins_types::ComponentItem {
             name: "evil\u{1b}[31mskill".into(),
             description: Some(format!("\u{7}{}", "d".repeat(300))),
         }],
         ..Default::default()
     });
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
             source_kind: "git".into(),
             source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -42,10 +42,10 @@ fn plugin_cta_catalog_loaded_sanitizes_components_at_ingestion() {
 }
 
 fn cta_outcome_reload(
-    status: xvora_hooks_plugins_types::OutcomeStatus,
+    status: hooks_plugins_types::OutcomeStatus,
     message: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
-    xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
+    hooks_plugins_types::ActionOutcome {
         status,
         message: message.into(),
         requires_reload: true,
@@ -58,9 +58,9 @@ fn plugin_cta_catalog_keeps_official_not_installed_only() {
     let mut app = test_app_with_agent();
     let id = AgentId(0);
 
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
+    let response = hooks_plugins_types::MarketplaceListResponse {
         sources: vec![
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
                 source_kind: "git".into(),
                 source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -71,14 +71,14 @@ fn plugin_cta_catalog_keeps_official_not_installed_only() {
                 ],
                 error: None,
             },
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: "Third Party".into(),
                 source_kind: "git".into(),
                 source_url_or_path: "https://github.com/other/repo.git".into(),
                 plugins: vec![cta_entry("third-party", "not_installed")],
                 error: None,
             },
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: "Custom Mirror".into(),
                 source_kind: "git".into(),
                 source_url_or_path: "git@github.com:xvora-org/plugin-marketplace.git".into(),
@@ -117,16 +117,16 @@ fn plugin_cta_default_prefers_url_verified_official_over_impostor() {
 
     // A first-listed source that merely calls itself "xAI Official" must not become the install root
     // The URL-verified official source wins even when registered later
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
+    let response = hooks_plugins_types::MarketplaceListResponse {
         sources: vec![
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
                 source_kind: "path".into(),
                 source_url_or_path: "/srv/impostor-marketplace".into(),
                 plugins: vec![cta_entry("impostor", "not_installed")],
                 error: None,
             },
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
                 source_kind: "git".into(),
                 source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -158,8 +158,8 @@ fn plugin_cta_default_name_only_official_mirror_selected() {
     let id = AgentId(0);
 
     // No URL-verified official source in the scan: a mirror registered under the official name (e.g. an on-prem path source) still feeds the CTA.
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
             source_kind: "path".into(),
             source_url_or_path: "/srv/onprem-mirror".into(),
@@ -190,8 +190,8 @@ fn plugin_cta_marketplace_override_selects_named_source() {
     app.plugin_cta_marketplace = Some("SpaceX Marketplace".into());
     let id = AgentId(0);
 
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: "SpaceX Marketplace".into(),
             source_kind: "path".into(),
             source_url_or_path: "/srv/spacex-marketplace".into(),
@@ -229,16 +229,16 @@ fn plugin_cta_marketplace_duplicate_named_sources_first_wins() {
 
     // Two sources share the override name: candidates and install target must both come from the first
     // Otherwise a later source's candidate would install against the wrong URL
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
+    let response = hooks_plugins_types::MarketplaceListResponse {
         sources: vec![
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: "SpaceX Marketplace".into(),
                 source_kind: "path".into(),
                 source_url_or_path: "/srv/spacex-marketplace".into(),
                 plugins: vec![cta_entry("starlink", "not_installed")],
                 error: None,
             },
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: "SpaceX Marketplace".into(),
                 source_kind: "git".into(),
                 source_url_or_path: "https://github.com/impostor/spacex.git".into(),
@@ -280,8 +280,8 @@ fn plugin_cta_marketplace_override_install_targets_named_source() {
 
     let mut entry = cta_entry("zzspacexcta", "not_installed");
     entry.keywords = vec!["zzspacexcta".into()];
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: "SpaceX Marketplace".into(),
             source_kind: "path".into(),
             source_url_or_path: "/srv/spacex-marketplace".into(),
@@ -323,8 +323,8 @@ fn plugin_cta_marketplace_override_naming_official_selects_it() {
     app.plugin_cta_marketplace = Some(xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.to_string());
     let id = AgentId(0);
 
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
             source_kind: "git".into(),
             source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -356,16 +356,16 @@ fn plugin_cta_marketplace_override_excludes_official_source() {
     app.plugin_cta_marketplace = Some("SpaceX Marketplace".into());
     let id = AgentId(0);
 
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
+    let response = hooks_plugins_types::MarketplaceListResponse {
         sources: vec![
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
                 source_kind: "git".into(),
                 source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
                 plugins: vec![cta_entry("official-only", "not_installed")],
                 error: None,
             },
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: "SpaceX Marketplace".into(),
                 source_kind: "path".into(),
                 source_url_or_path: "/srv/spacex-marketplace".into(),
@@ -404,8 +404,8 @@ fn plugin_cta_marketplace_override_absent_source_hides_cta() {
 
     let mut entry = cta_entry("figma", "not_installed");
     entry.keywords = vec!["figma".into()];
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
             source_kind: "git".into(),
             source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -467,8 +467,8 @@ fn plugin_cta_catalog_reload_empty_candidates_preserves_installed_checkmark() {
             name: "figma".into(),
         };
     }
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
             source_kind: "git".into(),
             source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -521,8 +521,8 @@ fn plugin_cta_catalog_load_recomputes_match_for_typed_draft() {
         .set_text("let's try zzctaplugin today");
     let mut entry = cta_entry("zzctaplugin", "not_installed");
     entry.keywords = vec!["zzctaplugin".into()];
-    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
+    let response = hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![hooks_plugins_types::MarketplaceScanResult {
             source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
             source_kind: "git".into(),
             source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -888,7 +888,7 @@ fn cta_install_done_non_success_sets_error_with_sanitized_message() {
         name: "figma".into(),
     };
     // Input and expectation both derive from the shared table so no service name is respelled here and a rename cannot strand the assertions
-    let (pattern, expected) = xvora_shell::sampling::error::SERVICE_NAME_REWRITES[0];
+    let (pattern, expected) = shell::sampling::error::SERVICE_NAME_REWRITES[0];
     let effects = dispatch(
         Action::TaskComplete(TaskResult::CtaPluginInstallDone {
             agent_id: id,
@@ -1625,7 +1625,7 @@ mod cta_e2e {
 
     const PROMPT: &str = "please open figma now";
 
-    fn figma_candidate() -> xvora_hooks_plugins_types::MarketplacePluginEntry {
+    fn figma_candidate() -> hooks_plugins_types::MarketplacePluginEntry {
         let mut entry = cta_entry("figma", "not_installed");
         entry.keywords = vec!["figma".into()];
         // MCP-bearing plugin: install enters AwaitingMcps and polls for auth.
@@ -2015,7 +2015,7 @@ mod cta_e2e {
         let config_path = tmp.path().join("config.toml");
         let candidates = vec![figma_candidate()];
 
-        let dismissed = xvora_shell::config::dismissed_plugin_ctas_in_file(&config_path);
+        let dismissed = shell::config::dismissed_plugin_ctas_in_file(&config_path);
         let matched =
             plugin_cta_phase_for(true, true, &candidates, PROMPT, |id| dismissed.contains(id));
         assert_eq!(
@@ -2026,9 +2026,9 @@ mod cta_e2e {
             }
         );
 
-        xvora_shell::config::add_dismissed_plugin_cta_to_file("figma", &config_path)
+        shell::config::add_dismissed_plugin_cta_to_file("figma", &config_path)
             .expect("persist dismissal");
-        let dismissed = xvora_shell::config::dismissed_plugin_ctas_in_file(&config_path);
+        let dismissed = shell::config::dismissed_plugin_ctas_in_file(&config_path);
         assert!(dismissed.contains("figma"));
 
         let hidden =

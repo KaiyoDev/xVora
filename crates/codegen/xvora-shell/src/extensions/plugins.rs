@@ -16,8 +16,8 @@ struct ListRequest {
     session_id: String,
 }
 
-pub(crate) fn loaded_plugin_to_info(plugin: &xvora_agent::plugins::LoadedPlugin) -> PluginInfo {
-    use xvora_agent::plugins::discovery::PluginScope as AgentScope;
+pub(crate) fn loaded_plugin_to_info(plugin: &agent::plugins::LoadedPlugin) -> PluginInfo {
+    use agent::plugins::discovery::PluginScope as AgentScope;
 
     let scope = match plugin.scope {
         AgentScope::CliOverride => PluginScope::Cli,
@@ -71,8 +71,8 @@ pub(crate) fn loaded_plugin_to_info(plugin: &xvora_agent::plugins::LoadedPlugin)
     }
 }
 
-fn origin_to_dto(origin: &xvora_agent::plugins::PluginOrigin) -> PluginOrigin {
-    use xvora_agent::plugins::PluginOrigin as AgentOrigin;
+fn origin_to_dto(origin: &agent::plugins::PluginOrigin) -> PluginOrigin {
+    use agent::plugins::PluginOrigin as AgentOrigin;
     match origin {
         AgentOrigin::CliOverride => PluginOrigin::CliOverride,
         AgentOrigin::ProjectGrok => PluginOrigin::ProjectGrok,
@@ -152,7 +152,7 @@ pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
             super::to_ext_response(Ok::<_, anyhow::Error>(response))
         }
         "x.ai/plugins/action" => {
-            let req: xvora_hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
+            let req: hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
             let sid = acp::SessionId::new(req.session_id);
 
             let result = agent
@@ -183,12 +183,12 @@ pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_agent::plugins::PluginOrigin as AgentOrigin;
-    use xvora_agent::plugins::discovery::{PluginId, PluginScope as AgentScope};
+    use agent::plugins::PluginOrigin as AgentOrigin;
+    use agent::plugins::discovery::{PluginId, PluginScope as AgentScope};
 
-    fn make_loaded_plugin(origin: AgentOrigin) -> xvora_agent::plugins::LoadedPlugin {
+    fn make_loaded_plugin(origin: AgentOrigin) -> agent::plugins::LoadedPlugin {
         let root = std::path::PathBuf::from("/tmp/test-plugin");
-        xvora_agent::plugins::LoadedPlugin {
+        agent::plugins::LoadedPlugin {
             name: "test-plugin".to_string(),
             id: PluginId::new(AgentScope::User, &root, "test-plugin"),
             root: root.clone(),

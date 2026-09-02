@@ -589,7 +589,7 @@
     /// The tombstone replays on resume, so this line is also what a returning user sees after a restart.
     #[test]
     fn deleted_with_expired_reason_pushes_transcript_notice() {
-        use xvora_tools::notification::ScheduledTaskRemovedReason;
+        use tools::notification::ScheduledTaskRemovedReason;
         let mut app = make_app_with_agent("sess-1");
         seed_loop(&mut app, "loop-exp");
 
@@ -635,7 +635,7 @@
     /// A misrouted replay against a live transcript (neither open) must remove the chip but never duplicate history.
     #[test]
     fn replayed_expiry_notice_requires_replay_window() {
-        use xvora_tools::notification::ScheduledTaskRemovedReason;
+        use tools::notification::ScheduledTaskRemovedReason;
         #[derive(Debug)]
         enum ReplayPhase {
             None,
@@ -675,7 +675,7 @@
     /// The keep-stash finalize outcome must drop the staged copy instead of appending it below the line the stash already rendered live.
     #[test]
     fn reconnect_replay_of_create_then_expiry_does_not_duplicate_notice() {
-        use xvora_tools::notification::ScheduledTaskRemovedReason;
+        use tools::notification::ScheduledTaskRemovedReason;
         let mut app = make_app_with_agent("sess-1");
         seed_loop(&mut app, "loop-exp");
 
@@ -730,7 +730,7 @@
     /// The second task's notice must survive.
     #[test]
     fn reconnect_dedupe_keeps_notice_for_second_task_with_identical_copy() {
-        use xvora_tools::notification::ScheduledTaskRemovedReason;
+        use tools::notification::ScheduledTaskRemovedReason;
         let mut app = make_app_with_agent("sess-1");
         seed_loop(&mut app, "loop-a");
 
@@ -787,7 +787,7 @@
     /// Every non-expiry removal is user- or lifecycle-driven and already visible elsewhere; it must stay silent in the transcript.
     #[test]
     fn deleted_with_other_or_unknown_reasons_is_silent() {
-        use xvora_tools::notification::ScheduledTaskRemovedReason::*;
+        use tools::notification::ScheduledTaskRemovedReason::*;
         for reason in [Unknown, Completed, Deleted, Shutdown] {
             let mut app = make_app_with_agent("sess-1");
             seed_loop(&mut app, "loop-quiet");

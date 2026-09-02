@@ -1,17 +1,17 @@
 //! Object-safe `Transport` trait plus the `Principal` value carried across
 //! authorize/call boundaries.
 //!
-//! [`TransportKind`] is re-exported from [`xvora_tool_protocol`] so the wire
+//! [`TransportKind`] is re-exported from [`tool_protocol`] so the wire
 //! and dispatch layers share one canonical enum and there is no duplicate
 //! `Local` / `Remote` definition to keep in sync.
 
 use async_trait::async_trait;
 use serde_json::Value;
 
-use xvora_tool_protocol::{SessionId, ToolId, UserId};
-use xvora_tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput};
+use tool_protocol::{SessionId, ToolId, UserId};
+use tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput};
 
-pub use xvora_tool_protocol::TransportKind;
+pub use tool_protocol::TransportKind;
 
 /// Authenticated identity bound to a transport at handshake time.
 ///

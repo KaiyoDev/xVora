@@ -700,7 +700,7 @@ mod tests {
 
     /// Stand-in for the workspace-server's `ActivityTracker`.
     /// It records exactly what the scraper reported, so these tests assert the scraper's contract without linking the workspace library.
-    /// The tracker's own idle-withhold accounting is covered by `xvora_workspace::activity`.
+    /// The tracker's own idle-withhold accounting is covered by `workspace::activity`.
     /// The wiring between the two is covered by the `xvora-workspace-server` binary's own tests.
     struct TestSink {
         window_ms: u64,

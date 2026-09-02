@@ -22,13 +22,13 @@ xvora-pager = { path = "../xvora-pager" }
 xvora-pager-minimal = { path = "../xvora-pager-minimal" }
 
 # Agent runtime + leader/stdio/headless entry points.
-xvora-shell = { workspace = true }
+shell = { workspace = true }
 xvora-update = { path = "../xvora-update" }
-xvora-version = { workspace = true }
-xvora-telemetry = { workspace = true }
-xvora-workspace = { workspace = true }
+version = { workspace = true }
+telemetry = { workspace = true }
+workspace = { workspace = true }
 xvora-crash-handler = { path = "../crash-handler" }
-xvora-acp-lib = { workspace = true, package = "xvora-acp-lib" }
+acp-lib = { workspace = true }
 
 # Async runtime + misc.
 tokio = { workspace = true, features = [
@@ -47,12 +47,12 @@ tracing-subscriber = { workspace = true }
 serde_json = { workspace = true }
 dunce = { workspace = true }
 semver = { workspace = true }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+tty-utils = { workspace = true }
 # `collect_crashed()` for the startup crash notice.
-xvora-active-sessions = { workspace = true }
-xvora-config = { workspace = true }
+active-sessions = { workspace = true }
+config = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-xvora-extra-ca = { workspace = true }
+extra-ca = { workspace = true }
 
 # Binary hardening: compile-time string + control-flow obfuscation.
 obfstr = { workspace = true }
@@ -94,7 +94,7 @@ default-bazel = [
     ]
 jemalloc = ["dep:tikv-jemallocator", "dep:tikv-jemalloc-sys", "dep:tikv-jemalloc-ctl"]
 # xvora-workspace no longer enables sandbox-enforce by default, so enable it here.
-sandbox-enforce = ["xvora-pager/sandbox-enforce", "xvora-workspace/sandbox-enforce"]
+sandbox-enforce = ["xvora-pager/sandbox-enforce", "workspace/sandbox-enforce"]
 local-workspace = ["xvora-pager/local-workspace"]
 release-dist = [
     "xvora-pager/release-dist",

@@ -1,7 +1,7 @@
 use toml::Value as TomlValue;
 
 /// Announcement entry received from cli-chat-proxy `/v1/settings`.
-pub use xvora_announcements::RemoteAnnouncement;
+pub use announcements::RemoteAnnouncement;
 
 // ---------------------------------------------------------------------------
 // Announcements & tips from TOML

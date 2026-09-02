@@ -7,10 +7,10 @@
 
 use std::sync::Arc;
 
-pub use xvora_auth::bearer_fragment::BEARER_SUFFIX_LEN;
+pub use auth::bearer_fragment::BEARER_SUFFIX_LEN;
 
 /// A 401-emitting site in [`crate::SamplingClient`]; its string identifier becomes the `consumer` field so queries can break 401s down by API path.
-/// This covers sampler endpoints only; tool clients use `xvora_tools::ToolConsumer`.
+/// This covers sampler endpoints only; tool clients use `tools::ToolConsumer`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SamplingConsumer {
     /// `chat_completion_stream`: OpenAI-compatible streaming OpenAI Chat Completions API.

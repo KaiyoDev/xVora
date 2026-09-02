@@ -701,7 +701,7 @@ fn render_prompt_info(
         if let (Some(used), Some(total)) = (used, total)
             && total > 0
         {
-            let pct = xvora_token_estimation::usage_percentage(used, total);
+            let pct = token_estimation::usage_percentage(used, total);
             segs.push((
                 format!("{} / {} ({:.0}%)", fmt_tokens(used), fmt_tokens(total), pct),
                 base,
@@ -1052,7 +1052,7 @@ mod tests {
     #[test]
     fn prompt_info_renders_model_context_and_queued() {
         let mut a = agent();
-        a.context_state = Some(xvora_shell::session::ContextInfo {
+        a.context_state = Some(shell::session::ContextInfo {
             used: 276_000,
             total: 2_000_000,
             ..Default::default()
@@ -1078,7 +1078,7 @@ mod tests {
         use xvora_pager::app::agent_view::PromptInputMode;
         let mut a = agent();
         a.prompt_input_mode = PromptInputMode::Bash;
-        a.context_state = Some(xvora_shell::session::ContextInfo {
+        a.context_state = Some(shell::session::ContextInfo {
             used: 276_000,
             total: 2_000_000,
             ..Default::default()

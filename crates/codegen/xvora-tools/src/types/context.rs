@@ -85,7 +85,7 @@ impl TruncationConfig {
             .replace("{max_lines_read}", &self.max_lines_read().to_string())
             .replace(
                 "{max_wait_ms}",
-                &xvora_tool_types::format_wait_cap_ms(max_wait_ms),
+                &tool_types::format_wait_cap_ms(max_wait_ms),
             )
             .replace("{max_chars_per_line}", "2000")
             .replace(
@@ -167,13 +167,13 @@ mod tests {
             "capped at 300000 (~5 min)"
         );
         let default_cap =
-            xvora_tool_types::format_wait_cap_ms(xvora_tool_types::MAX_WAIT_BLOCK_MS_DEFAULT);
+            tool_types::format_wait_cap_ms(tool_types::MAX_WAIT_BLOCK_MS_DEFAULT);
         assert_eq!(
             TruncationConfig::default().interpolate_description(
                 "capped at {max_wait_ms}",
                 "get_task_output",
                 40_000,
-                xvora_tool_types::MAX_WAIT_BLOCK_MS_DEFAULT,
+                tool_types::MAX_WAIT_BLOCK_MS_DEFAULT,
             ),
             format!("capped at {default_cap}")
         );
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn apply_to_schema_bounds_the_real_optional_u64_property() {
         let generated =
-            serde_json::to_value(schemars::schema_for!(xvora_tool_types::TaskOutputToolInput))
+            serde_json::to_value(schemars::schema_for!(tool_types::TaskOutputToolInput))
                 .unwrap();
         let timeout = &generated["properties"]["timeout_ms"];
         assert!(
@@ -261,7 +261,7 @@ mod tests {
             &mut schema,
             "get_task_output",
             40_000,
-            xvora_tool_types::MAX_WAIT_BLOCK_MS_DEFAULT,
+            tool_types::MAX_WAIT_BLOCK_MS_DEFAULT,
         );
         assert_eq!(schema, serde_json::json!({"type": "object"}));
     }

@@ -71,7 +71,7 @@ impl RepoDirChain {
 /// It stays local (not reused from `xvora-workspace`, which depends on THIS crate) to keep the dep edge one-way.
 /// It backs the guard in [`RepoDirChain::resolve`] that drops a $HOME git root.
 fn is_home_dir(path: &Path) -> bool {
-    let Some(home) = xvora_dirs::home_dir() else {
+    let Some(home) = dirs::home_dir() else {
         return false;
     };
     let canon = |p: &Path| dunce::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
@@ -169,7 +169,7 @@ mod tests {
     fn resolve_treats_home_git_repo_as_no_repo() {
         // Home-is-a-git-repo (dotfiles in $HOME): discovery walks up to $HOME, but the guard drops that root
         // A subdir then resolves as no-repo (probe cwd only) instead of spanning the whole home subtree
-        // Pin HOME and USERPROFILE: xvora_dirs::home_dir reads USERPROFILE on Windows
+        // Pin HOME and USERPROFILE: dirs::home_dir reads USERPROFILE on Windows
         let tmp = tempfile::tempdir().unwrap();
         let home = dunce::canonicalize(tmp.path()).unwrap();
         git2::Repository::init(&home).unwrap();

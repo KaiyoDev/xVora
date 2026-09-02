@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use xvora_telemetry::session_end::{self, Phase};
+use telemetry::session_end::{self, Phase};
 
 use crate::session::pending_interaction::PendingInteractions;
 use crate::session::{SessionCommand, SessionHandle, ShutdownKind};

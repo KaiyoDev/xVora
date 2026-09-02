@@ -285,7 +285,7 @@ pub fn campaigns_application_disabled(base_effective: &toml::Value) -> bool {
 }
 
 /// Disk layers only (no remote, no env override).
-/// Prefer `xvora_shell::util::config::load_effective_config` when remote campaigns or `GROK_CAMPAIGNS_OVERRIDE` must be honored.
+/// Prefer `shell::util::config::load_effective_config` when remote campaigns or `GROK_CAMPAIGNS_OVERRIDE` must be honored.
 /// The name mirrors [`ConfigLayers::effective_config_disk_only`] so the divergence from the remote-aware loader is explicit at every call site.
 pub fn load_effective_config_disk_only() -> std::io::Result<toml::Value> {
     Ok(ConfigLayers::load()?.effective_config_disk_only())

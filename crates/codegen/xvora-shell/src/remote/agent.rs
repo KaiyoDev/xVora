@@ -61,7 +61,7 @@ impl SandboxClient {
             .header("Authorization", format!("Bearer {}", &auth.key))
             .header("X-XAI-Token-Auth", GrokComConfig::default().token_header)
             .header("x-userid", &auth.user_id)
-            .header("x-grok-client-version", xvora_version::VERSION);
+            .header("x-grok-client-version", version::VERSION);
 
         if let Some(email) = &auth.email {
             builder = builder.header("x-email", email);
@@ -77,7 +77,7 @@ impl SandboxClient {
                 crate::http::process_client_mode(),
             );
 
-        Ok(xvora_file_utils::trace_context::inject_trace_context_into_request(builder))
+        Ok(file_utils::trace_context::inject_trace_context_into_request(builder))
     }
 
     /// Check an HTTP response for errors, then deserialize the JSON body.

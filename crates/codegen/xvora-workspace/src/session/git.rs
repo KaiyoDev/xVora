@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use url::Url;
-pub use xvora_workspace_types::rpc::git::{
+pub use workspace_types::rpc::git::{
     ChangeType, CheckoutCommitResponse, CommitData, CommitOutcome, CommitResult, DiscardScope,
     GitBranchEntry, GitBranchListData, GitCommitReq, GitDiffsData, GitEnsureBindingResult,
     GitError, GitFileChange, GitInfoData, GitMergeToMainOutcome, GitMergeToMainResult,
@@ -66,12 +66,12 @@ pub async fn git_cli(cwd: &Path, args: &[&str]) -> Result<String> {
     tracing::debug!(cwd = %cwd.display(), args = ?args, "git_cli");
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).arg("--no-optional-locks");
-    for &(key, val) in xvora_tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
+    for &(key, val) in tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
         cmd.env(key, val);
     }
     cmd.stdin(std::process::Stdio::null());
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     let output = match cmd.args(args).output().await {
         Ok(o) => o,
         Err(e) => {
@@ -132,7 +132,7 @@ async fn jj_cli_inner(cwd: &Path, args: &[&str], ignore_wc: bool) -> Result<Stri
     cmd.current_dir(cwd)
         .stderr(std::process::Stdio::piped())
         .stdin(std::process::Stdio::null());
-    xvora_tools::util::detach_command(&mut cmd);
+    tools::util::detach_command(&mut cmd);
     if ignore_wc {
         cmd.arg("--ignore-working-copy");
     }
@@ -271,7 +271,7 @@ pub(crate) fn scrub_git_output(text: &str) -> String {
 /// # Examples
 ///
 /// ```
-/// use xvora_workspace::session::git::normalize_repo_url;
+/// use workspace::session::git::normalize_repo_url;
 ///
 /// assert_eq!(
 ///     normalize_repo_url("git@github.com:org/repo.git"),
@@ -529,7 +529,7 @@ pub async fn get_worktree_info(cwd: &Path) -> Option<(bool, Option<String>)> {
     let cwd = cwd.to_path_buf();
     tokio::task::spawn_blocking(move || {
         let repo = Repository::discover(&cwd).ok()?;
-        let home = xvora_dirs::home_dir();
+        let home = dirs::home_dir();
         let display = |path: &Path| -> String { collapse_home_path(path, home.as_deref()) };
         let mut marker_main = None;
         for ancestor in cwd.ancestors() {
@@ -2306,7 +2306,7 @@ async fn pop_checkout_auto_stash(
 /// In every other case running the checkout would silently detach the user's real repository and leave their active branch behind, so we refuse.
 /// The notable case: a forked-worktree session persisted with `git_ref = origin/main` but later loaded with `cwd = <source repo>`.
 pub fn restore_code_checkout_allowed(supplied_cwd: &Path, persisted_cwd: Option<&str>) -> bool {
-    let worktrees_dir = xvora_tools::util::grok_home::grok_home().join("worktrees");
+    let worktrees_dir = tools::util::grok_home::grok_home().join("worktrees");
     restore_code_checkout_allowed_in(supplied_cwd, persisted_cwd, &worktrees_dir)
 }
 /// Pure core of [`restore_code_checkout_allowed`] with the worktrees root
@@ -2329,7 +2329,7 @@ const REWIND_GIT_ENV: &str = "GROK_WORKSPACE_REWIND_GIT";
 /// Whether the git rewind domain (capture and soft restore) is enabled.
 /// Default OFF: git is the only domain that moves `HEAD`, so it is gated behind `workspace_rewind_git`.
 pub fn git_rewind_enabled() -> bool {
-    xvora_config::env_bool(REWIND_GIT_ENV).unwrap_or(false)
+    config::env_bool(REWIND_GIT_ENV).unwrap_or(false)
 }
 /// Lightweight, in-memory git state captured at a turn boundary.
 /// `staged` holds repo-root-relative paths (from `git diff --cached --name-only`).
@@ -2726,13 +2726,13 @@ async fn git_cli_raw(cwd: &Path, args: &[&str]) -> Result<(bool, String)> {
     tracing::debug!(cwd = %cwd.display(), args = ?args, "git_cli_raw");
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).arg("--no-optional-locks");
-    for &(key, val) in xvora_tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
+    for &(key, val) in tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
         cmd.env(key, val);
     }
     cmd.env("LC_ALL", "C");
     cmd.stdin(std::process::Stdio::null());
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     let output = cmd.args(args).output().await?;
     let mut combined = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -2749,13 +2749,13 @@ async fn git_cli_status(cwd: &Path, args: &[&str]) -> Result<(i32, String)> {
     tracing::debug!(cwd = %cwd.display(), args = ?args, "git_cli_status");
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).arg("--no-optional-locks");
-    for &(key, val) in xvora_tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
+    for &(key, val) in tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
         cmd.env(key, val);
     }
     cmd.env("LC_ALL", "C");
     cmd.stdin(std::process::Stdio::null());
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     let output = cmd.args(args).output().await?;
     let mut combined = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -3049,7 +3049,7 @@ async fn seed_default_gitignore(git_root: &Path) -> Result<()> {
     if tokio::fs::metadata(&path).await.is_ok() {
         return Ok(());
     }
-    tokio::fs::write(&path, xvora_workspace_types::binding::DEFAULT_GITIGNORE).await?;
+    tokio::fs::write(&path, workspace_types::binding::DEFAULT_GITIGNORE).await?;
     git_cli(git_root, &["add", "--end-of-options", ".gitignore"]).await?;
     git_cli(
         git_root,

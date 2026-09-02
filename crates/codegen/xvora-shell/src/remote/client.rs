@@ -23,7 +23,7 @@ fn add_cli_chat_proxy_headers_blocking(
         .header("Authorization", format!("Bearer {}", &auth.key))
         .header("X-XAI-Token-Auth", GrokComConfig::default().token_header)
         .header("x-userid", &auth.user_id)
-        .header("x-grok-client-version", xvora_version::VERSION);
+        .header("x-grok-client-version", version::VERSION);
     if let Some(email) = &auth.email {
         builder = builder.header("x-email", email);
     }
@@ -62,7 +62,7 @@ async fn add_bundle_fetch_headers(
     credentials.alpha_test_key = alpha_test_key.map(str::to_owned);
     let mut builder = credentials
         .apply(builder, url)
-        .header("x-grok-client-version", xvora_version::VERSION);
+        .header("x-grok-client-version", version::VERSION);
     if deployment_key.is_none()
         && let Some(auth) = &resolved_auth
     {
@@ -80,7 +80,7 @@ async fn add_bundle_fetch_headers(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),
         );
-    xvora_file_utils::trace_context::inject_trace_context_into_request(builder)
+    file_utils::trace_context::inject_trace_context_into_request(builder)
 }
 /// Fetch the bundled subagent cache payload from cli-chat-proxy `GET /v1/subagents/bundle`.
 ///
@@ -149,7 +149,7 @@ async fn fetch_bundle_inner(
     let archive_url = format!("{}/bundle/archive", cli_chat_proxy_base_url);
     let raw_client = crate::http::shared_client();
     let client: reqwest_middleware::ClientWithMiddleware = if let Some(am) = auth_manager {
-        let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> = std::sync::Arc::new(
+        let provider: std::sync::Arc<dyn auth::AuthCredentialProvider> = std::sync::Arc::new(
             crate::auth::credential_provider::ShellAuthCredentialProvider::new(
                 am.clone(),
                 deployment_key.map(str::to_owned),
@@ -163,7 +163,7 @@ async fn fetch_bundle_inner(
     let mut request = client
         .get(&archive_url)
         .timeout(std::time::Duration::from_secs(30))
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),
@@ -285,7 +285,7 @@ impl Default for BackendClient {
 }
 impl BackendClient {
     fn build_default_client() -> reqwest::Client {
-        xvora_extra_ca::build_reqwest_client(|builder| {
+        extra_ca::build_reqwest_client(|builder| {
                 builder.connect_timeout(Duration::from_secs(10)).timeout(DEFAULT_TIMEOUT)
             })
             .unwrap_or_else(|e| {
@@ -317,7 +317,7 @@ impl BackendClient {
         mut self,
         manager: std::sync::Arc<crate::auth::AuthManager>,
     ) -> Self {
-        let credentials: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> =
+        let credentials: std::sync::Arc<dyn auth::AuthCredentialProvider> =
             std::sync::Arc::new(
                 crate::auth::credential_provider::ShellAuthCredentialProvider::new(
                     manager.clone(),
@@ -402,7 +402,7 @@ impl BackendClient {
         );
         headers.insert(
             "x-grok-client-version",
-            HeaderValue::from_static(xvora_version::VERSION),
+            HeaderValue::from_static(version::VERSION),
         );
         Ok(headers)
     }
@@ -411,7 +411,7 @@ impl BackendClient {
         builder: reqwest::RequestBuilder,
     ) -> Result<reqwest::Response, BackendError> {
         let headers = self.auth_header_map().await?;
-        let builder = xvora_file_utils::trace_context::inject_trace_context_into_request(
+        let builder = file_utils::trace_context::inject_trace_context_into_request(
             builder.timeout(DEFAULT_TIMEOUT).headers(headers),
         );
         let request = builder.build()?;
@@ -634,7 +634,7 @@ struct LoginConfigResponse {
 /// Best-effort: any error or unset flag returns `None` so the caller keeps the loopback default.
 /// Caps at 1.5s with no retries since it's on the login path.
 pub async fn fetch_login_device_flow(cli_chat_proxy_base_url: &str) -> Option<bool> {
-    let agent_id = tokio::task::spawn_blocking(xvora_telemetry::id::agent_id)
+    let agent_id = tokio::task::spawn_blocking(telemetry::id::agent_id)
         .await
         .ok()?;
     let client = crate::http::shared_client();
@@ -643,7 +643,7 @@ pub async fn fetch_login_device_flow(cli_chat_proxy_base_url: &str) -> Option<bo
         .get(&url)
         .timeout(std::time::Duration::from_millis(1500))
         .header("x-grok-agent-id", agent_id)
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .header(
             "x-grok-client-identifier",
             crate::http::process_client_identifier(),

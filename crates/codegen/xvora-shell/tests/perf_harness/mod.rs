@@ -12,12 +12,12 @@ use agent_client_protocol::{self as acp};
 use crate::acp_harness;
 use serde_json::Value;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::agent::mvp_agent::MvpAgent;
+use shell::agent::config::Config as AgentConfig;
+use shell::agent::mvp_agent::MvpAgent;
 
 #[derive(Debug)]
 pub struct DispatchEvent {
@@ -241,7 +241,7 @@ pub fn spawn_agent_thread(name: &str) -> (acp_harness::AgentPipes, AgentThread) 
                 );
                 tokio::task::spawn_local(
                     GatewayReceiver::new(gw_rx, agent_conn)
-                        .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
+                        .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
                         .run(),
                 );
                 tokio::task::spawn_local(agent_io);

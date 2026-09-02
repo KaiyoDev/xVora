@@ -28,7 +28,7 @@
 //!    [`RestartActions::is_stdio_server_configured`] returns `false` for any non-stdio configured entry.
 //!    That single check doubles as the HTTP filter, so no separate `is_http` check is needed.
 //! 3. **`kill_on_drop` from config diff**:
-//!    In its `acp::McpServer::Stdio` arm, [`xvora_mcp::servers::start_mcp_server`] sets `kill_on_drop(true)` on the child it spawns.
+//!    In its `acp::McpServer::Stdio` arm, [`mcp::servers::start_mcp_server`] sets `kill_on_drop(true)` on the child it spawns.
 //!    When `McpState::update_configs_diff` drops the `Arc<McpClient>`, the child is SIGKILLed.
 //!    The liveness watcher eventually emits `TransportClosed`.
 //!    The dispatcher's [`crate::session::mcp_dispatcher::ShutdownState`], set on `ConfigRemoved` events, records that the teardown was intentional.
@@ -36,7 +36,7 @@
 //! 4. **Disabled / not currently configured**: `update_configs_diff` or `ToggleMcpServer enabled=false` removes the stdio entry.
 //!    We consult [`RestartActions::is_stdio_server_configured`], which already folds in the disabled-list check.
 //!    On `false` mid-loop we emit one final [`crate::session::mcp_dispatcher::McpServerStatusReason::Disabled`] push and stop.
-//! 5. **Already-Empty**: see the [`xvora_mcp::servers::ClientStateKind::Empty`] doc: a previous handshake exhausted attempts.
+//! 5. **Already-Empty**: see the [`mcp::servers::ClientStateKind::Empty`] doc: a previous handshake exhausted attempts.
 //!    Recovery from `Empty` is via the explicit `Refresh` button, not auto-restart.
 //!    Enforced upstream: the liveness watcher emits `TransportClosed` only from `Ready` / `Initializing`, never from `Empty`.
 //!
@@ -70,7 +70,7 @@ use std::time::Duration;
 
 use agent_client_protocol as acp;
 use async_trait::async_trait;
-use xvora_mcp::servers::{McpClientEventKind, McpServerName};
+use mcp::servers::{McpClientEventKind, McpServerName};
 
 use crate::session::mcp_dispatcher::{
     McpServerStatus, McpServerStatusPayload, McpServerStatusReason, SERVER_STATUS_METHOD,
@@ -534,7 +534,7 @@ fn push(
 /// Public so production impls and tests can wrap a gateway sender without reaching into private dispatcher internals.
 /// Uses [`crate::session::mcp_dispatcher::SERVER_STATUS_METHOD`] so pushes share the dispatcher's wire method name.
 pub(crate) fn forward_status(
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
     payload: &McpServerStatusPayload,
 ) {
     let raw = match serde_json::value::to_raw_value(payload) {

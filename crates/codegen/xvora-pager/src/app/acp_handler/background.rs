@@ -433,7 +433,7 @@ fn expired_task_notice(info: &crate::app::agent::ScheduledTaskInfo) -> String {
     format!(
         "Scheduled task expired: \"{head}\" ({}). Recurring tasks auto-expire after {} days; re-create it if still needed.",
         info.human_schedule,
-        xvora_tools::implementations::grok_build::scheduler::types::RECURRING_TASK_TTL_DAYS,
+        tools::implementations::grok_build::scheduler::types::RECURRING_TASK_TTL_DAYS,
     )
 }
 
@@ -524,7 +524,7 @@ pub(super) fn derive_child_cwd(
 /// Updates the cached branch/worktree display on the matching agent so the status bar can render without spawning `git` on every frame.
 pub(super) fn handle_git_head_changed(notif: &acp::ExtNotification, app: &mut AppView) -> bool {
     let Ok(params) =
-        serde_json::from_str::<xvora_workspace::session::git::GitHeadChanged>(notif.params.get())
+        serde_json::from_str::<workspace::session::git::GitHeadChanged>(notif.params.get())
     else {
         return false;
     };

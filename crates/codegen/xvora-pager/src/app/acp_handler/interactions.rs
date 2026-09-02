@@ -2,20 +2,20 @@ use super::*;
 
 /// Resolve a superseded elicitation's reverse-request with `Cancel` so the awaiting MCP server is released before a replacement takes the slot.
 fn cancel_elicitation_request(
-    response_tx: tokio::sync::oneshot::Sender<xvora_acp_lib::AcpResult<acp::ExtResponse>>,
+    response_tx: tokio::sync::oneshot::Sender<acp_lib::AcpResult<acp::ExtResponse>>,
 ) {
-    let cancelled = xvora_tools::mcp_elicitation::McpElicitExtResponse::Cancel;
+    let cancelled = tools::mcp_elicitation::McpElicitExtResponse::Cancel;
     if let Ok(raw) = serde_json::value::to_raw_value(&cancelled) {
         response_tx.send(Ok(acp::ExtResponse::new(raw.into()))).ok();
     }
 }
 
 pub(crate) fn handle_mcp_elicit(
-    ext: xvora_acp_lib::AcpArgs<acp::ExtRequest>,
+    ext: acp_lib::AcpArgs<acp::ExtRequest>,
     app: &mut AppView,
 ) -> bool {
     use crate::views::elicitation_view::ElicitationViewState;
-    use xvora_tools::mcp_elicitation::McpElicitExtRequest;
+    use tools::mcp_elicitation::McpElicitExtRequest;
 
     let ext_req: McpElicitExtRequest = match serde_json::from_str(ext.request.params.get()) {
         Ok(r) => r,
@@ -87,11 +87,11 @@ pub(crate) fn handle_mcp_elicit(
 ///
 /// If a question is already active, the old one is cancelled first (`Cancelled` is sent on its stashed `response_tx`).
 pub(crate) fn handle_ask_user_question(
-    ext: xvora_acp_lib::AcpArgs<acp::ExtRequest>,
+    ext: acp_lib::AcpArgs<acp::ExtRequest>,
     app: &mut AppView,
 ) -> bool {
     use crate::views::question_view::QuestionViewState;
-    use xvora_tools::implementations::grok_build::ask_user_question::{
+    use tools::implementations::grok_build::ask_user_question::{
         AskUserQuestionExtRequest, AskUserQuestionExtResponse,
     };
 
@@ -246,7 +246,7 @@ pub(crate) fn handle_ask_user_question(
 /// Flow: parse, guard, cancel the old approval, capture the session draft, create state, then return true.
 /// Freeform is prefilled only when safe (not under an open permission).
 pub(super) fn handle_exit_plan_mode(
-    ext: xvora_acp_lib::AcpArgs<acp::ExtRequest>,
+    ext: acp_lib::AcpArgs<acp::ExtRequest>,
     app: &mut AppView,
 ) -> bool {
     use crate::views::plan_approval_view::{ExitPlanModeExtRequest, PlanApprovalViewState};

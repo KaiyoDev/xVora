@@ -1,7 +1,7 @@
 //! Rendered under the skill catalog in the baseline `<system-reminder>` so the model can launch a saved workflow by name the same way it sees skills.
 
 use super::registry::WorkflowListing;
-use xvora_tools::util::truncate_str_with_marker;
+use tools::util::truncate_str_with_marker;
 
 /// Per-entry cap on description and when_to_use combined.
 /// The script body is loaded on launch, so the listing stays terse.

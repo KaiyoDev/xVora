@@ -1,8 +1,8 @@
-//! The canonical implementation now lives in `xvora_tools::retry`.
+//! The canonical implementation now lives in `tools::retry`.
 //! This module re-exports with backward-compatible aliases.
 
-pub use xvora_tools::retry::BackoffConfig as RetryConfig;
-pub use xvora_tools::retry::{BackoffConfig, execute_with_backoff};
+pub use tools::retry::BackoffConfig as RetryConfig;
+pub use tools::retry::{BackoffConfig, execute_with_backoff};
 
 use std::future::Future;
 use std::time::Duration;

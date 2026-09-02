@@ -246,7 +246,7 @@ impl SessionEvent {
                     .to_string()
             }
             SessionEvent::DiskFull => {
-                xvora_shell::extensions::notification::DISK_FULL_USER_MESSAGE.to_string()
+                shell::extensions::notification::DISK_FULL_USER_MESSAGE.to_string()
             }
             // No "Context N% full." prefix; that phrasing is the auto marker's
             SessionEvent::CompactStarted => "Compacting conversation…".to_string(),

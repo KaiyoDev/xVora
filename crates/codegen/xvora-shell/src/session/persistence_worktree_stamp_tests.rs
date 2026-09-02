@@ -1,6 +1,6 @@
 use agent_client_protocol as acp;
 use serial_test::serial;
-use xvora_test_support::EnvGuard;
+use test_support::EnvGuard;
 
 use super::{OaiCompatClient, Summary, default_model_id, new_with_explicit_dir};
 use crate::session::info::Info;
@@ -67,7 +67,7 @@ async fn new_with_explicit_dir_overrides_worktree_stamp_so_subagent_stays_hidden
     let cwd = worktree_cwd_under(home.path());
     let target_dir = home.path().join("child-session");
 
-    let sampling_client = OaiCompatClient::new(xvora_sampler::SamplerConfig::default()).unwrap();
+    let sampling_client = OaiCompatClient::new(sampler::SamplerConfig::default()).unwrap();
     let _persistence = new_with_explicit_dir(
         &Info {
             id: acp::SessionId::new("subagent-in-worktree"),

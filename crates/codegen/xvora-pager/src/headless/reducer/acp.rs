@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::headless::attach_result_usage;
-use xvora_shell::extensions::notification::ResponseUsage;
+use shell::extensions::notification::ResponseUsage;
 
 use super::{
     Lifecycle, Reducer, StreamEvent, TurnEnd, attach_structured_output, to_line,

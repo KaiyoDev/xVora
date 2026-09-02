@@ -298,28 +298,28 @@ impl crate::types::tool_metadata::ToolMetadata for TodoWriteTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for TodoWriteTool {
+impl tool_runtime::Tool for TodoWriteTool {
     type Args = TodoWriteInput;
     type Output = TodoWriteOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("todowrite").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("todowrite").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "todowrite",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
+            tool_scope: Some(tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -331,9 +331,9 @@ impl xvora_tool_runtime::Tool for TodoWriteTool {
     )]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: TodoWriteInput,
-    ) -> Result<TodoWriteOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<TodoWriteOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -405,7 +405,7 @@ mod tests {
     fn id_and_kind() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = TodoWriteTool;
-        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "todowrite");
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "todowrite");
         assert!(matches!(tool.kind(), ToolKind::Plan));
     }
 
@@ -422,7 +422,7 @@ mod tests {
         };
 
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -441,7 +441,7 @@ mod tests {
         let input1 = TodoWriteInput {
             todos: vec![make_item("Old task", "completed", "low")],
         };
-        xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input1)
+        tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input1)
             .await
             .unwrap();
 
@@ -450,7 +450,7 @@ mod tests {
             todos: vec![make_item("New task", "pending", "high")],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input2)
+            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input2)
                 .await
                 .unwrap(),
         );
@@ -467,7 +467,7 @@ mod tests {
 
         let input = TodoWriteInput { todos: vec![] };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -485,7 +485,7 @@ mod tests {
             todos: vec![make_item("Task A", "pending", "medium")],
         };
         let shared = resources.into_shared();
-        xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
 
@@ -522,7 +522,7 @@ mod tests {
             todos: vec![make_item("Dropped task", "cancelled", "low")],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -543,7 +543,7 @@ mod tests {
             ],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -601,7 +601,7 @@ mod tests {
         let input = TodoWriteInput { todos };
 
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -627,7 +627,7 @@ mod tests {
             ],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -651,7 +651,7 @@ mod tests {
             ],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -673,7 +673,7 @@ mod tests {
         let input1 = TodoWriteInput {
             todos: vec![make_item("First batch", "pending", "high")],
         };
-        xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input1)
+        tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input1)
             .await
             .unwrap();
 
@@ -684,7 +684,7 @@ mod tests {
                 make_item("Second B", "pending", "low"),
             ],
         };
-        xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input2)
+        tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input2)
             .await
             .unwrap();
 
@@ -697,7 +697,7 @@ mod tests {
             ],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input3)
+            tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input3)
                 .await
                 .unwrap(),
         );
@@ -749,7 +749,7 @@ mod tests {
             ],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -773,7 +773,7 @@ mod tests {
             ],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );
@@ -801,7 +801,7 @@ mod tests {
             ],
         };
         let output = expect_success(
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap(),
         );

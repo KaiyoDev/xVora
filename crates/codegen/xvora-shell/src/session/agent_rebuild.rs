@@ -1,19 +1,19 @@
-//! `AgentRebuildSpec` is the canonical recipe for constructing an [`xvora_agent::Agent`] for a given session.
+//! `AgentRebuildSpec` is the canonical recipe for constructing an [`agent::Agent`] for a given session.
 //!
-//! INVARIANT: This is the **only** place in the shell crate that calls [`xvora_agent::AgentBuilder::new`].
+//! INVARIANT: This is the **only** place in the shell crate that calls [`agent::AgentBuilder::new`].
 //! Initial session spawn ([`crate::session::acp_session::spawn_session_actor`]) goes through [`AgentRebuildSpec::build_agent`].
 //! So does the zero-turn harness rebuild ([`crate::session::acp_session::SessionActor::handle_rebuild_agent_for_definition`]).
 //!
 //! ## Why this exists
 //!
-//! [`xvora_agent::Agent`] owns an [`xvora_tools::bridge::ToolBridge`] that carries session-scoped channels.
+//! [`agent::Agent`] owns an [`tools::bridge::ToolBridge`] that carries session-scoped channels.
 //! Those are the notification handle, terminal/fs backends, subagent senders, scheduler set, plugin registry, and attribution callback.
 //! The Agent is therefore session-bound: it cannot be shared across sessions and cannot be re-rendered from outside its session context.
 //! A rebuild happens, for example, when the user picks a model with a different `agent_type` before sending any user message.
 //! To rebuild, we must retain every input that the original `AgentBuilder` chain consumed.
 //! `AgentRebuildSpec` is exactly that retained bag of inputs.
 //!
-//! ## WHEN ADDING A NEW [`xvora_agent::AgentBuilder`]`::with_*` KNOB
+//! ## WHEN ADDING A NEW [`agent::AgentBuilder`]`::with_*` KNOB
 //!
 //! 1. Add the corresponding field to [`AgentRebuildSpec`].
 //! 2. Pass it through in [`AgentRebuildSpec::build_agent`].
@@ -32,25 +32,25 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
-use xvora_agent::config::AgentDefinition;
-use xvora_agent::error::AgentBuildError;
-use xvora_agent::prompt::context::PromptAudience;
-use xvora_agent::prompt::skills::SkillsConfig;
-use xvora_agent::{Agent, AgentBuilder, CompactionPolicy, ReminderPolicy};
-use xvora_tools::computer::types::{AsyncFileSystem, TerminalBackend};
-use xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
-use xvora_tools::implementations::grok_build::ask_user_question::types::UserQuestionRequest;
-use xvora_tools::implementations::grok_build::image_gen::ImageGenConfig;
-use xvora_tools::implementations::grok_build::monitor::types::MonitorEventBuffer;
-use xvora_tools::implementations::grok_build::task::types::{SubagentEvent, TaskModelValidator};
-use xvora_tools::implementations::grok_build::video_gen::VideoGenConfig;
-use xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig;
-use xvora_tools::implementations::lsp::LspBackend;
-use xvora_tools::implementations::web_search::WebSearchConfig;
-use xvora_tools::notification::ToolNotificationHandle;
-use xvora_tools::types::SharedApiKeyProvider;
-use xvora_tools::types::compat::CompatConfig;
-use xvora_tools::types::memory_backend::MemoryBackend;
+use agent::config::AgentDefinition;
+use agent::error::AgentBuildError;
+use agent::prompt::context::PromptAudience;
+use agent::prompt::skills::SkillsConfig;
+use agent::{Agent, AgentBuilder, CompactionPolicy, ReminderPolicy};
+use tools::computer::types::{AsyncFileSystem, TerminalBackend};
+use tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
+use tools::implementations::grok_build::ask_user_question::types::UserQuestionRequest;
+use tools::implementations::grok_build::image_gen::ImageGenConfig;
+use tools::implementations::grok_build::monitor::types::MonitorEventBuffer;
+use tools::implementations::grok_build::task::types::{SubagentEvent, TaskModelValidator};
+use tools::implementations::grok_build::video_gen::VideoGenConfig;
+use tools::implementations::grok_build::web_fetch::WebFetchConfig;
+use tools::implementations::lsp::LspBackend;
+use tools::implementations::web_search::WebSearchConfig;
+use tools::notification::ToolNotificationHandle;
+use tools::types::SharedApiKeyProvider;
+use tools::types::compat::CompatConfig;
+use tools::types::memory_backend::MemoryBackend;
 /// Shell-resolved per-tool `ToolConfig.params` JSON maps.
 /// The struct keeps the spawn functions to a single argument instead of adjacent identically-typed positional arguments a caller could transpose.
 #[derive(Debug, Clone, Default)]
@@ -87,7 +87,7 @@ pub(crate) struct AgentRebuildSpec {
     pub image_gen_config: ImageGenConfig,
     pub video_gen_config: VideoGenConfig,
     pub app_builder_deployer_config: AppBuilderDeployerConfig,
-    pub media_gen_batch_limits: xvora_tools::media_gen_limits::MediaGenBatchLimits,
+    pub media_gen_batch_limits: tools::media_gen_limits::MediaGenBatchLimits,
     pub write_file_enabled: bool,
     pub active_agent_messages_enabled: bool,
     pub subagents_enabled: bool,
@@ -104,13 +104,13 @@ pub(crate) struct AgentRebuildSpec {
     pub context_window_tokens: u64,
     pub prompt_working_directory: Option<String>,
     pub lsp: Option<Arc<dyn LspBackend>>,
-    pub plugin_registry: Option<Arc<xvora_agent::plugins::PluginRegistry>>,
+    pub plugin_registry: Option<Arc<agent::plugins::PluginRegistry>>,
     pub api_key_provider: Option<SharedApiKeyProvider>,
-    pub attribution_callback: Option<xvora_tools::SharedAttributionCallback>,
+    pub attribution_callback: Option<tools::SharedAttributionCallback>,
     pub tool_params_json: ResolvedToolParamsJson,
     pub subagent_event_tx: Option<UnboundedSender<SubagentEvent>>,
     pub subagent_coordinator_sender:
-        Option<xvora_tools::implementations::grok_build::task::backend::SubagentCoordinatorSender>,
+        Option<tools::implementations::grok_build::task::backend::SubagentCoordinatorSender>,
     pub monitor_event_buffer: Option<MonitorEventBuffer>,
     pub user_question_tx: UnboundedSender<UserQuestionRequest>,
     pub subagent_depth: u32,
@@ -125,12 +125,12 @@ pub(crate) struct AgentRebuildSpec {
     pub scheduler_background_loops: bool,
     pub mcp_state: Arc<tokio::sync::Mutex<crate::session::mcp_servers::McpState>>,
     pub managed_gateway_tool_client:
-        Option<xvora_tools::types::resources::ManagedGatewayToolClient>,
+        Option<tools::types::resources::ManagedGatewayToolClient>,
     pub is_non_interactive: bool,
     pub system_prompt_label: String,
     pub owner_session_id: Option<String>,
     pub parent_scheduler_handle:
-        Option<xvora_tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
+        Option<tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
 }
 impl AgentRebuildSpec {
     /// This is the canonical construction path; see module docs for the invariant.
@@ -151,7 +151,7 @@ impl AgentRebuildSpec {
         self: &Arc<Self>,
         definition: AgentDefinition,
         persisted_skill_names: Option<std::collections::HashSet<String>>,
-        preloaded_skills: Option<Vec<xvora_tools::implementations::skills::types::SkillInfo>>,
+        preloaded_skills: Option<Vec<tools::implementations::skills::types::SkillInfo>>,
     ) -> Result<(Agent, std::time::Duration), AgentBuildError> {
         self.build_agent_inner(definition, persisted_skill_names, preloaded_skills)
             .await
@@ -161,7 +161,7 @@ impl AgentRebuildSpec {
         self: &Arc<Self>,
         definition: AgentDefinition,
         persisted_skill_names: Option<std::collections::HashSet<String>>,
-        preloaded_skills: Option<Vec<xvora_tools::implementations::skills::types::SkillInfo>>,
+        preloaded_skills: Option<Vec<tools::implementations::skills::types::SkillInfo>>,
     ) -> Result<(Agent, std::time::Duration), AgentBuildError> {
         let build_phase_start = std::time::Instant::now();
         let Self {
@@ -333,10 +333,10 @@ impl AgentRebuildSpec {
                         }),
                     );
                 if let Some(event_tx) = subagent_event_tx.clone() {
-                    use xvora_tools::implementations::grok_build::task::backend::{
+                    use tools::implementations::grok_build::task::backend::{
                         ChannelBackend, SubagentBackendResource,
                     };
-                    use xvora_tools::implementations::grok_build::task::types::{
+                    use tools::implementations::grok_build::task::types::{
                         MaxSubagentDepth, SessionIdResource, SubagentDepthCounter,
                         SubagentEventSender,
                     };
@@ -375,19 +375,19 @@ impl AgentRebuildSpec {
                 }
                 resources
                     .insert(
-                        xvora_tools::types::resources::RespectGitignore(
+                        tools::types::resources::RespectGitignore(
                             *respect_gitignore,
                         ),
                     );
                 resources
                     .insert(
-                        xvora_tools::types::resources::SchedulerBackgroundLoops(
+                        tools::types::resources::SchedulerBackgroundLoops(
                             *scheduler_background_loops,
                         ),
                     );
                 resources
                     .insert(
-                        xvora_tools::types::resources::PathNotFoundHints(
+                        tools::types::resources::PathNotFoundHints(
                             *path_not_found_hints,
                         ),
                     );
@@ -395,7 +395,7 @@ impl AgentRebuildSpec {
                     resources.insert(client);
                 }
                 {
-                    use xvora_tools::implementations::grok_build::ask_user_question::UserQuestionSender;
+                    use tools::implementations::grok_build::ask_user_question::UserQuestionSender;
                     resources.insert(UserQuestionSender(user_question_tx.clone()));
                 }
             })
@@ -410,11 +410,11 @@ pub(crate) fn test_rebuild_spec_default() -> Arc<AgentRebuildSpec> {
     Arc::new(AgentRebuildSpec {
         working_directory: std::env::temp_dir(),
         terminal_backend: Arc::new(
-            xvora_tools::computer::local::LocalTerminalBackend::new_local(
-                xvora_tools::computer::local::SearchShadowConfig::default(),
+            tools::computer::local::LocalTerminalBackend::new_local(
+                tools::computer::local::SearchShadowConfig::default(),
             ),
         ),
-        fs_backend: Arc::new(xvora_tools::computer::local::LocalFs),
+        fs_backend: Arc::new(tools::computer::local::LocalFs),
         tools_notification_handle: ToolNotificationHandle::noop(),
         bridge_state_path: std::env::temp_dir().join("test_tool_state.json"),
         session_env: Arc::new(HashMap::new()),
@@ -432,7 +432,7 @@ pub(crate) fn test_rebuild_spec_default() -> Arc<AgentRebuildSpec> {
         image_gen_config: ImageGenConfig::default(),
         video_gen_config: VideoGenConfig::default(),
         app_builder_deployer_config: AppBuilderDeployerConfig::default(),
-        media_gen_batch_limits: xvora_tools::media_gen_limits::MediaGenBatchLimits::default(),
+        media_gen_batch_limits: tools::media_gen_limits::MediaGenBatchLimits::default(),
         write_file_enabled: true,
         active_agent_messages_enabled: false,
         subagents_enabled: false,
@@ -457,7 +457,7 @@ pub(crate) fn test_rebuild_spec_default() -> Arc<AgentRebuildSpec> {
         monitor_event_buffer: None,
         user_question_tx: uq_tx,
         subagent_depth: 0,
-        subagents_max_depth: xvora_tools::implementations::grok_build::task::MAX_SUBAGENT_DEPTH,
+        subagents_max_depth: tools::implementations::grok_build::task::MAX_SUBAGENT_DEPTH,
         session_id_str: "test-session".to_string(),
         blocking_wait_depth: Arc::new(crate::tools::tool_context::BlockingWaitState::new()),
         respect_gitignore: false,
@@ -468,7 +468,7 @@ pub(crate) fn test_rebuild_spec_default() -> Arc<AgentRebuildSpec> {
         )),
         managed_gateway_tool_client: None,
         is_non_interactive: false,
-        system_prompt_label: xvora_agent::DEFAULT_SYSTEM_PROMPT_LABEL.to_string(),
+        system_prompt_label: agent::DEFAULT_SYSTEM_PROMPT_LABEL.to_string(),
         owner_session_id: Some("test-session".to_string()),
         parent_scheduler_handle: None,
     })
@@ -483,7 +483,7 @@ mod tests {
     fn task_description(agent: &Agent) -> String {
         let toolset = agent.tool_bridge().toolset();
         let task_name = toolset
-            .tool_name_for_kind(xvora_tools::types::tool::ToolKind::Task)
+            .tool_name_for_kind(tools::types::tool::ToolKind::Task)
             .expect("GrokBuild Task tool should be present");
         toolset
             .tool_definitions()

@@ -145,7 +145,7 @@ pub(crate) fn parse_comma_list(s: Option<&str>) -> Option<Vec<String>> {
 pub fn parse_permission_rules_strict(
     allow: &[String],
     deny: &[String],
-) -> anyhow::Result<Vec<xvora_workspace::permission::types::PermissionRule>> {
+) -> anyhow::Result<Vec<workspace::permission::types::PermissionRule>> {
     let (rules, errors) = parse_permission_rules_inner(allow, deny);
     if !errors.is_empty() {
         let msgs: Vec<String> = errors
@@ -160,7 +160,7 @@ pub fn parse_permission_rules_strict(
 pub fn parse_permission_rules_lenient(
     allow: &[String],
     deny: &[String],
-) -> Vec<xvora_workspace::permission::types::PermissionRule> {
+) -> Vec<workspace::permission::types::PermissionRule> {
     let (rules, errors) = parse_permission_rules_inner(allow, deny);
     for (flag, rule, err) in errors {
         eprintln!("warning: {flag} \"{rule}\": {err}, skipping");
@@ -173,11 +173,11 @@ pub(crate) fn parse_permission_rules_inner(
     allow: &[String],
     deny: &[String],
 ) -> (
-    Vec<xvora_workspace::permission::types::PermissionRule>,
+    Vec<workspace::permission::types::PermissionRule>,
     Vec<(&'static str, String, String)>,
 ) {
-    use xvora_workspace::permission::rules::parse_permission_rule;
-    use xvora_workspace::permission::types::RuleAction;
+    use workspace::permission::rules::parse_permission_rule;
+    use workspace::permission::types::RuleAction;
 
     let mut rules = Vec::new();
     let mut errors = Vec::new();
@@ -212,7 +212,7 @@ pub(crate) fn resolve_agent_arg(agent: &str) -> ResolvedAgent {
 
 pub(crate) fn parse_cli_agents(
     json: &str,
-) -> anyhow::Result<Vec<xvora_shell::agent::config::AgentDefinition>> {
+) -> anyhow::Result<Vec<shell::agent::config::AgentDefinition>> {
     let map: std::collections::HashMap<String, serde_json::Value> =
         serde_json::from_str(json).map_err(|e| anyhow::anyhow!("--agents: invalid JSON: {e}"))?;
     let mut agents = Vec::with_capacity(map.len());
@@ -228,7 +228,7 @@ pub(crate) fn parse_cli_agents(
             obj.entry("description".to_string())
                 .or_insert_with(|| serde_json::Value::String(name.clone()));
         }
-        let mut def = xvora_shell::agent::config::AgentDefinition::from_json(&value)
+        let mut def = shell::agent::config::AgentDefinition::from_json(&value)
             .map_err(|e| anyhow::anyhow!("--agents: failed to parse '{name}': {e}"))?;
         def.name = name;
         agents.push(def);
@@ -238,7 +238,7 @@ pub(crate) fn parse_cli_agents(
 
 pub(crate) fn apply_agent_flag(
     agent: &Option<String>,
-    config: &mut xvora_shell::agent::config::Config,
+    config: &mut shell::agent::config::Config,
 ) {
     if let Some(agent) = agent {
         match resolve_agent_arg(agent) {

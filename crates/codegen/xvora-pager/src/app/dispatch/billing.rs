@@ -7,8 +7,8 @@ use crate::app::agent_view::AgentView;
 use crate::app::app_view::AppView;
 use crate::scrollback::block::RenderBlock;
 use std::time::Duration;
-use xvora_telemetry::events::{SuperGrokUpsell, SuperGrokUpsellClicked};
-use xvora_telemetry::session_ctx::log_event;
+use telemetry::events::{SuperGrokUpsell, SuperGrokUpsellClicked};
+use telemetry::session_ctx::log_event;
 
 /// How long the pager auto-checks subscription status before stopping.
 /// After this, the user can still manually check via the [Refresh] button.
@@ -84,7 +84,7 @@ struct CreditLimitCopy {
     upgrade_tier_desc: &'static str,
     secondary_label: &'static str,
     secondary_desc: &'static str,
-    second_choice: xvora_telemetry::events::CreditLimitChoice,
+    second_choice: telemetry::events::CreditLimitChoice,
     payg_telemetry: bool,
 }
 
@@ -100,7 +100,7 @@ pub(super) fn open_credit_limit_upsell(
     max_tier: bool,
 ) {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
 
     if agent.question_view.is_some() {
         return;
@@ -112,7 +112,7 @@ pub(super) fn open_credit_limit_upsell(
             upgrade_tier_desc: "Upgrade to a higher tier for more usage",
             secondary_label: "Buy more credits",
             secondary_desc: "Purchase credits to keep using Grok Build",
-            second_choice: xvora_telemetry::events::CreditLimitChoice::PurchaseCredits,
+            second_choice: telemetry::events::CreditLimitChoice::PurchaseCredits,
             payg_telemetry: false,
         },
         CreditLimitUpsellMode::LegacyPayg { enabled: true } => CreditLimitCopy {
@@ -120,7 +120,7 @@ pub(super) fn open_credit_limit_upsell(
             upgrade_tier_desc: "Upgrade to a higher tier for more credits",
             secondary_label: "Increase limit",
             secondary_desc: "Raise your pay-as-you-go spending cap",
-            second_choice: xvora_telemetry::events::CreditLimitChoice::PayAsYouGo,
+            second_choice: telemetry::events::CreditLimitChoice::PayAsYouGo,
             payg_telemetry: true,
         },
         CreditLimitUpsellMode::LegacyPayg { enabled: false } => CreditLimitCopy {
@@ -128,14 +128,14 @@ pub(super) fn open_credit_limit_upsell(
             upgrade_tier_desc: "Upgrade to a higher tier for more credits",
             secondary_label: "Pay as you go",
             secondary_desc: "Enable pay-as-you-go credits for on-demand usage",
-            second_choice: xvora_telemetry::events::CreditLimitChoice::PayAsYouGo,
+            second_choice: telemetry::events::CreditLimitChoice::PayAsYouGo,
             payg_telemetry: false,
         },
     };
     let unified_billing = matches!(mode, CreditLimitUpsellMode::UnifiedCredits);
 
-    log_event(xvora_telemetry::events::CreditLimitUpsellShown {
-        surface: xvora_telemetry::events::CreditLimitUpsellSurface::QuestionModal,
+    log_event(telemetry::events::CreditLimitUpsellShown {
+        surface: telemetry::events::CreditLimitUpsellSurface::QuestionModal,
         max_tier,
         pay_as_you_go: copy.payg_telemetry,
         unified_billing,
@@ -150,7 +150,7 @@ pub(super) fn open_credit_limit_upsell(
             preview: None,
             id: Some(UPSELL_URL_UPGRADE.into()),
         });
-        choices.push(xvora_telemetry::events::CreditLimitChoice::UpgradeTier);
+        choices.push(telemetry::events::CreditLimitChoice::UpgradeTier);
     }
     options.push(QuestionOption {
         label: copy.secondary_label.into(),
@@ -165,7 +165,7 @@ pub(super) fn open_credit_limit_upsell(
         preview: None,
         id: Some(CREDIT_LIMIT_RETRY_OPTION_ID.into()),
     });
-    choices.push(xvora_telemetry::events::CreditLimitChoice::RetryLastPrompt);
+    choices.push(telemetry::events::CreditLimitChoice::RetryLastPrompt);
 
     let question = Question {
         question: copy.heading.into(),
@@ -222,7 +222,7 @@ fn open_supergrok_upsell(
     auth_method: Option<String>,
 ) -> bool {
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
 
     // Never displace an already-open question modal
     // Callers that consume input on open must check this `false` and keep the input instead
@@ -243,7 +243,7 @@ fn open_supergrok_upsell(
         ),
     };
 
-    log_event(xvora_telemetry::events::SuperGrokUpsellShown {
+    log_event(telemetry::events::SuperGrokUpsellShown {
         source,
         auth_method,
     });
@@ -359,7 +359,7 @@ pub(super) fn handle_billing_fetched(
 
 pub(super) fn handle_gate_refreshed(
     app: &mut AppView,
-    settings: Option<xvora_shell::util::config::RemoteSettings>,
+    settings: Option<shell::util::config::RemoteSettings>,
 ) -> Vec<Effect> {
     let Some(rs) = settings else {
         return vec![];
@@ -386,7 +386,7 @@ pub(super) fn handle_check_subscription_complete(
     let was_blocked = !app.has_access();
     let applied = match meta {
         Some(meta_val) => {
-            match serde_json::from_value::<xvora_shell::auth::AuthMeta>(meta_val) {
+            match serde_json::from_value::<shell::auth::AuthMeta>(meta_val) {
                 Ok(auth_meta) => {
                     app.apply_auth_meta(&auth_meta);
                     true
@@ -451,7 +451,7 @@ pub(super) fn handle_credit_limit_recheck_complete(
 ) -> Vec<Effect> {
     let old_tier = app.subscription_tier.clone();
     if let Some(meta_val) = meta
-        && let Ok(auth_meta) = serde_json::from_value::<xvora_shell::auth::AuthMeta>(meta_val)
+        && let Ok(auth_meta) = serde_json::from_value::<shell::auth::AuthMeta>(meta_val)
     {
         app.apply_auth_meta(&auth_meta);
     }

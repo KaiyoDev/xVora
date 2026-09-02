@@ -232,7 +232,7 @@ fn auth_lock_path(server_name: &str) -> std::path::PathBuf {
             }
         })
         .collect();
-    xvora_config::grok_home().join(format!("mcp_auth_{safe}.lock"))
+    config::grok_home().join(format!("mcp_auth_{safe}.lock"))
 }
 
 /// `readiness` carries a caller's fresh [`ensure_oauth_ready`] result so the flow does not re-probe.

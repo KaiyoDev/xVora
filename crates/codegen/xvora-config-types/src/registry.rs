@@ -7,7 +7,7 @@ use crate::{
     RemoteSettings,
     flags::{BoolFlag, ConfigSource, Resolved},
 };
-use xvora_config::env_bool;
+use config::env_bool;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, strum::EnumIter)]
 pub enum Feature {

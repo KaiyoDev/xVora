@@ -4,7 +4,7 @@ use chat_state::conversation_util::replace_or_insert_system_head;
 impl SessionActor {
     pub(super) async fn handle_set_session_model(
         self: &std::sync::Arc<Self>,
-        sampling_config: xvora_sampler::SamplerConfig,
+        sampling_config: sampler::SamplerConfig,
         use_concise: bool,
         is_family_switch: bool,
         apply_prompt_override: bool,
@@ -37,7 +37,7 @@ impl SessionActor {
             .set(sampling_config.compactions_remaining);
         self.compaction_at_tokens
             .set(sampling_config.compaction_at_tokens);
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "backend_search: model switch",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -67,7 +67,7 @@ impl SessionActor {
             .as_ref()
             .and_then(|am| am.current_or_expired().map(|a| a.key));
         self.chat_state_handle
-            .update_credentials(xvora_chat_state::Credentials {
+            .update_credentials(chat_state::Credentials {
                 api_key: sampling_config.api_key.clone(),
                 auth_type: crate::agent::config::resolve_chat_state_auth_type(
                     sampling_config.model.as_str(),
@@ -86,7 +86,7 @@ impl SessionActor {
                 if let ConversationItem::System(sys) = item {
                     if use_concise {
                         sys.content = std::sync::Arc::<str>::from(
-                            xvora_agent::prompt::template::COMPACT_SYSTEM_PROMPT,
+                            agent::prompt::template::COMPACT_SYSTEM_PROMPT,
                         );
                     } else {
                         sys.content =
@@ -130,7 +130,7 @@ impl SessionActor {
             let trigger_info = compaction::AutoCompactTriggerInfo {
                 tokens_used: estimated_total_tokens,
                 context_window,
-                percentage: xvora_token_estimation::usage_percentage_u8(
+                percentage: token_estimation::usage_percentage_u8(
                     estimated_total_tokens,
                     context_window,
                 ),
@@ -178,7 +178,7 @@ impl SessionActor {
     }
     /// Handle [`SessionCommand::RebuildAgentForDefinition`].
     ///
-    /// Builds a fresh [`xvora_agent::Agent`] from the cached [`crate::session::agent_rebuild::AgentRebuildSpec`] and the supplied definition.
+    /// Builds a fresh [`agent::Agent`] from the cached [`crate::session::agent_rebuild::AgentRebuildSpec`] and the supplied definition.
     /// Replaces `self.agent`, rewrites the system message in the conversation, persists the new prompt artifacts, and updates `active_agent_type`.
     ///
     /// Triggered from `MvpAgent::set_session_model` only when the new model's `agent_type` differs from the session's `active_agent_type`.
@@ -186,7 +186,7 @@ impl SessionActor {
     /// Defense-in-depth: rejects if a turn is in flight.
     pub(super) async fn handle_rebuild_agent_for_definition(
         &self,
-        definition: xvora_agent::AgentDefinition,
+        definition: agent::AgentDefinition,
     ) -> Result<(), acp::Error> {
         {
             let state = self.state.lock().await;
@@ -246,7 +246,7 @@ impl SessionActor {
             let snapshot = self.tool_metadata_snapshot.clone();
             let tool_index = crate::session::tool_index::Bm25ToolSearchIndex::new(snapshot);
             bridge
-                .update_resource(xvora_tools::types::tool_index::ToolIndex(
+                .update_resource(tools::types::tool_index::ToolIndex(
                     std::sync::Arc::new(tool_index),
                 ))
                 .await;
@@ -255,7 +255,7 @@ impl SessionActor {
             }
             let plan_path = self.plan_mode.lock().plan_file_path().to_path_buf();
             bridge
-                .update_resource(xvora_tools::types::resources::PlanFilePath(plan_path))
+                .update_resource(tools::types::resources::PlanFilePath(plan_path))
                 .await;
             if let Some(display_cwd) = self.display_cwd.get() {
                 bridge
@@ -264,7 +264,7 @@ impl SessionActor {
             }
             bridge
                 .update_resource(
-                    xvora_tools::implementations::grok_build::workflow::WorkflowLaunchHandle(
+                    tools::implementations::grok_build::workflow::WorkflowLaunchHandle(
                         self.workflow_launch_tx.clone(),
                     ),
                 )
@@ -272,7 +272,7 @@ impl SessionActor {
             if !self.goal_runs_on_workflow_engine() {
                 bridge
                     .update_resource(
-                        xvora_tools::implementations::grok_build::update_goal::GoalUpdateHandle(
+                        tools::implementations::grok_build::update_goal::GoalUpdateHandle(
                             self.goal_update_tx.clone(),
                         ),
                     )

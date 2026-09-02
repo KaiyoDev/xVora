@@ -38,7 +38,7 @@ async fn handle_list() -> ExtResult {
             format!("{}={}", s.name, url)
         })
         .collect();
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "marketplace handle_list: sources loaded",
         None,
         Some(serde_json::json!({
@@ -75,7 +75,7 @@ async fn handle_list() -> ExtResult {
             .iter()
             .filter(|p| p.components.is_some())
             .count();
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "marketplace handle_list: source scanned",
             None,
             Some(serde_json::json!({
@@ -92,7 +92,7 @@ async fn handle_list() -> ExtResult {
         results.push(scan);
     }
 
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "marketplace handle_list: complete",
         None,
         Some(serde_json::json!({
@@ -118,8 +118,8 @@ async fn handle_action(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
                 .await
             {
                 Ok(outcome) => outcome,
-                Err(e) => xvora_hooks_plugins_types::ActionOutcome {
-                    status: xvora_hooks_plugins_types::OutcomeStatus::InternalError,
+                Err(e) => hooks_plugins_types::ActionOutcome {
+                    status: hooks_plugins_types::OutcomeStatus::InternalError,
                     message: format!("Refresh task failed: {e}"),
                     requires_reload: false,
                     requires_restart: false,
@@ -150,7 +150,7 @@ async fn handle_action(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
 fn refresh_sources(
     sources: &[xvora_plugin_marketplace::MarketplaceSource],
     source_url_or_path: Option<&str>,
-) -> xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
     let mut refreshed = 0;
     let mut errors = Vec::new();
     for source in sources {
@@ -185,8 +185,8 @@ fn refresh_sources(
             errors.join("; ")
         )
     };
-    xvora_hooks_plugins_types::ActionOutcome {
-        status: xvora_hooks_plugins_types::OutcomeStatus::Success,
+    hooks_plugins_types::ActionOutcome {
+        status: hooks_plugins_types::OutcomeStatus::Success,
         message: msg,
         requires_reload: false,
         requires_restart: false,
@@ -198,7 +198,7 @@ async fn handle_update(
     sid: &acp::SessionId,
     source_url_or_path: &str,
     plugin_relative_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
@@ -288,12 +288,12 @@ async fn handle_update(
         }
     };
 
-    let provenance = xvora_agent::plugins::install_registry::MarketplaceProvenance {
+    let provenance = agent::plugins::install_registry::MarketplaceProvenance {
         source_url_or_path: source_url_or_path.to_string(),
         source_display_name: source.name.clone(),
         plugin_subdir: plugin_relative_path.to_string(),
     };
-    let mut registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
+    let mut registry = agent::plugins::install_registry::InstallRegistry::load();
     let require_sha = crate::plugin::marketplace_require_sha();
     let update_result = installer::update_from_marketplace_entry_transactional(
         &marketplace_root,
@@ -311,7 +311,7 @@ async fn handle_update(
                 tracing::warn!("{w}");
             }
             let reload_outcome = agent
-                .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+                .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
                 .await;
             let mut msg = format!(
                 "Updated {} ({} -> {})",
@@ -329,7 +329,7 @@ async fn handle_update(
                 requires_restart: false,
             }
         }
-        Err(xvora_agent::plugins::install_registry::InstallError::PluginNotFound { .. }) => {
+        Err(agent::plugins::install_registry::InstallError::PluginNotFound { .. }) => {
             ActionOutcome {
                 status: OutcomeStatus::NotFound,
                 message: format!(
@@ -352,7 +352,7 @@ async fn handle_install(
     sid: &acp::SessionId,
     source_url_or_path: &str,
     plugin_relative_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
@@ -399,12 +399,12 @@ async fn handle_install(
 
     if let Some((remote_url, remote_ref, remote_sha, remote_subdir)) = remote_entry {
         // URL-sourced plugin: clone from remote git URL.
-        let provenance = xvora_agent::plugins::install_registry::MarketplaceProvenance {
+        let provenance = agent::plugins::install_registry::MarketplaceProvenance {
             source_url_or_path: source_url_or_path.to_string(),
             source_display_name: source.name.clone(),
             plugin_subdir: plugin_relative_path.to_string(),
         };
-        let mut registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
+        let mut registry = agent::plugins::install_registry::InstallRegistry::load();
         let require_sha = crate::plugin::marketplace_require_sha();
         match installer::install_from_remote_url(
             &remote_url,
@@ -423,7 +423,7 @@ async fn handle_install(
                     tracing::warn!("{w}");
                 }
                 let _ = agent
-                    .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+                    .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
                     .await;
                 ActionOutcome {
                     status: OutcomeStatus::Success,
@@ -518,13 +518,13 @@ async fn handle_install(
         };
         let plugin_relative_path = plugin_path.as_str();
 
-        let provenance = xvora_agent::plugins::install_registry::MarketplaceProvenance {
+        let provenance = agent::plugins::install_registry::MarketplaceProvenance {
             source_url_or_path: source_url_or_path.to_string(),
             source_display_name: source.name.clone(),
             plugin_subdir: plugin_relative_path.to_string(),
         };
 
-        let mut registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
+        let mut registry = agent::plugins::install_registry::InstallRegistry::load();
         let install_result = installer::install_from_marketplace(
             &marketplace_root,
             plugin_relative_path,
@@ -540,7 +540,7 @@ async fn handle_install(
                     tracing::warn!("{w}");
                 }
                 let _ = agent
-                    .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+                    .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
                     .await;
                 ActionOutcome {
                     status: OutcomeStatus::Success,
@@ -577,11 +577,11 @@ async fn handle_uninstall(
     sid: &acp::SessionId,
     source_url_or_path: &str,
     plugin_relative_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
-    let mut registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
+    let mut registry = agent::plugins::install_registry::InstallRegistry::load();
 
     // Find the installed entry by marketplace provenance.
     let found = installer::find_installed_marketplace_plugin(
@@ -628,7 +628,7 @@ async fn handle_uninstall(
 
     // Trigger plugin reload so the removed plugin disappears from the session.
     let _ = agent
-        .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+        .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
         .await;
 
     ActionOutcome {
@@ -664,7 +664,7 @@ fn scan_source(
                 Ok(cache_lease) => {
                     let cached_path = cache_lease.path.clone();
                     lease = Some(cache_lease);
-                    xvora_telemetry::unified_log::info(
+                    telemetry::unified_log::info(
                         "scan_source: git sync done",
                         None,
                         Some(serde_json::json!({
@@ -712,7 +712,7 @@ fn scan_source(
     drop(lease);
 
     // Cross-reference with install registry.
-    let registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
+    let registry = agent::plugins::install_registry::InstallRegistry::load();
     let plugins = discovered
         .into_iter()
         .map(|p| {
@@ -782,7 +782,7 @@ fn to_plugin_entry(
 }
 
 /// Add a new git or local-path marketplace source to `~/.grok/config.toml`.
-async fn handle_add_source(url: &str) -> xvora_hooks_plugins_types::ActionOutcome {
+async fn handle_add_source(url: &str) -> hooks_plugins_types::ActionOutcome {
     use crate::plugin::{self, MarketplaceAddInput};
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
 
@@ -821,7 +821,7 @@ async fn handle_add_source(url: &str) -> xvora_hooks_plugins_types::ActionOutcom
 
     // Local paths never match the git-URL allowlist, so a restricted strictKnownMarketplaces policy blocks them (intentionally fail-closed)
     let allowlist =
-        &xvora_workspace::permission::resolution::managed_settings().marketplace_allowlist;
+        &workspace::permission::resolution::managed_settings().marketplace_allowlist;
     if allowlist.is_restricted() && !allowlist.is_url_allowed(&identity) {
         return ActionOutcome {
             status: OutcomeStatus::ValidationError,
@@ -901,8 +901,8 @@ async fn handle_add_source(url: &str) -> xvora_hooks_plugins_types::ActionOutcom
     };
 
     // Run the write under SAVE_LOCK and the flock, off the reactor
-    let config_path = xvora_config::grok_home().join("config.toml");
-    let grok_home = xvora_config::grok_home();
+    let config_path = config::grok_home().join("config.toml");
+    let grok_home = config::grok_home();
     let _save_guard = crate::util::config::lock_config_writes().await;
     let write = {
         let name = name.clone();
@@ -1025,14 +1025,14 @@ fn add_marketplace_source(
 /// plugins that were installed from it.
 async fn handle_remove_source(
     source_url_or_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
     let src = source_url_or_path.to_string();
     // Lock, then run the blocking FS work off the reactor
     let _save_guard = crate::util::config::lock_config_writes().await;
     match tokio::task::spawn_blocking(move || remove_source_locked(&src)).await {
         Ok(outcome) => outcome,
-        Err(e) => xvora_hooks_plugins_types::ActionOutcome {
-            status: xvora_hooks_plugins_types::OutcomeStatus::InternalError,
+        Err(e) => hooks_plugins_types::ActionOutcome {
+            status: hooks_plugins_types::OutcomeStatus::InternalError,
             message: format!("Config write task failed: {e}"),
             requires_reload: false,
             requires_restart: false,
@@ -1042,11 +1042,11 @@ async fn handle_remove_source(
 
 /// Sync body of [`handle_remove_source`], run on a blocking thread.
 /// Holds the flock for the whole read-modify-write so a concurrent auto-register can't re-add the source mid-removal.
-fn remove_source_locked(source_url_or_path: &str) -> xvora_hooks_plugins_types::ActionOutcome {
+fn remove_source_locked(source_url_or_path: &str) -> hooks_plugins_types::ActionOutcome {
     use crate::plugin;
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
 
-    let grok_home = xvora_config::grok_home();
+    let grok_home = config::grok_home();
     let _flock = acquire_init_lock(&grok_home).ok();
 
     let uninstalled = plugin::uninstall_marketplace_source_plugins(source_url_or_path);
@@ -1228,7 +1228,7 @@ fn default_skills_repo_keys<'a>(
     repos: impl IntoIterator<
         Item = (
             &'a str,
-            &'a xvora_agent::plugins::install_registry::InstalledRepo,
+            &'a agent::plugins::install_registry::InstalledRepo,
         ),
     >,
 ) -> Vec<&'a str> {
@@ -1256,8 +1256,8 @@ fn read_default_skills_installs_purged(config_path: &std::path::Path) -> bool {
 /// Best-effort: errors are logged and never block startup.
 pub(crate) fn purge_default_skills_installs(grok_home: &std::path::Path) {
     purge_default_skills_installs_impl(grok_home, || {
-        xvora_agent::plugins::install_registry::InstallRegistry::try_load_from(
-            xvora_agent::plugins::install_registry::InstallRegistry::resolve_install_dir(),
+        agent::plugins::install_registry::InstallRegistry::try_load_from(
+            agent::plugins::install_registry::InstallRegistry::resolve_install_dir(),
         )
     });
 }
@@ -1265,8 +1265,8 @@ pub(crate) fn purge_default_skills_installs(grok_home: &std::path::Path) {
 fn purge_default_skills_installs_impl(
     grok_home: &std::path::Path,
     load_registry: impl FnOnce() -> Result<
-        xvora_agent::plugins::install_registry::InstallRegistry,
-        xvora_agent::plugins::install_registry::InstallError,
+        agent::plugins::install_registry::InstallRegistry,
+        agent::plugins::install_registry::InstallError,
     >,
 ) {
     let config_path = grok_home.join("config.toml");
@@ -1728,7 +1728,7 @@ mod official_source_tests {
 #[cfg(test)]
 mod default_skills_purge_tests {
     use super::*;
-    use xvora_agent::plugins::install_registry::{
+    use agent::plugins::install_registry::{
         InstallKind, InstallRegistry, InstalledRepo, MarketplaceProvenance, RepoPlugin,
     };
 
@@ -1928,8 +1928,8 @@ mod conversion_tests {
             remote_ref: None,
             remote_sha: None,
             remote_subdir: Some("plugins/acme".into()),
-            components: Some(xvora_hooks_plugins_types::PluginComponents {
-                skills: vec![xvora_hooks_plugins_types::ComponentItem::new(
+            components: Some(hooks_plugins_types::PluginComponents {
+                skills: vec![hooks_plugins_types::ComponentItem::new(
                     "code-review",
                     Some("Review staged changes".to_string()),
                 )],

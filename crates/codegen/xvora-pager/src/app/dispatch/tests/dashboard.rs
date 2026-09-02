@@ -14,7 +14,7 @@ fn voice_final_appends_to_dashboard_dispatch() {
     };
     crate::voice::handle_voice_event(
         &mut app,
-        xvora_voice::VoiceEvent::UtteranceFinal {
+        voice::VoiceEvent::UtteranceFinal {
             text: "the build".into(),
         },
     );
@@ -52,7 +52,7 @@ fn voice_final_appends_to_peek_reply_when_peek_open() {
     };
     crate::voice::handle_voice_event(
         &mut app,
-        xvora_voice::VoiceEvent::UtteranceFinal {
+        voice::VoiceEvent::UtteranceFinal {
             text: "with voice".into(),
         },
     );
@@ -97,7 +97,7 @@ fn voice_final_discarded_when_peek_row_changed_after_stop() {
     app.dashboard.as_mut().unwrap().peek = Some(peek_for(DashboardRowId::TopLevel(AgentId(1))));
     crate::voice::handle_voice_event(
         &mut app,
-        xvora_voice::VoiceEvent::UtteranceFinal {
+        voice::VoiceEvent::UtteranceFinal {
             text: "late words".into(),
         },
     );
@@ -129,11 +129,11 @@ fn voice_dashboard_dispatch_submit_tears_down_voice() {
     assert!(app.voice_interim().is_none());
     assert!(matches!(
         rx.try_recv(),
-        Ok(xvora_voice::VoiceCommand::PttRelease)
+        Ok(voice::VoiceCommand::PttRelease)
     ));
     crate::voice::handle_voice_event(
         &mut app,
-        xvora_voice::VoiceEvent::UtteranceFinal {
+        voice::VoiceEvent::UtteranceFinal {
             text: "late words".into(),
         },
     );
@@ -191,12 +191,12 @@ fn voice_dashboard_peek_reply_submit_tears_down_voice() {
     );
     assert!(matches!(
         rx.try_recv(),
-        Ok(xvora_voice::VoiceCommand::PttRelease)
+        Ok(voice::VoiceCommand::PttRelease)
     ));
 }
 #[test]
 fn voice_target_bound_at_start_dispatch_vs_peek() {
-    if !xvora_voice::AUDIO_SUPPORTED {
+    if !voice::AUDIO_SUPPORTED {
         return;
     }
     use crate::views::dashboard::DashboardRowId;
@@ -277,7 +277,7 @@ fn voice_auto_stops_when_peek_row_changes() {
 /// must not bind there: starting is a no-op and an active capture auto-stops.
 #[test]
 fn voice_suppressed_while_dashboard_popup_open() {
-    if !xvora_voice::AUDIO_SUPPORTED {
+    if !voice::AUDIO_SUPPORTED {
         return;
     }
     let mut app = test_app_with_agent();
@@ -428,7 +428,7 @@ fn resolve_location_input_expands_and_joins() {
         resolve_location_input("sub/dir", &cwd),
         Some(PathBuf::from("/work/dir/sub/dir"))
     );
-    let home = xvora_dirs::home_dir().expect("home dir");
+    let home = dirs::home_dir().expect("home dir");
     assert_eq!(resolve_location_input("~", &cwd), Some(home.clone()));
     assert_eq!(resolve_location_input("~/x", &cwd), Some(home.join("x")));
     assert_eq!(resolve_location_input("   ", &cwd), None);
@@ -847,7 +847,7 @@ fn dashboard_confirm_worktree_applies_pending_model_and_plan() {
     if let Some(d) = app.dashboard.as_mut() {
         d.pending_model = Some(crate::views::dashboard::PendingDispatchModel {
             id: model_id.clone(),
-            effort: Some(xvora_shell::sampling::types::ReasoningEffort::High),
+            effort: Some(shell::sampling::types::ReasoningEffort::High),
             display: "Grok 4.5".to_string(),
         });
         d.pending_mode = crate::views::dashboard::DashboardDispatchMode::Plan;
@@ -874,14 +874,14 @@ fn dashboard_confirm_worktree_applies_pending_model_and_plan() {
         agent.session.deferred_model_switch,
         Some(crate::app::agent::DeferredModelSwitch {
             model_id,
-            effort: Some(xvora_shell::sampling::types::ReasoningEffort::High),
+            effort: Some(shell::sampling::types::ReasoningEffort::High),
             prev_model_id: None,
         }),
         "effort must be stashed for the shell",
     );
     assert_eq!(
         agent.deferred_session_mode,
-        Some(xvora_tools::types::SessionMode::Plan),
+        Some(tools::types::SessionMode::Plan),
     );
     assert_eq!(agent.plan_mode_pending, Some(true));
 }
@@ -1522,7 +1522,7 @@ fn workspace_dashboard_open_loads_one_snapshot_and_skips_rosters() {
 fn workspace_snapshot_load_requests_live_adoption() {
     let temp = tempfile::tempdir().unwrap();
     let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
@@ -1540,8 +1540,8 @@ fn workspace_snapshot_load_requests_live_adoption() {
 fn workspace_dashboard_reopens_store_when_only_stale_snapshot_remains() {
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
-    app.workspace_snapshot = Some(xvora_dashboard_store::WorkspaceSnapshot {
-        grouping: xvora_dashboard_store::Grouping::State,
+    app.workspace_snapshot = Some(dashboard_store::WorkspaceSnapshot {
+        grouping: dashboard_store::Grouping::State,
         members: vec![],
         data_version: 1,
     });
@@ -1557,7 +1557,7 @@ fn workspace_dashboard_reopens_store_when_only_stale_snapshot_remains() {
 fn workspace_session_created_becomes_an_upsert_candidate() {
     let temp = tempfile::tempdir().unwrap();
     let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
@@ -1584,19 +1584,19 @@ fn workspace_session_created_becomes_an_upsert_candidate() {
 fn workspace_busy_write_retries_only_once() {
     let temp = tempfile::tempdir().unwrap();
     let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app();
     app.workspace_dashboard_enabled = true;
     app.workspace_snapshot = Some(snapshot.clone());
     app.workspace_write_in_flight = true;
-    let attempted = xvora_dashboard_store::NewMember {
-        key: xvora_dashboard_store::MemberKey {
-            session_id: xvora_dashboard_store::SessionId::new("saved").unwrap(),
-            kind: xvora_dashboard_store::MemberKind::Build,
+    let attempted = dashboard_store::NewMember {
+        key: dashboard_store::MemberKey {
+            session_id: dashboard_store::SessionId::new("saved").unwrap(),
+            kind: dashboard_store::MemberKind::Build,
         },
-        origin: xvora_dashboard_store::MemberOrigin::Local,
-        metadata: xvora_dashboard_store::MemberMetadata {
+        origin: dashboard_store::MemberOrigin::Local,
+        metadata: dashboard_store::MemberMetadata {
             cwd: Some("/tmp".into()),
             title: None,
             model: None,
@@ -1606,7 +1606,7 @@ fn workspace_busy_write_retries_only_once() {
         },
     };
     let mut permanent = attempted.clone();
-    permanent.key.session_id = xvora_dashboard_store::SessionId::new("permanent").unwrap();
+    permanent.key.session_id = dashboard_store::SessionId::new("permanent").unwrap();
     let _ = dispatch(
         Action::TaskComplete(TaskResult::WorkspaceMembersUpserted {
             store,
@@ -1673,8 +1673,8 @@ fn workspace_busy_write_retries_only_once() {
     let _ = dispatch(
         Action::TaskComplete(TaskResult::WorkspaceMembersUpserted {
             store,
-            snapshot: Ok(xvora_dashboard_store::WorkspaceSnapshot {
-                grouping: xvora_dashboard_store::Grouping::State,
+            snapshot: Ok(dashboard_store::WorkspaceSnapshot {
+                grouping: dashboard_store::Grouping::State,
                 members: vec![],
                 data_version: 1,
             }),
@@ -1697,18 +1697,18 @@ fn workspace_busy_write_retries_only_once() {
 fn workspace_snapshot_failure_reopens_without_suppressing_attempted_member() {
     let temp = tempfile::tempdir().unwrap();
     let store =
-        xvora_dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let mut app = test_app();
     app.workspace_dashboard_enabled = true;
     app.workspace_snapshot = Some(store.snapshot().unwrap());
     app.workspace_write_in_flight = true;
-    let attempted = xvora_dashboard_store::NewMember {
-        key: xvora_dashboard_store::MemberKey {
-            session_id: xvora_dashboard_store::SessionId::new("saved").unwrap(),
-            kind: xvora_dashboard_store::MemberKind::Build,
+    let attempted = dashboard_store::NewMember {
+        key: dashboard_store::MemberKey {
+            session_id: dashboard_store::SessionId::new("saved").unwrap(),
+            kind: dashboard_store::MemberKind::Build,
         },
-        origin: xvora_dashboard_store::MemberOrigin::Local,
-        metadata: xvora_dashboard_store::MemberMetadata {
+        origin: dashboard_store::MemberOrigin::Local,
+        metadata: dashboard_store::MemberMetadata {
             cwd: Some("/tmp".into()),
             title: None,
             model: None,
@@ -1755,12 +1755,12 @@ fn workspace_overlay_cycle_omits_unadopted_live_agents() {
     let second = insert_second_agent(&mut app);
     mark_agent_nonempty(&mut app, second);
     app.workspace_dashboard_enabled = true;
-    app.workspace_snapshot = Some(xvora_dashboard_store::WorkspaceSnapshot {
-        grouping: xvora_dashboard_store::Grouping::State,
-        members: vec![xvora_dashboard_store::Member {
-            session_id: xvora_dashboard_store::SessionId::new("test-session").unwrap(),
-            kind: xvora_dashboard_store::MemberKind::Build,
-            origin: xvora_dashboard_store::MemberOrigin::Local,
+    app.workspace_snapshot = Some(dashboard_store::WorkspaceSnapshot {
+        grouping: dashboard_store::Grouping::State,
+        members: vec![dashboard_store::Member {
+            session_id: dashboard_store::SessionId::new("test-session").unwrap(),
+            kind: dashboard_store::MemberKind::Build,
+            origin: dashboard_store::MemberOrigin::Local,
             cwd: Some("/tmp".to_owned()),
             title: Some("Saved".to_owned()),
             model: None,
@@ -2018,7 +2018,7 @@ fn dashboard_plan_description_transforms_snapshot_and_chip_ranges() {
     );
     assert_eq!(
         agent.deferred_session_mode,
-        Some(xvora_tools::types::SessionMode::Plan)
+        Some(tools::types::SessionMode::Plan)
     );
 }
 /// The sessions picker modal was removed; `/sessions` survives as an alias
@@ -2085,7 +2085,7 @@ fn dashboard_does_not_advertise_or_dispatch_doctor() {
 fn dashboard_slash_usage_hidden_for_external_auth() {
     let mut app = three_agent_app();
     app.has_external_auth_provider = true;
-    app.apply_auth_meta(&xvora_shell::auth::AuthMeta::default());
+    app.apply_auth_meta(&shell::auth::AuthMeta::default());
     open_dashboard(&mut app);
     let before = app.agents.len();
     let effects = dispatch_dashboard_dispatch_slash(&mut app, "/usage".into());
@@ -2600,7 +2600,7 @@ fn dashboard_dispatch_applies_pending_model_and_plan() {
     if let Some(d) = app.dashboard.as_mut() {
         d.pending_model = Some(crate::views::dashboard::PendingDispatchModel {
             id: model_id.clone(),
-            effort: Some(xvora_shell::sampling::types::ReasoningEffort::High),
+            effort: Some(shell::sampling::types::ReasoningEffort::High),
             display: "Grok 4.5".to_string(),
         });
         d.pending_mode = crate::views::dashboard::DashboardDispatchMode::Plan;
@@ -2617,14 +2617,14 @@ fn dashboard_dispatch_applies_pending_model_and_plan() {
         agent.session.deferred_model_switch,
         Some(crate::app::agent::DeferredModelSwitch {
             model_id,
-            effort: Some(xvora_shell::sampling::types::ReasoningEffort::High),
+            effort: Some(shell::sampling::types::ReasoningEffort::High),
             prev_model_id: None,
         }),
         "effort must be stashed for the shell"
     );
     assert_eq!(
         agent.deferred_session_mode,
-        Some(xvora_tools::types::SessionMode::Plan),
+        Some(tools::types::SessionMode::Plan),
     );
     assert_eq!(agent.plan_mode_pending, Some(true));
 }
@@ -2642,7 +2642,7 @@ fn dashboard_new_agent_button_applies_pending_model_and_plan() {
     if let Some(d) = app.dashboard.as_mut() {
         d.pending_model = Some(crate::views::dashboard::PendingDispatchModel {
             id: model_id.clone(),
-            effort: Some(xvora_shell::sampling::types::ReasoningEffort::High),
+            effort: Some(shell::sampling::types::ReasoningEffort::High),
             display: "Grok 4.5".to_string(),
         });
         d.pending_mode = crate::views::dashboard::DashboardDispatchMode::Plan;
@@ -2659,14 +2659,14 @@ fn dashboard_new_agent_button_applies_pending_model_and_plan() {
         agent.session.deferred_model_switch,
         Some(crate::app::agent::DeferredModelSwitch {
             model_id,
-            effort: Some(xvora_shell::sampling::types::ReasoningEffort::High),
+            effort: Some(shell::sampling::types::ReasoningEffort::High),
             prev_model_id: None,
         }),
         "effort must be stashed for the shell"
     );
     assert_eq!(
         agent.deferred_session_mode,
-        Some(xvora_tools::types::SessionMode::Plan),
+        Some(tools::types::SessionMode::Plan),
     );
     assert_eq!(agent.plan_mode_pending, Some(true));
 }
@@ -2700,7 +2700,7 @@ fn dashboard_deferred_plan_mode_applied_on_session_created() {
     let session_id: acp::SessionId = "new-session".into();
     app.agents.get_mut(&id).unwrap().session.session_id = None;
     app.agents.get_mut(&id).unwrap().deferred_session_mode =
-        Some(xvora_tools::types::SessionMode::Plan);
+        Some(tools::types::SessionMode::Plan);
     let effects = dispatch(
         Action::TaskComplete(TaskResult::SessionCreated {
             agent_id: id,
@@ -4352,7 +4352,7 @@ fn dashboard_rename_end_to_end_top_level_row() {
             Effect::RenameSession { agent_id, title, kind, .. }
                 if *agent_id == id
                     && title == "My renamed session"
-                    && *kind == xvora_shell::session::unified_list::SessionKind::Build
+                    && *kind == shell::session::unified_list::SessionKind::Build
         )),
         "commit must emit a RenameSession effect, got {effects:?}",
     );
@@ -4392,7 +4392,7 @@ fn dashboard_rename_chat_kind_stamps_kind_chat() {
             Effect::RenameSession { agent_id, title, kind, .. }
                 if *agent_id == id
                     && title == "Chat title"
-                    && *kind == xvora_shell::session::unified_list::SessionKind::Chat
+                    && *kind == shell::session::unified_list::SessionKind::Chat
         )),
         "chat-lane dashboard rename must send kind=chat, got {effects:?}",
     );
@@ -4480,7 +4480,7 @@ fn dashboard_upgrade_cta_paints_arms_rect_and_ctrl_o_override() {
     };
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
-    use xvora_telemetry::events::AnnouncementCtaSurface;
+    use telemetry::events::AnnouncementCtaSurface;
     let registry = ActionRegistry::defaults();
     let mut agents: indexmap::IndexMap<AgentId, crate::app::agent_view::AgentView> =
         indexmap::IndexMap::new();
@@ -5592,7 +5592,7 @@ fn dashboard_stop_bg_work_row_stops_without_arming() {
 #[serial_test::serial(GROK_AGENT_DASHBOARD)]
 #[test]
 fn dashboard_stop_running_bg_task_emits_teardown_kill() {
-    use xvora_shell::extensions::task::TaskKillSource;
+    use shell::extensions::task::TaskKillSource;
     let mut app = test_app();
     let _ = dispatch_new_session_inner(&mut app, None);
     let _ = dispatch_new_session_inner(&mut app, None);
@@ -5980,7 +5980,7 @@ fn dashboard_peek_reply_with_image_sends_blocks() {
             },
         ));
         let img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+            element_id: ratatui_textarea::ElementId::from_raw(0),
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((10, 10)),
@@ -6037,7 +6037,7 @@ fn dashboard_peek_reply_image_with_whitespace_survives_rewind_restore() {
         d.peek_reply.set_text("   ");
         d.peek_reply.set_cursor(3);
         let img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+            element_id: ratatui_textarea::ElementId::from_raw(0),
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((10, 10)),
@@ -6105,7 +6105,7 @@ fn dashboard_peek_reply_with_image_queues_images() {
             },
         ));
         let img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+            element_id: ratatui_textarea::ElementId::from_raw(0),
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((10, 10)),
@@ -6203,7 +6203,7 @@ fn dashboard_permission_followup_rejects_with_message() {
 fn dashboard_question_answer_sends_and_clears() {
     use crate::views::prompt_widget::StashedPrompt;
     use crate::views::question_view::QuestionViewState;
-    use xvora_tools::implementations::grok_build::ask_user_question::{
+    use tools::implementations::grok_build::ask_user_question::{
         AskUserQuestionMode, Question, QuestionOption,
     };
     let mut app = test_app_with_agent();
@@ -6248,7 +6248,7 @@ fn dashboard_question_answer_walks_multiple_questions() {
     use crate::views::dashboard::peek::{PeekPanelState, compute_peek_fields};
     use crate::views::prompt_widget::StashedPrompt;
     use crate::views::question_view::QuestionViewState;
-    use xvora_tools::implementations::grok_build::ask_user_question::{
+    use tools::implementations::grok_build::ask_user_question::{
         AskUserQuestionMode, Question, QuestionOption,
     };
     let mut app = test_app_with_agent();

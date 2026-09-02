@@ -212,11 +212,11 @@ pub(crate) fn resolve_restore_code(
 pub(crate) fn resolve_worktree_auto_gc_from_settings(
     local: Option<&super::WorktreeAutoGcSettings>,
     remote: Option<&super::WorktreeAutoGcSettings>,
-) -> xvora_fast_worktree::ResolvedWorktreeAutoGc {
-    use xvora_workspace::worktree::worktree_auto_gc_layer_from_settings;
+) -> fast_worktree::ResolvedWorktreeAutoGc {
+    use workspace::worktree::worktree_auto_gc_layer_from_settings;
     let local_layer = local.map(worktree_auto_gc_layer_from_settings);
     let remote_layer = remote.map(worktree_auto_gc_layer_from_settings);
-    xvora_fast_worktree::resolve_worktree_auto_gc_from_layers(
+    fast_worktree::resolve_worktree_auto_gc_from_layers(
         local_layer.as_ref(),
         remote_layer.as_ref(),
     )

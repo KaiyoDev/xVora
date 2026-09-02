@@ -21,7 +21,7 @@ impl ProcessLimits {
     }
 
     pub(crate) fn log(&self) {
-        xvora_telemetry::unified_log::info("process resource limits", None, Some(self.to_json()));
+        telemetry::unified_log::info("process resource limits", None, Some(self.to_json()));
     }
 
     fn to_json(&self) -> serde_json::Value {
@@ -40,10 +40,10 @@ impl ProcessLimits {
         Some(self.cgroup.as_ref()?.get(name)?.as_str()?.to_owned())
     }
 
-    pub(crate) fn into_event(self) -> xvora_telemetry::events::ProcessResourceLimits {
+    pub(crate) fn into_event(self) -> telemetry::events::ProcessResourceLimits {
         let (nofile_soft, nofile_hard) = self.nofile.unwrap_or_default();
         let (nproc_soft, nproc_hard) = self.nproc.unwrap_or_default();
-        xvora_telemetry::events::ProcessResourceLimits {
+        telemetry::events::ProcessResourceLimits {
             nofile_soft,
             nofile_hard,
             nproc_soft,

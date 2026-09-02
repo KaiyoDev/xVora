@@ -37,7 +37,7 @@ impl SessionActor {
         // Build a lookup of which prompt indices have file snapshots.
         let file_meta_map: std::collections::HashMap<
             usize,
-            &xvora_workspace::session::file_state::RewindPointMeta,
+            &workspace::session::file_state::RewindPointMeta,
         > = file_metas.iter().map(|m| (m.prompt_index, m)).collect();
 
         // Generate a rewind point for every prompt 0..current_prompt_index.
@@ -187,7 +187,7 @@ impl SessionActor {
 
         // Collect files that would be reverted and detect conflicts; this is read-only
         let mut files_to_revert: std::collections::HashMap<
-            xvora_workspace::session::file_state::FlexiblePath,
+            workspace::session::file_state::FlexiblePath,
             Option<String>,
         > = std::collections::HashMap::new();
 
@@ -521,7 +521,7 @@ impl SessionActor {
     }
 
     /// Out-of-band history repair (`x.ai/session/repair`) for a resident session.
-    /// Runs `xvora_chat_state::compaction_utils::repair_history` inside the chat-state actor, then flushes persistence.
+    /// Runs `chat_state::compaction_utils::repair_history` inside the chat-state actor, then flushes persistence.
     /// The flush means `chat_history.jsonl` is rewritten on disk before the caller sees success.
     ///
     /// Refused while a turn is in flight (in-flight tool calls legitimately await their results).
@@ -530,12 +530,12 @@ impl SessionActor {
     pub(super) async fn handle_repair_history(
         &self,
         dry_run: bool,
-    ) -> anyhow::Result<xvora_chat_state::compaction_utils::HistoryRepairReport> {
+    ) -> anyhow::Result<chat_state::compaction_utils::HistoryRepairReport> {
         // Per-session flag, NOT `tool_context.is_turn_active`, which is the agent-wide coordinator flag shared by all sessions
         // Using it refuses repair of an idle session while any other session runs a turn, and another session's turn end could clear it mid-turn
         let turn_flag = self.session_turn_active.clone();
         if turn_flag.load(std::sync::atomic::Ordering::SeqCst) {
-            anyhow::bail!(xvora_chat_state::commands::RepairHistoryBlocked);
+            anyhow::bail!(chat_state::commands::RepairHistoryBlocked);
         }
 
         let report = self

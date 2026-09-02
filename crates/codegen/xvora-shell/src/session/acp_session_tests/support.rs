@@ -14,49 +14,49 @@ pub(crate) fn test_auth_method_id(id: &str) -> crate::agent::auth_method::Shared
     crate::agent::auth_method::new_shared_auth_method_id(Some(acp::AuthMethodId::new(id)))
 }
 #[cfg(test)]
-pub(crate) fn noop_observability_bridge() -> xvora_computer_hub_sdk::ObservabilityBridge {
-    xvora_computer_hub_sdk::ObservabilityBridge::new(
+pub(crate) fn noop_observability_bridge() -> computer_hub_sdk::ObservabilityBridge {
+    computer_hub_sdk::ObservabilityBridge::new(
         None,
-        xvora_tool_protocol::SessionId::new("test").expect("valid"),
+        tool_protocol::SessionId::new("test").expect("valid"),
     )
 }
 #[cfg(test)]
-pub(crate) async fn test_agent_default() -> xvora_agent::Agent {
+pub(crate) async fn test_agent_default() -> agent::Agent {
     test_agent_with_tools(vec![]).await
 }
 #[cfg(test)]
 pub(crate) async fn test_agent_backend_search(
     hosted_tools: Vec<xvora_sampling_types::HostedTool>,
-) -> xvora_agent::Agent {
+) -> agent::Agent {
     let base = test_agent_default().await;
-    xvora_agent::Agent::new(
+    agent::Agent::new(
         base.definition().clone(),
-        xvora_agent::PromptContext::default(),
+        agent::PromptContext::default(),
         String::new(),
         base.tool_bridge().clone(),
-        xvora_agent::ReminderPolicy::default(),
-        xvora_agent::CompactionPolicy::default(),
+        agent::ReminderPolicy::default(),
+        agent::CompactionPolicy::default(),
         hosted_tools,
         true,
     )
 }
 #[cfg(test)]
-pub(crate) async fn test_agent_with_goal_tool() -> xvora_agent::Agent {
-    use xvora_tools::implementations::grok_build::update_goal::UpdateGoalTool;
-    use xvora_tools::registry::types::ToolConfig;
+pub(crate) async fn test_agent_with_goal_tool() -> agent::Agent {
+    use tools::implementations::grok_build::update_goal::UpdateGoalTool;
+    use tools::registry::types::ToolConfig;
     test_agent_with_tools(vec![ToolConfig::for_tool::<UpdateGoalTool>()]).await
 }
 #[cfg(test)]
-pub(crate) async fn test_grok_build_agent_with_todo() -> xvora_agent::Agent {
-    use xvora_tools::implementations::grok_build::todo::TodoWriteTool;
-    use xvora_tools::registry::types::ToolConfig;
+pub(crate) async fn test_grok_build_agent_with_todo() -> agent::Agent {
+    use tools::implementations::grok_build::todo::TodoWriteTool;
+    use tools::registry::types::ToolConfig;
     test_agent_with_tools(vec![ToolConfig::for_tool::<TodoWriteTool>()]).await
 }
 #[cfg(test)]
-pub(crate) async fn test_agent_with_active_message_tool() -> xvora_agent::Agent {
-    use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageTool;
-    use xvora_tools::implementations::grok_build::todo::TodoWriteTool;
-    use xvora_tools::registry::types::ToolConfig;
+pub(crate) async fn test_agent_with_active_message_tool() -> agent::Agent {
+    use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageTool;
+    use tools::implementations::grok_build::todo::TodoWriteTool;
+    use tools::registry::types::ToolConfig;
     test_agent_with_tools(vec![
         ToolConfig::for_tool::<SendSubagentMessageTool>(),
         ToolConfig::for_tool::<TodoWriteTool>(),
@@ -64,10 +64,10 @@ pub(crate) async fn test_agent_with_active_message_tool() -> xvora_agent::Agent 
     .await
 }
 #[cfg(test)]
-pub(crate) async fn test_agent_with_plan_tools() -> xvora_agent::Agent {
-    use xvora_tools::implementations::grok_build::enter_plan_mode::EnterPlanModeTool;
-    use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeTool;
-    use xvora_tools::registry::types::ToolConfig;
+pub(crate) async fn test_agent_with_plan_tools() -> agent::Agent {
+    use tools::implementations::grok_build::enter_plan_mode::EnterPlanModeTool;
+    use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeTool;
+    use tools::registry::types::ToolConfig;
     test_agent_with_tools(vec![
         ToolConfig::for_tool::<EnterPlanModeTool>(),
         ToolConfig::for_tool::<ExitPlanModeTool>(),
@@ -76,44 +76,44 @@ pub(crate) async fn test_agent_with_plan_tools() -> xvora_agent::Agent {
 }
 #[cfg(test)]
 pub(crate) async fn test_agent_with_tools(
-    tools: Vec<xvora_tools::registry::types::ToolConfig>,
-) -> xvora_agent::Agent {
+    tools: Vec<tools::registry::types::ToolConfig>,
+) -> agent::Agent {
     test_agent_from_config(
-        xvora_tools::registry::types::ToolServerConfig {
+        tools::registry::types::ToolServerConfig {
             tools,
             behavior_preset: None,
         },
-        xvora_agent::AgentDefinition::default_grok_build(),
-        std::sync::Arc::new(xvora_tools::computer::local::LocalTerminalBackend::new()),
+        agent::AgentDefinition::default_grok_build(),
+        std::sync::Arc::new(tools::computer::local::LocalTerminalBackend::new()),
     )
     .await
 }
 #[cfg(test)]
 pub(crate) async fn test_agent_with_user_message_template(
-    template: xvora_agent::prompt::user_message::UserMessageTemplate,
-) -> xvora_agent::Agent {
-    let mut definition = xvora_agent::AgentDefinition::default_grok_build();
+    template: agent::prompt::user_message::UserMessageTemplate,
+) -> agent::Agent {
+    let mut definition = agent::AgentDefinition::default_grok_build();
     definition.user_message_template = template;
     test_agent_from_config(
-        xvora_tools::registry::types::ToolServerConfig {
+        tools::registry::types::ToolServerConfig {
             tools: vec![],
             behavior_preset: None,
         },
         definition,
-        std::sync::Arc::new(xvora_tools::computer::local::LocalTerminalBackend::new()),
+        std::sync::Arc::new(tools::computer::local::LocalTerminalBackend::new()),
     )
     .await
 }
 #[cfg(test)]
 async fn test_agent_from_config(
-    config: xvora_tools::registry::types::ToolServerConfig,
-    definition: xvora_agent::AgentDefinition,
-    backend: std::sync::Arc<dyn xvora_tools::computer::types::TerminalBackend>,
-) -> xvora_agent::Agent {
-    use xvora_tools::computer::local::LocalFs;
-    use xvora_tools::computer::types::AsyncFileSystem;
-    use xvora_tools::notification::ToolNotificationHandle;
-    use xvora_tools::registry::types::SessionContext;
+    config: tools::registry::types::ToolServerConfig,
+    definition: agent::AgentDefinition,
+    backend: std::sync::Arc<dyn tools::computer::types::TerminalBackend>,
+) -> agent::Agent {
+    use tools::computer::local::LocalFs;
+    use tools::computer::types::AsyncFileSystem;
+    use tools::notification::ToolNotificationHandle;
+    use tools::registry::types::SessionContext;
     let builder = crate::tools::bridge::ToolBridge::get_builder();
     let fs: std::sync::Arc<dyn AsyncFileSystem> = std::sync::Arc::new(LocalFs);
     let ctx = SessionContext {
@@ -138,20 +138,20 @@ async fn test_agent_from_config(
         api_key_provider: None,
         auth_provider: None,
         attribution_callback: None,
-        system_reminder_tag: xvora_tools::reminders::DEFAULT_REMINDER_TAG,
+        system_reminder_tag: tools::reminders::DEFAULT_REMINDER_TAG,
     };
     let tool_bridge = crate::tools::bridge::ToolBridge::finalize_builder(builder, config, ctx)
         .await
         .expect("finalize_builder should succeed for tests");
     #[allow(clippy::arc_with_non_send_sync)]
     let tool_bridge = std::sync::Arc::new(tool_bridge);
-    xvora_agent::Agent::new(
+    agent::Agent::new(
         definition,
-        xvora_agent::PromptContext::default(),
+        agent::PromptContext::default(),
         String::new(),
         tool_bridge,
-        xvora_agent::ReminderPolicy::default(),
-        xvora_agent::CompactionPolicy::default(),
+        agent::ReminderPolicy::default(),
+        agent::CompactionPolicy::default(),
         vec![],
         false,
     )
@@ -177,7 +177,7 @@ pub(crate) async fn create_test_actor_ex(
     total_tokens: u64,
     context_window: u64,
     threshold_percent: u8,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
 ) -> (
     SessionActor,
@@ -189,7 +189,7 @@ pub(crate) async fn create_test_actor_ex(
         threshold_percent,
         gateway_tx,
         persistence_tx,
-        Box::new(xvora_chat_state::NullChatPersistence),
+        Box::new(chat_state::NullChatPersistence),
     )
     .await
 }
@@ -198,9 +198,9 @@ pub(crate) async fn create_test_actor_with_chat_persistence(
     total_tokens: u64,
     context_window: u64,
     threshold_percent: u8,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
-    chat_persistence: Box<dyn xvora_chat_state::ChatPersistence>,
+    chat_persistence: Box<dyn chat_state::ChatPersistence>,
 ) -> (
     SessionActor,
     tokio::sync::mpsc::UnboundedReceiver<SessionEvent>,
@@ -221,7 +221,7 @@ pub(crate) async fn create_test_actor_with_terminal(
     total_tokens: u64,
     context_window: u64,
     threshold_percent: u8,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
     terminal: Arc<dyn crate::terminal::AsyncTerminalRunner>,
 ) -> (
@@ -235,7 +235,7 @@ pub(crate) async fn create_test_actor_with_terminal(
         gateway_tx,
         persistence_tx,
         terminal,
-        Box::new(xvora_chat_state::NullChatPersistence),
+        Box::new(chat_state::NullChatPersistence),
     )
     .await
 }
@@ -244,30 +244,30 @@ async fn create_test_actor_inner(
     total_tokens: u64,
     context_window: u64,
     threshold_percent: u8,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
     terminal: Arc<dyn crate::terminal::AsyncTerminalRunner>,
-    chat_persistence: Box<dyn xvora_chat_state::ChatPersistence>,
+    chat_persistence: Box<dyn chat_state::ChatPersistence>,
 ) -> (
     SessionActor,
     tokio::sync::mpsc::UnboundedReceiver<SessionEvent>,
 ) {
     let cwd = xvora_paths::AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap();
-    let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
+    let fs = Arc::new(workspace::file_system::MockFs::new(cwd.to_path_buf()));
     let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test-actor".to_string(),
         cwd.to_path_buf(),
         hunk_tx,
-        xvora_hunk_tracker::TrackingMode::AgentOnly,
+        hunk_tracker::TrackingMode::AgentOnly,
         tokio_util::sync::CancellationToken::new(),
     );
     let mut tool_context =
         ToolContext::new(cwd.clone(), None, None, fs, terminal, hunk_tracker_handle);
     tool_context.task_completion_reservations =
-        Some(xvora_tools::reminders::task_completion::TaskCompletionReservations::default());
+        Some(tools::reminders::task_completion::TaskCompletionReservations::default());
     tool_context.task_wake_suppressed =
-        Some(xvora_tools::reminders::task_completion::TaskWakeSuppressed::default());
+        Some(tools::reminders::task_completion::TaskWakeSuppressed::default());
     let state = TokioMutex::new(State {
         running_task: None,
         finalization_gate: Default::default(),
@@ -283,7 +283,7 @@ async fn create_test_actor_inner(
     });
     let (chat_event_tx, _chat_event_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel::<SessionEvent>();
-    let chat_state_handle = xvora_chat_state::ChatStateActor::spawn(
+    let chat_state_handle = chat_state::ChatStateActor::spawn(
         vec![],
         xvora_sampling_types::SamplingConfig {
             base_url: "http://localhost".to_string(),
@@ -328,7 +328,7 @@ async fn create_test_actor_inner(
             persistence_tx,
             disk_full: crate::session::notifications::idle_disk_full_rx(),
         },
-        permissions: xvora_workspace::permission::PermissionHandle::allow_all(),
+        permissions: workspace::permission::PermissionHandle::allow_all(),
         tool_context,
         deny_read_globs: Vec::new(),
         mcp_state: Arc::new(TokioMutex::new(McpState::new(vec![]))),
@@ -361,7 +361,7 @@ async fn create_test_actor_inner(
             count: std::sync::atomic::AtomicU64::new(0),
             auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
             previous_model: std::cell::Cell::new(None),
-            compaction_mode: xvora_chat_state::CompactionMode::Transcript,
+            compaction_mode: chat_state::CompactionMode::Transcript,
             verbatim_input: true,
             tool_choice: crate::util::config::CompactionToolChoice::Auto,
             prefire: crate::session::compaction_config::PrefireState::default(),
@@ -466,7 +466,7 @@ async fn create_test_actor_inner(
         laziness_debug_log: None,
         last_live_orphan_reconcile: std::cell::Cell::new(None),
         deferred_prefix: TaskSlot::new(),
-        extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
+        extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
         last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
         prefix_carries_fallback_date: std::cell::Cell::new(false),
         last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),
@@ -477,7 +477,7 @@ async fn create_test_actor_inner(
         turn_end_tx: Default::default(),
         client_hooks: Default::default(),
         hook_resolved_workspace_root: String::new(),
-        vcs_kind: xvora_workspace::session::git::VcsKind::Git,
+        vcs_kind: workspace::session::git::VcsKind::Git,
         hook_load_errors: std::cell::RefCell::new(Vec::new()),
         plugin_registry: std::cell::RefCell::new(None),
         plugin_registry_handle: None,
@@ -499,13 +499,13 @@ async fn create_test_actor_inner(
         turn_stream_drained: parking_lot::Mutex::new(std::collections::HashMap::new()),
         pending_image_strip: parking_lot::Mutex::new(HashMap::new()),
         image_strip_rewrite_barrier: ImageStripRewriteBarrier::new(),
-        sampler_handle: xvora_sampler::SamplerHandle::noop(),
+        sampler_handle: sampler::SamplerHandle::noop(),
         sampling_gate: None,
         rebuild_spec: crate::session::agent_rebuild::test_rebuild_spec_default(),
         image_description_model: crate::test_support::TEST_MODEL.to_owned(),
         image_describe_cache: Arc::new(crate::session::image_describe::ImageDescribeCache::new()),
         subagent_token_records: parking_lot::Mutex::new(HashMap::new()),
-        workspace_ops: xvora_workspace::WorkspaceOps::for_test(),
+        workspace_ops: workspace::WorkspaceOps::for_test(),
         trace_config_template: std::cell::RefCell::new(None),
     };
     if let Some(reservations) = actor.tool_context.task_completion_reservations.clone() {
@@ -531,7 +531,7 @@ pub(crate) async fn create_test_actor(
     total_tokens: u64,
     context_window: u64,
     threshold_percent: u8,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
 ) -> SessionActor {
     create_test_actor_ex(
@@ -645,10 +645,10 @@ pub(crate) fn running_task_stub(prompt_id: &str) -> AgentTask {
 #[cfg(test)]
 pub(crate) async fn build_actor() -> (
     std::sync::Arc<SessionActor>,
-    tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) {
     let (gateway_tx, gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let (persistence_tx, mut persistence_rx) =
         tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     tokio::spawn(async move {
@@ -706,10 +706,10 @@ pub(crate) async fn prepare_call(
 pub(crate) fn install_permission_manager(
     actor: &mut SessionActor,
     yolo: bool,
-    gateway: xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: acp_lib::AcpAgentGatewaySender,
 ) {
     use xvora_paths::AbsPathBuf;
-    use xvora_workspace::permission::{ClientType, spawn_permission_manager};
+    use workspace::permission::{ClientType, spawn_permission_manager};
     let cwd = AbsPathBuf::new(std::path::PathBuf::from(actor.session_info.cwd.clone()))
         .unwrap_or_else(|_| AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap());
     let (handle, _ev) = spawn_permission_manager(
@@ -757,8 +757,8 @@ pub(crate) fn search_replace_call_at(id: &str, path: &str) -> ToolCallResponse {
     }
 }
 #[cfg(test)]
-pub(crate) fn read_and_edit_toolset() -> Vec<xvora_tools::registry::types::ToolConfig> {
-    use xvora_tools::registry::types::ToolConfig;
+pub(crate) fn read_and_edit_toolset() -> Vec<tools::registry::types::ToolConfig> {
+    use tools::registry::types::ToolConfig;
     vec![
         ToolConfig::from_id("GrokBuild:read_file"),
         ToolConfig {
@@ -856,7 +856,7 @@ pub(crate) async fn tool_result_text(actor: &SessionActor, call_id: &str) -> Str
 }
 #[cfg(test)]
 pub(crate) fn spawn_gateway_loop(
-    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> Arc<std::sync::Mutex<Vec<serde_json::Value>>> {
     spawn_gateway_loop_counting_prompt_hooks(
         gateway_rx,
@@ -866,7 +866,7 @@ pub(crate) fn spawn_gateway_loop(
 }
 #[cfg(test)]
 pub(crate) fn spawn_gateway_loop_counting_prompt_hooks(
-    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     permission_prompt_hooks: Arc<std::sync::atomic::AtomicUsize>,
     park_until_hook: bool,
 ) -> Arc<std::sync::Mutex<Vec<serde_json::Value>>> {
@@ -877,7 +877,7 @@ pub(crate) fn spawn_gateway_loop_counting_prompt_hooks(
     tokio::task::spawn_local(async move {
         while let Some(msg) = gateway_rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::RequestPermission(args) => {
+                acp_lib::AcpClientMessage::RequestPermission(args) => {
                     let hooks = permission_prompt_hooks.clone();
                     tokio::task::spawn_local(async move {
                         if park_until_hook {
@@ -901,7 +901,7 @@ pub(crate) fn spawn_gateway_loop_counting_prompt_hooks(
                             )));
                     });
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                acp_lib::AcpClientMessage::ExtNotification(args) => {
                     let params: serde_json::Value =
                         serde_json::from_str(args.request.params.get()).unwrap_or_default();
                     match args.request.method.as_ref() {
@@ -916,7 +916,7 @@ pub(crate) fn spawn_gateway_loop_counting_prompt_hooks(
                         _ => {}
                     }
                 }
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
                 _ => {}
@@ -928,11 +928,11 @@ pub(crate) fn spawn_gateway_loop_counting_prompt_hooks(
 /// Ack every gateway `SessionNotification` so a driven turn never blocks on the client.
 /// Spawned on the current `LocalSet`.
 pub(crate) fn drain_gateway(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) {
     tokio::task::spawn_local(async move {
         while let Some(msg) = rx.recv().await {
-            if let xvora_acp_lib::AcpClientMessage::SessionNotification(args) = msg {
+            if let acp_lib::AcpClientMessage::SessionNotification(args) = msg {
                 let _ = args.response_tx.send(Ok(()));
             }
         }
@@ -954,7 +954,7 @@ pub(crate) fn drain_persistence(mut rx: tokio::sync::mpsc::UnboundedReceiver<Per
 #[cfg(test)]
 #[allow(clippy::type_complexity)]
 pub(crate) fn spawn_capturing_gateway_loop(
-    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> (
     Arc<std::sync::Mutex<Vec<serde_json::Value>>>,
     Arc<std::sync::Mutex<Vec<serde_json::Value>>>,
@@ -967,13 +967,13 @@ pub(crate) fn spawn_capturing_gateway_loop(
     tokio::task::spawn_local(async move {
         while let Some(msg) = gateway_rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     if let Ok(v) = serde_json::to_value(&args.request) {
                         acp_captured.lock().unwrap().push(v);
                     }
                     let _ = args.response_tx.send(Ok(()));
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                acp_lib::AcpClientMessage::ExtNotification(args) => {
                     if args.request.method.as_ref() == "x.ai/session_notification" {
                         let params: serde_json::Value =
                             serde_json::from_str(args.request.params.get()).unwrap_or_default();
@@ -992,7 +992,7 @@ pub(crate) fn spawn_capturing_gateway_loop(
 #[cfg(test)]
 pub(crate) async fn actor_with_persistence_drain() -> std::sync::Arc<SessionActor> {
     let (gateway_tx, mut gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     tokio::task::spawn_local(async move { while gateway_rx.recv().await.is_some() {} });
     let (persistence_tx, mut persistence_rx) =
         tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();

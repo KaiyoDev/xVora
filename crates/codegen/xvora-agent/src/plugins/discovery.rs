@@ -325,8 +325,8 @@ pub fn discover_plugins(
 
     // 4-5. User plugins: $GROK_HOME/plugins, legacy ~/.grok/plugins, ~/.claude/plugins.
     // Gate the grok plugins dir on user_grok_home() so a project's .grok/plugins is never scanned as user-global when no home resolves
-    let grok = xvora_config::user_grok_home();
-    let plugin_dirs = user_plugin_dirs(xvora_dirs::home_dir().as_deref(), grok.as_deref());
+    let grok = config::user_grok_home();
+    let plugin_dirs = user_plugin_dirs(dirs::home_dir().as_deref(), grok.as_deref());
     for (plugins_dir, origin) in plugin_dirs {
         if plugins_dir.is_dir() {
             scan_plugin_dir(
@@ -378,7 +378,7 @@ pub fn discover_plugins(
     // 5c. Installed plugins (~/.claude/plugins/installed_plugins.json).
     // Entries carry explicit installPath dirs (nested under cache/<marketplace>/<plugin>/<version>/)
     // The plugin name is extracted from the JSON key ("name@marketplace").
-    if let Some(home) = xvora_dirs::home_dir() {
+    if let Some(home) = dirs::home_dir() {
         let installed_json = home
             .join(".claude")
             .join("plugins")

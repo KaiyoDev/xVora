@@ -2,8 +2,8 @@
 //! Apply never forgets the set (siblings in the same batch still see it).
 //! Complete drops only the finished ids.
 
-use xvora_tool_types::{TaskOutputOutput, TaskOutputResult};
-use xvora_tools::types::output::{ToolOutput as ToolsToolOutput, ToolRunResult};
+use tool_types::{TaskOutputOutput, TaskOutputResult};
+use tools::types::output::{ToolOutput as ToolsToolOutput, ToolRunResult};
 
 use crate::tools::tool_context::BlockingWaitState;
 
@@ -20,9 +20,9 @@ pub(super) fn wait_task_ids_from_args(args: &serde_json::Value) -> Vec<String> {
     let raw = args
         .get("task_ids")
         .or_else(|| args.get("task_id"))
-        .and_then(xvora_tool_types::serde_lenient::lenient_string_list_from_json)
+        .and_then(tool_types::serde_lenient::lenient_string_list_from_json)
         .unwrap_or_default();
-    xvora_tool_types::resolve_task_ids(&raw)
+    tool_types::resolve_task_ids(&raw)
 }
 
 /// Extras drop only when the next interruptible wait contains every interrupted id plus at least one new one.

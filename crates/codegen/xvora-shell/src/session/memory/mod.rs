@@ -7,7 +7,7 @@
 
 pub mod hooks;
 
-pub use xvora_memory::{
+pub use memory::{
     EndpointScopedCredentials, MemoryBackendImpl, MemoryBackendParams, MemoryIndex, MemoryScope,
     MemorySearchSource, MemoryStorage, archive, backend, chunker, dream, dream_lock,
     embed_missing_chunks, embedding, index, init_sqlite_vec, mmr, noop_memory_observation_sink,

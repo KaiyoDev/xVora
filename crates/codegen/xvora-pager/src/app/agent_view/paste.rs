@@ -194,10 +194,10 @@ impl AgentView {
                         );
                     }
                     if ctx.source.tip_showing() {
-                        xvora_telemetry::session_ctx::log_event(
-                            xvora_telemetry::events::ContextualTip {
-                                tip: xvora_telemetry::events::ContextualTipKind::ImageInput,
-                                action: xvora_telemetry::events::ContextualTipAction::Accepted,
+                        telemetry::session_ctx::log_event(
+                            telemetry::events::ContextualTip {
+                                tip: telemetry::events::ContextualTipKind::ImageInput,
+                                action: telemetry::events::ContextualTipAction::Accepted,
                             },
                         );
                     }
@@ -1206,10 +1206,10 @@ pub(super) mod paste_key_tests {
     /// Build a `QuestionViewState` already in `InputMode` focus.
     pub(in crate::app::agent_view) fn make_question_view_state_in_input_mode()
     -> crate::views::question_view::QuestionViewState {
-        let question = xvora_tools::implementations::grok_build::ask_user_question::Question {
+        let question = tools::implementations::grok_build::ask_user_question::Question {
             question: "Pick one?".to_string(),
             options: vec![
-                xvora_tools::implementations::grok_build::ask_user_question::QuestionOption {
+                tools::implementations::grok_build::ask_user_question::QuestionOption {
                     label: "A".to_string(),
                     description: "Option A".to_string(),
                     preview: None,

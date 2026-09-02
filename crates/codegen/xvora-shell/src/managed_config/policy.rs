@@ -48,8 +48,8 @@ pub(super) fn managed_policy_gate_decision(
 pub(super) fn auth_mode(
     has_deployment_key: bool,
     signed_in_team: &std::io::Result<bool>,
-) -> xvora_telemetry::startup::AuthMode {
-    use xvora_telemetry::startup::AuthMode;
+) -> telemetry::startup::AuthMode {
+    use telemetry::startup::AuthMode;
     match (has_deployment_key, signed_in_team) {
         (true, _) => AuthMode::Deployment,
         (false, Ok(true)) => AuthMode::Team,
@@ -70,7 +70,7 @@ pub(super) fn managed_config_enabled_from_layers(
 
 /// The principal a verified payload binds: `deployment_id`, else `team_id` (server parity).
 pub(super) fn served_principal_of(
-    payload: &xvora_config::signed_policy::SignedPayload,
+    payload: &config::signed_policy::SignedPayload,
 ) -> Option<&str> {
     payload
         .deployment_id
@@ -79,7 +79,7 @@ pub(super) fn served_principal_of(
 }
 
 pub(super) fn claim_binds_to(
-    claim: &xvora_config::signed_policy::ManagedIdentityClaim,
+    claim: &config::signed_policy::ManagedIdentityClaim,
     served_principal: Option<&str>,
 ) -> bool {
     served_principal == Some(claim.principal.as_str())

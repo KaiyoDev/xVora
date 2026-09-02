@@ -1,6 +1,6 @@
 use super::*;
-use xvora_telemetry::events::TelemetryEvent;
-use xvora_tools::types::output::{SearchToolOutput, ToolOutput};
+use telemetry::events::TelemetryEvent;
+use tools::types::output::{SearchToolOutput, ToolOutput};
 
 fn event_name(event: &ActiveAgentMessageEvent) -> &'static str {
     match event {

@@ -28,7 +28,7 @@ impl MvpAgent {
         &self,
         session_id: Option<&acp::SessionId>,
         cwd: &std::path::Path,
-    ) -> Option<(std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>, bool)> {
+    ) -> Option<(std::sync::Arc<codebase_graph::IndexManagerHandle>, bool)> {
         let (handle, was_newly_started) = self.resolve_codebase_index(cwd)?;
         // Pin the index to the requesting session so the Weak in CodebaseIndexManager doesn't orphan it immediately
         if let Some(sid) = session_id {
@@ -83,7 +83,7 @@ impl MvpAgent {
         }
 
         // Gate 4: git root / config globs
-        let git_root = xvora_workspace::session::git::find_git_root_from_path(cwd).ok();
+        let git_root = workspace::session::git::find_git_root_from_path(cwd).ok();
         match &setting {
             CodebaseIndexingSetting::Enabled(true) => {
                 if git_root.is_none() {
@@ -154,11 +154,11 @@ impl MvpAgent {
     pub(super) fn resolve_codebase_index(
         &self,
         cwd: &std::path::Path,
-    ) -> Option<(std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>, bool)> {
+    ) -> Option<(std::sync::Arc<codebase_graph::IndexManagerHandle>, bool)> {
         use crate::agent::config::CodebaseIndexingSetting;
 
         let setting = self.cfg.borrow().features.codebase_indexing.clone();
-        let git_root = xvora_workspace::session::git::find_git_root_from_path(cwd).ok();
+        let git_root = workspace::session::git::find_git_root_from_path(cwd).ok();
 
         match (&setting, &git_root) {
             (CodebaseIndexingSetting::Enabled(false), _) => {
@@ -210,7 +210,7 @@ impl MvpAgent {
         if self.get_codebase_index(cwd).is_some() {
             return vec![cwd.to_string_lossy().into_owned()];
         }
-        if let Ok(git_root) = xvora_workspace::session::git::find_git_root_from_path(cwd)
+        if let Ok(git_root) = workspace::session::git::find_git_root_from_path(cwd)
             && self.get_codebase_index(&git_root).is_some()
         {
             return vec![git_root.to_string_lossy().into_owned()];
@@ -223,7 +223,7 @@ impl MvpAgent {
     pub(super) fn get_or_create_codebase_index(
         &self,
         cwd: PathBuf,
-    ) -> (std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>, bool) {
+    ) -> (std::sync::Arc<codebase_graph::IndexManagerHandle>, bool) {
         self.codebase_indexes.lock().get_or_create(cwd)
     }
 
@@ -232,7 +232,7 @@ impl MvpAgent {
     pub(crate) fn get_codebase_index(
         &self,
         cwd: &std::path::Path,
-    ) -> Option<std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>> {
+    ) -> Option<std::sync::Arc<codebase_graph::IndexManagerHandle>> {
         self.codebase_indexes.lock().get(cwd)
     }
 }

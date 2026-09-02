@@ -9,7 +9,7 @@ description = "Core host-local workspace library (FS, VCS, execution, discovery)
 anyhow = { workspace = true }
 arc-swap = { workspace = true }
 dunce = { workspace = true }
-xvora-version = { workspace = true }
+version = { workspace = true }
 async-stream = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
@@ -38,20 +38,20 @@ xvora-agent = { path = "../xvora-agent" }
 xvora-tools = { path = "../xvora-tools" }
 xvora-tools-api = { path = "../xvora-tools-api" }
 # `DiagHandle`, held by the hub config and threaded through `connect_hub`.
-xvora-diag-server = { workspace = true }
+diag-server = { workspace = true }
 xvora-workspace-client = { path = "../xvora-workspace-client" }
 # Daemon/process-lifecycle machinery for `bin/workspace_server.rs` only; the
 # library never references it.
 xvora-workspace-daemon = { path = "../xvora-workspace-daemon" }
 xvora-workspace-types = { path = "../xvora-workspace-types" }
-xvora-config = { workspace = true }
-xvora-dirs = { workspace = true }
+config = { workspace = true }
+dirs = { workspace = true }
 # Leaf config value types (RemoteSettings, BoolFlag) for the folder-trust decision.
-xvora-config-types = { workspace = true }
+config-types = { workspace = true }
 toml = { workspace = true, features = ["preserve_order"] }
 dashmap = { workspace = true }
 agent-client-protocol = { workspace = true }
-xvora-acp-lib = { workspace = true, package = "xvora-acp-lib" }
+acp-lib = { workspace = true }
 xvora-codebase-graph = { path = "../codebase-graph" }
 xvora-paths = { path = "../xvora-paths" }
 base64 = { workspace = true }
@@ -62,14 +62,14 @@ hashbrown = "0.16.1"
 nohash-hasher = "0.2.0"
 rustc-hash = "2.1.1"
 # Backs `file_system`'s fuzzy path picker (matcher + background daemon).
-xvora-fuzzy-file-search = { workspace = true }
+fuzzy-file-search = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 smallvec = { workspace = true }
 chrono = { workspace = true }
 tree-sitter = "0.25.10"
 tree-sitter-bash = "0.25"
 url = { workspace = true }
-xvora-env = { workspace = true }
+env = { workspace = true }
 humantime-serde = { workspace = true }
 prometheus = { workspace = true }
 glob = "0.3"
@@ -82,14 +82,14 @@ xvora-computer-hub-sdk = { workspace = true, features = ["metrics"] }
 xvora-computer-hub-mcp-adapter = { path = "../../common/computer-hub-mcp-adapter" }
 xvora-mcp = { path = "../xvora-mcp" }
 xvora-file-utils = { path = "../file-utils" }
-xvora-session-events = { workspace = true }
+session-events = { workspace = true }
 xvora-auth = { path = "../xvora-auth" }
-xvora-telemetry = { workspace = true }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+telemetry = { workspace = true }
+tty-utils = { workspace = true }
 reqwest = { workspace = true }
-xvora-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
-xvora-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
-xvora-tool-types = { workspace = true, package = "xvora-tool-types" }
+tool-protocol = { workspace = true }
+tool-runtime = { workspace = true }
+tool-types = { workspace = true }
 tokio-util = { workspace = true, features = ["rt"] }
 urlencoding = "2"
 xvora-fast-worktree = { path = "../fast-worktree", features = ["metadata"] }
@@ -103,8 +103,8 @@ clap = { workspace = true }
 tracing-subscriber = { workspace = true }
 # "enable" required for the SDK's spans to record at all.
 fastrace = { workspace = true, features = ["enable"] }
-xvora-tracing = { workspace = true }
-xvora-extra-ca = { workspace = true }
+# tracing = { workspace = true }
+extra-ca = { workspace = true }
 tokio-tungstenite = { workspace = true, features = ["rustls-tls-webpki-roots"] }
 tempfile = { workspace = true }
 zstd = { workspace = true }

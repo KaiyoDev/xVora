@@ -8,7 +8,7 @@ impl SessionActor {
     ) -> PromptTurnResult {
         // Builtin turns carry no user message, so a send-now may cancel from the start.
         self.mark_front_message_committed().await;
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SlashCommandUsed {
+        telemetry::session_ctx::log_event(telemetry::events::SlashCommandUsed {
             command: action.command_name().to_string(),
             args_provided: action.args_provided(),
         });
@@ -32,10 +32,10 @@ impl SessionActor {
                     } else {
                         "default"
                     };
-                    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::YoloToggled {
+                    telemetry::session_ctx::log_event(telemetry::events::YoloToggled {
                         enabled: actual,
                         previous_state: was,
-                        trigger: xvora_telemetry::events::YoloTrigger::SlashCommand,
+                        trigger: telemetry::events::YoloTrigger::SlashCommand,
                         from_mode: Some(from_mode.to_owned()),
                     });
                     tracing::info_span!(
@@ -89,14 +89,14 @@ impl SessionActor {
             BuiltinAction::HooksTrust => {
                 let msg = match Self::do_hooks_trust_project(&self.session_info.cwd) {
                     Ok(root) => {
-                        xvora_telemetry::session_ctx::log_event(
-                            xvora_telemetry::events::HookTrusted { success: true },
+                        telemetry::session_ctx::log_event(
+                            telemetry::events::HookTrusted { success: true },
                         );
                         format!("Trusted: {}.", root.display())
                     }
                     Err(e) => {
-                        xvora_telemetry::session_ctx::log_event(
-                            xvora_telemetry::events::HookTrusted { success: false },
+                        telemetry::session_ctx::log_event(
+                            telemetry::events::HookTrusted { success: false },
                         );
                         e
                     }
@@ -152,8 +152,8 @@ impl SessionActor {
                     // paths are under ~/.grok/ to prevent hook path injection.
                     match crate::config::add_hooks_path(&path) {
                         Ok(()) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::HookAdded { success: true },
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::HookAdded { success: true },
                             );
                             self.send_host_turn_slash_command_output(&format!(
                                 "Added hook path: {path}\n\
@@ -162,8 +162,8 @@ impl SessionActor {
                             .await;
                         }
                         Err(e) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::HookAdded { success: false },
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::HookAdded { success: false },
                             );
                             self.send_host_turn_slash_command_output(&format!(
                                 "Failed to add hook path: {e}"
@@ -183,8 +183,8 @@ impl SessionActor {
                 } else {
                     match crate::config::remove_hooks_path(&path) {
                         Ok(true) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::HookRemoved { success: true },
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::HookRemoved { success: true },
                             );
                             self.send_host_turn_slash_command_output(&format!(
                                 "Removed hook path: {path}\nRestart session to stop loading hooks from this path."
@@ -192,8 +192,8 @@ impl SessionActor {
                             .await;
                         }
                         Ok(false) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::HookRemoved { success: false },
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::HookRemoved { success: false },
                             );
                             self.send_host_turn_slash_command_output(&format!(
                                 "{path} is not a user-registered hook directory; \
@@ -202,8 +202,8 @@ impl SessionActor {
                             .await;
                         }
                         Err(e) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::HookRemoved { success: false },
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::HookRemoved { success: false },
                             );
                             self.send_host_turn_slash_command_output(&format!(
                                 "Failed to remove hook path: {e}"
@@ -295,14 +295,14 @@ impl SessionActor {
                     Some(handle) => {
                         // An explicit user reload forces a full re-copy of locally installed plugins
                         let msg = self.reload_plugins_impl(handle, true).await;
-                        xvora_telemetry::session_ctx::log_event(
-                            xvora_telemetry::events::PluginReloaded { success: true },
+                        telemetry::session_ctx::log_event(
+                            telemetry::events::PluginReloaded { success: true },
                         );
                         self.send_host_turn_slash_command_output(&msg).await;
                     }
                     None => {
-                        xvora_telemetry::session_ctx::log_event(
-                            xvora_telemetry::events::PluginReloaded { success: false },
+                        telemetry::session_ctx::log_event(
+                            telemetry::events::PluginReloaded { success: false },
                         );
                         self.send_host_turn_slash_command_output(
                             "No plugin registry handle available. Start a new session to discover plugins.",
@@ -342,7 +342,7 @@ impl SessionActor {
                 };
 
                 let ctx = &info.context;
-                let context_pct = xvora_token_estimation::usage_percentage(ctx.used, ctx.total);
+                let context_pct = token_estimation::usage_percentage(ctx.used, ctx.total);
 
                 let summary_path = crate::session::persistence::session_dir(&self.session_info)
                     .join("summary.json");
@@ -402,9 +402,9 @@ impl SessionActor {
                     let path_str = resolved.to_string_lossy().to_string();
                     match crate::config::add_plugin_path(&path_str) {
                         Ok(()) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::PluginAdded {
-                                    source: xvora_telemetry::events::PluginSource::LocalPath,
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::PluginAdded {
+                                    source: telemetry::events::PluginSource::LocalPath,
                                     success: true,
                                 },
                             );
@@ -416,9 +416,9 @@ impl SessionActor {
                             }
                         }
                         Err(e) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::PluginAdded {
-                                    source: xvora_telemetry::events::PluginSource::LocalPath,
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::PluginAdded {
+                                    source: telemetry::events::PluginSource::LocalPath,
                                     success: false,
                                 },
                             );
@@ -450,8 +450,8 @@ impl SessionActor {
                     let path_str = resolved.to_string_lossy().to_string();
                     match crate::config::remove_plugin_path(&path_str) {
                         Ok(()) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::PluginRemoved { success: true },
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::PluginRemoved { success: true },
                             );
                             let msg = format!("Removed plugin path: {path_str}");
                             self.send_host_turn_slash_command_output(&msg).await;
@@ -461,8 +461,8 @@ impl SessionActor {
                             }
                         }
                         Err(e) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::PluginRemoved { success: false },
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::PluginRemoved { success: false },
                             );
                             self.send_host_turn_slash_command_output(&format!(
                                 "Failed to remove plugin path: {e}"
@@ -489,14 +489,14 @@ impl SessionActor {
 
                     if !trust {
                         let install_source =
-                            xvora_agent::plugins::git_install::parse_install_source(&source, cwd);
+                            agent::plugins::git_install::parse_install_source(&source, cwd);
                         let source_desc = match &install_source {
-                            xvora_agent::plugins::git_install::InstallSource::Git {
+                            agent::plugins::git_install::InstallSource::Git {
                                 url, ..
                             } => {
                                 format!("remote git repo: {url}")
                             }
-                            xvora_agent::plugins::git_install::InstallSource::Local {
+                            agent::plugins::git_install::InstallSource::Local {
                                 path,
                                 ..
                             } => {
@@ -522,12 +522,12 @@ impl SessionActor {
                                     tracing::warn!("{w}");
                                 }
                                 let kind = if outcome.is_local {
-                                    xvora_telemetry::events::InstallKind::Local
+                                    telemetry::events::InstallKind::Local
                                 } else {
-                                    xvora_telemetry::events::InstallKind::Git
+                                    telemetry::events::InstallKind::Git
                                 };
-                                xvora_telemetry::session_ctx::log_event(
-                                    xvora_telemetry::events::PluginInstalled {
+                                telemetry::session_ctx::log_event(
+                                    telemetry::events::PluginInstalled {
                                         install_kind: kind,
                                         success: true,
                                         trust: true,
@@ -553,9 +553,9 @@ impl SessionActor {
                             Err(e) => {
                                 let error_category = Self::classify_install_error(&e);
                                 let kind = if crate::plugin::install_source_is_local(&source, cwd) {
-                                    xvora_telemetry::events::InstallKind::Local
+                                    telemetry::events::InstallKind::Local
                                 } else {
-                                    xvora_telemetry::events::InstallKind::Git
+                                    telemetry::events::InstallKind::Git
                                 };
                                 tracing::info_span!(
                                     "plugin.installed",
@@ -564,8 +564,8 @@ impl SessionActor {
                                     error_category = %error_category,
                                 )
                                 .in_scope(|| {});
-                                xvora_telemetry::session_ctx::log_event(
-                                    xvora_telemetry::events::PluginInstalled {
+                                telemetry::session_ctx::log_event(
+                                    telemetry::events::PluginInstalled {
                                         install_kind: kind,
                                         success: false,
                                         trust: true,
@@ -593,8 +593,8 @@ impl SessionActor {
                     use crate::plugin::UninstallError;
                     match crate::plugin::uninstall_plugin(&name, confirm, false) {
                         Ok(outcome) => {
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::PluginUninstalled {
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::PluginUninstalled {
                                     confirmed: true,
                                     success: true,
                                 },
@@ -766,7 +766,7 @@ impl SessionActor {
                             *self.memory.search_counter.borrow_mut() =
                                 Some(backend.search_counter.clone());
                             let backend: std::sync::Arc<
-                                dyn xvora_tools::types::memory_backend::MemoryBackend,
+                                dyn tools::types::memory_backend::MemoryBackend,
                             > = std::sync::Arc::new(backend);
                             let bridge = self.agent.borrow().tool_bridge().clone();
                             bridge.update_resource(backend.clone()).await;
@@ -782,12 +782,12 @@ impl SessionActor {
                 } else if !enabled && self.memory.is_enabled() {
                     let bridge = self.agent.borrow().tool_bridge().clone();
                     if !bridge.unregister_tool_by_name(
-                        xvora_tools::implementations::memory::MEMORY_SEARCH_TOOL_NAME,
+                        tools::implementations::memory::MEMORY_SEARCH_TOOL_NAME,
                     ) {
                         tracing::debug!("memory_search tool was not registered during unregister");
                     }
                     if !bridge.unregister_tool_by_name(
-                        xvora_tools::implementations::memory::MEMORY_GET_TOOL_NAME,
+                        tools::implementations::memory::MEMORY_GET_TOOL_NAME,
                     ) {
                         tracing::debug!("memory_get tool was not registered during unregister");
                     }

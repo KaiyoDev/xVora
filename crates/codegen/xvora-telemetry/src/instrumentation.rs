@@ -13,7 +13,7 @@ use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use tracing_subscriber::layer::{Context, Layer};
 use tracing_subscriber::registry::LookupSpan;
 
-use xvora_config::grok_home;
+use config::grok_home;
 
 const ENV_ENABLED: &str = "GROK_INSTRUMENTATION";
 const ENV_LOG_PATH: &str = "GROK_INSTRUMENTATION_LOG";

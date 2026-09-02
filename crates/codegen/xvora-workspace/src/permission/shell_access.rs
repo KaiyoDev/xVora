@@ -530,7 +530,7 @@ fn protected_grok_config_file(path: &Path, components: &[&str]) -> Option<Protec
     protected_grok_config_file_with_home(
         path,
         components,
-        xvora_config::user_grok_home().as_deref(),
+        config::user_grok_home().as_deref(),
     )
 }
 
@@ -541,11 +541,11 @@ fn protected_grok_config_file_with_home(
 ) -> Option<ProtectedEditReason> {
     let reason = match components.last().copied() {
         Some(
-            xvora_config::USER_CONFIG_FILENAME
-            | xvora_config::MANAGED_CONFIG_FILENAME
-            | xvora_config::REQUIREMENTS_FILENAME,
+            config::USER_CONFIG_FILENAME
+            | config::MANAGED_CONFIG_FILENAME
+            | config::REQUIREMENTS_FILENAME,
         ) => ProtectedEditReason::GrokConfig,
-        Some(xvora_config::SANDBOX_CONFIG_FILENAME) => ProtectedEditReason::GrokSandbox,
+        Some(config::SANDBOX_CONFIG_FILENAME) => ProtectedEditReason::GrokSandbox,
         _ => return None,
     };
     let in_dot_grok = components.len() >= 2 && components[components.len() - 2] == ".grok";
@@ -571,7 +571,7 @@ fn path_is_under_user_grok_hook_root(path: &Path, grok_home: &Path) -> bool {
 fn protected_grok_hook_root(path: &Path, components: &[&str]) -> bool {
     components.windows(2).any(|pair| pair == [".grok", "hooks"])
         || components.ends_with(&[".grok", "hooks-paths"])
-        || grok_home_matches(xvora_config::user_grok_home().as_deref(), |home| {
+        || grok_home_matches(config::user_grok_home().as_deref(), |home| {
             path_is_under_user_grok_hook_root(path, home)
         })
 }
@@ -1591,19 +1591,19 @@ mod tests {
         let home_path = home.path();
         for (file, reason) in [
             (
-                xvora_config::USER_CONFIG_FILENAME,
+                config::USER_CONFIG_FILENAME,
                 ProtectedEditReason::GrokConfig,
             ),
             (
-                xvora_config::MANAGED_CONFIG_FILENAME,
+                config::MANAGED_CONFIG_FILENAME,
                 ProtectedEditReason::GrokConfig,
             ),
             (
-                xvora_config::REQUIREMENTS_FILENAME,
+                config::REQUIREMENTS_FILENAME,
                 ProtectedEditReason::GrokConfig,
             ),
             (
-                xvora_config::SANDBOX_CONFIG_FILENAME,
+                config::SANDBOX_CONFIG_FILENAME,
                 ProtectedEditReason::GrokSandbox,
             ),
         ] {
@@ -1618,19 +1618,19 @@ mod tests {
         // Same file names elsewhere (or with no resolvable home) stay ordinary.
         let elsewhere = home_path
             .join("sub")
-            .join(xvora_config::SANDBOX_CONFIG_FILENAME);
+            .join(config::SANDBOX_CONFIG_FILENAME);
         assert_eq!(
             protected_grok_config_file_with_home(
                 &elsewhere,
-                &["sub", xvora_config::SANDBOX_CONFIG_FILENAME],
+                &["sub", config::SANDBOX_CONFIG_FILENAME],
                 Some(home_path)
             ),
             None
         );
         assert_eq!(
             protected_grok_config_file_with_home(
-                &home_path.join(xvora_config::SANDBOX_CONFIG_FILENAME),
-                &[xvora_config::SANDBOX_CONFIG_FILENAME],
+                &home_path.join(config::SANDBOX_CONFIG_FILENAME),
+                &[config::SANDBOX_CONFIG_FILENAME],
                 None
             ),
             None
@@ -1653,8 +1653,8 @@ mod tests {
         let physical_home = resolve_following_symlinks(&real_home).unwrap();
         assert_eq!(
             protected_grok_config_file_with_home(
-                &physical_home.join(xvora_config::SANDBOX_CONFIG_FILENAME),
-                &[xvora_config::SANDBOX_CONFIG_FILENAME],
+                &physical_home.join(config::SANDBOX_CONFIG_FILENAME),
+                &[config::SANDBOX_CONFIG_FILENAME],
                 Some(&link)
             ),
             Some(ProtectedEditReason::GrokSandbox)
@@ -1666,9 +1666,9 @@ mod tests {
     #[test]
     fn protected_config_filename_constants_are_lowercase() {
         for name in [
-            xvora_config::USER_CONFIG_FILENAME,
-            xvora_config::MANAGED_CONFIG_FILENAME,
-            xvora_config::REQUIREMENTS_FILENAME,
+            config::USER_CONFIG_FILENAME,
+            config::MANAGED_CONFIG_FILENAME,
+            config::REQUIREMENTS_FILENAME,
         ] {
             assert_eq!(name, name.to_ascii_lowercase(), "{name}");
         }

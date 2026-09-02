@@ -11,18 +11,18 @@ use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpAgentTx, AcpClientMessageBox, AcpClientRx, acp_send};
-use xvora_shell::agent::auth_method::AuthMethodKind;
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::extensions::task::{CancelSubagentRequest, KillTaskRequest};
-use xvora_shell::sampling::error::{
+use acp_lib::{AcpAgentTx, AcpClientMessageBox, AcpClientRx, acp_send};
+use shell::agent::auth_method::AuthMethodKind;
+use shell::agent::config::Config as AgentConfig;
+use shell::extensions::task::{CancelSubagentRequest, KillTaskRequest};
+use shell::sampling::error::{
     RATE_LIMITED_ERROR_CODE, error_detail_from_data, format_rate_limited_user_message,
 };
-use xvora_shell::sampling::types::{
+use shell::sampling::types::{
     REASONING_EFFORT_META_KEY, parse_canonical_effort_token, reasoning_effort_meta_value,
 };
-use xvora_shell::util::config as cli_config;
-use xvora_telemetry::startup::PendingStartup;
+use shell::util::config as cli_config;
+use telemetry::startup::PendingStartup;
 
 use crate::acp::model_state::{EffortTokenError, ModelState};
 use crate::acp::spawn::{AgentShutdownGuard, spawn_grok_shell};
@@ -383,7 +383,7 @@ impl HeadlessEmitter {
 }
 
 pub(crate) fn attach_result_usage(result: &mut serde_json::Value, usage: &serde_json::Value) {
-    xvora_shell::extensions::notification::attach_result_usage_fail_closed(result, usage);
+    shell::extensions::notification::attach_result_usage_fail_closed(result, usage);
 }
 
 /// Snake_case wire token for an ACP stop reason.
@@ -409,7 +409,7 @@ fn stop_reason_wire(reason: acp::StopReason) -> String {
 /// Configured MCP servers for the `init` line; all report `"connected"` (status is not resolved here).
 fn mcp_server_names(cwd: &Path) -> Vec<McpServer> {
     let servers =
-        cli_config::load_mcp_servers(cwd, &xvora_tools::types::compat::CompatConfig::default());
+        cli_config::load_mcp_servers(cwd, &tools::types::compat::CompatConfig::default());
     servers
         .iter()
         .filter_map(|s| {
@@ -471,7 +471,7 @@ async fn authenticate(
         .ok_or_else(|| {
             use std::io::IsTerminal;
             let interactive = std::io::stdin().is_terminal()
-                && !xvora_shell::util::clipboard::is_remote_session();
+                && !shell::util::clipboard::is_remote_session();
             anyhow::anyhow!("{}", auth_required_message(interactive))
         })?;
     let kind = AuthMethodKind::from_id(&method_id);
@@ -479,7 +479,7 @@ async fn authenticate(
     if kind.needs_interactive_login() {
         use std::io::IsTerminal;
         let interactive =
-            std::io::stdin().is_terminal() && !xvora_shell::util::clipboard::is_remote_session();
+            std::io::stdin().is_terminal() && !shell::util::clipboard::is_remote_session();
         anyhow::bail!("{}", auth_required_message(interactive));
     }
     let is_api_key_auth = kind.is_api_key();
@@ -536,7 +536,7 @@ async fn open_session(
 ) -> anyhow::Result<OpenedSession> {
     // Sessions open before the agent resolves per-vendor compat; default all-on until it does.
     let mcp_servers =
-        cli_config::load_mcp_servers(cwd, &xvora_tools::types::compat::CompatConfig::default());
+        cli_config::load_mcp_servers(cwd, &tools::types::compat::CompatConfig::default());
 
     if let Some(sid) = session_id_flag {
         let try_load: Result<acp::LoadSessionResponse, _> = acp_send(
@@ -590,7 +590,7 @@ async fn open_session_with_id(
     let cwd_str = cwd.to_string_lossy();
     crate::app::session_startup::ensure_session_id_available(session_id, &cwd_str)?;
     let mcp_servers =
-        cli_config::load_mcp_servers(cwd, &xvora_tools::types::compat::CompatConfig::default());
+        cli_config::load_mcp_servers(cwd, &tools::types::compat::CompatConfig::default());
     let new_resp: acp::NewSessionResponse = acp_send(
         acp::NewSessionRequest::new(cwd.to_path_buf())
             .mcp_servers(mcp_servers)
@@ -765,7 +765,7 @@ pub async fn run_single_turn(
     options: HeadlessOptions,
 ) -> Result<()> {
     // Stamp proxy requests as headless before the agent issues its first request.
-    xvora_shell::http::set_process_client_mode_headless();
+    shell::http::set_process_client_mode_headless();
 
     let cwd = match options.cwd {
         None => std::env::current_dir()?,
@@ -783,7 +783,7 @@ pub async fn run_single_turn(
     }
 
     let t_spawn = Instant::now();
-    let raw_config = xvora_shell::config::load_effective_config()
+    let raw_config = shell::config::load_effective_config()
         .map_err(|e| anyhow::anyhow!("Failed to load config: {e}"))?;
     let mut agent_config = AgentConfig::new_from_toml_cfg(&raw_config)
         .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
@@ -799,7 +799,7 @@ pub async fn run_single_turn(
         agent_config.default_model_override = Some(model.clone());
     }
 
-    agent_config.resolve_runtime_fields(&xvora_shell::agent::config::RuntimeResolutionContext {
+    agent_config.resolve_runtime_fields(&shell::agent::config::RuntimeResolutionContext {
         raw_config: &raw_config,
         remote_settings: None,
         is_headless: true,
@@ -813,13 +813,13 @@ pub async fn run_single_turn(
         storage_mode: None,
     });
 
-    agent_config.mode = xvora_shell::agent::config::AgentMode::Headless;
+    agent_config.mode = shell::agent::config::AgentMode::Headless;
     agent_config.default_yolo_mode = options.yolo;
-    agent_config.default_auto_mode = xvora_shell::util::config::effective_auto_for_launch(
+    agent_config.default_auto_mode = shell::util::config::effective_auto_for_launch(
         options.yolo,
         options.permission_mode_flag.as_deref(),
         None,
-        xvora_shell::util::config::PermissionMode::Ask,
+        shell::util::config::PermissionMode::Ask,
     );
 
     apply_agent_flag(&options.agent, &mut agent_config);
@@ -828,7 +828,7 @@ pub async fn run_single_turn(
         agent_config.cli_agents = parse_cli_agents(json)?;
     }
 
-    agent_config.cli_agent_overrides = xvora_shell::agent::config::CliAgentOverrides {
+    agent_config.cli_agent_overrides = shell::agent::config::CliAgentOverrides {
         tools: parse_comma_list(options.cli_tools.as_deref()),
         disallowed_tools: parse_comma_list(options.cli_disallowed_tools.as_deref()),
         permission_rules: parse_permission_rules_strict(&options.allow_rules, &options.deny_rules)?,
@@ -844,13 +844,13 @@ pub async fn run_single_turn(
     };
 
     if options.trust {
-        xvora_workspace::folder_trust::grant_folder_trust(&cwd);
+        workspace::folder_trust::grant_folder_trust(&cwd);
     }
 
     let cancel = CancellationToken::new();
     let memory_config = agent_config.memory_config.clone();
     let mut pending_startup = Some(PendingStartup::new());
-    let timer = xvora_telemetry::startup::begin(crate::acp::Owner::Client);
+    let timer = telemetry::startup::begin(crate::acp::Owner::Client);
     let mut report_startup_failure = |timer: &crate::acp::StartupTimer| {
         timer.emit_telemetry(
             crate::acp::AgentKind::Embedded,
@@ -883,7 +883,7 @@ pub async fn run_single_turn(
         options.rules.as_deref(),
         options.system_prompt_override.as_deref(),
     );
-    xvora_telemetry::startup::enter(crate::acp::StartupPhase::AcpInitialize);
+    telemetry::startup::enter(crate::acp::StartupPhase::AcpInitialize);
     let init_resp: acp::InitializeResponse = match acp_send(init_req, &acp_tx).await {
         Ok(r) => r,
         Err(e) => {
@@ -899,7 +899,7 @@ pub async fn run_single_turn(
     );
 
     let t_auth = Instant::now();
-    xvora_telemetry::startup::enter(crate::acp::StartupPhase::EagerAuth);
+    telemetry::startup::enter(crate::acp::StartupPhase::EagerAuth);
     let default_auth_method_id = crate::acp::parse_default_auth_method_id(init_resp.meta.as_ref());
     let is_api_key_auth = match authenticate(
         &acp_tx,
@@ -967,7 +967,7 @@ pub async fn run_single_turn(
         _ => options.restore_code.then_some(true),
     };
     let t_session = Instant::now();
-    xvora_telemetry::startup::enter(crate::acp::StartupPhase::SessionCreate);
+    telemetry::startup::enter(crate::acp::StartupPhase::SessionCreate);
     let opened = match materialized {
         MaterializedStartup::NewAuto => open_session(&acp_tx, &cwd, None, None).await,
         MaterializedStartup::NewWithId { session_id } => {
@@ -1020,7 +1020,7 @@ pub async fn run_single_turn(
 
     let track_active = std::env::var("GROK_TRACK_HEADLESS").is_ok();
     if track_active {
-        let _ = xvora_active_sessions::register(xvora_active_sessions::ActiveSession {
+        let _ = active_sessions::register(active_sessions::ActiveSession {
             session_id: session_id.clone(),
             pid: std::process::id(),
             cwd: cwd.display().to_string(),
@@ -1077,7 +1077,7 @@ pub async fn run_single_turn(
             .as_deref()
             .is_some_and(effort_unresolved);
     let session_models = if needs_fresh_catalog {
-        match xvora_shell::cli_models::fetch_model_state(&acp_tx).await {
+        match shell::cli_models::fetch_model_state(&acp_tx).await {
             Ok(state) => ModelState::from(Some(state)),
             Err(e) => {
                 tracing::warn!(error = %e, "headless: model catalog refresh failed; using session state");
@@ -1265,7 +1265,7 @@ pub async fn run_single_turn(
 
     if track_active {
         // Non-blocking flock so a slow/network ~/.grok can't hang exit.
-        let _ = xvora_active_sessions::try_unregister(&session_id);
+        let _ = active_sessions::try_unregister(&session_id);
     }
     // A mid-turn ACP close already reaped above; return that error before the normal outcome.
     if connection_closed {
@@ -1304,7 +1304,7 @@ pub async fn run_single_turn(
                 .as_ref()
                 .and_then(|m| m.get(crate::app::CANCELLATION_CATEGORY_KEY))
                 .and_then(|v| v.as_str())
-                == Some(xvora_shell::session::commands::MAX_TURNS_REACHED_CATEGORY);
+                == Some(shell::session::commands::MAX_TURNS_REACHED_CATEGORY);
             if is_max_turns {
                 emitter.on_max_turns();
                 emitter.on_end(&stop_reason, sid, rid);
@@ -1324,7 +1324,7 @@ pub async fn run_single_turn(
             } else {
                 err.to_string()
             };
-            if let Some(usage) = xvora_shell::sampling::error::prompt_usage_from_error(&err) {
+            if let Some(usage) = shell::sampling::error::prompt_usage_from_error(&err) {
                 match serde_json::to_value(&usage) {
                     Ok(v) => emitter.usage = Some(v),
                     // Log rather than swallow: a serialize failure would drop the frozen spend fields.
@@ -1335,7 +1335,7 @@ pub async fn run_single_turn(
                 }
             }
             let stop_reason_override =
-                (xvora_shell::sampling::error::stop_reason_for_turn_error(&err) == "MaxTokens")
+                (shell::sampling::error::stop_reason_for_turn_error(&err) == "MaxTokens")
                     .then_some("max_tokens");
             emitter.on_error(&msg, stop_reason_override);
             Err(anyhow::anyhow!("{msg}"))
@@ -1448,7 +1448,7 @@ fn reap_request_for_work(
             serde_json::value::to_raw_value(&KillTaskRequest {
                 session_id: session_id.0.to_string(),
                 task_id: id.clone(),
-                source: xvora_shell::extensions::task::TaskKillSource::Teardown,
+                source: shell::extensions::task::TaskKillSource::Teardown,
             })?,
         ),
     };

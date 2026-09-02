@@ -239,7 +239,7 @@ pub(crate) fn deliver_doctor_message(app: &mut AppView, preferred: AgentId, mess
 }
 pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec<Effect> {
     if result.ends_startup() {
-        app.finish_startup(xvora_telemetry::startup::StartupOutcome::Ok);
+        app.finish_startup(telemetry::startup::StartupOutcome::Ok);
     }
     if !matches!(
         &result,
@@ -385,7 +385,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
         } => {
             if let Some(agent) = app.agents.get_mut(&agent_id) {
                 if let Some((raw, is_manual)) = title
-                    && let Some(t) = xvora_shell::session::persistence::sanitize_and_cap_title(&raw)
+                    && let Some(t) = shell::session::persistence::sanitize_and_cap_title(&raw)
                 {
                     if is_manual && agent.display_name.is_none() {
                         agent.display_name = Some(t.clone());
@@ -442,7 +442,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
                 vec![Effect::DetectForeignResumeHint {
                     canonical_cwd,
                     compat: app.foreign_session_compat,
-                    grok_home: xvora_tools::util::grok_home::grok_home(),
+                    grok_home: tools::util::grok_home::grok_home(),
                     launch_token,
                 }]
             } else {
@@ -505,7 +505,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
         TaskResult::WorkspaceSnapshotLoaded { store, snapshot } => {
             app.workspace_writes_disabled = !matches!(
                 store.schema_state(),
-                xvora_dashboard_store::SchemaState::Current
+                dashboard_store::SchemaState::Current
             );
             app.workspace_store = Some(store);
             app.workspace_snapshot = Some(snapshot);
@@ -532,7 +532,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
         } => {
             app.workspace_writes_disabled = !matches!(
                 store.schema_state(),
-                xvora_dashboard_store::SchemaState::Current
+                dashboard_store::SchemaState::Current
             );
             app.workspace_write_in_flight = false;
             let snapshot = match snapshot {
@@ -783,7 +783,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
         }
         TaskResult::ChangelogFetched { markdown, entries } => {
             app.changelog_markdown = markdown;
-            app.changelog_bullets = xvora_shell::util::changelog::bullets_from_entries(&entries, 3);
+            app.changelog_bullets = shell::util::changelog::bullets_from_entries(&entries, 3);
             vec![]
         }
         TaskResult::ClipboardAttachmentProbed {
@@ -878,7 +878,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
             vec![]
         }
         TaskResult::PromptHistoryLoaded { agent_id, prompts } => {
-            use xvora_tools::implementations::skills::skill::extract_skill_display_text;
+            use tools::implementations::skills::skill::extract_skill_display_text;
             if let Some(agent) = app.agents.get_mut(&agent_id) {
                 agent.session.prompt_history_loading = false;
                 let fetched: Vec<String> = prompts

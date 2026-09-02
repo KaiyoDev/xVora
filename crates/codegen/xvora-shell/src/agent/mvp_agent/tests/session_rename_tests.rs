@@ -1,7 +1,7 @@
 //! `x.ai/session/rename` ext-handler coverage: resident `ManualTitleRenamed` enqueue, non-resident skip, and control-char stripping at the boundary.
 
 use agent_client_protocol as acp;
-use xvora_test_support::EnvGuard;
+use test_support::EnvGuard;
 
 use super::{build_minimal_agent_for_tests, make_test_handle};
 use crate::session::info::Info;
@@ -358,7 +358,7 @@ async fn rename_fanout_stamps_title_is_manual_meta() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
     use crate::extensions::notification::TITLE_IS_MANUAL_META_KEY;
-    use xvora_acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
+    use acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
 
     let _home = isolate_grok_home();
     let cwd = "/tmp/rename-fanout-meta";
@@ -614,7 +614,7 @@ async fn reset_fanout_stamps_title_is_manual_false() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
     use crate::extensions::notification::TITLE_IS_MANUAL_META_KEY;
-    use xvora_acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
+    use acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
 
     let _home = isolate_grok_home();
     let cwd = "/tmp/reset-fanout";
@@ -703,7 +703,7 @@ async fn reset_already_auto_is_idempotent_and_skips_persistence_msg() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
     use crate::extensions::notification::TITLE_IS_MANUAL_META_KEY;
-    use xvora_acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
+    use acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
 
     let _home = isolate_grok_home();
     let cwd = "/tmp/reset-idempotent";

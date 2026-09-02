@@ -4,8 +4,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-pub use xvora_config::grok_home;
-pub use xvora_tools::util::format_bytes;
+pub use config::grok_home;
+pub use tools::util::format_bytes;
 
 /// A closed stdout (`grok du | head`) is a clean stop, not a failure.
 pub fn ignore_broken_pipe(result: std::io::Result<()>) -> std::io::Result<()> {
@@ -27,7 +27,7 @@ pub fn display_grok_home_prefix() -> String {
 }
 
 pub fn display_grok_home_prefix_for(home: &Path) -> String {
-    let default = xvora_config::default_grok_home();
+    let default = config::default_grok_home();
     if home == default || home == dunce::canonicalize(&default).unwrap_or(default) {
         "~/.grok".to_string()
     } else {
@@ -60,7 +60,7 @@ pub fn abbreviate_path(path: &str) -> Cow<'_, str> {
         }
         return Cow::Owned(format!("{prefix}/{}", rest.display()));
     }
-    if let Some(home) = xvora_dirs::home_dir() {
+    if let Some(home) = dirs::home_dir() {
         // Path::strip_prefix is separator-aware; a string prefix plus `starts_with('/')` misses Windows `\` remainders after USERPROFILE
         if !home.as_os_str().is_empty()
             && let Ok(rest) = path_buf.strip_prefix(&home)
@@ -395,7 +395,7 @@ mod tests {
 
     #[test]
     fn display_user_grok_path_joins_relative() {
-        let path = display_user_grok_path(xvora_config::USER_CONFIG_FILENAME);
+        let path = display_user_grok_path(config::USER_CONFIG_FILENAME);
         assert!(path.ends_with("/config.toml") || path.ends_with("\\config.toml"));
         assert!(path.contains(".grok") || path.contains("$GROK_HOME"));
     }
@@ -404,18 +404,18 @@ mod tests {
     fn display_user_grok_path_for_custom_home_uses_override_label() {
         let custom = std::env::temp_dir().join("grok-home-display-regression");
         assert_eq!(
-            display_user_grok_path_for(&custom, xvora_config::USER_CONFIG_FILENAME),
+            display_user_grok_path_for(&custom, config::USER_CONFIG_FILENAME),
             "$GROK_HOME/config.toml"
         );
         assert_eq!(
-            display_user_grok_path_for(&custom, xvora_config::SANDBOX_CONFIG_FILENAME),
-            format!("$GROK_HOME/{}", xvora_config::SANDBOX_CONFIG_FILENAME)
+            display_user_grok_path_for(&custom, config::SANDBOX_CONFIG_FILENAME),
+            format!("$GROK_HOME/{}", config::SANDBOX_CONFIG_FILENAME)
         );
     }
 
     #[test]
     fn abbreviate_path_uses_home_when_under_default_grok() {
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return;
         };
         let home = home.to_string_lossy();
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn abbreviate_path_collapses_home_with_native_separator() {
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return;
         };
         if home.as_os_str().is_empty() {

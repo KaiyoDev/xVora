@@ -16,12 +16,12 @@ use ratatui::style::{Modifier, Style};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use unicode_width::UnicodeWidthStr;
-use xvora_agent::config::{AgentDefinition, AgentScope, BuiltinAgentName};
-use xvora_shell::agent::config::AgentSelectionConfig;
-use xvora_tools::implementations::skills::discovery::extract_first_paragraph;
-use xvora_tools::registry::types::ToolServerConfig;
-use xvora_tools::types::template_renderer::TemplateRenderer;
-use xvora_tools::types::tool::ToolKind;
+use agent::config::{AgentDefinition, AgentScope, BuiltinAgentName};
+use shell::agent::config::AgentSelectionConfig;
+use tools::implementations::skills::discovery::extract_first_paragraph;
+use tools::registry::types::ToolServerConfig;
+use tools::types::template_renderer::TemplateRenderer;
+use tools::types::tool::ToolKind;
 /// Which tab is active in the agents modal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentsTab {
@@ -259,7 +259,7 @@ pub struct AgentsModalState {
     /// Model `agentType` from the pager's default or current model catalog entry, used when re-resolving after `s` toggles `[agent] name`.
     model_agent_type: Option<String>,
     /// Plugin registry snapshot for listing plugin-provided agents (`None` when no plugins are installed or enabled).
-    plugin_registry: Option<xvora_agent::plugins::PluginRegistry>,
+    plugin_registry: Option<agent::plugins::PluginRegistry>,
     pub personas: Vec<PersonaDetail>,
     pub persona_selected: usize,
     pub persona_scroll: usize,
@@ -287,7 +287,7 @@ impl AgentsModalState {
         bundle: &BundleState,
         model_agent_type: Option<&str>,
         active_agent: Option<String>,
-        plugin_registry: Option<xvora_agent::plugins::PluginRegistry>,
+        plugin_registry: Option<agent::plugins::PluginRegistry>,
     ) -> Self {
         let agents = build_agent_list(cwd, toggle, plugin_registry.as_ref());
         let personas = merge_persona_lists(bundle, cwd);
@@ -350,7 +350,7 @@ impl AgentsModalState {
         &self.search
     }
     #[cfg(test)]
-    fn search_viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    fn search_viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.search.viewport(width)
     }
     #[cfg(test)]
@@ -381,7 +381,7 @@ impl AgentsModalState {
 pub fn build_agent_list(
     cwd: &Path,
     toggle: &HashMap<String, bool>,
-    plugins: Option<&xvora_agent::plugins::PluginRegistry>,
+    plugins: Option<&agent::plugins::PluginRegistry>,
 ) -> Vec<AgentListEntry> {
     let mut entries = Vec::new();
     for &builtin in user_visible_builtins() {
@@ -403,7 +403,7 @@ pub fn build_agent_list(
         .iter()
         .map(|b| b.definition().name)
         .collect();
-    let discovered = xvora_agent::discovery::discover(cwd);
+    let discovered = agent::discovery::discover(cwd);
     fn scope_priority(scope: AgentScope) -> usize {
         match scope {
             AgentScope::Project => 3,
@@ -450,7 +450,7 @@ pub fn build_agent_list(
         }
     }
     if let Some(registry) = plugins {
-        for agent in xvora_agent::discovery::plugin_agents(registry) {
+        for agent in agent::discovery::plugin_agents(registry) {
             if entries.iter().any(|e| e.name == agent.qualified_name) {
                 continue;
             }
@@ -495,7 +495,7 @@ pub fn merge_persona_lists(bundle: &BundleState, cwd: &Path) -> Vec<PersonaDetai
     let mut list = personas_from_bundle(bundle);
     let mut names: std::collections::HashSet<String> =
         list.iter().map(|p| p.name.clone()).collect();
-    let grok_home = xvora_config::grok_home();
+    let grok_home = config::grok_home();
     let bundled_dir = grok_home.join("bundled").join("personas");
     for persona in &mut list {
         if persona.source_path.is_none() {
@@ -585,7 +585,7 @@ fn persona_detail_from_local_file(
 }
 /// Load the `[subagents.toggle]` map from config.toml.
 pub fn load_agent_toggle() -> HashMap<String, bool> {
-    let root = match xvora_shell::config::load_effective_config() {
+    let root = match shell::config::load_effective_config() {
         Ok(r) => r,
         Err(_) => return HashMap::new(),
     };
@@ -622,7 +622,7 @@ pub fn sanitize_config_name(name: &str) -> Result<String, String> {
 }
 fn personas_dir_for_scope(scope: ConfigFileScope, cwd: &Path) -> PathBuf {
     match scope {
-        ConfigFileScope::User => xvora_config::grok_home().join("personas"),
+        ConfigFileScope::User => config::grok_home().join("personas"),
         ConfigFileScope::Project => cwd.join(".grok").join("personas"),
     }
 }
@@ -676,7 +676,7 @@ fn config_path_is_user_or_project(path: &Path, subdir: &str) -> bool {
     {
         return false;
     }
-    let grok_home = xvora_config::grok_home();
+    let grok_home = config::grok_home();
     let in_user = dunce::canonicalize(grok_home.join(subdir))
         .ok()
         .is_some_and(|d| canonical.starts_with(&d));
@@ -714,9 +714,9 @@ pub fn delete_persona_file(path: &Path) -> Result<(), String> {
 }
 /// Load `[agent]` from effective config (merged shell + pager config layers).
 fn load_agent_selection_config() -> AgentSelectionConfig {
-    xvora_shell::config::load_effective_config()
+    shell::config::load_effective_config()
         .ok()
-        .and_then(|root| xvora_shell::agent::config::Config::new_from_toml_cfg(&root).ok())
+        .and_then(|root| shell::agent::config::Config::new_from_toml_cfg(&root).ok())
         .map(|cfg| cfg.agent)
         .unwrap_or_default()
 }
@@ -728,7 +728,7 @@ fn load_config_agent_name() -> Option<String> {
 /// Mirrors `MvpAgent::resolve_agent_definition` in xvora-shell.
 pub fn resolve_default_agent_name(cwd: &Path, model_agent_type: Option<&str>) -> String {
     let agent_config = load_agent_selection_config();
-    xvora_shell::agent::mvp_agent::MvpAgent::resolve_agent_definition(
+    shell::agent::mvp_agent::MvpAgent::resolve_agent_definition(
         cwd,
         None,
         &agent_config,
@@ -745,7 +745,7 @@ fn refresh_default_agent(state: &mut AgentsModalState) {
 ///
 /// Pass `Some(name)` to set, `None` to clear (remove the key).
 pub fn set_default_agent(name: Option<&str>) -> Result<(), String> {
-    let config_path = xvora_config::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let config_path = config::grok_home().join(config::USER_CONFIG_FILENAME);
     if let Some(parent) = config_path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -769,7 +769,7 @@ pub fn set_default_agent(name: Option<&str>) -> Result<(), String> {
 }
 /// Toggle an agent's enabled state via `[subagents.toggle]` in config.toml.
 pub fn toggle_agent(name: &str, enabled: bool) -> Result<(), String> {
-    let config_path = xvora_config::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let config_path = config::grok_home().join(config::USER_CONFIG_FILENAME);
     if let Some(parent) = config_path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -799,8 +799,8 @@ pub fn format_agent_detail(entry: &AgentListEntry) -> Vec<String> {
     let mut lines = Vec::new();
     lines.push(format!("  Model: {}", def.model));
     let mode_label = match def.prompt_mode {
-        xvora_agent::config::PromptMode::Extend => "extend",
-        xvora_agent::config::PromptMode::Full => "full",
+        agent::config::PromptMode::Extend => "extend",
+        agent::config::PromptMode::Full => "full",
     };
     lines.push(format!("  Prompt mode: {mode_label}"));
     let tools = &def.tool_config.tools;
@@ -2577,7 +2577,7 @@ pub fn handle_agents_mouse(state: &mut AgentsModalState, mouse: &MouseEvent) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_shell::agent::config::DEFAULT_AGENT_TYPE;
+    use shell::agent::config::DEFAULT_AGENT_TYPE;
     #[test]
     fn agents_tab_next_cycles() {
         assert_eq!(AgentsTab::Agents.next(), AgentsTab::Personas);
@@ -3374,9 +3374,9 @@ mod tests {
         assert!(description_text.starts_with("1234567890"));
     }
     /// Fixture: a one-plugin registry whose `agents/` dir holds `reviewer.md`.
-    fn plugin_registry_with_reviewer(plugin_root: &Path) -> xvora_agent::plugins::PluginRegistry {
-        use xvora_agent::plugins::discovery::PluginId;
-        use xvora_agent::plugins::{
+    fn plugin_registry_with_reviewer(plugin_root: &Path) -> agent::plugins::PluginRegistry {
+        use agent::plugins::discovery::PluginId;
+        use agent::plugins::{
             DiscoveredPlugin, PluginManifest, PluginOrigin, PluginRegistry, PluginScope,
         };
         let agents_dir = plugin_root.join("agents");

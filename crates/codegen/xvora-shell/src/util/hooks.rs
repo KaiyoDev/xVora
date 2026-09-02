@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use xvora_config::resolve_global_hook_sources;
+use config::resolve_global_hook_sources;
 use xvora_hooks::discovery::HookSource;
 use xvora_hooks::error::HookError;
 
@@ -34,12 +34,12 @@ fn path_to_source(p: &Path) -> HookSource<'_> {
     }
 }
 
-fn include_claude_hooks(compat: &xvora_tools::types::compat::CompatConfig) -> bool {
+fn include_claude_hooks(compat: &tools::types::compat::CompatConfig) -> bool {
     compat.claude.hooks
         && !crate::claude_import::is_claude_import_marked_with_log("discover_hook_source_paths")
 }
 
-fn include_cursor_hooks(compat: &xvora_tools::types::compat::CompatConfig) -> bool {
+fn include_cursor_hooks(compat: &tools::types::compat::CompatConfig) -> bool {
     compat.cursor.hooks
 }
 
@@ -47,10 +47,10 @@ fn include_cursor_hooks(compat: &xvora_tools::types::compat::CompatConfig) -> bo
 /// The registry file is never a discovery source; Claude and Cursor sources are appended when their compat gates are on.
 pub(crate) fn discover_hook_source_paths(
     git_root: Option<&Path>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    compat: &tools::types::compat::CompatConfig,
 ) -> HookSourcePaths {
-    let grok = xvora_config::user_grok_home();
-    let home = xvora_dirs::home_dir();
+    let grok = config::user_grok_home();
+    let home = dirs::home_dir();
     let include_claude = include_claude_hooks(compat);
     let include_cursor = include_cursor_hooks(compat);
 
@@ -107,12 +107,12 @@ pub(crate) fn discover_hook_source_paths(
 /// Every session-startup and mid-session reload site routes through here so the source policy stays in one place.
 pub(crate) fn discover_hooks(
     git_root: Option<&Path>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    compat: &tools::types::compat::CompatConfig,
     trusted: bool,
 ) -> (xvora_hooks::discovery::HookRegistry, Vec<HookError>) {
     // Read fresh each call (not cached): a mid-session `/hooks` reload must see an updated `config.toml` or `managed_config.toml`
     // This is lighter than `ConfigLayers::load` (only the small per-layer files, no campaigns, version overrides, or MDM)
-    let config_layers = xvora_config::hook_config_layers();
+    let config_layers = config::hook_config_layers();
     assemble_hooks(&config_layers, git_root, compat, trusted)
 }
 
@@ -121,9 +121,9 @@ pub(crate) fn discover_hooks(
 /// The first-wins dedup in [`xvora_hooks::discovery::registry_from_specs_deduped`] then lets a config hook beat a byte-identical file hook.
 /// `config_layers` is a parameter (not read here) so tests can drive it with hand-built layers.
 pub(crate) fn assemble_hooks(
-    config_layers: &[xvora_config::HookConfigLayer],
+    config_layers: &[config::HookConfigLayer],
     git_root: Option<&Path>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    compat: &tools::types::compat::CompatConfig,
     trusted: bool,
 ) -> (xvora_hooks::discovery::HookRegistry, Vec<HookError>) {
     let (mut specs, mut errors) =
@@ -182,12 +182,12 @@ timeout = 5
 "#,
         );
 
-        let layers = xvora_config::hook_config_layers_at(Some(system_dir.path()), None);
+        let layers = config::hook_config_layers_at(Some(system_dir.path()), None);
         assert_eq!(layers.len(), 1, "one requirements layer expected");
         assert_eq!(layers[0].provenance(), HookProvenance::Requirements);
         assert_eq!(layers[0].source_name(), "requirements/system");
 
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let (registry, errors) = assemble_hooks(&layers, None, &compat, false);
         assert!(errors.is_empty(), "errors: {errors:?}");
 
@@ -256,7 +256,7 @@ timeout = 5
 "#,
         );
 
-        let layers = xvora_config::hook_config_layers_at(Some(system_dir.path()), None);
+        let layers = config::hook_config_layers_at(Some(system_dir.path()), None);
         assert_eq!(layers.len(), 1);
 
         // Parse level: the verbatim structure yields both PreToolUse handlers.
@@ -283,7 +283,7 @@ timeout = 5
 
         // Registry level through the real assembly: all three events register with requirements provenance
         // The byte-identical PreToolUse duplicate collapses to one effective hook
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let (registry, errors) = assemble_hooks(&layers, None, &compat, false);
         assert!(errors.is_empty(), "errors: {errors:?}");
         for event in [

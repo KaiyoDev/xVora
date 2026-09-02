@@ -4,17 +4,17 @@ use crate::extensions::prompt_meta::PromptBlockMeta;
 use crate::session::{InputAuthority, InputPolicy};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use xvora_test_support::sse::responses_api_script_exact;
-use xvora_test_support::{MockInferenceServer, ScriptedResponse};
+use test_support::sse::responses_api_script_exact;
+use test_support::{MockInferenceServer, ScriptedResponse};
 
 #[derive(Default)]
 struct PolicyRecorder(std::cell::Cell<Option<InputAuthority>>);
 
 #[async_trait::async_trait(?Send)]
-impl xvora_agent_lifecycle::LocalTurnLifecycleContributor for PolicyRecorder {
+impl agent_lifecycle::LocalTurnLifecycleContributor for PolicyRecorder {
     async fn on_turn_start_with_policy(
         &self,
-        _input: &xvora_agent_lifecycle::TurnStartInput,
+        _input: &agent_lifecycle::TurnStartInput,
         policy: InputPolicy,
     ) {
         self.0.set(Some(policy.authority));
@@ -91,16 +91,16 @@ fn parent_request(text: &str, prompt_blocks: Vec<acp::ContentBlock>) -> TurnInpu
 }
 
 fn spawn_gateway_drain(
-    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> tokio::sync::mpsc::UnboundedReceiver<()> {
     let (hook_tx, hook_rx) = tokio::sync::mpsc::unbounded_channel();
     tokio::task::spawn_local(async move {
         while let Some(message) = gateway_rx.recv().await {
             match message {
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.method.as_ref() == "x.ai/hooks/event" =>
                 {
                     let _ = hook_tx.send(());
@@ -143,20 +143,20 @@ async fn actor_with_sampler(
     tokio::sync::mpsc::UnboundedReceiver<()>,
     std::rc::Rc<PolicyRecorder>,
 ) {
-    let sampling_config = xvora_sampler::SamplerConfig {
+    let sampling_config = sampler::SamplerConfig {
         api_key: Some("test-key".into()),
         base_url: server.url(),
         model: "test".into(),
-        api_backend: xvora_sampler::ApiBackend::Responses,
+        api_backend: sampler::ApiBackend::Responses,
         context_window: 256_000,
         max_retries: Some(0),
         idle_timeout_secs: Some(30),
         ..Default::default()
     };
     let (sampler_event_tx, mut sampler_event_rx) = tokio::sync::mpsc::unbounded_channel();
-    let sampler_handle = xvora_sampler::SamplerActor::spawn(
+    let sampler_handle = sampler::SamplerActor::spawn(
         sampling_config,
-        xvora_sampler::RetryPolicy {
+        sampler::RetryPolicy {
             max_retries: 0,
             rate_limit_retry_threshold: 0,
             ..Default::default()
@@ -172,7 +172,7 @@ async fn actor_with_sampler(
     actor.sampler_handle = sampler_handle;
     actor.compaction.verbatim_input = false;
     let policy_recorder = std::rc::Rc::new(PolicyRecorder::default());
-    let mut extensions = xvora_agent_lifecycle::LocalExtensionRegistryBuilder::default();
+    let mut extensions = agent_lifecycle::LocalExtensionRegistryBuilder::default();
     extensions.turn_lifecycle_contributor(policy_recorder.clone());
     actor.extension_registry = extensions.build();
     actor.client_hooks.borrow_mut().insert(
@@ -398,7 +398,7 @@ async fn parent_compact_and_available_skill_execute_but_other_slashes_stay_inert
                 .seed_skill_discovery(
                     None,
                     None,
-                    vec![xvora_tools::implementations::skills::types::SkillInfo {
+                    vec![tools::implementations::skills::types::SkillInfo {
                         name: "dynamic-authority-skill".into(),
                         description: "available to the child".into(),
                         path: skill_path.display().to_string(),
@@ -447,8 +447,8 @@ async fn parent_compact_and_available_skill_execute_but_other_slashes_stay_inert
             assert!(!unavailable_request.contains("dynamic skill body for unavailable"));
 
             *actor.agent.borrow_mut() = test_agent_with_tools(vec![
-                xvora_tools::registry::types::ToolConfig::for_tool::<
-                    xvora_tools::implementations::grok_build::ReadFileTool,
+                tools::registry::types::ToolConfig::for_tool::<
+                    tools::implementations::grok_build::ReadFileTool,
                 >(),
             ])
             .await;
@@ -457,7 +457,7 @@ async fn parent_compact_and_available_skill_execute_but_other_slashes_stay_inert
                 .seed_skill_discovery(
                     None,
                     None,
-                    vec![xvora_tools::implementations::skills::types::SkillInfo {
+                    vec![tools::implementations::skills::types::SkillInfo {
                         name: "dynamic-authority-skill".into(),
                         description: "available to the child".into(),
                         path: skill_path.display().to_string(),
@@ -500,7 +500,7 @@ async fn parent_compact_and_available_skill_execute_but_other_slashes_stay_inert
                 .to_string();
             assert!(skill_request.contains("dynamic skill body for preserve auth"));
             assert!(skill_request.contains(
-                xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
+                chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL
             ));
             assert_eq!(
                 actor.active_skill.lock().as_deref(),
@@ -647,8 +647,8 @@ async fn parent_skill_lookup_matches_advertised_gated_collision_and_skill_only_l
             let skill_path = skill_dir.path().join("SKILL.md");
             std::fs::write(&skill_path, "flush skill body for $ARGUMENTS").unwrap();
             *actor.agent.borrow_mut() =
-                test_agent_with_tools(vec![xvora_tools::registry::types::ToolConfig::for_tool::<
-                    xvora_tools::implementations::opencode::OpenCodeSkillTool,
+                test_agent_with_tools(vec![tools::registry::types::ToolConfig::for_tool::<
+                    tools::implementations::opencode::OpenCodeSkillTool,
                 >()])
                 .await;
             actor
@@ -656,7 +656,7 @@ async fn parent_skill_lookup_matches_advertised_gated_collision_and_skill_only_l
                 .seed_skill_discovery(
                     None,
                     None,
-                    vec![xvora_tools::implementations::skills::types::SkillInfo {
+                    vec![tools::implementations::skills::types::SkillInfo {
                         name: "flush".into(),
                         description: "Skill colliding with gated memory builtin".into(),
                         path: skill_path.display().to_string(),

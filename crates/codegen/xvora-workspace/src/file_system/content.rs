@@ -6,7 +6,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 // Canonical in xvora-workspace-types; re-exported for existing paths.
-pub use xvora_workspace_types::rpc::search::{ContentMatch, ContentMatchFile, ContentSearchData};
+pub use workspace_types::rpc::search::{ContentMatch, ContentMatchFile, ContentSearchData};
 
 #[derive(Debug, Clone, Default)]
 pub struct ContentSearchParams {
@@ -40,7 +40,7 @@ fn build_ripgrep_command(root: &Path, params: &ContentSearchParams) -> anyhow::R
     cmd.current_dir(root);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::null());
-    xvora_tty_utils::detach_search_command(&mut cmd);
+    tty_utils::detach_search_command(&mut cmd);
 
     cmd.arg("--json");
     cmd.arg("--line-number");
@@ -222,7 +222,7 @@ where
     if hit_limit {
         let _ = child.start_kill();
         // Bounded reap: a D-state rg must not stall this future forever.
-        xvora_tools::util::reap_killed_search_child(&mut child).await;
+        tools::util::reap_killed_search_child(&mut child).await;
     } else {
         let _ = child.wait().await;
     }
@@ -285,7 +285,7 @@ mod tests {
         drop(child);
 
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while !xvora_tty_utils::process_not_running(pid) {
+        while !tty_utils::process_not_running(pid) {
             assert!(
                 std::time::Instant::now() < deadline,
                 "rg (pid {pid}) still running 5s after its Child was dropped — leaked"

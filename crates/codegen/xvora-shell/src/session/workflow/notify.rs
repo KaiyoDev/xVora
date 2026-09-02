@@ -10,7 +10,7 @@ use super::tracker::WorkflowRunState;
 #[derive(Clone)]
 pub(crate) struct WorkflowNotifySender {
     session_id: agent_client_protocol::SessionId,
-    gateway: xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: acp_lib::AcpAgentGatewaySender,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
     store: WorkflowRunStore,
 }
@@ -18,7 +18,7 @@ pub(crate) struct WorkflowNotifySender {
 impl WorkflowNotifySender {
     pub(crate) fn new(
         session_id: agent_client_protocol::SessionId,
-        gateway: xvora_acp_lib::AcpAgentGatewaySender,
+        gateway: acp_lib::AcpAgentGatewaySender,
         persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
         store: WorkflowRunStore,
     ) -> Self {

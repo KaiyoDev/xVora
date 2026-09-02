@@ -673,7 +673,7 @@ fn tmux_stale_plan_and_idempotence_reuse_managed_writer_safety() {
     assert!(matches!(
         apply_fix(plan),
         Err(FixError::TmuxManaged(
-            xvora_config::managed_text::ManagedConfigError::StalePlan(_)
+            config::managed_text::ManagedConfigError::StalePlan(_)
         ))
     ));
 
@@ -705,7 +705,7 @@ fn tmux_stale_plan_and_idempotence_reuse_managed_writer_safety() {
     assert!(matches!(
         apply_fix(stale),
         Err(FixError::TmuxManaged(
-            xvora_config::managed_text::ManagedConfigError::StalePlan(_)
+            config::managed_text::ManagedConfigError::StalePlan(_)
         ))
     ));
 }
@@ -879,7 +879,7 @@ fn conflict_scan_uses_the_exact_validated_source_snapshot() {
     assert!(matches!(
         apply_fix(plan),
         Err(FixError::Managed(
-            xvora_config::managed_text::ManagedConfigError::StalePlan(_)
+            config::managed_text::ManagedConfigError::StalePlan(_)
         ))
     ));
     assert_eq!(
@@ -896,7 +896,7 @@ fn non_utf8_source_fails_closed_before_conflict_policy() {
     assert!(matches!(
         plan_fix(request(temp.path(), "/bin/zsh"), &report(), &terminal()),
         Err(FixError::Managed(
-            xvora_config::managed_text::ManagedConfigError::UnsafePath { .. }
+            config::managed_text::ManagedConfigError::UnsafePath { .. }
         ))
     ));
 }
@@ -983,7 +983,7 @@ fn stale_plan_is_rejected_and_apply_verifies_postcondition() {
     assert!(matches!(
         apply_fix(plan),
         Err(FixError::Managed(
-            xvora_config::managed_text::ManagedConfigError::StalePlan(_)
+            config::managed_text::ManagedConfigError::StalePlan(_)
         ))
     ));
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "export KEEP=2\n");
@@ -1095,8 +1095,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_std_command(&mut shell);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_std_command(&mut shell);
         let status = shell.status().unwrap();
         assert!(status.success());
         assert_eq!(
@@ -1126,8 +1126,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_std_command(&mut shell);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_std_command(&mut shell);
         let status = shell.status().unwrap();
         assert!(status.success());
         assert_eq!(
@@ -1160,8 +1160,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .envs(xvora_tty_utils::pager_env());
-    xvora_tty_utils::detach_std_command(&mut shell);
+        .envs(tty_utils::pager_env());
+    tty_utils::detach_std_command(&mut shell);
     let status = shell.status().unwrap();
     assert!(status.success());
     assert_eq!(std::fs::read_to_string(&capture).unwrap(), "bypass");
@@ -1199,8 +1199,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_std_command(&mut shell);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_std_command(&mut shell);
         assert!(shell.status().unwrap().success());
         assert_eq!(
             std::fs::read_to_string(fish_capture).unwrap(),

@@ -12,7 +12,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use xvora_markdown::{StreamingMarkdownRenderer, MarkdownStyle, Syntect};
+//! use markdown::{StreamingMarkdownRenderer, MarkdownStyle, Syntect};
 //!
 //! let syntect = Syntect::new(include_bytes!("theme.tmTheme"));
 //! let style = MarkdownStyle::default();

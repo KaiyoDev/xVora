@@ -383,13 +383,13 @@ impl FeedbackClient {
         // Those first wait for the proactive refresh to complete before falling back to active recovery
         // Otherwise the middleware's eager ServerRejected refresh would race every other auth consumer during token-expiry windows and amplify 401s
         reqwest_middleware::ClientBuilder::new(http.clone())
-            .with(xvora_auth::AuthRetryMiddleware::new(provider, 0))
+            .with(auth::AuthRetryMiddleware::new(provider, 0))
             .build()
     }
 
     fn make_auth_provider(
         credentials: &crate::util::grok_auth_credentials::GrokAuthCredentials,
-    ) -> Arc<dyn xvora_auth::AuthCredentialProvider> {
+    ) -> Arc<dyn auth::AuthCredentialProvider> {
         if let Some(am) = credentials.auth_manager() {
             Arc::new(
                 crate::auth::credential_provider::ShellAuthCredentialProvider::new(
@@ -403,7 +403,7 @@ impl FeedbackClient {
                 .deployment_key
                 .clone()
                 .or(credentials.user_token.clone());
-            Arc::new(xvora_auth::StaticAuthCredentialProvider::new(
+            Arc::new(auth::StaticAuthCredentialProvider::new(
                 Box::new(credentials.clone()),
                 wire_bearer,
             ))
@@ -413,7 +413,7 @@ impl FeedbackClient {
     fn record_401_attribution_if_needed(
         &self,
         response: &reqwest::Response,
-        stamp: Option<&xvora_auth::StampedBearerSuffix>,
+        stamp: Option<&auth::StampedBearerSuffix>,
         op: &str,
     ) {
         if response.status() == reqwest::StatusCode::UNAUTHORIZED
@@ -469,7 +469,7 @@ impl FeedbackClient {
 
     fn add_common_headers(&self, builder: RequestBuilder) -> RequestBuilder {
         let builder = builder
-            .header(CLIENT_VERSION_HEADER, xvora_version::VERSION)
+            .header(CLIENT_VERSION_HEADER, version::VERSION)
             .header(
                 crate::http::CLIENT_MODE_HEADER,
                 crate::http::process_client_mode(),
@@ -488,9 +488,9 @@ impl FeedbackClient {
         request: RequestBuilder,
         context: &'static str,
     ) -> Result<T> {
-        let request = xvora_file_utils::trace_context::inject_trace_context_into_request(request);
+        let request = file_utils::trace_context::inject_trace_context_into_request(request);
         let req = request.build().context(context)?;
-        let (response, stamp) = xvora_auth::execute_with_stamp(&self.client, req)
+        let (response, stamp) = auth::execute_with_stamp(&self.client, req)
             .await
             .context(context)?;
 
@@ -522,9 +522,9 @@ impl FeedbackClient {
     }
 
     async fn send_empty(&self, request: RequestBuilder, context: &'static str) -> Result<()> {
-        let request = xvora_file_utils::trace_context::inject_trace_context_into_request(request);
+        let request = file_utils::trace_context::inject_trace_context_into_request(request);
         let req = request.build().context(context)?;
-        let (response, stamp) = xvora_auth::execute_with_stamp(&self.client, req)
+        let (response, stamp) = auth::execute_with_stamp(&self.client, req)
             .await
             .context(context)?;
 

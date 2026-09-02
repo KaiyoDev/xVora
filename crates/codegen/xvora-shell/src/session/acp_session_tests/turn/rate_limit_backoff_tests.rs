@@ -4,7 +4,7 @@ use super::support::*;
 use super::*;
 use std::sync::Arc;
 use std::time::Duration;
-use xvora_test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
+use test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
 
 #[derive(Clone, Copy)]
 pub(super) enum SessionKind {
@@ -24,7 +24,7 @@ pub(super) type CapturedRetries =
     Arc<std::sync::Mutex<Vec<crate::extensions::notification::RetryState>>>;
 
 pub(super) fn drain_gateway(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> CapturedRetries {
     use crate::extensions::notification::{SessionNotification, SessionUpdate};
     let captured: CapturedRetries = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -32,10 +32,10 @@ pub(super) fn drain_gateway(
     tokio::task::spawn_local(async move {
         while let Some(msg) = rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
+                acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.method.as_ref() == "x.ai/session_notification" =>
                 {
                     if let Ok(SessionNotification {
@@ -63,18 +63,18 @@ pub(super) fn drain_persistence(mut rx: tokio::sync::mpsc::UnboundedReceiver<Per
     });
 }
 
-pub(super) fn sampler_surfaces_429() -> xvora_sampler::RetryPolicy {
-    xvora_sampler::RetryPolicy {
+pub(super) fn sampler_surfaces_429() -> sampler::RetryPolicy {
+    sampler::RetryPolicy {
         max_retries: 5,
-        rate_limit_retry_threshold: xvora_sampler::RATE_LIMIT_RETRY_DISABLED,
+        rate_limit_retry_threshold: sampler::RATE_LIMIT_RETRY_DISABLED,
         ..Default::default()
     }
 }
 
-fn sampler_retries_429() -> xvora_sampler::RetryPolicy {
-    xvora_sampler::RetryPolicy {
+fn sampler_retries_429() -> sampler::RetryPolicy {
+    sampler::RetryPolicy {
         max_retries: 5,
-        rate_limit_retry_threshold: xvora_sampler::RATE_LIMIT_RETRY_THRESHOLD,
+        rate_limit_retry_threshold: sampler::RATE_LIMIT_RETRY_THRESHOLD,
         ..Default::default()
     }
 }
@@ -82,23 +82,23 @@ fn sampler_retries_429() -> xvora_sampler::RetryPolicy {
 pub(super) async fn actor_under_test(
     server: &MockInferenceServer,
     session: SessionKind,
-    retry_policy: xvora_sampler::RetryPolicy,
+    retry_policy: sampler::RetryPolicy,
     transient_retry_enabled: bool,
 ) -> (Arc<SessionActor>, CapturedRetries) {
     let sampler_max_retries = retry_policy.max_retries;
-    let sampling_cfg = xvora_sampler::SamplerConfig {
+    let sampling_cfg = sampler::SamplerConfig {
         base_url: server.url(),
         model: "test".to_string(),
-        api_backend: xvora_sampler::ApiBackend::Responses,
+        api_backend: sampler::ApiBackend::Responses,
         context_window: 256_000,
         max_retries: Some(sampler_max_retries),
         idle_timeout_secs: Some(30),
         ..Default::default()
     };
     let (sampler_event_tx, sampler_event_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_sampler::SamplingEvent>();
+        tokio::sync::mpsc::unbounded_channel::<sampler::SamplingEvent>();
     let sampler_handle =
-        xvora_sampler::SamplerActor::spawn(sampling_cfg, retry_policy, sampler_event_tx);
+        sampler::SamplerActor::spawn(sampling_cfg, retry_policy, sampler_event_tx);
 
     let (gateway_tx, gateway_rx) = tokio::sync::mpsc::unbounded_channel();
     let captured_retries = drain_gateway(gateway_rx);

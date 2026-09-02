@@ -51,7 +51,7 @@ impl HostOs {
 /// WSL detection.
 /// The implementation lives in `xvora-tty-utils` (the shared low-level crate) so crates that must not depend on this UI crate can reuse it.
 /// The re-export keeps existing `host::is_wsl()` callers unchanged.
-pub use xvora_tty_utils::is_wsl;
+pub use tty_utils::is_wsl;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, strum::Display)]
 #[strum(serialize_all = "snake_case")]

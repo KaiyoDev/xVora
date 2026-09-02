@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use xvora_auth::bearer_suffix;
+use auth::bearer_suffix;
 
 use super::is_xai_oauth2_issuer;
 

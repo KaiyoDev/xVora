@@ -76,7 +76,7 @@ fn spawn_helper(args: &[&str]) -> Result<(Child, ChildStdout), VoiceError> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     // The helper must not share the pager's controlling TTY.
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
 
     #[allow(clippy::disallowed_methods)] // helper owned by the capture handle, killed on stop
     let mut child = cmd
@@ -317,7 +317,7 @@ mod tests {
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null());
-            xvora_tty_utils::detach_std_command(&mut cmd);
+            tty_utils::detach_std_command(&mut cmd);
             #[allow(clippy::disallowed_methods)] // test fixture; the test kills it
             let mut child = cmd.spawn().expect("spawn sh");
             let stdout = child.stdout.take().expect("stdout");

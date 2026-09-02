@@ -27,7 +27,7 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 tar = { workspace = true }
 # `grok_home()` supplies the parent of the `bundled` cache directory.
-xvora-config = { workspace = true }
+config = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

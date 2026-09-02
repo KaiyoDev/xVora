@@ -37,7 +37,7 @@ pub(crate) enum SamplerFailureRecovery {
     /// Transient failure: back off and resubmit instead of killing the turn.
     /// Retries are bounded.
     RetryTransient {
-        kind: xvora_sampler::SamplingErrorKind,
+        kind: sampler::SamplingErrorKind,
         status_code: Option<u16>,
     },
 }
@@ -48,7 +48,7 @@ pub(crate) enum SamplerTurnOutcome {
     /// Model responded, with per-call latency stats for `shell.turn.inference_done`.
     Response(
         Box<ConversationResponse>,
-        Box<xvora_sampler::InferenceLatencyStats>,
+        Box<sampler::InferenceLatencyStats>,
     ),
     CompactAndResubmit,
     /// Auth recovery succeeded; the outer loop should retry.
@@ -59,7 +59,7 @@ pub(crate) enum SamplerTurnOutcome {
     },
     /// Mirrors [`SamplerFailureRecovery::RetryTransient`].
     RetryTransient {
-        kind: xvora_sampler::SamplingErrorKind,
+        kind: sampler::SamplingErrorKind,
         status_code: Option<u16>,
     },
 }
@@ -222,8 +222,8 @@ pub(crate) enum DrainPurpose {
 /// Origin of a drain entry.
 /// `Pending` entries had their acks resolved at defer time; `Channel` entries still carry a live oneshot.
 pub(crate) enum DrainSource {
-    Pending(xvora_tools::implementations::grok_build::update_goal::UpdateGoalInput),
-    Channel(xvora_tools::implementations::grok_build::update_goal::UpdateGoalEnvelope),
+    Pending(tools::implementations::grok_build::update_goal::UpdateGoalInput),
+    Channel(tools::implementations::grok_build::update_goal::UpdateGoalEnvelope),
 }
 
 /// Reason a NotAchieved verdict was synthesized without invoking the sampler.

@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use serde::Deserialize;
-use xvora_shell::session::storage::{
+use shell::session::storage::{
     ReplayEmission, ReplayLookupFallback, ReplayPathHint, ReplayedUpdate, replay_would_emit,
     stream_replay_updates_at_hinted,
 };
@@ -219,7 +219,7 @@ struct SubagentMetaSlice {
 /// Grok home for the replay path (overridable in tests).
 #[cfg(not(test))]
 fn effective_grok_home() -> std::path::PathBuf {
-    xvora_shell::util::grok_home::grok_home()
+    shell::util::grok_home::grok_home()
 }
 
 #[cfg(test)]
@@ -239,7 +239,7 @@ fn effective_grok_home() -> std::path::PathBuf {
     if let Some(home) = REPLAY_GROK_HOME.with(|h| h.borrow().clone()) {
         return home;
     }
-    xvora_shell::util::grok_home::grok_home()
+    shell::util::grok_home::grok_home()
 }
 
 /// Best-effort enrichment from the shell's on-disk `meta.json`.

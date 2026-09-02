@@ -2,7 +2,7 @@
 //! Also holds fetched-envelope verification and the apply outcome the sync orchestration consumes.
 
 use serde::{Deserialize, Serialize};
-use xvora_config::signed_policy::now_unix;
+use config::signed_policy::now_unix;
 
 /// Which credential a config fetch used; serde: recorded in the staged refresh.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,11 +93,11 @@ pub(super) struct ManagedConfigResponse {
     pub(super) requirements: Option<String>,
     /// The signed envelopes (additive; absent from old servers), primary first: a rollover server dual-signs, each payload signed by its own key.
     #[serde(default)]
-    pub(super) signatures: Option<Vec<xvora_config::signed_policy::SignatureEnvelope>>,
+    pub(super) signatures: Option<Vec<config::signed_policy::SignatureEnvelope>>,
     /// The is-managed claim envelopes (additive; absent from old servers), same rotation shape as `signatures`, persisted as their own sidecar.
     #[serde(default)]
     pub(super) managed_identity_signatures:
-        Option<Vec<xvora_config::signed_policy::SignatureEnvelope>>,
+        Option<Vec<config::signed_policy::SignatureEnvelope>>,
 }
 
 impl ManagedConfigResponse {
@@ -110,20 +110,20 @@ impl ManagedConfigResponse {
     /// The outer key_id only picks; verification re-selects the key from the signed bytes.
     pub(super) fn signature_sidecar(
         &self,
-    ) -> Option<xvora_config::signed_policy::SignatureEnvelope> {
+    ) -> Option<config::signed_policy::SignatureEnvelope> {
         pick_trusted_envelope(
             self.signatures.as_deref(),
-            xvora_config::signed_policy::embedded_key_id_trusted,
+            config::signed_policy::embedded_key_id_trusted,
         )
     }
 
     /// The claim envelope to verify; same picking rule as [`Self::signature_sidecar`].
     pub(super) fn managed_identity_sidecar(
         &self,
-    ) -> Option<xvora_config::signed_policy::SignatureEnvelope> {
+    ) -> Option<config::signed_policy::SignatureEnvelope> {
         pick_trusted_envelope(
             self.managed_identity_signatures.as_deref(),
-            xvora_config::signed_policy::embedded_key_id_trusted,
+            config::signed_policy::embedded_key_id_trusted,
         )
     }
 
@@ -192,9 +192,9 @@ impl ApplyOutcome {
 
 /// Pick the envelope whose (hint-only) key_id is trusted, else the first.
 fn pick_trusted_envelope(
-    envelopes: Option<&[xvora_config::signed_policy::SignatureEnvelope]>,
+    envelopes: Option<&[config::signed_policy::SignatureEnvelope]>,
     key_id_trusted: impl Fn(&str) -> bool,
-) -> Option<xvora_config::signed_policy::SignatureEnvelope> {
+) -> Option<config::signed_policy::SignatureEnvelope> {
     let envelopes = envelopes?;
     envelopes
         .iter()
@@ -205,8 +205,8 @@ fn pick_trusted_envelope(
 
 /// A fetched envelope that passed verification: the sidecar to persist, plus its parsed (now-trusted) payload.
 pub(super) struct VerifiedEnvelope {
-    pub(super) sidecar: xvora_config::signed_policy::SignatureEnvelope,
-    pub(super) payload: xvora_config::signed_policy::SignedPayload,
+    pub(super) sidecar: config::signed_policy::SignatureEnvelope,
+    pub(super) payload: config::signed_policy::SignedPayload,
 }
 
 /// Verify the signed envelope without persisting anything.
@@ -215,7 +215,7 @@ pub(super) fn verify_signed_envelope(
     body: &ManagedConfigResponse,
     active_team_id: Option<&str>,
 ) -> Result<VerifiedEnvelope, String> {
-    use xvora_config::signed_policy;
+    use config::signed_policy;
     let sidecar = body.signature_sidecar().ok_or_else(|| {
         "managed policy is required but the server returned no signature".to_owned()
     })?;
@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn pick_trusted_envelope_prefers_trusted_then_falls_back() {
-        use xvora_config::signed_policy::SignatureEnvelope;
+        use config::signed_policy::SignatureEnvelope;
         let envelope = |kid: &str| SignatureEnvelope {
             signed_payload: format!("payload-{kid}"),
             signature: format!("sig-{kid}"),

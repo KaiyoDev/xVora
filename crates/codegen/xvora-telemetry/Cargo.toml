@@ -31,14 +31,14 @@ git2 = { version = "0.20", default-features = false, features = [
 ] }
 reqwest = { workspace = true }
 url = { workspace = true }
-xvora-env = { workspace = true }
-xvora-secrets = { workspace = true }
-xvora-mixpanel = { workspace = true }
-xvora-config = { workspace = true }
-xvora-extra-ca = { workspace = true }
+env = { workspace = true }
+secrets = { workspace = true }
+mixpanel = { workspace = true }
+config = { workspace = true }
+extra-ca = { workspace = true }
 sampler = { workspace = true }
 token-estimation = { workspace = true, package = "xvora-token-estimation" }
-xvora-dirs = { workspace = true }
+dirs = { workspace = true }
 sentry = { version = "0.42.0", default-features = false, features = [
     "panic",
     "anyhow",
@@ -52,20 +52,20 @@ sentry = { version = "0.42.0", default-features = false, features = [
 # Single cross-edge: `events::ToolCallCompleted.outcome` reuses
 # `xvora_session_events::types::ToolOutcome` so the local event log and
 # the product telemetry event share the same enum surface.
-xvora-session-events = { workspace = true }
+session-events = { workspace = true }
 # `session_metrics::TraceUploadReason::from_upload_method` matches on the shared
 # `UploadMethod` enum (small, dependency-light types crate) so the reason->wire
 # mapping lives next to the trace-upload lifecycle events it labels.
 xvora-file-utils = { path = "../file-utils" }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
-xvora-version = { workspace = true }
+tty-utils = { workspace = true }
+version = { workspace = true }
 whoami = { workspace = true }
 uuid = { workspace = true, features = ["v5", "v7"] }
 obfstr = { workspace = true, optional = true }
 mid = "4.0.0"
 tokio = { workspace = true, features = ["macros", "sync", "rt", "time"] }
 parking_lot = { workspace = true }
-xvora-auth = { workspace = true }
+auth = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true, features = [
     "experimental_logs_batch_log_processor_with_async_runtime",

@@ -39,7 +39,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 mod memory_trace_wait;
 use memory_trace_wait::wait_full_interval;
 
-pub use xvora_tty_utils::{ProcessResources, sample_process_memory};
+pub use tty_utils::{ProcessResources, sample_process_memory};
 
 /// Allocator gauges sampled from jemalloc (`stats.*` mallctls). All bytes.
 #[derive(Clone, Copy, Debug, serde::Serialize)]
@@ -517,7 +517,7 @@ pub fn record_crash_sample() {
 }
 
 pub fn default_dir() -> PathBuf {
-    xvora_shell::util::grok_home::grok_home().join("memtrace")
+    shell::util::grok_home::grok_home().join("memtrace")
 }
 
 #[derive(Debug, PartialEq, Eq)]

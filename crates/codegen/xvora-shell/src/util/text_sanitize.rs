@@ -1,6 +1,6 @@
 //! Invisible/spoofing-character policy for remote-influenced text embedded in model-facing lines (reminders and similar) in this crate.
 //! A weaker title sanitizer exists at `session::persistence::sanitize_rename_title`.
-//! A weaker tool-description sanitizer exists at `xvora_tools::implementations::search_tool::sanitize_description`.
+//! A weaker tool-description sanitizer exists at `tools::implementations::search_tool::sanitize_description`.
 //! New consumers in this crate should prefer this policy.
 
 /// Characters flattened out of remote-influenced text.

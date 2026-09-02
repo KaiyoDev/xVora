@@ -23,8 +23,8 @@ tokio-util = { workspace = true, features = ["compat"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 url = { workspace = true }
-xvora-acp-lib = { workspace = true, package = "xvora-acp-lib" }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+acp-lib = { workspace = true }
+tty-utils = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

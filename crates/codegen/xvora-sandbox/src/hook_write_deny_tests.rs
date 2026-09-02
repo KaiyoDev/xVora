@@ -96,7 +96,7 @@ fn revalidate_rejects_late_json_file_after_plan_capture() {
     std::fs::write(hooks.join("keep.json"), b"{}").unwrap();
     let sources = [GlobalHookSource {
         path: hooks.clone(),
-        kind: xvora_config::GlobalHookSourceKind::HookDirectory,
+        kind: config::GlobalHookSourceKind::HookDirectory,
     }];
     let plan = build_bwrap_plan(&sources).expect("plan");
     revalidate_plan(&plan).expect("stable");
@@ -139,12 +139,12 @@ fn hardlinked_discovery_json_under_hooks_dir_refused() {
     std::fs::hard_link(&active, &alias).unwrap();
     let sources = [GlobalHookSource {
         path: hooks,
-        kind: xvora_config::GlobalHookSourceKind::HookDirectory,
+        kind: config::GlobalHookSourceKind::HookDirectory,
     }];
-    let err = xvora_config::validated_hook_json_files_for_sources(&sources).unwrap_err();
+    let err = config::validated_hook_json_files_for_sources(&sources).unwrap_err();
     assert!(matches!(
         err,
-        xvora_config::GlobalHookSourceError::HardLinkedHookFile { .. }
+        config::GlobalHookSourceError::HardLinkedHookFile { .. }
     ));
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -167,7 +167,7 @@ fn reject_hardlinked_files_on_registry_source() {
 
     let sources = [GlobalHookSource {
         path: reg,
-        kind: xvora_config::GlobalHookSourceKind::RegistryFile,
+        kind: config::GlobalHookSourceKind::RegistryFile,
     }];
     let err = reject_hardlinked_files(&sources).unwrap_err();
     assert!(matches!(err, HookWriteDenyError::HardLink { .. }));

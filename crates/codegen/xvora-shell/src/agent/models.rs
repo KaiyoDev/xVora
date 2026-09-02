@@ -125,7 +125,7 @@ struct Inner {
     auth_manager: Arc<AuthManager>,
     cfg: RwLock<config::Config>,
     fetch_auth: RwLock<ModelFetchAuth>,
-    gateway: RwLock<Option<xvora_acp_lib::AcpAgentGatewaySender>>,
+    gateway: RwLock<Option<acp_lib::AcpAgentGatewaySender>>,
     cache: ModelsCacheManager,
     endpoint: Arc<dyn ModelsEndpoint>,
     /// Guard to prevent overlapping retry loops.
@@ -374,7 +374,7 @@ impl ModelsManager {
         Ok(mgr)
     }
 
-    pub(crate) fn set_gateway(&self, gateway: xvora_acp_lib::AcpAgentGatewaySender) {
+    pub(crate) fn set_gateway(&self, gateway: acp_lib::AcpAgentGatewaySender) {
         *self.inner.gateway.write() = Some(gateway);
     }
 
@@ -770,7 +770,7 @@ impl ModelsManager {
         };
         if needs_bundled_fallback {
             if remote_fetch_enabled {
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "model catalog: falling back to bundled defaults only",
                     None,
                     Some(serde_json::json!({
@@ -795,7 +795,7 @@ impl ModelsManager {
         let available = self.available();
         let current = self.current_model_id();
         let count = available.len();
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "model catalog: notifying clients",
             None,
             Some(serde_json::json!({
@@ -846,7 +846,7 @@ impl ModelsManager {
         let count = cached.models.len();
         self.apply_catalog(&cfg, cached.models, cached.etag);
         tracing::info!(count, "model catalog hot-reloaded from disk cache");
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "model catalog: reloaded from external disk-cache write",
             None,
             Some(serde_json::json!({ "model_count": count })),
@@ -905,7 +905,7 @@ impl ModelsManager {
                     }
                 },
                 |attempt, max_retries, delay| async move {
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "model catalog: retry scheduled",
                         None,
                         Some(serde_json::json!({
@@ -921,7 +921,7 @@ impl ModelsManager {
             match result {
                 Ok(()) => {
                     let count = mgr.available().len();
-                    xvora_telemetry::unified_log::info(
+                    telemetry::unified_log::info(
                         "model catalog: retry succeeded",
                         None,
                         Some(serde_json::json!({ "model_count": count })),
@@ -929,7 +929,7 @@ impl ModelsManager {
                     mgr.notify_models_updated();
                 }
                 Err(e) => {
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "model catalog: all retries exhausted",
                         None,
                         Some(serde_json::json!({ "error": e })),
@@ -958,7 +958,7 @@ impl ModelsManager {
     pub fn start_auth_refresh_watcher(&self, notify: Arc<tokio::sync::Notify>) {
         let mgr = self.clone();
         let had_catalog_at_start = self.inner.catalog.read().has_fetched_real_catalog;
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "model catalog: auth refresh watcher started",
             None,
             Some(serde_json::json!({
@@ -977,7 +977,7 @@ impl ModelsManager {
                 }
                 let had_catalog = mgr.inner.catalog.read().has_fetched_real_catalog;
                 let old_count = mgr.available().len();
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "model catalog: auth refresh watcher triggered",
                     None,
                     Some(serde_json::json!({
@@ -990,7 +990,7 @@ impl ModelsManager {
                 let new_count = mgr.available().len();
                 if has_catalog {
                     if !had_catalog || new_count != old_count {
-                        xvora_telemetry::unified_log::info(
+                        telemetry::unified_log::info(
                             "model catalog: auth refresh watcher updated catalog",
                             None,
                             Some(serde_json::json!({
@@ -1002,7 +1002,7 @@ impl ModelsManager {
                     }
                     mgr.notify_models_updated();
                 } else {
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "model catalog: auth refresh watcher fetch failed",
                         None,
                         Some(serde_json::json!({
@@ -1167,7 +1167,7 @@ impl ModelsManager {
         let has_auth = auth.is_some();
         let fetch_auth = *self.inner.fetch_auth.read();
         let cfg = self.inner.cfg.read().clone();
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "model catalog: fetching",
             None,
             Some(serde_json::json!({
@@ -1193,7 +1193,7 @@ impl ModelsManager {
         };
         let success = self.apply_refresh_result_fenced(&cfg, new_prefetched, None, generation);
         if success {
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "model catalog: fetch succeeded",
                 None,
                 Some(serde_json::json!({
@@ -1289,7 +1289,7 @@ impl ModelsManager {
                     });
                 }
             }
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "model catalog refresh failed",
                 None,
                 Some(serde_json::json!({

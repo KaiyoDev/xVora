@@ -7,7 +7,7 @@ use crate::views::modal::ActiveModal;
 use crate::views::session_picker::repo_name_from_cwd;
 use crate::views::session_picker_surface::SessionPickerHost;
 
-use xvora_shell::session::unified_list::ListScope;
+use shell::session::unified_list::ListScope;
 
 /// The history `kind` filter for the welcome screen's multi-source history under `--chat`.
 ///
@@ -30,7 +30,7 @@ pub(in crate::app::dispatch) fn welcome_history_kind_filter(app: &AppView) -> Op
 /// `Only` on the Headless page, `Exclude` everywhere else.
 pub(in crate::app::dispatch) fn active_picker_headless_policy(
     app: &AppView,
-) -> xvora_shell::session::unified_list::HeadlessPolicy {
+) -> shell::session::unified_list::HeadlessPolicy {
     let filter = if let Some(agent) = get_active_agent(app)
         && let Some(ActiveModal::SessionPicker { source_filter, .. }) = agent.active_modal.as_ref()
     {
@@ -92,7 +92,7 @@ pub(in crate::app::dispatch) fn dispatch_fetch_session_list(app: &mut AppView) -
         app.foreign_scan_coordinator.begin_request(foreign_seq);
         None
     } else {
-        let grok_home = xvora_tools::util::grok_home::grok_home();
+        let grok_home = tools::util::grok_home::grok_home();
         crate::app::foreign_sessions::scan_effect(
             &app.cwd,
             app.foreign_session_compat,

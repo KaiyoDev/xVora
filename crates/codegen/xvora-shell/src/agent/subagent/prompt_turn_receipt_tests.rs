@@ -24,12 +24,12 @@ fn receipt_for_turn(
             result,
             telemetry: crate::session::telemetry::ActiveAgentMessageAdmissionTelemetry::new(
                 std::time::Instant::now(),
-                xvora_telemetry::TelemetryCtx::new(
+                telemetry::TelemetryCtx::new(
                     "parent".to_owned(),
                     std::sync::Arc::new(tokio::sync::Mutex::new(turn)),
                 ),
-                xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Queue,
-                xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Queue,
+                tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Queue,
+                tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Queue,
                 None,
             ),
         },

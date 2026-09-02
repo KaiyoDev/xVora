@@ -9,8 +9,8 @@ use crate::app::status_line::{
     ABANDON_AFTER, EVENT_DEBOUNCE, MIN_REFRESH_INTERVAL_MS, RunId, RunOutcome, test_context,
 };
 use crate::views::status_line::{StatusLineDisplay, StatusLineFrame, StatusSegment};
-use xvora_status_line::test_support::StatusLineConfigFixture;
-use xvora_status_line::{StatusLineConfig, StatusLineItem, StatusLineType};
+use status_line::test_support::StatusLineConfigFixture;
+use status_line::{StatusLineConfig, StatusLineItem, StatusLineType};
 
 /// A `command` is set whatever the mode, so a test can switch mode without losing the script.
 fn command_row(kind: StatusLineType) -> StatusLineConfigFixture {

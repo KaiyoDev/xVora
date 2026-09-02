@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use xvora_status_line::StatusLineContext;
+use status_line::StatusLineContext;
 
 use crate::views::status_line::{MAX_STATUS_LINE_LINES, RowSize};
 
@@ -77,7 +77,7 @@ impl std::fmt::Display for RunError {
 /// Kills the run's process group unless the group is already empty.
 /// A group with a surviving member cannot have its id recycled, so signalling one is safe.
 /// An empty group is disarmed instead, which is the discipline `enroll` asks for to keep a reaped leader's id from being signalled later.
-struct GroupGuard(Option<std::sync::Arc<xvora_tty_utils::ProcessGroup>>);
+struct GroupGuard(Option<std::sync::Arc<tty_utils::ProcessGroup>>);
 
 impl GroupGuard {
     /// Whether anything is left to kill. `None` where the platform cannot say, which counts as alive.
@@ -230,7 +230,7 @@ async fn run_command(
     json.push('\n');
 
     let expanded = match command.strip_prefix("~/") {
-        Some(rest) => match xvora_dirs::home_dir() {
+        Some(rest) => match dirs::home_dir() {
             Some(home) => format!("{}/{rest}", home.display()),
             None => command.to_string(),
         },
@@ -255,7 +255,7 @@ async fn run_command(
     let configure = |cmd: &mut Command| {
         cmd.env_remove("BASH_ENV")
             .env_remove("ENV")
-            .envs(xvora_tty_utils::pager_env())
+            .envs(tty_utils::pager_env())
             .env("GIT_OPTIONAL_LOCKS", "0")
             .env("COLUMNS", cols.to_string())
             .env("LINES", lines.to_string())
@@ -268,7 +268,7 @@ async fn run_command(
         if let Some(cwd) = local_cwd.as_deref() {
             cmd.current_dir(cwd);
         }
-        xvora_tty_utils::detach_command(cmd);
+        tty_utils::detach_command(cmd);
         xvora_sandbox::child_net::restrict_child_network(cmd);
     };
 
@@ -294,7 +294,7 @@ async fn run_command(
             // What is left here is the spawn, which no test on this platform reaches
             #[cfg(not(unix))]
             let mut shell = {
-                let inv = xvora_config::shell::shell_command_argv(&expanded);
+                let inv = config::shell::shell_command_argv(&expanded);
                 let mut c = Command::new(&inv.program);
                 c.args(&inv.args).envs(inv.env);
                 c
@@ -303,7 +303,7 @@ async fn run_command(
             shell.spawn().map_err(RunError::Spawn)?
         }
     };
-    let group = match xvora_tty_utils::global_process_scope().enroll(&child) {
+    let group = match tty_utils::global_process_scope().enroll(&child) {
         Ok(group) => Some(group),
         Err(error) => {
             // No group means no teardown: a timeout kills the shell and orphans anything it backgrounded

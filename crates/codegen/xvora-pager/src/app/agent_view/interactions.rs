@@ -187,7 +187,7 @@ impl AgentView {
                 if key.code == KeyCode::Enter {
                     if edit
                         .trimmed()
-                        .is_some_and(|p| !xvora_workspace::permission::bash_glob_is_catchall(p))
+                        .is_some_and(|p| !workspace::permission::bash_glob_is_catchall(p))
                         && let Some(opt) = perm
                             .allow_always_command_idx()
                             .and_then(|idx| perm.options.get(idx))
@@ -1224,8 +1224,8 @@ impl AgentView {
                     "images": images.len(),
                 })),
             );
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::FeedbackTraceCardShown {
+            telemetry::session_ctx::log_event(
+                telemetry::events::FeedbackTraceCardShown {
                     reenables_sharing: qv.feedback_offer_reenables_sharing,
                 },
             );
@@ -1265,7 +1265,7 @@ impl AgentView {
         })
     }
     pub(super) fn submit_question_answers(&mut self, skipped: bool) -> InputOutcome {
-        use xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
+        use tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
         self.swap_question_freeform();
         let Some(mut qv) = self.question_view.take() else {
             return InputOutcome::Changed;
@@ -1319,7 +1319,7 @@ impl AgentView {
         } else {
             "interview_submit"
         };
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PlanSubmit {
+        telemetry::session_ctx::log_event(telemetry::events::PlanSubmit {
             action: action.to_string(),
         });
         InputOutcome::Changed
@@ -1742,7 +1742,7 @@ mod permission_scope_key_tests {
             ),
         ];
         perm.bash_highlights = Some(
-            xvora_workspace::permission::bash_command_splitting::BashCommandHighlights {
+            workspace::permission::bash_command_splitting::BashCommandHighlights {
                 prefix: vec![],
                 highlighted_words: vec!["cargo".into(), "test".into(), "--workspace".into()],
                 suffix: vec![],
@@ -1782,7 +1782,7 @@ mod permission_scope_key_tests {
         {
             let perm = agent.permission_queue.front_mut().unwrap();
             perm.bash_highlights = Some(
-                xvora_workspace::permission::bash_command_splitting::BashCommandHighlights {
+                workspace::permission::bash_command_splitting::BashCommandHighlights {
                     prefix: vec![],
                     highlighted_words: vec!["git".into(), "push".into(), "origin".into()],
                     suffix: vec![],
@@ -1825,7 +1825,7 @@ mod permission_scope_key_tests {
         {
             let perm = agent.permission_queue.front_mut().unwrap();
             perm.bash_highlights = Some(
-                xvora_workspace::permission::bash_command_splitting::BashCommandHighlights {
+                workspace::permission::bash_command_splitting::BashCommandHighlights {
                     prefix: vec![],
                     highlighted_words: vec![
                         "git".into(),
@@ -2044,7 +2044,7 @@ mod permission_scope_key_tests {
         perm.options = vec![
             option("allow-once", acp::PermissionOptionKind::AllowOnce),
             option(
-                xvora_workspace::permission::ALLOW_EDITS_SESSION_OPTION_ID,
+                workspace::permission::ALLOW_EDITS_SESSION_OPTION_ID,
                 acp::PermissionOptionKind::AllowAlways,
             ),
             option("reject-once", acp::PermissionOptionKind::RejectOnce),
@@ -2133,7 +2133,7 @@ mod question_no_freeform_tests {
     };
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
     /// Fixed options, single-select; shaped like the free-usage upsell.
     fn upsell_question() -> Question {
         let opt = |label: &str, desc: &str| QuestionOption {
@@ -2443,7 +2443,7 @@ mod question_answer_focus_tests {
     use crate::views::prompt_widget::StashedPrompt;
     use crate::views::question_view::{QuestionFocus, QuestionSelection, QuestionViewState};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
     fn question(prompt: &str, labels: &[&str]) -> Question {
         Question {
             question: prompt.into(),

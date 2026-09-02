@@ -13,7 +13,7 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::debug;
 use tracing::warn;
-use xvora_tty_utils::ProcessGroup;
+use tty_utils::ProcessGroup;
 
 const MAX_CAPTURE_BYTES: usize = 1024 * 1024;
 
@@ -107,8 +107,8 @@ pub(crate) async fn run_detached_with_timeout(
         // Pipe stderr; inherit would corrupt the TUI alternate screen.
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
 
     #[allow(clippy::disallowed_methods)] // a process group is built for it below
     let mut child = match cmd.spawn() {

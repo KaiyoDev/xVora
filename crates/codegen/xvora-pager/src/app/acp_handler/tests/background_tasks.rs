@@ -625,8 +625,8 @@
         task_id: &str,
         command: &str,
         exit_code: Option<i32>,
-    ) -> xvora_tools::types::TaskSnapshot {
-        xvora_tools::types::TaskSnapshot {
+    ) -> tools::types::TaskSnapshot {
+        tools::types::TaskSnapshot {
             task_id: task_id.into(),
             command: command.into(),
             display_command: None,
@@ -652,7 +652,7 @@
 
     fn completed_notif_from_snapshot(
         session_id: &str,
-        task_snapshot: xvora_tools::types::TaskSnapshot,
+        task_snapshot: tools::types::TaskSnapshot,
         replayed: bool,
     ) -> acp::ExtNotification {
         let notif = SessionNotification {
@@ -810,7 +810,7 @@
         let mut app = make_app_with_agent("sess-1");
 
         let mut snapshot = race_snapshot("task-mon", "tail -f x.log", Some(0));
-        snapshot.kind = xvora_tools::computer::types::TaskKind::Monitor;
+        snapshot.kind = tools::computer::types::TaskKind::Monitor;
         let done = completed_notif_from_snapshot("sess-1", snapshot, false);
         assert!(handle_task_completed(&done, &mut app));
 

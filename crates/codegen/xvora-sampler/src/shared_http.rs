@@ -100,7 +100,7 @@ fn build_http_client() -> Result<reqwest::Client, reqwest::Error> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(10);
 
-    xvora_extra_ca::build_reqwest_client(|builder| {
+    extra_ca::build_reqwest_client(|builder| {
         builder
             .pool_max_idle_per_host(pool_max_idle)
             .pool_idle_timeout(pool_idle_timeout())
@@ -120,7 +120,7 @@ fn build_http_client_http1() -> Result<reqwest::Client, reqwest::Error> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(10);
 
-    xvora_extra_ca::build_reqwest_client(|builder| {
+    extra_ca::build_reqwest_client(|builder| {
         builder
             .http1_only()
             .pool_max_idle_per_host(0)

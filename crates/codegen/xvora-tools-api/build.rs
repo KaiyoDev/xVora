@@ -1,5 +1,5 @@
 fn main() {
-    xvora_proto_build::configure()
+    proto_build::configure()
         .type_attribute(
             ".", // match every message & enum
             "#[derive(serde::Serialize, serde::Deserialize)]",

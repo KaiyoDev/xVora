@@ -6,7 +6,7 @@ use tokio::process::Command;
 use tokio::time;
 
 use crate::runner::{AsyncTerminalRunner, TerminalError, TerminalRunRequest, TerminalRunResult};
-use xvora_tty_utils::KILL_REAP_TIMEOUT;
+use tty_utils::KILL_REAP_TIMEOUT;
 
 pub struct LocalTerminalRunner;
 
@@ -93,7 +93,7 @@ impl AsyncTerminalRunner for LocalTerminalRunner {
         };
         #[cfg(not(unix))]
         let mut cmd = {
-            let inv = xvora_config::shell::shell_command_argv(&request.command);
+            let inv = config::shell::shell_command_argv(&request.command);
             let mut c = Command::new(inv.program);
             c.args(&inv.args).envs(inv.env);
             c
@@ -107,7 +107,7 @@ impl AsyncTerminalRunner for LocalTerminalRunner {
 
         // Detach from the controlling terminal so child processes (e.g. GPG pinentry) cannot open /dev/tty and corrupt the TUI.
         // (This also makes the child its own session/group leader, which the ProcessGroup attach below relies on.)
-        xvora_tools::util::detach_command(&mut cmd);
+        tools::util::detach_command(&mut cmd);
         xvora_sandbox::child_net::restrict_child_network(&mut cmd);
 
         #[allow(clippy::disallowed_methods)]

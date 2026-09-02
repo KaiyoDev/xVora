@@ -80,7 +80,7 @@ pub(crate) struct AuxCall {
 
 /// Shared setup for a recap-style side-call; see [`SessionActor::prepare_side_call`].
 pub(crate) struct SideCallSetup {
-    pub(crate) client: xvora_sampler::SamplingClient,
+    pub(crate) client: sampler::SamplingClient,
     pub(crate) strip_reasoning: bool,
     pub(crate) context_window: u64,
     pub(crate) model: String,
@@ -112,7 +112,7 @@ impl SessionActor {
             session_id.clone()
         };
         ConversationRequest {
-            items: xvora_chat_state::compaction_utils::ModelRequestHistory::from_raw(call.items)
+            items: chat_state::compaction_utils::ModelRequestHistory::from_raw(call.items)
                 .into_items(),
             tools: call.tools,
             hosted_tools: call.hosted_tools,
@@ -123,7 +123,7 @@ impl SessionActor {
             x_grok_conv_id: Some(conv_id),
             x_grok_req_id: Some(call.req_id),
             x_grok_session_id: Some(session_id.clone()),
-            x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+            x_grok_agent_id: Some(telemetry::id::agent_id()),
             prompt_cache_key: Some(session_id),
             // Side calls persist text and never execute tools (the attached tools only align the prompt-cache prefix)
             // A Length sample must fail rather than salvage

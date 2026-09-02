@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use xvora_acp_lib::AcpAgentGatewaySender;
+use acp_lib::AcpAgentGatewaySender;
 
 use super::support::*;
 use super::*;
@@ -35,7 +35,7 @@ async fn setup_actor_with_pre_tool_use_hook(
     let (actor, hooks) = local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let hook_gateway = AcpAgentGatewaySender::new(gateway_tx.clone());
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
@@ -106,7 +106,7 @@ async fn inherited_handle_second_wire_does_not_steal_parent_hook() {
     local
         .run_until(async {
             let (child_gateway_tx, child_gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut child =

@@ -3748,7 +3748,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "uuid",
- "xvora-dirs",
  "xvora-sqlite-journal",
  "zstd",
 ]
@@ -13531,6 +13530,7 @@ name = "xvora-agent"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "dirs 5.0.1",
  "dunce",
  "git2",
  "ignore",
@@ -13547,7 +13547,6 @@ dependencies = [
  "tokio",
  "tracing",
  "xvora-config",
- "xvora-dirs",
  "xvora-hooks",
  "xvora-sampling-types",
  "xvora-token-estimation",
@@ -13749,7 +13748,6 @@ dependencies = [
  "xvora-tool-protocol",
  "xvora-tool-runtime",
  "xvora-tool-types",
- "xvora-tracing",
 ]
 
 [[package]]
@@ -13759,6 +13757,7 @@ dependencies = [
  "base64 0.22.1",
  "blake3",
  "core-foundation",
+ "dirs 5.0.1",
  "dunce",
  "prod-mc-cli-chat-proxy-types",
  "ring",
@@ -13772,7 +13771,6 @@ dependencies = [
  "tracing",
  "urlencoding",
  "which",
- "xvora-dirs",
  "xvora-tty-utils",
  "xvora-version",
 ]
@@ -13831,6 +13829,7 @@ dependencies = [
  "clap",
  "crossbeam",
  "dashmap",
+ "dirs 5.0.1",
  "dunce",
  "gix",
  "gix-status",
@@ -13851,8 +13850,6 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
- "xvora-dirs",
- "xvora-gix-status",
  "xvora-sqlite-journal",
  "xvora-test-utils",
  "xvora-tty-utils",
@@ -13896,7 +13893,6 @@ dependencies = [
  "url",
  "xvora-auth",
  "xvora-circuit-breaker",
- "xvora-dirs",
  "xvora-test-utils",
  "xvora-version",
  "zstd",
@@ -14105,6 +14101,7 @@ dependencies = [
  "filetime",
  "flate2",
  "git2",
+ "http 1.5.0",
  "libc",
  "nix 0.30.1",
  "notify",
@@ -14120,7 +14117,6 @@ dependencies = [
  "windows 0.61.3",
  "xvora-auth",
  "xvora-config-types",
- "xvora-http",
  "xvora-sqlite-journal",
  "xvora-token-estimation",
  "xvora-tools",
@@ -14182,6 +14178,7 @@ dependencies = [
  "criterion",
  "crossterm",
  "dashboard-store",
+ "dirs 5.0.1",
  "dunce",
  "extra-ca",
  "flate2",
@@ -14232,7 +14229,6 @@ dependencies = [
  "xvora-announcements",
  "xvora-config",
  "xvora-crash-handler",
- "xvora-dirs",
  "xvora-fast-worktree",
  "xvora-file-utils",
  "xvora-gboom",
@@ -14362,6 +14358,7 @@ dependencies = [
  "chrono",
  "crossterm",
  "dark-light",
+ "dirs 5.0.1",
  "documented",
  "dunce",
  "image",
@@ -14395,7 +14392,6 @@ dependencies = [
  "vte 0.15.0",
  "windows-sys 0.59.0",
  "xvora-config",
- "xvora-dirs",
  "xvora-gboom",
  "xvora-markdown",
  "xvora-paths",
@@ -14423,6 +14419,7 @@ name = "xvora-plugin-marketplace"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "dirs 5.0.1",
  "dunce",
  "fs2",
  "serde",
@@ -14433,7 +14430,6 @@ dependencies = [
  "tracing",
  "xvora-agent",
  "xvora-config",
- "xvora-dirs",
  "xvora-hooks-plugins-types",
  "xvora-tty-utils",
 ]
@@ -14535,6 +14531,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "dirs 5.0.1",
  "dunce",
  "globset",
  "ignore",
@@ -14551,7 +14548,6 @@ dependencies = [
  "tracing",
  "url",
  "xvora-config",
- "xvora-dirs",
 ]
 
 [[package]]
@@ -14571,6 +14567,7 @@ dependencies = [
  "anyhow",
  "arboard",
  "base64 0.22.1",
+ "dirs 5.0.1",
  "dunce",
  "image",
  "libc",
@@ -14588,7 +14585,6 @@ dependencies = [
  "uuid",
  "wl-clipboard-rs",
  "xvora-config-types",
- "xvora-dirs",
  "xvora-models",
  "xvora-tools",
  "xvora-tty-utils",
@@ -14616,6 +14612,7 @@ dependencies = [
  "ctor",
  "dashmap",
  "dhat",
+ "dirs 5.0.1",
  "dunce",
  "extra-ca",
  "filetime",
@@ -14630,6 +14627,7 @@ dependencies = [
  "glob",
  "globset",
  "hmac 0.12.1",
+ "http 1.5.0",
  "ignore",
  "image",
  "indexmap",
@@ -14704,13 +14702,11 @@ dependencies = [
  "xvora-computer-hub-sdk",
  "xvora-config",
  "xvora-config-types",
- "xvora-dirs",
  "xvora-fast-worktree",
  "xvora-file-utils",
  "xvora-fsnotify",
  "xvora-hooks",
  "xvora-hooks-plugins-types",
- "xvora-http",
  "xvora-hunk-tracker",
  "xvora-interjection-core",
  "xvora-mcp",
@@ -14773,6 +14769,7 @@ name = "xvora-shell-session-support"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "http 1.5.0",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -14780,7 +14777,6 @@ dependencies = [
  "tokio",
  "tracing",
  "xvora-file-utils",
- "xvora-http",
  "xvora-version",
 ]
 
@@ -14833,6 +14829,7 @@ dependencies = [
  "bytes",
  "chrono",
  "ctor",
+ "dirs 5.0.1",
  "extra-ca",
  "filetime",
  "git2",
@@ -14869,7 +14866,6 @@ dependencies = [
  "whoami",
  "xvora-auth",
  "xvora-config",
- "xvora-dirs",
  "xvora-env",
  "xvora-file-utils",
  "xvora-mixpanel",
@@ -14974,6 +14970,7 @@ dependencies = [
  "crc32fast",
  "derive_more 2.1.1",
  "dhat",
+ "dirs 5.0.1",
  "dunce",
  "educe",
  "encoding_rs",
@@ -15029,7 +15026,6 @@ dependencies = [
  "xvora-computer-hub-core",
  "xvora-computer-hub-sdk",
  "xvora-config",
- "xvora-dirs",
  "xvora-env",
  "xvora-file-utils",
  "xvora-interjection-core",
@@ -15106,6 +15102,7 @@ name = "xvora-update"
 version = "0.1.220-alpha.4"
 dependencies = [
  "anyhow",
+ "dirs 5.0.1",
  "dunce",
  "extra-ca",
  "flate2",
@@ -15124,7 +15121,6 @@ dependencies = [
  "tracing",
  "url",
  "wiremock",
- "xvora-dirs",
  "xvora-shell",
  "xvora-telemetry",
  "xvora-tools",
@@ -15145,6 +15141,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cpal",
+ "dirs 5.0.1",
  "extra-ca",
  "futures-util",
  "serde",
@@ -15156,7 +15153,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
- "xvora-dirs",
  "xvora-tty-utils",
 ]
 
@@ -15192,6 +15188,7 @@ dependencies = [
  "clap",
  "dashmap",
  "diag-server",
+ "dirs 5.0.1",
  "dunce",
  "extra-ca",
  "fastrace",
@@ -15245,7 +15242,6 @@ dependencies = [
  "xvora-computer-hub-sdk",
  "xvora-config",
  "xvora-config-types",
- "xvora-dirs",
  "xvora-env",
  "xvora-fast-worktree",
  "xvora-file-utils",
@@ -15262,7 +15258,6 @@ dependencies = [
  "xvora-tool-types",
  "xvora-tools",
  "xvora-tools-api",
- "xvora-tracing",
  "xvora-tty-utils",
  "xvora-version",
  "xvora-workspace-client",

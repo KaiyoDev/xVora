@@ -9,8 +9,8 @@ use super::agent::AgentId;
 use crate::app::status_line::StatusLineRun;
 use crate::scrollback::entry::EntryId;
 use agent_client_protocol as acp;
-use xvora_shell::sampling::types::ReasoningEffort;
-use xvora_shell::session::unified_list::SessionKind;
+use shell::sampling::types::ReasoningEffort;
+use shell::session::unified_list::SessionKind;
 /// Typed error for model switch failures.
 /// Replaces the raw `String` in `TaskResult::SwitchModelComplete` so dispatch can match on the variant instead of parsing strings.
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ pub enum SwitchModelError {
     /// The pager should offer to start a new session.
     /// Deserialized from `ModelSwitchIncompatibleAgentError` in `acp::Error.data`.
     IncompatibleAgent {
-        error: xvora_shell::agent::config::ModelSwitchIncompatibleAgentError,
+        error: shell::agent::config::ModelSwitchIncompatibleAgentError,
         /// The model that was active before the optimistic UI update (if any).
         /// Used to roll back `models.current` when the user declines to start a new session.
         prev_model_id: Option<acp::ModelId>,
@@ -338,7 +338,7 @@ pub enum Action {
     /// Open the extensions modal dialog on a specific tab.
     OpenExtensionsModal {
         tab: crate::views::extensions_modal::ExtensionsTab,
-        trigger: xvora_telemetry::events::ExtensionsModalTrigger,
+        trigger: telemetry::events::ExtensionsModalTrigger,
     },
     /// Open the agents modal (listing all agent definitions).
     /// Optionally opens directly on a specific tab.
@@ -356,15 +356,15 @@ pub enum Action {
     /// Refresh MCP server list from the modal.
     RefreshMcpList,
     /// Execute a hooks management action from the modal.
-    ExecuteHooksAction(xvora_hooks_plugins_types::HooksAction),
+    ExecuteHooksAction(hooks_plugins_types::HooksAction),
     /// Execute a plugins management action from the modal.
-    ExecutePluginsAction(xvora_hooks_plugins_types::PluginsAction),
+    ExecutePluginsAction(hooks_plugins_types::PluginsAction),
     /// Execute a marketplace management action from the modal.
-    ExecuteMarketplaceAction(xvora_hooks_plugins_types::MarketplaceAction),
+    ExecuteMarketplaceAction(hooks_plugins_types::MarketplaceAction),
     /// Add or update an MCP server via x.ai/mcp/upsert.
     UpsertMcpServer {
         name: String,
-        config: Box<xvora_shell::util::config::McpServerConfig>,
+        config: Box<shell::util::config::McpServerConfig>,
     },
     /// Delete an MCP server via x.ai/mcp/delete.
     DeleteMcpServer {
@@ -417,7 +417,7 @@ pub enum Action {
     AnnouncementsShow,
     /// Open the promo CTA link (url resolved from current state at dispatch time, mirroring how `AnnouncementsHide` resolves its target).
     /// The payload records which UI element activated it, for telemetry.
-    AnnouncementsOpenCta(xvora_telemetry::events::AnnouncementCtaSurface),
+    AnnouncementsOpenCta(telemetry::events::AnnouncementCtaSurface),
     /// Cycle session mode (Shift+Tab): Normal, Plan, Auto, Always-Approve, then back to Normal (Auto skipped when the feature gate is off).
     /// Plan mode sends a signal to the shell; always-approve is local.
     CycleMode,
@@ -1374,7 +1374,7 @@ pub enum Effect {
     /// Scan enabled foreign session stores without delaying the native list.
     ScanForeignSessions {
         cwd: std::path::PathBuf,
-        compat: xvora_foreign_sessions::EnabledForeignSessionSources,
+        compat: foreign_sessions::EnabledForeignSessionSources,
         grok_home: std::path::PathBuf,
         coordinator: crate::app::ForeignScanCoordinator,
         seq: u64,
@@ -1387,7 +1387,7 @@ pub enum Effect {
     /// Detect the newest resumable foreign session without delaying first paint.
     DetectForeignResumeHint {
         canonical_cwd: std::path::PathBuf,
-        compat: xvora_foreign_sessions::EnabledForeignSessionSources,
+        compat: foreign_sessions::EnabledForeignSessionSources,
         grok_home: std::path::PathBuf,
         launch_token: u64,
     },
@@ -1409,7 +1409,7 @@ pub enum Effect {
         kind_filter: Option<Vec<String>>,
         /// Server-side `session_kind=headless` policy: `Only` while the picker is on the Headless page, `Exclude` everywhere else.
         /// Applied by the shell before its page truncation, so it cannot be a client refilter.
-        headless_policy: xvora_shell::session::unified_list::HeadlessPolicy,
+        headless_policy: shell::session::unified_list::HeadlessPolicy,
     },
     /// Coalesce picker search keystrokes: fires [`TaskResult::SessionSearchDebounceExpired`] after a short sleep.
     /// The expiry acts only if `host`, `generation`, and `seq` still name the live picker.
@@ -1431,8 +1431,8 @@ pub enum Effect {
     LoadWorkspaceSnapshot { db_path: std::path::PathBuf },
     /// Apply one coalesced dashboard-v2 adoption/metadata batch through the process-owned store connection.
     UpsertWorkspaceMembers {
-        store: xvora_dashboard_store::WorkspaceStore,
-        members: Vec<xvora_dashboard_store::NewMember>,
+        store: dashboard_store::WorkspaceStore,
+        members: Vec<dashboard_store::NewMember>,
     },
     /// Load card detail for a specific session (lazy, reads chat history from disk).
     LoadCardDetail {
@@ -1494,7 +1494,7 @@ pub enum Effect {
     KillBgTask {
         session_id: acp::SessionId,
         task_id: String,
-        source: xvora_shell::extensions::task::TaskKillSource,
+        source: shell::extensions::task::TaskKillSource,
     },
     /// Cancel a subagent via `x.ai/subagent/cancel`.
     KillSubagent {
@@ -1710,13 +1710,13 @@ pub enum Effect {
     HooksAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: xvora_hooks_plugins_types::HooksAction,
+        action: hooks_plugins_types::HooksAction,
     },
     /// Execute a plugins management action via ACP.
     PluginsAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: xvora_hooks_plugins_types::PluginsAction,
+        action: hooks_plugins_types::PluginsAction,
     },
     /// Fetch marketplace plugin list from the shell.
     FetchMarketplaceList {
@@ -1753,7 +1753,7 @@ pub enum Effect {
     MarketplaceAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: xvora_hooks_plugins_types::MarketplaceAction,
+        action: hooks_plugins_types::MarketplaceAction,
     },
     /// Install a plugin from the inline CTA via `x.ai/marketplace/action`, reported back via `TaskResult::CtaPluginInstallDone`.
     InstallPluginFromCta {
@@ -1793,7 +1793,7 @@ pub enum Effect {
         agent_id: AgentId,
         session_id: acp::SessionId,
         name: String,
-        config: Box<xvora_shell::util::config::McpServerConfig>,
+        config: Box<shell::util::config::McpServerConfig>,
     },
     /// Delete an MCP server via x.ai/mcp/delete.
     DeleteMcpServer {
@@ -1846,7 +1846,7 @@ pub enum Effect {
         agent_id: AgentId,
         session_id: acp::SessionId,
         feedback_text: String,
-        images: Vec<xvora_shell::session::FeedbackImage>,
+        images: Vec<shell::session::FeedbackImage>,
     },
     /// One-shot session archive for a feedback report (after the text POST).
     UploadFeedbackTrace {
@@ -1984,7 +1984,7 @@ pub enum Effect {
         seq: u64,
         /// Server-side headless policy of the page that consumes the hits: `Only` on the Headless page, `Exclude` everywhere else.
         /// Unresolved index rows are omitted from both classified views.
-        headless_policy: xvora_shell::session::unified_list::HeadlessPolicy,
+        headless_policy: shell::session::unified_list::HeadlessPolicy,
     },
     /// Call `x.ai/session/fork` to create a peer session that resumes from `parent_session_id` in the same cwd (no worktree).
     /// Mirror of the worktree branch of [`Effect::CreateWorktreeSession`].
@@ -2221,7 +2221,7 @@ pub enum TaskResult {
         session_cwd: std::path::PathBuf,
         code_restored: bool,
         restore_summary: Option<String>,
-        restore_degree: Option<xvora_workspace::session::git::RestoreDegree>,
+        restore_degree: Option<workspace::session::git::RestoreDegree>,
         /// Resume/parent id this worktree was created from (`load_session_id`).
         /// Used to retarget the one-shot restore-code suppression onto the child.
         resume_session_id: Option<String>,
@@ -2238,7 +2238,7 @@ pub enum TaskResult {
         models: Option<acp::SessionModelState>,
         code_restored: bool,
         restore_summary: Option<String>,
-        restore_degree: Option<xvora_workspace::session::git::RestoreDegree>,
+        restore_degree: Option<workspace::session::git::RestoreDegree>,
         /// The session's in-flight running prompt id (from the load response `_meta["x.ai/runningPromptId"]`).
         /// Present only when the session was loaded MID-turn (another client is driving).
         /// The loader adopts it to pass the live `session/update` gate without re-rendering the user block (replay already rendered it).
@@ -2274,7 +2274,7 @@ pub enum TaskResult {
         /// A degraded conversations lane (`_meta["x.ai/partial"]`), shown as an actionable picker notice instead of a silent empty list.
         partial: Option<crate::app::effects::ConversationsPartial>,
         /// Directory scope `sessions` were drawn from (`x.ai/listScope`).
-        scope: xvora_shell::session::unified_list::ListScope,
+        scope: shell::session::unified_list::ListScope,
         /// Echo of [`Effect::FetchSessionList::seq`]; stale results are dropped.
         seq: u64,
         /// Echo of [`Effect::FetchSessionList::query`].
@@ -2297,7 +2297,7 @@ pub enum TaskResult {
     ForeignResumeHintDetected {
         canonical_cwd: std::path::PathBuf,
         launch_token: u64,
-        hint: Option<xvora_foreign_sessions::RecentForeignSession>,
+        hint: Option<foreign_sessions::RecentForeignSession>,
     },
     /// Session list fetch failed.
     SessionListFailed {
@@ -2338,8 +2338,8 @@ pub enum TaskResult {
     },
     /// Dashboard v2's process-owned store and initial consistent view.
     WorkspaceSnapshotLoaded {
-        store: xvora_dashboard_store::WorkspaceStore,
-        snapshot: xvora_dashboard_store::WorkspaceSnapshot,
+        store: dashboard_store::WorkspaceStore,
+        snapshot: dashboard_store::WorkspaceSnapshot,
     },
     /// Dashboard v2 store open or initial snapshot failed.
     WorkspaceSnapshotFailed {
@@ -2347,10 +2347,10 @@ pub enum TaskResult {
     },
     /// A dashboard-v2 write batch finished and returned the sole store handle.
     WorkspaceMembersUpserted {
-        store: xvora_dashboard_store::WorkspaceStore,
-        snapshot: Result<xvora_dashboard_store::WorkspaceSnapshot, String>,
+        store: dashboard_store::WorkspaceStore,
+        snapshot: Result<dashboard_store::WorkspaceSnapshot, String>,
         failures: Vec<WorkspaceMemberUpsertFailure>,
-        attempted: Vec<xvora_dashboard_store::NewMember>,
+        attempted: Vec<dashboard_store::NewMember>,
     },
     /// The blocking workspace writer panicked or was cancelled, losing its moved handle; reopen the store before any further writes.
     WorkspaceMembersUpsertTaskFailed {
@@ -2442,7 +2442,7 @@ pub enum TaskResult {
     BgTaskKilled {
         session_id: String,
         task_id: String,
-        outcome: Option<xvora_tools::types::KillOutcome>,
+        outcome: Option<tools::types::KillOutcome>,
     },
     /// Background task kill failed.
     BgTaskKillFailed {
@@ -2462,7 +2462,7 @@ pub enum TaskResult {
     /// Changelog fetched from CDN (both formats).
     ChangelogFetched {
         markdown: Option<String>,
-        entries: Vec<xvora_shell::util::changelog::ChangelogEntry>,
+        entries: Vec<shell::util::changelog::ChangelogEntry>,
     },
     /// Announcements hidden state persisted.
     AnnouncementsHiddenPersisted {
@@ -2521,37 +2521,37 @@ pub enum TaskResult {
     /// Hooks list fetched from shell.
     HooksListLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::HooksListResponse, String>,
+        result: Result<hooks_plugins_types::HooksListResponse, String>,
     },
     /// Plugins list fetched from shell.
     PluginsListLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::PluginsListResponse, String>,
+        result: Result<hooks_plugins_types::PluginsListResponse, String>,
     },
     /// Hooks action completed.
     HooksActionResult {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Plugins action completed.
     PluginsActionResult {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Marketplace list loaded.
     MarketplaceListLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+        result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
     },
     /// Official-marketplace CTA catalog loaded into agent-level state.
     PluginCtaCatalogLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+        result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
     },
     /// Skills list loaded.
     SkillsListLoaded {
         agent_id: AgentId,
-        result: Result<Vec<xvora_tools::implementations::skills::types::SkillInfo>, String>,
+        result: Result<Vec<tools::implementations::skills::types::SkillInfo>, String>,
     },
     WorkflowsListLoaded {
         agent_id: AgentId,
@@ -2561,7 +2561,7 @@ pub enum TaskResult {
     /// Skill toggle completed (enable/disable).
     SkillsToggleDone {
         agent_id: AgentId,
-        result: Result<Vec<xvora_tools::implementations::skills::types::SkillInfo>, String>,
+        result: Result<Vec<tools::implementations::skills::types::SkillInfo>, String>,
     },
     /// Background marketplace auto-update completed.
     MarketplaceUpdatesAvailable {
@@ -2571,19 +2571,19 @@ pub enum TaskResult {
     /// Marketplace action completed.
     MarketplaceActionResult {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Inline-CTA plugin install completed.
     CtaPluginInstallDone {
         agent_id: AgentId,
         plugin_name: String,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Post-CTA-install plugins reload completed (modal-independent).
     CtaPluginReloadDone {
         agent_id: AgentId,
         plugin_name: String,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Post-CTA-install MCP server list loaded (modal-independent).
     PluginCtaMcpsLoaded {
@@ -2615,7 +2615,7 @@ pub enum TaskResult {
     SessionInfoComplete {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        info: Box<xvora_shell::session::SessionInfoResponse>,
+        info: Box<shell::session::SessionInfoResponse>,
         /// Plain-text block for minimal-mode scrollback.
         text: String,
         /// Structured rows for the modal (built upstream from typed data).
@@ -2679,7 +2679,7 @@ pub enum TaskResult {
     ContextInfoComplete {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        info: Box<xvora_shell::session::SessionInfoResponse>,
+        info: Box<shell::session::SessionInfoResponse>,
         nonce: u64,
     },
     /// Context info fetch failed. Drop if `session_id` no longer matches.
@@ -2693,7 +2693,7 @@ pub enum TaskResult {
     SessionUsageComplete {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        usage: Box<xvora_shell::extensions::notification::PromptUsage>,
+        usage: Box<shell::extensions::notification::PromptUsage>,
         nonce: u64,
     },
     /// `/usage` session ledger fetch failed. Drop if `session_id` no longer matches.
@@ -2821,7 +2821,7 @@ pub enum TaskResult {
         host: crate::views::session_picker_surface::SessionPickerHost,
         /// Echo of [`Effect::DeepSearchSessions::generation`].
         generation: u64,
-        results: Vec<xvora_shell::extensions::session_search::SearchSessionHit>,
+        results: Vec<shell::extensions::session_search::SearchSessionHit>,
         seq: u64,
     },
     /// `x.ai/session/fork` completed (no-worktree path).
@@ -2875,7 +2875,7 @@ pub enum TaskResult {
         autotopup: crate::views::credit_bar::AutoTopupFetch,
     },
     GateRefreshed {
-        settings: Option<xvora_shell::util::config::RemoteSettings>,
+        settings: Option<shell::util::config::RemoteSettings>,
     },
     /// Billing fetch failed with an error message.
     BillingError {

@@ -162,7 +162,7 @@ fn seed_parked_approval(home: &Path) -> Result<usize> {
 
 /// Round-trip the shell-written `plan_mode.json` and flip `awaiting_plan_approval` to `true`, preserving every other field.
 /// Falls back to a fresh Active snapshot if the shell wrote nothing.
-/// The shape mirrors `xvora_shell::session::plan_mode::PlanModeSnapshot`.
+/// The shape mirrors `shell::session::plan_mode::PlanModeSnapshot`.
 /// We only touch the one field (robust to schema growth) rather than depend on the heavy shell crate from this test-only harness.
 fn write_awaiting_plan_mode(path: &Path) -> Result<()> {
     let mut value: serde_json::Value = std::fs::read_to_string(path)

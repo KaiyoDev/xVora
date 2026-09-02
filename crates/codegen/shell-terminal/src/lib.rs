@@ -1,6 +1,6 @@
 //! Local, ACP, and PTY terminal runners for the grok shell.
 //!
-//! `xvora-shell` re-exports this crate as `xvora_shell::terminal`.
+//! `xvora-shell` re-exports this crate as `shell::terminal`.
 
 use std::sync::Arc;
 
@@ -39,13 +39,13 @@ pub const DEFAULT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(
 pub const DEFAULT_OUTPUT_BYTE_LIMIT: usize = 30_000;
 
 /// Resolved absolute path to bash.
-/// On Unix uses the `xvora_config` cascade (`$GROK_SHELL` > `$SHELL` > `which` > common dirs > `/bin/bash`), cached process-wide.
+/// On Unix uses the `config` cascade (`$GROK_SHELL` > `$SHELL` > `which` > common dirs > `/bin/bash`), cached process-wide.
 /// On non-Unix returns `"/bin/bash"`.
 /// Every caller in this crate is gated behind `#[cfg(unix)]`, so the non-Unix value should not be observed in practice.
 pub(crate) fn default_shell_path() -> &'static str {
     #[cfg(unix)]
     {
-        xvora_config::shell::unix_shell_path(xvora_config::shell::UnixShellKind::Bash)
+        config::shell::unix_shell_path(config::shell::UnixShellKind::Bash)
     }
     #[cfg(not(unix))]
     {
@@ -119,7 +119,7 @@ pub async fn list_terminals() -> Vec<TerminalInfo> {
 }
 
 /// Returns environment variables that prevent CLI tools from launching any blocking/waiting programs.
-pub use xvora_tools::util::pager_env;
+pub use tools::util::pager_env;
 
 /// Returns environment variables that encourage CLI tools to emit color and progress bars/spinners even when running through pipes (non-TTY).
 pub fn color_env() -> std::collections::HashMap<String, String> {

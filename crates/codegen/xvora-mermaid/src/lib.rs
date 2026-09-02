@@ -23,7 +23,7 @@
 //! # Example
 //!
 //! ```
-//! use xvora_mermaid::{default_engine, render_checked, RenderLimits, RenderParams};
+//! use mermaid::{default_engine, render_checked, RenderLimits, RenderParams};
 //!
 //! let engine = default_engine();
 //! let params = RenderParams::default();

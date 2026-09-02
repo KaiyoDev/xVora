@@ -41,7 +41,7 @@ pub fn load_require_sha(config: &toml::Value) -> bool {
 }
 
 pub fn env_require_sha() -> bool {
-    xvora_config::env_bool("GROK_MARKETPLACE_REQUIRE_SHA").unwrap_or(false)
+    config::env_bool("GROK_MARKETPLACE_REQUIRE_SHA").unwrap_or(false)
 }
 
 /// Reads `[marketplace].sources` array. Returns empty vec if not configured.
@@ -81,7 +81,7 @@ pub fn load_sources(config: &toml::Value) -> Vec<MarketplaceSource> {
             } else if let Some(path_str) = raw.path {
                 // Expand ~ to home directory.
                 let expanded = if let Some(rest) = path_str.strip_prefix('~') {
-                    xvora_dirs::home_dir()
+                    dirs::home_dir()
                         .map(|h| {
                             h.join(rest.strip_prefix('/').unwrap_or(rest))
                                 .to_string_lossy()
@@ -156,7 +156,7 @@ fn extract_marketplace_entries(
             }
             SettingsSource::Local { path: path_str } => {
                 let expanded = if let Some(rest) = path_str.strip_prefix('~') {
-                    xvora_dirs::home_dir()
+                    dirs::home_dir()
                         .map(|h| {
                             h.join(rest.strip_prefix('/').unwrap_or(rest))
                                 .to_string_lossy()
@@ -181,8 +181,8 @@ fn extract_marketplace_entries(
 /// and `known_marketplaces.json` files under `~/.grok/` and `~/.claude/`.
 pub fn load_extra_sources_from_settings(existing: &[MarketplaceSource]) -> Vec<MarketplaceSource> {
     let roots: Vec<PathBuf> = [
-        xvora_config::user_grok_home(),
-        xvora_dirs::home_dir().map(|h| h.join(".claude")),
+        config::user_grok_home(),
+        dirs::home_dir().map(|h| h.join(".claude")),
     ]
     .into_iter()
     .flatten()
@@ -361,7 +361,7 @@ mod tests {
             .unwrap_or_else(|p| p.into_inner());
         unsafe { std::env::remove_var("GROK_MARKETPLACE_REQUIRE_SHA") };
 
-        let layers = xvora_config::ConfigLayers {
+        let layers = config::ConfigLayers {
             user: toml::from_str("[marketplace]\nrequire_sha = true\n").unwrap(),
             env_overlay: Some(toml::from_str("[marketplace]\nrequire_sha = false\n").unwrap()),
             ..Default::default()

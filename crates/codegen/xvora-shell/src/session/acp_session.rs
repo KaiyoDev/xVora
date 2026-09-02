@@ -62,25 +62,25 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Mutex as TokioMutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_agent::AgentDefinition;
-use xvora_agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
-use xvora_agent::prompt::skills::SkillsConfig;
-use xvora_sampler::SamplerConfig as SamplingConfig;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent::AgentDefinition;
+use agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
+use agent::prompt::skills::SkillsConfig;
+use sampler::SamplerConfig as SamplingConfig;
 use xvora_sampling_types::truncate_bytes;
-use xvora_tools::computer::local::LocalTerminalBackend;
-use xvora_tools::implementations::BashToolInput;
-use xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig;
-use xvora_tools::types::ToolInput;
-use xvora_tools::types::compat::CompatConfig;
-use xvora_tools::types::output::{
+use tools::computer::local::LocalTerminalBackend;
+use tools::implementations::BashToolInput;
+use tools::implementations::grok_build::web_fetch::WebFetchConfig;
+use tools::types::ToolInput;
+use tools::types::compat::CompatConfig;
+use tools::types::output::{
     BashOutput, ReadFileOutput, ToolOutput as ToolsToolOutput, ToolRunResult,
 };
-use xvora_workspace::file_system::CodebaseIndexManager;
-use xvora_workspace::permission::{
+use workspace::file_system::CodebaseIndexManager;
+use workspace::permission::{
     AccessKind, ClientType, Decision, HookAsk, PermissionEvent, PermissionHandle, PermissionRequest,
 };
-use xvora_workspace::session::file_state::{FileStateHandle, FileStateTracker};
+use workspace::session::file_state::{FileStateHandle, FileStateTracker};
 const SESSION_LOG: &str = "xvora_session";
 #[path = "compaction.rs"]
 mod compaction;
@@ -140,7 +140,7 @@ use queue_mutation::{InputOrigin, QueueMutationPolicy};
 mod prompt_queue;
 #[cfg(test)]
 use tool_calls::BridgeToolSuccess;
-pub(super) use xvora_prompt_queue::QueueInputRequest;
+pub(super) use prompt_queue::QueueInputRequest;
 #[path = "acp_session_impl/hooks_plugins.rs"]
 mod hooks_plugins;
 #[path = "acp_session_impl/mcp.rs"]
@@ -463,15 +463,15 @@ struct ShellManagedGatewayToolClient {
     auth_manager: Arc<AuthManager>,
 }
 #[async_trait::async_trait]
-impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGatewayToolClient {
+impl tools::types::resources::ManagedGatewayToolCaller for ShellManagedGatewayToolClient {
     async fn call_tool(
         &self,
         call_id: &str,
         arguments: serde_json::Value,
         caller: &str,
     ) -> Result<
-        xvora_tools::types::resources::ManagedGatewayToolCallResponse,
-        xvora_tool_runtime::ToolError,
+        tools::types::resources::ManagedGatewayToolCallResponse,
+        tool_runtime::ToolError,
     > {
         let auth_key = self
             .auth_manager
@@ -480,7 +480,7 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
             .ok()
             .or_else(|| self.auth_manager.current_or_expired().map(|a| a.key))
             .ok_or_else(|| {
-                xvora_tool_runtime::ToolError::unauthorized("no auth token available")
+                tool_runtime::ToolError::unauthorized("no auth token available")
             })?;
         let response = crate::session::managed_mcp::call_gateway_tool(
             &self.proxy_base_url,
@@ -491,7 +491,7 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
         .await
         .map_err(|error| managed_gateway_error_to_tool_error(error, caller))?;
         Ok(
-            xvora_tools::types::resources::ManagedGatewayToolCallResponse {
+            tools::types::resources::ManagedGatewayToolCallResponse {
                 result: response.result,
                 connectors_needing_reauth: response.connectors_needing_reauth,
             },
@@ -501,19 +501,19 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
 fn managed_gateway_error_to_tool_error(
     error: crate::session::managed_mcp::ManagedMcpFetchError,
     caller: &str,
-) -> xvora_tool_runtime::ToolError {
+) -> tool_runtime::ToolError {
     match error {
         crate::session::managed_mcp::ManagedMcpFetchError::Status { status, message } => {
             let detail = format!("Managed MCP gateway tool call failed: {message}");
             let mut err = if status == reqwest::StatusCode::UNAUTHORIZED {
-                xvora_tool_runtime::ToolError::unauthorized(detail)
+                tool_runtime::ToolError::unauthorized(detail)
             } else if status == reqwest::StatusCode::FORBIDDEN {
-                xvora_tool_runtime::ToolError::permission_denied(detail)
+                tool_runtime::ToolError::permission_denied(detail)
             } else {
-                let tool_id = xvora_tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
-                    xvora_tool_protocol::ToolId::new("use_tool").expect("valid")
+                let tool_id = tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
+                    tool_protocol::ToolId::new("use_tool").expect("valid")
                 });
-                xvora_tool_runtime::ToolError::execution(tool_id, detail)
+                tool_runtime::ToolError::execution(tool_id, detail)
             };
             match err.details.as_mut() {
                 Some(serde_json::Value::Object(map)) => {
@@ -531,13 +531,13 @@ fn managed_gateway_error_to_tool_error(
             err
         }
         crate::session::managed_mcp::ManagedMcpFetchError::Transport(e) => {
-            xvora_tool_runtime::ToolError::network_error(format!(
+            tool_runtime::ToolError::network_error(format!(
                 "Managed MCP gateway tool call failed: {}",
                 e.without_url()
             ))
         }
         crate::session::managed_mcp::ManagedMcpFetchError::NoAuth => {
-            xvora_tool_runtime::ToolError::unauthorized("no auth token available")
+            tool_runtime::ToolError::unauthorized("no auth token available")
         }
     }
 }
@@ -554,7 +554,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn unauthorized_status_maps_to_unauthorized_and_carries_status() {
         let err = managed_gateway_error_to_tool_error(status_error(401, "expired"), "use_tool");
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Unauthorized);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Unauthorized);
         assert!(err.detail.contains("expired"));
         let details = err.details.as_ref().unwrap();
         assert_eq!(
@@ -567,7 +567,7 @@ mod managed_gateway_error_tests {
         let err = managed_gateway_error_to_tool_error(status_error(403, "denied"), "use_tool");
         assert_eq!(
             err.kind,
-            xvora_tool_runtime::ToolErrorKind::PermissionDenied
+            tool_runtime::ToolErrorKind::PermissionDenied
         );
         let details = err.details.as_ref().unwrap();
         assert_eq!(
@@ -578,7 +578,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn general_status_maps_to_execution_with_caller_tool_id() {
         let err = managed_gateway_error_to_tool_error(status_error(500, "boom"), "CallMcpTool");
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Execution);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Execution);
         let details = err.details.as_ref().unwrap();
         assert_eq!(
             details.get(HTTP_STATUS_DETAILS_KEY),
@@ -592,7 +592,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn general_status_falls_back_to_use_tool_for_unknown_caller() {
         let err = managed_gateway_error_to_tool_error(status_error(500, "boom"), "not a tool id");
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Execution);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Execution);
         let details = err.details.as_ref().unwrap();
         assert_eq!(details.get("tool_id"), Some(&serde_json::json!("use_tool")));
     }
@@ -602,7 +602,7 @@ mod managed_gateway_error_tests {
             crate::session::managed_mcp::ManagedMcpFetchError::NoAuth,
             "use_tool",
         );
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Unauthorized);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Unauthorized);
     }
     #[tokio::test]
     async fn transport_error_maps_to_network_error_without_url() {
@@ -615,7 +615,7 @@ mod managed_gateway_error_tests {
             crate::session::managed_mcp::ManagedMcpFetchError::Transport(transport),
             "use_tool",
         );
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::NetworkError);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::NetworkError);
         assert!(err.detail.contains("Managed MCP gateway tool call failed"));
         assert!(
             !err.detail.contains("http://"),
@@ -731,7 +731,7 @@ pub(crate) struct SessionActor {
     /// The event fires at each of the six `OaiCompatClient` 401 arms in `xvora-sampler`.
     /// Threaded into every `SamplerConfig` reconstructed by `reconstruct_full_config`.
     /// `None` when the session was spawned without an `AuthManager` (BYOK direct mode, test fixtures).
-    pub(crate) attribution_callback: Option<xvora_sampler::SharedAttributionCallback>,
+    pub(crate) attribution_callback: Option<sampler::SharedAttributionCallback>,
     /// Owns the token refresher internally (via `configure_refresher()`) and is also used for non-sampler 401 attribution sites.
     /// The sampler-side path goes through `attribution_callback` above.
     /// The idle-resume model refresh in this file calls `crate::auth::attribution::record_auth_401` directly using this handle.
@@ -757,7 +757,7 @@ pub(crate) struct SessionActor {
     pub(crate) mcp_strategy: std::cell::Cell<McpInitStrategy>,
     /// Actor-based chat state handle; manages conversation, tokens, timing, and persistence.
     /// Also stores credentials (api_key, optional extra access key, client_version) opaquely.
-    pub(crate) chat_state_handle: xvora_chat_state::ChatStateHandle,
+    pub(crate) chat_state_handle: chat_state::ChatStateHandle,
     /// Current running prompt/turn id, shared with SessionHandle.
     pub(crate) current_prompt_id: std::sync::Arc<std::sync::Mutex<Option<String>>>,
     pub(crate) active_work: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -847,14 +847,14 @@ pub(crate) struct SessionActor {
     /// Feedback manager for signal tracking and feedback request heuristics
     pub(crate) feedback_manager: Arc<FeedbackManager>,
     pub(crate) upload_queue:
-        std::sync::Arc<std::sync::OnceLock<xvora_file_utils::queue::UploadQueue>>,
+        std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
     /// Cancellation token for the feedback sync loop (None if no feedback client)
     pub(crate) sync_loop_cancel: Option<tokio_util::sync::CancellationToken>,
     /// The fully-built Agent: owns the ToolBridge, system prompt, policies, and the AgentDefinition.
     /// Replaces the old `tool_bridge` and `agent_definition` fields.
     /// Wrapped in `RefCell` for mid-session mutation (skill refresh, prompt regen).
     /// Safe: session actor is single-threaded (LocalSet), no concurrent access.
-    pub(crate) agent: std::cell::RefCell<xvora_agent::Agent>,
+    pub(crate) agent: std::cell::RefCell<agent::Agent>,
     /// Dedup slot for `x.ai/git_head_changed`, shared with the fs-watch `GitHead` consumer (see `git_head_dedup_key`).
     pub(crate) last_reported_branch: Arc<parking_lot::Mutex<Option<String>>>,
     /// Client opted into `x.ai/gitHeadChanged`.
@@ -927,17 +927,17 @@ pub(crate) struct SessionActor {
     pub(crate) goal_update_rx: std::cell::RefCell<
         Option<
             tokio::sync::mpsc::UnboundedReceiver<
-                xvora_tools::implementations::grok_build::update_goal::UpdateGoalEnvelope,
+                tools::implementations::grok_build::update_goal::UpdateGoalEnvelope,
             >,
         >,
     >,
     pub(crate) goal_update_tx: tokio::sync::mpsc::UnboundedSender<
-        xvora_tools::implementations::grok_build::update_goal::UpdateGoalEnvelope,
+        tools::implementations::grok_build::update_goal::UpdateGoalEnvelope,
     >,
     pub(crate) workflow_manager:
         Arc<tokio::sync::Mutex<crate::session::workflow::manager::WorkflowManager>>,
     pub(crate) workflow_launch_tx: tokio::sync::mpsc::UnboundedSender<
-        xvora_tools::implementations::grok_build::workflow::WorkflowLaunchEnvelope,
+        tools::implementations::grok_build::workflow::WorkflowLaunchEnvelope,
     >,
     pub(crate) goal_classifier_enabled: bool,
     /// Master switch for the goal planner subagent.
@@ -981,7 +981,7 @@ pub(crate) struct SessionActor {
     /// Subsequent prompt-flow ticks then don't repeat the pause-on-load check.
     pub(crate) goal_plan_reconciled: std::sync::atomic::AtomicBool,
     pub(crate) pending_classifier_completions: parking_lot::Mutex<
-        VecDeque<xvora_tools::implementations::grok_build::update_goal::UpdateGoalInput>,
+        VecDeque<tools::implementations::grok_build::update_goal::UpdateGoalInput>,
     >,
     /// [`Self::account_not_achieved_without_sampler`].
     pub(crate) goal_classifier_in_flight: std::sync::atomic::AtomicBool,
@@ -1009,7 +1009,7 @@ pub(crate) struct SessionActor {
     /// Background-computed user-message prefix, injected before the first prompt.
     pub(crate) deferred_prefix: TaskSlot<String>,
     /// Extensions to notify at turn and session lifecycle edges. Built once by `session_extension_registry` at actor construction and frozen after.
-    pub(crate) extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry,
+    pub(crate) extension_registry: agent_lifecycle::LocalExtensionRegistry,
     /// Local date last shown to the model.
     /// Shown via the `<user_info>` prefix (session start, compaction, model switch) or a date-rollover `<system-reminder>`.
     /// Plain resume reuses the cached prefix.
@@ -1045,20 +1045,20 @@ pub(crate) struct SessionActor {
     /// Used for hook child process cwd, envelope fields, and GROK_WORKSPACE_ROOT env var.
     pub(crate) hook_resolved_workspace_root: String,
     /// The detected VCS kind for this session's workspace.
-    pub(crate) vcs_kind: xvora_workspace::session::git::VcsKind,
+    pub(crate) vcs_kind: workspace::session::git::VcsKind,
     /// Errors from last hook config load (parse failures, etc.).
     pub(crate) hook_load_errors: std::cell::RefCell<Vec<String>>,
     /// Plugin registry snapshot for this session. Updated on `/plugins reload`.
     /// `RefCell` for mid-session reload from `&self` methods.
     pub(crate) plugin_registry:
-        std::cell::RefCell<Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>>>,
+        std::cell::RefCell<Option<std::sync::Arc<agent::plugins::PluginRegistry>>>,
     /// Shared handle to the agent-level plugin registry.
     /// Used by `/plugins reload` to trigger a rebuild that new sessions see.
-    pub(crate) plugin_registry_handle: Option<xvora_agent::plugins::SharedPluginRegistryHandle>,
+    pub(crate) plugin_registry_handle: Option<agent::plugins::SharedPluginRegistryHandle>,
     /// Centralized event tracking: event log, turn-end guard, active tool, doom loop terminate flag.
     pub(crate) events: crate::session::events::EventTracker,
     /// Optional hub-side session event emitter (always constructed without a harness client in the agent; methods no-op with `None` transport).
-    pub(crate) observability_bridge: xvora_computer_hub_sdk::ObservabilityBridge,
+    pub(crate) observability_bridge: computer_hub_sdk::ObservabilityBridge,
     /// Turn number captured at the start of each turn (before prompt index increment).
     /// Used by `ToolCallStarted` bridge emissions so they report the same turn number as `TurnStarted` / `TurnEnded`.
     pub(crate) current_turn_number: std::cell::Cell<u64>,
@@ -1130,7 +1130,7 @@ pub(crate) struct SessionActor {
     /// Turn and cancellation boundaries revoke abandoned ownership after preserving bounded image-strip work.
     pub(crate) turn_stream_drained: parking_lot::Mutex<
         std::collections::HashMap<
-            xvora_sampler::RequestId,
+            sampler::RequestId,
             Option<tokio::sync::oneshot::Sender<()>>,
         >,
     >,
@@ -1139,23 +1139,23 @@ pub(crate) struct SessionActor {
     /// They persist to stored history only when that request's `Completed` arrives, and drop on `Failed`.
     /// See `acp_session_impl/image_strip.rs`.
     pub(crate) pending_image_strip:
-        parking_lot::Mutex<std::collections::HashMap<xvora_sampler::RequestId, PendingImageStrip>>,
+        parking_lot::Mutex<std::collections::HashMap<sampler::RequestId, PendingImageStrip>>,
     /// Serializes durable image-strip writes with conversation rewinds.
     pub(crate) image_strip_rewrite_barrier: ImageStripRewriteBarrier,
     /// Handle to the per-session `xvora-sampler` actor.
     ///
     /// Live sessions get a real handle from `spawn_session_actor`; tests and other constructor sites use `SamplerHandle::noop()`.
     /// All inference flows through this handle.
-    pub(crate) sampler_handle: xvora_sampler::SamplerHandle,
+    pub(crate) sampler_handle: sampler::SamplerHandle,
     /// Turn-sampling gate: `None` is the main session (ungated), `Some` is the process tree's shared sampling semaphore.
     /// See `acquire_subagent_sampling_permit`.
     pub(crate) sampling_gate: Option<Arc<tokio::sync::Semaphore>>,
-    /// Cached recipe for constructing this session's [`xvora_agent::Agent`].
+    /// Cached recipe for constructing this session's [`agent::Agent`].
     ///
     /// Populated once at session spawn.
     /// Reused by `handle_rebuild_agent_for_definition` to build a fresh `Agent`.
     /// That happens when the user picks a model with a different `agent_type` before sending any user message.
-    /// A fresh `Agent` covers the system prompt, the [`xvora_tools::bridge::ToolBridge`], and the tool registry.
+    /// A fresh `Agent` covers the system prompt, the [`tools::bridge::ToolBridge`], and the tool registry.
     /// It also covers tool name aliases, the compaction policy, and the reminder policy.
     ///
     /// See [`crate::session::agent_rebuild`] for the canonical-construction invariant.
@@ -1167,7 +1167,7 @@ pub(crate) struct SessionActor {
     pub(crate) image_describe_cache: Arc<crate::session::image_describe::ImageDescribeCache>,
     /// Per-subagent token state keyed by `subagent_id`; sums into goal totals via [`Self::goal_tokens`].
     pub(crate) subagent_token_records: parking_lot::Mutex<HashMap<String, SubagentTokenRecord>>,
-    pub(crate) workspace_ops: xvora_workspace::WorkspaceOps,
+    pub(crate) workspace_ops: workspace::WorkspaceOps,
     /// Template for building trace configs on synthetic auto-wake turns.
     /// Captured from the first real user prompt's trace config so synthetic turns can upload artifacts using the same bucket/method.
     pub(crate) trace_config_template: std::cell::RefCell<Option<TraceConfigTemplate>>,
@@ -1240,7 +1240,7 @@ impl SessionActor {
     /// Fire-and-forget; failures are logged but do not interrupt the turn.
     async fn send_before_turn_event(
         &self,
-        payload: xvora_tool_protocol::turn_hook::BeforeTurnPayload,
+        payload: tool_protocol::turn_hook::BeforeTurnPayload,
     ) {
         self.workspace_ops
             .on_before_turn(&self.session_id_string(), &payload)
@@ -1255,7 +1255,7 @@ impl SessionActor {
     )]
     async fn send_after_turn_event(
         &self,
-        payload: xvora_tool_protocol::turn_hook::AfterTurnPayload,
+        payload: tool_protocol::turn_hook::AfterTurnPayload,
     ) {
         self.workspace_ops
             .on_after_turn(&self.session_id_string(), &payload)
@@ -1309,7 +1309,7 @@ impl SessionActor {
         &self,
         tool_names: &[String],
     ) -> slash_commands::CommandAvailability {
-        use xvora_tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
+        use tools::implementations::memory::{MEMORY_GET_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME};
         let memory_read_registered = tool_names
             .iter()
             .any(|n| n == MEMORY_SEARCH_TOOL_NAME || n == MEMORY_GET_TOOL_NAME);
@@ -1324,12 +1324,12 @@ impl SessionActor {
             memory_configured: self.memory.backend_params.is_some(),
             scheduler: tool_names
                 .iter()
-                .any(|n| n == xvora_tools::implementations::grok_build::SCHEDULER_CREATE_TOOL_NAME),
+                .any(|n| n == tools::implementations::grok_build::SCHEDULER_CREATE_TOOL_NAME),
             hooks: self.hook_registry.borrow().is_some(),
             plugins: self.plugin_registry.borrow().is_some(),
             goal,
             workflows: tool_names.iter().any(|n| {
-                n == xvora_tools::implementations::grok_build::workflow::WORKFLOW_TOOL_NAME
+                n == tools::implementations::grok_build::workflow::WORKFLOW_TOOL_NAME
             }),
             workflow_management: false,
         }
@@ -1408,7 +1408,7 @@ impl SessionActor {
 impl SessionActor {
     /// Used by async methods that need to drop the `RefCell::Ref<Agent>` borrow before awaiting.
     /// `Arc::clone` is cheap, and an outstanding `Ref` across `.await` would panic if anything on the suspended path did `self.agent.borrow_mut()`.
-    fn tool_bridge_handle(&self) -> Arc<xvora_tools::bridge::ToolBridge> {
+    fn tool_bridge_handle(&self) -> Arc<tools::bridge::ToolBridge> {
         Arc::clone(self.agent.borrow().tool_bridge())
     }
 }
@@ -1418,7 +1418,7 @@ const PROMPT_CONTEXT_FILENAME: &str = "prompt_context.json";
 /// This is best-effort: failures are logged but do not block session creation.
 /// The saved JSON enables deterministic re-rendering and `grok prompt --json` inspection.
 /// It also enables post-hoc debugging of what went into a session's system prompt.
-fn save_prompt_context(session_info: &SessionInfo, prompt_context: &xvora_agent::PromptContext) {
+fn save_prompt_context(session_info: &SessionInfo, prompt_context: &agent::PromptContext) {
     let dir = match crate::session::persistence::ensure_owner_only_session_dir(session_info) {
         Ok(dir) => dir,
         Err(e) => {
@@ -1513,13 +1513,13 @@ fn load_system_prompt_from_dir(session_dir: &std::path::Path) -> Option<String> 
 #[expect(dead_code, reason = "API for future viewers/debug tools")]
 pub(crate) fn load_prompt_context(
     session_info: &SessionInfo,
-) -> Option<xvora_agent::PromptContext> {
+) -> Option<agent::PromptContext> {
     let dir = crate::session::persistence::session_dir(session_info);
     load_prompt_context_from_dir(&dir)
 }
 fn load_prompt_context_from_dir(
     session_dir: &std::path::Path,
-) -> Option<xvora_agent::PromptContext> {
+) -> Option<agent::PromptContext> {
     let json = std::fs::read_to_string(session_dir.join(PROMPT_CONTEXT_FILENAME)).ok()?;
     serde_json::from_str(&json)
         .map_err(|e| tracing::warn!(?e, "failed to deserialize prompt_context.json"))
@@ -1543,11 +1543,11 @@ mod usage_categories_tests;
 #[cfg(test)]
 mod managed_gateway_descriptor_tests {
     use super::*;
-    use xvora_tools::types::output::{MCPOutput, ToolOutput};
-    use xvora_tools::types::tool::{ToolKind, ToolNamespace};
+    use tools::types::output::{MCPOutput, ToolOutput};
+    use tools::types::tool::{ToolKind, ToolNamespace};
     #[derive(Debug, Default)]
     struct FixtureMcpTool;
-    impl xvora_tools::types::tool_metadata::ToolMetadata for FixtureMcpTool {
+    impl tools::types::tool_metadata::ToolMetadata for FixtureMcpTool {
         fn kind(&self) -> ToolKind {
             ToolKind::Other
         }
@@ -1558,23 +1558,23 @@ mod managed_gateway_descriptor_tests {
             "fixture"
         }
     }
-    impl xvora_tool_runtime::Tool for FixtureMcpTool {
+    impl tool_runtime::Tool for FixtureMcpTool {
         type Args = serde_json::Value;
         type Output = ToolOutput;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("server__tool").expect("valid")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("server__tool").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("server__tool", "fixture")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("server__tool", "fixture")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _args: serde_json::Value,
-        ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
+        ) -> Result<ToolOutput, tool_runtime::ToolError> {
             Ok(ToolOutput::MCP(MCPOutput::okay_output(
                 "server__tool".to_string(),
                 "server".to_string(),
@@ -1809,9 +1809,9 @@ mod tool_meta_stamp_tests {
     use super::support::test_agent_with_tools;
     use super::*;
     use tokio::sync::mpsc;
-    use xvora_tools::registry::types::ToolConfig;
-    use xvora_tools::tool_taxonomy::TOOL_META_KEY;
-    use xvora_workspace::permission::PermissionCommand;
+    use tools::registry::types::ToolConfig;
+    use tools::tool_taxonomy::TOOL_META_KEY;
+    use workspace::permission::PermissionCommand;
     fn read_file_call() -> crate::sampling::types::ToolCallResponse {
         crate::sampling::types::ToolCallResponse {
             id: "call-stamp-1".to_string(),
@@ -1908,7 +1908,7 @@ mod tool_meta_stamp_tests {
                         {
                             *captured_in_task.lock().await = Some(tool_call_update);
                             let _ = respond_to.send(
-                                xvora_workspace::permission::PermissionResolution {
+                                workspace::permission::PermissionResolution {
                                     decision: Decision::Allow,
                                     event: None,
                                 },
@@ -2071,9 +2071,9 @@ mod web_search_e2e_tests;
 #[cfg(test)]
 mod managed_gateway_tool_tests {
     use super::*;
-    use xvora_tools::types::output::{MCPOutput, ToolOutput};
-    use xvora_tools::types::tool::{ToolKind, ToolNamespace};
-    use xvora_tools::types::tool_metadata::ToolMetadata;
+    use tools::types::output::{MCPOutput, ToolOutput};
+    use tools::types::tool::{ToolKind, ToolNamespace};
+    use tools::types::tool_metadata::ToolMetadata;
     #[derive(Debug)]
     struct FixtureMcpTool;
     impl ToolMetadata for FixtureMcpTool {
@@ -2087,23 +2087,23 @@ mod managed_gateway_tool_tests {
             "fixture"
         }
     }
-    impl xvora_tool_runtime::Tool for FixtureMcpTool {
+    impl tool_runtime::Tool for FixtureMcpTool {
         type Args = serde_json::Value;
         type Output = ToolOutput;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("server__tool").expect("valid")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("server__tool").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("server__tool", "fixture")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("server__tool", "fixture")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _args: serde_json::Value,
-        ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
+        ) -> Result<ToolOutput, tool_runtime::ToolError> {
             Ok(ToolOutput::MCP(MCPOutput::okay_output(
                 "server__tool".to_string(),
                 "server".to_string(),
@@ -2161,7 +2161,7 @@ mod managed_gateway_tool_tests {
         ));
         refresh_mcp_snapshot_for_test(bridge.clone(), mcp_state, managed, snapshot.clone()).await;
         let catalog = bridge
-            .read_resource::<xvora_tools::types::resources::ManagedGatewayToolCatalog>()
+            .read_resource::<tools::types::resources::ManagedGatewayToolCatalog>()
             .await
             .expect("catalog resource should be seeded");
         assert!(catalog.get("gateway__search").is_some());
@@ -2239,7 +2239,7 @@ mod managed_gateway_tool_tests {
         )
         .await;
         let catalog = bridge
-            .read_resource::<xvora_tools::types::resources::ManagedGatewayToolCatalog>()
+            .read_resource::<tools::types::resources::ManagedGatewayToolCatalog>()
             .await
             .expect("catalog resource should be seeded");
         assert!(catalog.get("linear__list_issues").is_some());

@@ -8,7 +8,7 @@
 mod otlp_collector;
 
 use otlp_collector as col;
-use xvora_telemetry::external;
+use telemetry::external;
 
 #[test]
 fn refuses_to_activate_when_internal_consumed_standard_vars() {
@@ -42,12 +42,12 @@ fn refuses_to_activate_when_internal_consumed_standard_vars() {
     );
 
     // Emit through the real funnel; with the stream inert this must be a no-op.
-    xvora_telemetry::log_event(xvora_telemetry::events::SessionNew {
+    telemetry::log_event(telemetry::events::SessionNew {
         session_id: "sess-guard".into(),
         client_identifier: None,
         client_version: None,
         is_git_repo: true,
-        permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
+        permission_mode: telemetry::enums::PermissionMode::Ask,
     });
     external::flush();
 

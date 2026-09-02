@@ -10,9 +10,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 use tracing::{debug, info, warn};
-use xvora_tool_protocol::{McpBlock, SessionId, ToolId, ToolOutputWire};
-use xvora_tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput, terminal_only};
-use xvora_tool_types::ToolDescription;
+use tool_protocol::{McpBlock, SessionId, ToolId, ToolOutputWire};
+use tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput, terminal_only};
+use tool_types::ToolDescription;
 
 use crate::transport::McpTransport;
 use crate::types::{McpCallResult, McpContent, McpError, McpServerInfo, McpToolDefinition};
@@ -51,7 +51,7 @@ impl std::fmt::Debug for McpBridgeHandle {
 /// On construction the bridge performs the MCP `initialize` handshake,
 /// discovers tools via `tools/list`, and builds a handler
 /// for each one. Callers wire these handlers into a
-/// [`xvora_computer_hub_sdk::ToolServerBuilder`] to register them
+/// [`computer_hub_sdk::ToolServerBuilder`] to register them
 /// with the hub.
 ///
 /// Callers **must** call [`McpBridge::shutdown`] before dropping to
@@ -152,7 +152,7 @@ impl McpBridge {
         })
     }
 
-    /// Handlers to register with a [`xvora_computer_hub_sdk::ToolServerBuilder`].
+    /// Handlers to register with a [`computer_hub_sdk::ToolServerBuilder`].
     ///
     /// Each handler implements `ToolServerHandler` for one MCP tool.
     pub fn handlers(&self) -> &[Arc<McpToolHandler>] {
@@ -210,7 +210,7 @@ impl std::fmt::Debug for McpToolHandler {
 }
 
 #[async_trait]
-impl xvora_computer_hub_sdk::ToolServerHandler for McpToolHandler {
+impl computer_hub_sdk::ToolServerHandler for McpToolHandler {
     fn tool_id(&self) -> ToolId {
         self.tool_id.clone()
     }
@@ -467,7 +467,7 @@ mod tests {
             .find(|h| h.tool_id.as_str() == "search")
             .unwrap();
 
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
         let desc = handler.description();
         assert_eq!(desc.name, "search");
         assert_eq!(desc.description, "Search for items");
@@ -503,7 +503,7 @@ mod tests {
             .unwrap();
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let args = serde_json::json!({"query": "test"});
@@ -511,7 +511,7 @@ mod tests {
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+            tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
                 let output: ToolOutputWire = serde_json::from_value(typed.value).unwrap();
                 assert_eq!(output, ToolOutputWire::Text("found 3 results".into()));
             }
@@ -546,7 +546,7 @@ mod tests {
         let handler = &handle.bridge.handlers()[0];
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let mut stream = handler
@@ -555,7 +555,7 @@ mod tests {
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+            tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
                 let output: ToolOutputWire = serde_json::from_value(typed.value).unwrap();
                 match output {
                     ToolOutputWire::Mcp { blocks } => {
@@ -595,14 +595,14 @@ mod tests {
         let handler = &handle.bridge.handlers()[0];
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let mut stream = handler.handle_call(ctx, Value::Null).await;
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+            tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
                 let output: ToolOutputWire = serde_json::from_value(typed.value).unwrap();
                 assert_eq!(output, ToolOutputWire::Text("permission denied".into()));
             }
@@ -625,15 +625,15 @@ mod tests {
         let handler = &handle.bridge.handlers()[0];
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let mut stream = handler.handle_call(ctx, Value::Null).await;
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Err(ref e))
-                if e.kind == xvora_tool_runtime::ToolErrorKind::Execution =>
+            tool_runtime::ToolStreamItem::Terminal(Err(ref e))
+                if e.kind == tool_runtime::ToolErrorKind::Execution =>
             {
                 assert!(
                     e.detail.contains("connection reset"),

@@ -11,9 +11,9 @@ use agent_client_protocol as acp;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime};
-use xvora_acp_lib::AcpAgentTx;
-use xvora_shell::extensions::notification::GoalClassifierVerdict;
-use xvora_shell::sampling::types::ReasoningEffort;
+use acp_lib::AcpAgentTx;
+use shell::extensions::notification::GoalClassifierVerdict;
+use shell::sampling::types::ReasoningEffort;
 /// Unique local identifier for an agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AgentId(pub usize);
@@ -253,14 +253,14 @@ impl BgTaskState {
     /// Keeps the late `TaskBackgrounded` from inserting a fresh Running entry that nothing would ever complete.
     /// See [`Self::absorb_late_backgrounded`].
     pub fn tombstone_from_snapshot(
-        snapshot: &xvora_tools::types::TaskSnapshot,
+        snapshot: &tools::types::TaskSnapshot,
         status: BgTaskStatus,
         description: Option<String>,
         restored_from_replay: bool,
     ) -> Self {
         let is_monitor = matches!(
             snapshot.kind,
-            xvora_tools::computer::types::TaskKind::Monitor
+            tools::computer::types::TaskKind::Monitor
         ) || snapshot
             .display_command
             .as_deref()
@@ -694,7 +694,7 @@ pub struct AgentSession {
     /// Last `--restore-code` outcome's `degree`, parsed from `_meta.codeRestore.degree` (non-worktree path) or `restoreDegree` (worktree path).
     /// Both dispatch handlers set the field but no rendering path consumes it yet.
     /// The wire shape's type-safety anchor is [`crate::app::effects`]'s parser tests and the deserialise tests in `ResumeSessionInWorktreeResponse`.
-    pub restore_degree: Option<xvora_workspace::session::git::RestoreDegree>,
+    pub restore_degree: Option<workspace::session::git::RestoreDegree>,
     /// Set when a rate-limit `RetryState::Exhausted` fires, so the subsequent `TurnFailed` from the RPC error path can be suppressed.
     /// The retry handler already displayed a user-friendly message. Cleared on `finish_turn`.
     pub rate_limited: bool,
@@ -787,7 +787,7 @@ pub struct InFlightPrompt {
 #[derive(Debug, Clone)]
 pub struct ChipElement {
     pub range: std::ops::Range<usize>,
-    pub kind: xvora_ratatui_textarea::ElementKind,
+    pub kind: ratatui_textarea::ElementKind,
     pub display: Option<ratatui::text::Line<'static>>,
 }
 impl AgentSession {
@@ -1000,10 +1000,10 @@ impl AgentSession {
     pub fn dequeue_prompt(&mut self) -> Option<QueuedPrompt> {
         self.pending_prompts.pop_front()
     }
-    /// Pop the front entry, merging consecutive plain `Prompt` followers via [`xvora_prompt_queue::combine_prefix_len`].
+    /// Pop the front entry, merging consecutive plain `Prompt` followers via [`prompt_queue::combine_prefix_len`].
     /// `editing_id` is held out of the merge (composer draft must not vanish). Front may keep images.
     pub fn dequeue_combined_prompt(&mut self, editing_id: Option<u64>) -> Option<QueuedPrompt> {
-        use xvora_prompt_queue::{CombineGate, TEXT_SEPARATOR, combine_prefix_len, join_texts};
+        use prompt_queue::{CombineGate, TEXT_SEPARATOR, combine_prefix_len, join_texts};
         if self.pending_prompts.is_empty() {
             return None;
         }
@@ -1799,7 +1799,7 @@ mod tests {
     /// That includes a blank command (gateway-bridge completions synthesize one).
     #[test]
     fn absorb_late_backgrounded_backfills_without_resurrecting() {
-        let snapshot = xvora_tools::types::TaskSnapshot {
+        let snapshot = tools::types::TaskSnapshot {
             task_id: "t1".into(),
             command: String::new(),
             display_command: None,

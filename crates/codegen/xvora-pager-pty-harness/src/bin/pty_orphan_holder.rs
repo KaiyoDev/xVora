@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use portable_pty::PtySize;
 use xvora_pager_pty_harness::PtyController;
-use xvora_test_support::TestSandbox;
+use test_support::TestSandbox;
 
 fn main() -> anyhow::Result<()> {
     let sandbox = TestSandbox::new();

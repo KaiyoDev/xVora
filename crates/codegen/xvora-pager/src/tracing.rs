@@ -256,12 +256,12 @@ impl TracingModel {
 /// (Bash `raw_output` byte arrays reach hundreds of KB per line.)
 /// Payload fields on this target must be wrapped in [`LazyJson`] so serialization only happens inside a recording subscriber.
 /// That is the dev pane filter (dev builds) or the firehose (`GROK_DEBUG_LOG` / `GROK_LOG_FILE`).
-pub use xvora_telemetry::debug_log::ACP_UPDATE_PAYLOAD_TARGET;
+pub use telemetry::debug_log::ACP_UPDATE_PAYLOAD_TARGET;
 /// Target for the always-on compact ACP update summary line (kind, ids, status, payload sizes).
 /// Cheap to format at streaming rate.
 ///
 /// Defined in `xvora-telemetry` so the firehose directives and the pager filter share one constant (re-exported here for callsites).
-pub use xvora_telemetry::debug_log::ACP_UPDATE_TARGET;
+pub use telemetry::debug_log::ACP_UPDATE_TARGET;
 /// Lazily JSON-serializes a value inside `Display::fmt`.
 ///
 /// Use as a `%`-captured event field so `serde_json::to_string` runs only when a layer whose filter passed actually records the field.
@@ -376,11 +376,11 @@ pub fn init_tracing() -> TracingHandle {
     use tracing_subscriber::{
         EnvFilter, Layer as _, filter::LevelFilter, fmt, layer::SubscriberExt as _,
     };
-    use xvora_telemetry::debug_log::RMCP_SSE_NOISE_TARGET;
+    use telemetry::debug_log::RMCP_SSE_NOISE_TARGET;
     let (make_writer, rx) = TracingChannelMakeWriter::new();
     let payload_level = "off";
     let directives = format!(
-        "xvora_shell=info,xvora_pager=trace,xvora_tools=info,xvora_session_search=info,xvora_acp_lib=info,{RMCP_SSE_NOISE_TARGET}=error,sampling_log=off,{ACP_UPDATE_TARGET}=debug,{ACP_UPDATE_PAYLOAD_TARGET}={payload_level}"
+        "shell=info,xvora_pager=trace,tools=info,session_search=info,acp_lib=info,{RMCP_SSE_NOISE_TARGET}=error,sampling_log=off,{ACP_UPDATE_TARGET}=debug,{ACP_UPDATE_PAYLOAD_TARGET}={payload_level}"
     );
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::WARN.into())
@@ -389,30 +389,30 @@ pub fn init_tracing() -> TracingHandle {
         .with_target(true)
         .with_ansi(true)
         .with_writer(make_writer);
-    let otel_layer = xvora_telemetry::otel_layer::build_otel_layer(
-        xvora_telemetry::otel_layer::OtelClientInfo {
+    let otel_layer = telemetry::otel_layer::build_otel_layer(
+        telemetry::otel_layer::OtelClientInfo {
             client_name: "grok-pager",
-            client_version: xvora_version::VERSION,
-            service_version: xvora_version::full_version(),
+            client_version: version::VERSION,
+            service_version: version::full_version(),
             app_entrypoint: "tui",
         },
-        xvora_shell::auth::credential_provider::build_default_otel_layer_config(),
+        shell::auth::credential_provider::build_default_otel_layer_config(),
     );
-    let instrumentation_layer = xvora_telemetry::instrumentation::layer();
-    let sampling_log_layer = xvora_telemetry::sampling_log::layer();
-    let hooks_log_layer = xvora_telemetry::hooks_log::layer();
+    let instrumentation_layer = telemetry::instrumentation::layer();
+    let sampling_log_layer = telemetry::sampling_log::layer();
+    let hooks_log_layer = telemetry::hooks_log::layer();
     let registry = tracing_subscriber::registry()
         .with(fmt_layer.with_filter(env_filter))
         .with(instrumentation_layer)
         .with(sampling_log_layer)
-        .with(xvora_telemetry::span_profile::layer("tui"))
+        .with(telemetry::span_profile::layer("tui"))
         .with(hooks_log_layer)
         .with(otel_layer);
-    xvora_telemetry::debug_log::install_firehose(registry, "tui");
-    xvora_telemetry::external::init(xvora_shell::agent::config::resolve_external_otel_config(
-        xvora_telemetry::external::config::ExternalClientInfo {
-            service_version: xvora_version::full_version().to_owned(),
-            client_version: xvora_version::VERSION.to_owned(),
+    telemetry::debug_log::install_firehose(registry, "tui");
+    telemetry::external::init(shell::agent::config::resolve_external_otel_config(
+        telemetry::external::config::ExternalClientInfo {
+            service_version: version::full_version().to_owned(),
+            client_version: version::VERSION.to_owned(),
             app_entrypoint: "tui".to_owned(),
         },
     ));

@@ -7,12 +7,12 @@ impl SessionActor {
     /// Same as `--trust`: also allows repo-local MCP/LSP for this folder.
     pub(super) fn do_hooks_trust_project(cwd: &str) -> Result<std::path::PathBuf, String> {
         let root =
-            xvora_workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
+            workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
                 .map_err(|_| {
                     "Not in a git repository. Project hooks require a git worktree root."
                         .to_string()
                 })?;
-        xvora_workspace::folder_trust::grant_folder_trust(&root);
+        workspace::folder_trust::grant_folder_trust(&root);
         Ok(root)
     }
 
@@ -22,7 +22,7 @@ impl SessionActor {
         cwd: &str,
     ) -> Result<(std::path::PathBuf, bool), String> {
         let root =
-            xvora_workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
+            workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
                 .map_err(|_| "Not in a git repository.".to_string())?;
         // revoke_folder_trust persists set_untrusted and downgrades the decision cache so the untrust applies at the next reload, not just restart
         let was_trusted = crate::agent::folder_trust::revoke_folder_trust(&root);
@@ -42,18 +42,18 @@ impl SessionActor {
         let toolset = bridge.toolset();
         let mut resources = toolset.resources.lock().await;
         let existing = resources
-            .get::<xvora_tools::types::resources::TruncationCfg>()
+            .get::<tools::types::resources::TruncationCfg>()
             .map(|c| c.0.clone());
         match (resolved, existing) {
             (resolved, Some(mut cfg)) => {
                 if cfg.mcp_max_output_bytes != resolved {
                     cfg.mcp_max_output_bytes = resolved;
-                    resources.insert(xvora_tools::types::resources::TruncationCfg(cfg));
+                    resources.insert(tools::types::resources::TruncationCfg(cfg));
                 }
             }
             (Some(v), None) => {
-                resources.insert(xvora_tools::types::resources::TruncationCfg(
-                    xvora_tools::types::context::TruncationConfig {
+                resources.insert(tools::types::resources::TruncationCfg(
+                    tools::types::context::TruncationConfig {
                         mcp_max_output_bytes: Some(v),
                         ..Default::default()
                     },
@@ -92,8 +92,8 @@ impl SessionActor {
     /// Handle a hooks management action from the pager modal.
     pub(super) async fn handle_hooks_action(
         self: &Arc<Self>,
-        action: xvora_hooks_plugins_types::HooksAction,
-    ) -> xvora_hooks_plugins_types::ActionOutcome {
+        action: hooks_plugins_types::HooksAction,
+    ) -> hooks_plugins_types::ActionOutcome {
         use hooks_plugins_types::{ActionOutcome, HooksAction, OutcomeStatus};
 
         match action {
@@ -303,8 +303,8 @@ impl SessionActor {
     /// Handle a plugins management action from the pager modal.
     pub(super) async fn handle_plugins_action(
         self: &Arc<Self>,
-        action: xvora_hooks_plugins_types::PluginsAction,
-    ) -> xvora_hooks_plugins_types::ActionOutcome {
+        action: hooks_plugins_types::PluginsAction,
+    ) -> hooks_plugins_types::ActionOutcome {
         use hooks_plugins_types::{ActionOutcome, OutcomeStatus, PluginsAction};
 
         match action {
@@ -337,15 +337,15 @@ impl SessionActor {
                 }
                 let cwd = std::path::Path::new(&self.session_info.cwd);
                 let install_source =
-                    xvora_agent::plugins::git_install::parse_install_source(&source, cwd);
-                let registry = xvora_agent::plugins::InstallRegistry::load();
-                match xvora_agent::plugins::git_install::install_from_source(
+                    agent::plugins::git_install::parse_install_source(&source, cwd);
+                let registry = agent::plugins::InstallRegistry::load();
+                match agent::plugins::git_install::install_from_source(
                     &install_source,
                     &registry,
                     crate::plugin::marketplace_require_sha(),
                 ) {
                     Ok(result) => {
-                        let repo = xvora_agent::plugins::git_install::build_installed_repo(
+                        let repo = agent::plugins::git_install::build_installed_repo(
                             &result,
                             &install_source,
                         );
@@ -393,7 +393,7 @@ impl SessionActor {
                 }
                 // Extract plugin name from ID (last segment of "scope/hex8/name").
                 let plugin_name = plugin_id.rsplit('/').next().unwrap_or(&plugin_id);
-                let mut registry = xvora_agent::plugins::InstallRegistry::load();
+                let mut registry = agent::plugins::InstallRegistry::load();
                 match registry.find_plugin(plugin_name) {
                     None => ActionOutcome {
                         status: OutcomeStatus::NotFound,
@@ -422,7 +422,7 @@ impl SessionActor {
 
                         // Proceed with removal.
                         if let Err(e) =
-                            xvora_agent::plugins::git_install::remove_repo_path(&repo_path)
+                            agent::plugins::git_install::remove_repo_path(&repo_path)
                         {
                             tracing::warn!("Failed to remove repo path: {e}");
                         }
@@ -443,7 +443,7 @@ impl SessionActor {
                 }
             }
             PluginsAction::Update { plugin_id } => {
-                let registry = xvora_agent::plugins::InstallRegistry::load();
+                let registry = agent::plugins::InstallRegistry::load();
                 let all_repos = registry.list();
                 if all_repos.is_empty() {
                     return ActionOutcome {
@@ -456,7 +456,7 @@ impl SessionActor {
 
                 let repos_to_update: Vec<(
                     String,
-                    xvora_agent::plugins::install_registry::InstalledRepo,
+                    agent::plugins::install_registry::InstalledRepo,
                 )> = if let Some(ref id) = plugin_id {
                     let name = id.rsplit('/').next().unwrap_or(id);
                     match registry.find_plugin(name) {
@@ -480,13 +480,13 @@ impl SessionActor {
                 let mut messages = Vec::new();
                 let mut any_updated = false;
                 for (key, repo) in &repos_to_update {
-                    match xvora_agent::plugins::git_install::update_repo(
+                    match agent::plugins::git_install::update_repo(
                         key,
                         repo,
                         crate::plugin::marketplace_require_sha(),
                     ) {
                         Ok(status) => {
-                            use xvora_agent::plugins::git_install::UpdateStatus;
+                            use agent::plugins::git_install::UpdateStatus;
                             match status {
                                 UpdateStatus::Updated(result) => {
                                     if result.changed {
@@ -655,7 +655,7 @@ impl SessionActor {
     /// Reload hooks mid-session: re-discovers global and project hooks, re-evaluates project trust, and re-appends plugin-contributed hooks.
     /// `pub(super)` so the `SessionCommand::ReloadHooks` arm in `run_session` (parent module) can call it after an interactive folder-trust grant.
     pub(super) async fn reload_hooks_impl(self: &std::sync::Arc<Self>) -> String {
-        let git_root = xvora_workspace::session::git::find_git_root_from_path(
+        let git_root = workspace::session::git::find_git_root_from_path(
             std::path::Path::new(&self.session_info.cwd),
         )
         .ok();
@@ -678,7 +678,7 @@ impl SessionActor {
         if let Some(ref pr) = plugin_registry_snapshot {
             for plugin in pr.active_plugins() {
                 if let Some(ref hooks_path) = plugin.hooks_path {
-                    let (specs, warnings) = xvora_agent::plugins::hooks_adapter::parse_plugin_hooks(
+                    let (specs, warnings) = agent::plugins::hooks_adapter::parse_plugin_hooks(
                         hooks_path,
                         &plugin.name,
                         &plugin.root_str(),
@@ -691,7 +691,7 @@ impl SessionActor {
                 }
                 if let Some(ref inline_value) = plugin.inline_hooks {
                     let (specs, warnings) =
-                        xvora_agent::plugins::hooks_adapter::parse_plugin_hooks_from_value(
+                        agent::plugins::hooks_adapter::parse_plugin_hooks_from_value(
                             inline_value,
                             &plugin.name,
                             &plugin.root_str(),
@@ -739,13 +739,13 @@ impl SessionActor {
     /// Incidental toggles pass `false` for the cheap skip-unchanged path.
     pub(super) async fn reload_plugins_impl(
         self: &Arc<Self>,
-        handle: &xvora_agent::plugins::SharedPluginRegistryHandle,
+        handle: &agent::plugins::SharedPluginRegistryHandle,
         force: bool,
     ) -> String {
         let session_cwd = std::path::Path::new(&self.session_info.cwd);
 
         let sid = self.session_info.id.0.as_ref();
-        xvora_telemetry::unified_log::info("reload_plugins_impl: start", Some(sid), None);
+        telemetry::unified_log::info("reload_plugins_impl: start", Some(sid), None);
 
         // Folder-trust gates repo-local project plugins (hooks/MCP)
         // Resolve and record the verdict for this cwd before the plugins-config read below, whose project-paths merge reads the gate
@@ -765,7 +765,7 @@ impl SessionActor {
         let count = handle.reload(Some(session_cwd), &discovery_config, project_trusted, force);
         let discover_ms = t2.elapsed().as_millis();
 
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "reload_plugins_impl: discovery done",
             Some(sid),
             Some(serde_json::json!({
@@ -816,8 +816,8 @@ impl SessionActor {
     /// Re-merge this session's `_meta.pluginDirs` into a registry rebuilt by a process-wide fan-out (which knows nothing about per-session dirs).
     pub(crate) fn preserve_session_plugin_dirs(
         &self,
-        incoming: Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>>,
-    ) -> Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>> {
+        incoming: Option<std::sync::Arc<agent::plugins::PluginRegistry>>,
+    ) -> Option<std::sync::Arc<agent::plugins::PluginRegistry>> {
         let dirs = self.session_plugin_dirs();
         if dirs.is_empty() {
             return incoming;
@@ -839,7 +839,7 @@ impl SessionActor {
     /// Returns `(hooks_reloaded, mcp_changed, skill_count)`.
     pub(super) async fn apply_plugin_registry_snapshot(
         self: &Arc<Self>,
-        new_registry_snapshot: Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>>,
+        new_registry_snapshot: Option<std::sync::Arc<agent::plugins::PluginRegistry>>,
     ) -> (usize, bool, usize) {
         let sid = self.session_info.id.0.as_ref();
         let session_cwd = std::path::Path::new(&self.session_info.cwd);
@@ -854,7 +854,7 @@ impl SessionActor {
             for plugin in new_registry.active_plugins() {
                 // File-based hooks
                 if let Some(ref hooks_path) = plugin.hooks_path {
-                    let (specs, warnings) = xvora_agent::plugins::hooks_adapter::parse_plugin_hooks(
+                    let (specs, warnings) = agent::plugins::hooks_adapter::parse_plugin_hooks(
                         hooks_path,
                         &plugin.name,
                         &plugin.root_str(),
@@ -868,7 +868,7 @@ impl SessionActor {
                 // Inline hooks
                 if let Some(ref inline_value) = plugin.inline_hooks {
                     let (specs, warnings) =
-                        xvora_agent::plugins::hooks_adapter::parse_plugin_hooks_from_value(
+                        agent::plugins::hooks_adapter::parse_plugin_hooks_from_value(
                             inline_value,
                             &plugin.name,
                             &plugin.root_str(),
@@ -891,7 +891,7 @@ impl SessionActor {
                     // No registry yet: bootstrap config-layer and file hooks the way reload_hooks_impl does
                     // Starting from empty sources instead would let a plugin-first snapshot drop config hooks
                     let git_root =
-                        xvora_workspace::session::git::find_git_root_from_path(session_cwd).ok();
+                        workspace::session::git::find_git_root_from_path(session_cwd).ok();
                     let is_trusted =
                         crate::agent::folder_trust::resolve_and_record(session_cwd, None, false);
                     let (mut new_reg, _errs) = crate::util::hooks::discover_hooks(
@@ -905,7 +905,7 @@ impl SessionActor {
             }
         }
 
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "reload_plugins_impl: hooks done",
             Some(sid),
             Some(serde_json::json!({
@@ -937,7 +937,7 @@ impl SessionActor {
             if (!diff.added.is_empty() || !diff.removed.is_empty())
                 && let Some(tx) = &dispatch_event_tx
             {
-                let _ = tx.send(xvora_mcp::servers::McpClientEvent::ConfigDiff {
+                let _ = tx.send(mcp::servers::McpClientEvent::ConfigDiff {
                     added: diff.added.clone(),
                     removed: diff.removed.clone(),
                 });
@@ -965,7 +965,7 @@ impl SessionActor {
             false
         };
 
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "reload_plugins_impl: MCP done",
             Some(sid),
             Some(serde_json::json!({
@@ -977,7 +977,7 @@ impl SessionActor {
         // Refresh skills: re-scan from disk using the (already-updated) plugin registry.
         let t_skills = std::time::Instant::now();
         let skill_count = self.reload_skills_from_disk().await;
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "reload_plugins_impl: skills done",
             Some(sid),
             Some(serde_json::json!({
@@ -1022,7 +1022,7 @@ impl SessionActor {
                 .await;
         }
 
-        xvora_telemetry::unified_log::info(
+        telemetry::unified_log::info(
             "apply_plugin_registry_snapshot: complete",
             Some(sid),
             Some(serde_json::json!({

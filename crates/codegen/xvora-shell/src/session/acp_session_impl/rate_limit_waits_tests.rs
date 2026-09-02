@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use pretty_assertions::assert_eq;
-use xvora_sampler::{SamplingErrorInfo, SamplingErrorKind};
+use sampler::{SamplingErrorInfo, SamplingErrorKind};
 
-use xvora_telemetry::events::RateLimitWaitOutcome;
+use telemetry::events::RateLimitWaitOutcome;
 
 use super::{
     BudgetLimit, RateLimitWaitBudget, RateLimitWaitConfig, RateLimitWaitDecision,
@@ -58,7 +58,7 @@ async fn retry_after_hint_is_capped_and_jittered_like_any_other_wait() {
     };
 
     assert_eq!(attempt, 1);
-    let cap = xvora_sampler::MAX_RETRY_BACKOFF;
+    let cap = sampler::MAX_RETRY_BACKOFF;
     assert!(
         backoff >= cap.mul_f32(0.8) && backoff <= cap.mul_f32(1.2),
         "a 120s hint must be capped at {cap:?} and jittered, got {backoff:?}"
@@ -155,7 +155,7 @@ fn budget_limit_cause_strings_are_stable() {
 
 #[test]
 fn default_attempts_ladder_exhausts_exactly_at_the_budget() {
-    let cap_ms = xvora_sampler::MAX_RETRY_BACKOFF.as_millis() as u64;
+    let cap_ms = sampler::MAX_RETRY_BACKOFF.as_millis() as u64;
     // Mirrors `retry_backoff_with_jitter`'s pre-jitter base (2s doubling, capped); the 2s base is pinned by the sampler's own backoff test
     let ladder: Duration = (1..=RateLimitWaitConfig::DEFAULT_MAX_ATTEMPTS)
         .map(|attempt| {

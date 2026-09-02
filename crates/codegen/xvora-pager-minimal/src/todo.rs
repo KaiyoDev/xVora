@@ -11,7 +11,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use xvora_pager::theme::Theme;
-use xvora_shell::tools::TodoStatus;
+use shell::tools::TodoStatus;
 
 /// Default cap on visible todo rows (the last becomes a `+N more` overflow row); `Ctrl+T` expands past it.
 pub(super) const MAX_TODO_ROWS: u16 = 8;
@@ -144,7 +144,7 @@ fn truncate_chars(s: &str, max: usize) -> String {
 mod tests {
     use super::*;
     use xvora_pager::minimal_api;
-    use xvora_shell::tools::{TodoItem, TodoPriority};
+    use shell::tools::{TodoItem, TodoPriority};
 
     fn agent() -> xvora_pager::app::agent_view::AgentView {
         minimal_api::test_agent_view(Some("s1"), std::path::PathBuf::from("/tmp"))

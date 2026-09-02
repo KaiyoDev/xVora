@@ -16,9 +16,9 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use xvora_acp_lib::AcpResult;
-use xvora_markdown::StreamingMarkdownRenderer;
-pub use xvora_tools::implementations::grok_build::ask_user_question::{
+use acp_lib::AcpResult;
+use markdown::StreamingMarkdownRenderer;
+pub use tools::implementations::grok_build::ask_user_question::{
     AskUserQuestionMode, Question, QuestionOption,
 };
 
@@ -112,19 +112,19 @@ pub enum LocalQuestionKind {
     /// credits / PAYG) plus "Try Again". `choices` maps each option
     /// index to a telemetry choice variant.
     CreditLimitUpsell {
-        choices: Vec<xvora_telemetry::events::CreditLimitChoice>,
+        choices: Vec<telemetry::events::CreditLimitChoice>,
     },
     /// SuperGrok upsell modal: the free-usage paywall (429 with `subscription:free-usage-exhausted`) or a tier-restricted slash command invocation.
     /// Upgrade options carry their URL in the option `id`.
     FreeUsageUpsell {
         /// Telemetry source for `SuperGrokUpsellClicked`; distinguishes the paywall from the restricted-command upsell.
-        source: xvora_telemetry::events::SuperGrokUpsell,
+        source: telemetry::events::SuperGrokUpsell,
     },
     /// Modal shown when the shell rejects a model switch due to agent type incompatibility.
     /// Carries the target model and effort so the answer handler can create a new session with it.
     AgentTypeMismatch {
         model_id: agent_client_protocol::ModelId,
-        effort: Option<xvora_shell::sampling::types::ReasoningEffort>,
+        effort: Option<shell::sampling::types::ReasoningEffort>,
     },
     DoctorFix {
         target: crate::app::actions::DoctorFixTarget,
@@ -970,11 +970,11 @@ impl QuestionViewState {
     /// - Notes included when freeform text is non-empty and selected.
     pub fn build_accepted_response(
         &self,
-    ) -> xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse
+    ) -> tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse
     {
         use indexmap::IndexMap;
         use std::collections::HashMap;
-        use xvora_tools::implementations::grok_build::ask_user_question::{
+        use tools::implementations::grok_build::ask_user_question::{
             AskUserQuestionExtResponse, QuestionAnnotation,
         };
 
@@ -1052,7 +1052,7 @@ impl QuestionViewState {
     /// After sending, `response_tx` is consumed (set to `None`) to prevent double-send.
     pub fn send_ext_response(
         &mut self,
-        response: xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse,
+        response: tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse,
     ) -> bool {
         let Some(tx) = self.response_tx.take() else {
             return false;

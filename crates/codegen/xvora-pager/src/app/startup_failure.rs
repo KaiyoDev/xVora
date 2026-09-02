@@ -6,7 +6,7 @@ use std::fmt;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use xvora_telemetry::startup::{AgentKind, PhaseSnapshot, StartupOutcome, StartupPhase};
+use telemetry::startup::{AgentKind, PhaseSnapshot, StartupOutcome, StartupPhase};
 
 #[derive(Debug)]
 pub struct StartupFailure {

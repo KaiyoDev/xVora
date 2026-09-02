@@ -5,7 +5,7 @@
     /// It does not carry the session's chosen `xhigh` and must not clobber that per-session choice.
     #[test]
     fn models_update_preserves_user_reasoning_effort() {
-        use xvora_shell::sampling::types::ReasoningEffort;
+        use shell::sampling::types::ReasoningEffort;
         let mut app = make_app_with_agent("sess-1");
 
         let agent = app.agents.get_mut(&AgentId(0)).unwrap();
@@ -327,7 +327,7 @@
     /// The prompt header and status bar then show the right effort without waiting for a later `x.ai/models/update`.
     #[test]
     fn model_changed_applies_reasoning_effort_on_follower() {
-        use xvora_shell::sampling::types::ReasoningEffort;
+        use shell::sampling::types::ReasoningEffort;
         let mut app = make_app_with_agent("sess-1");
         let agent = app.agents.get_mut(&AgentId(0)).unwrap();
         seed_models(agent, "grok-3", &["grok-3", "grok-4"]);

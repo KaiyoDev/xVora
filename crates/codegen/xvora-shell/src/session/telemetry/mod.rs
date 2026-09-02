@@ -6,7 +6,7 @@ mod permission;
 pub(crate) use active_agent_message::*;
 pub(crate) use permission::*;
 
-use xvora_telemetry::events::SessionHarness;
+use telemetry::events::SessionHarness;
 
 /// `duration_ms`, `tool_count`, and `error_type` are status-specific; pass `None` when not applicable.
 pub(crate) fn emit_mcp_connection_span(
@@ -126,18 +126,18 @@ pub(crate) struct SessionHarnessMetrics {
     pub client_identifier: Option<String>,
     pub model_id: String,
     pub agent_name: String,
-    pub permission_mode: xvora_telemetry::enums::PermissionMode,
+    pub permission_mode: telemetry::enums::PermissionMode,
     pub mcp_server_names: Vec<String>,
     pub lsp_server_names: Vec<String>,
     pub memory_enabled: bool,
-    pub memory_retrieval_mode: xvora_telemetry::events::MemoryRetrievalMode,
+    pub memory_retrieval_mode: telemetry::events::MemoryRetrievalMode,
     pub auto_update: Option<bool>,
     pub cwd: String,
     /// Filled from the built agent's bridge so `into_event` doesn't re-walk the disk.
     pub skill_names: Vec<String>,
     /// Resolved vendor-compat config, so recorded AGENTS.md names match what the session actually discovers.
-    pub compat: xvora_tools::types::compat::CompatConfig,
-    pub plugin_registry: Option<std::sync::Arc<xvora_agent::plugins::PluginRegistry>>,
+    pub compat: tools::types::compat::CompatConfig,
+    pub plugin_registry: Option<std::sync::Arc<agent::plugins::PluginRegistry>>,
     pub plugin_names: Vec<String>,
 }
 
@@ -175,7 +175,7 @@ impl SessionHarnessMetrics {
         let hook_names: Vec<String> = hooks.into_iter().map(|h| h.name).collect();
 
         let agents_md_dir_names =
-            xvora_agent::prompt::agents_md::read_agents_config_with_paths(&self.cwd, self.compat)
+            agent::prompt::agents_md::read_agents_config_with_paths(&self.cwd, self.compat)
                 .await
                 .iter()
                 .filter_map(|f| {
@@ -200,7 +200,7 @@ impl SessionHarnessMetrics {
             memory_enabled: self.memory_enabled,
             memory_retrieval_mode: self.memory_retrieval_mode,
             // Same signal `SessionNew` carries; recomputed here because this event is built off-thread, after spawn (cheap: repo discovery)
-            is_git_repo: xvora_telemetry::context::collect_git_context(&self.cwd).is_git_repo,
+            is_git_repo: telemetry::context::collect_git_context(&self.cwd).is_git_repo,
             auto_update: self.auto_update,
         }
     }

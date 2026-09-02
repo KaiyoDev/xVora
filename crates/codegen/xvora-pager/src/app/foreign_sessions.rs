@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 use tokio::sync::Semaphore;
-use xvora_foreign_sessions::{
+use foreign_sessions::{
     EnabledForeignSessionSources, ForeignSessionSummary, ForeignSessionTool, RecentForeignSession,
 };
 
@@ -521,7 +521,7 @@ mod tests {
     use std::cell::RefCell;
     use std::time::{Duration, UNIX_EPOCH};
 
-    use xvora_foreign_sessions::ForeignSessionSource;
+    use foreign_sessions::ForeignSessionSource;
 
     use super::*;
 

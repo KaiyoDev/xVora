@@ -324,7 +324,7 @@ impl JsonlStorageAdapter {
         }
 
         if options.strip_reasoning {
-            chat_to_copy = xvora_chat_state::compaction_utils::strip_reasoning_blocks(chat_to_copy);
+            chat_to_copy = chat_state::compaction_utils::strip_reasoning_blocks(chat_to_copy);
         }
 
         let num_chat_messages = chat_to_copy.len();
@@ -459,12 +459,12 @@ impl JsonlStorageAdapter {
         let compaction_segments_copied = if options.copy_compaction_segments {
             let src_dir = self
                 .session_dir(source_info)
-                .join(xvora_compaction_transcript::COMPACTION_DIR);
+                .join(compaction_transcript::COMPACTION_DIR);
             let mut copied = 0usize;
             if src_dir.is_dir() {
                 let dst_dir = self
                     .session_dir(target_info)
-                    .join(xvora_compaction_transcript::COMPACTION_DIR);
+                    .join(compaction_transcript::COMPACTION_DIR);
                 std::fs::create_dir_all(&dst_dir)?;
                 for entry in std::fs::read_dir(&src_dir)? {
                     let entry = entry?;

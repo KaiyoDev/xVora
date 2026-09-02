@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use portable_pty::{ExitStatus, PtySize, native_pty_system};
-use xvora_test_support::{TestProcessTree, TestSandbox, process_has_exited_without_reap};
+use test_support::{TestProcessTree, TestSandbox, process_has_exited_without_reap};
 
 const PTY_DROP_REAP_TIMEOUT: Duration = Duration::from_millis(250);
 /// How long Drop waits after the graceful group SIGTERM before escalating to
@@ -845,13 +845,13 @@ mod tests {
         // bare `cargo` as a container's pid 1 never does). The harness's
         // contract is that the grandchild stops *running*.
         let deadline = std::time::Instant::now() + Duration::from_secs(3);
-        while !xvora_tty_utils::process_not_running(grandchild_pid)
+        while !tty_utils::process_not_running(grandchild_pid)
             && std::time::Instant::now() < deadline
         {
             std::thread::sleep(Duration::from_millis(10));
         }
         assert!(
-            xvora_tty_utils::process_not_running(grandchild_pid),
+            tty_utils::process_not_running(grandchild_pid),
             "PTY grandchild leaked after controller Drop"
         );
     }

@@ -13,7 +13,7 @@
 //! The user wrote the modifier form because they wanted the shell's interpretation, so the runtime `sh -c` branch resolves it.
 //! [`crate::runner::command::find_unresolved_env_vars`] mirrors the modifier-skip behaviour, keeping the two layers in sync.
 //!
-//! The engine is `shellexpand::env_with_context_no_errors`, shared with `xvora_config::expand_env_vars_in_string`.
+//! The engine is `shellexpand::env_with_context_no_errors`, shared with `config::expand_env_vars_in_string`.
 //! This version adds the per-hook `extra` map and the modifier-form preservation.
 //!
 //! ## Asymmetry between `command` and `url`

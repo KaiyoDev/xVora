@@ -3,7 +3,7 @@
 //!   cargo test -p xvora-shell --features dhat-heap \
 //!     leader_session_lifecycle_heap_steady_state -- --ignored --nocapture
 use super::*;
-use xvora_workspace::permission::PermissionEvent;
+use workspace::permission::PermissionEvent;
 
 // Chosen between a healthy build (about zero retained allocations per session) and the smallest deliberately introduced leak (one per session)
 // Re-tune if healthy runs drift toward the limits
@@ -21,12 +21,12 @@ fn populate_and_evict(agent: &MvpAgent, i: usize) {
         let ops = agent.workspace_ops.borrow();
         let ops = ops.as_ref().expect("test installs workspace ops");
         let toolset = std::sync::Arc::new(
-            xvora_tools::registry::types::FinalizedToolset::empty_for_test(),
+            tools::registry::types::FinalizedToolset::empty_for_test(),
         );
         ops.bind_local_session(
             sid.0.as_ref(),
             std::env::temp_dir(),
-            xvora_hunk_tracker::HunkTrackerHandle::noop(),
+            hunk_tracker::HunkTrackerHandle::noop(),
             toolset,
             None,
         )
@@ -63,7 +63,7 @@ async fn quiesce() {
 fn leader_session_lifecycle_heap_steady_state() {
     run_local_for_bridge_test(|| async {
         let agent = build_minimal_agent_for_tests();
-        *agent.workspace_ops.borrow_mut() = Some(xvora_workspace::WorkspaceOps::for_test());
+        *agent.workspace_ops.borrow_mut() = Some(workspace::WorkspaceOps::for_test());
         let _profiler = dhat::Profiler::builder().testing().build();
 
         const WARMUP: usize = 16;

@@ -1417,8 +1417,8 @@ fn make_hyperlink(
     cols: std::ops::Range<usize>,
     url: &str,
     id: u32,
-) -> xvora_markdown::HyperlinkTarget {
-    xvora_markdown::HyperlinkTarget {
+) -> markdown::HyperlinkTarget {
+    markdown::HyperlinkTarget {
         line_index: line,
         column_range: cols,
         url: url.to_string(),
@@ -1674,7 +1674,7 @@ fn overlay_partial_column_overlap() {
 #[test]
 fn overlay_empty_hyperlinks_produces_nothing() {
     let output = make_block_output(&[("text", None)]);
-    let links: &[xvora_markdown::HyperlinkTarget] = &[];
+    let links: &[markdown::HyperlinkTarget] = &[];
     let mut overlay = LinkOverlay::new();
     map_hyperlinks_to_overlay(links, &output, 0, 0, 10, 0, 0, &[], None, &mut overlay);
 

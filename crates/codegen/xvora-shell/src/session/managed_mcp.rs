@@ -11,10 +11,10 @@
 //!                      vendor `mcps` kill switch, which matches by normalized
 //!                      URL; see `admit_client_mcp_servers`)
 //!
-//! The gateway catalog/call core lives in `xvora_shell_session_support::managed_mcp`.
+//! The gateway catalog/call core lives in `shell_session_support::managed_mcp`.
 //! It is re-exported here so `crate::session::managed_mcp::…` paths keep resolving unchanged.
 
-pub use xvora_shell_session_support::managed_mcp::*;
+pub use shell_session_support::managed_mcp::*;
 
 use std::collections::HashMap;
 
@@ -51,8 +51,8 @@ fn mcp_merge_key(s: &acp::McpServer) -> String {
 pub(crate) fn merge_managed_mcp_servers(
     client_mcp_servers: Vec<acp::McpServer>,
     cwd: &std::path::Path,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
+    compat: &tools::types::compat::CompatConfig,
 ) -> Vec<acp::McpServer> {
     merge_managed_mcp_servers_with_policy(client_mcp_servers, cwd, plugin_registry, compat)
         .into_iter()
@@ -70,8 +70,8 @@ pub(crate) fn merge_and_send_managed_mcp_update(
     cmd_tx: &tokio::sync::mpsc::UnboundedSender<crate::session::SessionCommand>,
     cwd: &std::path::Path,
     initial_client_mcp_servers: Vec<acp::McpServer>,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
+    compat: &tools::types::compat::CompatConfig,
 ) -> bool {
     let merged =
         merge_managed_mcp_servers(initial_client_mcp_servers, cwd, plugin_registry, compat);
@@ -92,7 +92,7 @@ pub(crate) fn merge_and_send_managed_mcp_update(
 pub(crate) fn admit_client_mcp_servers(
     client_mcp_servers: Vec<acp::McpServer>,
     cwd: &std::path::Path,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    compat: &tools::types::compat::CompatConfig,
 ) -> Vec<acp::McpServer> {
     let mut blocked: std::collections::HashSet<String> = std::collections::HashSet::new();
     if !compat.cursor.mcps {
@@ -124,8 +124,8 @@ pub(crate) fn admit_client_mcp_servers(
 pub(crate) fn merge_managed_mcp_servers_with_policy(
     client_mcp_servers: Vec<acp::McpServer>,
     cwd: &std::path::Path,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
+    compat: &tools::types::compat::CompatConfig,
 ) -> Vec<McpServerWithPolicy> {
     let mut servers: HashMap<String, acp::McpServer> =
         merge_managed_mcp_servers_sourced(cwd, plugin_registry, compat)
@@ -146,7 +146,7 @@ pub(crate) fn merge_managed_mcp_servers_with_policy(
     merged.sort_by(|a, b| mcp_server_name(a).cmp(mcp_server_name(b)));
     // Drop an untrusted workspace's repo-local (project-scoped) servers before the managed-settings policy runs on the survivors
     let merged = crate::agent::folder_trust::filter_untrusted_project_mcp(cwd, merged);
-    let allowlist = &xvora_workspace::permission::resolution::managed_settings().mcp_allowlist;
+    let allowlist = &workspace::permission::resolution::managed_settings().mcp_allowlist;
     apply_mcp_server_policy(merged, &disabled, allowlist)
 }
 
@@ -171,7 +171,7 @@ impl std::fmt::Display for McpDisabledReason {
 
 impl McpDisabledReason {
     pub(crate) fn for_blocked_server(
-        policy: &xvora_workspace::permission::resolution::McpServerAllowlist,
+        policy: &workspace::permission::resolution::McpServerAllowlist,
         server: &acp::McpServer,
     ) -> Self {
         let source = policy.source_path.clone().unwrap_or_default();
@@ -195,7 +195,7 @@ pub(crate) struct McpServerWithPolicy {
 fn apply_mcp_server_policy(
     merged: Vec<acp::McpServer>,
     disabled: &std::collections::HashSet<String>,
-    allowlist: &xvora_workspace::permission::resolution::McpServerAllowlist,
+    allowlist: &workspace::permission::resolution::McpServerAllowlist,
 ) -> Vec<McpServerWithPolicy> {
     merged
         .into_iter()
@@ -226,19 +226,19 @@ fn apply_mcp_server_policy(
 /// Like [`merge_managed_mcp_servers`] but returns `ConfigSource` alongside each server.
 pub(crate) fn merge_managed_mcp_servers_sourced(
     cwd: &std::path::Path,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
+    compat: &tools::types::compat::CompatConfig,
 ) -> Vec<(
     acp::McpServer,
-    xvora_tools::types::config_source::ConfigSource,
+    tools::types::config_source::ConfigSource,
 )> {
     let _mcp_merge_timer = crate::instrumentation::timer("mcp_merge_managed");
-    use xvora_tools::types::config_source::ConfigSource;
+    use tools::types::config_source::ConfigSource;
 
     let toml_claimed_names = crate::util::config::all_toml_mcp_server_names(cwd);
 
     let config_source = ConfigSource::ConfigToml {
-        path: xvora_tools::util::grok_home::grok_home().join("config.toml"),
+        path: tools::util::grok_home::grok_home().join("config.toml"),
     };
 
     // Use the TOML-only loader so that entries from imported editor configs and .mcp.json are not pre-loaded with ConfigSource::ConfigToml
@@ -271,14 +271,14 @@ pub(crate) fn merge_managed_mcp_servers_sourced(
 /// TOML is applied separately (last-wins for merge and for discovery force-enable).
 fn non_toml_mcp_servers_with_source(
     cwd: &std::path::Path,
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
-    compat: &xvora_tools::types::compat::CompatConfig,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
+    compat: &tools::types::compat::CompatConfig,
     toml_claimed_names: &std::collections::HashSet<String>,
 ) -> Vec<(
     acp::McpServer,
-    xvora_tools::types::config_source::ConfigSource,
+    tools::types::config_source::ConfigSource,
 )> {
-    use xvora_tools::types::config_source::ConfigSource;
+    use tools::types::config_source::ConfigSource;
 
     let mut out = Vec::new();
 
@@ -323,7 +323,7 @@ fn non_toml_mcp_servers_with_source(
     }
 
     let claude_json_source = ConfigSource::ClaudeJson {
-        path: xvora_dirs::home_dir()
+        path: dirs::home_dir()
             .map(|h| h.join(".claude.json"))
             .unwrap_or_default(),
     };
@@ -335,7 +335,7 @@ fn non_toml_mcp_servers_with_source(
     }
 
     let cursor_mcp_source = ConfigSource::McpJson {
-        path: xvora_dirs::home_dir()
+        path: dirs::home_dir()
             .map(|h| h.join(".cursor").join("mcp.json"))
             .unwrap_or_default(),
     };
@@ -363,8 +363,8 @@ fn non_toml_mcp_servers_with_source(
 #[derive(Clone, Copy)]
 pub(crate) struct McpDiscoveryInputs<'a> {
     pub cwd: &'a std::path::Path,
-    pub plugin_registry: Option<&'a xvora_agent::plugins::PluginRegistry>,
-    pub compat: &'a xvora_tools::types::compat::CompatConfig,
+    pub plugin_registry: Option<&'a agent::plugins::PluginRegistry>,
+    pub compat: &'a tools::types::compat::CompatConfig,
 }
 
 /// Definitions that would exist if personal disable were cleared.
@@ -433,7 +433,7 @@ fn load_plugin_mcp_servers_from_value(
     plugin_root: &str,
     plugin_data: &str,
 ) -> (Vec<acp::McpServer>, crate::util::config::McpOAuthConfigMap) {
-    let normalized = xvora_agent::plugins::manifest::normalize_inline_mcp_servers(root);
+    let normalized = agent::plugins::manifest::normalize_inline_mcp_servers(root);
     let Ok(config) = serde_json::from_value::<crate::util::config::McpConfig>(normalized) else {
         tracing::warn!(plugin = plugin_name, "failed to parse plugin MCP config");
         return (vec![], crate::util::config::McpOAuthConfigMap::new());
@@ -448,7 +448,7 @@ fn load_plugin_mcp_servers_from_config(
     plugin_data: &str,
 ) -> (Vec<acp::McpServer>, crate::util::config::McpOAuthConfigMap) {
     let sub = |s: &str| -> String {
-        let s = xvora_agent::plugins::manifest::substitute_env_vars(s, plugin_root, plugin_data);
+        let s = agent::plugins::manifest::substitute_env_vars(s, plugin_root, plugin_data);
         crate::config::expand_env_vars_in_string(&s)
     };
     let label = format!("plugin:{}", plugin_name);
@@ -456,7 +456,7 @@ fn load_plugin_mcp_servers_from_config(
 }
 
 pub(crate) fn collect_plugin_oauth_configs(
-    plugin_registry: Option<&xvora_agent::plugins::PluginRegistry>,
+    plugin_registry: Option<&agent::plugins::PluginRegistry>,
 ) -> crate::util::config::McpOAuthConfigMap {
     let mut oauth_configs = crate::util::config::McpOAuthConfigMap::new();
     let Some(registry) = plugin_registry else {
@@ -526,7 +526,7 @@ mod tests {
             .headers(vec![]),
         )];
         let cwd = empty_cwd();
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let merged = merge_managed_mcp_servers(client, cwd.path(), None, &compat);
         assert!(
             merged.iter().any(|s| matches!(
@@ -555,7 +555,7 @@ mod tests {
     fn client_cursor_server_dropped_when_cursor_mcps_disabled() {
         let cwd = empty_cwd();
         write_cursor_project_mcp(cwd.path(), "killswitch-cache");
-        let mut compat = xvora_tools::types::compat::CompatConfig::default();
+        let mut compat = tools::types::compat::CompatConfig::default();
         compat.cursor.mcps = false;
         let merged = merge_managed_mcp_servers(
             vec![client_stdio("killswitch-cache")],
@@ -575,7 +575,7 @@ mod tests {
     fn client_cursor_server_kept_when_cursor_mcps_enabled() {
         let cwd = empty_cwd();
         write_cursor_project_mcp(cwd.path(), "killswitch-cache");
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let merged = merge_managed_mcp_servers(
             vec![client_stdio("killswitch-cache")],
             cwd.path(),
@@ -594,7 +594,7 @@ mod tests {
     fn unrelated_client_server_survives_when_cursor_mcps_disabled() {
         let cwd = empty_cwd();
         write_cursor_project_mcp(cwd.path(), "killswitch-cache");
-        let mut compat = xvora_tools::types::compat::CompatConfig::default();
+        let mut compat = tools::types::compat::CompatConfig::default();
         compat.cursor.mcps = false;
         let merged = merge_managed_mcp_servers(
             vec![
@@ -635,7 +635,7 @@ args = ["ok"]
         .unwrap();
         git2::Repository::init(cwd.path()).unwrap();
 
-        let mut compat = xvora_tools::types::compat::CompatConfig::default();
+        let mut compat = tools::types::compat::CompatConfig::default();
         compat.cursor.mcps = false;
         let merged = merge_managed_mcp_servers(
             vec![client_stdio("killswitch-cache")],
@@ -661,7 +661,7 @@ args = ["ok"]
     fn admitted_seed_stays_blocked_after_vendor_disk_vanishes() {
         let cwd = empty_cwd();
         write_cursor_project_mcp(cwd.path(), "killswitch-cache");
-        let mut compat = xvora_tools::types::compat::CompatConfig::default();
+        let mut compat = tools::types::compat::CompatConfig::default();
         compat.cursor.mcps = false;
 
         let admitted =
@@ -694,7 +694,7 @@ args = ["ok"]
             r#"{"mcpServers": {"disk-name": {"url": "https://killswitch.example.test/mcp/"}}}"#,
         )
         .unwrap();
-        let mut compat = xvora_tools::types::compat::CompatConfig::default();
+        let mut compat = tools::types::compat::CompatConfig::default();
         compat.cursor.mcps = false;
 
         let matching = acp::McpServer::Http(
@@ -731,7 +731,7 @@ args = ["ok"]
     /// So we exercise the extracted `apply_mcp_server_policy` directly, with an injected allowlist built via the public `McpServerAllowlist::new`.
     #[test]
     fn merge_drops_denied_server_and_classifies_as_denylist() {
-        use xvora_workspace::permission::resolution::{AllowedMcpServer, McpServerAllowlist};
+        use workspace::permission::resolution::{AllowedMcpServer, McpServerAllowlist};
 
         // Deny-only policy (no allowlist) blocking one host.
         let allowlist = McpServerAllowlist::new(
@@ -794,7 +794,7 @@ args = ["ok"]
     /// The match is exact: a name that merely contains the denied name is not denied.
     #[test]
     fn merge_drops_server_denied_by_name_including_managed_prefix() {
-        use xvora_workspace::permission::resolution::{AllowedMcpServer, McpServerAllowlist};
+        use workspace::permission::resolution::{AllowedMcpServer, McpServerAllowlist};
 
         let allowlist = McpServerAllowlist::new(
             vec![],
@@ -852,7 +852,7 @@ args = ["ok"]
 
     #[test]
     fn policy_server_name_matches_legacy_grok_com_runtime_spelling() {
-        use xvora_workspace::permission::resolution::{AllowedMcpServer, McpServerAllowlist};
+        use workspace::permission::resolution::{AllowedMcpServer, McpServerAllowlist};
 
         let managed_server = |runtime: &str| {
             vec![acp::McpServer::Http(
@@ -924,7 +924,7 @@ enabled = false
         )
         .unwrap();
 
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let merged = merge_managed_mcp_servers(vec![], cwd.path(), None, &compat);
         assert!(
             !merged.iter().any(|server| matches!(
@@ -966,7 +966,7 @@ Authorization = "Bearer org2-token"
     #[test]
     fn same_url_different_names_both_survive_merge() {
         let cwd = same_url_project_repo();
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let merged = merge_managed_mcp_servers(vec![], cwd.path(), None, &compat);
 
         let auth_header = |name: &str| -> &str {
@@ -990,10 +990,10 @@ Authorization = "Bearer org2-token"
 
     #[test]
     fn same_url_different_names_both_sourced_from_toml() {
-        use xvora_tools::types::config_source::ConfigSource;
+        use tools::types::config_source::ConfigSource;
 
         let cwd = same_url_project_repo();
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let sourced = merge_managed_mcp_servers_sourced(cwd.path(), None, &compat);
 
         for name in ["gb5207-org1", "gb5207-org2"] {
@@ -1022,7 +1022,7 @@ Authorization = "Bearer org2-token"
             .unwrap();
             cwd
         }
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
 
         let untrusted = repo_with_project_server();
         crate::agent::folder_trust::record_for_test(untrusted.path(), false);
@@ -1138,10 +1138,10 @@ Authorization = "Bearer org2-token"
 
     #[test]
     fn plugin_server_deduped_across_file_and_inline() {
-        use xvora_agent::plugins::PluginRegistry;
-        use xvora_agent::plugins::PluginScope;
-        use xvora_agent::plugins::discovery::{DiscoveredPlugin, PluginId};
-        use xvora_agent::plugins::manifest::{PathOrInline, PluginManifest};
+        use agent::plugins::PluginRegistry;
+        use agent::plugins::PluginScope;
+        use agent::plugins::discovery::{DiscoveredPlugin, PluginId};
+        use agent::plugins::manifest::{PathOrInline, PluginManifest};
 
         let tmp = tempfile::tempdir().unwrap();
         let plugin_root = tmp.path().join("sentry");
@@ -1178,7 +1178,7 @@ Authorization = "Bearer org2-token"
             root: plugin_root.clone(),
             canonical_root: plugin_root.clone(),
             scope: PluginScope::User,
-            origin: xvora_agent::plugins::PluginOrigin::UserGrok,
+            origin: agent::plugins::PluginOrigin::UserGrok,
             trusted: true,
             skill_dirs: vec![],
             command_dirs: vec![],
@@ -1191,7 +1191,7 @@ Authorization = "Bearer org2-token"
         let registry = PluginRegistry::from_discovered(vec![dp], &[], &["sentry".to_string()]);
 
         let cwd = tempfile::tempdir().unwrap();
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let sourced = merge_managed_mcp_servers_sourced(cwd.path(), Some(&registry), &compat);
 
         let sentry_count = sourced
@@ -1206,10 +1206,10 @@ Authorization = "Bearer org2-token"
 
     #[test]
     fn plugin_same_name_different_url_keeps_file_server() {
-        use xvora_agent::plugins::PluginRegistry;
-        use xvora_agent::plugins::PluginScope;
-        use xvora_agent::plugins::discovery::{DiscoveredPlugin, PluginId};
-        use xvora_agent::plugins::manifest::{PathOrInline, PluginManifest};
+        use agent::plugins::PluginRegistry;
+        use agent::plugins::PluginScope;
+        use agent::plugins::discovery::{DiscoveredPlugin, PluginId};
+        use agent::plugins::manifest::{PathOrInline, PluginManifest};
 
         let tmp = tempfile::tempdir().unwrap();
         let plugin_root = tmp.path().join("sentry");
@@ -1246,7 +1246,7 @@ Authorization = "Bearer org2-token"
             root: plugin_root.clone(),
             canonical_root: plugin_root.clone(),
             scope: PluginScope::User,
-            origin: xvora_agent::plugins::PluginOrigin::UserGrok,
+            origin: agent::plugins::PluginOrigin::UserGrok,
             trusted: true,
             skill_dirs: vec![],
             command_dirs: vec![],
@@ -1259,7 +1259,7 @@ Authorization = "Bearer org2-token"
         let registry = PluginRegistry::from_discovered(vec![dp], &[], &["sentry".to_string()]);
 
         let cwd = tempfile::tempdir().unwrap();
-        let compat = xvora_tools::types::compat::CompatConfig::default();
+        let compat = tools::types::compat::CompatConfig::default();
         let sourced = merge_managed_mcp_servers_sourced(cwd.path(), Some(&registry), &compat);
 
         let sentry: Vec<&acp::McpServer> = sourced
@@ -1282,10 +1282,10 @@ Authorization = "Bearer org2-token"
 
     #[test]
     fn collect_plugin_oauth_configs_reads_byo_client_id_from_mcp_json() {
-        use xvora_agent::plugins::PluginRegistry;
-        use xvora_agent::plugins::PluginScope;
-        use xvora_agent::plugins::discovery::{DiscoveredPlugin, PluginId};
-        use xvora_agent::plugins::manifest::PluginManifest;
+        use agent::plugins::PluginRegistry;
+        use agent::plugins::PluginScope;
+        use agent::plugins::discovery::{DiscoveredPlugin, PluginId};
+        use agent::plugins::manifest::PluginManifest;
 
         let tmp = tempfile::tempdir().unwrap();
         let plugin_root = tmp.path().join("slack");
@@ -1320,7 +1320,7 @@ Authorization = "Bearer org2-token"
             root: plugin_root.clone(),
             canonical_root: plugin_root.clone(),
             scope: PluginScope::User,
-            origin: xvora_agent::plugins::PluginOrigin::UserGrok,
+            origin: agent::plugins::PluginOrigin::UserGrok,
             trusted: true,
             skill_dirs: vec![],
             command_dirs: vec![],

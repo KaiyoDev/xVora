@@ -9,7 +9,7 @@ use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
-use xvora_test_support::{MockInferenceServer, MockModelEntry};
+use test_support::{MockInferenceServer, MockModelEntry};
 
 /// The token the mock server accepts and the refresher mints on success.
 const FRESH_TOKEN: &str = "refreshed-test-token";
@@ -66,17 +66,17 @@ fn expired_auth_manager(
 type XaiUpdates = Arc<parking_lot::Mutex<Vec<serde_json::Value>>>;
 
 fn drain_gateway(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> XaiUpdates {
     let captured = XaiUpdates::default();
     let sink = captured.clone();
     tokio::task::spawn_local(async move {
         while let Some(msg) = rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                xvora_acp_lib::AcpClientMessage::ExtNotification(args) => {
+                acp_lib::AcpClientMessage::ExtNotification(args) => {
                     if let Ok(value) = serde_json::from_str(args.params.get()) {
                         sink.lock().push(value);
                     }
@@ -108,20 +108,20 @@ async fn session_token_actor(
     server: &MockInferenceServer,
     auth_manager: Arc<AuthManager>,
 ) -> (Arc<SessionActor>, XaiUpdates) {
-    let sampling_cfg = xvora_sampler::SamplerConfig {
+    let sampling_cfg = sampler::SamplerConfig {
         base_url: server.url(),
         model: "test".to_string(),
-        api_backend: xvora_sampler::ApiBackend::Responses,
+        api_backend: sampler::ApiBackend::Responses,
         context_window: 256_000,
         max_retries: Some(0),
         idle_timeout_secs: Some(30),
         ..Default::default()
     };
     let (sampler_event_tx, sampler_event_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_sampler::SamplingEvent>();
-    let sampler_handle = xvora_sampler::SamplerActor::spawn(
+        tokio::sync::mpsc::unbounded_channel::<sampler::SamplingEvent>();
+    let sampler_handle = sampler::SamplerActor::spawn(
         sampling_cfg,
-        xvora_sampler::RetryPolicy {
+        sampler::RetryPolicy {
             max_retries: 0,
             rate_limit_retry_threshold: 0,
             ..Default::default()
@@ -150,7 +150,7 @@ async fn session_token_actor(
     actor.chat_state_handle.update_sampling_config(cfg);
     let mut creds = actor.chat_state_handle.get_credentials().await;
     creds.api_key = None;
-    creds.auth_type = xvora_chat_state::AuthType::SessionToken;
+    creds.auth_type = chat_state::AuthType::SessionToken;
     actor.chat_state_handle.update_credentials(creds);
 
     // Definite NotByok: the session-token gate must stay active against the loopback mock URL (an `Unknown` would demand a first-party host)

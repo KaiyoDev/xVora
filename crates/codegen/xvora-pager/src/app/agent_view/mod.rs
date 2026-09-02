@@ -307,7 +307,7 @@ impl PrivacyBannerState {
 pub struct BannerSlotParams<'a> {
     /// Reserved slot height (0 = no slot this frame).
     pub(crate) height: u16,
-    pub(crate) announcements: &'a [xvora_announcements::RemoteAnnouncement],
+    pub(crate) announcements: &'a [announcements::RemoteAnnouncement],
     pub(crate) hidden_ids: &'a std::collections::BTreeSet<String>,
     /// Privacy upsell banner owns the slot (highest banner precedence
     /// below critical announcements; gated by the caller).
@@ -647,7 +647,7 @@ pub(crate) struct PendingForkBanner {
 /// A finish held until its spawn arrives. Output is stripped at insert.
 #[derive(Debug, Clone)]
 pub(crate) struct DeferredSubagentFinish {
-    pub notification: xvora_shell::extensions::notification::SessionNotification,
+    pub notification: shell::extensions::notification::SessionNotification,
     pub inserted_at: std::time::Instant,
 }
 /// In-flight reconnect session reload.
@@ -755,7 +755,7 @@ impl CtaPhase {
 pub struct PluginCtaState {
     /// Not-installed candidate plugins for CTA matching, from the CTA source
     /// (xAI Official, or the configured `plugin_cta_marketplace` override).
-    pub candidates: Vec<xvora_hooks_plugins_types::MarketplacePluginEntry>,
+    pub candidates: Vec<hooks_plugins_types::MarketplacePluginEntry>,
     /// URL/path of the CTA source the candidates came from: the install
     /// target (the shell resolves marketplace sources by URL/path identity).
     /// `None` means no CTA source (official by default, the
@@ -991,8 +991,8 @@ pub struct AgentView {
     /// Currently hovered modal button key (for highlight).
     pub(crate) modal_hovered_key: Option<char>,
     /// Cached server-reported context state.
-    pub context_state: Option<xvora_shell::session::ContextInfo>,
-    pub status_context: Option<xvora_status_line::StatusLineContext>,
+    pub context_state: Option<shell::session::ContextInfo>,
+    pub status_context: Option<status_line::StatusLineContext>,
     /// Held across a frame that clamps the row away, so a script keeps the size
     /// it last painted at.
     pub last_status_line_size: Option<crate::views::status_line::RowSize>,
@@ -1406,8 +1406,8 @@ pub struct AgentView {
     pub(crate) question_view: Option<QuestionViewState>,
     pub(crate) elicitation_view: Option<ElicitationViewState>,
     pub(crate) pending_elicitation: Option<(
-        xvora_tools::mcp_elicitation::McpElicitExtRequest,
-        tokio::sync::oneshot::Sender<xvora_acp_lib::AcpResult<agent_client_protocol::ExtResponse>>,
+        tools::mcp_elicitation::McpElicitExtRequest,
+        tokio::sync::oneshot::Sender<acp_lib::AcpResult<agent_client_protocol::ExtResponse>>,
     )>,
     pub(crate) elicit_hits: Vec<(
         crate::views::elicitation_view::ElicitHit,
@@ -1446,7 +1446,7 @@ pub struct AgentView {
     /// session does not exist yet, so the mode can't be sent immediately).
     /// Consumed in the `SessionCreated` / `WorktreeSessionCreated` handlers,
     /// mirroring `AgentSession.deferred_model_switch`.
-    pub(crate) deferred_session_mode: Option<xvora_tools::types::SessionMode>,
+    pub(crate) deferred_session_mode: Option<tools::types::SessionMode>,
     pub(crate) pending_extensions_fetch: bool,
     /// Whether this view was last rendered inside the dashboard's session
     /// overlay. Updated every frame by `draw`; read when building the
@@ -1892,10 +1892,10 @@ fn translate_local_submit(
             let option = qv.questions.first().and_then(|q| q.options.get(*idx));
             let id = option.and_then(|o| o.id.as_deref());
             if id == Some(super::dispatch::CREDIT_LIMIT_RETRY_OPTION_ID) {
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::CreditLimitUpsellClicked {
-                        surface: xvora_telemetry::events::CreditLimitUpsellSurface::QuestionModal,
-                        choice: xvora_telemetry::events::CreditLimitChoice::RetryLastPrompt,
+                telemetry::session_ctx::log_event(
+                    telemetry::events::CreditLimitUpsellClicked {
+                        surface: telemetry::events::CreditLimitUpsellSurface::QuestionModal,
+                        choice: telemetry::events::CreditLimitChoice::RetryLastPrompt,
                     },
                 );
                 return InputOutcome::Action(Action::RetryCreditLimitPrompt);
@@ -1904,10 +1904,10 @@ fn translate_local_submit(
             let choice = choices
                 .get(*idx)
                 .copied()
-                .unwrap_or(xvora_telemetry::events::CreditLimitChoice::PayAsYouGo);
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::CreditLimitUpsellClicked {
-                    surface: xvora_telemetry::events::CreditLimitUpsellSurface::QuestionModal,
+                .unwrap_or(telemetry::events::CreditLimitChoice::PayAsYouGo);
+            telemetry::session_ctx::log_event(
+                telemetry::events::CreditLimitUpsellClicked {
+                    surface: telemetry::events::CreditLimitUpsellSurface::QuestionModal,
                     choice,
                 },
             );
@@ -1920,8 +1920,8 @@ fn translate_local_submit(
                 .and_then(|q| q.options.get(*idx))
                 .and_then(|o| o.id.as_deref())
                 .unwrap_or(super::dispatch::UPSELL_URL_UPGRADE);
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::SuperGrokUpsellClicked {
+            telemetry::session_ctx::log_event(
+                telemetry::events::SuperGrokUpsellClicked {
                     source,
                     auth_method: None,
                 },
@@ -2198,7 +2198,7 @@ fn is_hash_key(key: &KeyEvent) -> bool {
 }
 /// Check `[features] remember_mode` in config.toml. Defaults to `false`.
 fn remember_mode_enabled() -> bool {
-    let path = xvora_tools::util::grok_home::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+    let path = tools::util::grok_home::grok_home().join(config::USER_CONFIG_FILENAME);
     let Some(doc) = crate::config_toml_edit::read_config_document_for_edit(&path) else {
         return false;
     };
@@ -2312,7 +2312,7 @@ fn resolve_action(action_id: Option<ActionId>) -> Option<InputOutcome> {
 fn question_visible_h(
     scroll_region: Option<(u16, u16)>,
     prompt_height: u16,
-    question: &xvora_tools::implementations::grok_build::ask_user_question::Question,
+    question: &tools::implementations::grok_build::ask_user_question::Question,
     content_w: usize,
     preview: Option<&str>,
     fullscreen: bool,
@@ -2401,7 +2401,7 @@ pub(crate) mod test_fixtures {
             ),
             vec![],
         );
-        let perm = xvora_acp_lib::AcpArgs {
+        let perm = acp_lib::AcpArgs {
             request,
             response_tx,
         };

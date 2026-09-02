@@ -14,10 +14,10 @@ use crate::version::{
     UpdateConfig, fetch_latest_version, get_installed_grok_version, get_latest_version,
     is_version_cache_fresh, try_fetch_stable_pointer, write_version_cache,
 };
-use xvora_shell::util::config;
-use xvora_shell::util::grok_home::{grok_application, grok_home};
-pub use xvora_telemetry::events::CliUpdateTrigger;
-use xvora_telemetry::events::{
+use shell::util::config;
+use shell::util::grok_home::{grok_application, grok_home};
+pub use telemetry::events::CliUpdateTrigger;
+use telemetry::events::{
     CliUpdate, CliUpdateChannel, CliUpdateErrorKind, CliUpdateInstaller, CliUpdateOutcome,
 };
 
@@ -424,7 +424,7 @@ pub async fn ensure_latest_on_disk(update_config: &UpdateConfig) -> Result<Ensur
         .await?;
         // The leader relaunches right after a successful converge and would die with the event still in flight
         // Failures keep it alive, so successes would under-report. The install is already done.
-        xvora_telemetry::session_ctx::drain_pending(xvora_telemetry::session_ctx::CLI_DRAIN).await;
+        telemetry::session_ctx::drain_pending(telemetry::session_ctx::CLI_DRAIN).await;
         outcome.installed = Some(target.clone());
     }
 
@@ -805,7 +805,7 @@ async fn run_update_subcommand(
     // Hand the resolved telemetry mode to the child, which cannot see the remote-settings layer (requirement pins still beat env)
     // None at the startup spawns: they run before the settings prefetch, when this process knows no more than the child
     // Waiting would let telemetry delay an update
-    if let Some(mode) = xvora_telemetry::client::current_mode() {
+    if let Some(mode) = telemetry::client::current_mode() {
         cmd.env("GROK_TELEMETRY_ENABLED", mode.to_string());
     }
     match run_mode {
@@ -837,7 +837,7 @@ async fn run_update_subcommand(
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
             // Detach means a new session (Ctrl+C isolation), not handle abandonment: the child is still ours to wait() on
-            xvora_tools::util::detach_command(&mut cmd);
+            tools::util::detach_command(&mut cmd);
             #[allow(clippy::disallowed_methods)] // the caller owns the returned handle
             let child = cmd.spawn()?;
             Ok(Some(child))
@@ -928,7 +928,7 @@ pub async fn run_install_script(
         Ok(Some(installed)) => Some(installed.clone()),
         _ => target.map(str::to_string),
     };
-    xvora_telemetry::session_ctx::log_event(CliUpdate {
+    telemetry::session_ctx::log_event(CliUpdate {
         outcome,
         trigger,
         from_version,
@@ -991,7 +991,7 @@ const STALE_TMP_AGE: Duration = Duration::from_secs(60 * 60);
 const DOWNLOAD_REQUEST_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 
 fn download_client() -> reqwest::Result<reqwest::Client> {
-    xvora_extra_ca::build_reqwest_client(|builder| builder.timeout(DOWNLOAD_REQUEST_TIMEOUT))
+    extra_ca::build_reqwest_client(|builder| builder.timeout(DOWNLOAD_REQUEST_TIMEOUT))
 }
 
 /// Unique temp path for an in-flight download of `dest`.
@@ -1514,7 +1514,7 @@ async fn smoke_test_binary(binary_path: &std::path::Path) -> Result<(), SmokeTes
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
             .kill_on_drop(true);
-        xvora_tools::util::detach_command(&mut cmd);
+        tools::util::detach_command(&mut cmd);
         match tokio::time::timeout(SMOKE_TEST_TIMEOUT, cmd.output()).await {
             Err(_) => return Err(SmokeTestFailure::Timeout),
             Ok(Ok(output)) if output.status.success() => return Ok(()),
@@ -1651,7 +1651,7 @@ async fn activate_verified_download(download: &VerifiedDownload) -> Result<()> {
 /// Failures are silently ignored: completions are a nice-to-have, not a requirement for a successful update.
 async fn regenerate_completions(binary: &std::path::Path, grok_home: &std::path::Path) {
     // Derive $HOME independently: grok_home may be overridden via GROK_HOME env var, so grok_home.parent() isn't necessarily the user's home dir
-    let user_home = xvora_dirs::home_dir().unwrap_or_default();
+    let user_home = dirs::home_dir().unwrap_or_default();
 
     let completions: &[(&str, std::path::PathBuf)] = &[
         ("bash", grok_home.join("completions/bash/grok.bash")),
@@ -1668,7 +1668,7 @@ async fn regenerate_completions(binary: &std::path::Path, grok_home: &std::path:
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null());
-        xvora_tools::util::detach_command(&mut cmd);
+        tools::util::detach_command(&mut cmd);
         let Ok(output) = cmd.output().await else {
             continue;
         };
@@ -2332,8 +2332,8 @@ async fn gh_release_download(tag: &str, pattern: &str, dest: &std::path::Path) -
     .stdin(Stdio::null())
     .stdout(Stdio::null())
     .stderr(Stdio::piped());
-    xvora_tools::util::detach_command(&mut cmd);
-    cmd.envs(xvora_tools::util::pager_env());
+    tools::util::detach_command(&mut cmd);
+    cmd.envs(tools::util::pager_env());
     let output = cmd.output().await?;
 
     pb.finish_and_clear();
@@ -2480,7 +2480,7 @@ fn warn_if_other_grok_processes_running() {
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    xvora_tools::util::detach_std_command(&mut cmd);
+    tools::util::detach_std_command(&mut cmd);
     if let Ok(output) = cmd.output() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let other_pids: Vec<&str> = stdout
@@ -2559,7 +2559,7 @@ fn install_npm(target: Option<&str>, channel: &str, npm_registry: Option<&str>) 
         .stdout(Stdio::null())
         // inherit, not piped; same rationale as run_update_subcommand
         .stderr(Stdio::inherit());
-    xvora_tools::util::detach_std_command(&mut cmd);
+    tools::util::detach_std_command(&mut cmd);
     let status = cmd.status()?;
 
     if let Some(path) = temp_npmrc
@@ -2780,20 +2780,20 @@ pub async fn run_update(
 
 /// Refresh managed config post-update (best-effort, staleness-gated), for deployment-key and team principals alike.
 async fn refresh_deployment_config() {
-    if !xvora_shell::managed_config::has_principal() {
+    if !shell::managed_config::has_principal() {
         return;
     }
-    if !xvora_shell::managed_config::is_fetch_enabled() {
+    if !shell::managed_config::is_fetch_enabled() {
         return;
     }
     // Clear a logged-out team's files before deciding to fetch (mirrors the loop).
-    xvora_shell::managed_config::clear_orphan();
-    if !xvora_shell::config::is_managed_config_stale_for(
-        &xvora_shell::managed_config::current_serving_identity(),
+    shell::managed_config::clear_orphan();
+    if !shell::config::is_managed_config_stale_for(
+        &shell::managed_config::current_serving_identity(),
     ) {
         return;
     }
-    match xvora_shell::managed_config::sync().await {
+    match shell::managed_config::sync().await {
         Ok(true) => eprintln!("  Applied managed configuration."),
         Ok(false) => tracing::debug!("no managed configuration to apply"),
         // Auth issues aren't actionable mid-update: quiet here, loud on `grok setup`.

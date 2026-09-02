@@ -156,7 +156,7 @@
                 .slash_controller
                 .registry_mut()
                 .set_available_tools(
-                    [xvora_tools::implementations::grok_build::SCHEDULER_CREATE_TOOL_NAME]
+                    [tools::implementations::grok_build::SCHEDULER_CREATE_TOOL_NAME]
                         .into_iter()
                         .map(str::to_string)
                         .collect(),
@@ -184,7 +184,7 @@
     #[test]
     fn loop_fire_mode_follows_session_not_later_settings_push() {
         use crate::app::actions::{Action, TaskResult};
-        use xvora_tools::implementations::grok_build::{
+        use tools::implementations::grok_build::{
             LoopFireMode, loop_schedule_instruction,
         };
 
@@ -217,7 +217,7 @@
     #[test]
     fn loop_fire_mode_adopts_the_loaded_session_value() {
         use crate::app::actions::{Action, TaskResult};
-        use xvora_tools::implementations::grok_build::{
+        use tools::implementations::grok_build::{
             LoopFireMode, loop_schedule_instruction,
         };
 
@@ -258,15 +258,15 @@
     fn settings_update_clearing_group_tool_verbs_reverts_to_default() {
         // Expected values come from the same chain the handler resolves, so the test holds regardless of host config/env
         // A local `[ui]` or env override legitimately beats the remote tier on both legs
-        let requirements = xvora_shell::config::load_merged_requirements();
-        let user_config = xvora_shell::config::load_from_disk().ok();
-        let managed_config = xvora_shell::config::load_managed_config().ok();
+        let requirements = shell::config::load_merged_requirements();
+        let user_config = shell::config::load_from_disk().ok();
+        let managed_config = shell::config::load_managed_config().ok();
         let resolve = |remote_val: Option<bool>| {
-            let remote = xvora_shell::util::config::RemoteSettings {
+            let remote = shell::util::config::RemoteSettings {
                 group_tool_verbs: remote_val,
                 ..Default::default()
             };
-            xvora_shell::util::config::resolve_group_tool_verbs(
+            shell::util::config::resolve_group_tool_verbs(
                 requirements.as_ref(),
                 user_config.as_ref(),
                 managed_config.as_ref(),
@@ -311,15 +311,15 @@
     fn settings_update_clearing_collapsed_edit_blocks_reverts_to_default() {
         // Expected values come from the same chain the handler resolves, so the test holds regardless of host config/env
         // A local `[ui]` or env override legitimately beats the remote tier on both legs
-        let requirements = xvora_shell::config::load_merged_requirements();
-        let user_config = xvora_shell::config::load_from_disk().ok();
-        let managed_config = xvora_shell::config::load_managed_config().ok();
+        let requirements = shell::config::load_merged_requirements();
+        let user_config = shell::config::load_from_disk().ok();
+        let managed_config = shell::config::load_managed_config().ok();
         let resolve = |remote_val: Option<bool>| {
-            let remote = xvora_shell::util::config::RemoteSettings {
+            let remote = shell::util::config::RemoteSettings {
                 collapsed_edit_blocks: remote_val,
                 ..Default::default()
             };
-            xvora_shell::util::config::resolve_collapsed_edit_blocks(
+            shell::util::config::resolve_collapsed_edit_blocks(
                 requirements.as_ref(),
                 user_config.as_ref(),
                 managed_config.as_ref(),
@@ -512,7 +512,7 @@
 
         let mut leave_auto_notifs = 0;
         while let Ok(msg) = rx.try_recv() {
-            if let xvora_acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
+            if let acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
                 if args.request.method.as_ref() != "x.ai/yolo_mode_changed" {
                     continue;
                 }

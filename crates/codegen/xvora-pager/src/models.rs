@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::cli_models::{AuthStatus, list_models};
+use shell::agent::config::Config as AgentConfig;
+use shell::cli_models::{AuthStatus, list_models};
 
 use crate::client_identity::{PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
 
@@ -20,7 +20,7 @@ pub async fn list_available_models(agent_config: &AgentConfig) -> Result<()> {
     println!();
 
     let cancel = CancellationToken::new();
-    xvora_telemetry::startup::mark_utility_process();
+    telemetry::startup::mark_utility_process();
     let spawned = crate::acp::spawn::spawn_grok_shell(agent_config.clone(), &cancel, None).await?;
     // Cancel and join on every return path, including the `?` below
     let _agent_guard =

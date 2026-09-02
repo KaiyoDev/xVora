@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use agent_client_protocol::{self as acp, Agent as _};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-use xvora_acp_lib::LineBufferedRead;
+use acp_lib::LineBufferedRead;
 
 use crate::env::grok_binary;
 use crate::mock_server::MockInferenceServer;
@@ -247,7 +247,7 @@ impl LeaderFixture {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null());
         sandbox.apply_to_std_command(&mut cmd);
-        cmd.envs(xvora_tty_utils::pager_env())
+        cmd.envs(tty_utils::pager_env())
             .env("GROK_CLI_CHAT_PROXY_BASE_URL", base_url)
             .env("GROK_XAI_API_BASE_URL", base_url)
             .env("GROK_MODELS_BASE_URL", base_url)
@@ -255,7 +255,7 @@ impl LeaderFixture {
             .env("GROK_TRACE_UPLOAD_URL", base_url)
             .env("XAI_API_KEY", "test-key-for-ci")
             .env("GROK_LEADER_SOCKET", &socket)
-            .env("RUST_LOG", "xvora_shell=debug");
+            .env("RUST_LOG", "shell=debug");
         let log_path = sandbox.grok_home().join("leader.log");
         match std::fs::File::create(&log_path) {
             Ok(log) => {
@@ -265,7 +265,7 @@ impl LeaderFixture {
                 cmd.stderr(std::process::Stdio::null());
             }
         }
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         #[allow(clippy::disallowed_methods)]
         let mut child = cmd.spawn()?;
         let pid = child.id();
@@ -638,7 +638,7 @@ impl LeaderStdioClient {
                 .env("GROK_TRACE_UPLOAD_URL", base_url)
                 .env("XAI_API_KEY", "test-key-for-ci")
                 .env("GROK_LEADER_SOCKET", leader_socket)
-                .env("RUST_LOG", "xvora_shell=debug"),
+                .env("RUST_LOG", "shell=debug"),
         )
         .map_err(|error| {
             io::Error::new(
@@ -892,8 +892,8 @@ mod tests {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_std_command(&mut cmd);
         #[allow(clippy::disallowed_methods)] // test fixture; the test reaps it
         let child = cmd.spawn().expect("spawn fake persistent leader");
         let pid = child.id();

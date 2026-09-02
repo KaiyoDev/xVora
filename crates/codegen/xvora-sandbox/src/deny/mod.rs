@@ -145,7 +145,7 @@ pub(crate) fn ancestors_within_writable_roots(
         return Vec::new();
     };
     let mut out = Vec::new();
-    for anc in xvora_config::existing_ancestor_chain(path) {
+    for anc in config::existing_ancestor_chain(path) {
         if anc == *root || anc.starts_with(root) {
             out.push(anc);
         }

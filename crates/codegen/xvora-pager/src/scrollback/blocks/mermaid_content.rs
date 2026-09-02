@@ -1,7 +1,7 @@
 //! Mermaid diagram detection and the on-screen affordance row.
 //!
 //! The markdown renderer draws ` ```mermaid ` blocks inline as Unicode box-drawing art.
-//! This module detects those blocks in an agent message via the generic [`CodeBlockSpan`](xvora_markdown::CodeBlockSpan) API.
+//! This module detects those blocks in an agent message via the generic [`CodeBlockSpan`](markdown::CodeBlockSpan) API.
 //! It exposes each diagram's clean source so a full-fidelity PNG can be rendered on demand.
 //! It never renders and tracks no per-diagram render state (rendering is lazy, driven by the affordance row on click).
 //! For `auto`/`on` a clickable affordance row (`◇ mermaid [Open Image] [Copy Image Path] [Copy Source]`) is placed beneath the inline art.
@@ -12,7 +12,7 @@ use std::ops::Range;
 
 use ratatui::text::Line;
 use unicode_width::UnicodeWidthStr;
-use xvora_markdown::MarkdownRenderView;
+use markdown::MarkdownRenderView;
 
 use crate::appearance::RenderMermaid;
 use crate::scrollback::types::{BlockLine, BlockOutput};
@@ -75,11 +75,11 @@ pub(crate) fn hash_source(source: &str) -> [u8; 32] {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MermaidBlock {
     /// The clean diagram source: the fence body with container markers (blockquote `>`, list indentation) stripped and CRLF normalized.
-    /// Taken from [`CodeBlockSpan::body`](xvora_markdown::CodeBlockSpan::body).
+    /// Taken from [`CodeBlockSpan::body`](markdown::CodeBlockSpan::body).
     /// For a blockquoted or list-nested diagram this is the de-prefixed code, not the raw source slice.
     pub source: String,
     /// Range of pre-wrap rendered body lines this diagram occupies, as indices into [`MarkdownRenderView::lines`].
-    /// Mirrors [`CodeBlockSpan::output_line_range`](xvora_markdown::CodeBlockSpan::output_line_range).
+    /// Mirrors [`CodeBlockSpan::output_line_range`](markdown::CodeBlockSpan::output_line_range).
     pub prewrap_line_range: Range<usize>,
 }
 
@@ -94,7 +94,7 @@ fn is_mermaid_info(info: &str) -> bool {
 /// The view's code-block spans that are Mermaid fences, in document order.
 fn mermaid_spans<'a>(
     view: &'a MarkdownRenderView,
-) -> impl Iterator<Item = &'a xvora_markdown::CodeBlockSpan> {
+) -> impl Iterator<Item = &'a markdown::CodeBlockSpan> {
     view.code_blocks
         .iter()
         .filter(|span| is_mermaid_info(&span.info))
@@ -126,7 +126,7 @@ pub fn mermaid_block_ranges(view: &MarkdownRenderView) -> Vec<Range<usize>> {
 ///
 /// `GrokDay` is the only light theme.
 /// Every other concrete theme (and the `GrokNight` default that `Auto` resolves to before it reaches the cache) is dark.
-/// The render worker maps this to `xvora_mermaid::MermaidTheme`.
+/// The render worker maps this to `mermaid::MermaidTheme`.
 /// It lives here (not in the engine crate) so the always-compiled detection module stays independent of the optional `mermaid` feature.
 pub fn theme_is_dark(theme: ThemeKind) -> bool {
     !matches!(theme, ThemeKind::GrokDay)
@@ -426,7 +426,7 @@ mod tests {
     use crate::scrollback::types::Selectable;
     use crate::syntax::get_syntect;
     use crate::theme::md_style;
-    use xvora_markdown::StreamingMarkdownRenderer;
+    use markdown::StreamingMarkdownRenderer;
 
     /// Render markdown to a view and collect the detected mermaid blocks.
     fn detect(src: &str, pretty: bool) -> Vec<MermaidBlock> {

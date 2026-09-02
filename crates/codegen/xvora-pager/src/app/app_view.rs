@@ -23,7 +23,7 @@ use indexmap::IndexMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use xvora_acp_lib::AcpAgentTx;
+use acp_lib::AcpAgentTx;
 /// State for the "New Worktree" popup dialog on the welcome screen.
 #[derive(Debug, Default)]
 pub struct NewWorktreeDialogState {
@@ -40,7 +40,7 @@ impl NewWorktreeDialogState {
     pub fn label(&self) -> &str {
         self.label.text()
     }
-    pub(crate) fn viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    pub(crate) fn viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.label.viewport(width)
     }
     #[cfg(test)]
@@ -140,7 +140,7 @@ pub enum NewWorktreeDialogOutcome {
 /// neither per-command key is set.
 ///
 /// Startup resolution lives in
-/// [`xvora_shell::util::config::resolve_hints`]; this type is the pager's
+/// [`shell::util::config::resolve_hints`]; this type is the pager's
 /// in-memory mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorktreeMode {
@@ -151,9 +151,9 @@ pub enum WorktreeMode {
     /// Never create a worktree, skip the popup.
     Never,
 }
-impl From<xvora_shell::util::config::WorktreeHintMode> for WorktreeMode {
-    fn from(mode: xvora_shell::util::config::WorktreeHintMode) -> Self {
-        use xvora_shell::util::config::WorktreeHintMode;
+impl From<shell::util::config::WorktreeHintMode> for WorktreeMode {
+    fn from(mode: shell::util::config::WorktreeHintMode) -> Self {
+        use shell::util::config::WorktreeHintMode;
         match mode {
             WorktreeHintMode::Ask => Self::Ask,
             WorktreeHintMode::Always => Self::Always,
@@ -165,7 +165,7 @@ impl WorktreeMode {
     /// Parse from a TOML string value.
     /// Unrecognised values fall back to [`WorktreeMode::Never`] with a debug-level log.
     pub fn from_config_str(s: &str) -> Self {
-        xvora_shell::util::config::WorktreeHintMode::from_config_str(s).into()
+        shell::util::config::WorktreeHintMode::from_config_str(s).into()
     }
     /// Serialise to the TOML string representation.
     pub fn as_config_str(self) -> &'static str {
@@ -193,7 +193,7 @@ impl WorktreeMode {
     }
     /// Same as [`Self::resolve_from_hints`], for merged effective config (`toml::Value`).
     pub fn resolve_from_hints_value(hints: Option<&toml::Value>) -> (Self, Self) {
-        let (new_session, fork) = xvora_shell::util::config::WorktreeHintMode::resolve_pair(hints);
+        let (new_session, fork) = shell::util::config::WorktreeHintMode::resolve_pair(hints);
         (new_session.into(), fork.into())
     }
     fn resolve_from_hint_strings(get_str: impl Fn(&str) -> Option<Self>) -> (Self, Self) {
@@ -421,7 +421,7 @@ pub enum AuthMode {
 ///
 /// Mirrors [`AuthState`]: a welcome sub-state that drives the "Do you trust the contents of this directory?" question.
 /// It gates session creation until the question is answered.
-/// Seeded once before the first render from the pure [`xvora_workspace::folder_trust::decide`] verdict.
+/// Seeded once before the first render from the pure [`workspace::folder_trust::decide`] verdict.
 /// When the feature flag is off `decide` returns trusted, so this is always [`TrustState::Done`].
 #[derive(Debug)]
 pub enum TrustState {
@@ -552,14 +552,14 @@ pub(crate) const TIER_RESTRICTED_COMMANDS: &[&str] =
 /// Free covers no subscription (`None`) or an explicit "Free"; X Basic covers CCP display name "X Basic" with JWT claim fallback "x_basic".
 /// Everything else (paid tiers and unknown future names) is unrestricted (fail-open).
 ///
-/// The string classification is shared with the shell's capability (toolset) gate via [`xvora_shell::tier::is_restricted_tier_name`].
+/// The string classification is shared with the shell's capability (toolset) gate via [`shell::tier::is_restricted_tier_name`].
 /// That keeps the two gates from drifting.
 /// The pager's *cosmetic* slash-command gate treats an absent tier (`None`) as restricted (it recovers live on the next settings update).
 /// The shell's capability gate treats absence as unrestricted.
 fn is_restricted_tier(tier: Option<&str>) -> bool {
     match tier {
         None => true,
-        Some(t) => xvora_shell::tier::is_restricted_tier_name(t),
+        Some(t) => shell::tier::is_restricted_tier_name(t),
     }
 }
 /// True for API-key labels from shell/CCP: `"ApiKey"`, `"API Key"`, `"api_key"`.
@@ -585,7 +585,7 @@ pub struct PendingFeedbackTraceUpload {
 /// Root view component: owns all application state.
 pub struct AppView {
     /// Taken by whichever path reaches a usable session (or interactive idle) first.
-    pub pending_startup: Option<xvora_telemetry::startup::PendingStartup>,
+    pub pending_startup: Option<telemetry::startup::PendingStartup>,
     pub active_view: ActiveView,
     /// View to return to after a mid-session login flow completes or is cancelled.
     /// `Some` only while a `/login` (or 401-triggered re-auth) initiated from an active session is in progress.
@@ -604,7 +604,7 @@ pub struct AppView {
     pub settings_registry: Arc<crate::settings::SettingsRegistry>,
     /// In-memory snapshot of the effective `UiConfig`.
     /// Seeded once at startup; updated synchronously by `set_X_inner` so dispatch stays sans-IO.
-    pub current_ui: xvora_shell::agent::config::UiConfig,
+    pub current_ui: shell::agent::config::UiConfig,
     pub cwd: PathBuf,
     /// Whether the cwd is inside a git repository (any ancestor has `.git`).
     /// Pre-computed at startup so dispatch stays free of filesystem I/O.
@@ -654,13 +654,13 @@ pub struct AppView {
     pub scroll_debug_hud: crate::views::scroll_debug_hud::ScrollDebugHud,
     /// Release-safe FPS HUD (`/debug fps`; `GROK_FPS` env on release builds, where the dev overlay is compiled out); see the module doc.
     pub fps_hud: crate::views::fps_hud::FpsHud,
-    pub active_announcements: Vec<xvora_announcements::RemoteAnnouncement>,
+    pub active_announcements: Vec<announcements::RemoteAnnouncement>,
     /// Persisted hide keys, filtered at the banner selection gate.
     /// Hiding one critical reveals the next unhidden one, and a NEW id shows the banner again.
     pub hidden_announcement_ids: std::collections::BTreeSet<String>,
     pub announcements_last_gen: u64,
     /// Selected welcome announcement for this pager launch.
-    pub announcement: Option<xvora_announcements::RemoteAnnouncement>,
+    pub announcement: Option<announcements::RemoteAnnouncement>,
     /// Cached changelog markdown (for `/release-notes`).
     /// Populated by `FetchChangelog` at startup; `None` until the fetch completes.
     pub changelog_markdown: Option<String>,
@@ -718,9 +718,9 @@ pub struct AppView {
     pub dashboard_sessions_loading: bool,
     /// The single SQLite workspace connection owned by this pager process.
     /// Opened lazily, only after dashboard v2 is entered.
-    pub workspace_store: Option<xvora_dashboard_store::WorkspaceStore>,
+    pub workspace_store: Option<dashboard_store::WorkspaceStore>,
     /// Initial workspace view read from [`Self::workspace_store`].
-    pub workspace_snapshot: Option<xvora_dashboard_store::WorkspaceSnapshot>,
+    pub workspace_snapshot: Option<dashboard_store::WorkspaceSnapshot>,
     /// Prevents duplicate open/snapshot effects while the first read is pending.
     pub workspace_store_loading: bool,
     /// Agent metadata changed after workspace initialization and needs a scan.
@@ -731,14 +731,14 @@ pub struct AppView {
     pub workspace_writes_disabled: bool,
     /// Exact metadata payloads that have consumed their one automatic retry.
     pub workspace_retry_metadata: std::collections::HashMap<
-        xvora_dashboard_store::SessionId,
-        xvora_dashboard_store::MemberMetadata,
+        dashboard_store::SessionId,
+        dashboard_store::MemberMetadata,
     >,
     /// Last metadata payloads that exhausted or cannot use their retry.
     /// An identical payload stays suppressed until its agent metadata changes.
     pub workspace_failed_metadata: std::collections::HashMap<
-        xvora_dashboard_store::SessionId,
-        xvora_dashboard_store::MemberMetadata,
+        dashboard_store::SessionId,
+        dashboard_store::MemberMetadata,
     >,
     /// Server-authoritative shared prompt queues, keyed by `sessionId`.
     /// Reconciled from `x.ai/queue/changed` broadcasts so every client renders the same ordered queue (including prompts queued by other clients).
@@ -893,7 +893,7 @@ pub struct AppView {
     pub session_picker_relaxed_notified_for: Option<std::path::PathBuf>,
     /// Content-based (deep search) results from ACP session search.
     pub session_picker_content_results:
-        Option<Vec<xvora_shell::extensions::session_search::SearchSessionHit>>,
+        Option<Vec<shell::extensions::session_search::SearchSessionHit>>,
     /// Whether a deep search is currently in flight.
     pub session_picker_content_loading: bool,
     /// Monotonically increasing sequence number for deep search requests.
@@ -905,7 +905,7 @@ pub struct AppView {
     /// Per-incarnation generation additionally prevents responses from crossing close/reopen or host boundaries.
     pub session_picker_list_seq: u64,
     /// Resolved compat-session cells used before checking resume-skill paths.
-    pub(crate) foreign_session_compat: xvora_foreign_sessions::EnabledForeignSessionSources,
+    pub(crate) foreign_session_compat: foreign_sessions::EnabledForeignSessionSources,
     /// Monotonic picker scan sequence, bumped on every open and close.
     pub(crate) foreign_session_scan_seq: u64,
     /// Coalesces obsolete foreign scans across welcome and modal pickers.
@@ -950,7 +950,7 @@ pub struct AppView {
     /// Whether the **auto** permission-mode feature gate is enabled.
     /// Resolved at startup from env / `[auto_mode] enabled` / remote settings, default OFF.
     /// When `false`, the Shift+Tab cycle skips Auto.
-    /// See `xvora_shell::util::config::resolve_auto_permission_mode_enabled`.
+    /// See `shell::util::config::resolve_auto_permission_mode_enabled`.
     pub auto_mode_gate: bool,
     /// Managed-policy pin (set at startup); gates every runtime always-approve enable.
     pub yolo_policy_block: Option<&'static str>,
@@ -999,9 +999,9 @@ pub struct AppView {
     /// Default all ON.
     /// Resolved at startup and on settings toggles.
     /// Precedence: `GROK_CONTEXTUAL_HINTS` (master) > `[ui.contextual_hints]` user config > remote tier > default.
-    pub contextual_hints: xvora_shell::util::config::ResolvedContextualHints,
+    pub contextual_hints: shell::util::config::ResolvedContextualHints,
     /// Remote tier for the contextual hints, kept so a settings toggle can re-resolve the untouched tips against the same remote defaults.
-    pub remote_contextual_hints: Option<xvora_shell::util::config::ContextualHintsRemote>,
+    pub remote_contextual_hints: Option<shell::util::config::ContextualHintsRemote>,
     /// Per-key seen counts for the ephemeral tips that stop showing after a cap; the single copy of this state.
     /// Passed to `show_ephemeral_tip`, which increments the matching key in place.
     /// In-memory only and per-session: never persisted to disk, so each pager run starts fresh (count 0).
@@ -1118,9 +1118,9 @@ pub struct AppView {
     /// (hide-key, surface) pairs whose `AnnouncementCtaShown` impression was already logged (once per pager process, cleared on logout).
     /// Keyed by `announcement_hide_key` (stable even for id-less items, unlike the event's `id`).
     pub announcement_cta_impressions_logged:
-        std::collections::BTreeSet<(String, xvora_telemetry::events::AnnouncementCtaSurface)>,
+        std::collections::BTreeSet<(String, telemetry::events::AnnouncementCtaSurface)>,
     /// Access gate from `grok_build_access_gate`. `Some` means blocked.
-    pub gate: Option<xvora_shell::auth::GateInfo>,
+    pub gate: Option<shell::auth::GateInfo>,
     /// User-friendly subscription tier name (e.g. "SuperGrok", "Free").
     pub subscription_tier: Option<String>,
     /// When the pager started auto-checking subscriptions (for 10-min timeout).
@@ -1130,7 +1130,7 @@ pub struct AppView {
     /// Server override (seconds) for the subscription-watch cadence.
     pub subscription_watch_interval_secs: Option<u64>,
     /// A stale-source gate held out of `gate` while a live check verifies it (see [`super::subscription`]).
-    pub pending_gate_verification: Option<xvora_shell::auth::GateInfo>,
+    pub pending_gate_verification: Option<shell::auth::GateInfo>,
     /// Generation stamp of the current gate verification.
     pub gate_verify_gen: u64,
     /// Whether a leader reconnect is in progress (blocks prompt submission).
@@ -1190,12 +1190,12 @@ pub struct AppView {
     /// Cleared on exit or when the remote flag turns off.
     pub voice_ui_active: bool,
     /// Optional `[voice]` overrides from config (`api_base`, `language`, …).
-    pub voice_config: xvora_voice::VoiceConfig,
+    pub voice_config: voice::VoiceConfig,
     /// Auth for STT (OAuth session via shell `AuthManager`, or `XAI_API_KEY`).
     /// `None` until the pipeline is first started (lazy on `/voice`).
-    pub voice_auth: Option<xvora_voice::SharedVoiceAuth>,
+    pub voice_auth: Option<voice::SharedVoiceAuth>,
     /// Commands into the voice pipeline (start/stop capture; toggle, not hold).
-    pub voice_cmd_tx: Option<tokio::sync::mpsc::Sender<xvora_voice::VoiceCommand>>,
+    pub voice_cmd_tx: Option<tokio::sync::mpsc::Sender<voice::VoiceCommand>>,
     /// The dictation state (idle / queued / recording / stopping), including the live interim transcript.
     /// One state at a time, so inconsistent combinations are unrepresentable.
     /// Production mutates it only through the `AppView::voice_*` transition methods.
@@ -1217,8 +1217,8 @@ fn privacy_banner_reshow_elapsed(acked_at: &str, reshow_days: Option<u64>) -> bo
 }
 impl AppView {
     /// Finishes startup if this view still holds the obligation; does nothing after.
-    pub(crate) fn finish_startup(&mut self, outcome: xvora_telemetry::startup::StartupOutcome) {
-        xvora_telemetry::startup::PendingStartup::finish_held(&mut self.pending_startup, outcome);
+    pub(crate) fn finish_startup(&mut self, outcome: telemetry::startup::StartupOutcome) {
+        telemetry::startup::PendingStartup::finish_held(&mut self.pending_startup, outcome);
     }
     /// Releases the obligation without recording; does nothing after finish.
     pub(crate) fn abandon_startup(&mut self) {
@@ -1318,20 +1318,20 @@ impl AppView {
     }
     /// Extract `GateInfo` from `RemoteSettings`.
     pub fn gate_from_settings(
-        rs: &xvora_shell::util::config::RemoteSettings,
-    ) -> Option<xvora_shell::auth::GateInfo> {
+        rs: &shell::util::config::RemoteSettings,
+    ) -> Option<shell::auth::GateInfo> {
         let msg = rs.gate_message.as_ref()?;
         if msg.is_empty() {
             return None;
         }
-        Some(xvora_shell::auth::GateInfo {
+        Some(shell::auth::GateInfo {
             message: msg.clone(),
             url: rs.gate_url.clone(),
             label: rs.gate_label.clone(),
         })
     }
     /// Apply typed auth metadata from the shell.
-    pub fn apply_auth_meta(&mut self, meta: &xvora_shell::auth::AuthMeta) {
+    pub fn apply_auth_meta(&mut self, meta: &shell::auth::AuthMeta) {
         self.pending_gate_verification = None;
         let was_gated = self.gate.is_some();
         self.account_email = meta.email.clone();
@@ -1344,8 +1344,8 @@ impl AppView {
         self.gate = meta.gate.clone();
         if was_gated && self.gate.is_none() {
             self.paywall_check_started = None;
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::SubscriptionActivated {
+            telemetry::session_ctx::log_event(
+                telemetry::events::SubscriptionActivated {
                     auth_method: self.login_method_id.as_ref().map(|id| id.0.to_string()),
                     upsell_shown_this_session: self.access_gate_shown_logged,
                 },
@@ -1434,7 +1434,7 @@ impl AppView {
             models,
             registry: ActionRegistry::defaults(),
             settings_registry: Arc::new(crate::settings::SettingsRegistry::defaults()),
-            current_ui: xvora_shell::agent::config::UiConfig::default(),
+            current_ui: shell::agent::config::UiConfig::default(),
             cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             cwd_has_git_ancestor: std::env::current_dir()
                 .ok()
@@ -1533,7 +1533,7 @@ impl AppView {
             cli_effort_token: None,
             default_yolo: false,
             permission_mode_from_soft_default: true,
-            auto_mode_gate: xvora_shell::util::config::auto_permission_mode_enabled_from_disk(),
+            auto_mode_gate: shell::util::config::auto_permission_mode_enabled_from_disk(),
             yolo_policy_block: None,
             yolo_launch_block_notice: None,
             screen_mode_switch_hint: None,
@@ -1661,7 +1661,7 @@ impl AppView {
             keyboard_normalizer: KeyboardNormalizer::from_terminal_context(),
             voice_mode_enabled: false,
             voice_ui_active: false,
-            voice_config: xvora_voice::VoiceConfig::default(),
+            voice_config: voice::VoiceConfig::default(),
             voice_auth: None,
             voice_cmd_tx: None,
             voice_state: VoiceState::Idle,
@@ -1689,7 +1689,7 @@ impl AppView {
     /// Gated on the voice gate and a build that compiled in audio capture.
     /// Free-tier upsell is separate ([`Self::is_voice_tier_restricted`]).
     pub fn voice_can_start_pipeline(&self) -> bool {
-        self.voice_mode_enabled && xvora_voice::AUDIO_SUPPORTED
+        self.voice_mode_enabled && voice::AUDIO_SUPPORTED
     }
     /// Sync voice availability into slash surfaces, cheatsheet, and settings.
     /// Mirrors `apply_session_recap_available` for `/recap`.
@@ -1810,7 +1810,7 @@ impl AppView {
         self.voice_state.interim()
     }
     /// Best-effort one-shot command into the voice pipeline (no-op if it isn't up).
-    fn voice_send(&self, cmd: xvora_voice::VoiceCommand) {
+    fn voice_send(&self, cmd: voice::VoiceCommand) {
         if let Some(tx) = &self.voice_cmd_tx
             && tx.try_send(cmd).is_err()
         {
@@ -1820,7 +1820,7 @@ impl AppView {
     /// Open the mic now (pipeline already up) and enter [`VoiceState::Recording`] bound to `target`.
     /// `hold` marks a Ctrl+Space hold-press start.
     pub(crate) fn voice_begin_recording(&mut self, target: VoiceTarget, hold: bool) {
-        self.voice_send(xvora_voice::VoiceCommand::PttPress);
+        self.voice_send(voice::VoiceCommand::PttPress);
         self.voice_state = VoiceState::Recording {
             hold,
             target,
@@ -1858,13 +1858,13 @@ impl AppView {
         };
         let target = *target;
         let interim = interim.take();
-        self.voice_send(xvora_voice::VoiceCommand::PttRelease);
+        self.voice_send(voice::VoiceCommand::PttRelease);
         self.voice_state = VoiceState::Stopping { target, interim };
     }
     /// Hard teardown (submit / error / kill-switch / navigate-away): release the mic and forget the session (no trailing final, no queued start).
     pub(crate) fn voice_reset(&mut self) {
         if self.voice_state.listening() {
-            self.voice_send(xvora_voice::VoiceCommand::PttRelease);
+            self.voice_send(voice::VoiceCommand::PttRelease);
         }
         self.voice_state = VoiceState::Idle;
     }
@@ -3184,7 +3184,7 @@ struct WelcomeInputCtx<'a> {
     /// Mirrors the render's `session_picker_loading` param: the spinner-only picker still owns input (Esc must dismiss it, not hit the hidden menu).
     sp_loading: bool,
     sp_state: &'a mut crate::views::picker::PickerState,
-    sp_content_results: &'a Option<Vec<xvora_shell::extensions::session_search::SearchSessionHit>>,
+    sp_content_results: &'a Option<Vec<shell::extensions::session_search::SearchSessionHit>>,
     sp_content_loading: bool,
     /// The query `sp_entries` were server-fetched with (see [`crate::views::session_picker::effective_filter_query`]).
     sp_entries_query: &'a Option<String>,
@@ -3727,7 +3727,7 @@ fn handle_welcome_input(ev: &Event, ctx: &mut WelcomeInputCtx<'_>) -> InputOutco
         if matches!(ctx.auth_state, AuthState::Done) {
             if ctx.upgrade_cta_keyboard && key!('o', CONTROL).matches(key) {
                 return InputOutcome::Action(Action::AnnouncementsOpenCta(
-                    xvora_telemetry::events::AnnouncementCtaSurface::Keyboard,
+                    telemetry::events::AnnouncementCtaSurface::Keyboard,
                 ));
             }
             if key!('w', CONTROL).matches(key) && ctx.cwd_has_git_ancestor {
@@ -3948,7 +3948,7 @@ fn handle_welcome_input(ev: &Event, ctx: &mut WelcomeInputCtx<'_>) -> InputOutco
                     && rect.contains(ratatui::layout::Position::new(mouse.column, mouse.row))
                 {
                     return InputOutcome::Action(Action::AnnouncementsOpenCta(
-                        xvora_telemetry::events::AnnouncementCtaSurface::Welcome,
+                        telemetry::events::AnnouncementCtaSurface::Welcome,
                     ));
                 }
                 if let Some(rect) = ctx.privacy_banner_opt_in_rect
@@ -4373,7 +4373,7 @@ impl AppView {
         let capture_on = super::MOUSE_CAPTURE_ENABLED.load(std::sync::atomic::Ordering::Acquire);
         if want_off && capture_on {
             self.native_select_hold = true;
-            xvora_shell::util::with_locked_stderr(|stderr| {
+            shell::util::with_locked_stderr(|stderr| {
                 let _ = crossterm::execute!(stderr, crossterm::event::DisableMouseCapture);
             });
             #[cfg(windows)]
@@ -4381,7 +4381,7 @@ impl AppView {
             super::MOUSE_CAPTURE_ENABLED.store(false, std::sync::atomic::Ordering::Release);
         } else if !want_off && self.native_select_hold {
             self.native_select_hold = false;
-            xvora_shell::util::with_locked_stderr(|stderr| {
+            shell::util::with_locked_stderr(|stderr| {
                 let _ = crossterm::execute!(stderr, crossterm::event::EnableMouseCapture);
             });
             super::MOUSE_CAPTURE_ENABLED.store(true, std::sync::atomic::Ordering::Release);
@@ -4393,7 +4393,7 @@ impl AppView {
     /// Render the current view to the terminal.
     pub fn draw(&mut self, terminal: &mut PagerTerminal) {
         self.draw_inner(terminal);
-        xvora_telemetry::startup::record_first_frame();
+        telemetry::startup::record_first_frame();
         crate::memory_release::run_deferred_release();
     }
     fn draw_inner(&mut self, terminal: &mut PagerTerminal) {
@@ -4415,7 +4415,7 @@ impl AppView {
                 .hyperlink_capabilities()
                 .osc22_cursor
             {
-                xvora_shell::util::with_locked_stderr(|stderr| {
+                shell::util::with_locked_stderr(|stderr| {
                     let _ = crossterm::execute!(stderr, crate::terminal::SetDefaultCursor);
                 });
             }
@@ -4692,9 +4692,9 @@ impl AppView {
                         }
                         if !has_access && !self.access_gate_shown_logged {
                             self.access_gate_shown_logged = true;
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::SuperGrokUpsellShown {
-                                    source: xvora_telemetry::events::SuperGrokUpsell::WelcomeScreen,
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::SuperGrokUpsellShown {
+                                    source: telemetry::events::SuperGrokUpsell::WelcomeScreen,
                                     auth_method: self
                                         .login_method_id
                                         .as_ref()
@@ -5046,12 +5046,12 @@ impl AppView {
         self.log_announcement_cta_impressions();
         self.maybe_evict_offscreen_caches();
     }
-    /// Log [`xvora_telemetry::events::AnnouncementCtaShown`] for each surface whose CTA button is painted this frame.
+    /// Log [`telemetry::events::AnnouncementCtaShown`] for each surface whose CTA button is painted this frame.
     /// (Armed hit rect, not covered by a frame occluder: the click/OSC 8 truth the impression pairs with.)
     /// Logged once per (announcement, surface) per pager process (cleared on logout).
     /// The owner resolves through the same slot gate as the click dispatch, so a critical preempting the slot or a hidden promo emits nothing.
     pub(crate) fn log_announcement_cta_impressions(&mut self) {
-        use xvora_telemetry::events::AnnouncementCtaSurface;
+        use telemetry::events::AnnouncementCtaSurface;
         let (banner, welcome, header, dashboard) = match self.active_view {
             ActiveView::Welcome => (false, self.welcome_upgrade_cta_rect.is_some(), false, false),
             ActiveView::Agent(agent_id) => match self.agents.get(&agent_id) {
@@ -5085,7 +5085,7 @@ impl AppView {
         ) else {
             return;
         };
-        let key = xvora_announcements::announcement_hide_key(owner);
+        let key = announcements::announcement_hide_key(owner);
         let id = owner.id.clone();
         let surfaces = [
             (AnnouncementCtaSurface::Banner, banner),
@@ -5098,8 +5098,8 @@ impl AppView {
                 .announcement_cta_impressions_logged
                 .insert((key.clone(), surface))
             {
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::AnnouncementCtaShown {
+                telemetry::session_ctx::log_event(
+                    telemetry::events::AnnouncementCtaShown {
                         id: id.clone(),
                         source: surface,
                     },
@@ -5178,7 +5178,7 @@ impl AppView {
     /// Reused by startup and the settings live-apply path so a runtime toggle reaches existing agents.
     pub fn apply_contextual_hints(
         &mut self,
-        resolved: xvora_shell::util::config::ResolvedContextualHints,
+        resolved: shell::util::config::ResolvedContextualHints,
     ) {
         self.contextual_hints = resolved;
         for agent in self.agents.values_mut() {
@@ -5326,9 +5326,9 @@ impl AppView {
             &mut self.tip_seen_counts,
         ) {
             self.clipboard_focus_tip.note_fired(&outcome, now);
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::ContextualTip {
-                tip: xvora_telemetry::events::ContextualTipKind::ImageInput,
-                action: xvora_telemetry::events::ContextualTipAction::Shown,
+            telemetry::session_ctx::log_event(telemetry::events::ContextualTip {
+                tip: telemetry::events::ContextualTipKind::ImageInput,
+                action: telemetry::events::ContextualTipAction::Shown,
             });
             return true;
         }

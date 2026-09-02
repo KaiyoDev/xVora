@@ -508,13 +508,13 @@ impl TerminalContext {
     }
 
     /// Extract a flat snapshot of terminal details for telemetry.
-    pub fn telemetry_snapshot(&self) -> xvora_telemetry::events::TerminalTelemetry {
+    pub fn telemetry_snapshot(&self) -> telemetry::events::TerminalTelemetry {
         let os = crate::host::HostOs::current();
         let server = crate::host::DisplayServer::current();
         let kb = self.keyboard_capabilities();
         let route = crate::clipboard::clipboard_route();
         let (term_version, term_version_source) = self.term_version();
-        xvora_telemetry::events::TerminalTelemetry {
+        telemetry::events::TerminalTelemetry {
             brand: self.brand.to_string(),
             multiplexer: self.multiplexer.to_string(),
             is_ssh: self.is_ssh,
@@ -533,14 +533,14 @@ impl TerminalContext {
             hyperlink_osc8: self.hyperlink_capabilities().osc8.to_string(),
             hyperlink_skip_reason: self.hyperlink_skip_reason().unwrap_or("none").to_owned(),
             clipboard_route: route.to_string(),
-            clipboard_native_tool: xvora_shared::clipboard::native_tool_name().to_owned(),
+            clipboard_native_tool: shared::clipboard::native_tool_name().to_owned(),
             clipboard_data_control: crate::clipboard::wayland_data_control_label().to_owned(),
         }
     }
 
     /// Extract terminal info for feedback submissions.
-    pub fn feedback_info(&self) -> xvora_shared::session::FeedbackTerminalInfo {
-        use xvora_shared::session::FeedbackTerminalInfo;
+    pub fn feedback_info(&self) -> shared::session::FeedbackTerminalInfo {
+        use shared::session::FeedbackTerminalInfo;
         // XTVERSION self-report lets feedback triage identify the terminal even when env detection failed (e.g. over SSH).
         let brand = match xtversion::detected() {
             Some(v) if self.brand == TerminalName::Unknown => format!("Unknown (XTVERSION: {v})"),
@@ -562,7 +562,7 @@ impl TerminalContext {
             },
             hyperlink_osc8_support: Some(self.hyperlink_capabilities().osc8.to_string()),
             clipboard_route: Some(crate::clipboard::clipboard_route().to_string()),
-            clipboard_native_tool: Some(xvora_shared::clipboard::native_tool_name().to_owned()),
+            clipboard_native_tool: Some(shared::clipboard::native_tool_name().to_owned()),
             display_server: Some(crate::host::DisplayServer::current().to_string()),
         }
     }

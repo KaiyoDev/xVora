@@ -4,13 +4,13 @@
 //! A rejected send therefore still shows the exact destination and text that was attempted.
 
 use agent_client_protocol as acp;
-use xvora_tools::implementations::grok_build::send_subagent_message::{
+use tools::implementations::grok_build::send_subagent_message::{
     SEND_SUBAGENT_MESSAGE_TOOL_NAME, SendSubagentMessageDisposition, SendSubagentMessageInput,
     SendSubagentMessageOutput,
 };
-use xvora_tools::tool_taxonomy::{CanonicalToolMeta, TOOL_META_KEY, TOOL_META_VERSION};
-use xvora_tools::types::output::ToolOutput;
-use xvora_tools::types::tool::ToolKind;
+use tools::tool_taxonomy::{CanonicalToolMeta, TOOL_META_KEY, TOOL_META_VERSION};
+use tools::types::output::ToolOutput;
+use tools::types::tool::ToolKind;
 
 use crate::scrollback::block::RenderBlock;
 use crate::scrollback::blocks::tool::{
@@ -35,8 +35,8 @@ pub(super) fn to_block(tool_call: &acp::ToolCall) -> RenderBlock {
         serde_json::from_value::<SendSubagentMessageInput>(input.clone())
             .ok()
             .or_else(|| {
-                match serde_json::from_value::<xvora_tools::types::ToolInput>(input).ok()? {
-                    xvora_tools::types::ToolInput::SendSubagentMessage(input) => Some(input),
+                match serde_json::from_value::<tools::types::ToolInput>(input).ok()? {
+                    tools::types::ToolInput::SendSubagentMessage(input) => Some(input),
                     _ => None,
                 }
             })

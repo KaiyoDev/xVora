@@ -406,10 +406,10 @@ pub(in crate::app::dispatch) fn dispatch_pick_session(
         return dispatch_load_session(app, session_id, None, true);
     }
     let local_cwd = app.cwd.to_string_lossy().to_string();
-    if xvora_shell::session::resolve_local_session(&session_id, &local_cwd).is_some() {
+    if shell::session::resolve_local_session(&session_id, &local_cwd).is_some() {
         return dispatch_load_session(app, session_id, None, false);
     }
-    if let Some(original_cwd) = xvora_shell::session::resolve_local_session_any_cwd(&session_id) {
+    if let Some(original_cwd) = shell::session::resolve_local_session_any_cwd(&session_id) {
         return dispatch_load_session(
             app,
             session_id,
@@ -1021,10 +1021,10 @@ pub(in crate::app::dispatch) fn dispatch_pick_content_session(
         return dispatch_load_session(app, session_id, None, true);
     }
     let local_cwd = app.cwd.to_string_lossy().to_string();
-    if xvora_shell::session::resolve_local_session(&session_id, &local_cwd).is_some() {
+    if shell::session::resolve_local_session(&session_id, &local_cwd).is_some() {
         return dispatch_load_session(app, session_id, None, false);
     }
-    if let Some(original_cwd) = xvora_shell::session::resolve_local_session_any_cwd(&session_id) {
+    if let Some(original_cwd) = shell::session::resolve_local_session_any_cwd(&session_id) {
         return dispatch_load_session(
             app,
             session_id,
@@ -1190,7 +1190,7 @@ pub(in crate::app::dispatch) fn handle_session_loaded(
     new_models: Option<acp::SessionModelState>,
     code_restored: bool,
     restore_summary: Option<String>,
-    restore_degree: Option<xvora_workspace::session::git::RestoreDegree>,
+    restore_degree: Option<workspace::session::git::RestoreDegree>,
     running_prompt_id: Option<String>,
     scheduler_background_loops: Option<bool>,
 ) -> Vec<Effect> {
@@ -1522,7 +1522,7 @@ pub(in crate::app::dispatch) fn handle_session_restore_failed(
 pub(in crate::app::dispatch) fn handle_deep_search_results(
     app: &mut AppView,
     request: PickerRequest,
-    results: Vec<xvora_shell::extensions::session_search::SearchSessionHit>,
+    results: Vec<shell::extensions::session_search::SearchSessionHit>,
 ) -> Vec<Effect> {
     let Some(target) = accept_picker_result(
         app,

@@ -14,16 +14,16 @@ pub(crate) async fn output_killing_group_on_drop(
 }
 
 #[must_use = "dropping the guard kills the process group; call `disarm` on success"]
-struct GroupKillGuard(Option<std::sync::Arc<xvora_tty_utils::ProcessGroup>>);
+struct GroupKillGuard(Option<std::sync::Arc<tty_utils::ProcessGroup>>);
 
 impl GroupKillGuard {
     fn attach(child: &tokio::process::Child) -> Self {
-        let group = xvora_tty_utils::ProcessGroup::new()
+        let group = tty_utils::ProcessGroup::new()
             .and_then(|mut group| group.attach(child).map(|()| group))
             .map(std::sync::Arc::new)
             .ok();
         if let Some(group) = &group {
-            let _ = xvora_tty_utils::global_process_scope().register(group);
+            let _ = tty_utils::global_process_scope().register(group);
         }
         Self(group)
     }
@@ -72,7 +72,7 @@ mod tests {
         let mut cmd = std::process::Command::new("sh");
         cmd.arg("-c")
             .arg(format!("sleep 30 & echo $! > {}; wait", pid_file.display()));
-        xvora_tty_utils::detach_std_command(&mut cmd); // setsid: child leads its own group
+        tty_utils::detach_std_command(&mut cmd); // setsid: child leads its own group
 
         {
             let fut = output_killing_group_on_drop(cmd);

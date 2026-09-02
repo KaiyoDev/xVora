@@ -9,10 +9,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex as TokioMutex, mpsc};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_tools::notification::types::{ToolNotification, ToolNotificationHandle};
-use xvora_tools::types::output::{BashOutput, ToolOutput};
-use xvora_workspace::session::file_state::FileStateTracker;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use tools::notification::types::{ToolNotification, ToolNotificationHandle};
+use tools::types::output::{BashOutput, ToolOutput};
+use workspace::session::file_state::FileStateTracker;
 const TASK_WAKE_ADMISSION_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(250);
 pub(crate) struct NotificationBridgeConfig {
     /// ACP gateway for sending streaming updates to TUI
@@ -47,8 +47,8 @@ pub(crate) struct NotificationBridgeConfig {
     /// Session command channel for monitor events and task-completed injections.
     pub session_cmd_tx: mpsc::UnboundedSender<SessionCommand>,
     pub task_completion_reservations:
-        xvora_tools::reminders::task_completion::TaskCompletionReservations,
-    pub task_wake_suppressed: xvora_tools::reminders::task_completion::TaskWakeSuppressed,
+        tools::reminders::task_completion::TaskCompletionReservations,
+    pub task_wake_suppressed: tools::reminders::task_completion::TaskWakeSuppressed,
     /// Channel for requesting trace uploads for synthetic auto-wake turns.
     /// Wrapped in `Arc<Mutex<..>>` because the coordinator creates the channel after the notification bridge is spawned.
     /// The bridge reads the latest value on each notification.
@@ -115,7 +115,7 @@ fn durable_append_landed(result: Result<(), DurableAppendError>) -> Result<(), S
 }
 async fn handle_scheduled_task_removed(
     config: &NotificationBridgeConfig,
-    removed: xvora_tools::notification::ScheduledTaskRemoved,
+    removed: tools::notification::ScheduledTaskRemoved,
     acknowledgement: Option<tokio::sync::oneshot::Sender<Result<(), String>>>,
 ) -> Result<(), String> {
     tracing::info!(task_id = %removed.task_id, "Scheduled task removed");
@@ -198,7 +198,7 @@ pub(crate) fn spawn_notification_bridge(
 /// The update is persisted to `updates.jsonl` so session replay re-applies the mode, and forwarded to the gateway so the pager updates live.
 async fn emit_current_mode_update(
     config: &NotificationBridgeConfig,
-    mode: xvora_tools::types::SessionMode,
+    mode: tools::types::SessionMode,
 ) {
     let mut notification = acp::SessionNotification::new(
         config.session_id.clone(),
@@ -355,14 +355,14 @@ async fn handle_notification(
         }
         ToolNotification::SubagentCompleted(_) => {}
         ToolNotification::TaskCompleted(task_snapshot) => {
-            let is_monitor = task_snapshot.kind == xvora_tools::computer::types::TaskKind::Monitor;
+            let is_monitor = task_snapshot.kind == tools::computer::types::TaskKind::Monitor;
             let task_id = task_snapshot.task_id.clone();
             let goal_loop_active = config
                 .goal_loop_active
                 .load(std::sync::atomic::Ordering::Relaxed);
             let mut will_wake = false;
             if task_snapshot.is_auto_wake_suppressed() {
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "shell.task_wake.suppressed",
                     Some(config.session_id.0.as_ref()),
                     Some(serde_json::json!({
@@ -383,18 +383,18 @@ async fn handle_notification(
                 let tool_name = resolved_tool_name(&config.task_output_tool_name);
                 let read_name = resolved_tool_name(&config.read_tool_name);
                 let body = if is_monitor {
-                    xvora_tools::reminders::task_completion::format_monitor_completion(
+                    tools::reminders::task_completion::format_monitor_completion(
                         &task_snapshot,
                         tool_name,
                     )
                 } else {
-                    xvora_tools::reminders::task_completion::format_bash_completion(
+                    tools::reminders::task_completion::format_bash_completion(
                         &task_snapshot,
                         tool_name,
                         read_name,
                     )
                 };
-                let message = xvora_tools::reminders::wrap_reminder(&body);
+                let message = tools::reminders::wrap_reminder(&body);
                 let prompt_id = format!("task-completed-{task_id}");
                 let prompt_blocks = vec![acp::ContentBlock::Text(acp::TextContent::new(message))];
                 let synthetic_trace_tx = config
@@ -420,7 +420,7 @@ async fn handle_notification(
                         client_identifier: None,
                         screen_mode: None,
                         verbatim: true,
-                        traceparent: xvora_file_utils::trace_context::current_traceparent(),
+                        traceparent: file_utils::trace_context::current_traceparent(),
                         json_schema: None,
                         send_now: false,
                         tool_overrides_update: None,
@@ -465,7 +465,7 @@ async fn handle_notification(
                     false
                 };
                 will_wake = admitted;
-                xvora_telemetry::unified_log::info(
+                telemetry::unified_log::info(
                     "shell.task_wake.bridge_admission",
                     Some(config.session_id.0.as_ref()),
                     Some(serde_json::json!({
@@ -522,12 +522,12 @@ async fn handle_notification(
                 let tool_name = resolved_tool_name(&config.task_output_tool_name);
                 let read_name = resolved_tool_name(&config.read_tool_name);
                 let message = if is_monitor {
-                    xvora_tools::reminders::task_completion::format_monitor_completion(
+                    tools::reminders::task_completion::format_monitor_completion(
                         &task_snapshot,
                         tool_name,
                     )
                 } else {
-                    xvora_tools::reminders::task_completion::format_bash_completion(
+                    tools::reminders::task_completion::format_bash_completion(
                         &task_snapshot,
                         tool_name,
                         read_name,
@@ -599,7 +599,7 @@ async fn handle_notification(
                     .persistence
                     .tx
                     .send(PersistenceMsg::PlanModeState(snapshot));
-                emit_current_mode_update(config, xvora_tools::types::SessionMode::Plan).await;
+                emit_current_mode_update(config, tools::types::SessionMode::Plan).await;
             }
             tracing::info!(
                 tool_call_id = %entered.tool_call_id,
@@ -628,7 +628,7 @@ async fn handle_notification(
                     .persistence
                     .tx
                     .send(PersistenceMsg::PlanModeState(snapshot));
-                emit_current_mode_update(config, xvora_tools::types::SessionMode::Default).await;
+                emit_current_mode_update(config, tools::types::SessionMode::Default).await;
             }
             tracing::info!(
                 tool_call_id = %exited.tool_call_id,

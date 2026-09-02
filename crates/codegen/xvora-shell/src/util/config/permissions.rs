@@ -1,6 +1,6 @@
 use toml::Value as TomlValue;
 
-pub use xvora_telemetry::enums::PermissionMode;
+pub use telemetry::enums::PermissionMode;
 
 /// Unknown strings fall back to `Ask` (safe direction: no YOLO on garbage).
 /// The `"ask"` and `"default"` arms are explicit so a future `Default` variant is a one-line change without touching the catch-all.
@@ -255,7 +255,7 @@ fn resolve_launch_yolo(requested: bool, policy_block: Option<&'static str>) -> E
     }
 }
 
-use xvora_workspace::permission::resolution::yolo_disabled_by_policy;
+use workspace::permission::resolution::yolo_disabled_by_policy;
 
 fn require_plan_approval_from_layers(layers: &crate::config::ConfigLayers) -> bool {
     layers
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn campaign_cannot_arm_permission_mode_gate() {
         let mut layers = crate::config::ConfigLayers::default();
-        layers.campaigns.managed = vec![xvora_config::CampaignEntry {
+        layers.campaigns.managed = vec![config::CampaignEntry {
             id: "c1".into(),
             patch: toml::from_str("[ui]\npermission_mode = \"always-approve\"\n").unwrap(),
         }];
@@ -744,12 +744,12 @@ mod tests {
         unsafe { std::env::remove_var("GROK_AUTO_PERMISSION_MODE") };
     }
 
-    // Pure tests for the policy predicate itself live next to its canonical definition in `xvora_workspace::permission::resolution`
+    // Pure tests for the policy predicate itself live next to its canonical definition in `workspace::permission::resolution`
 
     #[test]
     fn resolve_launch_yolo_policy_pin_neutralizes_requested_bypass() {
         let warning =
-            xvora_workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode
+            workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode
                 .message();
         // A pin with a requested bypass forces yolo off and carries a warning to show
         assert_eq!(

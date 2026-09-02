@@ -189,7 +189,7 @@ fn extract_toml_permissions(
 /// `is_system` flag (set at load, never from `path`): system → `SystemRequirements`,
 /// user `~/.grok` → `Requirements`, so [`is_admin_source`] trusts only the root tier.
 fn load_requirements_permissions() -> Vec<Sourced<PermissionRule>> {
-    xvora_config::requirements_layers()
+    config::requirements_layers()
         .into_iter()
         .flat_map(|layer| {
             let source = if layer.is_system {
@@ -218,10 +218,10 @@ fn load_config_toml_permissions(cwd: &Path, project_trusted: bool) -> Vec<Source
 
     // Global `~/.grok/config.toml` first (lowest priority within this layer).
     // Gated on user_grok_home() so a project's .grok/config.toml is never read as global permissions when neither GROK_HOME nor a home dir resolves
-    if let Some(global_path) = xvora_config::user_grok_home().map(|g| g.join("config.toml"))
+    if let Some(global_path) = config::user_grok_home().map(|g| g.join("config.toml"))
         && global_path.is_file()
     {
-        match xvora_config::load_config_file(&global_path) {
+        match config::load_config_file(&global_path) {
             Ok(value) => rules.extend(extract_toml_permissions(&value, || {
                 RequirementSource::Config {
                     path: global_path.clone(),
@@ -237,7 +237,7 @@ fn load_config_toml_permissions(cwd: &Path, project_trusted: bool) -> Vec<Source
     // An untrusted clone must not contribute allow/deny/ask rules via `.grok/config.toml` (same gate as project `.claude/settings.json`)
     if project_trusted {
         for path in crate::project_config::find_project_configs(cwd) {
-            match xvora_config::load_config_file(&path) {
+            match config::load_config_file(&path) {
                 Ok(value) => rules.extend(extract_toml_permissions(&value, || {
                     RequirementSource::Config { path: path.clone() }
                 })),
@@ -252,7 +252,7 @@ fn load_config_toml_permissions(cwd: &Path, project_trusted: bool) -> Vec<Source
 }
 
 fn managed_config_permissions(
-    layers: &[xvora_config::ManagedConfigLayer],
+    layers: &[config::ManagedConfigLayer],
 ) -> Vec<Sourced<PermissionRule>> {
     layers
         .iter()
@@ -484,7 +484,7 @@ impl ResolveInputs<'static> {
             yolo_lock,
             // The engine view, not the compat shim shadowing `resolution::`.
             managed: super::managed_policy::managed_settings(),
-            managed_config_rules: managed_config_permissions(&xvora_config::managed_config_layers()),
+            managed_config_rules: managed_config_permissions(&config::managed_config_layers()),
             project_trusted,
         }
     }
@@ -957,7 +957,7 @@ pub fn yolo_disabled_by_policy() -> Option<&'static str> {
 
 /// Layer-attributed form of [`yolo_disabled_by_policy`] so provenance displays can name the pinning layer.
 pub fn yolo_policy_lock() -> Option<YoloPolicyLock> {
-    let layers = xvora_config::requirements_layers();
+    let layers = config::requirements_layers();
     // Owned so the label outlives the borrowed layer temporaries below.
     let labeled: Vec<(PathBuf, &toml::Value)> = layers
         .iter()

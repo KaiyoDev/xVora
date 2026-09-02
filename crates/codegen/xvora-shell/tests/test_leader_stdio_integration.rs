@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use tempfile::TempDir;
 use tokio::net::UnixStream;
-use xvora_shell::cpu_profile::ControlErrorCode;
-use xvora_shell::leader::{
+use shell::cpu_profile::ControlErrorCode;
+use shell::leader::{
     ClientCapabilities, ClientMode, ControlCommand, ControlPayload, LeaderClient,
     LeaderServerControlState, LeaderServerMetadata,
     protocol::{ClientMessage, ServerMessage, read_message, write_message},
@@ -51,7 +51,7 @@ async fn setup_test_server(
 
 async fn setup_control_test_server(
     temp: &TempDir,
-) -> (std::path::PathBuf, xvora_shell::leader::ServerHandle) {
+) -> (std::path::PathBuf, shell::leader::ServerHandle) {
     let sock_path = temp.path().join("leader-control.sock");
     let handle = spawn_leader_server(sock_path.clone()).await.unwrap();
     wait_for_socket(&sock_path).await;
@@ -1611,7 +1611,7 @@ async fn test_error_response_routing() {
 /// for the new client.
 #[tokio::test]
 async fn test_session_ownership_cleanup_on_disconnect() {
-    use xvora_shell::leader::run_leader_server;
+    use shell::leader::run_leader_server;
 
     let temp = TempDir::new().unwrap();
     let sock_path = temp.path().join("leader.sock");
@@ -1628,7 +1628,7 @@ async fn test_session_ownership_cleanup_on_disconnect() {
         let agent_busy = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (_ready_tx, ready_rx) = tokio::sync::watch::channel(true);
         let (shutdown_tx, _shutdown_rx) =
-            tokio::sync::watch::channel(xvora_shell::leader::ShutdownReason::Manual);
+            tokio::sync::watch::channel(shell::leader::ShutdownReason::Manual);
         let control_state = LeaderServerControlState::new(LeaderServerMetadata {
             pid: std::process::id(),
             socket_path: sock_clone.clone(),
@@ -1644,7 +1644,7 @@ async fn test_session_ownership_cleanup_on_disconnect() {
             true,
             client_count,
             agent_busy,
-            xvora_shell::agent::activity::AgentActivity::default(),
+            shell::agent::activity::AgentActivity::default(),
             ready_rx,
             tokio::sync::watch::channel(false).0,
             shutdown_tx,
@@ -1967,7 +1967,7 @@ async fn test_raw_registration_handshake_not_ready_then_ready() {
     use std::sync::atomic::{AtomicBool, AtomicUsize};
     use tokio::sync::{mpsc, watch};
     use tokio_util::sync::CancellationToken;
-    use xvora_shell::leader::run_leader_server;
+    use shell::leader::run_leader_server;
 
     let temp = TempDir::new().unwrap();
     let sock_path = temp.path().join("leader.sock");
@@ -1995,10 +1995,10 @@ async fn test_raw_registration_handshake_not_ready_then_ready() {
             true,
             Arc::new(AtomicUsize::new(0)),
             Arc::new(AtomicBool::new(false)),
-            xvora_shell::agent::activity::AgentActivity::default(),
+            shell::agent::activity::AgentActivity::default(),
             ready_rx,
             watch::channel(false).0,
-            watch::channel(xvora_shell::leader::ShutdownReason::Manual).0,
+            watch::channel(shell::leader::ShutdownReason::Manual).0,
             None,
             control_state,
         )
@@ -2114,7 +2114,7 @@ async fn test_connect_waits_for_leader_ready() {
     use std::sync::atomic::{AtomicBool, AtomicUsize};
     use tokio::sync::{mpsc, watch};
     use tokio_util::sync::CancellationToken;
-    use xvora_shell::leader::run_leader_server;
+    use shell::leader::run_leader_server;
 
     let temp = TempDir::new().unwrap();
     let sock_path = temp.path().join("leader.sock");
@@ -2142,10 +2142,10 @@ async fn test_connect_waits_for_leader_ready() {
             true,
             Arc::new(AtomicUsize::new(0)),
             Arc::new(AtomicBool::new(false)),
-            xvora_shell::agent::activity::AgentActivity::default(),
+            shell::agent::activity::AgentActivity::default(),
             ready_rx,
             watch::channel(false).0,
-            watch::channel(xvora_shell::leader::ShutdownReason::Manual).0,
+            watch::channel(shell::leader::ShutdownReason::Manual).0,
             None,
             control_state,
         )
@@ -2226,7 +2226,7 @@ async fn test_version_mismatch_notification_sent_to_client() {
     use std::sync::atomic::{AtomicBool, AtomicUsize};
     use tokio::sync::{mpsc, watch};
     use tokio_util::sync::CancellationToken;
-    use xvora_shell::leader::{ClientCapabilities, ClientMode, LeaderClient, run_leader_server};
+    use shell::leader::{ClientCapabilities, ClientMode, LeaderClient, run_leader_server};
 
     let temp = TempDir::new().unwrap();
     let sock_path = temp.path().join("leader.sock");
@@ -2253,10 +2253,10 @@ async fn test_version_mismatch_notification_sent_to_client() {
             true,
             Arc::new(AtomicUsize::new(0)),
             Arc::new(AtomicBool::new(false)),
-            xvora_shell::agent::activity::AgentActivity::default(),
+            shell::agent::activity::AgentActivity::default(),
             watch::channel(true).1,
             watch::channel(false).0,
-            watch::channel(xvora_shell::leader::ShutdownReason::Manual).0,
+            watch::channel(shell::leader::ShutdownReason::Manual).0,
             Some("test-leader-0.1.150"), // override so detection is enabled in test builds
             control_state,
         )
@@ -2299,7 +2299,7 @@ async fn test_no_version_mismatch_notification_when_versions_match() {
     use std::sync::atomic::{AtomicBool, AtomicUsize};
     use tokio::sync::{mpsc, watch};
     use tokio_util::sync::CancellationToken;
-    use xvora_shell::leader::{ClientCapabilities, ClientMode, LeaderClient, run_leader_server};
+    use shell::leader::{ClientCapabilities, ClientMode, LeaderClient, run_leader_server};
 
     let temp = TempDir::new().unwrap();
     let sock_path = temp.path().join("leader.sock");
@@ -2326,10 +2326,10 @@ async fn test_no_version_mismatch_notification_when_versions_match() {
             true,
             Arc::new(AtomicUsize::new(0)),
             Arc::new(AtomicBool::new(false)),
-            xvora_shell::agent::activity::AgentActivity::default(),
+            shell::agent::activity::AgentActivity::default(),
             watch::channel(true).1,
             watch::channel(false).0,
-            watch::channel(xvora_shell::leader::ShutdownReason::Manual).0,
+            watch::channel(shell::leader::ShutdownReason::Manual).0,
             Some("same-version-0.1.150"),
             control_state,
         )
@@ -2373,7 +2373,7 @@ async fn test_no_version_mismatch_notification_when_versions_match() {
 ///   shutting_down_tx.send(Some(AutoUpdate)) → shutting_down_rx observes Some(AutoUpdate)
 #[tokio::test]
 async fn test_auto_update_shutdown_reason_reaches_client() {
-    use xvora_shell::leader::{ClientCapabilities, ClientMode, LeaderClient, ShutdownReason};
+    use shell::leader::{ClientCapabilities, ClientMode, LeaderClient, ShutdownReason};
 
     let temp = TempDir::new().unwrap();
     let sock_path = temp.path().join("leader.sock");
@@ -2418,7 +2418,7 @@ async fn test_auto_update_shutdown_reason_reaches_client() {
     // Also verify the disconnect reason eventually becomes LeaderShutdown.
     tokio::time::timeout(
         Duration::from_secs(2),
-        disconnect_rx.wait_for(|r| *r != xvora_shell::leader::DisconnectReason::Connected),
+        disconnect_rx.wait_for(|r| *r != shell::leader::DisconnectReason::Connected),
     )
     .await
     .expect("timeout waiting for disconnect reason to change")
@@ -2426,7 +2426,7 @@ async fn test_auto_update_shutdown_reason_reaches_client() {
 
     assert_eq!(
         *disconnect_rx.borrow(),
-        xvora_shell::leader::DisconnectReason::LeaderShutdown
+        shell::leader::DisconnectReason::LeaderShutdown
     );
 }
 
@@ -2436,7 +2436,7 @@ async fn test_auto_update_shutdown_reason_reaches_client() {
 /// The idle leader drains immediately and broadcasts `ShuttingDown { AutoUpdate }` so connected clients reconnect onto the new binary.
 #[tokio::test]
 async fn test_relaunch_for_update_accepts_and_shuts_down() {
-    use xvora_shell::leader::{
+    use shell::leader::{
         ClientCapabilities, ClientMode, ControlCommand, ControlPayload, LeaderClient,
         ShutdownReason,
     };
@@ -2485,7 +2485,7 @@ async fn test_relaunch_for_update_accepts_and_shuts_down() {
 /// A `RelaunchForUpdate` whose target is not strictly newer than the leader is declined, and the leader stays up.
 #[tokio::test]
 async fn test_relaunch_for_update_declines_when_not_newer() {
-    use xvora_shell::leader::{
+    use shell::leader::{
         ClientCapabilities, ClientMode, ControlCommand, ControlPayload, LeaderClient,
     };
 
@@ -2531,7 +2531,7 @@ async fn test_relaunch_for_update_declines_when_not_newer() {
 #[tokio::test]
 async fn test_relaunch_for_update_waits_for_busy_then_exits() {
     use std::sync::atomic::Ordering;
-    use xvora_shell::leader::{
+    use shell::leader::{
         ClientCapabilities, ClientMode, ControlCommand, ControlPayload, LeaderClient,
         ShutdownReason,
     };
@@ -2719,7 +2719,7 @@ async fn test_lock_released_before_connect_prevents_deadlock() {
     use std::sync::atomic::{AtomicBool, AtomicUsize};
     use tokio::sync::{mpsc, watch};
     use tokio_util::sync::CancellationToken;
-    use xvora_shell::leader::run_leader_server;
+    use shell::leader::run_leader_server;
 
     let temp = TempDir::new().unwrap();
     let sock_path = temp.path().join("leader.sock");
@@ -2758,10 +2758,10 @@ async fn test_lock_released_before_connect_prevents_deadlock() {
             true,
             Arc::new(AtomicUsize::new(0)),
             Arc::new(AtomicBool::new(false)),
-            xvora_shell::agent::activity::AgentActivity::default(),
+            shell::agent::activity::AgentActivity::default(),
             ready_rx,
             watch::channel(false).0,
-            watch::channel(xvora_shell::leader::ShutdownReason::Manual).0,
+            watch::channel(shell::leader::ShutdownReason::Manual).0,
             None,
             control_state,
         )
@@ -2817,7 +2817,7 @@ async fn setup_persistent_test_server(
     tokio::sync::mpsc::UnboundedReceiver<String>,
     tokio::sync::mpsc::UnboundedSender<String>,
 ) {
-    use xvora_shell::leader::run_leader_server;
+    use shell::leader::run_leader_server;
 
     let sock_path = temp.path().join("leader.sock");
     let (acp_tx, acp_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -2842,10 +2842,10 @@ async fn setup_persistent_test_server(
             true,
             std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            xvora_shell::agent::activity::AgentActivity::default(),
+            shell::agent::activity::AgentActivity::default(),
             tokio::sync::watch::channel(true).1,
             tokio::sync::watch::channel(false).0,
-            tokio::sync::watch::channel(xvora_shell::leader::ShutdownReason::Manual).0,
+            tokio::sync::watch::channel(shell::leader::ShutdownReason::Manual).0,
             None,
             control_state,
         )
@@ -2907,7 +2907,7 @@ async fn raw_recv_acp(reader: &mut tokio::io::ReadHalf<UnixStream>) -> serde_jso
 /// pid+request-id fence keeps the counting sound regardless of what else is
 /// in the file. (Bazel sandboxes HOME, so CI writes stay test-scoped.)
 fn orphan_log_count(request_id: &str) -> usize {
-    let Some(bytes) = xvora_telemetry::unified_log::snapshot_log() else {
+    let Some(bytes) = telemetry::unified_log::snapshot_log() else {
         return 0;
     };
     String::from_utf8_lossy(&bytes)
@@ -2940,7 +2940,7 @@ async fn wait_for_orphan_log(request_id: &str) -> usize {
 async fn wait_for_client_disconnected_log(client_id: u64) -> bool {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     loop {
-        let seen = xvora_telemetry::unified_log::snapshot_log().is_some_and(|bytes| {
+        let seen = telemetry::unified_log::snapshot_log().is_some_and(|bytes| {
             String::from_utf8_lossy(&bytes).lines().any(|line| {
                 serde_json::from_str::<serde_json::Value>(line).is_ok_and(|entry| {
                     entry["msg"] == "leader.client.disconnected"
@@ -2992,7 +2992,7 @@ async fn test_hung_agent_leaves_transport_healthy_and_forwards_cancel() {
     );
     assert_eq!(
         *client.disconnect_reason().borrow(),
-        xvora_shell::leader::DisconnectReason::Connected,
+        shell::leader::DisconnectReason::Connected,
         "a hung agent must not sever the client connection"
     );
 

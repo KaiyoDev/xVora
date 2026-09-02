@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use xvora_config::managed_text::{
+use config::managed_text::{
     CommentSyntax, ManagedConfig, ManagedConfigOutcome, ManagedConfigPlan, ManagedConfigRequest,
     ManagedConfigStatus, ManagedItem, ManagedItemState, SyntaxValidator,
 };
@@ -300,8 +300,8 @@ pub enum FixError {
     ByobuConfigUnavailable,
     UnsafeDirectory { label: &'static str, path: PathBuf },
     ExistingCustomization { path: PathBuf, detail: String },
-    Managed(xvora_config::managed_text::ManagedConfigError),
-    TmuxManaged(xvora_config::managed_text::ManagedConfigError),
+    Managed(config::managed_text::ManagedConfigError),
+    TmuxManaged(config::managed_text::ManagedConfigError),
     PostconditionFailed,
     TmuxPostconditionFailed,
 }
@@ -376,8 +376,8 @@ impl std::error::Error for FixError {
     }
 }
 
-impl From<xvora_config::managed_text::ManagedConfigError> for FixError {
-    fn from(error: xvora_config::managed_text::ManagedConfigError) -> Self {
+impl From<config::managed_text::ManagedConfigError> for FixError {
+    fn from(error: config::managed_text::ManagedConfigError) -> Self {
         Self::Managed(error)
     }
 }
@@ -1576,7 +1576,7 @@ fn detect_fish_ssh_customization(text: &str) -> Option<String> {
 }
 
 fn actual_home() -> Option<PathBuf> {
-    xvora_dirs::home_dir()
+    dirs::home_dir()
 }
 
 pub fn configured_report(mut report: DiagnosticReport, configured: bool) -> DiagnosticReport {

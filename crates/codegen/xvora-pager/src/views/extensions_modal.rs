@@ -15,7 +15,7 @@ use crate::views::modal_window::{
     self, ModalContentArea, ModalSizing, ModalWindowConfig, ModalWindowState, Shortcut,
 };
 use crate::views::picker;
-use xvora_tools::implementations::skills::types::SkillInfo;
+use tools::implementations::skills::types::SkillInfo;
 
 mod workflows_picker_rows;
 use workflows_picker_rows::build_workflows_picker_rows;
@@ -44,7 +44,7 @@ fn fuzzy_matches(name: &str, query: &str) -> bool {
 }
 
 /// Check if a hook fuzzy-matches the search query across all its fields.
-pub fn fuzzy_matches_hook(hook: &xvora_hooks_plugins_types::HookInfo, query: &str) -> bool {
+pub fn fuzzy_matches_hook(hook: &hooks_plugins_types::HookInfo, query: &str) -> bool {
     if query.is_empty() {
         return true;
     }
@@ -78,7 +78,7 @@ fn cmp_str_ci(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
-fn hook_row_label(hook: &xvora_hooks_plugins_types::HookInfo) -> String {
+fn hook_row_label(hook: &hooks_plugins_types::HookInfo) -> String {
     let matcher = hook
         .matcher
         .as_deref()
@@ -127,7 +127,7 @@ fn hook_group_sort_key<'a>(source_dir: &'a str, meta: &HookSourceMeta) -> HookGr
 }
 
 fn is_official_marketplace_source(
-    source: &xvora_hooks_plugins_types::MarketplaceScanResult,
+    source: &hooks_plugins_types::MarketplaceScanResult,
 ) -> bool {
     source.source_name == xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME
         || xvora_plugin_marketplace::is_official_source_url(&source.source_url_or_path)
@@ -142,7 +142,7 @@ pub(crate) struct MarketplaceSourceView {
 
 /// Official source first, then A–Z by `source_name`; plugins A–Z within each.
 pub(crate) fn ordered_marketplace_view(
-    sources: &[xvora_hooks_plugins_types::MarketplaceScanResult],
+    sources: &[hooks_plugins_types::MarketplaceScanResult],
 ) -> Vec<MarketplaceSourceView> {
     let mut source_order: Vec<usize> = (0..sources.len()).collect();
     let source_keys: Vec<(bool, String)> = sources
@@ -189,8 +189,8 @@ struct SkillGroup {
 
 /// Group rank order: Project, User, Plugin, Bundled, Server, Config.
 fn skill_group(skill: &SkillInfo) -> SkillGroup {
-    use xvora_tools::implementations::skills::types::SkillScope;
-    use xvora_tools::types::config_source::ConfigSource;
+    use tools::implementations::skills::types::SkillScope;
+    use tools::types::config_source::ConfigSource;
 
     if let Some(ref cs) = skill.config_source {
         return match cs {
@@ -293,13 +293,13 @@ fn word_wrap(text: &str, max_w: usize) -> Vec<&str> {
 #[cfg(test)]
 pub(crate) fn test_plugin_info(
     name: &str,
-    origin: Option<xvora_hooks_plugins_types::PluginOrigin>,
-) -> xvora_hooks_plugins_types::PluginInfo {
-    xvora_hooks_plugins_types::PluginInfo {
+    origin: Option<hooks_plugins_types::PluginOrigin>,
+) -> hooks_plugins_types::PluginInfo {
+    hooks_plugins_types::PluginInfo {
         name: name.to_string(),
         id: format!("user/abcd1234/{name}"),
         root: format!("/tmp/{name}"),
-        scope: xvora_hooks_plugins_types::PluginScope::User,
+        scope: hooks_plugins_types::PluginScope::User,
         trusted: true,
         enabled: true,
         version: None,
@@ -308,10 +308,10 @@ pub(crate) fn test_plugin_info(
         skill_names: vec![],
         agent_count: 0,
         agent_names: vec![],
-        hook_status: xvora_hooks_plugins_types::HookStatus::None,
+        hook_status: hooks_plugins_types::HookStatus::None,
         hook_count: 0,
         mcp_server_count: 0,
-        mcp_status: xvora_hooks_plugins_types::McpStatus::None,
+        mcp_status: hooks_plugins_types::McpStatus::None,
         marketplace_source: None,
         origin,
         conflict: None,
@@ -360,7 +360,7 @@ struct PluginGroupSortKey {
 /// Plugins bucketed by group sort key for the Plugins tab.
 type GroupedPlugins<'a> = std::collections::BTreeMap<
     PluginGroupSortKey,
-    Vec<(usize, &'a xvora_hooks_plugins_types::PluginInfo)>,
+    Vec<(usize, &'a hooks_plugins_types::PluginInfo)>,
 >;
 
 /// Header count suffix: `1 plugin`, `2 plugins`.
@@ -377,7 +377,7 @@ fn plugin_count_label(n: usize) -> String {
 /// Uses the plugin's `origin` when present.
 /// A missing origin (older shell) or an unrecognized variant (newer shell) falls back to the scope plus the legacy `marketplace_source` label.
 /// The fallback still yields sensible groups.
-pub fn plugin_group(plugin: &xvora_hooks_plugins_types::PluginInfo) -> PluginGroup {
+pub fn plugin_group(plugin: &hooks_plugins_types::PluginInfo) -> PluginGroup {
     use hooks_plugins_types::{PluginOrigin, PluginScope};
 
     match &plugin.origin {
@@ -438,7 +438,7 @@ struct HookGroupView<'a> {
 }
 
 fn build_hook_groups<'a>(
-    hooks: &'a [xvora_hooks_plugins_types::HookInfo],
+    hooks: &'a [hooks_plugins_types::HookInfo],
     filter: StatusFilter,
     query: &str,
 ) -> Vec<HookGroupView<'a>> {
@@ -541,8 +541,8 @@ impl ExtensionsTab {
         }
     }
 
-    pub fn telemetry_tab(self) -> xvora_telemetry::events::ExtensionsModalTab {
-        use xvora_telemetry::events::ExtensionsModalTab;
+    pub fn telemetry_tab(self) -> telemetry::events::ExtensionsModalTab {
+        use telemetry::events::ExtensionsModalTab;
         match self {
             Self::Hooks => ExtensionsModalTab::Hooks,
             Self::Plugins => ExtensionsModalTab::Plugins,
@@ -562,7 +562,7 @@ impl ExtensionsTab {
 /// Pinned (managed-policy) hooks always report enabled, so only unpinned hooks drive the direction.
 /// A group with no unpinned hooks reads enabled (everything in it always runs), never "off".
 pub(crate) fn hook_group_any_enabled<'a>(
-    hooks: impl Iterator<Item = &'a xvora_hooks_plugins_types::HookInfo>,
+    hooks: impl Iterator<Item = &'a hooks_plugins_types::HookInfo>,
 ) -> bool {
     let unpinned: Vec<_> = hooks.filter(|h| !h.pinned).collect();
     unpinned.is_empty() || unpinned.iter().any(|h| !h.disabled)
@@ -570,7 +570,7 @@ pub(crate) fn hook_group_any_enabled<'a>(
 
 /// Whether removing this hook's source would touch a managed-policy hook (`x` removes the whole `source_dir`, so the gate is source-level).
 pub(crate) fn hook_source_pinned(
-    hooks: &[xvora_hooks_plugins_types::HookInfo],
+    hooks: &[hooks_plugins_types::HookInfo],
     source_dir: &str,
 ) -> bool {
     hooks.iter().any(|h| h.source_dir == source_dir && h.pinned)
@@ -619,9 +619,9 @@ impl StatusFilter {
 #[derive(Debug, Clone)]
 pub enum ButtonAction {
     /// Execute a hooks action via ACP (no args needed).
-    HooksAction(xvora_hooks_plugins_types::HooksAction),
+    HooksAction(hooks_plugins_types::HooksAction),
     /// Execute a plugins action via ACP (no args needed).
-    PluginsAction(xvora_hooks_plugins_types::PluginsAction),
+    PluginsAction(hooks_plugins_types::PluginsAction),
     /// Remove the hook under the cursor (uses source_dir from selected hook).
     RemoveSelectedHook,
     /// Toggle enable/disable on the hook under the cursor.
@@ -637,7 +637,7 @@ pub enum ButtonAction {
     /// Add an MCP server (parsed from inline input).
     AddMcpServer {
         name: String,
-        config: Box<xvora_shell::util::config::McpServerConfig>,
+        config: Box<shell::util::config::McpServerConfig>,
     },
     /// Remove the selected MCP server from config.toml.
     RemoveSelectedMcpServer,
@@ -658,7 +658,7 @@ pub enum ButtonAction {
     /// Uninstall the selected marketplace plugin.
     UninstallSelectedMarketplacePlugin,
     /// Execute a marketplace action via ACP.
-    MarketplaceAction(xvora_hooks_plugins_types::MarketplaceAction),
+    MarketplaceAction(hooks_plugins_types::MarketplaceAction),
 
     /// Remove the marketplace source under the cursor (unconfigure it and uninstall all its plugins).
     RemoveSelectedMarketplaceSource,
@@ -756,7 +756,7 @@ impl ModalInputField {
         self.editor.handle_key(key)
     }
 
-    pub(crate) fn viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    pub(crate) fn viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.editor.viewport(width)
     }
 }
@@ -1038,11 +1038,11 @@ pub enum McpSetupOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfirmationAction {
     /// Replay a hooks action (e.g. remove a hook source directory).
-    Hooks(xvora_hooks_plugins_types::HooksAction),
+    Hooks(hooks_plugins_types::HooksAction),
     /// Replay a plugins action (e.g. uninstall; may still be `confirmed: false` so multi-plugin repos can return a second server-owned prompt).
-    Plugins(xvora_hooks_plugins_types::PluginsAction),
+    Plugins(hooks_plugins_types::PluginsAction),
     /// Replay a marketplace action (uninstall plugin or remove source).
-    Marketplace(xvora_hooks_plugins_types::MarketplaceAction),
+    Marketplace(hooks_plugins_types::MarketplaceAction),
     /// Delete a removable (local) MCP server by name.
     DeleteMcpServer { server_name: String },
 }
@@ -1468,7 +1468,7 @@ pub fn tab_complete_path(partial: &str) -> Option<String> {
 
     // Expand ~ to home directory.
     let expanded = if let Some(rest) = partial.strip_prefix('~') {
-        let home = xvora_dirs::home_dir()?;
+        let home = dirs::home_dir()?;
         if rest.is_empty() || rest == "/" {
             home.to_string_lossy().to_string() + "/"
         } else {
@@ -1610,7 +1610,7 @@ pub fn build_action_from_input(
             path: first.to_string(),
         })),
         "marketplace_add_source" => Some(ButtonAction::MarketplaceAction(
-            xvora_hooks_plugins_types::MarketplaceAction::AddSource {
+            hooks_plugins_types::MarketplaceAction::AddSource {
                 url: first.to_string(),
             },
         )),
@@ -1652,7 +1652,7 @@ fn derive_name_from_url(url: &str) -> String {
 /// If `name` is empty, derives a name from the URL hostname.
 /// The `url_or_cmd` field is split on whitespace to extract the command and any trailing args for stdio transport.
 fn parse_mcp_add_fields(name: &str, url_or_cmd: &str) -> Option<ButtonAction> {
-    use xvora_shell::util::config::{McpServerConfig, McpServerTransportConfig};
+    use shell::util::config::{McpServerConfig, McpServerTransportConfig};
 
     let mut parts = url_or_cmd.split_whitespace();
     let command_or_url = parts.next()?;
@@ -1740,9 +1740,9 @@ pub struct ExtensionsModalState {
     /// Session team principal for managed-connectors deep links in section copy.
     pub session_team_id: Option<String>,
     /// Hooks list data (fetched from shell).
-    pub hooks_data: TabDataState<xvora_hooks_plugins_types::HooksListResponse>,
+    pub hooks_data: TabDataState<hooks_plugins_types::HooksListResponse>,
     /// Plugins list data (fetched from shell).
-    pub plugins_data: TabDataState<xvora_hooks_plugins_types::PluginsListResponse>,
+    pub plugins_data: TabDataState<hooks_plugins_types::PluginsListResponse>,
     /// Cached button hit areas from last render (for mouse click).
     pub button_areas: Vec<ButtonArea>,
     /// Active inline input (when the user is typing an argument for a command).
@@ -1760,7 +1760,7 @@ pub struct ExtensionsModalState {
     /// Transient result feedback shown after an action succeeds: a right-aligned badge on `entry_index`'s row, or a tab-wide footer line when `None`.
     pub result_notice: Option<ActionResultNotice>,
     /// Last dispatched plugins action (for confirmation replay).
-    pub last_plugins_action: Option<xvora_hooks_plugins_types::PluginsAction>,
+    pub last_plugins_action: Option<hooks_plugins_types::PluginsAction>,
     /// Selected item index per tab (for j/k navigation).
     /// Maps visible row offset (relative to content top) to hook index.
     /// Rebuilt every render; used to resolve a mouse click to a hook selection.
@@ -1771,7 +1771,7 @@ pub struct ExtensionsModalState {
     pub hooks_scroll: usize,
     pub plugins_scroll: usize,
     /// Marketplace tab state.
-    pub marketplace_data: TabDataState<xvora_hooks_plugins_types::MarketplaceListResponse>,
+    pub marketplace_data: TabDataState<hooks_plugins_types::MarketplaceListResponse>,
     /// A marketplace list fetch is in flight.
     /// Overlapping list calls serialize on the shell's per-source cache lock and each re-scans every git source.
     /// Duplicates therefore multiply the slowest source's latency.
@@ -1966,7 +1966,7 @@ impl ExtensionsModalState {
 
     /// Seed the all-collapsed default for hook source groups once, on the first non-empty delivery.
     /// Called from both hook-data delivery channels (list fetch and the `HooksChanged` push).
-    pub fn seed_hook_groups_once(&mut self, hooks: &[xvora_hooks_plugins_types::HookInfo]) {
+    pub fn seed_hook_groups_once(&mut self, hooks: &[hooks_plugins_types::HookInfo]) {
         seed_groups_once(
             &mut self.hooks_groups_seeded,
             &mut self.hooks_collapsed_groups,
@@ -1977,7 +1977,7 @@ impl ExtensionsModalState {
 
     /// Seed the all-collapsed default for plugin source groups once, on the first non-empty delivery.
     /// Called from both plugin-data delivery channels (list fetch and the `PluginsChanged` push).
-    pub fn seed_plugin_groups_once(&mut self, plugins: &[xvora_hooks_plugins_types::PluginInfo]) {
+    pub fn seed_plugin_groups_once(&mut self, plugins: &[hooks_plugins_types::PluginInfo]) {
         seed_groups_once(
             &mut self.plugins_groups_seeded,
             &mut self.plugins_collapsed_groups,
@@ -2092,7 +2092,7 @@ impl ExtensionsModalState {
     /// Returns `(source_index, Option<plugin_index_within_source>)`.
     pub fn resolve_marketplace_selection(
         &self,
-        sources: &[xvora_hooks_plugins_types::MarketplaceScanResult],
+        sources: &[hooks_plugins_types::MarketplaceScanResult],
     ) -> Option<(usize, Option<usize>)> {
         let sel = self.picker_state.selected;
         // Source index from entry_data_indices (None for source headers).
@@ -2323,7 +2323,7 @@ pub fn derive_source_label(source_dir: &str) -> (String, bool) {
 
 /// Classify a hooks `source_dir` into a display label and stable kind rank.
 fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
-    let grok = xvora_config::grok_home();
+    let grok = config::grok_home();
     let source_path = std::path::Path::new(source_dir);
     // Plugin / installed-plugin dirs, under the user grok home (GROK_HOME-aware) or a project-scoped `{cwd}/.grok/<subdir>/`
     // Returns the first path component after the subdir (the plugin's install directory name)
@@ -2387,7 +2387,7 @@ fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
             let rest_str = rest.to_string_lossy();
             let rest_trimmed = rest_str.strip_prefix('/').unwrap_or(&rest_str);
             format!("Custom: {prefix}/{rest_trimmed}")
-        } else if let Some(home) = xvora_dirs::home_dir() {
+        } else if let Some(home) = dirs::home_dir() {
             // Path::strip_prefix, not a string prefix: USERPROFILE `C:\Users\foo` must not collapse `C:\Users\foobar`
             if !home.as_os_str().is_empty()
                 && let Ok(rest) = source_path.strip_prefix(&home)
@@ -2495,7 +2495,7 @@ fn filter_and_sort_skills(
 fn skill_source_str(skill: &SkillInfo) -> String {
     if let Some(ref cs) = skill.config_source {
         match cs {
-            xvora_tools::types::config_source::ConfigSource::User { path } => {
+            tools::types::config_source::ConfigSource::User { path } => {
                 if crate::util::is_under_user_grok_home(path) {
                     crate::util::display_user_grok_path("skills")
                 } else if path.display().to_string().contains("/.claude/") {
@@ -2504,7 +2504,7 @@ fn skill_source_str(skill: &SkillInfo) -> String {
                     "user".into()
                 }
             }
-            xvora_tools::types::config_source::ConfigSource::Project { path } => {
+            tools::types::config_source::ConfigSource::Project { path } => {
                 let s = path.display().to_string();
                 if s.contains("/.grok/") {
                     ".grok/skills".into()
@@ -2514,7 +2514,7 @@ fn skill_source_str(skill: &SkillInfo) -> String {
                     "project".into()
                 }
             }
-            xvora_tools::types::config_source::ConfigSource::Plugin { plugin_name, .. } => {
+            tools::types::config_source::ConfigSource::Plugin { plugin_name, .. } => {
                 format!("plugin: {}", plugin_name)
             }
             _ => format!("{:?}", skill.scope).to_lowercase(),
@@ -2525,7 +2525,7 @@ fn skill_source_str(skill: &SkillInfo) -> String {
 }
 
 /// Build picker fields for an expanded plugin.
-fn build_plugin_fields(plugin: &xvora_hooks_plugins_types::PluginInfo) -> Vec<String> {
+fn build_plugin_fields(plugin: &hooks_plugins_types::PluginInfo) -> Vec<String> {
     use hooks_plugins_types::McpStatus;
     let mut components = Vec::new();
     if !plugin.skill_names.is_empty() {
@@ -2560,8 +2560,8 @@ const COMPONENT_ITEMS_CAP: usize = 8;
 const NO_DETECTABLE_COMPONENTS: &str = "no detectable components";
 
 fn component_categories(
-    components: &xvora_hooks_plugins_types::PluginComponents,
-) -> [(&'static str, &[xvora_hooks_plugins_types::ComponentItem]); 6] {
+    components: &hooks_plugins_types::PluginComponents,
+) -> [(&'static str, &[hooks_plugins_types::ComponentItem]); 6] {
     use hooks_plugins_types::ComponentCategory;
     components.categories().map(|(category, items)| {
         let label = match category {
@@ -2578,7 +2578,7 @@ fn component_categories(
 
 /// Per-category names-only fields for an expanded marketplace entry: comma-joined component names, capped per category with "+N more".
 pub(crate) fn render_components_fields(
-    components: &xvora_hooks_plugins_types::PluginComponents,
+    components: &hooks_plugins_types::PluginComponents,
 ) -> Vec<(String, String)> {
     let mut fields = Vec::new();
     for (label, items) in component_categories(components) {
@@ -2601,7 +2601,7 @@ pub(crate) fn render_components_fields(
 
 /// Collapsed-row summary from catalog components; `None` without catalog data.
 pub(crate) fn marketplace_components_summary(
-    plugin: &xvora_hooks_plugins_types::MarketplacePluginEntry,
+    plugin: &hooks_plugins_types::MarketplacePluginEntry,
 ) -> Option<String> {
     plugin
         .components
@@ -4137,7 +4137,7 @@ mod tests {
     /// Path-component matching must leave it intact while still collapsing a real child of `$HOME`.
     #[test]
     fn derive_source_label_does_not_eat_neighbor_profile() {
-        let Some(home) = xvora_dirs::home_dir() else {
+        let Some(home) = dirs::home_dir() else {
             return;
         };
         if home.as_os_str().is_empty() {
@@ -4746,8 +4746,8 @@ mod tests {
     fn make_skill(
         name: &str,
         desc: &str,
-    ) -> xvora_tools::implementations::skills::types::SkillInfo {
-        xvora_tools::implementations::skills::types::SkillInfo {
+    ) -> tools::implementations::skills::types::SkillInfo {
+        tools::implementations::skills::types::SkillInfo {
             name: name.to_string(),
             display_name: None,
             description: desc.to_string(),
@@ -4759,7 +4759,7 @@ mod tests {
             compatibility: None,
             metadata: None,
             path: "test".to_string(),
-            scope: xvora_tools::implementations::skills::types::SkillScope::User,
+            scope: tools::implementations::skills::types::SkillScope::User,
             config_source: None,
             plugin_name: None,
             plugin_version: None,
@@ -4869,11 +4869,11 @@ mod tests {
         name: &str,
         desc: &str,
         plugin: &str,
-    ) -> xvora_tools::implementations::skills::types::SkillInfo {
+    ) -> tools::implementations::skills::types::SkillInfo {
         let mut skill = make_skill(name, desc);
         skill.plugin_name = Some(plugin.to_string());
-        skill.scope = xvora_tools::implementations::skills::types::SkillScope::Plugin;
-        skill.config_source = Some(xvora_tools::types::config_source::ConfigSource::Plugin {
+        skill.scope = tools::implementations::skills::types::SkillScope::Plugin;
+        skill.config_source = Some(tools::types::config_source::ConfigSource::Plugin {
             plugin_name: plugin.to_string(),
             path: std::path::PathBuf::from(format!("/plugins/{plugin}/skills/{name}/SKILL.md")),
         });
@@ -5132,14 +5132,14 @@ mod tests {
 
     // ── Plugin fixtures ─────────────────────────────────────────────
 
-    fn make_plugin(name: &str) -> xvora_hooks_plugins_types::PluginInfo {
+    fn make_plugin(name: &str) -> hooks_plugins_types::PluginInfo {
         test_plugin_info(name, None)
     }
 
     fn make_plugin_with_origin(
         name: &str,
-        origin: xvora_hooks_plugins_types::PluginOrigin,
-    ) -> xvora_hooks_plugins_types::PluginInfo {
+        origin: hooks_plugins_types::PluginOrigin,
+    ) -> hooks_plugins_types::PluginInfo {
         test_plugin_info(name, Some(origin))
     }
 
@@ -5165,7 +5165,7 @@ mod tests {
     fn make_plugin_with_enabled(
         name: &str,
         enabled: bool,
-    ) -> xvora_hooks_plugins_types::PluginInfo {
+    ) -> hooks_plugins_types::PluginInfo {
         let mut p = make_plugin(name);
         p.enabled = enabled;
         p
@@ -5182,7 +5182,7 @@ mod tests {
 
         state.entry_data_indices = vec![Some(0), Some(1)];
         state.picker_state.selected = 0;
-        state.plugins_data = TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
+        state.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
             plugins: vec![
                 make_plugin_with_enabled("on", true),
                 make_plugin_with_enabled("off", false),
@@ -5226,7 +5226,7 @@ mod tests {
         // Entry maps as the picker builds them (headers carry a group key, no data index):
         //   0: header /etc/grok, 1: pinned row, 2: header user, 3: user row
         let mut state = ExtensionsModalState::new(ExtensionsTab::Hooks);
-        state.hooks_data = TabDataState::Loaded(xvora_hooks_plugins_types::HooksListResponse {
+        state.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
             hooks: vec![pinned, user],
             project_trusted: true,
             load_errors: Vec::new(),
@@ -5260,7 +5260,7 @@ mod tests {
         let mixed_user = make_hook("user/d", "/mixed", false);
         let mixed_state = {
             let mut s = ExtensionsModalState::new(ExtensionsTab::Hooks);
-            s.hooks_data = TabDataState::Loaded(xvora_hooks_plugins_types::HooksListResponse {
+            s.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
                 hooks: vec![mixed_pinned, mixed_user],
                 project_trusted: true,
                 load_errors: Vec::new(),
@@ -5299,7 +5299,7 @@ mod tests {
         sibling.removable = true;
 
         let mut state = ExtensionsModalState::new(ExtensionsTab::Hooks);
-        state.hooks_data = TabDataState::Loaded(xvora_hooks_plugins_types::HooksListResponse {
+        state.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
             hooks: vec![pinned, sibling],
             project_trusted: true,
             load_errors: Vec::new(),
@@ -5356,7 +5356,7 @@ mod tests {
     #[test]
     fn space_footer_follows_refreshed_entry_data_indices_after_filter_shape_change() {
         let mut state = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        state.plugins_data = TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
+        state.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
             plugins: vec![
                 make_plugin_with_enabled("on", true),
                 make_plugin_with_enabled("off", false),
@@ -5632,7 +5632,7 @@ mod tests {
                 assert_eq!(name, "linear");
                 assert!(matches!(
                     config.transport,
-                    xvora_shell::util::config::McpServerTransportConfig::StreamableHttp { .. }
+                    shell::util::config::McpServerTransportConfig::StreamableHttp { .. }
                 ));
             }
             other => panic!("expected AddMcpServer, got {other:?}"),
@@ -5659,7 +5659,7 @@ mod tests {
             Some(ButtonAction::AddMcpServer { name, config }) => {
                 assert_eq!(name, "srv");
                 match config.transport {
-                    xvora_shell::util::config::McpServerTransportConfig::Stdio {
+                    shell::util::config::McpServerTransportConfig::Stdio {
                         command,
                         args,
                         ..
@@ -5687,7 +5687,7 @@ mod tests {
         assert!(matches!(
             action,
             Some(ButtonAction::PluginsAction(
-                xvora_hooks_plugins_types::PluginsAction::Install { .. }
+                hooks_plugins_types::PluginsAction::Install { .. }
             ))
         ));
     }
@@ -6028,11 +6028,11 @@ mod tests {
         name: &str,
         source_dir: &str,
         disabled: bool,
-    ) -> xvora_hooks_plugins_types::HookInfo {
-        xvora_hooks_plugins_types::HookInfo {
+    ) -> hooks_plugins_types::HookInfo {
+        hooks_plugins_types::HookInfo {
             name: name.to_string(),
-            event: xvora_hooks_plugins_types::HookEvent::PreToolUse,
-            handler_type: xvora_hooks_plugins_types::HookHandlerType::Command,
+            event: hooks_plugins_types::HookEvent::PreToolUse,
+            handler_type: hooks_plugins_types::HookHandlerType::Command,
             matcher: None,
             command: Some("/bin/true".to_string()),
             url: None,
@@ -6097,8 +6097,8 @@ mod tests {
     // ── Marketplace tests (obra/superpowers as sample) ──────────────
 
     /// Build a realistic marketplace source modelled on obra/superpowers.
-    fn superpowers_source() -> xvora_hooks_plugins_types::MarketplaceScanResult {
-        xvora_hooks_plugins_types::MarketplaceScanResult {
+    fn superpowers_source() -> hooks_plugins_types::MarketplaceScanResult {
+        hooks_plugins_types::MarketplaceScanResult {
             source_name: "superpowers".into(),
             source_kind: "git".into(),
             source_url_or_path: "https://github.com/obra/superpowers".into(),
@@ -6159,7 +6159,7 @@ mod tests {
         has_agents: bool,
         has_mcp: bool,
         install_status: &'static str,
-        components: Option<xvora_hooks_plugins_types::PluginComponents>,
+        components: Option<hooks_plugins_types::PluginComponents>,
     }
 
     impl Default for TestPlugin {
@@ -6180,7 +6180,7 @@ mod tests {
     }
 
     impl TestPlugin {
-        fn build(self) -> xvora_hooks_plugins_types::MarketplacePluginEntry {
+        fn build(self) -> hooks_plugins_types::MarketplacePluginEntry {
             let installed_version = if self.install_status == "installed"
                 || self.install_status == "update_available"
             {
@@ -6188,7 +6188,7 @@ mod tests {
             } else {
                 None
             };
-            xvora_hooks_plugins_types::MarketplacePluginEntry {
+            hooks_plugins_types::MarketplacePluginEntry {
                 name: self.name.to_string(),
                 version: self.version.map(String::from),
                 description: self.description.map(String::from),
@@ -6268,7 +6268,7 @@ mod tests {
         let action = build_action_from_input("marketplace_add_source", &texts);
         match action {
             Some(ButtonAction::MarketplaceAction(
-                xvora_hooks_plugins_types::MarketplaceAction::AddSource { url },
+                hooks_plugins_types::MarketplaceAction::AddSource { url },
             )) => {
                 assert_eq!(url, "https://github.com/obra/superpowers");
             }
@@ -6282,7 +6282,7 @@ mod tests {
         let action = build_action_from_input("marketplace_add_source", &texts);
         match action {
             Some(ButtonAction::MarketplaceAction(
-                xvora_hooks_plugins_types::MarketplaceAction::AddSource { url },
+                hooks_plugins_types::MarketplaceAction::AddSource { url },
             )) => {
                 assert_eq!(url, "https://github.com/obra/superpowers");
             }
@@ -6316,7 +6316,7 @@ mod tests {
         assert!(matches!(
             action,
             Some(ButtonAction::MarketplaceAction(
-                xvora_hooks_plugins_types::MarketplaceAction::Refresh {
+                hooks_plugins_types::MarketplaceAction::Refresh {
                     source_url_or_path: None
                 }
             ))
@@ -6441,7 +6441,7 @@ mod tests {
     fn marketplace_modal_state_with_loaded_data() {
         let mut state = ExtensionsModalState::new(ExtensionsTab::Marketplace);
         state.marketplace_data =
-            TabDataState::Loaded(xvora_hooks_plugins_types::MarketplaceListResponse {
+            TabDataState::Loaded(hooks_plugins_types::MarketplaceListResponse {
                 sources: vec![superpowers_source()],
             });
         assert!(matches!(state.marketplace_data, TabDataState::Loaded(_)));
@@ -6483,7 +6483,7 @@ mod tests {
 
     #[test]
     fn marketplace_error_source_renders_header_with_error_badge() {
-        let error_source = xvora_hooks_plugins_types::MarketplaceScanResult {
+        let error_source = hooks_plugins_types::MarketplaceScanResult {
             source_name: "broken-source".into(),
             source_kind: "git".into(),
             source_url_or_path: "https://github.com/bad/repo".into(),
@@ -6498,12 +6498,12 @@ mod tests {
 
     // ── Marketplace: components rendering + search ──────────────────
 
-    fn component(name: &str, desc: Option<&str>) -> xvora_hooks_plugins_types::ComponentItem {
-        xvora_hooks_plugins_types::ComponentItem::new(name, desc.map(str::to_string))
+    fn component(name: &str, desc: Option<&str>) -> hooks_plugins_types::ComponentItem {
+        hooks_plugins_types::ComponentItem::new(name, desc.map(str::to_string))
     }
 
-    fn sample_components() -> xvora_hooks_plugins_types::PluginComponents {
-        xvora_hooks_plugins_types::PluginComponents {
+    fn sample_components() -> hooks_plugins_types::PluginComponents {
+        hooks_plugins_types::PluginComponents {
             skills: vec![
                 component("brainstorming", Some("Structured ideation before coding")),
                 component("test-driven-development", None),
@@ -6532,7 +6532,7 @@ mod tests {
     fn marketplace_summary_empty_components_is_none() {
         let plugin = TestPlugin {
             name: "empty",
-            components: Some(xvora_hooks_plugins_types::PluginComponents::default()),
+            components: Some(hooks_plugins_types::PluginComponents::default()),
             ..Default::default()
         }
         .build();
@@ -6594,7 +6594,7 @@ mod tests {
 
     #[test]
     fn render_components_fields_caps_names_per_category() {
-        let components = xvora_hooks_plugins_types::PluginComponents {
+        let components = hooks_plugins_types::PluginComponents {
             skills: (0..12)
                 .map(|i| component(&format!("skill-{i}"), None))
                 .collect(),
@@ -6611,7 +6611,7 @@ mod tests {
 
     #[test]
     fn render_components_fields_covers_all_six_categories() {
-        let components = xvora_hooks_plugins_types::PluginComponents {
+        let components = hooks_plugins_types::PluginComponents {
             skills: vec![component("s", None)],
             commands: vec![component("c", None)],
             agents: vec![component("a", None)],
@@ -6657,11 +6657,11 @@ mod tests {
     }
 
     fn marketplace_modal_state(
-        source: xvora_hooks_plugins_types::MarketplaceScanResult,
+        source: hooks_plugins_types::MarketplaceScanResult,
     ) -> ExtensionsModalState {
         let mut state = ExtensionsModalState::new(ExtensionsTab::Marketplace);
         state.marketplace_data =
-            TabDataState::Loaded(xvora_hooks_plugins_types::MarketplaceListResponse {
+            TabDataState::Loaded(hooks_plugins_types::MarketplaceListResponse {
                 sources: vec![source],
             });
         state
@@ -6744,11 +6744,11 @@ mod tests {
     // ── Plugins: origin grouping ─────────────────────────────────────
 
     fn plugins_modal_state(
-        plugins: Vec<xvora_hooks_plugins_types::PluginInfo>,
+        plugins: Vec<hooks_plugins_types::PluginInfo>,
     ) -> ExtensionsModalState {
         let mut state = ExtensionsModalState::new(ExtensionsTab::Plugins);
         state.plugins_data =
-            TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse { plugins });
+            TabDataState::Loaded(hooks_plugins_types::PluginsListResponse { plugins });
         state
     }
 
@@ -6840,18 +6840,18 @@ mod tests {
     #[test]
     fn plugin_group_fallback_without_origin() {
         let mut project = make_plugin("proj");
-        project.scope = xvora_hooks_plugins_types::PluginScope::Project;
+        project.scope = hooks_plugins_types::PluginScope::Project;
         assert_eq!(plugin_group(&project).key, "origin:project");
 
         let user = make_plugin("plain");
         assert_eq!(plugin_group(&user).key, "origin:user");
 
         let mut cli = make_plugin("cli-tool");
-        cli.scope = xvora_hooks_plugins_types::PluginScope::Cli;
+        cli.scope = hooks_plugins_types::PluginScope::Cli;
         assert_eq!(plugin_group(&cli).key, "origin:cli");
 
         let mut config = make_plugin("cfg-tool");
-        config.scope = xvora_hooks_plugins_types::PluginScope::Config;
+        config.scope = hooks_plugins_types::PluginScope::Config;
         assert_eq!(plugin_group(&config).key, "origin:config");
 
         let mut mp = make_plugin("mp-tool");
@@ -6869,7 +6869,7 @@ mod tests {
     fn plugin_group_unknown_origin_uses_scope_fallback() {
         let mut unknown = make_plugin_with_origin(
             "future-tool",
-            xvora_hooks_plugins_types::PluginOrigin::Unknown,
+            hooks_plugins_types::PluginOrigin::Unknown,
         );
         assert_eq!(plugin_group(&unknown).key, "origin:user");
 
@@ -7037,7 +7037,7 @@ mod tests {
     fn marketplace_placeholders_render_only_when_expanded() {
         let mut source = superpowers_source();
         source.plugins.truncate(2);
-        source.plugins[0].components = Some(xvora_hooks_plugins_types::PluginComponents::default());
+        source.plugins[0].components = Some(hooks_plugins_types::PluginComponents::default());
         source.plugins[1].components = None;
         source.plugins[1].skill_count = 0;
         source.plugins[1].has_hooks = false;
@@ -7273,7 +7273,7 @@ mod tests {
     #[test]
     fn ordered_marketplace_view_pins_official_then_az() {
         let mp = |name: &str, url: &str, err: Option<&str>, plugins: &[&'static str]| {
-            xvora_hooks_plugins_types::MarketplaceScanResult {
+            hooks_plugins_types::MarketplaceScanResult {
                 source_name: name.into(),
                 source_kind: "git".into(),
                 source_url_or_path: url.into(),
@@ -7319,15 +7319,15 @@ mod tests {
     #[test]
     fn skills_groups_then_az_by_label() {
         let mut project_z = make_skill("zzz-proj", "project skill");
-        project_z.scope = xvora_tools::implementations::skills::types::SkillScope::Local;
-        project_z.config_source = Some(xvora_tools::types::config_source::ConfigSource::Project {
+        project_z.scope = tools::implementations::skills::types::SkillScope::Local;
+        project_z.config_source = Some(tools::types::config_source::ConfigSource::Project {
             path: std::path::PathBuf::from("/repo/.grok/skills/zzz"),
         });
         project_z.display_name = Some("zeta-proj".into());
 
         let mut project_a = make_skill("aaa-proj", "other project");
-        project_a.scope = xvora_tools::implementations::skills::types::SkillScope::Repo;
-        project_a.config_source = Some(xvora_tools::types::config_source::ConfigSource::Project {
+        project_a.scope = tools::implementations::skills::types::SkillScope::Repo;
+        project_a.config_source = Some(tools::types::config_source::ConfigSource::Project {
             path: std::path::PathBuf::from("/repo/.grok/skills/aaa"),
         });
         project_a.display_name = Some("alpha-proj".into());
@@ -7410,12 +7410,12 @@ mod tests {
     #[test]
     fn hooks_group_and_row_order() {
         let mut h_stop = make_hook("stop-hook", "/tmp/hooks-src", false);
-        h_stop.event = xvora_hooks_plugins_types::HookEvent::Stop;
+        h_stop.event = hooks_plugins_types::HookEvent::Stop;
         let mut h_pre = make_hook("pre-hook", "/tmp/hooks-src", false);
-        h_pre.event = xvora_hooks_plugins_types::HookEvent::PreToolUse;
+        h_pre.event = hooks_plugins_types::HookEvent::PreToolUse;
         h_pre.matcher = Some("Bash".into());
         let mut h_notify = make_hook("notify-hook", "/tmp/hooks-src", false);
-        h_notify.event = xvora_hooks_plugins_types::HookEvent::Notification;
+        h_notify.event = hooks_plugins_types::HookEvent::Notification;
 
         let hooks = vec![
             make_hook("c", "/zzz/custom", false),

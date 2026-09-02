@@ -1,9 +1,9 @@
 use std::rc::Rc;
 use std::time::Duration;
 
-use xvora_agent_lifecycle::LocalExtensionRegistryBuilder;
-use xvora_agent_lifecycle::{LocalSessionLifecycleContributor, LocalTurnLifecycleContributor};
-use xvora_agent_lifecycle::{
+use agent_lifecycle::LocalExtensionRegistryBuilder;
+use agent_lifecycle::{LocalSessionLifecycleContributor, LocalTurnLifecycleContributor};
+use agent_lifecycle::{
     SessionIdleInput, TurnAbortInput, TurnDoneInput, TurnErrorInput, TurnStartInput,
 };
 
@@ -130,7 +130,7 @@ mod idle_notification_delay_tests {
 mod idle_after_interrupt_tests {
     use super::*;
     use std::cell::RefCell;
-    use xvora_agent_lifecycle::TurnAbortReason;
+    use agent_lifecycle::TurnAbortReason;
 
     #[derive(Default)]
     struct RecordingSink {

@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use xvora_auth::bearer_suffix;
+use auth::bearer_suffix;
 
-pub use xvora_auth::bearer_fragment::BEARER_SUFFIX_LEN;
+pub use auth::bearer_fragment::BEARER_SUFFIX_LEN;
 
 /// Which tool endpoint produced the 401.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

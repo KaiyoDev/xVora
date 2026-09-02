@@ -16,7 +16,7 @@ serde = { workspace = true }
 tokio = { workspace = true, features = ["net", "rt"] }
 tracing = { workspace = true }
 # Build version reported on `/statusz`.
-xvora-version = { workspace = true }
+version = { workspace = true }
 
 [dev-dependencies]
 # HTTP client for the endpoint contract tests.

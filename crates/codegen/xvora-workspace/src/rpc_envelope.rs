@@ -1,6 +1,6 @@
-//! Maps `WorkspaceError` to and from wire codes for the workspace RPC envelope (the envelope types are canonical in `xvora_workspace_types::rpc`).
+//! Maps `WorkspaceError` to and from wire codes for the workspace RPC envelope (the envelope types are canonical in `workspace_types::rpc`).
 use crate::error::WorkspaceError;
-pub use xvora_workspace_types::rpc::{RpcEnvelope, RpcError};
+pub use workspace_types::rpc::{RpcEnvelope, RpcError};
 pub fn envelope_err<T>(error: &WorkspaceError) -> RpcEnvelope<T> {
     RpcEnvelope::err_parts(error_code(error), error.to_string())
 }
@@ -15,7 +15,7 @@ pub fn error_code(err: &WorkspaceError) -> &'static str {
         WorkspaceError::Finalize(_) => "finalize",
         WorkspaceError::CapabilityWidening { .. } => "capability_widening",
         WorkspaceError::Unauthorized { .. } => "unauthorized",
-        WorkspaceError::TurnActive(_) => xvora_workspace_types::rpc::envelope::TURN_ACTIVE,
+        WorkspaceError::TurnActive(_) => workspace_types::rpc::envelope::TURN_ACTIVE,
         WorkspaceError::MaxDepthExceeded { .. } => "max_depth_exceeded",
         WorkspaceError::JoinError(_) => "join_error",
         WorkspaceError::InvalidHunkAction(_) => "invalid_hunk_action",
@@ -34,7 +34,7 @@ pub fn error_code(err: &WorkspaceError) -> &'static str {
 /// The `HubError` message keeps the original code as a prefix (e.g. `"capability_widening: ..."`).
 pub fn rpc_error_to_workspace(err: RpcError) -> WorkspaceError {
     if let Some(kind) =
-        xvora_workspace_types::rpc::export_github::ExportGithubError::from_wire_code(&err.code)
+        workspace_types::rpc::export_github::ExportGithubError::from_wire_code(&err.code)
     {
         return WorkspaceError::ExportGithub {
             kind,
@@ -147,7 +147,7 @@ mod tests {
     /// Verify unknown codes degrade to HubError.
     #[test]
     fn export_github_codes_round_trip_typed() {
-        for kind in xvora_workspace_types::rpc::export_github::ExportGithubError::ALL {
+        for kind in workspace_types::rpc::export_github::ExportGithubError::ALL {
             let err = WorkspaceError::ExportGithub {
                 kind,
                 message: "boom".into(),

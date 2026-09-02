@@ -3,7 +3,7 @@
 //! The card holds the braille logo, the version, the cwd, the model, and a one-line hint.
 //! It mirrors the full-TUI hero box's style (rounded dim border and logo) without its menu and onboarding.
 //!
-//! It is printed via [`xvora_ratatui_inline::Terminal::insert_before`], the same one-shot mechanism the commit pipeline uses.
+//! It is printed via [`ratatui_inline::Terminal::insert_before`], the same one-shot mechanism the commit pipeline uses.
 //! An `AppView` flag set at session creation gates it, so it prints exactly once per session and re-prints when a new session starts.
 
 use ratatui::style::{Modifier, Style};
@@ -43,7 +43,7 @@ pub fn maybe_commit_welcome(app: &mut AppView, terminal: &mut PagerTerminal) {
     let _ = terminal.clear();
 
     let theme = Theme::current();
-    let version = xvora_version::VERSION;
+    let version = version::VERSION;
     let (cwd, model) = match &app.active_view {
         ActiveView::Agent(id) => {
             let agent = app.agents.get(id);

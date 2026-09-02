@@ -12,10 +12,10 @@ use crate::error::{WorkspaceError, WorkspaceResult};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use xvora_tools::registry::types::{
+use tools::registry::types::{
     FinalizedToolset, ToolConfig, ToolRegistryBuilder, ToolServerConfig,
 };
-use xvora_tools::types::tool::ToolKind;
+use tools::types::tool::ToolKind;
 /// Entry point for session creation: runs [`resolve_session_toolset_rebuild`] around a fresh factory-built terminal backend.
 /// The backend lives for the session; it is returned so the caller can store it on the session being created.
 /// Session-less resolves (the `__template__` catalog resolve in `connect_hub`) also use this entry and drop the returned backend with the toolset.
@@ -28,10 +28,10 @@ pub(crate) fn resolve_session_toolset(
     session_env: Arc<HashMap<String, String>>,
     session_id: &str,
     factory: &dyn SessionContextFactory,
-    local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
-    lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
-    viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
-    notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
+    local_registry: Option<computer_hub_sdk::LocalRegistry>,
+    lsp: Option<std::sync::Arc<dyn tools::implementations::lsp::LspBackend>>,
+    viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+    notification_handle: Option<tools::notification::types::ToolNotificationHandle>,
 ) -> WorkspaceResult<(
     ToolServerConfig,
     Arc<FinalizedToolset>,
@@ -75,11 +75,11 @@ pub(crate) fn resolve_session_toolset_rebuild(
     session_env: Arc<HashMap<String, String>>,
     session_id: &str,
     factory: &dyn SessionContextFactory,
-    local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
-    lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
-    viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
-    notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
-    terminal_backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
+    local_registry: Option<computer_hub_sdk::LocalRegistry>,
+    lsp: Option<std::sync::Arc<dyn tools::implementations::lsp::LspBackend>>,
+    viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+    notification_handle: Option<tools::notification::types::ToolNotificationHandle>,
+    terminal_backend: Arc<dyn tools::computer::types::TerminalBackend>,
 ) -> WorkspaceResult<(ToolServerConfig, Arc<FinalizedToolset>)> {
     let mut builder = factory.registry_builder();
     if let Some(lr) = local_registry {
@@ -115,7 +115,7 @@ pub(crate) fn resolve_session_toolset_rebuild(
         .finalize_with_trunc_config(
             finalize_config,
             ctx,
-            xvora_tools::types::context::TruncationConfig::default(),
+            tools::types::context::TruncationConfig::default(),
             viewer_ctx,
         )
         .map_err(|errs| {
@@ -270,7 +270,7 @@ fn sanitize_session_id(session_id: &str) -> String {
         modified = true;
     }
     if modified {
-        let digest = xvora_file_utils::sha256_hex(session_id.as_bytes());
+        let digest = file_utils::sha256_hex(session_id.as_bytes());
         safe.push('-');
         safe.push_str(&digest[..8]);
     }
@@ -300,9 +300,9 @@ pub(crate) use crate::ENV_TEST_LOCK as TOOL_STATE_ENV_LOCK;
 ///
 /// [`build_terminal_backend`]: crate::config::SessionContextFactory::build_terminal_backend
 /// [`build_session_context`]: crate::config::SessionContextFactory::build_session_context
-/// [`LocalTerminalBackend`]: xvora_tools::computer::local::LocalTerminalBackend
+/// [`LocalTerminalBackend`]: tools::computer::local::LocalTerminalBackend
 pub struct WorkspaceSessionContextFactory {
-    auth: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
+    auth: Option<computer_hub_sdk::SharedAuthProvider>,
     api_base_url: Option<String>,
     /// Resolved `$GROK_WORKSPACE_HOME` when tool-state persistence is enabled; `None` disables it.
     /// Resolved once by the caller so the factory performs no per-build env reads.
@@ -323,7 +323,7 @@ impl WorkspaceSessionContextFactory {
     }
     /// Factory with auth: gen tools use the provider's live token.
     pub fn with_auth(
-        auth: xvora_computer_hub_sdk::SharedAuthProvider,
+        auth: computer_hub_sdk::SharedAuthProvider,
         api_base_url: String,
     ) -> Self {
         Self {
@@ -380,20 +380,20 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
         session_id: &str,
         cwd: PathBuf,
         session_env: Arc<HashMap<String, String>>,
-        backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
-    ) -> xvora_tools::registry::types::SessionContext {
-        use xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
-        use xvora_tools::implementations::grok_build::image_gen::ImageGenConfig;
-        use xvora_tools::implementations::grok_build::video_gen::VideoGenConfig;
-        use xvora_tools::implementations::web_search::WebSearchConfig;
-        let fs = Arc::new(xvora_tools::computer::local::LocalFs)
-            as Arc<dyn xvora_tools::computer::types::AsyncFileSystem>;
-        let notification_handle = xvora_tools::notification::ToolNotificationHandle::noop();
+        backend: Arc<dyn tools::computer::types::TerminalBackend>,
+    ) -> tools::registry::types::SessionContext {
+        use tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
+        use tools::implementations::grok_build::image_gen::ImageGenConfig;
+        use tools::implementations::grok_build::video_gen::VideoGenConfig;
+        use tools::implementations::web_search::WebSearchConfig;
+        let fs = Arc::new(tools::computer::local::LocalFs)
+            as Arc<dyn tools::computer::types::AsyncFileSystem>;
+        let notification_handle = tools::notification::ToolNotificationHandle::noop();
         let (image_gen_config, video_gen_config, web_search_config, app_builder_deployer_config) =
             if let (Some(auth), Some(url)) = (&self.auth, &self.api_base_url) {
                 let cred = auth.current();
                 match cred {
-                    xvora_computer_hub_sdk::AuthCredential::Bearer { token, .. } => {
+                    computer_hub_sdk::AuthCredential::Bearer { token, .. } => {
                         let headers = build_proxy_headers(url);
                         (
                             ImageGenConfig::Enabled {
@@ -441,7 +441,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
                     AppBuilderDeployerConfig::default(),
                 )
             };
-        xvora_tools::registry::types::SessionContext {
+        tools::registry::types::SessionContext {
             backend,
             fs,
             cwd,
@@ -463,12 +463,12 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
             api_key_provider: None,
             auth_provider: self.auth.clone(),
             attribution_callback: None,
-            system_reminder_tag: xvora_tools::reminders::DEFAULT_REMINDER_TAG,
+            system_reminder_tag: tools::reminders::DEFAULT_REMINDER_TAG,
         }
     }
     fn build_terminal_backend(&self) -> crate::config::SessionTerminalBackend {
         crate::config::SessionTerminalBackend::local(
-            xvora_tools::computer::local::LocalTerminalBackend::new(),
+            tools::computer::local::LocalTerminalBackend::new(),
         )
     }
     fn registry_builder(&self) -> ToolRegistryBuilder {
@@ -484,7 +484,7 @@ impl SessionContextFactory for WorkspaceSessionContextFactory {
 /// Mirrors the shell's `inject_proxy_headers` logic.
 fn build_proxy_headers(base_url: &str) -> indexmap::IndexMap<String, String> {
     let mut headers = indexmap::IndexMap::new();
-    let version = xvora_version::VERSION;
+    let version = version::VERSION;
     headers.insert(
         "user-agent".to_string(),
         format!("xvora-workspace/{version}"),
@@ -504,8 +504,8 @@ fn build_proxy_headers(base_url: &str) -> indexmap::IndexMap<String, String> {
     headers
 }
 /// Enabled with default params unless `GROK_DISABLE_WEB_FETCH=1` is set.
-fn build_web_fetch_config() -> xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig {
-    use xvora_tools::implementations::grok_build::web_fetch::{WebFetchConfig, WebFetchParams};
+fn build_web_fetch_config() -> tools::implementations::grok_build::web_fetch::WebFetchConfig {
+    use tools::implementations::grok_build::web_fetch::{WebFetchConfig, WebFetchParams};
     if std::env::var("GROK_DISABLE_WEB_FETCH").is_ok_and(|v| v == "1" || v == "true") {
         return WebFetchConfig::Disabled;
     }
@@ -513,7 +513,7 @@ fn build_web_fetch_config() -> xvora_tools::implementations::grok_build::web_fet
     if let Ok(proxy) = std::env::var("GROK_WEB_FETCH_PROXY") {
         params.proxy_endpoint = Some(proxy);
     }
-    if xvora_config::env_bool("GROK_WEB_FETCH_ALLOW_LOCAL") == Some(true) {
+    if config::env_bool("GROK_WEB_FETCH_ALLOW_LOCAL") == Some(true) {
         params.allow_local = Some(true);
     }
     WebFetchConfig::Enabled { params }
@@ -528,12 +528,12 @@ pub mod test_support {
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
-    use xvora_tools::computer::local::{LocalFs, LocalTerminalBackend};
-    use xvora_tools::notification::ToolNotificationHandle;
-    use xvora_tools::registry::types::{
+    use tools::computer::local::{LocalFs, LocalTerminalBackend};
+    use tools::notification::ToolNotificationHandle;
+    use tools::registry::types::{
         SessionContext, ToolConfig, ToolRegistryBuilder, ToolServerConfig,
     };
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::tool::ToolKind;
     /// Test factory: builds a `SessionContext` rooted at a per-test temp dir.
     pub struct TestSessionContextFactory {
         pub temp: TempDir,
@@ -565,7 +565,7 @@ pub mod test_support {
             session_id: &str,
             cwd: PathBuf,
             session_env: Arc<HashMap<String, String>>,
-            backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
+            backend: Arc<dyn tools::computer::types::TerminalBackend>,
         ) -> SessionContext {
             let session_root = self
                 .temp
@@ -598,7 +598,7 @@ pub mod test_support {
                 api_key_provider: None,
                 auth_provider: None,
                 attribution_callback: None,
-                system_reminder_tag: xvora_tools::reminders::DEFAULT_REMINDER_TAG,
+                system_reminder_tag: tools::reminders::DEFAULT_REMINDER_TAG,
             }
         }
         fn build_terminal_backend(&self) -> crate::config::SessionTerminalBackend {
@@ -640,7 +640,7 @@ mod tests {
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::sync::Arc;
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::tool::ToolKind;
     fn factory_for_test() -> Arc<dyn SessionContextFactory> {
         Arc::new(test_support::TestSessionContextFactory::new())
     }
@@ -1132,7 +1132,7 @@ mod tests {
     /// A toolset rebuilt for the SAME session rehydrates persisted state from disk; a DIFFERENT session_id cold-starts with no cross-contamination.
     #[tokio::test]
     async fn tool_state_rehydrates_same_session_and_cold_starts_other() {
-        use xvora_tools::types::resources::{State, WebCitationCounter};
+        use tools::types::resources::{State, WebCitationCounter};
         let factory = test_support::TestSessionContextFactory::new();
         let cwd = PathBuf::from("/tmp");
         let (_eff, ts_a, _backend_a) = resolve_session_toolset(

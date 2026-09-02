@@ -5,7 +5,7 @@ use crate::app::actions::Effect;
 use crate::app::agent::AgentId;
 use crate::app::app_view::AppView;
 use agent_client_protocol as acp;
-use xvora_telemetry::session_ctx::log_event;
+use telemetry::session_ctx::log_event;
 
 /// Max times the MCP list is re-read after an install while waiting for the just-installed plugin's MCP servers to reach a terminal state.
 /// Probes are ~1s apart (`Effect::RetryPluginCtaMcps`), so the budget bounds the wait at ~15s before a final no-auth verdict is forced.
@@ -49,10 +49,10 @@ pub(super) fn cta_settle_installed(
 /// (The URL check stops a source from spoofing the official name: the scanned URL is the install root.)
 /// A name-only match then keeps mirrors registered under the official name working; first registered wins within a tier.
 pub(super) fn plugin_cta_candidates(
-    response: xvora_hooks_plugins_types::MarketplaceListResponse,
+    response: hooks_plugins_types::MarketplaceListResponse,
     cta_marketplace: Option<&str>,
 ) -> (
-    Vec<xvora_hooks_plugins_types::MarketplacePluginEntry>,
+    Vec<hooks_plugins_types::MarketplacePluginEntry>,
     Option<String>,
 ) {
     let mut sources = response.sources;
@@ -83,7 +83,7 @@ pub(super) fn plugin_cta_candidates(
 /// Prefers the still-cached candidate entry.
 /// The `plugins/{name}` fallback assumes the conventional marketplace layout (a guess for a configured override source).
 pub(super) fn cta_install_relative_path(
-    candidates: &[xvora_hooks_plugins_types::MarketplacePluginEntry],
+    candidates: &[hooks_plugins_types::MarketplacePluginEntry],
     name: &str,
 ) -> String {
     candidates
@@ -94,7 +94,7 @@ pub(super) fn cta_install_relative_path(
 }
 
 pub(super) fn cta_install_error_category(
-    result: &Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+    result: &Result<hooks_plugins_types::ActionOutcome, String>,
 ) -> Option<String> {
     use hooks_plugins_types::OutcomeStatus;
     match result {
@@ -117,7 +117,7 @@ pub(super) fn cta_install_error_category(
 pub(super) fn plugin_cta_phase_for(
     enabled: bool,
     cta_source_present: bool,
-    candidates: &[xvora_hooks_plugins_types::MarketplacePluginEntry],
+    candidates: &[hooks_plugins_types::MarketplacePluginEntry],
     prompt_text: &str,
     is_dismissed: impl Fn(&str) -> bool,
 ) -> crate::app::agent_view::CtaPhase {
@@ -170,7 +170,7 @@ pub(super) fn handle_cta_plugin_install_done(
     app: &mut AppView,
     agent_id: AgentId,
     plugin_name: String,
-    result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+    result: Result<hooks_plugins_types::ActionOutcome, String>,
 ) -> Vec<Effect> {
     use crate::app::agent_view::CtaPhase;
     let Some(agent) = app.agents.get_mut(&agent_id) else {
@@ -194,14 +194,14 @@ pub(super) fn handle_cta_plugin_install_done(
     let name = name.clone();
     let session_id = agent.session.session_id.clone();
     let error_category = cta_install_error_category(&result);
-    log_event(xvora_telemetry::events::PluginCtaInstalled {
+    log_event(telemetry::events::PluginCtaInstalled {
         plugin_name: name.clone(),
         success: error_category.is_none(),
         error_category,
     });
     // Ok(requires_reload) on success; Err(message) otherwise.
     let install_result = match result {
-        Ok(outcome) if outcome.status == xvora_hooks_plugins_types::OutcomeStatus::Success => {
+        Ok(outcome) if outcome.status == hooks_plugins_types::OutcomeStatus::Success => {
             Ok(outcome.requires_reload)
         }
         Ok(outcome) => Err(crate::app::effects::sanitize_user_error(&outcome.message)),
@@ -247,7 +247,7 @@ pub(super) fn handle_cta_plugin_reload_done(
     app: &mut AppView,
     agent_id: AgentId,
     plugin_name: String,
-    result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+    result: Result<hooks_plugins_types::ActionOutcome, String>,
 ) -> Vec<Effect> {
     use crate::app::agent_view::CtaPhase;
     let Some(agent) = app.agents.get_mut(&agent_id) else {
@@ -264,7 +264,7 @@ pub(super) fn handle_cta_plugin_reload_done(
     let session_id = agent.session.session_id.clone();
     // Mirror the install handler: a non-Success outcome is a failure, not a reason to advance to the steps after install
     let reload_result = match result {
-        Ok(outcome) if outcome.status == xvora_hooks_plugins_types::OutcomeStatus::Success => {
+        Ok(outcome) if outcome.status == hooks_plugins_types::OutcomeStatus::Success => {
             Ok(())
         }
         Ok(outcome) => Err(crate::app::effects::sanitize_user_error(&outcome.message)),
@@ -364,8 +364,8 @@ pub(super) fn handle_plugin_cta_mcps_loaded(
                 modal.mcps_data = TabDataState::Loaded(servers);
                 agent.agents_modal = None;
                 agent.extensions_modal = Some(modal);
-                log_event(xvora_telemetry::events::ExtensionsModalOpened {
-                    trigger: xvora_telemetry::events::ExtensionsModalTrigger::AuthHandoff,
+                log_event(telemetry::events::ExtensionsModalOpened {
+                    trigger: telemetry::events::ExtensionsModalTrigger::AuthHandoff,
                     tab: ExtensionsTab::McpServers.telemetry_tab(),
                 });
                 agent.plugin_cta.phase = CtaPhase::Hidden;
@@ -425,7 +425,7 @@ pub(super) fn handle_plugin_cta_mcps_loaded(
 pub(super) fn handle_plugin_cta_catalog_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+    result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
 ) -> Vec<Effect> {
     use crate::app::agent_view::CtaPhase;
     match result {
@@ -441,7 +441,7 @@ pub(super) fn handle_plugin_cta_catalog_loaded(
                 // Cache the dismissed set once here so recomputing after the debounce never reads config.toml from the UI thread
                 // Only needed when enabled (the matcher short-circuits to Hidden before consulting it otherwise)
                 if enabled {
-                    agent.plugin_cta.dismissed = xvora_shell::config::dismissed_plugin_ctas();
+                    agent.plugin_cta.dismissed = shell::config::dismissed_plugin_ctas();
                 }
                 // Recompute the matcher-driven phase now that the catalog landed
                 // Typing and pausing before the async catalog arrived (common at startup) should show the CTA without another keystroke
@@ -462,7 +462,7 @@ pub(super) fn handle_plugin_cta_catalog_loaded(
                     if let Some(plugin_name) =
                         cta_impression_plugin_name(&agent.plugin_cta.phase, &new_phase)
                     {
-                        log_event(xvora_telemetry::events::PluginCtaImpression {
+                        log_event(telemetry::events::PluginCtaImpression {
                             plugin_name: plugin_name.to_string(),
                         });
                     }
@@ -517,7 +517,7 @@ pub(super) fn handle_plugin_cta_debounce_expired(
         |name| agent.plugin_cta.dismissed.contains(name),
     );
     if let Some(plugin_name) = cta_impression_plugin_name(&agent.plugin_cta.phase, &new_phase) {
-        log_event(xvora_telemetry::events::PluginCtaImpression {
+        log_event(telemetry::events::PluginCtaImpression {
             plugin_name: plugin_name.to_string(),
         });
     }

@@ -695,7 +695,7 @@ mod tests {
             format: None,
         };
 
-        let first = xvora_tool_runtime::Tool::run(&GrokReadFileTool, test_ctx(shared), input)
+        let first = tool_runtime::Tool::run(&GrokReadFileTool, test_ctx(shared), input)
             .await
             .unwrap();
         let ReadFileOutput::FileContent(first) = first else {

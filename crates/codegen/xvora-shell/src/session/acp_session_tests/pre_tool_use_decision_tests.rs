@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender;
-use xvora_tools::registry::types::ToolConfig;
+use acp_lib::AcpAgentGatewaySender;
+use tools::registry::types::ToolConfig;
 
 use super::support::*;
 use super::*;
@@ -13,7 +13,7 @@ async fn actor_with_hooks(
     tools: Vec<ToolConfig>,
     specs: Vec<xvora_hooks::config::HookSpec>,
     yolo: bool,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
 ) -> SessionActor {
     let hook_gateway = AcpAgentGatewaySender::new(gateway_tx.clone());
     let (persistence_tx, _persistence_rx) =
@@ -28,7 +28,7 @@ async fn actor_with_hooks(
 async fn actor_with_pre_tool_use_hook(
     script: &str,
     yolo: bool,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
 ) -> SessionActor {
     actor_with_hooks(
         read_and_edit_toolset(),
@@ -59,7 +59,7 @@ async fn pre_tool_use_updated_input_rewrites_prepared_call() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor = Arc::new(
                 actor_with_pre_tool_use_hook(
                     REWRITE_TARGET_FILE_HOOK,
@@ -88,7 +88,7 @@ async fn pre_tool_use_rewrite_runs_silently_and_is_telemetry_tagged() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let mut actor = actor_with_pre_tool_use_hook(
                 REWRITE_TARGET_FILE_HOOK,
                 /*yolo=*/ true,
@@ -136,7 +136,7 @@ async fn pre_tool_use_invalid_updated_input_denies_the_call() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor = Arc::new(
                 actor_with_pre_tool_use_hook(
                     r#"echo '{"hookSpecificOutput":{"updatedInput":{"target_file":123}}}'"#,
@@ -172,7 +172,7 @@ async fn pre_tool_use_rewrite_may_not_change_which_tool_runs() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let specs = vec![pre_tool_use_spec(
                 "test/retarget",
                 Some("linear__list_issues"),
@@ -181,7 +181,7 @@ async fn pre_tool_use_rewrite_may_not_change_which_tool_runs() {
             let actor = Arc::new(
                 actor_with_hooks(
                     vec![ToolConfig::for_tool::<
-                        xvora_tools::implementations::use_tool::UseTool,
+                        tools::implementations::use_tool::UseTool,
                     >()],
                     specs,
                     /*yolo=*/ true,
@@ -219,7 +219,7 @@ async fn pre_tool_use_updated_input_reflected_in_permission_prompt() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor = Arc::new(
                 actor_with_pre_tool_use_hook(
                     r#"echo '{"hookSpecificOutput":{"updatedInput":{"file_path":"/tmp/rewritten-edit.txt","old_string":"a","new_string":"b"}}}'"#,
@@ -268,7 +268,7 @@ struct RecordingGateway {
 
 impl RecordingGateway {
     fn spawn(
-        gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+        gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
         answer: PromptAnswer,
     ) -> Self {
         let this = Self {
@@ -280,7 +280,7 @@ impl RecordingGateway {
             let mut gateway_rx = gateway_rx;
             while let Some(msg) = gateway_rx.recv().await {
                 match msg {
-                    xvora_acp_lib::AcpClientMessage::RequestPermission(args) => {
+                    acp_lib::AcpClientMessage::RequestPermission(args) => {
                         prompts.fetch_add(1, Ordering::SeqCst);
                         *captured.lock().unwrap() = CapturedPrompt {
                             title: args.request.tool_call.fields.title.clone(),
@@ -301,7 +301,7 @@ impl RecordingGateway {
                             .response_tx
                             .send(Ok(acp::RequestPermissionResponse::new(outcome)));
                     }
-                    xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                    acp_lib::AcpClientMessage::SessionNotification(args) => {
                         let _ = args.response_tx.send(Ok(()));
                     }
                     _ => {}
@@ -330,7 +330,7 @@ impl RecordingGateway {
             .unwrap()
             .meta
             .as_ref()?
-            .get(xvora_workspace::permission::HOOK_ASK_META_KEY)
+            .get(workspace::permission::HOOK_ASK_META_KEY)
             .cloned()
     }
 
@@ -350,7 +350,7 @@ async fn pre_tool_use_ask_hook_forces_prompt_under_yolo_and_runs_on_approve() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor =
                 Arc::new(actor_with_pre_tool_use_hook(ASK_HOOK, /*yolo=*/ true, gateway_tx).await);
             let gateway = RecordingGateway::spawn(gateway_rx, PromptAnswer::Select("allow-once"));
@@ -388,7 +388,7 @@ async fn pre_tool_use_ask_with_non_object_rewrite_still_forces_one_prompt() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor = Arc::new(
                 actor_with_pre_tool_use_hook(
                     ASK_HOOK_WITH_BAD_REWRITE,
@@ -420,7 +420,7 @@ async fn pre_tool_use_ask_hook_does_not_double_prompt_in_default_mode() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor =
                 Arc::new(actor_with_pre_tool_use_hook(ASK_HOOK, /*yolo=*/ false, gateway_tx).await);
             let gateway = RecordingGateway::spawn(gateway_rx, PromptAnswer::Select("allow-once"));
@@ -451,7 +451,7 @@ async fn pre_tool_use_allow_does_not_auto_approve() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor = Arc::new(
                 actor_with_pre_tool_use_hook(ALLOW_HOOK, /*yolo=*/ false, gateway_tx).await,
             );
@@ -478,7 +478,7 @@ async fn pre_tool_use_ask_hook_reject_blocks_the_call() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor =
                 Arc::new(actor_with_pre_tool_use_hook(ASK_HOOK, /*yolo=*/ true, gateway_tx).await);
             let gateway = RecordingGateway::spawn(gateway_rx, PromptAnswer::Select("reject-once"));
@@ -499,7 +499,7 @@ async fn pre_tool_use_ask_hook_cancel_cancels_the_turn() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor =
                 Arc::new(actor_with_pre_tool_use_hook(ASK_HOOK, /*yolo=*/ true, gateway_tx).await);
             let gateway = RecordingGateway::spawn(gateway_rx, PromptAnswer::Cancel);
@@ -520,7 +520,7 @@ async fn pre_tool_use_ask_under_plan_mode_block_forces_no_prompt() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor =
                 Arc::new(actor_with_pre_tool_use_hook(ASK_HOOK, /*yolo=*/ true, gateway_tx).await);
             activate_plan_mode(&actor);
@@ -546,7 +546,7 @@ async fn pre_tool_use_ask_on_a_plan_file_edit_forces_a_prompt() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor =
                 Arc::new(actor_with_pre_tool_use_hook(ASK_HOOK, /*yolo=*/ true, gateway_tx).await);
             activate_plan_mode(&actor);
@@ -577,7 +577,7 @@ async fn pre_tool_use_defer_hook_neither_blocks_nor_prompts() {
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let actor = actor_with_pre_tool_use_hook(
                 r#"echo '{"hookSpecificOutput":{"permissionDecision":"defer"}}'"#,
                 /*yolo=*/ true,
@@ -618,7 +618,7 @@ async fn pre_tool_use_additional_context_reaches_the_model_after_the_tool_result
     local
         .run_until(async {
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let context_hook = |name: &str, text: &str| {
                 pre_tool_use_spec(
                     name,

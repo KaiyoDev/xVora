@@ -133,7 +133,7 @@ pub fn build_rows_with_roster(
 /// A matching live agent contributes its richer runtime row; otherwise stored metadata produces a read-only idle row.
 pub fn build_rows_with_workspace(
     agents: &IndexMap<AgentId, AgentView>,
-    snapshot: &xvora_dashboard_store::WorkspaceSnapshot,
+    snapshot: &dashboard_store::WorkspaceSnapshot,
     home: Option<&str>,
 ) -> Vec<DashboardRow> {
     let live_by_session: std::collections::HashMap<&str, (AgentId, &AgentView)> = agents
@@ -149,7 +149,7 @@ pub fn build_rows_with_workspace(
     snapshot
         .members
         .iter()
-        .filter(|member| matches!(member.kind, xvora_dashboard_store::MemberKind::Build))
+        .filter(|member| matches!(member.kind, dashboard_store::MemberKind::Build))
         .map(|member| {
             if let Some((id, agent)) = live_by_session.get(member.session_id.as_ref()) {
                 return top_level_row(*id, agent, false, home);
@@ -159,7 +159,7 @@ pub fn build_rows_with_workspace(
         .collect()
 }
 fn workspace_member_row(
-    member: &xvora_dashboard_store::Member,
+    member: &dashboard_store::Member,
     home: Option<&str>,
 ) -> DashboardRow {
     let session_id = member.session_id.as_ref();
@@ -1044,11 +1044,11 @@ mod tests {
         session_id: &str,
         title: &str,
         summary: Option<&str>,
-    ) -> xvora_dashboard_store::Member {
-        xvora_dashboard_store::Member {
-            session_id: xvora_dashboard_store::SessionId::new(session_id).unwrap(),
-            kind: xvora_dashboard_store::MemberKind::Build,
-            origin: xvora_dashboard_store::MemberOrigin::Local,
+    ) -> dashboard_store::Member {
+        dashboard_store::Member {
+            session_id: dashboard_store::SessionId::new(session_id).unwrap(),
+            kind: dashboard_store::MemberKind::Build,
+            origin: dashboard_store::MemberOrigin::Local,
             cwd: Some(format!("/tmp/{session_id}")),
             title: Some(title.to_owned()),
             model: Some("grok-test".to_owned()),
@@ -1060,10 +1060,10 @@ mod tests {
         }
     }
     fn workspace_snapshot(
-        members: Vec<xvora_dashboard_store::Member>,
-    ) -> xvora_dashboard_store::WorkspaceSnapshot {
-        xvora_dashboard_store::WorkspaceSnapshot {
-            grouping: xvora_dashboard_store::Grouping::State,
+        members: Vec<dashboard_store::Member>,
+    ) -> dashboard_store::WorkspaceSnapshot {
+        dashboard_store::WorkspaceSnapshot {
+            grouping: dashboard_store::Grouping::State,
             members,
             data_version: 1,
         }
@@ -1089,7 +1089,7 @@ mod tests {
     #[test]
     fn workspace_rows_ignore_non_build_members() {
         let mut conversation = workspace_member("shared", "Conversation", None);
-        conversation.kind = xvora_dashboard_store::MemberKind::Conversation;
+        conversation.kind = dashboard_store::MemberKind::Conversation;
         let snapshot = workspace_snapshot(vec![
             workspace_member("shared", "Build", None),
             conversation,

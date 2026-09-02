@@ -27,10 +27,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use xvora_tools::computer::local::LocalTerminalBackend;
-use xvora_tools::computer::local::cgroup::{CgroupMemoryConfig, PROCESS_OOM_EXIT_CODE};
-use xvora_tools::computer::types::{TerminalBackend, TerminalRunRequest, TerminalRunResult};
-use xvora_tools::notification::types::ToolNotificationHandle;
+use tools::computer::local::LocalTerminalBackend;
+use tools::computer::local::cgroup::{CgroupMemoryConfig, PROCESS_OOM_EXIT_CODE};
+use tools::computer::types::{TerminalBackend, TerminalRunRequest, TerminalRunResult};
+use tools::notification::types::ToolNotificationHandle;
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 

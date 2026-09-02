@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use xvora_config_types::DisplayRefreshSettings;
 
-use xvora_status_line::StatusLineConfig;
+use status_line::StatusLineConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -252,7 +252,7 @@ impl Default for UiConfig {
         Self {
             max_thoughts_width: DEFAULT_MAX_THOUGHTS_WIDTH,
             theme: None,
-            fork_secondary_model: xvora_models::default_model().to_string(),
+            fork_secondary_model: models::default_model().to_string(),
             yolo: false,
             ui_theme: None,
             compact_mode: false,

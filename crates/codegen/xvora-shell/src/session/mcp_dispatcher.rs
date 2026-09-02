@@ -1,8 +1,8 @@
 //! Session-actor side `StatusDispatcher` for MCP client events.
 //!
-//! Receives [`xvora_mcp::servers::McpClientEvent`]s emitted by:
-//! - per-client transport-liveness watchers ([`xvora_mcp::liveness`]),
-//! - the [`xvora_mcp::servers::GrokClientHandler`] (server-pushed `tools/list_changed` and `resources/list_changed`),
+//! Receives [`mcp::servers::McpClientEvent`]s emitted by:
+//! - per-client transport-liveness watchers ([`mcp::liveness`]),
+//! - the [`mcp::servers::GrokClientHandler`] (server-pushed `tools/list_changed` and `resources/list_changed`),
 //! - the `ensure_initialized` success/failure path,
 //! - the session MCP config diff path (`UpdateMcpServers` / toggle).
 //!
@@ -30,7 +30,7 @@ use agent_client_protocol as acp;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex as TokioMutex;
 use tokio::sync::mpsc::UnboundedReceiver;
-use xvora_mcp::servers::{
+use mcp::servers::{
     McpClientEvent, McpClientEventKind, McpServerName, McpState, mcp_server_name, mcp_transport_str,
 };
 
@@ -66,7 +66,7 @@ pub struct McpServerStatusPayload {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum McpServerStatus {
-    /// Client is in [`xvora_mcp::servers::ClientStateKind::Ready`] and the transport is healthy.
+    /// Client is in [`mcp::servers::ClientStateKind::Ready`] and the transport is healthy.
     Ready,
     /// Per-server handshake is in flight, or a restart is being debounced.
     Initializing,
@@ -326,7 +326,7 @@ pub(crate) fn flush_window(
     session_id: &str,
     buf: HashMap<(McpServerName, McpClientEventKind), McpClientEvent>,
     shutdown: &SharedShutdownState,
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
 ) {
     // Recover from poisoning rather than cascade-panicking: `flush_window` does non-trivial work under this lock
     // A single panic while holding it would otherwise turn every future restart-task check and dispatcher window into a panic
@@ -366,10 +366,10 @@ pub(crate) fn flush_window(
 fn flush_elicitation_completes(
     session_id: &str,
     completes: Vec<(McpServerName, String)>,
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
 ) {
     for (server, elicitation_id) in completes {
-        let payload = xvora_tools::mcp_elicitation::McpElicitCompletePayload {
+        let payload = tools::mcp_elicitation::McpElicitCompletePayload {
             session_id: session_id.to_string(),
             elicitation_id,
             server_name: Some(server.clone()),
@@ -377,7 +377,7 @@ fn flush_elicitation_completes(
         match serde_json::value::to_raw_value(&payload) {
             Ok(raw) => {
                 gateway.forward_fire_and_forget(acp::ExtNotification::new(
-                    xvora_mcp::wire::MCP_ELICIT_COMPLETE,
+                    mcp::wire::MCP_ELICIT_COMPLETE,
                     raw.into(),
                 ));
             }
@@ -522,7 +522,7 @@ pub(crate) async fn drop_dead_clients(
 pub(crate) async fn run_dispatcher(
     session_id: String,
     mut rx: UnboundedReceiver<McpClientEvent>,
-    gateway: xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: acp_lib::AcpAgentGatewaySender,
     mcp_state: Arc<TokioMutex<McpState>>,
     shutdown: SharedShutdownState,
     restart_actions: Option<Rc<dyn crate::session::mcp_restart::RestartActions>>,
@@ -719,13 +719,13 @@ mod tests {
     /// The complete notification must still be forwarded to the client.
     #[tokio::test(start_paused = true, flavor = "current_thread")]
     async fn run_dispatcher_forwards_completes_when_buf_is_empty() {
-        use xvora_mcp::servers::McpState;
+        use mcp::servers::McpState;
 
         let mcp_state = Arc::new(TokioMutex::new(McpState::new(vec![])));
         let shutdown = new_shutdown_state();
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let (gw_tx, mut gw_rx) = tokio::sync::mpsc::unbounded_channel();
-        let gateway = xvora_acp_lib::AcpAgentGatewaySender::new(gw_tx);
+        let gateway = acp_lib::AcpAgentGatewaySender::new(gw_tx);
 
         let local = tokio::task::LocalSet::new();
         local
@@ -755,12 +755,12 @@ mod tests {
                 let msg = gw_rx
                     .try_recv()
                     .expect("complete must be forwarded even with an empty status buffer");
-                let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+                let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                     panic!("expected ExtNotification");
                 };
                 assert_eq!(
                     args.request.method.as_ref(),
-                    xvora_mcp::wire::MCP_ELICIT_COMPLETE
+                    mcp::wire::MCP_ELICIT_COMPLETE
                 );
                 let v: serde_json::Value = serde_json::from_str(args.request.params.get()).unwrap();
                 assert_eq!(v["sessionId"], "sess-1");
@@ -965,7 +965,7 @@ mod tests {
     #[tokio::test]
     async fn dispatcher_drops_dead_clients_on_transport_closed() {
         use std::sync::Arc as StdArc;
-        use xvora_mcp::servers::{McpClient, McpState};
+        use mcp::servers::{McpClient, McpState};
 
         let mcp_state = StdArc::new(TokioMutex::new(McpState::new(vec![])));
         // Pre-populate with a stub client so we have something to remove.
@@ -1060,7 +1060,7 @@ mod tests {
     #[tokio::test]
     async fn window_accumulates_all_closed_ids_and_evicts_current_client() {
         use std::sync::Arc as StdArc;
-        use xvora_mcp::servers::{McpClient, McpState};
+        use mcp::servers::{McpClient, McpState};
 
         let old_client = StdArc::new(McpClient::stub("demo-mcp"));
         let current = StdArc::new(McpClient::stub("demo-mcp"));
@@ -1117,7 +1117,7 @@ mod tests {
     #[tokio::test]
     async fn stale_transport_closed_does_not_evict_replacement_client() {
         use std::sync::Arc as StdArc;
-        use xvora_mcp::servers::{McpClient, McpState};
+        use mcp::servers::{McpClient, McpState};
 
         let old_client = StdArc::new(McpClient::stub("demo-mcp"));
         let old_id = old_client.client_id();
@@ -1274,9 +1274,9 @@ mod tests {
     /// Construct an `AcpAgentGatewaySender` whose receiver half is dropped immediately.
     /// All `forward_fire_and_forget` calls silently no-op.
     /// Suitable only for tests that don't assert on wire payloads.
-    fn discard_gateway() -> xvora_acp_lib::AcpAgentGatewaySender {
+    fn discard_gateway() -> acp_lib::AcpAgentGatewaySender {
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        xvora_acp_lib::AcpAgentGatewaySender::new(tx)
+        acp_lib::AcpAgentGatewaySender::new(tx)
     }
 
     /// `RestartActions` test double for the integration test.
@@ -1337,7 +1337,7 @@ mod tests {
     /// Uses `start_paused` and `tokio::time::advance` instead of a 1500 ms wall-clock sleep, so the test stays deterministic under loaded CI.
     #[tokio::test(start_paused = true, flavor = "current_thread")]
     async fn run_dispatcher_schedules_restart_on_transport_closed() {
-        use xvora_mcp::servers::McpState;
+        use mcp::servers::McpState;
 
         let mcp_state = Arc::new(TokioMutex::new(McpState::new(vec![])));
         let shutdown = new_shutdown_state();
@@ -1401,7 +1401,7 @@ mod tests {
     #[tokio::test(start_paused = true, flavor = "current_thread")]
     async fn run_dispatcher_stale_transport_closed_is_fully_inert() {
         use std::sync::Arc as StdArc;
-        use xvora_mcp::servers::{McpClient, McpState};
+        use mcp::servers::{McpClient, McpState};
 
         let old_client = StdArc::new(McpClient::stub("svr"));
         let replacement = StdArc::new(McpClient::stub("svr"));
@@ -1416,7 +1416,7 @@ mod tests {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         // Capturing gateway: keep the receiver so the test can assert that NOTHING was pushed for the stale event
         let (gw_tx, mut gw_rx) = tokio::sync::mpsc::unbounded_channel();
-        let gateway = xvora_acp_lib::AcpAgentGatewaySender::new(gw_tx);
+        let gateway = acp_lib::AcpAgentGatewaySender::new(gw_tx);
 
         let actions = Rc::new(CountingActions::new(Arc::clone(&shutdown)));
         // Configured-as-stdio on purpose: proves the no-restart outcome comes from the stale-event suppression, not from the stdio guard rail

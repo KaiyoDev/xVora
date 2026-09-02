@@ -465,7 +465,7 @@ impl SessionActor {
             x_grok_conv_id: Some(format!("trace-classifier-{}", uuid::Uuid::new_v4())),
             x_grok_req_id: Some(format!("{LAZINESS_REQ_ID_PREFIX}{}", uuid::Uuid::new_v4())),
             x_grok_session_id: Some(session_id_str),
-            x_grok_agent_id: Some(xvora_telemetry::id::agent_id()),
+            x_grok_agent_id: Some(telemetry::id::agent_id()),
             ..ConversationRequest::default()
         };
 
@@ -712,7 +712,7 @@ impl SessionActor {
 
     async fn snapshot_todos_for_debug_log(&self) -> Vec<DebugTodoSnapshot> {
         use crate::tools::todo::{TodoState, TodoStatus};
-        use xvora_tools::types::resources::State;
+        use tools::types::resources::State;
         let bridge = self.tool_bridge_handle();
         bridge
             .read_resource::<State<TodoState>>()
@@ -744,7 +744,7 @@ impl SessionActor {
             .list_background_tasks()
             .await
             .into_iter()
-            .filter(xvora_tools::computer::types::TaskSnapshot::is_outstanding)
+            .filter(tools::computer::types::TaskSnapshot::is_outstanding)
             .count()
     }
 }

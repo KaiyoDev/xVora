@@ -15,15 +15,15 @@ use agent_client_protocol::{self as acp, Client};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex as TokioMutex;
 // rmcp is quarantined in xvora-mcp; see that crate's docs.
-use xvora_mcp::rmcp;
+use mcp::rmcp;
 // `wire::MCP_CALL` is the one cross-SDK contract literal; the agent-only siblings live in `mcp_methods` below
-use xvora_mcp::wire;
+use mcp::wire;
 
 use super::{ExtResult, parse_params, to_ext_response};
 
 /// Agent-only `x.ai/mcp/*` ACP method/notification names.
 ///
-/// Unlike [`wire::MCP_CALL`] (the cross-SDK contract, which stays in `xvora_mcp::wire`), these methods are NOT spoken by the SDK.
+/// Unlike [`wire::MCP_CALL`] (the cross-SDK contract, which stays in `mcp::wire`), these methods are NOT spoken by the SDK.
 /// They are private to the channel between the agent and the client.
 /// They are centralized here only to avoid scattering the same string literal across dispatch and notification send sites.
 pub mod mcp_methods {
@@ -77,7 +77,7 @@ pub struct McpServerEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub icons: Vec<xvora_mcp::servers::McpIcon>,
+    pub icons: Vec<mcp::servers::McpIcon>,
     pub source: McpServerSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_label: Option<String>,
@@ -168,7 +168,7 @@ pub struct McpToolEntry {
     #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
     pub meta: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub icons: Vec<xvora_mcp::servers::McpIcon>,
+    pub icons: Vec<mcp::servers::McpIcon>,
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
@@ -220,7 +220,7 @@ pub struct McpClientStatus {
     pub name: String,
     pub status: McpSessionStatus,
     pub tools: Vec<McpToolEntry>,
-    pub icons: Vec<xvora_mcp::servers::McpIcon>,
+    pub icons: Vec<mcp::servers::McpIcon>,
 }
 
 // ── Notification: mcp/servers_updated ────────────────────────────────
@@ -303,7 +303,7 @@ pub struct McpReadResourceContent {
 /// Push the full MCP catalog to the client.
 /// Called in the background after launch-dir MCP discovery so `initialize()` isn't blocked by config walks.
 pub async fn notify_servers_updated(
-    gateway: &xvora_acp_lib::AcpAgentGatewaySender,
+    gateway: &acp_lib::AcpAgentGatewaySender,
     local_servers: &[acp::McpServer],
 ) {
     let catalog = build_mcp_catalog(local_servers);
@@ -558,8 +558,8 @@ fn disabled_server_placeholder_entry(name: &str) -> McpServerEntry {
 /// Clones state under lock then releases; it does not hold the lock across awaits.
 pub(crate) async fn build_mcp_status(
     mcp_state: &Arc<TokioMutex<McpState>>,
-    tool_bridge: &Arc<xvora_tools::bridge::ToolBridge>,
-    event_writer: Option<&xvora_session_events::EventWriter>,
+    tool_bridge: &Arc<tools::bridge::ToolBridge>,
+    event_writer: Option<&session_events::EventWriter>,
 ) -> McpStatusSnapshot {
     let _build_mcp_status_timer = crate::instrumentation::timer("build_mcp_status");
     let (
@@ -604,7 +604,7 @@ pub(crate) async fn build_mcp_status(
 
         let healthy = client.is_healthy().await;
         if let Some(ew) = event_writer {
-            ew.emit(xvora_session_events::Event::McpHealthCheck {
+            ew.emit(session_events::Event::McpHealthCheck {
                 server_name: name.clone(),
                 healthy,
                 client_state: Some(if healthy { "ready" } else { "unavailable" }.to_string()),
@@ -741,13 +741,13 @@ pub(crate) async fn init_agent_mcp_pool(
         return;
     }
 
-    let noop = xvora_session_events::EventWriter::noop();
+    let noop = session_events::EventWriter::noop();
     let ctx = crate::session::mcp_servers::McpSpawnCtx::standalone(&noop)
         .with_oauth_discovery(crate::session::mcp_servers::McpOauthDiscovery::Network);
     let meta = Default::default();
     let oauth = Default::default();
     let results = start_mcp_servers(configs, Some(cwd), &meta, &oauth, &ctx).await;
-    let clients: xvora_mcp::owned_clients::OwnedClients = results
+    let clients: mcp::owned_clients::OwnedClients = results
         .into_iter()
         .filter_map(|r| match r {
             Ok(client) => {
@@ -1239,11 +1239,11 @@ pub(crate) async fn read_mcp_resource(
 pub(crate) struct McpStateResourceProvider(pub Arc<TokioMutex<McpState>>);
 
 #[async_trait::async_trait]
-impl xvora_tools::types::resources::McpResourceProvider for McpStateResourceProvider {
+impl tools::types::resources::McpResourceProvider for McpStateResourceProvider {
     async fn list_resources(
         &self,
         server: Option<String>,
-    ) -> Result<Vec<xvora_tools::types::resources::McpResourceInfo>, String> {
+    ) -> Result<Vec<tools::types::resources::McpResourceInfo>, String> {
         let clients: Vec<(String, Arc<McpClient>)> = {
             let state = self.0.lock().await;
             match &server {
@@ -1275,7 +1275,7 @@ impl xvora_tools::types::resources::McpResourceProvider for McpStateResourceProv
             match mcp_service.list_all_resources().await {
                 Ok(all_resources) => {
                     for r in all_resources {
-                        resources.push(xvora_tools::types::resources::McpResourceInfo {
+                        resources.push(tools::types::resources::McpResourceInfo {
                             uri: r.uri.clone(),
                             name: Some(r.name.clone()),
                             description: r.description.clone(),
@@ -1305,7 +1305,7 @@ impl xvora_tools::types::resources::McpResourceProvider for McpStateResourceProv
         &self,
         server: String,
         uri: String,
-    ) -> Result<xvora_tools::types::resources::McpResourceReadResult, String> {
+    ) -> Result<tools::types::resources::McpResourceReadResult, String> {
         let client = {
             let state = self.0.lock().await;
             Arc::clone(
@@ -1353,12 +1353,12 @@ impl xvora_tools::types::resources::McpResourceProvider for McpStateResourceProv
                 mime_type,
                 text,
                 ..
-            } => Ok(xvora_tools::types::resources::McpResourceReadResult {
+            } => Ok(tools::types::resources::McpResourceReadResult {
                 uri: content_uri,
                 name: None,
                 description: None,
                 mime_type,
-                content: Some(xvora_tools::types::resources::McpResourceContent::Text(
+                content: Some(tools::types::resources::McpResourceContent::Text(
                     text,
                 )),
             }),
@@ -1367,12 +1367,12 @@ impl xvora_tools::types::resources::McpResourceProvider for McpStateResourceProv
                 mime_type,
                 blob,
                 ..
-            } => Ok(xvora_tools::types::resources::McpResourceReadResult {
+            } => Ok(tools::types::resources::McpResourceReadResult {
                 uri: content_uri,
                 name: None,
                 description: None,
                 mime_type,
-                content: Some(xvora_tools::types::resources::McpResourceContent::Blob(
+                content: Some(tools::types::resources::McpResourceContent::Blob(
                     blob.into_bytes(),
                 )),
             }),
@@ -1581,7 +1581,7 @@ async fn handle_setup(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
         rollback_prefs().await;
         return Err(acp::Error::internal_error().data("server did not resolve after setup"));
     };
-    let allowlist = &xvora_workspace::permission::resolution::managed_settings().mcp_allowlist;
+    let allowlist = &workspace::permission::resolution::managed_settings().mcp_allowlist;
     if !allowlist.is_server_allowed(probe) {
         rollback_prefs().await;
         let reason =
@@ -2144,11 +2144,11 @@ mod tests {
         let entry = McpServerEntry {
             name: "custom".to_string(),
             display_name: Some("Custom".to_string()),
-            icons: vec![xvora_mcp::servers::McpIcon {
+            icons: vec![mcp::servers::McpIcon {
                 src: "https://example.com/icon.png".to_string(),
                 mime_type: Some("image/png".to_string()),
                 sizes: Some(vec!["48x48".to_string()]),
-                theme: Some(xvora_mcp::servers::McpIconTheme::Dark),
+                theme: Some(mcp::servers::McpIconTheme::Dark),
             }],
             source: McpServerSource::Local,
             source_label: None,
@@ -2168,7 +2168,7 @@ mod tests {
                     display_name: None,
                     description: None,
                     meta: None,
-                    icons: vec![xvora_mcp::servers::McpIcon {
+                    icons: vec![mcp::servers::McpIcon {
                         src: "data:image/png;base64,aaa".to_string(),
                         mime_type: None,
                         sizes: None,

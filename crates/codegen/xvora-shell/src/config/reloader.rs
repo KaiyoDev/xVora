@@ -43,10 +43,10 @@ pub enum ConfigUpdate {
     /// Updated memory config (boxed to avoid large enum variant).
     Memory(Box<crate::config::MemoryConfig>),
     /// Updated skills discovery config.
-    Skills(xvora_agent::prompt::skills::SkillsConfig),
+    Skills(agent::prompt::skills::SkillsConfig),
     /// Updated `[compat]` vendor-compatibility config.
     /// It is applied on the next agent (re)build, which re-resolves `compat_resolved`.
-    Compat(Box<xvora_tools::types::compat::CompatConfigToml>),
+    Compat(Box<tools::types::compat::CompatConfigToml>),
     /// The `[model.*]` entries in config.toml changed.
     /// The agent should re-resolve its model list (BYOK models added/removed, default or surprise changed).
     ModelsChanged,
@@ -160,7 +160,7 @@ impl ConfigReloader {
                         // Whole-file deletion (NotFound) and corrupt JSON land here
                         // The resulting memory/disk divergence must be visible in unified.jsonl
                         let path = self.grok_home.join("auth.json");
-                        xvora_telemetry::unified_log::error(
+                        telemetry::unified_log::error(
                             "auth reload: auth.json unreadable, keeping previous credentials",
                             None,
                             Some(serde_json::json!({
@@ -264,7 +264,7 @@ impl ConfigReloader {
                     info!("auth scope removed from auth.json, sent clear to agent");
                     // AuthCleared makes the agent drop in-memory credentials
                     // Record what the reloader saw so "entry removed" is distinguishable from "file deleted" (the Err path)
-                    xvora_telemetry::unified_log::warn(
+                    telemetry::unified_log::warn(
                         "auth reload: scope entry gone, sending AuthCleared",
                         None,
                         Some(serde_json::json!({
@@ -478,14 +478,14 @@ pub(crate) fn hash_auth_key(key: &str) -> u64 {
 /// Keep these in sync rather than adding a fourth parse path.
 pub(crate) fn parse_skills_config(
     config: &toml::Value,
-) -> xvora_agent::prompt::skills::SkillsConfig {
+) -> agent::prompt::skills::SkillsConfig {
     config
         .get("skills")
         .and_then(|v| v.clone().try_into().ok())
         .unwrap_or_default()
 }
 
-fn parse_compat_config(config: &toml::Value) -> xvora_tools::types::compat::CompatConfigToml {
+fn parse_compat_config(config: &toml::Value) -> tools::types::compat::CompatConfigToml {
     config
         .get("compat")
         .and_then(|v| v.clone().try_into().ok())
@@ -815,7 +815,7 @@ mod tests {
     fn parse_skills_config_empty() {
         let config = toml::Value::Table(toml::map::Map::new());
         let skills = parse_skills_config(&config);
-        assert_eq!(skills, xvora_agent::prompt::skills::SkillsConfig::default());
+        assert_eq!(skills, agent::prompt::skills::SkillsConfig::default());
     }
 
     #[test]

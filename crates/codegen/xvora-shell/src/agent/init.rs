@@ -45,8 +45,8 @@ pub fn bootstrap(
     auth_manager: &Arc<AuthManager>,
     prefetched: Option<IndexMap<String, ModelEntry>>,
 ) -> Result<(AgentConfig, ModelsManager), BootstrapError> {
-    xvora_telemetry::id::prefetch_agent_id();
-    xvora_telemetry::startup::enter(xvora_telemetry::startup::StartupPhase::Bootstrap);
+    telemetry::id::prefetch_agent_id();
+    telemetry::startup::enter(telemetry::startup::StartupPhase::Bootstrap);
     let mut cfg = cfg.clone();
     let pre_gate_prefetch = {
         let _timer = crate::instrumentation_timer!("startup.bootstrap.remote_settings");
@@ -67,7 +67,7 @@ pub fn bootstrap(
         let _timer = crate::instrumentation_timer!("startup.bootstrap.init_process");
         init_process(&cfg, auth_manager);
     }
-    xvora_telemetry::startup::enter(xvora_telemetry::startup::StartupPhase::ModelCatalog);
+    telemetry::startup::enter(telemetry::startup::StartupPhase::ModelCatalog);
     let models_manager = {
         let _timer = crate::instrumentation_timer!("startup.bootstrap.models_manager");
         ModelsManager::from_config(&cfg, prefetched, auth_manager.clone())?
@@ -82,7 +82,7 @@ pub fn bootstrap(
 
 /// Prints the error to the user's real stderr (undoing any TUI redirect) and exits.
 pub(crate) fn exit_on_config_error<T>(e: BootstrapError) -> T {
-    xvora_tty_utils::restore_native_stderr();
+    tty_utils::restore_native_stderr();
     eprintln!("\nConfiguration error:\n\n    {e}\n");
     std::process::exit(1);
 }
@@ -202,7 +202,7 @@ fn init_process(cfg: &AgentConfig, auth_manager: &AuthManager) {
         // Every agent mode (stdio/headless/leader and the in-process TUI
         // agent) passes through here, so diagnostic uploads always carry
         // the version stamp and the resource ceilings in effect.
-        xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
+        telemetry::unified_log::set_version(version::VERSION);
         let limits = crate::util::limits::ProcessLimits::read();
         limits.log();
 
@@ -247,7 +247,7 @@ fn init_process(cfg: &AgentConfig, auth_manager: &AuthManager) {
         }
         update_telemetry_config(cfg, auth_manager);
         // Emitted here: the event needs the client update_telemetry_config installs.
-        xvora_telemetry::session_ctx::log_event(limits.into_event());
+        telemetry::session_ctx::log_event(limits.into_event());
     });
 }
 
@@ -273,14 +273,14 @@ pub fn update_telemetry_config(config: &AgentConfig, auth_manager: &AuthManager)
             .and_then(|rs| rs.subscription_tier_display.clone()),
         auth_manager.current_or_expired().as_ref(),
     );
-    xvora_telemetry::client::init(
+    telemetry::client::init(
         config.telemetry.clone(),
         config.resolve_telemetry_mode().value,
         user_id,
         team_id,
         config.endpoints.deployment_key.clone(),
         crate::http::origin_client_info_from_env(),
-        xvora_version::VERSION.to_owned(),
+        version::VERSION.to_owned(),
         subscription_tier,
         crate::http::shared_client(),
     );

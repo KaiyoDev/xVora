@@ -4,8 +4,8 @@ use super::{
 };
 use crate::tools::todo::TodoStatus;
 use std::collections::HashMap;
-use xvora_tools::types::template_renderer::TemplateRenderer;
-use xvora_tools::types::tool::ToolKind;
+use tools::types::template_renderer::TemplateRenderer;
+use tools::types::tool::ToolKind;
 
 // ── TodoGate pure-function tests ──────────────────────────────────
 //

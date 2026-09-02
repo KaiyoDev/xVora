@@ -362,7 +362,7 @@ fn purge_keeps_marker_when_an_artifact_removal_fails() {
     for name in MANAGED_ARTIFACT_FILES {
         std::fs::write(home.join(name), "x").unwrap();
     }
-    std::fs::write(home.join(xvora_config::MANAGED_CONFIG_CACHE_FILE), "{}").unwrap();
+    std::fs::write(home.join(config::MANAGED_CONFIG_CACHE_FILE), "{}").unwrap();
 
     // Unremovable squat: `remove_dir_all` can't unlink inside the read-only subdir.
     let squat = home.join("requirements.toml");
@@ -380,7 +380,7 @@ fn purge_keeps_marker_when_an_artifact_removal_fails() {
 
     remove_managed_config_files(home);
     assert!(
-        home.join(xvora_config::MANAGED_CONFIG_CACHE_FILE).exists(),
+        home.join(config::MANAGED_CONFIG_CACHE_FILE).exists(),
         "a failed artifact removal must keep the marker (detector stays armed)"
     );
 
@@ -390,16 +390,16 @@ fn purge_keeps_marker_when_an_artifact_removal_fails() {
         assert!(!home.join(name).exists(), "{name} must be purged");
     }
     assert!(
-        !home.join(xvora_config::MANAGED_CONFIG_CACHE_FILE).exists(),
+        !home.join(config::MANAGED_CONFIG_CACHE_FILE).exists(),
         "with every artifact removed, the marker goes last"
     );
 }
 
 #[test]
 fn served_principal_prefers_deployment_id() {
-    use xvora_config::signed_policy::SignedPayload;
+    use config::signed_policy::SignedPayload;
     let payload = |dep: Option<&str>, team: Option<&str>| SignedPayload {
-        typ: xvora_config::signed_policy::MANAGED_POLICY_TYP.into(),
+        typ: config::signed_policy::MANAGED_POLICY_TYP.into(),
         version: 1,
         deployment_id: dep.map(Into::into),
         team_id: team.map(Into::into),
@@ -423,8 +423,8 @@ fn served_principal_prefers_deployment_id() {
 
 #[test]
 fn claim_persists_only_when_bound_to_served_principal() {
-    let claim = |principal: &str| xvora_config::signed_policy::ManagedIdentityClaim {
-        typ: xvora_config::signed_policy::MANAGED_IDENTITY_TYP.into(),
+    let claim = |principal: &str| config::signed_policy::ManagedIdentityClaim {
+        typ: config::signed_policy::MANAGED_IDENTITY_TYP.into(),
         principal: principal.into(),
         fail_closed: true,
         expires_at: 4_000_000_000,
@@ -442,7 +442,7 @@ fn absent_claim_is_skipped() {
 
 #[test]
 fn auth_mode_classification() {
-    use xvora_telemetry::startup::AuthMode;
+    use telemetry::startup::AuthMode;
     let err = || std::io::Error::other("unreadable");
     assert_eq!(auth_mode(true, &Ok(true)), AuthMode::Deployment);
     assert_eq!(auth_mode(true, &Err(err())), AuthMode::Deployment);

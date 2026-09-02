@@ -88,7 +88,7 @@ pub struct AgentSessionConfig {
 
 /// Project configuration returned by `OpsChunk::ProjectConfig`.
 ///
-/// TODO(workspace): align with `xvora_config::ProjectConfig`.
+/// TODO(workspace): align with `config::ProjectConfig`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProjectConfig {
     /// Free-form key/value config (placeholder).

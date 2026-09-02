@@ -60,7 +60,7 @@ pub(crate) enum ResolveError {
 }
 
 pub(crate) fn project_root(session_cwd: &Path) -> PathBuf {
-    xvora_workspace::session::git::find_git_root_from_path(session_cwd)
+    workspace::session::git::find_git_root_from_path(session_cwd)
         .unwrap_or_else(|_| session_cwd.to_path_buf())
 }
 

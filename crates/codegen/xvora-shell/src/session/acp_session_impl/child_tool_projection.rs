@@ -1,6 +1,6 @@
 use xvora_sampling_types::ToolSpec;
-use xvora_tools::implementations::grok_build::SEND_SUBAGENT_MESSAGE_TOOL_NAME;
-use xvora_tools::types::tool::ToolKind;
+use tools::implementations::grok_build::SEND_SUBAGENT_MESSAGE_TOOL_NAME;
+use tools::types::tool::ToolKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ChildToolProjection {

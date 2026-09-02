@@ -40,7 +40,7 @@ async fn handle_set(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
         "codingDataRetentionOptOut": params.coding_data_retention_opt_out,
     });
 
-    let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> = std::sync::Arc::new(
+    let provider: std::sync::Arc<dyn auth::AuthCredentialProvider> = std::sync::Arc::new(
         crate::auth::credential_provider::ShellAuthCredentialProvider::new(
             agent.auth_manager.clone(),
             None,
@@ -52,7 +52,7 @@ async fn handle_set(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     let resp = client
         .put(&url)
         .header("X-XAI-Token-Auth", &token_header)
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),

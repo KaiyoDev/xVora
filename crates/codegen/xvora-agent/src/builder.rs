@@ -9,15 +9,15 @@ use crate::system_reminder::ReminderPolicy;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use xvora_tools::bridge::ToolBridge;
-use xvora_tools::computer::types::{AsyncFileSystem, TerminalBackend};
-use xvora_tools::notification::ToolNotificationHandle;
-use xvora_tools::registry::types::SessionContext;
-use xvora_tools::types::tool::ToolKind;
+use tools::bridge::ToolBridge;
+use tools::computer::types::{AsyncFileSystem, TerminalBackend};
+use tools::notification::ToolNotificationHandle;
+use tools::registry::types::SessionContext;
+use tools::types::tool::ToolKind;
 /// The Grok [`ToolKind`] a vendor-compat `tools:` allowlist entry resolves to, so a plugin's upstream allowlist still binds.
 /// Backed by the shared vendor-to-Grok tool registry in `xvora-tools` (also used by the hook matcher).
 fn claude_tool_kind(name: &str) -> Option<ToolKind> {
-    xvora_tools::types::kind_for(name)
+    tools::types::kind_for(name)
 }
 /// Builds an Agent from an AgentDefinition and session context.
 ///
@@ -53,7 +53,7 @@ pub struct AgentBuilder {
     notification_handle: ToolNotificationHandle,
     owner_session_id: Option<String>,
     parent_scheduler_handle:
-        Option<xvora_tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
+        Option<tools::implementations::grok_build::scheduler::types::SchedulerHandle>,
     /// The agent definition, set via from_definition() or built up via individual with_*() calls.
     definition: Option<AgentDefinition>,
     /// Pre-rendered persona IO summaries for the task tool description.
@@ -82,16 +82,16 @@ pub struct AgentBuilder {
     system_prompt_label: String,
     session_env: Option<Arc<HashMap<String, String>>>,
     state_path: Option<PathBuf>,
-    memory_backend: Option<Arc<dyn xvora_tools::types::memory_backend::MemoryBackend>>,
-    web_search_config: xvora_tools::implementations::web_search::WebSearchConfig,
+    memory_backend: Option<Arc<dyn tools::types::memory_backend::MemoryBackend>>,
+    web_search_config: tools::implementations::web_search::WebSearchConfig,
     /// When true, web search and X search go to the agentic sampler as native server-side tools instead of registering as local Function tools.
     backend_search: bool,
-    web_fetch_config: xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig,
-    lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
-    image_gen_config: xvora_tools::implementations::grok_build::image_gen::ImageGenConfig,
-    video_gen_config: xvora_tools::implementations::grok_build::video_gen::VideoGenConfig,
+    web_fetch_config: tools::implementations::grok_build::web_fetch::WebFetchConfig,
+    lsp: Option<std::sync::Arc<dyn tools::implementations::lsp::LspBackend>>,
+    image_gen_config: tools::implementations::grok_build::image_gen::ImageGenConfig,
+    video_gen_config: tools::implementations::grok_build::video_gen::VideoGenConfig,
     app_builder_deployer_config:
-        xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig,
+        tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig,
     write_file_enabled: bool,
     active_agent_messages_enabled: bool,
     subagents_enabled: bool,
@@ -102,13 +102,13 @@ pub struct AgentBuilder {
     skills_config: crate::prompt::skills::SkillsConfig,
     /// Resolved vendor-compat config governing which vendor (`.claude`/`.cursor`) dirs are scanned for skills / rules / AGENTS.md.
     /// Defaults to all-on, which reproduces the historical behavior.
-    compat: xvora_tools::types::compat::CompatConfig,
+    compat: tools::types::compat::CompatConfig,
     bash_params_json: Option<serde_json::Map<String, serde_json::Value>>,
     ask_user_question_params_json: Option<serde_json::Map<String, serde_json::Value>>,
     plugin_registry: Option<std::sync::Arc<crate::plugins::PluginRegistry>>,
     context_window_tokens: Option<u64>,
-    api_key_provider: Option<xvora_tools::types::SharedApiKeyProvider>,
-    attribution_callback: Option<xvora_tools::SharedAttributionCallback>,
+    api_key_provider: Option<tools::types::SharedApiKeyProvider>,
+    attribution_callback: Option<tools::SharedAttributionCallback>,
     /// Session-scoped MCP tool-result inline cap (bytes).
     /// When `Some`, it is seeded into the toolset's `TruncationCfg` resource after finalize.
     /// The MCP truncation path consults that resource before the process-global cap.
@@ -124,11 +124,11 @@ pub struct AgentBuilder {
     persisted_announced_skill_names: Option<std::collections::HashSet<String>>,
     /// Pre-discovered skills inherited from a parent session.
     /// When set, `build()` uses these directly instead of running `list_skills_with_plugins()`.
-    preloaded_skills: Option<Vec<xvora_tools::implementations::skills::types::SkillInfo>>,
+    preloaded_skills: Option<Vec<tools::implementations::skills::types::SkillInfo>>,
 }
 /// Ensure plan mode tools (`enter_plan_mode`, `exit_plan_mode`, `ask_user_question`) are present in the tool config.
-fn ensure_plan_mode_tools(tool_config: &mut xvora_tools::registry::types::ToolServerConfig) {
-    use xvora_tools::implementations::grok_build;
+fn ensure_plan_mode_tools(tool_config: &mut tools::registry::types::ToolServerConfig) {
+    use tools::implementations::grok_build;
     let existing: std::collections::HashSet<&str> =
         tool_config.tools.iter().map(|tc| tc.id.as_str()).collect();
     let missing_enter = !existing.contains("GrokBuild:enter_plan_mode");
@@ -153,7 +153,7 @@ fn ensure_plan_mode_tools(tool_config: &mut xvora_tools::registry::types::ToolSe
 }
 /// Merge a shell-resolved params map into every matching tool's `ToolConfig.params` (single copy of the loop the per-tool injections share).
 fn merge_tool_params(
-    tool_config: &mut xvora_tools::registry::types::ToolServerConfig,
+    tool_config: &mut tools::registry::types::ToolServerConfig,
     ids: &[&str],
     map: &serde_json::Map<String, serde_json::Value>,
 ) {
@@ -167,10 +167,10 @@ fn merge_tool_params(
     }
 }
 fn apply_workflow_tool_gates(
-    tool_config: &mut xvora_tools::registry::types::ToolServerConfig,
+    tool_config: &mut tools::registry::types::ToolServerConfig,
     background_workflows_enabled: bool,
 ) {
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::tool::ToolKind;
     if background_workflows_enabled {
         tool_config
             .tools
@@ -191,7 +191,7 @@ impl AgentBuilder {
             working_directory,
             prompt_working_directory: None,
             terminal_backend,
-            fs_backend: Arc::new(xvora_tools::computer::local::LocalFs),
+            fs_backend: Arc::new(tools::computer::local::LocalFs),
             notification_handle,
             owner_session_id: None,
             parent_scheduler_handle: None,
@@ -242,7 +242,7 @@ impl AgentBuilder {
             api_key_provider: None,
             attribution_callback: None,
             mcp_max_output_bytes: None,
-            system_reminder_tag: xvora_tools::reminders::DEFAULT_REMINDER_TAG,
+            system_reminder_tag: tools::reminders::DEFAULT_REMINDER_TAG,
             persisted_announced_skill_names: None,
             preloaded_skills: None,
         }
@@ -260,7 +260,7 @@ impl AgentBuilder {
     /// When set, `build()` skips `list_skills_with_plugins()` and uses the snapshot directly.
     pub fn with_preloaded_skills(
         mut self,
-        skills: Vec<xvora_tools::implementations::skills::types::SkillInfo>,
+        skills: Vec<tools::implementations::skills::types::SkillInfo>,
     ) -> Self {
         self.preloaded_skills = Some(skills);
         self
@@ -380,7 +380,7 @@ impl AgentBuilder {
     /// When `None` (default), those tools return "Memory is not enabled".
     pub fn with_memory_backend(
         mut self,
-        backend: Arc<dyn xvora_tools::types::memory_backend::MemoryBackend>,
+        backend: Arc<dyn tools::types::memory_backend::MemoryBackend>,
     ) -> Self {
         self.memory_backend = Some(backend);
         self
@@ -401,7 +401,7 @@ impl AgentBuilder {
     /// Share the parent's scheduler handle so scheduled tasks survive subagent exit.
     pub fn with_parent_scheduler_handle(
         mut self,
-        handle: xvora_tools::implementations::grok_build::scheduler::types::SchedulerHandle,
+        handle: tools::implementations::grok_build::scheduler::types::SchedulerHandle,
     ) -> Self {
         self.parent_scheduler_handle = Some(handle);
         self
@@ -412,7 +412,7 @@ impl AgentBuilder {
     /// When `Disabled` (default), the tool returns a graceful error if invoked.
     pub fn with_web_search_config(
         mut self,
-        config: xvora_tools::implementations::web_search::WebSearchConfig,
+        config: tools::implementations::web_search::WebSearchConfig,
     ) -> Self {
         self.web_search_config = config;
         self
@@ -430,14 +430,14 @@ impl AgentBuilder {
     /// Feature-flagged via remote settings `web_fetch_enabled` and `GROK_WEB_FETCH` env var.
     pub fn with_web_fetch_config(
         mut self,
-        config: xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig,
+        config: tools::implementations::grok_build::web_fetch::WebFetchConfig,
     ) -> Self {
         self.web_fetch_config = config;
         self
     }
     pub fn with_lsp(
         mut self,
-        handle: std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>,
+        handle: std::sync::Arc<dyn tools::implementations::lsp::LspBackend>,
     ) -> Self {
         self.lsp = Some(handle);
         self
@@ -449,7 +449,7 @@ impl AgentBuilder {
     /// When `Disabled` (default), the tool is not registered.
     pub fn with_image_gen_config(
         mut self,
-        config: xvora_tools::implementations::grok_build::image_gen::ImageGenConfig,
+        config: tools::implementations::grok_build::image_gen::ImageGenConfig,
     ) -> Self {
         self.image_gen_config = config;
         self
@@ -461,7 +461,7 @@ impl AgentBuilder {
     /// When `Disabled` (default), the tool is not registered.
     pub fn with_video_gen_config(
         mut self,
-        config: xvora_tools::implementations::grok_build::video_gen::VideoGenConfig,
+        config: tools::implementations::grok_build::video_gen::VideoGenConfig,
     ) -> Self {
         self.video_gen_config = config;
         self
@@ -469,7 +469,7 @@ impl AgentBuilder {
     /// Set the deploy service configuration.
     pub fn with_app_builder_deployer_config(
         mut self,
-        config: xvora_tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig,
+        config: tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig,
     ) -> Self {
         self.app_builder_deployer_config = config;
         self
@@ -477,7 +477,7 @@ impl AgentBuilder {
     /// Set the dynamic API key provider for tool HTTP clients.
     pub fn with_api_key_provider(
         mut self,
-        provider: xvora_tools::types::SharedApiKeyProvider,
+        provider: tools::types::SharedApiKeyProvider,
     ) -> Self {
         self.api_key_provider = Some(provider);
         self
@@ -488,12 +488,12 @@ impl AgentBuilder {
     /// event with `consumer` of `"ImageGen"` / `"VideoGen.start"` /
     /// `"VideoGen.poll"` / `"WebSearch"`. Callers should pass the
     /// same `ShellAttribution` instance they wire into
-    /// `xvora_sampler::SamplerConfig::attribution_callback` so
+    /// `sampler::SamplerConfig::attribution_callback` so
     /// all 401s share the same `AuthManager` reference and land in
     /// the same Axiom dataset.
     pub fn with_attribution_callback(
         mut self,
-        callback: xvora_tools::SharedAttributionCallback,
+        callback: tools::SharedAttributionCallback,
     ) -> Self {
         self.attribution_callback = Some(callback);
         self
@@ -555,7 +555,7 @@ impl AgentBuilder {
     /// Set the resolved vendor-compat config.
     /// Threaded into startup discovery (`list_skills_with_plugins` / `read_agents_config_with_paths`).
     /// Also threaded into the dynamic-discovery seeds (`SkillManager` / `AgentsMdTracker`).
-    pub fn with_compat_config(mut self, compat: xvora_tools::types::compat::CompatConfig) -> Self {
+    pub fn with_compat_config(mut self, compat: tools::types::compat::CompatConfig) -> Self {
         self.compat = compat;
         self
     }
@@ -673,7 +673,7 @@ impl AgentBuilder {
         }
         if definition.inject_default_tools {
             if self.memory_backend.is_some() {
-                use xvora_tools::implementations::memory;
+                use tools::implementations::memory;
                 tool_config
                     .tools
                     .push((&memory::search_tool::MemorySearchImpl).into());
@@ -682,35 +682,35 @@ impl AgentBuilder {
                     .push((&memory::get_tool::MemoryGetImpl).into());
             }
             if self.web_search_config.is_enabled() {
-                use xvora_tools::implementations::grok_build;
+                use tools::implementations::grok_build;
                 tool_config.tools.push((&grok_build::WebSearchTool).into());
             }
             if self.web_fetch_config.is_enabled() {
-                use xvora_tools::implementations::grok_build;
+                use tools::implementations::grok_build;
                 tool_config.tools.push((&grok_build::WebFetchTool).into());
             }
             if self.lsp.is_some() {
                 tool_config
                     .tools
-                    .push((&xvora_tools::implementations::grok_build::LspTool).into());
+                    .push((&tools::implementations::grok_build::LspTool).into());
             }
             if self.image_gen_config.image_gen_enabled() {
                 tool_config
                     .tools
-                    .push((&xvora_tools::implementations::grok_build::ImageGenTool).into());
+                    .push((&tools::implementations::grok_build::ImageGenTool).into());
             }
             if self.image_gen_config.image_edit_enabled() {
                 tool_config
                     .tools
-                    .push((&xvora_tools::implementations::grok_build::ImageEditTool).into());
+                    .push((&tools::implementations::grok_build::ImageEditTool).into());
             }
             if self.video_gen_config.is_enabled() {
                 tool_config
                     .tools
-                    .push((&xvora_tools::implementations::grok_build::ImageToVideoTool).into());
+                    .push((&tools::implementations::grok_build::ImageToVideoTool).into());
                 tool_config
                     .tools
-                    .push((&xvora_tools::implementations::grok_build::ReferenceToVideoTool).into());
+                    .push((&tools::implementations::grok_build::ReferenceToVideoTool).into());
             }
             let has_write_tool = tool_config
                 .tools
@@ -719,14 +719,14 @@ impl AgentBuilder {
             if self.write_file_enabled && !has_write_tool {
                 tool_config
                     .tools
-                    .push((&xvora_tools::implementations::opencode::OpenCodeWriteTool).into());
+                    .push((&tools::implementations::opencode::OpenCodeWriteTool).into());
             }
             ensure_plan_mode_tools(&mut tool_config);
         }
-        let active_agent_message = xvora_tools::registry::types::ToolConfig::for_tool::<
-            xvora_tools::implementations::grok_build::SendSubagentMessageTool,
+        let active_agent_message = tools::registry::types::ToolConfig::for_tool::<
+            tools::implementations::grok_build::SendSubagentMessageTool,
         >();
-        let is_active_agent_message = |tool: &xvora_tools::registry::types::ToolConfig| {
+        let is_active_agent_message = |tool: &tools::registry::types::ToolConfig| {
             tool.kind == Some(ToolKind::ActiveAgentMessage) || tool.id == active_agent_message.id
         };
         let can_inject_active_agent_message = self.active_agent_messages_enabled
@@ -744,14 +744,14 @@ impl AgentBuilder {
                 .retain(|tool| !is_active_agent_message(tool));
         }
         if self.memory_backend.is_none() {
-            let grok_build_ns = xvora_tools::types::tool::ToolNamespace::GrokBuild.to_string();
+            let grok_build_ns = tools::types::tool::ToolNamespace::GrokBuild.to_string();
             let mem_search_id = format!(
                 "{grok_build_ns}:{}",
-                xvora_tools::implementations::memory::MEMORY_SEARCH_TOOL_NAME
+                tools::implementations::memory::MEMORY_SEARCH_TOOL_NAME
             );
             let mem_get_id = format!(
                 "{grok_build_ns}:{}",
-                xvora_tools::implementations::memory::MEMORY_GET_TOOL_NAME
+                tools::implementations::memory::MEMORY_GET_TOOL_NAME
             );
             tool_config
                 .tools
@@ -760,18 +760,18 @@ impl AgentBuilder {
         if self.prompt_audience == crate::prompt::context::PromptAudience::Subagent {
             tool_config
                 .tools
-                .retain(|tool| tool.kind != Some(xvora_tools::types::tool::ToolKind::AskUser));
+                .retain(|tool| tool.kind != Some(tools::types::tool::ToolKind::AskUser));
         } else if !self.ask_user_question_enabled {
             let ask_user_id = format!(
                 "{}:ask_user_question",
-                xvora_tools::types::tool::ToolNamespace::GrokBuild,
+                tools::types::tool::ToolNamespace::GrokBuild,
             );
             tool_config.tools.retain(|tool| tool.id != ask_user_id);
         }
         apply_workflow_tool_gates(&mut tool_config, self.background_workflows_enabled);
         let task_tool_id = format!(
             "{}:{}",
-            xvora_tools::types::tool::ToolNamespace::GrokBuild,
+            tools::types::tool::ToolNamespace::GrokBuild,
             "task"
         );
         let mut task_stripped = false;
@@ -805,7 +805,7 @@ impl AgentBuilder {
             }
         }
         if task_stripped {
-            use xvora_tools::types::tool::ToolNamespace;
+            use tools::types::tool::ToolNamespace;
             let has_satisfier = |ns: ToolNamespace, id: &str, needs_bg: bool| {
                 let fq = format!("{ns}:{id}");
                 tool_config.tools.iter().any(|tc| {
@@ -829,7 +829,7 @@ impl AgentBuilder {
                     .retain(|tc| !lifecycle.contains(&short_tool_name(&tc.id)));
             }
         }
-        if let xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig::Enabled {
+        if let tools::implementations::grok_build::web_fetch::WebFetchConfig::Enabled {
             ref params,
         } = self.web_fetch_config
             && let Ok(params_value) = serde_json::to_value(params)
@@ -1010,7 +1010,7 @@ impl AgentBuilder {
         }
         if self.prompt_audience == crate::prompt::context::PromptAudience::Subagent {
             tool_config.tools.retain(|tool| {
-                !xvora_tools::implementations::grok_build::is_workflow_tool(tool.kind, &tool.id)
+                !tools::implementations::grok_build::is_workflow_tool(tool.kind, &tool.id)
             });
         }
         let use_backend_search = self.backend_search;
@@ -1050,8 +1050,8 @@ impl AgentBuilder {
         .map_err(|e| AgentBuildError::ToolError(e.to_string()))?;
         if let Some(bytes) = self.mcp_max_output_bytes {
             tool_bridge.toolset().resources.lock().await.insert(
-                xvora_tools::types::resources::TruncationCfg(
-                    xvora_tools::types::context::TruncationConfig {
+                tools::types::resources::TruncationCfg(
+                    tools::types::context::TruncationConfig {
                         mcp_max_output_bytes: Some(bytes),
                         ..Default::default()
                     },
@@ -1208,9 +1208,9 @@ impl AgentBuilder {
         ))
     }
 }
-/// CLI naming for the shared [`xvora_tool_types::build_task_description`] builder.
-const TASK_TOOL_NAMING: xvora_tool_types::TaskToolNaming<'static> =
-    xvora_tool_types::TaskToolNaming {
+/// CLI naming for the shared [`tool_types::build_task_description`] builder.
+const TASK_TOOL_NAMING: tool_types::TaskToolNaming<'static> =
+    tool_types::TaskToolNaming {
         task_tool: "${{ tools.by_kind.task }}",
         subagent_type_param: "${{ params.task.subagent_type }}",
         run_in_background_param: "${{ params.task.run_in_background }}",
@@ -1233,10 +1233,10 @@ Prefer doing the work yourself unless delegation is clearly necessary.\n\
 Usage: specify ${{ params.task.subagent_type }} (\"general-purpose\", \"explore\", or \"plan\"), \n\
 a short ${{ params.task.description }}, and a detailed ${{ params.task.prompt }}.\n\
 ${{ params.task.run_in_background }}: Returns immediately with a subagent_id. Use the task output tool to retrieve results. This is set to true by default.";
-/// CLI [`xvora_tool_types::SubagentToolNaming`]: each kind maps to its `${{ tools.by_kind.* }}` template placeholder.
+/// CLI [`tool_types::SubagentToolNaming`]: each kind maps to its `${{ tools.by_kind.* }}` template placeholder.
 /// Rendering a built-in's `tools_template` thus reproduces the placeholders for the CLI's `TemplateRenderer` to resolve at finalize time.
-const SUBAGENT_TOOL_NAMING: xvora_tool_types::SubagentToolNaming<'static> =
-    xvora_tool_types::SubagentToolNaming {
+const SUBAGENT_TOOL_NAMING: tool_types::SubagentToolNaming<'static> =
+    tool_types::SubagentToolNaming {
         execute: "${{ tools.by_kind.execute }}",
         read: "${{ tools.by_kind.read }}",
         edit: "${{ tools.by_kind.edit }}",
@@ -1245,13 +1245,13 @@ const SUBAGENT_TOOL_NAMING: xvora_tool_types::SubagentToolNaming<'static> =
         web_search: "${{ tools.by_kind.web_search }}",
         plan: "${{ tools.by_kind.plan }}",
     };
-/// Return the tool-access fragment for a built-in subagent type from the shared [`xvora_tool_types`] catalog.
+/// Return the tool-access fragment for a built-in subagent type from the shared [`tool_types`] catalog.
 /// Rendering with [`SUBAGENT_TOOL_NAMING`] re-emits the `${{ tools.by_kind.* }}` placeholders for the CLI's `TemplateRenderer`.
 fn builtin_tools_fragment(name: BuiltinAgentName) -> String {
     let subagent = match name {
-        BuiltinAgentName::GeneralPurpose => xvora_tool_types::GENERAL_PURPOSE_SUBAGENT,
-        BuiltinAgentName::Explore => xvora_tool_types::EXPLORE_SUBAGENT,
-        BuiltinAgentName::Plan => xvora_tool_types::PLAN_SUBAGENT,
+        BuiltinAgentName::GeneralPurpose => tool_types::GENERAL_PURPOSE_SUBAGENT,
+        BuiltinAgentName::Explore => tool_types::EXPLORE_SUBAGENT,
+        BuiltinAgentName::Plan => tool_types::PLAN_SUBAGENT,
         _ => return String::new(),
     };
     subagent.render_tools(&SUBAGENT_TOOL_NAMING)
@@ -1280,29 +1280,29 @@ fn task_model_guidance(model_slugs: &[String]) -> String {
 }
 /// Build the Task tool description with the effective subagent list.
 ///
-/// Maps each [`SubagentEntry`] to the shared [`xvora_tool_types::SubagentDescriptor`].
-/// Defers to [`xvora_tool_types::build_task_description`] so the CLI and the prod chat stack share one builder.
+/// Maps each [`SubagentEntry`] to the shared [`tool_types::SubagentDescriptor`].
+/// Defers to [`tool_types::build_task_description`] so the CLI and the prod chat stack share one builder.
 /// Built-in (unshadowed) entries carry the hardcoded tool-name fragment.
 /// User-defined entries carry `None` so their raw `description` is used verbatim (markdown is fine; it's model-facing text).
 pub(crate) fn build_task_description(
     subagents: &[SubagentEntry],
     model_slugs: &[String],
 ) -> String {
-    let descriptors: Vec<xvora_tool_types::SubagentDescriptor> = subagents
+    let descriptors: Vec<tool_types::SubagentDescriptor> = subagents
         .iter()
         .map(|entry| {
             let tools = match &entry.source {
                 SubagentSource::Builtin(b) => Some(builtin_tools_fragment(*b)),
                 SubagentSource::UserDefined { .. } => None,
             };
-            xvora_tool_types::SubagentDescriptor {
+            tool_types::SubagentDescriptor {
                 name: entry.name.clone(),
                 description: entry.description.clone(),
                 tools,
             }
         })
         .collect();
-    let mut description = xvora_tool_types::build_task_description(&descriptors, &TASK_TOOL_NAMING);
+    let mut description = tool_types::build_task_description(&descriptors, &TASK_TOOL_NAMING);
     description.push_str(&task_model_guidance(model_slugs));
     description
 }
@@ -1317,7 +1317,7 @@ fn resolve_shell_for_prompt() -> String {
     }
     #[cfg(not(unix))]
     {
-        xvora_config::shell::detect_windows_shell()
+        config::shell::detect_windows_shell()
             .name()
             .to_string()
     }
@@ -1327,12 +1327,12 @@ mod tests {
     use super::*;
     use crate::config::AgentScope;
     async fn active_agent_message_tool_count(enabled: Option<bool>, predeclared: bool) -> usize {
-        use xvora_tools::computer::local::LocalTerminalBackend;
+        use tools::computer::local::LocalTerminalBackend;
         let mut definition = crate::config::AgentDefinition::default_grok_build();
         if predeclared {
             definition.tool_config.tools.push(
-                xvora_tools::registry::types::ToolConfig::for_tool::<
-                    xvora_tools::implementations::grok_build::SendSubagentMessageTool,
+                tools::registry::types::ToolConfig::for_tool::<
+                    tools::implementations::grok_build::SendSubagentMessageTool,
                 >(),
             );
         }
@@ -1372,13 +1372,13 @@ mod tests {
     }
     #[tokio::test]
     async fn active_agent_messages_are_absent_from_child_toolsets() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
+        use tools::computer::local::LocalTerminalBackend;
         let mut definition = crate::config::AgentDefinition::default_grok_build();
         definition
             .tool_config
             .tools
-            .push(xvora_tools::registry::types::ToolConfig::for_tool::<
-                xvora_tools::implementations::grok_build::SendSubagentMessageTool,
+            .push(tools::registry::types::ToolConfig::for_tool::<
+                tools::implementations::grok_build::SendSubagentMessageTool,
             >());
         let definitions = AgentBuilder::new(
             std::env::temp_dir(),
@@ -1401,7 +1401,7 @@ mod tests {
     }
     #[tokio::test]
     async fn active_agent_messages_do_not_modify_curated_toolsets() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
+        use tools::computer::local::LocalTerminalBackend;
         let mut definition = crate::config::AgentDefinition::default_grok_build();
         definition.inject_default_tools = false;
         let build = |enabled| {
@@ -1444,7 +1444,7 @@ mod tests {
             description: desc.to_string(),
             source,
             shadows_builtin: None,
-            config_source: xvora_tools::types::config_source::ConfigSource::Builtin,
+            config_source: tools::types::config_source::ConfigSource::Builtin,
         }
     }
     #[test]
@@ -1463,11 +1463,11 @@ mod tests {
         ];
         let desc = build_task_description(&subagents, &[]);
         assert!(
-            desc.contains(xvora_tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
+            desc.contains(tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
             "should include general-purpose tool names"
         );
         assert!(
-            desc.contains(xvora_tool_types::EXPLORE_SUBAGENT.tools_template),
+            desc.contains(tool_types::EXPLORE_SUBAGENT.tools_template),
             "should include explore tool names"
         );
         assert!(
@@ -1487,7 +1487,7 @@ mod tests {
         let desc = build_task_description(&subagents, &[]);
         assert!(desc.contains("- **code-reviewer**: Reviews code for bugs and style issues."));
         assert!(
-            !desc.contains(xvora_tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
+            !desc.contains(tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
             "user-defined entries should not get built-in tool fragments"
         );
     }
@@ -1515,7 +1515,7 @@ mod tests {
                 scope: AgentScope::Project,
             },
             shadows_builtin: Some(BuiltinAgentName::Explore),
-            config_source: xvora_tools::types::config_source::ConfigSource::Project {
+            config_source: tools::types::config_source::ConfigSource::Project {
                 path: std::path::PathBuf::new(),
             },
         }];
@@ -1525,7 +1525,7 @@ mod tests {
             "shadowed built-in should use user description"
         );
         assert!(
-            !desc.contains(xvora_tool_types::EXPLORE_SUBAGENT.tools_template),
+            !desc.contains(tool_types::EXPLORE_SUBAGENT.tools_template),
             "shadowed built-in should NOT include built-in tool fragment"
         );
     }
@@ -1581,8 +1581,8 @@ mod tests {
     }
     #[test]
     fn task_model_guidance_resolves_model_param_override() {
-        use xvora_tools::types::template_renderer::TemplateRenderer;
-        use xvora_tools::types::tool::ToolKind;
+        use tools::types::template_renderer::TemplateRenderer;
+        use tools::types::tool::ToolKind;
         let renderer = TemplateRenderer::new(
             Default::default(),
             std::collections::HashMap::from([(
@@ -1629,8 +1629,8 @@ mod tests {
     /// Session-start telemetry reuses the snapshot instead of re-walking the disk.
     #[tokio::test]
     async fn discovery_snapshot_records_gated_and_preloaded_skills() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         let tmp = tempfile::tempdir().unwrap();
         let write_skill = |dir: &str, content: &str| {
             let d = tmp.path().join(".grok/skills").join(dir);
@@ -1686,8 +1686,8 @@ mod tests {
         subagents_enabled: bool,
         ask_user_question_enabled: bool,
     ) -> crate::agent::Agent {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         AgentBuilder::new(
             std::env::temp_dir(),
             Arc::new(LocalTerminalBackend::new()),
@@ -1813,8 +1813,8 @@ mod tests {
     }
     #[tokio::test]
     async fn subagent_audience_never_receives_ask_user_question() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         let agent = AgentBuilder::new(
             std::env::temp_dir(),
             Arc::new(LocalTerminalBackend::new()),
@@ -1841,8 +1841,8 @@ mod tests {
         audience: crate::prompt::context::PromptAudience,
         definition: crate::config::AgentDefinition,
     ) -> Vec<String> {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         AgentBuilder::new(
             std::env::temp_dir(),
             Arc::new(LocalTerminalBackend::new()),
@@ -1898,13 +1898,13 @@ mod tests {
     }
     #[tokio::test]
     async fn custom_child_toolset_cannot_reintroduce_workflow() {
-        use xvora_tools::implementations::grok_build::{ReadFileTool, WorkflowTool};
+        use tools::implementations::grok_build::{ReadFileTool, WorkflowTool};
         let mut definition = crate::config::AgentDefinition::general_purpose();
         definition.inject_default_tools = false;
         definition.tool_config.tools = vec![
             (&ReadFileTool).into(),
             (&WorkflowTool).into(),
-            xvora_tools::registry::types::ToolConfig::from_id("GrokBuild:workflow"),
+            tools::registry::types::ToolConfig::from_id("GrokBuild:workflow"),
         ];
         let names =
             workflow_tool_names(crate::prompt::context::PromptAudience::Subagent, definition).await;
@@ -1955,8 +1955,8 @@ mod tests {
     }
     #[tokio::test]
     async fn curated_empty_toolset_fails_agent_build() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         let mut profile = crate::config::AgentDefinition::default_grok_build();
         profile.tool_config = Default::default();
         profile.inject_default_tools = false;
@@ -1983,10 +1983,10 @@ mod tests {
     /// Fails if the merge is ever hoisted above the injection.
     #[tokio::test]
     async fn plan_mode_injected_ask_user_question_receives_params() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionParams;
-        use xvora_tools::notification::ToolNotificationHandle;
-        use xvora_tools::types::resources::Params;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::implementations::grok_build::ask_user_question::AskUserQuestionParams;
+        use tools::notification::ToolNotificationHandle;
+        use tools::types::resources::Params;
         let profile = crate::config::AgentDefinition::default_grok_build();
         assert!(
             !profile
@@ -2022,10 +2022,10 @@ mod tests {
     /// Cancel/timeout then return the no-operator text.
     #[tokio::test]
     async fn non_interactive_build_stamps_ask_user_question_params() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionParams;
-        use xvora_tools::notification::ToolNotificationHandle;
-        use xvora_tools::types::resources::Params;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::implementations::grok_build::ask_user_question::AskUserQuestionParams;
+        use tools::notification::ToolNotificationHandle;
+        use tools::types::resources::Params;
         let agent = AgentBuilder::new(
             std::env::temp_dir(),
             Arc::new(LocalTerminalBackend::new()),
@@ -2044,8 +2044,8 @@ mod tests {
         assert_eq!(applied.0.non_interactive, Some(true));
     }
     async fn build_with_tools(tools: Vec<String>, disallowed: Vec<String>) -> crate::agent::Agent {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         let mut def = crate::config::AgentDefinition::default_grok_build();
         def.tools = tools;
         def.disallowed_tools = disallowed;
@@ -2064,8 +2064,8 @@ mod tests {
         own_tools: Vec<String>,
         session_allow: Vec<String>,
     ) -> Vec<String> {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         let mut def = crate::config::AgentDefinition::default_grok_build();
         def.tools = own_tools;
         def.session_tools_allowlist = Some(session_allow);
@@ -2196,8 +2196,8 @@ mod tests {
         assert_eq!(agent.definition().allowed_subagent_types, Some(vec![]));
         let agent = build_with_tools(vec![], vec![]).await;
         assert_eq!(agent.definition().allowed_subagent_types, None);
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         let mut def = crate::config::AgentDefinition::default_grok_build();
         def.disallowed_tools = vec!["Agent".into()];
         let agent = AgentBuilder::new(
@@ -2213,10 +2213,10 @@ mod tests {
     }
     #[tokio::test]
     async fn spawning_blocked_disables_all_background_bash_modes() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::implementations::grok_build::bash::BashParams;
-        use xvora_tools::notification::ToolNotificationHandle;
-        use xvora_tools::types::resources::Params;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::implementations::grok_build::bash::BashParams;
+        use tools::notification::ToolNotificationHandle;
+        use tools::types::resources::Params;
         let mut definition = crate::config::AgentDefinition::default_grok_build();
         definition.tools = vec!["run_terminal_cmd".into()];
         let bash_params = serde_json::json!({
@@ -2342,8 +2342,8 @@ mod tests {
     /// An on-disk plugin agent parsed via `from_file_frontmatter_only` with a compat-style `tools:` allowlist gets the mapped toolset, not 0 tools.
     #[tokio::test]
     async fn plugin_style_agent_file_maps_claude_tools() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::notification::ToolNotificationHandle;
         const MD: &str = "---\n\
             name: test\n\
             description: test agent\n\
@@ -2443,10 +2443,10 @@ mod tests {
     }
     #[tokio::test]
     async fn requested_enabled_web_tools_survive_allowlist() {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::implementations::grok_build::web_fetch::WebFetchConfig;
-        use xvora_tools::implementations::web_search::WebSearchConfig;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::implementations::grok_build::web_fetch::WebFetchConfig;
+        use tools::implementations::web_search::WebSearchConfig;
+        use tools::notification::ToolNotificationHandle;
         let mut definition = crate::config::AgentDefinition::default_grok_build();
         definition.tools = vec![
             "read_file".into(),
@@ -2582,9 +2582,9 @@ mod tests {
         disallowed_tools: &[&str],
         tool_overrides: Option<xvora_sampling_types::ToolOverrides>,
     ) -> crate::agent::Agent {
-        use xvora_tools::computer::local::LocalTerminalBackend;
-        use xvora_tools::implementations::web_search::WebSearchConfig;
-        use xvora_tools::notification::ToolNotificationHandle;
+        use tools::computer::local::LocalTerminalBackend;
+        use tools::implementations::web_search::WebSearchConfig;
+        use tools::notification::ToolNotificationHandle;
         let web_search_config = if web_search_enabled {
             WebSearchConfig::Enabled {
                 api_key: "test-key".into(),

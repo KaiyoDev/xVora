@@ -61,7 +61,7 @@ fn prewarm_and_record(base_url: String) -> impl std::future::Future<Output = ()>
             started: std::time::Instant::now(),
             completed: false,
         };
-        let report = xvora_sampler::prewarm_transport(&base_url).await;
+        let report = sampler::prewarm_transport(&base_url).await;
         record_prewarm_report(&record_span, &report);
         guard.completed = true;
     }
@@ -78,7 +78,7 @@ fn sampler_prewarm_span() -> tracing::Span {
     )
 }
 
-fn record_prewarm_report(span: &tracing::Span, report: &xvora_sampler::PrewarmReport) {
+fn record_prewarm_report(span: &tracing::Span, report: &sampler::PrewarmReport) {
     span.record("outcome", <&'static str>::from(report.outcome));
     span.record("duration_ms", report.duration_ms);
     if let Some(origin) = &report.origin {
@@ -183,8 +183,8 @@ mod tests {
         let span = sampler_prewarm_span();
         record_prewarm_report(
             &span,
-            &xvora_sampler::PrewarmReport {
-                outcome: xvora_sampler::PrewarmOutcome::Warmed,
+            &sampler::PrewarmReport {
+                outcome: sampler::PrewarmOutcome::Warmed,
                 duration_ms: 7,
                 origin: Some("https://api.example.test".to_string()),
             },

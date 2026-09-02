@@ -244,7 +244,7 @@ impl KittyImageFormat {
 }
 
 pub fn kitty_format_from_bytes(image_data: &[u8]) -> Option<KittyImageFormat> {
-    match xvora_shared::clipboard::mime_from_bytes(image_data) {
+    match shared::clipboard::mime_from_bytes(image_data) {
         "image/png" => Some(KittyImageFormat::Png),
         _ => None,
     }
@@ -329,7 +329,7 @@ fn convert_via_sips(image_data: &[u8]) -> Option<Vec<u8>> {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
-    xvora_tty_utils::detach_std_command(&mut sips_cmd);
+    tty_utils::detach_std_command(&mut sips_cmd);
     let status = sips_cmd.status().ok()?;
 
     let _ = std::fs::remove_file(&src);

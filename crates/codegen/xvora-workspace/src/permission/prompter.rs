@@ -8,10 +8,10 @@ use crate::permission::{
     types::{AccessKind, ClientType, HOOK_ASK_META_KEY, HookAsk},
 };
 use agent_client_protocol::{self as acp, Client as _};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_mcp::servers::parse_mcp_qualified_name;
-use xvora_session_events::{Event, EventWriter, PermissionDecision};
-use xvora_tools::implementations::grok_build::web_fetch::domain_from_url;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use mcp::servers::parse_mcp_qualified_name;
+use session_events::{Event, EventWriter, PermissionDecision};
+use tools::implementations::grok_build::web_fetch::domain_from_url;
 
 const REJECT_ONCE_LABEL: &str = "No, and tell Grok what to do differently";
 
@@ -97,9 +97,9 @@ pub struct BashCommandSelectedTerms {
 }
 
 /// Delimiter that qualifies MCP tool names as `"<server>__<tool>"`.
-/// Defined in `xvora_workspace_types`; re-exported here because callers historically reached it through this module.
+/// Defined in `workspace_types`; re-exported here because callers historically reached it through this module.
 /// MCP registration validates the delimiter before permission handling, so stripping it given a trusted `server_prefix` is unambiguous.
-pub use xvora_workspace_types::MCP_TOOL_NAME_DELIMITER;
+pub use workspace_types::MCP_TOOL_NAME_DELIMITER;
 
 /// Extract the action segment of a qualified MCP tool name using a trusted `server_prefix`.
 /// Returns the full `tool_name` when there is no server prefix.
@@ -884,7 +884,7 @@ pub fn tool_name_for_access(access: &AccessKind) -> String {
         AccessKind::WebFetch(_) => "web_fetch".to_owned(),
         AccessKind::WebSearch(_) => "web_search".to_owned(),
         AccessKind::AgentMessage { .. } => {
-            xvora_tools::implementations::grok_build::SEND_SUBAGENT_MESSAGE_TOOL_NAME.to_owned()
+            tools::implementations::grok_build::SEND_SUBAGENT_MESSAGE_TOOL_NAME.to_owned()
         }
     }
 }
@@ -2090,7 +2090,7 @@ mod tests {
     /// That still exercises both emissions and the Error-to-Deny decision mapping.
     #[tokio::test]
     async fn request_emits_permission_requested_and_resolved() {
-        use xvora_session_events::EventWriter;
+        use session_events::EventWriter;
 
         let dir = tempfile::tempdir().unwrap();
         let writer = EventWriter::open(dir.path());

@@ -16,7 +16,7 @@
 
 fn main() -> anyhow::Result<()> {
     let started = std::time::Instant::now();
-    let attachments = xvora_shared::clipboard::get_attachments()?;
+    let attachments = shared::clipboard::get_attachments()?;
     let elapsed_ms = started.elapsed().as_secs_f64() * 1e3;
 
     let image = attachments

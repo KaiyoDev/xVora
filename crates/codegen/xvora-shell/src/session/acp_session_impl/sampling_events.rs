@@ -11,16 +11,16 @@ impl SessionActor {
         .await;
     }
 
-    /// Translate one [`xvora_sampler::SamplingEvent`] from the per-session sampler actor into the corresponding ACP / shell side-effects.
+    /// Translate one [`sampler::SamplingEvent`] from the per-session sampler actor into the corresponding ACP / shell side-effects.
     ///
     /// Called from the drainer task spawned in `spawn_session_actor`, which loops `while let Some(event) = sampler_event_rx.recv().await`.
     /// This function only maps events; recovery (compaction, friendly errors) lives in [`Self::handle_sampling_failure`] in the turn loop.
     /// Recovery runs there because it needs per-turn state and may call back into `sampler_handle.update_config` or resubmit.
     pub(crate) async fn handle_sampling_event(
         self: &Arc<Self>,
-        event: xvora_sampler::SamplingEvent,
+        event: sampler::SamplingEvent,
     ) {
-        use xvora_sampler::{SamplingChannel, SamplingEvent};
+        use sampler::{SamplingChannel, SamplingEvent};
 
         let request_owned = self
             .turn_stream_drained
@@ -324,7 +324,7 @@ impl SessionActor {
                 if !self.turn_stream_drained.lock().contains_key(&request_id) {
                     return;
                 }
-                if kind == xvora_sampler::SamplingErrorKind::DoomLoopDetected {
+                if kind == sampler::SamplingErrorKind::DoomLoopDetected {
                     let triggers = doom_loop_triggers.unwrap_or_default();
                     let (should_count, should_stamp) = {
                         let mut tally = self.doom_loop_turn_tally.lock();
@@ -353,7 +353,7 @@ impl SessionActor {
                         );
                     }
                 }
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "shell.turn.inference_retry",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -385,7 +385,7 @@ impl SessionActor {
                 // This arm only records telemetry
                 // The terminal error fires through `submit_and_collect`'s Result branch
                 // The turn loop's `handle_sampling_failure` decides whether to compact or show a friendly message
-                xvora_telemetry::unified_log::error(
+                telemetry::unified_log::error(
                     "shell.turn.inference_failed",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({

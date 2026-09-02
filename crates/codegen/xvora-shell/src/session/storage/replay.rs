@@ -203,7 +203,7 @@ fn try_fast_replay_updates_path(
         return None;
     }
     for cwd in [hint.child_cwd, hint.parent_cwd].into_iter().flatten() {
-        let encoded = xvora_config::encode_cwd_dirname(&cwd.to_string_lossy());
+        let encoded = config::encode_cwd_dirname(&cwd.to_string_lossy());
         let candidate = grok_home.join("sessions").join(encoded).join(session_id);
         if let Some(path) = replay_updates_path_in_dir(&candidate) {
             return Some(path);

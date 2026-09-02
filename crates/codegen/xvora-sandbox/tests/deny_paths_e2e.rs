@@ -649,7 +649,7 @@ fn subprocess_hook_write_deny(workspace: &Path, first_run: bool) {
     }
     let hooks_dir = home.join("hooks");
     let hooks_paths = home.join("hooks-paths");
-    let trust_boundary_files: Vec<(&str, PathBuf)> = xvora_config::TRUST_BOUNDARY_FILENAMES
+    let trust_boundary_files: Vec<(&str, PathBuf)> = config::TRUST_BOUNDARY_FILENAMES
         .iter()
         .copied()
         .map(|name| (name, home.join(name)))
@@ -834,7 +834,7 @@ fn fixture_homes(
     let home = unique_temp_dir(&format!("{tag}-home"));
     let grok = unique_temp_dir(&format!("{tag}-grok"));
     let workspace = unique_temp_dir(&format!("{tag}-ws"));
-    fs::write(grok.join(xvora_config::SANDBOX_CONFIG_FILENAME), "")
+    fs::write(grok.join(config::SANDBOX_CONFIG_FILENAME), "")
         .expect("empty global sandbox.toml");
     (
         home.clone(),
@@ -869,7 +869,7 @@ fn run_deny_case(
     fs::create_dir_all(tmp.join(".grok")).expect("mkdir .grok");
     fs::write(
         tmp.join(".grok")
-            .join(xvora_config::SANDBOX_CONFIG_FILENAME),
+            .join(config::SANDBOX_CONFIG_FILENAME),
         format!("[profiles.{profile}]\nextends = \"workspace\"\ndeny = [{deny_list}]\n"),
     )
     .expect("write sandbox.toml");
@@ -984,7 +984,7 @@ fn read_deny_marker_spoof_refused() {
     let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("read-deny-spoof");
     fs::create_dir_all(workspace.join(".grok")).expect("mkdir .grok");
     fs::write(
-            workspace.join(".grok").join(xvora_config::SANDBOX_CONFIG_FILENAME),
+            workspace.join(".grok").join(config::SANDBOX_CONFIG_FILENAME),
             "[profiles.netspoof]\nextends = \"devbox\"\nrestrict_network = true\ndeny = [\"secret.pem\"]\n",
         )
         .expect("write sandbox.toml");
@@ -1020,7 +1020,7 @@ fn read_deny_forged_mounts_are_refused() {
     fs::write(
         workspace
             .join(".grok")
-            .join(xvora_config::SANDBOX_CONFIG_FILENAME),
+            .join(config::SANDBOX_CONFIG_FILENAME),
         "[profiles.forged]\nextends = \"devbox\"\ndeny = [\"secret.pem\"]\n",
     )
     .expect("write sandbox.toml");
@@ -1066,7 +1066,7 @@ fn read_deny_empty_set_verifies_inside_bwrap() {
     fs::write(
         workspace
             .join(".grok")
-            .join(xvora_config::SANDBOX_CONFIG_FILENAME),
+            .join(config::SANDBOX_CONFIG_FILENAME),
         "[profiles.netempty]\nextends = \"devbox\"\nrestrict_network = true\n",
     )
     .expect("write sandbox.toml");
@@ -1240,7 +1240,7 @@ fn workspace_protects_direct_hook_sources() {
             "expected '{needle}'\nstderr: {stderr}"
         );
     }
-    for name in xvora_config::TRUST_BOUNDARY_FILENAMES {
+    for name in config::TRUST_BOUNDARY_FILENAMES {
         for action in ["write", "unlink", "rename"] {
             let needle = format!("OK: {name} {action} denied");
             assert!(
@@ -1327,7 +1327,7 @@ fn workspace_protects_direct_hook_sources_first_run() {
             "expected '{needle}'\nstderr: {stderr}"
         );
     }
-    for name in xvora_config::TRUST_BOUNDARY_FILENAMES {
+    for name in config::TRUST_BOUNDARY_FILENAMES {
         let needle = format!("OK: {name} (first-run) write denied");
         assert!(
             stderr.contains(&needle),
@@ -1347,7 +1347,7 @@ fn workspace_protects_direct_hook_sources_first_run() {
         b"",
         "post-exit: first-run hooks-paths must be empty"
     );
-    for name in xvora_config::TRUST_BOUNDARY_FILENAMES {
+    for name in config::TRUST_BOUNDARY_FILENAMES {
         assert!(
             grok.join(name).is_file(),
             "post-exit: {name} must exist as a real file"

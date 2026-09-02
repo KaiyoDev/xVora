@@ -12,9 +12,9 @@
 //!
 //! The DECISION side lives in `xvora-workspace` (client-side).
 //! It holds the workspace scan, the pure [`decide`] precedence, and the interactive prompt.
-//! It also owns the durable [`xvora_workspace::trust::TrustStore`] reads/writes.
+//! It also owns the durable [`workspace::trust::TrustStore`] reads/writes.
 //! This module keeps the CONSUME/gating side: the `DECISIONS` cache, [`resolve_and_record`], and the loader filters.
-//! The ordered trust precedence is documented canonically on [`xvora_workspace::folder_trust::decide`].
+//! The ordered trust precedence is documented canonically on [`workspace::folder_trust::decide`].
 //! The consume-side nuance is that two allows are PROVISIONAL (NOT cached).
 //! The first is the "no repo configs" allow.
 //! Configs appearing after the first resolve (git pull / agent write) are re-checked on the next resolve rather than riding a stale grant.
@@ -26,11 +26,11 @@ use std::sync::LazyLock;
 
 use agent_client_protocol as acp;
 use parking_lot::Mutex;
-use xvora_workspace::trust::{TrustStore, is_unsafe_trust_root, workspace_key};
+use workspace::trust::{TrustStore, is_unsafe_trust_root, workspace_key};
 
 // Decision-side (scan/decide/prompt/store) lives in `xvora-workspace` (client crate)
 // Only the helpers used by this consume-side module are imported; callers should use the workspace API for explicit trust decisions
-use xvora_workspace::folder_trust::{
+use workspace::folder_trust::{
     DecideInputs, TrustOutcome, claude_project_mcp_names, decide, decide_inputs,
     decide_inputs_with_interactive, feature_enabled, folder_trust_inert, persist_trust,
     prompt_for_trust,
@@ -41,7 +41,7 @@ use crate::util::config::{MCP_SCOPE_PROJECT, RemoteSettings};
 
 // NOTE: this folder-trust store (`~/.grok/trusted_folders.toml`) is SEPARATE
 // from the pre-existing per-plugin trust store
-// (`xvora_agent::plugins::TrustStore` at `~/.grok/trusted-plugins`, plus the
+// (`agent::plugins::TrustStore` at `~/.grok/trusted-plugins`, plus the
 // hooks' own project-trust gating)
 // Trusting a folder here does NOT imply plugin trust and vice versa; the two are independent and non-contradicting
 // Unifying them is a tracked follow-up
@@ -52,7 +52,7 @@ static DECISIONS: LazyLock<Mutex<HashMap<PathBuf, bool>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Compatibility alias; new call sites should use the workspace API directly.
-pub use xvora_workspace::folder_trust::grant_folder_trust;
+pub use workspace::folder_trust::grant_folder_trust;
 
 /// Revoke trust for `cwd`'s workspace and downgrade the consume-side cache.
 ///
@@ -75,7 +75,7 @@ pub(crate) fn revoke_folder_trust(cwd: &Path) -> bool {
         );
         return false;
     }
-    let was_trusted = xvora_workspace::folder_trust::revoke_folder_trust_store(cwd);
+    let was_trusted = workspace::folder_trust::revoke_folder_trust_store(cwd);
     // Always downgrade the in-process cache so a mid-session untrust takes effect immediately for this process
     // That holds even for a cached grant with no backing store record (e.g. a kill-switch / feature-off resolve).
     // A later legitimate grant reconciles it: the `Some(false)` arm of `resolve_and_record_inner` re-checks the store
@@ -107,7 +107,7 @@ pub(crate) fn project_scope_allowed(cwd: &Path) -> bool {
         Some(true) => true,
         // Re-read the store so a grant issued after the untrusted resolve is honored without a restart (mirrors `resolve_and_record_inner`)
         Some(false) => {
-            if xvora_workspace::folder_trust::is_trusted_this_process(&key) {
+            if workspace::folder_trust::is_trusted_this_process(&key) {
                 record(&key, true);
                 true
             } else {
@@ -138,7 +138,7 @@ pub(crate) fn prompt_warranted(cwd: &Path, remote: Option<&RemoteSettings>) -> b
 
 /// Display-only summary of which repo-local code-exec config kinds are present for `cwd`, for the interactive trust prompt's UI.
 /// The kinds are the reasons the folder is gated.
-/// Single-sourced from the SAME scan as the canonical gate ([`xvora_workspace::folder_trust::repo_config_kinds`] / [`repo_configs_present`]).
+/// Single-sourced from the SAME scan as the canonical gate ([`workspace::folder_trust::repo_config_kinds`] / [`repo_configs_present`]).
 /// The prompt's reason list therefore cannot drift from what actually gated the folder (same markers, same cwd-to-git-root walk).
 ///
 /// ALL detected kinds are reported, including `lsp`: it is a genuine reason the folder is gated.
@@ -146,7 +146,7 @@ pub(crate) fn prompt_warranted(cwd: &Path, remote: Option<&RemoteSettings>) -> b
 /// Only the post-grant *hot-reload* skips LSP; project LSP applies on the next session open (the backend is spawn-baked into the tool bridge).
 /// See the `mvp_agent::folder_trust_prompt` module docs.
 pub(crate) fn detected_config_kinds(cwd: &Path) -> Vec<String> {
-    xvora_workspace::folder_trust::repo_config_kinds(cwd)
+    workspace::folder_trust::repo_config_kinds(cwd)
         .into_iter()
         .map(str::to_string)
         .collect()
@@ -158,10 +158,10 @@ pub(crate) fn detected_config_kinds(cwd: &Path) -> Vec<String> {
 /// `trusted` is evaluated lazily so non-project agents skip the filesystem-walking trust verdict.
 /// Primary-session passes its already-computed `hooks_trusted`; subagent sites pass `project_scope_allowed(parent_cwd)`.
 pub(crate) fn agent_inline_hooks_allowed(
-    scope: xvora_agent::config::AgentScope,
+    scope: agent::config::AgentScope,
     trusted: impl FnOnce() -> bool,
 ) -> bool {
-    scope != xvora_agent::config::AgentScope::Project || trusted()
+    scope != agent::config::AgentScope::Project || trusted()
 }
 
 fn record(workspace_key: &Path, allowed: bool) {
@@ -205,7 +205,7 @@ pub(crate) fn resolve_and_record(
     let key = workspace_key(cwd);
     resolve_and_record_inner(
         &key,
-        || xvora_workspace::folder_trust::is_trusted_this_process(&key),
+        || workspace::folder_trust::is_trusted_this_process(&key),
         || compute(cwd, &key, remote, allow_prompt),
     )
 }
@@ -239,7 +239,7 @@ pub(crate) fn resolve_launch_dir_trust(cwd: &Path, remote: Option<&RemoteSetting
     // That keeps the DECISIONS cache contract identical to resolve_and_record without repeating the expensive repo_configs scan
     resolve_and_record_inner(
         &key,
-        || xvora_workspace::folder_trust::is_trusted_this_process(&key),
+        || workspace::folder_trust::is_trusted_this_process(&key),
         || compute_from_inputs(&inputs, feature, &key, false),
     )
 }
@@ -417,20 +417,20 @@ pub(crate) fn filter_untrusted_project_mcp(
 /// Mirrors the MCP session gate; user- and plugin-scoped servers are retained.
 /// No-op when project scope is allowed.
 ///
-/// Thin cwd-to-verdict wrapper over the shared [`xvora_tools::implementations::lsp::config::filter_project_lsp_when_untrusted`] predicate.
+/// Thin cwd-to-verdict wrapper over the shared [`tools::implementations::lsp::config::filter_project_lsp_when_untrusted`] predicate.
 /// Site B and the workspace build path therefore share one gate.
 pub(crate) fn filter_untrusted_project_lsp(
     cwd: &Path,
     sourced: std::collections::BTreeMap<
         String,
         (
-            xvora_tools::implementations::lsp::config::LspServerConfig,
-            xvora_tools::types::config_source::ConfigSource,
+            tools::implementations::lsp::config::LspServerConfig,
+            tools::types::config_source::ConfigSource,
         ),
     >,
-) -> std::collections::BTreeMap<String, xvora_tools::implementations::lsp::config::LspServerConfig>
+) -> std::collections::BTreeMap<String, tools::implementations::lsp::config::LspServerConfig>
 {
-    xvora_tools::implementations::lsp::config::filter_project_lsp_when_untrusted(
+    tools::implementations::lsp::config::filter_project_lsp_when_untrusted(
         sourced,
         project_scope_allowed(cwd),
     )
@@ -441,7 +441,7 @@ mod tests {
     use super::*;
     // Used only by the consume-side regression test below
     // Imported here (not at module scope) so the non-test build doesn't carry an unused import
-    use xvora_workspace::folder_trust::repo_configs_present;
+    use workspace::folder_trust::repo_configs_present;
 
     /// A `git init`'d temp dir bounds `find_mcp_json_files` / `find_project_configs` to the temp dir.
     /// Those discover the enclosing repo and walk to its root, so they would otherwise reach any ancestor repo the system temp dir lives in.
@@ -454,7 +454,7 @@ mod tests {
     /// Simulate a release-stamped build so the folder-trust gate engages: an unstamped local/dev build auto-trusts and never gates/persists.
     /// Hold the returned guard for the test body (drop restores the prior value).
     fn simulate_release_build() -> EnvGuard {
-        EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0.0-sim")
+        EnvGuard::set(version::TEST_VERSION_ENV, "0.0.0-sim")
     }
 
     #[test]
@@ -482,7 +482,7 @@ mod tests {
         grant_folder_trust(tmp.path());
         let key = workspace_key(tmp.path());
         assert!(
-            xvora_workspace::folder_trust::is_trusted_this_process(&key),
+            workspace::folder_trust::is_trusted_this_process(&key),
             "explicit grant must be visible to consume-side resolution"
         );
     }
@@ -598,7 +598,7 @@ mod tests {
         let mut store = TrustStore::load();
         store.set_trusted(&workspace_key(tmp.path())).unwrap();
         assert!(resolve_and_record(tmp.path(), None, false));
-        let env = xvora_workspace::envrc::load_envrc_or_empty(tmp.path());
+        let env = workspace::envrc::load_envrc_or_empty(tmp.path());
         assert_eq!(
             env.get("GATED_ENVRC"),
             Some(&"1".to_string()),
@@ -614,7 +614,7 @@ mod tests {
         // An untrusted clone's repo-tree env (which would feed BASH_ENV / GIT_SSH_COMMAND / ... to every subprocess) is dropped.
         // A store-trusted folder merges it
         // GROK_HOME-isolated so the trust store is empty; GROK_FOLDER_TRUST unset so the default-on feature flag applies
-        use xvora_workspace::permission::claude_settings::load_claude_env_with_project;
+        use workspace::permission::claude_settings::load_claude_env_with_project;
         let home = tempfile::tempdir().unwrap();
         let _env = EnvGuard::set("GROK_HOME", home.path());
         let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -658,7 +658,7 @@ mod tests {
         // Its env must also be dropped
         // The env loader walks cwd to repo-root, so detection MUST walk too (a git-root-only probe missed this)
         // GROK_HOME-isolated so the trust store is empty
-        use xvora_workspace::permission::claude_settings::load_claude_env_with_project;
+        use workspace::permission::claude_settings::load_claude_env_with_project;
         let home = tempfile::tempdir().unwrap();
         let _env = EnvGuard::set("GROK_HOME", home.path());
         let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -706,7 +706,7 @@ mod tests {
         // A user/built-in agent's hooks are kept
         // Exercises real discovery and the exact call-site predicate used at mvp_agent/subagent
         // GROK_HOME-isolated (empty store)
-        use xvora_agent::config::AgentScope;
+        use agent::config::AgentScope;
         let home = tempfile::tempdir().unwrap();
         let _env = EnvGuard::set("GROK_HOME", home.path());
         let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -719,7 +719,7 @@ mod tests {
             "---\nname: explore\ndescription: x\nhooks:\n  PreToolUse:\n    - hooks:\n        - type: command\n          command: \"true\"\n---\nbody\n",
         )
         .unwrap();
-        let def = xvora_agent::discovery::by_name_in_cwd("explore", tmp.path())
+        let def = agent::discovery::by_name_in_cwd("explore", tmp.path())
             .expect("project agent must be discovered");
         assert_eq!(def.scope, AgentScope::Project);
         assert!(def.hooks.is_some(), "project agent must carry inline hooks");
@@ -748,7 +748,7 @@ mod tests {
         );
     }
 
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
 
     #[test]
     #[serial_test::serial]
@@ -813,7 +813,7 @@ mod tests {
         // On a local/dev build the whole feature is inert (auto-trust): a folder with repo-local configs and an empty store is still ALLOWED
         // Assert only when compiled unstamped (mirrors the inert tests elsewhere)
         // GROK_TEST_VERSION is unset so `is_local_build()` is genuinely true
-        let _unset_ver = EnvGuard::unset(xvora_version::TEST_VERSION_ENV);
+        let _unset_ver = EnvGuard::unset(version::TEST_VERSION_ENV);
         if option_env!("GROK_VERSION").is_some() {
             return; // a release-stamped test binary is not a local build
         }
@@ -922,8 +922,8 @@ mod tests {
         //
         // GROK_HOME-isolated so both the folder-trust store and the plugin trust store start empty (deterministic untrusted)
         // GROK_FOLDER_TRUST unset so the default-on flag applies; `#[serial]` because both are process-global
-        use xvora_agent::plugins::discovery::DiscoveryConfig;
-        use xvora_agent::plugins::{PluginRegistry, SharedPluginRegistryHandle};
+        use agent::plugins::discovery::DiscoveryConfig;
+        use agent::plugins::{PluginRegistry, SharedPluginRegistryHandle};
         let home = tempfile::tempdir().unwrap();
         let _env = EnvGuard::set("GROK_HOME", home.path());
         let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -1001,10 +1001,10 @@ mod tests {
         let untrusted = resolve_and_record(tmp.path(), None, false);
         assert!(!untrusted, "untrusted repo must resolve the gate false");
         // Mirror the production startup/reload path via the single load entry point.
-        let git_root = xvora_workspace::session::git::find_git_root_from_path(tmp.path()).ok();
+        let git_root = workspace::session::git::find_git_root_from_path(tmp.path()).ok();
         let (reg, _errs) = crate::util::hooks::discover_hooks(
             git_root.as_deref(),
-            &xvora_tools::types::compat::CompatConfig::default(),
+            &tools::types::compat::CompatConfig::default(),
             untrusted,
         );
         assert!(
@@ -1018,7 +1018,7 @@ mod tests {
         assert!(trusted, "granted repo must resolve the gate true");
         let (reg, _errs) = crate::util::hooks::discover_hooks(
             git_root.as_deref(),
-            &xvora_tools::types::compat::CompatConfig::default(),
+            &tools::types::compat::CompatConfig::default(),
             trusted,
         );
         assert!(
@@ -1030,8 +1030,8 @@ mod tests {
     #[test]
     fn filter_untrusted_project_lsp_drops_only_project() {
         use std::collections::BTreeMap;
-        use xvora_tools::implementations::lsp::config::LspServerConfig;
-        use xvora_tools::types::config_source::ConfigSource;
+        use tools::implementations::lsp::config::LspServerConfig;
+        use tools::types::config_source::ConfigSource;
 
         fn sourced() -> BTreeMap<String, (LspServerConfig, ConfigSource)> {
             let mut m = BTreeMap::new();
@@ -1076,8 +1076,8 @@ mod tests {
 
     #[test]
     fn load_servers_sourced_tags_project_lsp_json() {
-        use xvora_tools::implementations::lsp::config::load_servers_with_plugins_sourced;
-        use xvora_tools::types::config_source::ConfigSource;
+        use tools::implementations::lsp::config::load_servers_with_plugins_sourced;
+        use tools::types::config_source::ConfigSource;
 
         // A `<cwd>/.grok/lsp.json` server must be tagged `Project` so the gate can distinguish it from user/plugin servers
         // Asserts on the specific
@@ -1097,7 +1097,7 @@ mod tests {
 
     #[test]
     fn untrusted_workspace_drops_loaded_project_lsp() {
-        use xvora_tools::implementations::lsp::config::load_servers_with_plugins_sourced;
+        use tools::implementations::lsp::config::load_servers_with_plugins_sourced;
 
         // End-to-end of the load-site gate (Sites A/B)
         // A project server loaded from `<cwd>/.grok/lsp.json` is dropped once the workspace is untrusted
@@ -1276,7 +1276,7 @@ mod tests {
         // The reconcile re-reads the store, which honors the most-specific (child) decision and stays untrusted
         // The ancestor's cascade no longer undoes the explicit untrust
         let tmp = tempfile::tempdir().unwrap();
-        let store_path = tmp.path().join(xvora_workspace::trust::TRUST_FILE_NAME);
+        let store_path = tmp.path().join(workspace::trust::TRUST_FILE_NAME);
         let parent = tmp.path().join("parent");
         let child = parent.join("child");
         std::fs::create_dir_all(&child).unwrap();
@@ -1311,7 +1311,7 @@ mod tests {
         unsafe { std::env::set_var("GROK_FOLDER_TRUST", "1") };
         // Simulate a release-stamped build
         // An unstamped local/dev build (as in CI, no GROK_VERSION) auto-trusts, so the gate would never engage without this
-        unsafe { std::env::set_var(xvora_version::TEST_VERSION_ENV, "0.0.0-sim") };
+        unsafe { std::env::set_var(version::TEST_VERSION_ENV, "0.0.0-sim") };
         let tmp = repo_tmp();
 
         // Empty repo: nothing to gate, so allowed, but left UNRECORDED (provisional)
@@ -1332,7 +1332,7 @@ mod tests {
         );
         assert!(!project_scope_allowed(tmp.path()));
 
-        unsafe { std::env::remove_var(xvora_version::TEST_VERSION_ENV) };
+        unsafe { std::env::remove_var(version::TEST_VERSION_ENV) };
         unsafe { std::env::remove_var("GROK_FOLDER_TRUST") };
     }
 
@@ -1384,7 +1384,7 @@ mod tests {
         // `resolve_launch_dir_trust` returns true, and the `.envrc` loads without any grant
         // Assert the local branch ONLY when compiled unstamped (mirrors the workspace `is_local_build_honors_test_version_override`)
         // GROK_TEST_VERSION is unset so `is_local_build()` is genuinely true; GROK_HOME-isolated so the real store is never touched
-        let _sim = EnvGuard::unset(xvora_version::TEST_VERSION_ENV);
+        let _sim = EnvGuard::unset(version::TEST_VERSION_ENV);
         if option_env!("GROK_VERSION").is_some() {
             return; // a release-stamped test binary is not a local build
         }
@@ -1409,7 +1409,7 @@ mod tests {
         );
 
         // The gated `.envrc` load (the call-site contract) runs because the gate is inert/trusted, so the var is present with no store grant
-        let env = xvora_workspace::envrc::load_envrc_or_empty(tmp.path());
+        let env = workspace::envrc::load_envrc_or_empty(tmp.path());
         assert_eq!(
             env.get("LOCAL_BUILD_ENVRC"),
             Some(&"1".to_string()),
@@ -1428,7 +1428,7 @@ mod tests {
         std::fs::write(tmp.path().join(".mcp.json"), "{}").unwrap();
         // Simulate a release-stamped build so the inert local-build gate is off and the remote `folder_trust_enabled` flag actually engages
         // GROK_FOLDER_TRUST unset: env outranks the remote flag, so an ambient opt-out would otherwise false-fail the Prompt assertion
-        let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0.0-sim");
+        let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0.0-sim");
         let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
         let remote = RemoteSettings {
             folder_trust_enabled: Some(true),

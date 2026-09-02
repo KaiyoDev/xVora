@@ -26,7 +26,7 @@ use crate::acp::model_state::ModelState;
 
 use matcher::FuzzyMatcher;
 use registry::{CommandRegistry, CommandSource, CommandTrigger};
-use xvora_tools::implementations::skills::types::SkillScope;
+use tools::implementations::skills::types::SkillScope;
 
 pub use command::{
     AppCtx, ArgItem, CommandExecCtx, CommandProvenance, CommandResult, SlashCommand,

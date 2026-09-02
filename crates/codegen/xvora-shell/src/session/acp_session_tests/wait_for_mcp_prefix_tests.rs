@@ -1,6 +1,6 @@
 use super::support::*;
 use super::*;
-use xvora_agent::prompt::user_message::UserMessageTemplate;
+use agent::prompt::user_message::UserMessageTemplate;
 /// Builds a test actor whose `mcp_state` holds `configs`, then drives the typed init transitions to match `(initialized, initializing_servers)`.
 ///
 /// Mapping:
@@ -90,7 +90,7 @@ async fn resolved_repo_status_prefetch_builds_first_prefix_with_zero_wait() {
         RepoStatusInputs, RepoStatusPlan, RepoStatusPrefetch, RepoStatusPrefetchState,
         RepoStatusSnapshot,
     };
-    use xvora_workspace::session::git::VcsKind;
+    use workspace::session::git::VcsKind;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -158,7 +158,7 @@ async fn resumed_session_gathers_status_inline_without_a_prefetch() {
     use crate::session::repo_status_prefix::{
         RepoStatusInputs, RepoStatusPlan, RepoStatusPrefetchState,
     };
-    use xvora_workspace::session::git::VcsKind;
+    use workspace::session::git::VcsKind;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -195,7 +195,7 @@ async fn suppressed_status_omits_the_body_but_keeps_the_repo_root() {
     use crate::session::repo_status_prefix::{
         RepoStatusPlan, RepoStatusPrefetchState, discover_vcs_root,
     };
-    use xvora_workspace::session::git::VcsKind;
+    use workspace::session::git::VcsKind;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {

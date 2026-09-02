@@ -313,7 +313,7 @@ fn load_hooks_from_directory(dir: &Path) -> (Vec<HookSpec>, Vec<HookError>) {
     let mut errors = Vec::new();
 
     // Best-effort listing: a bad dirent is recorded and skipped so sibling hooks still load
-    // (Sandbox fail-closed listing lives in xvora_config.)
+    // (Sandbox fail-closed listing lives in config.)
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(e) => {
@@ -344,7 +344,7 @@ fn load_hooks_from_directory(dir: &Path) -> (Vec<HookSpec>, Vec<HookError>) {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        if !xvora_config::is_direct_hook_json_name(name) || !path.is_file() {
+        if !config::is_direct_hook_json_name(name) || !path.is_file() {
             continue;
         }
         json_files.push(path);
@@ -380,7 +380,7 @@ fn is_valid_hook_file(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
-    xvora_config::is_direct_hook_json_name(name) && path.is_file()
+    config::is_direct_hook_json_name(name) && path.is_file()
 }
 
 #[cfg(test)]

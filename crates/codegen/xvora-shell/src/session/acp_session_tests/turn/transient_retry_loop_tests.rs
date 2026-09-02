@@ -6,7 +6,7 @@ use super::rate_limit_backoff_tests::{
 };
 use super::*;
 use std::time::Duration;
-use xvora_test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
+use test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
 
 /// The turn future needs a session-sized stack (spawn.rs: 8 MiB); default test stacks overflow.
 fn on_session_stack(test: impl FnOnce() + Send + 'static) {
@@ -31,8 +31,8 @@ fn run_paused<F: std::future::Future>(fut: impl FnOnce() -> F) {
 }
 
 /// No sampler-internal retries: request counts map 1:1 to submissions.
-fn sampler_surfaces_5xx() -> xvora_sampler::RetryPolicy {
-    xvora_sampler::RetryPolicy {
+fn sampler_surfaces_5xx() -> sampler::RetryPolicy {
+    sampler::RetryPolicy {
         max_retries: 0,
         ..Default::default()
     }

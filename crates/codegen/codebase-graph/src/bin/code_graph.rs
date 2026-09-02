@@ -370,7 +370,7 @@ fn cmd_stats(path: &Path, custom_cache: Option<&Path>) {
     }
 }
 
-fn print_json(result: &xvora_codebase_graph::NavigationResult) {
+fn print_json(result: &codebase_graph::NavigationResult) {
     use serde_json::json;
 
     let locations: Vec<_> = result

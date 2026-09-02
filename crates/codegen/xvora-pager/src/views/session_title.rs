@@ -31,7 +31,7 @@ pub fn entry_title(agent: &AgentView) -> String {
         let trimmed = title.trim();
         if !trimmed.is_empty() {
             let clean =
-                xvora_tools::implementations::skills::skill::extract_skill_display_text(trimmed);
+                tools::implementations::skills::skill::extract_skill_display_text(trimmed);
             let text = clean.as_deref().unwrap_or(trimmed);
             return truncate_title(&sanitize_display_text(text));
         }
@@ -40,7 +40,7 @@ pub fn entry_title(agent: &AgentView) -> String {
         let trimmed = text.trim();
         if !trimmed.is_empty() {
             let clean =
-                xvora_tools::implementations::skills::skill::extract_skill_display_text(trimmed);
+                tools::implementations::skills::skill::extract_skill_display_text(trimmed);
             let display = clean.as_deref().unwrap_or(trimmed);
             return truncate_title(&sanitize_display_text(display));
         }
@@ -158,11 +158,11 @@ fn truncate_title(text: &str) -> String {
 
 /// Strip C0/C1 and bidi/format controls that could inject terminal escape sequences or spoof the title.
 /// Replaces them with `U+FFFD` so the caller can still see something was there.
-/// Same character class as [`xvora_shell::session::persistence::is_forbidden_title_char`]; persist drops, display replaces.
+/// Same character class as [`shell::session::persistence::is_forbidden_title_char`]; persist drops, display replaces.
 ///
 /// Returns `Cow::Borrowed(s)` when no sanitization is needed, so the common per-render call on a clean cached display_name does not allocate.
 pub(crate) fn sanitize_display_text(s: &str) -> Cow<'_, str> {
-    use xvora_shell::session::persistence::is_forbidden_title_char;
+    use shell::session::persistence::is_forbidden_title_char;
     if s.chars().any(is_forbidden_title_char) {
         Cow::Owned(
             s.chars()

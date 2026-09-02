@@ -588,8 +588,8 @@ mod tests {
         assert_eq!(t.state(), PlanModeState::Active);
     }
     use std::collections::HashMap;
-    use xvora_tools::types::template_renderer::TemplateRenderer;
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::template_renderer::TemplateRenderer;
+    use tools::types::tool::ToolKind;
     /// Build a test TemplateRenderer with standard Grok Build tool mappings.
     fn test_renderer() -> TemplateRenderer {
         let tools: HashMap<ToolKind, String> = [

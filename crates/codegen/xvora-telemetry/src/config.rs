@@ -273,7 +273,7 @@ impl TelemetryConfig {
 }
 /// Parse an env var as a boolean. Returns `None` if unset or unrecognized.
 ///
-/// Local copy of `xvora_shell::agent::config::env_bool` so this crate does not depend back on shell.
+/// Local copy of `shell::agent::config::env_bool` so this crate does not depend back on shell.
 /// Shell keeps its own copy for callers outside the telemetry config path.
 fn env_bool(name: &str) -> Option<bool> {
     let value = std::env::var(name).ok()?;

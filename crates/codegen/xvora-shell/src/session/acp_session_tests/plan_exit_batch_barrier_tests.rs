@@ -3,7 +3,7 @@
 use super::support::*;
 use super::*;
 use agent_client_protocol as acp;
-use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtRequest;
+use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtRequest;
 
 const SEED_PLAN: &str = "# OLD mixed-batch plan seed unique-c91e04";
 const NEW_PLAN: &str = "# NEW mixed-batch plan body unique-a7f3c2";
@@ -40,16 +40,16 @@ fn exit_plan_mode_call(id: &str) -> ToolCallResponse {
 
 async fn seeded_active_plan_actor_with_edit_tools() -> (
     SessionActor,
-    tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
     tempfile::TempDir,
     std::path::PathBuf,
 ) {
-    use xvora_tools::implementations::grok_build::enter_plan_mode::EnterPlanModeTool;
-    use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeTool;
-    use xvora_tools::registry::types::ToolConfig;
+    use tools::implementations::grok_build::enter_plan_mode::EnterPlanModeTool;
+    use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeTool;
+    use tools::registry::types::ToolConfig;
 
     let (gateway_tx, gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
     let (persistence_tx, _persistence_rx) =
         tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -86,7 +86,7 @@ async fn seeded_active_plan_actor_with_edit_tools() -> (
         .agent
         .borrow()
         .tool_bridge()
-        .update_resource(xvora_tools::types::resources::PlanFilePath(
+        .update_resource(tools::types::resources::PlanFilePath(
             plan_path.clone(),
         ))
         .await;
@@ -106,7 +106,7 @@ async fn seeded_active_plan_actor_with_edit_tools() -> (
 }
 
 fn spawn_exit_capture(
-    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
+    mut gateway_rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
 ) -> (
     tokio::task::JoinHandle<()>,
     std::sync::Arc<std::sync::Mutex<Option<String>>>,
@@ -116,7 +116,7 @@ fn spawn_exit_capture(
     let handle = tokio::task::spawn_local(async move {
         while let Some(msg) = gateway_rx.recv().await {
             match msg {
-                xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                acp_lib::AcpClientMessage::ExtMethod(args) => {
                     if args.request.method.as_ref() == "x.ai/exit_plan_mode" {
                         let req: ExitPlanModeExtRequest =
                             serde_json::from_str(args.request.params.get()).unwrap();
@@ -126,7 +126,7 @@ fn spawn_exit_capture(
                             .send(Ok(acp::ExtResponse::new(ext_response("approved"))));
                     }
                 }
-                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
                 _ => {}
@@ -199,13 +199,13 @@ async fn mixed_permission_cancel_skips_exit_reverse_request() {
     local
         .run_until(async {
             use xvora_paths::AbsPathBuf;
-            use xvora_tools::implementations::grok_build::enter_plan_mode::EnterPlanModeTool;
-            use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeTool;
-            use xvora_tools::registry::types::ToolConfig;
-            use xvora_workspace::permission::{ClientType, spawn_permission_manager};
+            use tools::implementations::grok_build::enter_plan_mode::EnterPlanModeTool;
+            use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeTool;
+            use tools::registry::types::ToolConfig;
+            use workspace::permission::{ClientType, spawn_permission_manager};
 
             let (gateway_tx, mut gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor =
@@ -244,14 +244,14 @@ async fn mixed_permission_cancel_skips_exit_reverse_request() {
                 .agent
                 .borrow()
                 .tool_bridge()
-                .update_resource(xvora_tools::types::resources::PlanFilePath(plan_path))
+                .update_resource(tools::types::resources::PlanFilePath(plan_path))
                 .await;
 
             let cwd = AbsPathBuf::new(std::path::PathBuf::from(actor.session_info.cwd.clone()))
                 .unwrap_or_else(|_| AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap());
             let (perms, _ev) = spawn_permission_manager(
                 actor.session_info.id.clone(),
-                xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+                acp_lib::AcpAgentGatewaySender::new(gateway_tx),
                 cwd,
                 ClientType::Generic,
                 None,
@@ -267,14 +267,14 @@ async fn mixed_permission_cancel_skips_exit_reverse_request() {
             let responder = tokio::task::spawn_local(async move {
                 while let Some(msg) = gateway_rx.recv().await {
                     match msg {
-                        xvora_acp_lib::AcpClientMessage::RequestPermission(args) => {
+                        acp_lib::AcpClientMessage::RequestPermission(args) => {
                             let _ = args
                                 .response_tx
                                 .send(Ok(acp::RequestPermissionResponse::new(
                                     acp::RequestPermissionOutcome::Cancelled,
                                 )));
                         }
-                        xvora_acp_lib::AcpClientMessage::ExtMethod(args) => {
+                        acp_lib::AcpClientMessage::ExtMethod(args) => {
                             if args.request.method.as_ref() == "x.ai/exit_plan_mode" {
                                 exit_fired_task.store(true, std::sync::atomic::Ordering::SeqCst);
                                 let _ = args
@@ -282,7 +282,7 @@ async fn mixed_permission_cancel_skips_exit_reverse_request() {
                                     .send(Ok(acp::ExtResponse::new(ext_response("approved"))));
                             }
                         }
-                        xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
+                        acp_lib::AcpClientMessage::SessionNotification(args) => {
                             let _ = args.response_tx.send(Ok(()));
                         }
                         _ => {}

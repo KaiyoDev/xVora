@@ -74,7 +74,7 @@ impl CgroupV2 {
             return false;
         };
         let mut command = Command::new("sh");
-        xvora_tty_utils::detach_std_command(&mut command);
+        tty_utils::detach_std_command(&mut command);
         command.args(["-c", "kill -STOP $$; sleep 30"]);
         command.stdout(Stdio::null()).stderr(Stdio::null());
         #[allow(clippy::disallowed_methods)]
@@ -86,14 +86,14 @@ impl CgroupV2 {
         let ok = wait_for_stopped_child(pid).is_ok()
             && cgroup.add_process(pid).is_ok()
             && cgroup.kill_all().is_ok()
-            && xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT)
+            && tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT)
                 .is_ok_and(|status| status.is_some())
             && cgroup
                 .member_pids_internal()
                 .is_ok_and(|pids| pids.is_empty());
         if !ok {
             let _ = unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
-            let _ = xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
+            let _ = tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
         }
         ok
     }
@@ -151,7 +151,7 @@ struct CommandRegistryInner {
 
 #[derive(Clone)]
 struct ActiveCommand {
-    group: Arc<xvora_tty_utils::ProcessGroup>,
+    group: Arc<tty_utils::ProcessGroup>,
     cgroup: Option<Arc<CgroupV2>>,
 }
 
@@ -168,7 +168,7 @@ impl CommandRegistry {
 
     fn register(
         &self,
-        group: Arc<xvora_tty_utils::ProcessGroup>,
+        group: Arc<tty_utils::ProcessGroup>,
         cgroup: Option<Arc<CgroupV2>>,
     ) -> CommandGuard {
         let id = self.inner.next_id.fetch_add(1, Ordering::Relaxed);
@@ -328,7 +328,7 @@ fn run_contained_command_impl(
     command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .stdin(xvora_tty_utils::null_stdio());
+        .stdin(tty_utils::null_stdio());
     let enrollment = registry
         .inner
         .enrollment
@@ -336,7 +336,7 @@ fn run_contained_command_impl(
         .unwrap_or_else(PoisonError::into_inner);
     #[allow(clippy::disallowed_methods)] // Enrollment lock closes spawn/signal ownership race.
     let mut child = command.spawn().context("spawn contained subprocess")?;
-    let scope = xvora_tty_utils::ProcessScope::new();
+    let scope = tty_utils::ProcessScope::new();
     let group = match scope.enroll_std(&child) {
         Ok(group) => group,
         Err(error) => {
@@ -347,21 +347,21 @@ fn run_contained_command_impl(
     if starts_stopped {
         wait_for_stopped_child(child.id()).inspect_err(|_| {
             let _ = group.kill();
-            let _ = xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
+            let _ = tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
         })?;
     }
     if let Some(cgroup) = cgroup.as_deref()
         && let Err(error) = cgroup.add_process(child.id())
     {
         let _ = group.kill();
-        let _ = xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
+        let _ = tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
         return Err(error);
     }
     let command_guard = registry.register(Arc::clone(&group), cgroup.clone());
     if starts_stopped {
         send_continue(child.id()).inspect_err(|_| {
             let _ = group.kill();
-            let _ = xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
+            let _ = tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
         })?;
     }
     drop(enrollment);
@@ -406,19 +406,19 @@ fn run_contained_command_impl(
             }
         };
 
-    let status = match xvora_tty_utils::wait_child_bounded(&mut child, deadline) {
+    let status = match tty_utils::wait_child_bounded(&mut child, deadline) {
         Ok(Some(status)) => status,
         Ok(None) => {
             let mut cleanup_errors = Vec::new();
             attempt_command_teardown(cgroup.as_deref(), &group, &mut cleanup_errors);
-            let reap = xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
+            let reap = tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
             if !matches!(reap, Ok(Some(_))) {
                 cleanup_errors.push(match &reap {
                     Ok(None) => "child did not reap after bounded teardown".into(),
                     Err(error) => format!("wait after teardown: {error}"),
                     Ok(Some(_)) => unreachable!("covered by matches"),
                 });
-                let _ = xvora_tty_utils::spawn_child_reaper(
+                let _ = tty_utils::spawn_child_reaper(
                     "lifecycle-timeout-reaper",
                     child,
                     Some(Arc::clone(&group)),
@@ -436,22 +436,22 @@ fn run_contained_command_impl(
         Err(error) => {
             let mut cleanup_errors = Vec::new();
             attempt_command_teardown(cgroup.as_deref(), &group, &mut cleanup_errors);
-            if !xvora_tty_utils::is_child_wait_identity_uncertain(&error) {
-                let reap = xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
+            if !tty_utils::is_child_wait_identity_uncertain(&error) {
+                let reap = tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
                 if !matches!(reap, Ok(Some(_))) {
                     cleanup_errors.push(match &reap {
                         Ok(None) => "child did not reap after wait error teardown".into(),
                         Err(reap_error) => format!("wait after teardown: {reap_error}"),
                         Ok(Some(_)) => unreachable!("covered by matches"),
                     });
-                    let _ = xvora_tty_utils::spawn_child_reaper(
+                    let _ = tty_utils::spawn_child_reaper(
                         "lifecycle-wait-error-reaper",
                         child,
                         Some(Arc::clone(&group)),
                     );
                 }
             } else {
-                let _ = xvora_tty_utils::spawn_child_reaper(
+                let _ = tty_utils::spawn_child_reaper(
                     "lifecycle-uncertain-wait-reaper",
                     child,
                     Some(Arc::clone(&group)),
@@ -489,7 +489,7 @@ fn run_contained_command_impl(
 #[cfg(target_os = "linux")]
 fn stopped_command(command: Command) -> Command {
     let mut shell = Command::new("sh");
-    xvora_tty_utils::detach_std_command(&mut shell);
+    tty_utils::detach_std_command(&mut shell);
     let mut words = command.get_args().map(|arg| arg.as_bytes().to_vec());
     let program = command.get_program().as_bytes().to_vec();
     let mut script = b"kill -STOP $$; exec \"$0\"".to_vec();
@@ -518,7 +518,7 @@ fn stopped_command(command: Command) -> Command {
 fn kill_and_reap_unenrolled_child(child: &mut std::process::Child) {
     // SAFETY: kill targets the direct child PID, which this caller still owns.
     let _ = unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGKILL) };
-    let _ = xvora_tty_utils::wait_child_bounded(child, CHILD_KILL_REAP_TIMEOUT);
+    let _ = tty_utils::wait_child_bounded(child, CHILD_KILL_REAP_TIMEOUT);
 }
 
 #[cfg(target_os = "linux")]
@@ -564,21 +564,21 @@ fn send_continue(_pid: u32) -> Result<()> {
 fn cleanup_after_reader_spawn_failure(
     mut child: std::process::Child,
     command_guard: CommandGuard,
-    group: &Arc<xvora_tty_utils::ProcessGroup>,
+    group: &Arc<tty_utils::ProcessGroup>,
     cgroup: Option<&CgroupV2>,
     started_reader: Option<std::thread::JoinHandle<std::io::Result<Vec<u8>>>>,
     primary: anyhow::Error,
 ) -> Result<CommandOutput> {
     let mut cleanup_errors = Vec::new();
     attempt_command_teardown(cgroup, group, &mut cleanup_errors);
-    let reap = xvora_tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
+    let reap = tty_utils::wait_child_bounded(&mut child, CHILD_KILL_REAP_TIMEOUT);
     if !matches!(reap, Ok(Some(_))) {
         cleanup_errors.push(match &reap {
             Ok(None) => "child did not reap after reader spawn failure".into(),
             Err(error) => format!("wait after reader spawn failure: {error}"),
             Ok(Some(_)) => unreachable!("covered by matches"),
         });
-        let _ = xvora_tty_utils::spawn_child_reaper(
+        let _ = tty_utils::spawn_child_reaper(
             "lifecycle-reader-spawn-failure-reaper",
             child,
             Some(Arc::clone(group)),
@@ -621,7 +621,7 @@ fn spawn_reader(
 
 fn attempt_command_teardown(
     cgroup: Option<&CgroupV2>,
-    group: &xvora_tty_utils::ProcessGroup,
+    group: &tty_utils::ProcessGroup,
     failures: &mut Vec<String>,
 ) {
     if let Err(error) = group.terminate()

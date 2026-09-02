@@ -54,7 +54,7 @@ impl ModelsCacheManager {
     ) -> Option<CacheResult> {
         let data = std::fs::read(&self.path).ok()?;
         let cache: ModelsCache = serde_json::from_slice(&data).ok()?;
-        if cache.grok_version.as_deref() != Some(xvora_version::VERSION) {
+        if cache.grok_version.as_deref() != Some(version::VERSION) {
             tracing::debug!("models cache version mismatch");
             return None;
         }
@@ -90,7 +90,7 @@ impl ModelsCacheManager {
     ) {
         let cache = ModelsCache {
             fetched_at: Utc::now(),
-            grok_version: Some(xvora_version::VERSION.to_string()),
+            grok_version: Some(version::VERSION.to_string()),
             auth_method: Some(auth_method),
             origin: Some(origin.to_string()),
             etag: etag.map(|s| s.to_string()),

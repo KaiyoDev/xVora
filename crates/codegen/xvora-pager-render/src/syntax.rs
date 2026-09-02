@@ -14,7 +14,7 @@
 
 use std::sync::OnceLock;
 
-pub use xvora_markdown::Syntect;
+pub use markdown::Syntect;
 
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;

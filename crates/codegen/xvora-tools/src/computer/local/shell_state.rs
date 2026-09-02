@@ -193,22 +193,22 @@ pub enum ShellKind {
 impl ShellKind {
     /// Detect the user's shell from `$SHELL`, falling back to bash.
     pub fn detect() -> Self {
-        match xvora_config::shell::detect_unix_shell_kind() {
-            xvora_config::shell::UnixShellKind::Bash => Self::Bash,
-            xvora_config::shell::UnixShellKind::Zsh => Self::Zsh,
+        match config::shell::detect_unix_shell_kind() {
+            config::shell::UnixShellKind::Bash => Self::Bash,
+            config::shell::UnixShellKind::Zsh => Self::Zsh,
         }
     }
 
     /// Resolved absolute path to the shell binary. Falls back from `$SHELL` →
     /// `which` → common dirs → `/bin/<name>`. Result is cached process-wide
-    /// in `xvora_config::shell::unix_shell_path`. See that function for
+    /// in `config::shell::unix_shell_path`. See that function for
     /// the full cascade. Returns `&'static str`.
     pub fn binary_path(&self) -> &'static str {
         let kind = match self {
-            Self::Bash => xvora_config::shell::UnixShellKind::Bash,
-            Self::Zsh => xvora_config::shell::UnixShellKind::Zsh,
+            Self::Bash => config::shell::UnixShellKind::Bash,
+            Self::Zsh => config::shell::UnixShellKind::Zsh,
         };
-        xvora_config::shell::unix_shell_path(kind)
+        config::shell::unix_shell_path(kind)
     }
 
     /// The user's primary rc file name (relative to `$HOME`).
@@ -293,9 +293,9 @@ impl ShellState {
         let mut cmd = tokio::process::Command::new(shell.binary_path());
         cmd.args(&args)
             .current_dir(cwd)
-            .stdin(xvora_tty_utils::null_stdio())
+            .stdin(tty_utils::null_stdio())
             .stdout(Stdio::piped())
-            .stderr(xvora_tty_utils::null_stdio())
+            .stderr(tty_utils::null_stdio())
             .kill_on_drop(true);
         crate::util::detach_command(&mut cmd);
         xvora_sandbox::child_net::restrict_child_network(&mut cmd);

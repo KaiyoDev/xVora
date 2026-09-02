@@ -10,7 +10,7 @@ use std::sync::Arc;
 use anyhow::Context;
 
 use crate::UploadMethod;
-use xvora_auth::{AuthCredentialProvider, StaticAuthCredentialProvider};
+use auth::{AuthCredentialProvider, StaticAuthCredentialProvider};
 
 use crate::storage_client::{Auth401AttributionCallback, StaticGrokAuth, StorageClient};
 

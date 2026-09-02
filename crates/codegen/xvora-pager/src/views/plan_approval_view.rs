@@ -1,7 +1,7 @@
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpResult;
+use acp_lib::AcpResult;
 
-pub use xvora_tools::implementations::grok_build::exit_plan_mode::{
+pub use tools::implementations::grok_build::exit_plan_mode::{
     ExitPlanModeExtRequest, ExitPlanModeExtResponse,
 };
 

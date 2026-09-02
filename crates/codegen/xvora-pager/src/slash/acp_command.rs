@@ -6,7 +6,7 @@
 //! Skills (`SkillMeta::Skill`) are also passed through as `/name args` for the shell to expand, but marked `InjectSkill` for rendering.
 
 use agent_client_protocol as acp;
-use xvora_tools::implementations::skills::types::SkillScope;
+use tools::implementations::skills::types::SkillScope;
 
 use super::command::{CommandExecCtx, CommandProvenance, CommandResult, SlashCommand};
 

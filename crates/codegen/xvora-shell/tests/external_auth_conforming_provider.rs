@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use xvora_shell::auth::{
+use shell::auth::{
     AuthMode, GrokAuth, GrokComConfig, ensure_authenticated, try_ensure_fresh_auth,
 };
 

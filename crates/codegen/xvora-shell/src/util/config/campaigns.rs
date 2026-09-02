@@ -7,11 +7,11 @@ use std::path::Path;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use xvora_config::campaigns::{
+use config::campaigns::{
     CampaignEntry, filter_active_campaigns, ids_touching_paths, merge_campaign_entries,
 };
-use xvora_config::config_override::{PatchPath, patch_touches_any};
-use xvora_config::{
+use config::config_override::{PatchPath, patch_touches_any};
+use config::{
     CampaignsState, ConfigLayers, campaigns_state_path, load_dismissed_ids_from_home,
     user_grok_home,
 };
@@ -436,8 +436,8 @@ mod tests {
     use super::*;
     use serial_test::serial;
     use tempfile::tempdir;
-    use xvora_config::ConfigLayers;
-    use xvora_test_support::EnvGuard;
+    use config::ConfigLayers;
+    use test_support::EnvGuard;
 
     fn models_default_patch(default: &str) -> toml::Table {
         let mut models = toml::map::Map::new();

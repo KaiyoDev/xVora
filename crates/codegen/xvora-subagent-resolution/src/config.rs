@@ -1,14 +1,14 @@
 //! Subagent role and persona configuration types.
 //!
 //! These are the canonical definitions for `SubagentRole`, `SubagentPersona`, and `PersonaIOField`.
-//! The shell re-exports them via `xvora_shell::config::{SubagentRole, SubagentPersona, PersonaIOField}`.
+//! The shell re-exports them via `shell::config::{SubagentRole, SubagentPersona, PersonaIOField}`.
 //!
 //! Methods that remain in `xvora-shell` (on `SubagentsConfig`):
 //! - `discover_personas()` / `discover_roles()`: filesystem discovery coupled to how the shell resolves its config.
 //! - `resolve()`: config layering (CLI > env > TOML > remote) is shell-specific; this crate receives already-resolved maps.
 
 use std::path::PathBuf;
-use xvora_tools::implementations::skills::discovery::extract_first_paragraph;
+use tools::implementations::skills::discovery::extract_first_paragraph;
 
 use serde::Deserialize;
 

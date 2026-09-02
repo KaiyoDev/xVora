@@ -8,9 +8,9 @@
 use super::support::*;
 use super::*;
 use agent_client_protocol as acp;
-use xvora_tools::implementations::grok_build::image_gen::ImageGenTool;
-use xvora_tools::media_gen_limits::DEFAULT_MAX_PARALLEL_IMAGE_GEN;
-use xvora_tools::registry::types::ToolConfig;
+use tools::implementations::grok_build::image_gen::ImageGenTool;
+use tools::media_gen_limits::DEFAULT_MAX_PARALLEL_IMAGE_GEN;
+use tools::registry::types::ToolConfig;
 
 fn image_gen_call(id: &str) -> ToolCallResponse {
     ToolCallResponse {
@@ -84,7 +84,7 @@ async fn first_k_tail_rejects_get_pending_then_failed() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let (mut actor, mut event_rx) =
@@ -162,7 +162,7 @@ async fn over_cap_report_classifies_modest_vs_egregious() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;

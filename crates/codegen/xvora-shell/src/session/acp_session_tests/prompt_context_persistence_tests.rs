@@ -4,12 +4,12 @@ use super::*;
 /// Test that PromptContext round-trips through JSON in the save/load format used by `save_prompt_context` and `load_prompt_context`.
 #[test]
 fn test_json_round_trip() {
-    let ctx = xvora_agent::PromptContext {
+    let ctx = agent::PromptContext {
         ..Default::default()
     };
 
     let json = serde_json::to_string_pretty(&ctx).unwrap();
-    let loaded: xvora_agent::PromptContext = serde_json::from_str(&json).unwrap();
+    let loaded: agent::PromptContext = serde_json::from_str(&json).unwrap();
 
     assert_eq!(loaded.version, 1);
 }
@@ -23,7 +23,7 @@ fn test_json_round_trip_via_filesystem() {
     let session_dir = tmp.path().join("session-test");
     std::fs::create_dir_all(&session_dir).unwrap();
 
-    let ctx = xvora_agent::PromptContext::default();
+    let ctx = agent::PromptContext::default();
 
     // Write directly (mimicking save_prompt_context's logic)
     let path = session_dir.join(PROMPT_CONTEXT_FILENAME);
@@ -32,7 +32,7 @@ fn test_json_round_trip_via_filesystem() {
 
     // Read back
     let read_json = std::fs::read_to_string(&path).unwrap();
-    let loaded: xvora_agent::PromptContext = serde_json::from_str(&read_json).unwrap();
+    let loaded: agent::PromptContext = serde_json::from_str(&read_json).unwrap();
 
     assert_eq!(loaded.version, ctx.version);
     assert_eq!(loaded.build_timestamp_utc, ctx.build_timestamp_utc);
@@ -71,7 +71,7 @@ fn test_canonical_artifacts_coexist() {
 
     // Write both canonical artifacts.
     let prompt = "You are a test subagent.";
-    let ctx = xvora_agent::PromptContext {
+    let ctx = agent::PromptContext {
         ..Default::default()
     };
 
@@ -89,7 +89,7 @@ fn test_canonical_artifacts_coexist() {
     let read_prompt = std::fs::read_to_string(session_dir.join(SYSTEM_PROMPT_FILENAME)).unwrap();
     assert_eq!(read_prompt, prompt);
 
-    let read_ctx: xvora_agent::PromptContext = serde_json::from_str(
+    let read_ctx: agent::PromptContext = serde_json::from_str(
         &std::fs::read_to_string(session_dir.join(PROMPT_CONTEXT_FILENAME)).unwrap(),
     )
     .unwrap();
@@ -148,7 +148,7 @@ fn test_corrupt_json_returns_error() {
     std::fs::write(&path, "not valid json {{{").unwrap();
 
     let json = std::fs::read_to_string(&path).unwrap();
-    let result: Result<xvora_agent::PromptContext, _> = serde_json::from_str(&json);
+    let result: Result<agent::PromptContext, _> = serde_json::from_str(&json);
     assert!(result.is_err(), "corrupt JSON should fail to deserialize");
 }
 
@@ -186,7 +186,7 @@ fn test_load_prompt_context_returns_context_when_present() {
     let session_dir = tmp.path().join("session-ctx-load");
     std::fs::create_dir_all(&session_dir).unwrap();
 
-    let ctx = xvora_agent::PromptContext::default();
+    let ctx = agent::PromptContext::default();
     std::fs::write(
         session_dir.join(PROMPT_CONTEXT_FILENAME),
         serde_json::to_string_pretty(&ctx).unwrap(),
@@ -514,7 +514,7 @@ async fn maybe_truncate_at_threshold_returns_unchanged_no_file() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 1_000_000, 85, gateway_tx, persistence_tx).await;
 

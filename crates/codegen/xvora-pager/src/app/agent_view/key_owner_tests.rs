@@ -8,7 +8,7 @@ use crate::views::question_view::QuestionViewState;
 use agent_client_protocol as acp;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::sync::Arc;
-use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
 
 const SHIFT_TAB: [(KeyCode, KeyModifiers); 3] = [
     (KeyCode::BackTab, KeyModifiers::NONE),
@@ -1040,7 +1040,7 @@ fn vim_mode_permission_tab_and_esc_match_default() {
 
 fn open_elicitation(agent: &mut AgentView) {
     use crate::views::elicitation_view::ElicitationViewState;
-    use xvora_tools::mcp_elicitation::{McpElicitExtRequest, McpElicitModeFields};
+    use tools::mcp_elicitation::{McpElicitExtRequest, McpElicitModeFields};
     agent.elicitation_view = Some(ElicitationViewState::from_request(
         McpElicitExtRequest {
             session_id: "s".into(),
@@ -1186,7 +1186,7 @@ fn elicitation_paste_strips_control_chars() {
 
 #[test]
 fn elicitation_draft_stops_at_named_cap() {
-    use xvora_tools::mcp_elicitation::MAX_ELICIT_DRAFT_CHARS;
+    use tools::mcp_elicitation::MAX_ELICIT_DRAFT_CHARS;
     let mut agent = make_agent();
     open_elicitation(&mut agent);
     let over = "a".repeat(MAX_ELICIT_DRAFT_CHARS + 32);
@@ -1207,7 +1207,7 @@ fn open_url_elicitation(
     response_tx: Option<crate::views::elicitation_view::ElicitResponseTx>,
 ) {
     use crate::views::elicitation_view::ElicitationViewState;
-    use xvora_tools::mcp_elicitation::{McpElicitExtRequest, McpElicitModeFields};
+    use tools::mcp_elicitation::{McpElicitExtRequest, McpElicitModeFields};
     agent.elicitation_view = Some(ElicitationViewState::from_request(
         McpElicitExtRequest {
             session_id: "s".into(),
@@ -1256,7 +1256,7 @@ fn url_walk_keys_scroll_the_viewport() {
 
 fn open_two_field_elicitation(agent: &mut AgentView) {
     use crate::views::elicitation_view::ElicitationViewState;
-    use xvora_tools::mcp_elicitation::{McpElicitExtRequest, McpElicitModeFields};
+    use tools::mcp_elicitation::{McpElicitExtRequest, McpElicitModeFields};
     agent.elicitation_view = Some(ElicitationViewState::from_request(
         McpElicitExtRequest {
             session_id: "s".into(),

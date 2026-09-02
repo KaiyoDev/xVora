@@ -711,7 +711,7 @@ impl RenderBlock {
     /// The block stores the raw `ContextInfo` snapshot and model name and rebuilds its styled output on every redraw.
     /// Theme switches thus take effect without re-running `/context`.
     pub fn context_info(
-        snapshot: xvora_shell::session::ContextInfo,
+        snapshot: shell::session::ContextInfo,
         model: impl Into<String>,
     ) -> Self {
         RenderBlock::ContextInfo(ContextInfoBlock::new(snapshot, model))
@@ -1080,7 +1080,7 @@ impl RenderBlock {
     ///
     /// The hyperlinks are in the markdown renderer's coordinate space (pre-wrap line index, display-cell column range).
     /// The caller is responsible for mapping through word-wrapping and entry layout to reach screen coordinates.
-    pub fn with_hyperlinks<R>(&self, f: impl FnOnce(&[xvora_markdown::HyperlinkTarget]) -> R) -> R {
+    pub fn with_hyperlinks<R>(&self, f: impl FnOnce(&[markdown::HyperlinkTarget]) -> R) -> R {
         match self {
             RenderBlock::AgentMessage(b) => b.content().with_hyperlinks(f),
             RenderBlock::Thinking(b) => b.content().with_hyperlinks(f),
@@ -1091,7 +1091,7 @@ impl RenderBlock {
 
     pub fn with_table_copy_meta<R>(
         &self,
-        f: impl FnOnce(&[xvora_markdown::TableCopyMeta]) -> R,
+        f: impl FnOnce(&[markdown::TableCopyMeta]) -> R,
     ) -> R {
         match self {
             RenderBlock::AgentMessage(b) => b.content().with_table_copy_meta(f),
@@ -1379,7 +1379,7 @@ mod searchable_text_tests {
     use crate::scrollback::blocks::tool::memory_search::{MemoryResult, MemorySearchToolCallBlock};
     use crate::scrollback::blocks::tool::{LifecycleEventBlock, WebSearchToolCallBlock};
     use std::time::Duration;
-    use xvora_shell::session::ContextInfo;
+    use shell::session::ContextInfo;
 
     #[test]
     fn system_indexes_message_text() {

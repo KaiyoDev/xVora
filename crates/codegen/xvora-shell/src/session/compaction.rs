@@ -155,7 +155,7 @@ impl SessionActor {
         };
         let tool_defs = self.prepare_tool_definitions().await;
         let tools = self.turn_base_tool_specs(&tool_defs);
-        let compaction_tool_tokens = xvora_chat_state::estimate_tool_specs_tokens(&tools);
+        let compaction_tool_tokens = chat_state::estimate_tool_specs_tokens(&tools);
         let wall_clock_budget_secs = self
             .agent
             .borrow()
@@ -197,7 +197,7 @@ impl SessionActor {
         let estimated_total = self.chat_state_handle.get_estimated_total_tokens().await;
         let threshold = self.compaction.threshold_percent.get() as u64;
         let start_pct = threshold.saturating_sub(prefire_lead_percent());
-        xvora_token_estimation::exceeds_threshold(estimated_total, cw, start_pct as u8)
+        token_estimation::exceeds_threshold(estimated_total, cw, start_pct as u8)
     }
     /// Background pass-1: summarize the ~95% prefix into NOTE₁ and cache it for a later pass-2 apply.
     /// Always releases the in-flight guard.
@@ -273,7 +273,7 @@ impl SessionActor {
             prepare_conversation_for_verbatim_summarization(split.prefix.to_vec(), strips);
         let prefix_est_tokens = prefix_prepared
             .iter()
-            .map(xvora_chat_state::estimate_item_tokens)
+            .map(chat_state::estimate_item_tokens)
             .sum::<u64>();
         let prompt = build_two_pass_compaction_prompt(None);
         let pass1_history = build_two_pass_pass1_history(&prefix_prepared, &prompt);
@@ -517,7 +517,7 @@ impl SessionActor {
             .memory
             .last_flush_compaction
             .load(std::sync::atomic::Ordering::Relaxed);
-        if xvora_memory::flush::should_flush(
+        if memory::flush::should_flush(
             total_tokens,
             context_window,
             self.compaction.threshold_percent.get(),
@@ -582,7 +582,7 @@ impl SessionActor {
             .run_compact_inner(
                 user_context,
                 None,
-                xvora_telemetry::events::CompactionTrigger::Manual,
+                telemetry::events::CompactionTrigger::Manual,
                 false,
             )
             .await
@@ -652,8 +652,8 @@ impl SessionActor {
                 context_window,
                 "auto-compaction suppressed after deterministic compaction failure"
             );
-            xvora_telemetry::session_ctx::log_event(
-                xvora_telemetry::events::AutoCompactSuppressed {
+            telemetry::session_ctx::log_event(
+                telemetry::events::AutoCompactSuppressed {
                     reason: reason.as_str(),
                     estimated_tokens,
                     context_window,
@@ -720,8 +720,8 @@ impl SessionActor {
         const INTERNAL_PREFIXES: &[&str] = &[
             COMPACT_FAILED_PREFIX,
             COMPACTION_FAILED_GUARD_PREFIX,
-            xvora_compaction::sampler::SAMPLER_BUILD_FAILED_PREFIX,
-            xvora_compaction::sampler::SAMPLER_START_FAILED_PREFIX,
+            compaction::sampler::SAMPLER_BUILD_FAILED_PREFIX,
+            compaction::sampler::SAMPLER_START_FAILED_PREFIX,
         ];
         let mut rest = raw.trim();
         loop {
@@ -762,7 +762,7 @@ impl SessionActor {
             error = %message,
             "auto-compact auth failure: aborting turn for re-auth"
         );
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "auto-compact auth failure: aborting turn for re-auth",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -779,7 +779,7 @@ impl SessionActor {
         acp::Error::auth_required().data(crate::sampling::error::terminal_error_data(
             message,
             Some(401),
-            xvora_sampler::SamplingErrorKind::Auth,
+            sampler::SamplingErrorKind::Auth,
         ))
     }
     /// Clear [`SUPPRESS_AUTH`] on login/token refresh (credit suppress waits for a 200).
@@ -819,11 +819,11 @@ impl SessionActor {
         match preserve_inherited_prefix(&full_conv, compacted_history, prefix_len) {
             Ok(preserved) => {
                 let projected_preserved = project_preserved_reseed_tokens(
-                    xvora_chat_state::estimate_conversation_tokens(&preserved),
+                    chat_state::estimate_conversation_tokens(&preserved),
                     tokens_before,
-                    xvora_chat_state::estimate_conversation_tokens(&full_conv),
+                    chat_state::estimate_conversation_tokens(&full_conv),
                 );
-                if xvora_token_estimation::exceeds_threshold(
+                if token_estimation::exceeds_threshold(
                     projected_preserved,
                     context_window,
                     self.compaction.threshold_percent.get(),
@@ -895,7 +895,7 @@ impl SessionActor {
         &self,
         user_context: Option<String>,
         auto_continue: Option<crate::extensions::notification::AutoContinueInfo>,
-        trigger: xvora_telemetry::events::CompactionTrigger,
+        trigger: telemetry::events::CompactionTrigger,
         lossy_input: bool,
     ) -> Result<(), acp::Error> {
         let (cancel, _cancel_scope) = self.compaction.cancel.enter();
@@ -903,8 +903,8 @@ impl SessionActor {
         tracing::Span::current().record("compaction_tokens_before", tokens_before as i64);
         self.signals_handle().record_compaction(tokens_before);
         let trigger_str = match trigger {
-            xvora_telemetry::events::CompactionTrigger::Manual => "manual",
-            xvora_telemetry::events::CompactionTrigger::Auto => "auto",
+            telemetry::events::CompactionTrigger::Manual => "manual",
+            telemetry::events::CompactionTrigger::Auto => "auto",
         };
         let sampling_config = self.chat_state_handle.get_sampling_config().await;
         let context_window = sampling_config
@@ -930,22 +930,22 @@ impl SessionActor {
             .map(|c| c.api_backend == ApiBackend::Messages)
             .unwrap_or(false);
         let model_id = sampling_config.map(|c| c.model).unwrap_or_default();
-        let compaction = xvora_telemetry::events::CompactionScope::begin(
-            xvora_telemetry::events::CompactionBeginParams {
+        let compaction = telemetry::events::CompactionScope::begin(
+            telemetry::events::CompactionBeginParams {
                 trigger,
                 tokens_used: tokens_before,
                 context_window,
                 model_id: model_id.clone(),
                 user_context_provided: user_context.is_some(),
                 compaction_mode: match self.compaction.compaction_mode {
-                    xvora_chat_state::CompactionMode::Summary => {
-                        xvora_telemetry::events::CompactionModeLabel::Summary
+                    chat_state::CompactionMode::Summary => {
+                        telemetry::events::CompactionModeLabel::Summary
                     }
-                    xvora_chat_state::CompactionMode::Transcript => {
-                        xvora_telemetry::events::CompactionModeLabel::Transcript
+                    chat_state::CompactionMode::Transcript => {
+                        telemetry::events::CompactionModeLabel::Transcript
                     }
-                    xvora_chat_state::CompactionMode::Segments(_) => {
-                        xvora_telemetry::events::CompactionModeLabel::Segments
+                    chat_state::CompactionMode::Segments(_) => {
+                        telemetry::events::CompactionModeLabel::Segments
                     }
                 },
                 two_pass_enabled: self.two_pass_active(),
@@ -971,7 +971,7 @@ impl SessionActor {
         );
         let assembly_start = std::time::Instant::now();
         let segment_messages = if self.compaction.compaction_mode.writes_segments() {
-            xvora_chat_state::compaction_utils::prepare_conversation_for_segment(
+            chat_state::compaction_utils::prepare_conversation_for_segment(
                 full_conversation.clone(),
             )
         } else {
@@ -980,12 +980,12 @@ impl SessionActor {
         const SUMMARY_BUDGET_RESERVE_TOKENS: u64 = 32_768;
         let verbatim_input_enabled = self.compaction.verbatim_input && !lossy_input;
         let mut simplified_messages = if verbatim_input_enabled {
-            xvora_chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
+            chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
                 full_conversation,
                 summary_strips_reasoning,
             )
         } else {
-            xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
+            chat_state::compaction_utils::prepare_conversation_for_summarization(
                 full_conversation,
             )
         };
@@ -1046,7 +1046,7 @@ impl SessionActor {
             .filter(|td| !backend_search_active || td.function.name != "web_search")
             .collect();
         let compaction_tool_tokens =
-            xvora_chat_state::estimate_tool_definitions_tokens(&effective_tool_defs);
+            chat_state::estimate_tool_definitions_tokens(&effective_tool_defs);
         let compaction_tools: Vec<xvora_sampling_types::ToolSpec> = effective_tool_defs
             .into_iter()
             .map(xvora_sampling_types::ToolSpec::from)
@@ -1054,7 +1054,7 @@ impl SessionActor {
         let compaction_hosted_tools: Vec<xvora_sampling_types::HostedTool> =
             self.hosted_tools_for_turn();
         if lossy_input {
-            simplified_messages = xvora_chat_state::compaction_utils::fit_conversation_to_budget(
+            simplified_messages = chat_state::compaction_utils::fit_conversation_to_budget(
                 simplified_messages,
                 lossy_input_budget(context_window, compaction_tool_tokens),
             );
@@ -1091,8 +1091,8 @@ impl SessionActor {
         let use_short_prompt = false;
         let started_at = chrono::Utc::now().to_rfc3339();
         let estimated_input_tokens =
-            xvora_chat_state::estimate_conversation_tokens(&simplified_messages);
-        let auto_trigger = matches!(trigger, xvora_telemetry::events::CompactionTrigger::Auto);
+            chat_state::estimate_conversation_tokens(&simplified_messages);
+        let auto_trigger = matches!(trigger, telemetry::events::CompactionTrigger::Auto);
         let wall_clock_budget_secs = self
             .agent
             .borrow()
@@ -1121,7 +1121,7 @@ impl SessionActor {
                 estimated_input_tokens,
                 retry_delay_secs,
             );
-        let fr_config = xvora_compaction::FullReplaceConfig {
+        let fr_config = compaction::FullReplaceConfig {
             max_attempts: max_retries,
             retry_delay_secs,
             sampling_timeout_secs: 0,
@@ -1135,7 +1135,7 @@ impl SessionActor {
         let mut compact_summary: Option<String> =
             two_pass_output.as_ref().map(|o| o.content.clone());
         while compact_summary.is_none() {
-            match xvora_compaction::sample_full_replace_summary(
+            match compaction::sample_full_replace_summary(
                 &sampler,
                 &request_turns,
                 user_context.as_deref(),
@@ -1148,14 +1148,14 @@ impl SessionActor {
                     compact_summary = Some(summary.summary);
                     break;
                 }
-                Err(xvora_compaction::FullReplaceError::NothingToCompact) => {
+                Err(compaction::FullReplaceError::NothingToCompact) => {
                     last_error = Some(
                         acp::Error::internal_error()
                             .data(format!("{COMPACT_FAILED_PREFIX}nothing to compact")),
                     );
                     break;
                 }
-                Err(xvora_compaction::FullReplaceError::EmptyResponse) => {
+                Err(compaction::FullReplaceError::EmptyResponse) => {
                     last_failure_outcome = if observer.degenerate_seen() {
                         CompactionOutcome::Degenerate
                     } else {
@@ -1168,7 +1168,7 @@ impl SessionActor {
                     ));
                     break;
                 }
-                Err(xvora_compaction::FullReplaceError::Sampler {
+                Err(compaction::FullReplaceError::Sampler {
                     message,
                     deterministic,
                     context_overflow,
@@ -1188,8 +1188,8 @@ impl SessionActor {
                         };
                         if let Some(stage) = next_stage {
                             input_overflow_rejections += 1;
-                            xvora_telemetry::session_ctx::log_event(
-                                xvora_telemetry::events::CompactionRetryDegraded {
+                            telemetry::session_ctx::log_event(
+                                telemetry::events::CompactionRetryDegraded {
                                     trigger,
                                     reason: "input_overflow",
                                     from_stage: Some(input_stage.as_str()),
@@ -1212,18 +1212,18 @@ impl SessionActor {
                                     let budget = context_window
                                         .saturating_sub(SUMMARY_BUDGET_RESERVE_TOKENS)
                                         .saturating_sub(compaction_tool_tokens);
-                                    let verbatim = xvora_chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
+                                    let verbatim = chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
                                         conv,
                                         summary_strips_reasoning,
                                     );
-                                    xvora_chat_state::compaction_utils::fit_conversation_to_budget(
+                                    chat_state::compaction_utils::fit_conversation_to_budget(
                                         verbatim,
                                         budget,
                                     )
                                 }
                                 InputStage::Lossy => {
-                                    xvora_chat_state::compaction_utils::fit_conversation_to_budget(
-                                        xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
+                                    chat_state::compaction_utils::fit_conversation_to_budget(
+                                        chat_state::compaction_utils::prepare_conversation_for_summarization(
                                             conv,
                                         ),
                                         lossy_input_budget(context_window, compaction_tool_tokens),
@@ -1371,10 +1371,10 @@ impl SessionActor {
                         .into_iter()
                         .map(|t| {
                             let tool_name = match t.kind {
-                                xvora_tools::computer::types::TaskKind::Monitor => {
+                                tools::computer::types::TaskKind::Monitor => {
                                     monitor_tool_name.clone()
                                 }
-                                xvora_tools::computer::types::TaskKind::Bash => {
+                                tools::computer::types::TaskKind::Bash => {
                                     execute_tool_name.clone()
                                 }
                             };
@@ -1387,7 +1387,7 @@ impl SessionActor {
                         self.tool_context.subagent_event_tx
                     {
                         let (tx, rx) = tokio::sync::oneshot::channel();
-                        use xvora_tools::implementations::grok_build::task::types::{
+                        use tools::implementations::grok_build::task::types::{
                             SubagentEvent, SubagentListActiveRequest,
                         };
                         let _ =
@@ -1410,7 +1410,7 @@ impl SessionActor {
                     };
                     let connected_mcp_servers = {
                         use crate::session::helpers::compaction_context::CompactionServerSummary;
-                        use xvora_tools::implementations::search_tool::{
+                        use tools::implementations::search_tool::{
                             sanitize_description, truncate_description,
                         };
                         self.connected_server_summaries()
@@ -1433,7 +1433,7 @@ impl SessionActor {
                             TodoSummary, TodoSummaryStatus,
                         };
                         use crate::tools::todo::{TodoState, TodoStatus};
-                        use xvora_tools::types::resources::State;
+                        use tools::types::resources::State;
                         let bridge = self.agent.borrow().tool_bridge().clone();
                         bridge
                             .read_resource::<State<TodoState>>()
@@ -1470,7 +1470,7 @@ impl SessionActor {
                             );
                             ScheduledLoopSummary {
                                 task_id: t.id,
-                                interval: xvora_tools::implementations::grok_build::scheduler::interval::interval_to_human(
+                                interval: tools::implementations::grok_build::scheduler::interval::interval_to_human(
                                     t.interval_secs,
                                 ),
                                 next_fire_at,
@@ -1505,7 +1505,7 @@ impl SessionActor {
                     let workflow_tool_name = if workflows.is_empty() {
                         None
                     } else {
-                        use xvora_tools::types::tool::ToolKind;
+                        use tools::types::tool::ToolKind;
                         self.agent
                             .borrow()
                             .tool_bridge()
@@ -1598,13 +1598,13 @@ impl SessionActor {
                 })
         };
         let memory_opt_out = false;
-        let memory_ref: Option<&dyn xvora_tools::types::memory_backend::MemoryBackend> =
+        let memory_ref: Option<&dyn tools::types::memory_backend::MemoryBackend> =
             if memory_opt_out {
                 None
             } else {
                 memory_backend_impl
                     .as_ref()
-                    .map(|b| b as &dyn xvora_tools::types::memory_backend::MemoryBackend)
+                    .map(|b| b as &dyn tools::types::memory_backend::MemoryBackend)
             };
         let suppress_state_reminder = false;
         let workflow_listing = self.workflow_listing_for_prompt();
@@ -1688,7 +1688,7 @@ impl SessionActor {
                     .compaction_recovery_count
                     .fetch_add(n, std::sync::atomic::Ordering::Relaxed);
                 tracing::debug!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     count = n,
                     "MEMORY_COMPACTION_RECOVERY: {} search(es) performed",
                     n,
@@ -1806,7 +1806,7 @@ impl SessionActor {
             .replace_conversation_for_compaction(compacted_history);
         if self.startup_hints.inherited_prefix_len.is_some() {
             let post_replace_tokens = self.chat_state_handle.get_total_tokens().await;
-            if xvora_token_estimation::exceeds_threshold(
+            if token_estimation::exceeds_threshold(
                 post_replace_tokens,
                 context_window,
                 self.compaction.threshold_percent.get(),
@@ -1836,7 +1836,7 @@ impl SessionActor {
             .context_injected
             .store(false, std::sync::atomic::Ordering::Relaxed);
         if self.memory.is_enabled() {
-            tracing::info!(target: xvora_telemetry::memory_log::TARGET, "MEMORY_COMPACT: post-compaction reset, next turn re-checks injection (search only if no block persisted)");
+            tracing::info!(target: telemetry::memory_log::TARGET, "MEMORY_COMPACT: post-compaction reset, next turn re-checks injection (search only if no block persisted)");
         }
         let _ = self
             .notifications
@@ -1911,14 +1911,14 @@ impl SessionActor {
             }
         }
         compaction.complete(
-            xvora_telemetry::events::CompactionCompleteStats {
+            telemetry::events::CompactionCompleteStats {
                 tokens_after,
                 two_pass_used,
                 segments_queued,
                 degenerate_retries: telemetry.degenerate_rejections,
                 input_overflow_retries: input_overflow_rejections,
             },
-            xvora_telemetry::events::CompactionTiming {
+            telemetry::events::CompactionTiming {
                 model_wait_ms: compact_output.model_wait_ms(),
                 pre_compaction_ms: Some(pre_compaction_ms),
                 post_compaction_ms: Some(post_compaction_ms),
@@ -1932,12 +1932,12 @@ impl SessionActor {
         context_window: std::num::NonZeroU64,
     ) -> Option<AutoCompactTriggerInfo> {
         let cw = context_window.get();
-        if xvora_token_estimation::exceeds_threshold(
+        if token_estimation::exceeds_threshold(
             total_tokens,
             cw,
             self.compaction.threshold_percent.get(),
         ) {
-            let percentage = xvora_token_estimation::usage_percentage_u8(total_tokens, cw);
+            let percentage = token_estimation::usage_percentage_u8(total_tokens, cw);
             Some(AutoCompactTriggerInfo {
                 tokens_used: total_tokens,
                 context_window: cw,
@@ -1953,7 +1953,7 @@ impl SessionActor {
     /// Called from `handle_sampling_failure` with the `SamplingErrorInfo` the sampler hands back.
     pub(crate) async fn should_compact_on_error(
         &self,
-        err: &xvora_sampler::SamplingErrorInfo,
+        err: &sampler::SamplingErrorInfo,
     ) -> bool {
         if self.compaction.is_suppressed() {
             return false;
@@ -1965,7 +1965,7 @@ impl SessionActor {
     /// The latter must see overflows even while compaction is suppressed.
     pub(crate) async fn estimate_exceeds_error_context_window(
         &self,
-        err: &xvora_sampler::SamplingErrorInfo,
+        err: &sampler::SamplingErrorInfo,
     ) -> bool {
         let Some(ref metadata) = err.model_metadata else {
             return false;
@@ -2014,7 +2014,7 @@ impl SessionActor {
             )
             .is_ok()
         {
-            let percentage = xvora_token_estimation::usage_percentage_u8(estimated_total, cw);
+            let percentage = token_estimation::usage_percentage_u8(estimated_total, cw);
             tracing::info!(
                 "Forced auto-compact trigger (debug): model={model}, \
                  {percentage}% full ({estimated_total}/{cw} tokens)",
@@ -2049,7 +2049,7 @@ impl SessionActor {
             return None;
         }
         let overflow = estimated_total.saturating_sub(cw);
-        let percentage = xvora_token_estimation::usage_percentage_u8(estimated_total, cw);
+        let percentage = token_estimation::usage_percentage_u8(estimated_total, cw);
         tracing::warn!(
             estimated_total,
             context_window = cw,
@@ -2144,7 +2144,7 @@ impl SessionActor {
         self.record_compaction_variant();
         let tokens_before = self.chat_state_handle.get_total_tokens().await;
         tracing::Span::current().record("pre_tokens", tokens_before as i64);
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::AutoCompactFired {
+        telemetry::session_ctx::log_event(telemetry::events::AutoCompactFired {
             tokens_before: trigger_info.tokens_used,
             percentage: trigger_info.percentage,
         });
@@ -2168,7 +2168,7 @@ impl SessionActor {
             .run_compact_inner(
                 None,
                 None,
-                xvora_telemetry::events::CompactionTrigger::Auto,
+                telemetry::events::CompactionTrigger::Auto,
                 lossy_input,
             )
             .await;
@@ -2231,7 +2231,7 @@ impl SessionActor {
         user_context: Option<&str>,
         use_short_prompt: bool,
         model: &str,
-        trigger: xvora_telemetry::events::CompactionTrigger,
+        trigger: telemetry::events::CompactionTrigger,
         summary: Option<&str>,
         error: Option<&acp::Error>,
         attempts: u32,
@@ -2241,8 +2241,8 @@ impl SessionActor {
         use crate::extensions::notification::CompactionRequestFile;
         let request_id = uuid::Uuid::new_v4().to_string();
         let trigger_str = match trigger {
-            xvora_telemetry::events::CompactionTrigger::Manual => "manual",
-            xvora_telemetry::events::CompactionTrigger::Auto => "auto",
+            telemetry::events::CompactionTrigger::Manual => "manual",
+            telemetry::events::CompactionTrigger::Auto => "auto",
         };
         let prompt_variant = if use_short_prompt {
             "short"

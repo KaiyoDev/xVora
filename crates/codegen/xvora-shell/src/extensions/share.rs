@@ -14,7 +14,7 @@ use crate::session::info::Info as SessionInfo;
 use crate::session::persistence::list_summaries;
 use crate::session::share::{ShareSessionRequest, ShareSessionResponse};
 use crate::upload::trace::{SessionMetadataType, upload_session_metadata};
-use xvora_telemetry::id::agent_id;
+use telemetry::id::agent_id;
 
 #[tracing::instrument(skip_all, fields(method = %args.method))]
 pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
@@ -142,7 +142,7 @@ async fn upload_share_data_to_gcs(
     let gcs_path = format!("share/{}_{}_data.json", session_id, timestamp);
 
     use crate::upload::gcs::WithAuth as _;
-    if let Err(e) = xvora_file_utils::gcs::upload_bytes_signed(
+    if let Err(e) = file_utils::gcs::upload_bytes_signed(
         &gcs_config.with_auth(auth_manager),
         &gcs_path,
         &data_json,

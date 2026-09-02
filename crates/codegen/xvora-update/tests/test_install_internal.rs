@@ -15,9 +15,9 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use common::{reset_home, test_home};
-use xvora_telemetry::events::CliUpdateErrorKind;
-use xvora_update::UpdateConfig;
-use xvora_update::auto_update::{
+use telemetry::events::CliUpdateErrorKind;
+use update::UpdateConfig;
+use update::auto_update::{
     classify_install_error, install_internal_from_base, install_internal_from_bases,
 };
 

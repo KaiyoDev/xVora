@@ -13,7 +13,7 @@ fn role_prompt(p: &str) -> RoleRenderedPrompt {
 
 #[tokio::test]
 async fn channel_spawner_request_is_harness_internal() {
-    use xvora_tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
+    use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let spawner = ChannelSpawner {
@@ -59,7 +59,7 @@ async fn channel_spawner_request_is_harness_internal() {
 /// Skeptic 0 keeps `pool[0]` on the cold fallback.
 #[tokio::test]
 async fn channel_spawner_applies_per_index_model_to_request() {
-    use xvora_tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
+    use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let spawner = ChannelSpawner {
@@ -125,7 +125,7 @@ async fn channel_spawner_applies_per_index_model_to_request() {
 /// An inherit index (no configured pair) leaves `runtime_overrides.model` `None`, the historic default-spawn behavior.
 #[tokio::test]
 async fn channel_spawner_inherit_index_leaves_model_none() {
-    use xvora_tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
+    use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let spawner = ChannelSpawner {
         event_tx: tx,
@@ -1234,18 +1234,18 @@ fn build_pause_summary_omits_empty_groups() {
 /// Both explicit renders leave no tool placeholder unresolved.
 #[test]
 fn verifier_template_renders_per_agent_type_and_falls_back() {
-    use xvora_tools::implementations::grok_build::task::types::SubagentTypeSummary;
+    use tools::implementations::grok_build::task::types::SubagentTypeSummary;
     let mut tool_names = std::collections::HashMap::new();
     tool_names.insert(
-        xvora_tools::types::tool::ToolKind::Read,
+        tools::types::tool::ToolKind::Read,
         "cursor_read".to_string(),
     );
     tool_names.insert(
-        xvora_tools::types::tool::ToolKind::ListDir,
+        tools::types::tool::ToolKind::ListDir,
         "cursor_ls".to_string(),
     );
     tool_names.insert(
-        xvora_tools::types::tool::ToolKind::Search,
+        tools::types::tool::ToolKind::Search,
         "cursor_grep".to_string(),
     );
     let summary = SubagentTypeSummary {
@@ -1262,9 +1262,9 @@ fn verifier_template_renders_per_agent_type_and_falls_back() {
 
     // grok-build explicit render: no leftover placeholder either.
     let grok = RoleToolNames::from_summary(&summary_with(&[
-        (xvora_tools::types::tool::ToolKind::Read, "read_file"),
-        (xvora_tools::types::tool::ToolKind::ListDir, "list_dir"),
-        (xvora_tools::types::tool::ToolKind::Search, "grep"),
+        (tools::types::tool::ToolKind::Read, "read_file"),
+        (tools::types::tool::ToolKind::ListDir, "list_dir"),
+        (tools::types::tool::ToolKind::Search, "grep"),
     ]))
     .apply(GOAL_VERIFIER_PROMPT_TEMPLATE);
     assert_no_tool_placeholders(&grok);
@@ -1280,9 +1280,9 @@ fn verifier_template_renders_per_agent_type_and_falls_back() {
 #[test]
 fn cold_and_resume_renders_are_symmetric_for_an_index() {
     let summary = summary_with(&[
-        (xvora_tools::types::tool::ToolKind::Read, "cursor_read"),
-        (xvora_tools::types::tool::ToolKind::ListDir, "cursor_ls"),
-        (xvora_tools::types::tool::ToolKind::Search, "cursor_grep"),
+        (tools::types::tool::ToolKind::Read, "cursor_read"),
+        (tools::types::tool::ToolKind::ListDir, "cursor_ls"),
+        (tools::types::tool::ToolKind::Search, "cursor_grep"),
     ]);
     let tn = RoleToolNames::from_summary(&summary);
     let cold = tn.apply(GOAL_VERIFIER_PROMPT_TEMPLATE);
@@ -1304,7 +1304,7 @@ fn cold_and_resume_renders_are_symmetric_for_an_index() {
 /// Each captured prompt must render the names for ITS OWN index and no other's.
 #[tokio::test]
 async fn verification_stage_renders_per_index_tool_names() {
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::tool::ToolKind;
     // Skeptic 0 is not-refuted, so the full panel fans out (all 3 spawn)
     let spawner = Arc::new(MockSpawner::new([
         MockResponse::not_refuted(),
@@ -2885,7 +2885,7 @@ async fn verification_stage_resume_spawn_failure_falls_back_to_cold() {
 #[tokio::test]
 async fn cold_fallback_after_resume_failure_carries_pool0_model_on_request() {
     use std::sync::Mutex as StdMutex;
-    use xvora_tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
+    use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
     // (model, resume_from) per spawn, in spawn order.
     type SpawnCapture = Arc<StdMutex<Vec<(Option<String>, Option<String>)>>>;
@@ -3269,7 +3269,7 @@ fn prod_default_classifier_max_runs_is_ten() {
 
 #[tokio::test]
 async fn channel_spawner_blocks_until_subagent_result() {
-    use xvora_tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
+    use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel();
     let release = Arc::new(Notify::new());

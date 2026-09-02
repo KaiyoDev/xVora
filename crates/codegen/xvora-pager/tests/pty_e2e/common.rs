@@ -46,13 +46,13 @@ pub(crate) const MOCK_RESPONSE_SENTINEL: &str = "MOCKRESPONSE";
 
 /// The sandbox's unified log (shell-written; forwarded pager entries land here too).
 /// No cross-process helper exists to reuse whole.
-/// `xvora_telemetry::unified_log::path()` resolves the calling process's own grok home and the file-name const is private.
+/// `telemetry::unified_log::path()` resolves the calling process's own grok home and the file-name const is private.
 /// So this composes the sandbox grok home with the exported `LOG_DIR`.
 pub(crate) fn unified_log_path(content: &ContentController) -> PathBuf {
     content
         .sandbox()
         .grok_home()
-        .join(xvora_telemetry::unified_log::LOG_DIR)
+        .join(telemetry::unified_log::LOG_DIR)
         .join("unified.jsonl")
 }
 
@@ -232,9 +232,9 @@ pub(crate) fn folder_is_trusted(content: &ContentController, repo: &std::path::P
     let store_path = content
         .home()
         .join(".grok")
-        .join(xvora_workspace::trust::TRUST_FILE_NAME);
-    let store = xvora_workspace::trust::TrustStore::load_from(store_path);
-    store.is_trusted(&xvora_workspace::trust::workspace_key(repo))
+        .join(workspace::trust::TRUST_FILE_NAME);
+    let store = workspace::trust::TrustStore::load_from(store_path);
+    store.is_trusted(&workspace::trust::workspace_key(repo))
 }
 
 // ── Leader mode e2e ─────────────────────────────────────────────────────

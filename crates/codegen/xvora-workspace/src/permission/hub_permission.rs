@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use prometheus::{HistogramVec, IntCounter, register_histogram_vec, register_int_counter};
 use serde_json::Value;
 use std::sync::LazyLock;
-use xvora_computer_hub_sdk::harness::PERMISSION_REQUEST_KIND;
-use xvora_computer_hub_sdk::{ToolServer, WeakToolServer};
-use xvora_tool_protocol::SessionId;
+use computer_hub_sdk::harness::PERMISSION_REQUEST_KIND;
+use computer_hub_sdk::{ToolServer, WeakToolServer};
+use tool_protocol::SessionId;
 static PERMISSION_REPLY_DURATION: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec!(
         "grok_workspace_permission_reply_seconds",
@@ -208,11 +208,11 @@ fn scope_kind_value(reply: &Value) -> Option<(&str, Option<String>)> {
     Some((kind, value))
 }
 pub fn access_kind_for_hub_tool(
-    kind: Option<xvora_tools::types::tool::ToolKind>,
+    kind: Option<tools::types::tool::ToolKind>,
     tool_name: &str,
     args: &Value,
 ) -> Option<AccessKind> {
-    if kind == Some(xvora_tools::types::tool::ToolKind::ActiveAgentMessage) {
+    if kind == Some(tools::types::tool::ToolKind::ActiveAgentMessage) {
         return Some(AccessKind::AgentMessage {
             subagent_id: args
                 .get("subagent_id")
@@ -257,7 +257,7 @@ fn access_kind_for_hub_tool_name(tool_name: &str, args: &Value) -> Option<Access
             Some(AccessKind::Edit(path))
         }
         "apply_patch" => Some(AccessKind::Edit("apply_patch".to_owned())),
-        xvora_tools::implementations::grok_build::SEND_SUBAGENT_MESSAGE_TOOL_NAME => {
+        tools::implementations::grok_build::SEND_SUBAGENT_MESSAGE_TOOL_NAME => {
             Some(AccessKind::AgentMessage {
                 subagent_id: args
                     .get("subagent_id")

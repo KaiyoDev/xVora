@@ -18,7 +18,7 @@ use command_fds::FdMapping;
 use nix::libc;
 use tokio::io::AsyncReadExt;
 
-pub use xvora_config::shell::UnixShellKind;
+pub use config::shell::UnixShellKind;
 
 const INIT_MARKER: &str = "__GROK_STATIC_SHELL_MARKER__";
 const INIT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -31,7 +31,7 @@ pub struct StaticShellSnapshot {
 }
 
 fn shell_binary(shell: UnixShellKind) -> &'static str {
-    xvora_config::shell::unix_shell_path(shell)
+    config::shell::unix_shell_path(shell)
 }
 
 fn rc_file_name(shell: UnixShellKind) -> &'static str {
@@ -53,7 +53,7 @@ impl StaticShellSnapshot {
     /// definitions between SOH markers. Returns an empty snapshot on any
     /// failure or timeout, degrading to a plain shell.
     pub async fn init(cwd: &Path) -> Self {
-        let shell = xvora_config::shell::detect_unix_shell_kind();
+        let shell = config::shell::detect_unix_shell_kind();
 
         let capture = match shell {
             UnixShellKind::Bash => "builtin alias -p 2>/dev/null; builtin declare -f 2>/dev/null",
@@ -72,9 +72,9 @@ impl StaticShellSnapshot {
             let mut cmd = tokio::process::Command::new(shell_binary(shell));
             cmd.args(["-lc", &script])
                 .current_dir(cwd)
-                .stdin(xvora_tty_utils::null_stdio())
+                .stdin(tty_utils::null_stdio())
                 .stdout(Stdio::piped())
-                .stderr(xvora_tty_utils::null_stdio())
+                .stderr(tty_utils::null_stdio())
                 .kill_on_drop(true);
             crate::util::detach_command(&mut cmd);
             xvora_sandbox::child_net::restrict_child_network(&mut cmd);

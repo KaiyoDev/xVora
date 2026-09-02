@@ -3,7 +3,7 @@
 //!
 //! ## When to use
 //!
-//! Use regular `tracing::info!` / `tracing::debug!` / `tracing::warn!` with targets `xvora_hooks` or `xvora_agent::plugins`.
+//! Use regular `tracing::info!` / `tracing::debug!` / `tracing::warn!` with targets `xvora_hooks` or `agent::plugins`.
 //! Log at discovery, dispatch, execution, and error points.
 //!
 //! ## Enabling
@@ -27,7 +27,7 @@ use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::registry::LookupSpan;
 
-use xvora_config::grok_home;
+use config::grok_home;
 
 const ENV_HOOKS_LOG: &str = "GROK_HOOKS_LOG";
 
@@ -55,7 +55,7 @@ impl FormatTime for UptimeTimer {
 }
 
 /// Writes to `~/.grok/logs/hooks.log` (or custom path via `GROK_HOOKS_LOG`).
-/// Filters to hooks (`xvora_hooks`) and plugins (`xvora_agent::plugins`) targets.
+/// Filters to hooks (`xvora_hooks`) and plugins (`agent::plugins`) targets.
 /// Set `GROK_HOOKS_LOG=0` to disable, `GROK_HOOKS_LOG=/path` to redirect.
 pub fn layer<S>() -> Option<impl Layer<S>>
 where
@@ -86,7 +86,7 @@ where
     }
 
     let filter =
-        tracing_subscriber::filter::EnvFilter::new("xvora_hooks=debug,xvora_agent::plugins=debug");
+        tracing_subscriber::filter::EnvFilter::new("xvora_hooks=debug,agent::plugins=debug");
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_target(true)
         .with_ansi(false)

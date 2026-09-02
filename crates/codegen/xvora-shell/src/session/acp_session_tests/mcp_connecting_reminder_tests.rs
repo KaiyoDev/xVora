@@ -8,7 +8,7 @@
 
 use super::mcp::format_mcp_connecting_reminder;
 use super::support::*;
-use xvora_mcp::servers::McpInitStrategy;
+use mcp::servers::McpInitStrategy;
 
 #[test]
 fn default_reminder_lists_connecting_servers() {

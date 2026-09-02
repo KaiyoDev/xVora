@@ -7,7 +7,7 @@
 )]
 //! Typed client for hub-proxied `workspace.*` RPC methods, the single transport for the `workspace_rpc` channel.
 //! `WorkspaceOps` proxy mode and consumers that cannot depend on `xvora-workspace` both use it.
-//! Wire types live in `xvora_workspace_types::rpc`.
+//! Wire types live in `workspace_types::rpc`.
 //! This crate adds the connected-state latch, the generic [`WorkspaceClient::rpc`] core, and error mapping.
 //!
 //! No deadline is imposed by default ([`WorkspaceClient::with_deadline`] opts in).
@@ -16,19 +16,19 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use xvora_computer_hub_sdk::harness::ToolHarness;
-use xvora_tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
-use xvora_workspace_types::rpc::agents_md::{AgentConfigFile, DiscoverAgentsMdReq};
-use xvora_workspace_types::rpc::code_nav::{
+use computer_hub_sdk::harness::ToolHarness;
+use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
+use workspace_types::rpc::agents_md::{AgentConfigFile, DiscoverAgentsMdReq};
+use workspace_types::rpc::code_nav::{
     CodeFindDefinitionsReq, CodeFindReferencesReq, CodeGotoDefinitionReq, CodeGotoReferencesReq,
     CodeIndexStatusReq, CodeIndexStatusResponse, CodeNavResponse,
 };
-use xvora_workspace_types::rpc::export_github::{ExportGithubReq, ExportGithubResponse};
-use xvora_workspace_types::rpc::fs::{
+use workspace_types::rpc::export_github::{ExportGithubReq, ExportGithubResponse};
+use workspace_types::rpc::fs::{
     FsDeleteFileReq, FsExistsData, FsExistsReq, FsListData, FsListReq, FsReadFileData,
     FsReadFileReq, FsWriteFileReq, GetFilesReq, GetFilesRes, PutFilesReq, PutFilesRes,
 };
-use xvora_workspace_types::rpc::git::{
+use workspace_types::rpc::git::{
     CheckoutCommitResponse, CommitResult, DetectVcsKindReq, GitBranchInfoReq, GitBranchListData,
     GitBranchesReq, GitCheckoutCommitReq, GitCheckoutReq, GitCollectChangesReq,
     GitCollectChangesResponse, GitCommitReq, GitCurrentCommitReq, GitDiffReq, GitDiffsData,
@@ -37,29 +37,29 @@ use xvora_workspace_types::rpc::git::{
     GitStatusExtResponse, GitStatusReq, GitSyncBaseReq, GitSyncBaseResult, GitUnstageReq,
     StageData, VcsKind,
 };
-use xvora_workspace_types::rpc::hunks::{
+use workspace_types::rpc::hunks::{
     BulkHunkActionResponse, FileSummary, HunkActionResponse, HunkAllActionReq, HunkFileActionReq,
     HunkGetFileSummariesReq, HunkGetStagedFilesReq, HunkSingleActionReq, HunkTurnActionReq,
 };
-use xvora_workspace_types::rpc::search::{
+use workspace_types::rpc::search::{
     ContentSearchData, ContentSearchRequest, FuzzyChangeReq, FuzzyCloseReq, FuzzyOpenReq,
     FuzzyStatusReq,
 };
-use xvora_workspace_types::rpc::session::{
+use workspace_types::rpc::session::{
     BeginPromptReq, EndPromptReq, FileRewindResponse, RewindToReq,
 };
-use xvora_workspace_types::rpc::skills::{DiscoverPluginsReq, DiscoverSkillsReq, SkillInfo};
-use xvora_workspace_types::rpc::workspace::{
+use workspace_types::rpc::skills::{DiscoverPluginsReq, DiscoverSkillsReq, SkillInfo};
+use workspace_types::rpc::workspace::{
     ConfigureMcpReq, DropSessionReq, InstallPluginReq, LoadEnvrcReq, LoadPermissionsReq,
     LoadProjectConfigReq, RefreshPluginsReq, ResolveFileReferencesReq, ToolDefinitionsReq,
     UpdateToolConfigReq, WorkspaceInfo, WorkspaceInfoReq,
 };
-use xvora_workspace_types::rpc::worktree::{
+use workspace_types::rpc::worktree::{
     ApplyWorktreeRequest, CreateWorktreeRequest, RemoveWorktreeRequest, WorktreeCreateSyncReq,
     WorktreeDbPathReq, WorktreeDbPathResponse, WorktreeDbRebuildReq, WorktreeDbStatsReq,
     WorktreeGcReq, WorktreeListReq, WorktreeShowReq,
 };
-use xvora_workspace_types::rpc::{RpcEnvelope, RpcError, WORKSPACE_RPC_TOOL_ID, WorkspaceRpc};
+use workspace_types::rpc::{RpcEnvelope, RpcError, WORKSPACE_RPC_TOOL_ID, WorkspaceRpc};
 #[derive(Debug, thiserror::Error)]
 pub enum WorkspaceClientError {
     /// A previous call observed a fatal transport error and no reconnect has been signalled since.
@@ -85,15 +85,15 @@ pub enum WorkspaceClientError {
 ///
 /// Returns the terminal result, or a `ToolError::NetworkError` if the stream ended without producing a terminal item.
 pub async fn consume_stream_terminal(
-    stream: &mut xvora_tool_runtime::ToolStream<TypedToolOutput>,
-) -> Result<TypedToolOutput, xvora_tool_runtime::ToolError> {
+    stream: &mut tool_runtime::ToolStream<TypedToolOutput>,
+) -> Result<TypedToolOutput, tool_runtime::ToolError> {
     loop {
         let item = std::future::poll_fn(|cx| stream.as_mut().poll_next(cx)).await;
         match item {
             Some(ToolStreamItem::Progress(_)) => {}
             Some(ToolStreamItem::Terminal(result)) => return result,
             None => {
-                return Err(xvora_tool_runtime::ToolError::network_error(
+                return Err(tool_runtime::ToolError::network_error(
                     "stream ended without terminal item",
                 ));
             }
@@ -107,15 +107,15 @@ pub fn server_version_at_least(version: Option<&str>, baseline: &semver::Version
         .and_then(|v| semver::Version::parse(v).ok())
         .is_some_and(|v| v >= *baseline)
 }
-/// Check whether a [`ToolError`](xvora_tool_runtime::ToolError) indicates a fatal transport failure that should mark the hub as disconnected.
+/// Check whether a [`ToolError`](tool_runtime::ToolError) indicates a fatal transport failure that should mark the hub as disconnected.
 ///
 /// Returns `true` for:
 /// - `NetworkError`: a direct transport failure (socket dropped, stream ended without a terminal item, etc.)
 /// - `Custom` with `details.code == "protocol_error"`: a half-closed WebSocket producing malformed frames
-pub fn is_transport_fatal(err: &xvora_tool_runtime::ToolError) -> bool {
+pub fn is_transport_fatal(err: &tool_runtime::ToolError) -> bool {
     match err.kind {
-        xvora_tool_runtime::ToolErrorKind::NetworkError => true,
-        xvora_tool_runtime::ToolErrorKind::Custom => err
+        tool_runtime::ToolErrorKind::NetworkError => true,
+        tool_runtime::ToolErrorKind::Custom => err
             .details
             .as_ref()
             .and_then(|d| d.get("code"))
@@ -126,18 +126,18 @@ pub fn is_transport_fatal(err: &xvora_tool_runtime::ToolError) -> bool {
 }
 /// True when the hub's `workspace_unavailable` details carry `retryable: false`.
 /// That flag means retries cannot succeed until the workspace is revived.
-fn is_non_retryable_workspace_unavailable(err: &xvora_tool_runtime::ToolError) -> bool {
-    if !matches!(err.kind, xvora_tool_runtime::ToolErrorKind::Custom) {
+fn is_non_retryable_workspace_unavailable(err: &tool_runtime::ToolError) -> bool {
+    if !matches!(err.kind, tool_runtime::ToolErrorKind::Custom) {
         return false;
     }
     err.details
         .as_ref()
         .and_then(|d| {
             use serde::Deserialize as _;
-            xvora_tool_protocol::WorkspaceUnavailableDetails::deserialize(d).ok()
+            tool_protocol::WorkspaceUnavailableDetails::deserialize(d).ok()
         })
         .is_some_and(|d| {
-            d.code == xvora_tool_protocol::WORKSPACE_UNAVAILABLE_SUBCODE && !d.retryable
+            d.code == tool_protocol::WORKSPACE_UNAVAILABLE_SUBCODE && !d.retryable
         })
 }
 /// Typed client over a bound [`ToolHarness`] for `workspace.*` RPCs.
@@ -210,7 +210,7 @@ impl WorkspaceClient {
         if !self.is_connected() {
             return Err(WorkspaceClientError::NotConnected);
         }
-        let tool_id = xvora_tool_protocol::ToolId::new(WORKSPACE_RPC_TOOL_ID)
+        let tool_id = tool_protocol::ToolId::new(WORKSPACE_RPC_TOOL_ID)
             .expect("constant tool id is valid");
         let args = serde_json::json!({ "method": method, "params": params });
         tracing::debug!(method, "WorkspaceClient::rpc");
@@ -589,11 +589,11 @@ mod tests {
     use super::*;
     use schemars::JsonSchema;
     use serde::Deserialize;
-    use xvora_computer_hub_sdk::harness::LocalRegistry;
-    use xvora_tool_protocol::{SessionId, ToolId};
-    use xvora_tool_runtime::{Tool, ToolError};
-    use xvora_tool_types::ToolDescription;
-    use xvora_workspace_types::rpc::RpcActivityClass;
+    use computer_hub_sdk::harness::LocalRegistry;
+    use tool_protocol::{SessionId, ToolId};
+    use tool_runtime::{Tool, ToolError};
+    use tool_types::ToolDescription;
+    use workspace_types::rpc::RpcActivityClass;
     #[derive(Debug, Deserialize, JsonSchema)]
     struct RpcArgs {
         method: String,
@@ -602,7 +602,7 @@ mod tests {
     #[derive(Debug, serde::Serialize)]
     #[serde(transparent)]
     struct RawOut(serde_json::Value);
-    impl xvora_tool_runtime::ToolOutput for RawOut {}
+    impl tool_runtime::ToolOutput for RawOut {}
     #[derive(Debug)]
     struct FakeWorkspaceRpc;
     impl Tool for FakeWorkspaceRpc {
@@ -611,7 +611,7 @@ mod tests {
         fn id(&self) -> ToolId {
             ToolId::new(WORKSPACE_RPC_TOOL_ID).unwrap()
         }
-        fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
+        fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
             ToolDescription::new(WORKSPACE_RPC_TOOL_ID, "fake workspace rpc")
         }
         async fn run(&self, _ctx: ToolCallContext, args: Self::Args) -> Result<RawOut, ToolError> {
@@ -633,26 +633,26 @@ mod tests {
                 "workspace.netfail" => Err(ToolError::network_error("socket dropped")),
                 "workspace.toolfail" => Err(ToolError::custom("some_code", "boom")),
                 "workspace.hibernated" => Err(workspace_gone_tool_error(
-                    xvora_tool_protocol::WorkspaceGoneReason::Hibernated,
-                    xvora_tool_protocol::WorkspaceGonePhase::RouteMissing,
+                    tool_protocol::WorkspaceGoneReason::Hibernated,
+                    tool_protocol::WorkspaceGonePhase::RouteMissing,
                 )),
                 "workspace.gone_retryable" => Err(workspace_gone_tool_error(
-                    xvora_tool_protocol::WorkspaceGoneReason::NotBound,
-                    xvora_tool_protocol::WorkspaceGonePhase::RouteMissing,
+                    tool_protocol::WorkspaceGoneReason::NotBound,
+                    tool_protocol::WorkspaceGonePhase::RouteMissing,
                 )),
                 other => panic!("unexpected method {other}"),
             }
         }
     }
     fn workspace_gone_tool_error(
-        reason: xvora_tool_protocol::WorkspaceGoneReason,
-        phase: xvora_tool_protocol::WorkspaceGonePhase,
+        reason: tool_protocol::WorkspaceGoneReason,
+        phase: tool_protocol::WorkspaceGonePhase,
     ) -> ToolError {
-        let xvora_tool_protocol::ToolErrorWire::Custom {
+        let tool_protocol::ToolErrorWire::Custom {
             subcode,
             message,
             details,
-        } = xvora_tool_protocol::workspace_unavailable_wire(reason, phase)
+        } = tool_protocol::workspace_unavailable_wire(reason, phase)
         else {
             panic!("workspace_unavailable_wire builds Custom");
         };
@@ -842,15 +842,15 @@ mod tests {
     }
     #[tokio::test]
     async fn consume_stream_terminal_returns_err() {
-        let mut stream: xvora_tool_runtime::ToolStream<TypedToolOutput> =
-            xvora_tool_runtime::terminal_only(Err(ToolError::network_error("oops")));
+        let mut stream: tool_runtime::ToolStream<TypedToolOutput> =
+            tool_runtime::terminal_only(Err(ToolError::network_error("oops")));
         let err = consume_stream_terminal(&mut stream).await.unwrap_err();
         assert!(err.to_string().contains("oops"));
     }
     #[tokio::test]
     async fn consume_stream_terminal_exhausted_stream_is_network_error() {
         let typed = TypedToolOutput::from_value(ToolId::new("t").unwrap(), Value::Null);
-        let mut stream = xvora_tool_runtime::terminal_only::<TypedToolOutput>(Ok(typed));
+        let mut stream = tool_runtime::terminal_only::<TypedToolOutput>(Ok(typed));
         let _ = consume_stream_terminal(&mut stream).await;
         let err = consume_stream_terminal(&mut stream).await.unwrap_err();
         assert!(

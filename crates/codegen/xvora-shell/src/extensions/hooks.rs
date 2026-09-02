@@ -253,7 +253,7 @@ pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
             super::to_ext_response(result)
         }
         "x.ai/hooks/action" => {
-            let req: xvora_hooks_plugins_types::HooksActionRequest = super::parse_params(args)?;
+            let req: hooks_plugins_types::HooksActionRequest = super::parse_params(args)?;
             let sid = acp::SessionId::new(req.session_id);
 
             let result = agent

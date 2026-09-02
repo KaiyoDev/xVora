@@ -26,7 +26,7 @@ async fn seed_skills(actor: &SessionActor, names: &[&str]) {
     let skills = names
         .iter()
         .map(
-            |name| xvora_tools::implementations::skills::types::SkillInfo {
+            |name| tools::implementations::skills::types::SkillInfo {
                 name: name.to_string(),
                 description: format!("Does {name} things."),
                 path: format!("/skills/{name}/SKILL.md"),
@@ -45,7 +45,7 @@ async fn usage_categories_include_skills_and_mcp_with_counts() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             seed_skills(&actor, &["alpha", "beta"]).await;
@@ -71,19 +71,19 @@ async fn usage_categories_include_agents_md_with_count() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             let def = actor.agent.borrow().definition().clone();
             let bridge = actor.tool_bridge_handle();
-            let ctx = xvora_agent::PromptContext {
+            let ctx = agent::PromptContext {
                 agents_md_files: vec![
-                    xvora_agent::prompt::agents_md::AgentConfigFile {
+                    agent::prompt::agents_md::AgentConfigFile {
                         file_name: "AGENTS.md".into(),
                         file_path: "/repo/AGENTS.md".into(),
                         content: "# Root\nUse rustfmt.".into(),
                     },
-                    xvora_agent::prompt::agents_md::AgentConfigFile {
+                    agent::prompt::agents_md::AgentConfigFile {
                         file_name: "AGENTS.md".into(),
                         file_path: "/repo/crates/AGENTS.md".into(),
                         content: "# Crate\nPrefer unit tests.".into(),
@@ -91,13 +91,13 @@ async fn usage_categories_include_agents_md_with_count() {
                 ],
                 ..Default::default()
             };
-            *actor.agent.borrow_mut() = xvora_agent::Agent::new(
+            *actor.agent.borrow_mut() = agent::Agent::new(
                 def,
                 ctx,
                 String::new(),
                 bridge,
-                xvora_agent::ReminderPolicy::default(),
-                xvora_agent::CompactionPolicy::default(),
+                agent::ReminderPolicy::default(),
+                agent::CompactionPolicy::default(),
                 vec![],
                 false,
             );
@@ -117,7 +117,7 @@ async fn usage_categories_include_workflows_when_enabled() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -145,7 +145,7 @@ async fn baseline_reminder_lists_workflows_under_skills() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -185,7 +185,7 @@ async fn baseline_reminder_lists_workflows_when_there_are_no_skills() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -215,7 +215,7 @@ async fn subagent_session_does_not_list_workflows() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.background_workflows_enabled = true;
@@ -255,7 +255,7 @@ async fn mcp_snapshot_matches_full_mode_injected_reminder() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.mcp_reminder_mode = McpReminderMode::Full;

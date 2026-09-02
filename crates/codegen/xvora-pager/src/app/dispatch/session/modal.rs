@@ -79,7 +79,7 @@ pub(in crate::app::dispatch) fn dispatch_rename_session(
     let Some(session_id) = agent.session.session_id.clone() else {
         return vec![];
     };
-    let title = xvora_shell::session::persistence::sanitize_rename_title(&title).into_owned();
+    let title = shell::session::persistence::sanitize_rename_title(&title).into_owned();
     if title.is_empty() {
         agent.scrollback.push_block(RenderBlock::system(
             "Couldn't rename session: title must not be blank".to_string(),
@@ -109,7 +109,7 @@ pub(in crate::app::dispatch) fn dispatch_reset_session_title(app: &mut AppView) 
         return vec![];
     };
     let kind = agent.rename_kind();
-    if kind == xvora_shell::session::unified_list::SessionKind::Chat {
+    if kind == shell::session::unified_list::SessionKind::Chat {
         agent
             .scrollback
             .push_block(crate::scrollback::block::RenderBlock::system(

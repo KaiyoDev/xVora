@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use xvora_sampling_types::HostedTool;
-use xvora_tools::bridge::ToolBridge;
-use xvora_tools::types::definition::ToolDefinition;
+use tools::bridge::ToolBridge;
+use tools::types::definition::ToolDefinition;
 
 use crate::compaction::CompactionPolicy;
 use crate::config::{AgentDefinition, CompletionRequirement, PermissionMode};
@@ -173,7 +173,7 @@ impl Agent {
         context_window: std::num::NonZeroU64,
     ) -> bool {
         let cw = context_window.get();
-        xvora_token_estimation::exceeds_threshold(
+        token_estimation::exceeds_threshold(
             total_tokens,
             cw,
             self.compaction_policy.auto_compact_threshold_percent as u8,

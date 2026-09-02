@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use agent_client_protocol as acp;
 use chrono::Utc;
 use tokio::sync::{mpsc, oneshot};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::permission::auto_mode::{
     BashSecurityAssessment, ClassifierSecurityFinding, ClassifierVerdict, EnvRisk,
@@ -33,12 +33,12 @@ use crate::permission::types::{
     AccessKind, ClientType, Decision, EditPolicy, PermissionCommand, PermissionEvent,
     PermissionRequest, PermissionResolution, PromptPolicy,
 };
-use xvora_mcp::servers::parse_mcp_qualified_name;
+use mcp::servers::parse_mcp_qualified_name;
 use xvora_paths::AbsPathBuf;
-use xvora_tools::implementations::grok_build::web_fetch::{
+use tools::implementations::grok_build::web_fetch::{
     DomainMatcher, config::DEFAULT_ALLOWED_DOMAINS, domain::normalize_domain,
 };
-use xvora_tools::types::resources::resolve_model_path;
+use tools::types::resources::resolve_model_path;
 
 mod bash_grants;
 pub mod reasons;
@@ -1534,11 +1534,11 @@ pub fn spawn_permission_manager_with_pin(
                         .map(|context| context.real_cwd.as_path())
                         .unwrap_or_else(|| cwd.as_path());
                     let permission_mode = if yolo_mode {
-                        xvora_telemetry::enums::PermissionMode::AlwaysApprove
+                        telemetry::enums::PermissionMode::AlwaysApprove
                     } else if auto_mode {
-                        xvora_telemetry::enums::PermissionMode::Auto
+                        telemetry::enums::PermissionMode::Auto
                     } else {
-                        xvora_telemetry::enums::PermissionMode::Ask
+                        telemetry::enums::PermissionMode::Ask
                     };
                     let tool_id = tool_call_update.tool_call_id.to_string();
                     let tool_name = crate::permission::prompter::tool_name_for_access(&access);
@@ -3725,7 +3725,7 @@ mod tests {
         client_type: ClientType,
         remember_tool_approvals: bool,
     ) -> (PermissionHandle, mpsc::UnboundedReceiver<PermissionEvent>) {
-        let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+        let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
         tokio::task::spawn_local(receiver.run());
         spawn_permission_manager_with_pin(
             acp::SessionId::new(Arc::from("test-session")),
@@ -4618,7 +4618,7 @@ mod tests {
             client: RecordingClient,
             web_fetch_allowed_domains: Vec<String>,
         ) -> (PermissionHandle, mpsc::UnboundedReceiver<PermissionEvent>) {
-            let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+            let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
             tokio::task::spawn_local(receiver.run());
             spawn_permission_manager_with_pin(
                 acp::SessionId::new(Arc::from("test-session")),
@@ -6459,7 +6459,7 @@ mod tests {
                 let client = HangingFirstPromptClient {
                     prompts: prompts.clone(),
                 };
-                let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+                let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
                 tokio::task::spawn_local(receiver.run());
                 let (mgr, _events) = spawn_permission_manager_with_pin(
                     acp::SessionId::new(Arc::from("test-session")),
@@ -6627,7 +6627,7 @@ mod tests {
                     seen: seen.clone(),
                     gate: gate.clone(),
                 };
-                let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+                let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
                 tokio::task::spawn_local(receiver.run());
                 let (mgr, mut events) = spawn_permission_manager_with_pin(
                     acp::SessionId::new(Arc::from("test-session")),

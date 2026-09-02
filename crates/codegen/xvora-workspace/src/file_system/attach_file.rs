@@ -5,7 +5,7 @@ use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tracing::warn;
-use xvora_tools::util::truncate::estimate_tokens;
+use tools::util::truncate::estimate_tokens;
 #[cfg(test)]
 mod persistence {
     use std::path::PathBuf;

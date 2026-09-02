@@ -161,11 +161,11 @@ pub(super) fn drain_prompt_state_to_last_queued(agent: &mut AgentView) {
 
 /// Prepend `<system-reminder>` framing to a cron prompt for the model.
 ///
-/// Delegates to the shared implementation in `xvora_tools::reminders`.
+/// Delegates to the shared implementation in `tools::reminders`.
 /// The UI shows the raw `prompt` text via `RenderBlock::cron_prompt`; this wrapped version is only sent to the model via `Effect::SendPrompt`.
 /// The framing tells the model the message is a scheduled task execution, not a human.
 fn format_cron_prompt(prompt: &str, task_id: &str, human_schedule: &str) -> String {
-    xvora_tools::reminders::format_scheduled_task_prompt(prompt, task_id, human_schedule)
+    tools::reminders::format_scheduled_task_prompt(prompt, task_id, human_schedule)
 }
 
 /// Try to send the next queued entry (prompt, command, bash, or cron) if the agent is idle.
@@ -409,7 +409,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
             // Scrollback shows display text (never raw skill XML)
             // Combined drains paint one bubble per original follow-up
             let is_skill = queued.display_as_skill;
-            let multi = xvora_prompt_queue::is_combined(&queued.combined_texts);
+            let multi = prompt_queue::is_combined(&queued.combined_texts);
             let (prompt_idx, prompt_entry_id, combined_entries) = if multi {
                 let (first_idx, _, last_id, all_ids) =
                     paint_or_reuse_combined_user_bubbles(agent, &queued.combined_texts);
@@ -466,7 +466,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                             serde_json::Value::Bool(true),
                         );
                     }
-                    xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                    prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 } else {
                     tracing::debug!(
                         "wire_blocks[0] is not TextContent — displayText annotation skipped"
@@ -490,7 +490,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                 );
                 if let Some(acp::ContentBlock::Text(tb)) = blocks.first_mut() {
                     let map = tb.meta.get_or_insert_with(acp::Meta::new);
-                    xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                    prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 }
                 vec![Effect::SendPromptBlocks {
                     agent_id,
@@ -503,7 +503,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                 // No skillTokenRanges: dequeue_combined_prompt clears them on every combined drain (multi paints plain per-segment bubbles)
                 let mut tb = acp::TextContent::new(queued.text);
                 let map = tb.meta.get_or_insert_with(acp::Meta::new);
-                xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 vec![Effect::SendPromptBlocks {
                     agent_id,
                     session_id,
@@ -707,7 +707,7 @@ fn paint_or_reuse_combined_user_bubbles(
         return (first_idx, first_id, last_id, ids);
     }
 
-    let joined = xvora_prompt_queue::join_texts(segments.iter().map(String::as_str));
+    let joined = prompt_queue::join_texts(segments.iter().map(String::as_str));
     if let Some((_, id)) = trailing_user_prompt_matching(agent, &joined, false) {
         agent.scrollback.remove_entry(id);
     }
@@ -918,7 +918,7 @@ pub(crate) fn apply_turn_start_shim(
             paint_or_reuse_combined_user_bubbles(agent, &segments);
         if rewindable {
             let restore = text.clone().unwrap_or_else(|| {
-                xvora_prompt_queue::join_texts(segments.iter().map(String::as_str))
+                prompt_queue::join_texts(segments.iter().map(String::as_str))
             });
             let earlier = all_ids.into_iter().filter(|id| *id != last_id).collect();
             // An adopted turn arrives with text only, never the original attachments, so a Ctrl+C rewind restores just the joined text
@@ -1264,7 +1264,7 @@ mod tests {
         use crate::app::actions::TaskResult;
         use crate::app::dispatch::task_result::dispatch_task_result;
         use crate::scrollback::blocks::SessionEvent;
-        use xvora_shell::session::helpers::session_compact::{
+        use shell::session::helpers::session_compact::{
             CompactErrorKind, compact_error_data,
         };
 
@@ -1735,7 +1735,7 @@ mod tests {
         assert_eq!(sb.selected(), Some(sb.len() - 1));
 
         crate::appearance::cache::set_page_flip_on_send(
-            xvora_shell::agent::config::UiConfig::PAGE_FLIP_ON_SEND_DEFAULT,
+            shell::agent::config::UiConfig::PAGE_FLIP_ON_SEND_DEFAULT,
         );
     }
 

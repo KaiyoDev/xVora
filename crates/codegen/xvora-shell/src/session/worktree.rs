@@ -1,14 +1,14 @@
-//! Core worktree lifecycle logic lives in [`xvora_workspace::worktree`].
+//! Core worktree lifecycle logic lives in [`workspace::worktree`].
 //! This module re-exports everything from there and adds session-aware functions.
 //! Those functions depend on shell-specific infrastructure (persistence, auth, registry client, storage client, session restore).
 use crate::session::worktree_cleanup::cleanup_worktree_on_failure;
 use crate::util::config::WorktreeType as ShellWorktreeType;
 use anyhow::{Context, Result};
 use std::path::Path;
-use xvora_telemetry::region;
-use xvora_telemetry::region::Parent;
-use xvora_workspace::session::git::find_git_root_from_path;
-pub use xvora_workspace::worktree::*;
+use telemetry::region;
+use telemetry::region::Parent;
+use workspace::session::git::find_git_root_from_path;
+pub use workspace::worktree::*;
 const WORKTREE_LOG: &str = "xvora_worktree";
 impl From<ShellWorktreeType> for WorktreeType {
     fn from(t: ShellWorktreeType) -> Self {
@@ -58,7 +58,7 @@ async fn create_worktree_for_resume(
     let source = std::path::Path::new(source_cwd);
     if find_git_root_from_path(source)
         .ok()
-        .is_some_and(|root| xvora_workspace::session::git::detect_vcs_kind(&root).is_jj())
+        .is_some_and(|root| workspace::session::git::detect_vcs_kind(&root).is_jj())
     {
         create_jj_workspace(&wt_req).await
     } else {
@@ -73,13 +73,13 @@ pub(crate) async fn checkout_persisted_head_in_worktree(
     worktree_path: &str,
     head_commit: Option<&str>,
     session_id: &str,
-) -> xvora_workspace::session::git::CheckoutSessionOutcome {
+) -> workspace::session::git::CheckoutSessionOutcome {
     let sha = match head_commit {
         Some(s) if !s.is_empty() => s,
-        _ => return xvora_workspace::session::git::CheckoutSessionOutcome::default(),
+        _ => return workspace::session::git::CheckoutSessionOutcome::default(),
     };
     let _checkout = region!("worktree.checkout", Parent::Inherit);
-    xvora_workspace::session::git::checkout_session_commit(
+    workspace::session::git::checkout_session_commit(
         Path::new(worktree_path),
         sha,
         true,
@@ -91,15 +91,15 @@ pub(crate) async fn checkout_persisted_head_in_worktree(
 pub(crate) struct WorktreeRestoreDecision {
     pub code_restored: bool,
     pub restore_summary: Option<String>,
-    pub restore_degree: Option<xvora_workspace::session::git::RestoreDegree>,
+    pub restore_degree: Option<workspace::session::git::RestoreDegree>,
 }
-/// Thin wire-format adapter over the shared [`xvora_workspace::session::git::build_restore_decision`] helper.
+/// Thin wire-format adapter over the shared [`workspace::session::git::build_restore_decision`] helper.
 pub(crate) fn build_worktree_restore_outcome(
     head_commit: Option<&str>,
-    outcome: &xvora_workspace::session::git::CheckoutSessionOutcome,
-    kind: xvora_workspace::session::git::RestoreKind,
+    outcome: &workspace::session::git::CheckoutSessionOutcome,
+    kind: workspace::session::git::RestoreKind,
 ) -> WorktreeRestoreDecision {
-    let d = xvora_workspace::session::git::build_restore_decision(head_commit, outcome, kind);
+    let d = workspace::session::git::build_restore_decision(head_commit, outcome, kind);
     WorktreeRestoreDecision {
         code_restored: d.restored,
         restore_summary: d.summary,
@@ -126,7 +126,7 @@ pub(crate) fn remote_worktree_restores_codebase(
 /// Server ops are dispatched through `WorkspaceOps`.
 pub(crate) async fn resume_session_in_worktree(
     req: &ResumeSessionInWorktreeRequest,
-    ops: &xvora_workspace::WorkspaceOps,
+    ops: &workspace::WorkspaceOps,
     worktree_type_default: ShellWorktreeType,
     restore_code_default: bool,
     registry_client: Option<&crate::agent::session_registry_client::SessionRegistryClient>,
@@ -215,13 +215,13 @@ pub(crate) async fn resume_session_in_worktree(
 }
 async fn restore_remote_session_into_worktree(
     req: &ResumeSessionInWorktreeRequest,
-    #[allow(unused_variables)] ops: &xvora_workspace::WorkspaceOps,
+    #[allow(unused_variables)] ops: &workspace::WorkspaceOps,
     client: &crate::agent::session_registry_client::SessionRegistryClient,
     restore_code_default: bool,
     turn: i32,
     wt_resp: CreateWorktreeFromWorktreeResponse,
 ) -> Result<ResumeSessionInWorktreeResponse> {
-    use xvora_workspace::session::git::effective_worktree_path;
+    use workspace::session::git::effective_worktree_path;
     let restore_code = remote_worktree_restores_codebase(req.restore_code, restore_code_default);
     let memory_dl_future = crate::session::restore::download_to_tempfile(
         client,
@@ -263,7 +263,7 @@ async fn restore_remote_session_into_worktree(
         .to_string();
     let restore_summary = None;
     let restore_degree = if codebase_ok {
-        Some(xvora_workspace::session::git::RestoreDegree::Full)
+        Some(workspace::session::git::RestoreDegree::Full)
     } else {
         None
     };
@@ -287,7 +287,7 @@ async fn restore_remote_session_into_worktree(
 /// Local-session resume: create worktree from source, fork session into it.
 async fn resume_local_session_in_worktree(
     req: &ResumeSessionInWorktreeRequest,
-    #[allow(unused_variables)] ops: &xvora_workspace::WorkspaceOps,
+    #[allow(unused_variables)] ops: &workspace::WorkspaceOps,
     resolved_session_id: &str,
     resolved_source_cwd: &str,
     worktree_type_default: ShellWorktreeType,
@@ -298,7 +298,7 @@ async fn resume_local_session_in_worktree(
     grove_worktree: bool,
 ) -> Result<ResumeSessionInWorktreeResponse> {
     use crate::session::fork::{ForkSessionRequest, fork_session};
-    use xvora_workspace::session::git::effective_worktree_path;
+    use workspace::session::git::effective_worktree_path;
     let worktree_type = req
         .worktree_type
         .map(ShellWorktreeType::from)
@@ -329,13 +329,13 @@ async fn resume_local_session_in_worktree(
     if req.restore_code.unwrap_or(restore_code_default) {
         let is_jj = find_git_root_from_path(std::path::Path::new(resolved_source_cwd))
             .ok()
-            .is_some_and(|root| xvora_workspace::session::git::detect_vcs_kind(&root).is_jj());
+            .is_some_and(|root| workspace::session::git::detect_vcs_kind(&root).is_jj());
         if !is_jj {
-            if xvora_workspace::session::git::should_warn_registry_disabled(
+            if workspace::session::git::should_warn_registry_disabled(
                 is_jj,
                 registry_client.is_some(),
             ) {
-                xvora_workspace::session::git::warn_registry_disabled_restore(resolved_session_id);
+                workspace::session::git::warn_registry_disabled_restore(resolved_session_id);
             }
             let info = crate::session::info::Info {
                 id: agent_client_protocol::SessionId::new(resolved_session_id.to_owned()),
@@ -360,7 +360,7 @@ async fn resume_local_session_in_worktree(
                 resolved_session_id,
             )
             .await;
-            use xvora_workspace::session::git::RestoreKind;
+            use workspace::session::git::RestoreKind;
             let kind = if !outcome.checked_out {
                 RestoreKind::CheckoutFailed
             } else {
@@ -417,7 +417,7 @@ async fn resume_local_session_in_worktree(
 /// Run session rehydration: recreate the git worktree at the exact path and restore all session state using the original session ID.
 pub(crate) async fn rehydrate_session_in_worktree(
     req: &RehydrateSessionRequest,
-    #[allow(unused_variables)] ops: &xvora_workspace::WorkspaceOps,
+    #[allow(unused_variables)] ops: &workspace::WorkspaceOps,
     registry_client: Option<&crate::agent::session_registry_client::SessionRegistryClient>,
 ) -> Result<RehydrateSessionResponse> {
     let worktree_path_str = req.worktree_path.as_deref().unwrap_or(&req.source_cwd);
@@ -466,7 +466,7 @@ pub(crate) async fn rehydrate_session_in_worktree(
                 .working_tree_mode(WorkingTreeMode::CleanAll)
                 .ignored_files_mode(IgnoredFilesMode::Skip)
                 .creation_mode(CreationMode::Linked)
-                .worktree_kind(xvora_fast_worktree::WorktreeKind::Fork)
+                .worktree_kind(fast_worktree::WorktreeKind::Fork)
                 .session_id(session_id);
             if let Some(delegate) = btrfs_delegate {
                 builder = builder.btrfs_delegate(delegate);
@@ -568,7 +568,7 @@ mod tests {
             restore_summary: Some(
                 "checked out abc12345, staged: true, unstaged: false, untracked: 3".into(),
             ),
-            restore_degree: Some(xvora_workspace::session::git::RestoreDegree::Full),
+            restore_degree: Some(workspace::session::git::RestoreDegree::Full),
         };
         let json = serde_json::to_string(&resp).unwrap();
         let deser: ResumeSessionInWorktreeResponse = serde_json::from_str(&json).unwrap();
@@ -585,15 +585,15 @@ mod tests {
         );
         assert_eq!(
             deser.restore_degree,
-            Some(xvora_workspace::session::git::RestoreDegree::Full)
+            Some(workspace::session::git::RestoreDegree::Full)
         );
     }
     fn ck_outcome(
         checked_out: bool,
         stash_ref: Option<&str>,
         skipped: Option<&str>,
-    ) -> xvora_workspace::session::git::CheckoutSessionOutcome {
-        xvora_workspace::session::git::CheckoutSessionOutcome {
+    ) -> workspace::session::git::CheckoutSessionOutcome {
+        workspace::session::git::CheckoutSessionOutcome {
             checked_out,
             stash_ref: stash_ref.map(str::to_owned),
             stash_skipped_reason: skipped.map(str::to_owned),
@@ -601,7 +601,7 @@ mod tests {
     }
     #[test]
     fn worktree_restore_outcome_checkout_failed_surfaces_stash_skipped_reason() {
-        use xvora_workspace::session::git::RestoreKind;
+        use workspace::session::git::RestoreKind;
         let d = build_worktree_restore_outcome(
             Some("0123456789abcdef"),
             &ck_outcome(false, None, Some("MERGE_HEAD present")),
@@ -615,7 +615,7 @@ mod tests {
     }
     #[test]
     fn worktree_restore_outcome_surfaces_stash_skipped_reason_on_success() {
-        use xvora_workspace::session::git::RestoreKind;
+        use workspace::session::git::RestoreKind;
         let d = build_worktree_restore_outcome(
             Some("0123456789abcdef"),
             &ck_outcome(true, None, Some("MERGE_HEAD present")),
@@ -636,7 +636,7 @@ mod tests {
             updates_copied: 0,
             code_restored: true,
             restore_summary: Some("checked out abc".into()),
-            restore_degree: Some(xvora_workspace::session::git::RestoreDegree::HeadOnly),
+            restore_degree: Some(workspace::session::git::RestoreDegree::HeadOnly),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"restoreDegree\":\"head_only\""));
@@ -644,7 +644,7 @@ mod tests {
         let deser: ResumeSessionInWorktreeResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(
             deser.restore_degree,
-            Some(xvora_workspace::session::git::RestoreDegree::HeadOnly)
+            Some(workspace::session::git::RestoreDegree::HeadOnly)
         );
         assert_eq!(deser.restore_summary.as_deref(), Some("checked out abc"));
     }
@@ -810,13 +810,13 @@ mod tests {
         let result = resolve_worktree_by_id_or_path(path).unwrap();
         assert_eq!(result.unwrap(), tmp.path());
     }
-    fn make_wt_record(path: &str, source_repo: &str) -> xvora_fast_worktree::WorktreeRecord {
-        xvora_fast_worktree::WorktreeRecord {
+    fn make_wt_record(path: &str, source_repo: &str) -> fast_worktree::WorktreeRecord {
+        fast_worktree::WorktreeRecord {
             id: format!("wt-{}", path.replace('/', "-")),
             path: std::path::PathBuf::from(path),
             source_repo: std::path::PathBuf::from(source_repo),
             repo_name: "repo".into(),
-            kind: xvora_fast_worktree::WorktreeKind::Session,
+            kind: fast_worktree::WorktreeKind::Session,
             creation_mode: "linked".into(),
             git_ref: None,
             head_commit: None,
@@ -824,7 +824,7 @@ mod tests {
             creator_pid: None,
             created_at: 0,
             last_accessed_at: None,
-            status: xvora_fast_worktree::WorktreeStatus::Alive,
+            status: fast_worktree::WorktreeStatus::Alive,
             metadata: None,
         }
     }
@@ -903,7 +903,7 @@ mod tests {
             restore_code: Some(true),
             git_ref: None,
         };
-        let ops = xvora_workspace::WorkspaceOps::for_test();
+        let ops = workspace::WorkspaceOps::for_test();
         let result = resume_session_in_worktree(
             &req,
             &ops,

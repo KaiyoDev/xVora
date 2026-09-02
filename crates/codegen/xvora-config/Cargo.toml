@@ -21,9 +21,9 @@ toml = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 which = { workspace = true }
-xvora-dirs = { workspace = true }
-xvora-tty-utils = { workspace = true, package = "xvora-tty-utils" }
-xvora-version = { workspace = true }
+dirs = { workspace = true }
+tty-utils = { workspace = true }
+version = { workspace = true }
 
 # core-foundation: read macOS MDM managed preferences (`ai.x.grok`) for the
 # admin-deployed requirements layer.

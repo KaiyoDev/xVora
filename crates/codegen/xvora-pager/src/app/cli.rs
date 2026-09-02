@@ -400,7 +400,7 @@ pub struct LeaderArgs {
 #[derive(Debug, Clone, Parser)]
 #[command(
     name = "grok",
-    version = xvora_version::full_version(),
+    version = version::full_version(),
     about = "Grok Build TUI",
     disable_version_flag = true,
     next_display_order = None,
@@ -677,7 +677,7 @@ pub struct PagerArgs {
         long = "permission-mode",
         value_name = "MODE",
         value_parser = clap::builder::PossibleValuesParser::new(
-            xvora_shell::agent::config::PermissionMode::VALID_VALUES
+            shell::agent::config::PermissionMode::VALID_VALUES
         )
     )]
     pub permission_mode_flag: Option<String>,
@@ -898,8 +898,8 @@ impl PagerArgs {
     }
     pub(crate) fn local_resume_selection(
         &self,
-    ) -> xvora_shell::session::persistence::RecentSessionSelection {
-        use xvora_shell::session::unified_list::HeadlessPolicy;
+    ) -> shell::session::persistence::RecentSessionSelection {
+        use shell::session::unified_list::HeadlessPolicy;
         let policy = if self.single.is_some()
             || self.prompt_json.is_some()
             || self.prompt_file.is_some()
@@ -909,7 +909,7 @@ impl PagerArgs {
         } else {
             HeadlessPolicy::Exclude
         };
-        xvora_shell::session::persistence::RecentSessionSelection::from_headless_policy(policy)
+        shell::session::persistence::RecentSessionSelection::from_headless_policy(policy)
     }
     /// Classify flags for sandbox profile lookup on an existing session.
     ///
@@ -1006,10 +1006,10 @@ impl PagerArgs {
         }
         match self.resume_target() {
             ResumeTarget::SessionId(id) => {
-                xvora_shell::session::persistence::resumed_session_sandbox_profile(Some(&id), cwd)
+                shell::session::persistence::resumed_session_sandbox_profile(Some(&id), cwd)
             }
             ResumeTarget::MostRecentForCwd => {
-                xvora_shell::session::persistence::resolve_recent_session_sandbox_profile(
+                shell::session::persistence::resolve_recent_session_sandbox_profile(
                     cwd,
                     self.local_resume_selection(),
                 )

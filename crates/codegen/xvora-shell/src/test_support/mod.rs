@@ -21,7 +21,7 @@ pub(crate) fn set_unix_mode(path: &std::path::Path, mode: u32) {
 /// Integration binaries under `tests/` isolate via `TestSandbox` homes instead.
 #[ctor::ctor]
 fn redirect_unified_log_for_tests() {
-    xvora_telemetry::unified_log::redirect_to_temp_for_tests();
+    telemetry::unified_log::redirect_to_temp_for_tests();
 }
 
 /// Prepend the hermetic git binary (via `GIT_BIN_PATH`) to `PATH`.

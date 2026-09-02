@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use chrono::Utc;
-use xvora_shell::auth::{AuthMode, GrokAuth, GrokComConfig, try_ensure_fresh_auth};
+use shell::auth::{AuthMode, GrokAuth, GrokComConfig, try_ensure_fresh_auth};
 
 const SEED_TOKEN: &str = "stale-token-that-must-be-replaced";
 

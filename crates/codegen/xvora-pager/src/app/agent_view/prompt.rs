@@ -377,9 +377,9 @@ impl AgentView {
                     let (chars, words) =
                         crate::views::prompt_suggestion::suggestion_size(self.prompt.text());
                     let session_id = self.session.session_id.as_ref().map(|s| s.0.to_string());
-                    xvora_telemetry::session_ctx::log_event(
-                        xvora_telemetry::events::PromptSuggestion {
-                            action: xvora_telemetry::events::PromptSuggestionAction::Accepted,
+                    telemetry::session_ctx::log_event(
+                        telemetry::events::PromptSuggestion {
+                            action: telemetry::events::PromptSuggestionAction::Accepted,
                             chars,
                             words,
                             model: None,
@@ -401,9 +401,9 @@ impl AgentView {
                 );
                 let session_id = self.session.session_id.as_ref().map(|s| s.0.to_string());
                 self.prompt.prompt_suggestion.dismiss();
-                xvora_telemetry::session_ctx::log_event(
-                    xvora_telemetry::events::PromptSuggestion {
-                        action: xvora_telemetry::events::PromptSuggestionAction::Dismissed,
+                telemetry::session_ctx::log_event(
+                    telemetry::events::PromptSuggestion {
+                        action: telemetry::events::PromptSuggestionAction::Dismissed,
                         chars,
                         words,
                         model: None,
@@ -698,10 +698,10 @@ impl AgentView {
             match self.prompt.handle_key(key) {
                 PromptEvent::Edited => {
                     if undo_tip_accepted {
-                        xvora_telemetry::session_ctx::log_event(
-                            xvora_telemetry::events::ContextualTip {
-                                tip: xvora_telemetry::events::ContextualTipKind::Undo,
-                                action: xvora_telemetry::events::ContextualTipAction::Accepted,
+                        telemetry::session_ctx::log_event(
+                            telemetry::events::ContextualTip {
+                                tip: telemetry::events::ContextualTipKind::Undo,
+                                action: telemetry::events::ContextualTipAction::Accepted,
                             },
                         );
                         // Retire the hint on the restore that consumed it (its "Input cleared" copy is now stale)
@@ -1860,7 +1860,7 @@ mod apple_terminal_ctrl_o_upgrade_cta_tests {
     use crate::app::agent::AgentState;
     use crate::app::app_view::InputOutcome;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use xvora_telemetry::events::AnnouncementCtaSurface;
+    use telemetry::events::AnnouncementCtaSurface;
 
     fn ctrl_o() -> KeyEvent {
         KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL)

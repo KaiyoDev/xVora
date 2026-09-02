@@ -39,7 +39,7 @@ async fn handle_record(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     let url = format!("{proxy_url}/consent/accept");
     let token_header = agent.auth_manager.grok_com_config().token_header.clone();
 
-    let provider: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider> = std::sync::Arc::new(
+    let provider: std::sync::Arc<dyn auth::AuthCredentialProvider> = std::sync::Arc::new(
         crate::auth::credential_provider::ShellAuthCredentialProvider::new(
             agent.auth_manager.clone(),
             None,
@@ -57,7 +57,7 @@ async fn handle_record(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
             crate::http::process_client_identifier(),
         )
         .header("X-XAI-Token-Auth", &token_header)
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),

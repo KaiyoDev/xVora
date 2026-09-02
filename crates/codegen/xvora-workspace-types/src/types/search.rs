@@ -1,7 +1,7 @@
 //! Minimal serializable search-related shapes (ripgrep and fuzzy file search).
 //!
 //! TODO(workspace): align with the canonical ripgrep / fuzzy types in
-//! `xvora_shell::file_system` when the search subsystem moves
+//! `shell::file_system` when the search subsystem moves
 //! into the workspace crate.
 
 use serde::{Deserialize, Serialize};

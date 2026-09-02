@@ -1163,7 +1163,7 @@ fn send_prompt_with_images_while_running_and_steer_stays_local() {
         agent
             .prompt
             .insert_image(crate::prompt_images::PastedImage {
-                element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+                element_id: ratatui_textarea::ElementId::from_raw(0),
                 display_number: 0,
                 mime_type: "image/png".to_owned(),
                 dimensions: Some((8, 8)),
@@ -2020,7 +2020,7 @@ fn prompt_response_disk_full_suppresses_turn_failed_and_toast() {
         dispatch(
             Action::TaskComplete(TaskResult::PromptResponse {
                 agent_id: id,
-                result: Err(xvora_fast_worktree::ENOSPC_OS_MESSAGE.to_string()),
+                result: Err(fast_worktree::ENOSPC_OS_MESSAGE.to_string()),
                 http_status: None,
                 prompt_id: None,
             }),
@@ -2932,7 +2932,7 @@ fn submit_question_answers_cancel_clears_local_modal_and_restores_prompt() {
     // This complements the inner `translate_local_submit_*` tests
     // It exercises the prompt.restore and cleanup_question_state contract that lives in `submit_question_answers` itself
     use crate::views::question_view::{LocalQuestionKind, QuestionViewState};
-    use xvora_tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
+    use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
 
     let mut app = fork_test_app();
     let id = AgentId(0);
@@ -3808,7 +3808,7 @@ fn plain_send_during_pending_subagent_wait_keeps_confirmed_queue_row_reachable()
     use crate::app::app_view::InputOutcome;
     use crate::app::prompt_queue::QueueEntryWire;
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);
@@ -3847,7 +3847,7 @@ fn plain_send_during_pending_subagent_wait_keeps_confirmed_queue_row_reachable()
     });
     let (response_tx, _rx) = tokio::sync::oneshot::channel();
     crate::app::acp_handler::handle(
-        AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+        AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
             request: acp::ExtNotification::new(
                 "x.ai/queue/changed",
                 std::sync::Arc::from(serde_json::value::to_raw_value(&params).unwrap()),
@@ -4100,7 +4100,7 @@ fn goal_send_now_painted_block_survives_removed_from_queue_response() {
 /// The shell converted it into an interjection and dropped the queue row; the block waits for the interjection notification's claim.
 #[test]
 fn goal_send_now_painted_block_survives_queue_changed_removal() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);
@@ -4141,7 +4141,7 @@ fn goal_send_now_painted_block_survives_queue_changed_removal() {
     });
     let (response_tx, _rx) = tokio::sync::oneshot::channel();
     crate::app::acp_handler::handle(
-        AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+        AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
             request: acp::ExtNotification::new(
                 "x.ai/queue/changed",
                 std::sync::Arc::from(serde_json::value::to_raw_value(&params).unwrap()),

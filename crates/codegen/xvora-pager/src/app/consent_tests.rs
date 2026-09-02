@@ -1,5 +1,5 @@
 use super::*;
-use xvora_shell::util::config::{ConsentAnswer, ConsentGate};
+use shell::util::config::{ConsentAnswer, ConsentGate};
 
 const ACCOUNT: &str = "user@example.com";
 const NOTICE_ID: &str = "tos-2026-08";

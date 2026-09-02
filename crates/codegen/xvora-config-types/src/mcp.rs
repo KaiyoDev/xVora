@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use xvora_mcp::oauth_config::McpOAuthConfig;
+use mcp::oauth_config::McpOAuthConfig;
 
 /// serde default helper.
 fn default_true() -> bool {

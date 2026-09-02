@@ -32,13 +32,13 @@ use agent_client_protocol as acp;
 use tempfile::TempDir;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
-use xvora_acp_lib::{AcpClientRx, acp_send};
-use xvora_shell::leader::{
+use acp_lib::{AcpClientRx, acp_send};
+use shell::leader::{
     ClientCapabilities as LeaderClientCapabilities, ClientMode, ConnectionStatus,
     LEADER_SOCKET_ENV, LeaderClient, LeaderEnvUrls, LeaderLock, LeaderReconnector,
     LeaderServerControlState, LeaderServerMetadata, ReconnectPolicy, run_leader_server,
 };
-use xvora_test_support::MockInferenceServer;
+use test_support::MockInferenceServer;
 
 use super::actions::{Action, TaskResult};
 use super::agent::AgentState;
@@ -61,7 +61,7 @@ async fn bounded<T>(what: &str, fut: impl std::future::Future<Output = T>) -> T 
 
 /// The grok home the agent actually persisted under: `grok_home()` is process-cached, so an earlier test in this binary may have pinned it.
 fn effective_grok_home() -> PathBuf {
-    xvora_config::grok_home()
+    config::grok_home()
 }
 
 /// Concatenated agent-message text across a view's scrollback (copy of the acp_handler tests' helper; that one is test-mod private).
@@ -267,7 +267,7 @@ impl PagerLeaderCluster {
     /// Stand up the cluster.
     /// Callers MUST be `#[serial_test::serial(GROK_HOME)]` (env mutation) and run inside a current-thread `LocalSet`.
     async fn start() -> Self {
-        xvora_extra_ca::ensure_default_crypto_provider();
+        extra_ca::ensure_default_crypto_provider();
 
         let server = MockInferenceServer::start().await.expect("mock server");
         let grok_home = TempDir::new().unwrap();
@@ -324,9 +324,9 @@ impl PagerLeaderCluster {
             socket_path: self.sock_path.clone(),
             lock_path: self.sock_path.with_extension("lock"),
             ws_url_suffix: String::new(),
-            // MUST be the client-side comparison source (xvora_version), not this crate's version
+            // MUST be the client-side comparison source (version), not this crate's version
             // A reconnecting client evicts strictly-older leaders, and "evict" here would signal THIS test process
-            leader_binary_version: xvora_version::VERSION.to_string(),
+            leader_binary_version: version::VERSION.to_string(),
         });
         let sock_for_server = self.sock_path.clone();
         let cancel_for_server = cancel.clone();
@@ -341,17 +341,17 @@ impl PagerLeaderCluster {
                 true,
                 client_count_for_server,
                 Arc::new(AtomicBool::new(false)),
-                xvora_shell::agent::activity::AgentActivity::default(),
+                shell::agent::activity::AgentActivity::default(),
                 tokio::sync::watch::channel(true).1,
                 tokio::sync::watch::channel(false).0,
-                tokio::sync::watch::channel(xvora_shell::leader::ShutdownReason::Manual).0,
+                tokio::sync::watch::channel(shell::leader::ShutdownReason::Manual).0,
                 None,
                 control_state,
             )
             .await;
         }));
 
-        generation_tasks.extend(xvora_shell::leader::in_process::spawn_agent(
+        generation_tasks.extend(shell::leader::in_process::spawn_agent(
             acp_rx,
             response_tx,
         ));

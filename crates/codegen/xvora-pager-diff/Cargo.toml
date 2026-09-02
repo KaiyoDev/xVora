@@ -11,7 +11,7 @@ description = "Diff hunk construction for the Grok Build TUI"
 similar = { workspace = true }
 # `SearchReplaceEditDetail` / `SearchReplaceOutput`: the edit-tool output shapes
 # the hunk builder reads.
-xvora-tools = { workspace = true }
+tools = { workspace = true }
 # ACP `ToolCall` inspection for `extract_edit_hunks`.
 agent-client-protocol = { workspace = true }
 # Parsing `raw_output` / `Diff.meta` JSON payloads on ACP tool calls.

@@ -15,7 +15,7 @@ fn external_stream_grpc_end_to_end() {
     let endpoint =
         col::start_collector_with_protocol(collected.clone(), col::CollectorProtocol::Grpc);
 
-    let mut cfg = xvora_telemetry::external::ExternalOtelConfig::resolve_with(
+    let mut cfg = telemetry::external::ExternalOtelConfig::resolve_with(
         |name| match name {
             "GROK_EXTERNAL_OTEL" => Some("1".into()),
             "OTEL_LOGS_EXPORTER" | "OTEL_METRICS_EXPORTER" => Some("otlp".into()),
@@ -28,28 +28,28 @@ fn external_stream_grpc_end_to_end() {
         None,
     )
     .expect("double opt-in must resolve");
-    cfg.client = xvora_telemetry::external::config::ExternalClientInfo {
+    cfg.client = telemetry::external::config::ExternalClientInfo {
         service_version: "0.0.0-test".into(),
         client_version: "0.0.0-test".into(),
         app_entrypoint: "cli".into(),
     };
 
-    xvora_telemetry::external::init(Some(cfg));
-    assert!(xvora_telemetry::external::is_active());
+    telemetry::external::init(Some(cfg));
+    assert!(telemetry::external::is_active());
 
-    xvora_telemetry::log_event(xvora_telemetry::events::SessionNew {
+    telemetry::log_event(telemetry::events::SessionNew {
         session_id: "sess-grpc-1".into(),
         client_identifier: None,
         client_version: None,
         is_git_repo: true,
-        permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
+        permission_mode: telemetry::enums::PermissionMode::Ask,
     });
-    xvora_telemetry::log_event(xvora_telemetry::events::SessionHarness {
+    telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-grpc-1".into(),
         client_identifier: Some("grok-pager".into()),
         model_id: "grok-4".into(),
         agent_name: "grok-build-plan".into(),
-        permission_mode: xvora_telemetry::enums::PermissionMode::Ask,
+        permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![CANARY_MCP.into()],
         plugin_names: vec![],
         skill_names: vec![],
@@ -57,11 +57,11 @@ fn external_stream_grpc_end_to_end() {
         hook_names: vec![],
         agents_md_dir_names: vec![],
         memory_enabled: false,
-        memory_retrieval_mode: xvora_telemetry::events::MemoryRetrievalMode::Disabled,
+        memory_retrieval_mode: telemetry::events::MemoryRetrievalMode::Disabled,
         is_git_repo: true,
         auto_update: None,
     });
-    xvora_telemetry::log_event(xvora_telemetry::events::PromptSubmitted {
+    telemetry::log_event(telemetry::events::PromptSubmitted {
         prompt_length: CANARY_PROMPT.len(),
         model_id: "grok-4".into(),
         client_identifier: None,
@@ -69,7 +69,7 @@ fn external_stream_grpc_end_to_end() {
         prompt_text: Some(CANARY_PROMPT.into()),
         command_name: None,
     });
-    xvora_telemetry::log_event(xvora_telemetry::events::ModelResponseReceived {
+    telemetry::log_event(telemetry::events::ModelResponseReceived {
         model_id: CANARY_MODEL.into(),
         duration_ms: 5,
         stop_reason: Some("stop".into()),
@@ -81,7 +81,7 @@ fn external_stream_grpc_end_to_end() {
         cost_usd_ticks: None,
     });
 
-    xvora_telemetry::external::flush();
+    telemetry::external::flush();
     assert!(
         col::wait_until(std::time::Duration::from_secs(10), || {
             collected.logs_len() > 0 && collected.metrics_len() > 0
@@ -125,5 +125,5 @@ fn external_stream_grpc_end_to_end() {
         "MCP server name reached the gRPC wire"
     );
 
-    xvora_telemetry::external::shutdown();
+    telemetry::external::shutdown();
 }

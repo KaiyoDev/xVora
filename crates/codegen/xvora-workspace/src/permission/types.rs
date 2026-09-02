@@ -243,9 +243,9 @@ pub enum PermissionCommand {
     ResetState,
     Shutdown,
 }
-impl From<&xvora_tools::types::ToolInput> for AccessKind {
-    fn from(input: &xvora_tools::types::ToolInput) -> Self {
-        use xvora_tools::types::ToolInput;
+impl From<&tools::types::ToolInput> for AccessKind {
+    fn from(input: &tools::types::ToolInput) -> Self {
+        use tools::types::ToolInput;
         match input {
             ToolInput::ReadFile(r) => AccessKind::Read(Some(r.path.clone())),
             ToolInput::ListDir(l) => AccessKind::Read(Some(l.target_directory.clone())),
@@ -610,8 +610,8 @@ mod tests {
     }
     #[test]
     fn hashline_edit_maps_to_edit_access() {
-        use xvora_tools::implementations::grok_build_hashline::edit::types::HashlineEditInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::grok_build_hashline::edit::types::HashlineEditInput;
+        use tools::types::ToolInput;
         let input = ToolInput::HashlineEdit(HashlineEditInput {
             file_path: "src/main.rs".into(),
             edits: vec![],
@@ -624,8 +624,8 @@ mod tests {
     }
     #[test]
     fn bash_maps_to_bash_access() {
-        use xvora_tools::implementations::grok_build::bash::BashToolInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::grok_build::bash::BashToolInput;
+        use tools::types::ToolInput;
         let input = ToolInput::Bash(BashToolInput {
             command: "cargo test".into(),
             timeout: None,
@@ -640,8 +640,8 @@ mod tests {
     }
     #[test]
     fn active_agent_message_maps_to_dedicated_access_without_text() {
-        use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageInput;
+        use tools::types::ToolInput;
         let text = "private follow-up";
         let access = AccessKind::from(&ToolInput::SendSubagentMessage(SendSubagentMessageInput {
             subagent_id: "sub-1".into(),
@@ -656,8 +656,8 @@ mod tests {
     }
     #[test]
     fn use_tool_maps_to_mcp_tool_access() {
-        use xvora_tools::implementations::use_tool::UseToolInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::use_tool::UseToolInput;
+        use tools::types::ToolInput;
         let input = ToolInput::UseTool(UseToolInput {
             tool_name: "linear__save_issue".into(),
             tool_input: serde_json::json!({ "title" : "test" }),
@@ -674,8 +674,8 @@ mod tests {
     }
     #[test]
     fn monitor_maps_to_bash_access() {
-        use xvora_tools::implementations::grok_build::monitor::types::MonitorInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::grok_build::monitor::types::MonitorInput;
+        use tools::types::ToolInput;
         let input = ToolInput::Monitor(MonitorInput {
             command: "tail -f /var/log/syslog".into(),
             description: "watch syslog".into(),
@@ -690,8 +690,8 @@ mod tests {
     }
     #[test]
     fn search_replace_maps_to_edit_access() {
-        use xvora_tools::implementations::grok_build::search_replace::SearchReplaceInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::grok_build::search_replace::SearchReplaceInput;
+        use tools::types::ToolInput;
         let input = ToolInput::SearchReplace(SearchReplaceInput {
             file_path: "lib.rs".into(),
             old_string: "old".into(),
@@ -706,8 +706,8 @@ mod tests {
     }
     #[test]
     fn web_fetch_maps_to_web_fetch_access() {
-        use xvora_tools::implementations::grok_build::web_fetch::WebFetchInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::grok_build::web_fetch::WebFetchInput;
+        use tools::types::ToolInput;
         let input = ToolInput::WebFetch(WebFetchInput {
             url: "https://custom.example.com/api".into(),
         });
@@ -719,8 +719,8 @@ mod tests {
     }
     #[test]
     fn web_search_maps_to_web_search_access() {
-        use xvora_tools::implementations::grok_build::web_search::WebSearchInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::grok_build::web_search::WebSearchInput;
+        use tools::types::ToolInput;
         let input = ToolInput::WebSearch(WebSearchInput {
             query: "rust lang".into(),
             allowed_domains: None,
@@ -733,8 +733,8 @@ mod tests {
     }
     #[test]
     fn apply_patch_maps_to_edit_access() {
-        use xvora_tools::implementations::codex::apply_patch::ApplyPatchInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::codex::apply_patch::ApplyPatchInput;
+        use tools::types::ToolInput;
         let input = ToolInput::ApplyPatch(ApplyPatchInput {
             patch: String::new(),
         });
@@ -746,8 +746,8 @@ mod tests {
     }
     #[test]
     fn write_tool_maps_to_edit_access() {
-        use xvora_tools::implementations::opencode::write::WriteInput;
-        use xvora_tools::types::ToolInput;
+        use tools::implementations::opencode::write::WriteInput;
+        use tools::types::ToolInput;
         let input = ToolInput::Write(WriteInput {
             file_path: "/tmp/secret.txt".into(),
             content: "overwritten".into(),
@@ -760,9 +760,9 @@ mod tests {
     }
     #[test]
     fn write_scoped_and_dynamic_inputs_map_to_edit_not_read() {
-        use xvora_tool_types::TaskToolInput;
-        use xvora_tools::implementations::opencode::edit::EditInput;
-        use xvora_tools::types::ToolInput;
+        use tool_types::TaskToolInput;
+        use tools::implementations::opencode::edit::EditInput;
+        use tools::types::ToolInput;
         let edit = ToolInput::from(EditInput {
             file_path: "/tmp/denied.txt".into(),
             old_string: "ORIGINAL".into(),

@@ -2168,7 +2168,7 @@ fn bg_task_killed_already_exited_clears_pending_kill_on_inactive_agent() {
         Action::TaskComplete(TaskResult::BgTaskKilled {
             session_id: "sess-B".into(),
             task_id: "task-B-1".into(),
-            outcome: Some(xvora_tools::types::KillOutcome::AlreadyExited),
+            outcome: Some(tools::types::KillOutcome::AlreadyExited),
         }),
         &mut app,
     );
@@ -2186,7 +2186,7 @@ fn bg_task_killed_not_found_removes_task_from_inactive_agent() {
         Action::TaskComplete(TaskResult::BgTaskKilled {
             session_id: "sess-B".into(),
             task_id: "task-B-1".into(),
-            outcome: Some(xvora_tools::types::KillOutcome::NotFound),
+            outcome: Some(tools::types::KillOutcome::NotFound),
         }),
         &mut app,
     );
@@ -2224,7 +2224,7 @@ fn bg_task_killed_not_found_finishes_scrollback_entry() {
         Action::TaskComplete(TaskResult::BgTaskKilled {
             session_id: "sess-B".into(),
             task_id: "task-B-1".into(),
-            outcome: Some(xvora_tools::types::KillOutcome::NotFound),
+            outcome: Some(tools::types::KillOutcome::NotFound),
         }),
         &mut app,
     );
@@ -2264,7 +2264,7 @@ fn bg_task_killed_keeps_pending_kill_on_killed_outcome() {
         Action::TaskComplete(TaskResult::BgTaskKilled {
             session_id: "sess-B".into(),
             task_id: "task-B-1".into(),
-            outcome: Some(xvora_tools::types::KillOutcome::Killed),
+            outcome: Some(tools::types::KillOutcome::Killed),
         }),
         &mut app,
     );
@@ -2276,7 +2276,7 @@ fn bg_task_killed_keeps_pending_kill_on_killed_outcome() {
 
 #[test]
 fn kill_bg_task_action_emits_client_ui_source() {
-    use xvora_shell::extensions::task::TaskKillSource;
+    use shell::extensions::task::TaskKillSource;
 
     let mut app = test_app_with_agent();
     {
@@ -2575,7 +2575,7 @@ fn fork_failure_force_idle_drops_a_live_cancel_anchor() {
 fn settled_cancel_emits_latency_from_arm_anchor_once() {
     use crate::app::cancel_latency::{CancelLatency, CancelOrigin, TurnEnd};
     use std::time::{Duration, Instant};
-    use xvora_telemetry::events::CancellationScope;
+    use telemetry::events::CancellationScope;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);
@@ -2617,7 +2617,7 @@ fn settled_cancel_emits_latency_from_arm_anchor_once() {
 #[test]
 fn cancel_and_arm_anchors_before_the_cancel_teardown() {
     use crate::app::cancel_latency::CancelOrigin;
-    use xvora_telemetry::events::CancellationScope;
+    use telemetry::events::CancellationScope;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);

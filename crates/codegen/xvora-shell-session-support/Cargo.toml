@@ -13,8 +13,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "time", "macros"] }
 tracing = { workspace = true }
 xvora-file-utils = { path = "../file-utils", optional = true }
-xvora-http = { workspace = true }
-xvora-version = { workspace = true }
+http = { workspace = true }
+version = { workspace = true }
 
 [features]
 default-bazel = []

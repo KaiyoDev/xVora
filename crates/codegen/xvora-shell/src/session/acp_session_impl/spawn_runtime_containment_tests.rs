@@ -4,7 +4,7 @@
 //! Stdout markers distinguish skip (unenforceable environment) from pass/fail.
 
 use super::build_session_runtime;
-use xvora_tty_utils::runtime::MAX_BLOCKING_THREADS;
+use tty_utils::runtime::MAX_BLOCKING_THREADS;
 
 /// This env var routes the re-exec'd test binary into the child logic.
 const CHILD_ENV: &str = "XAI_GROK_SHELL_RUNTIME_CONTAINMENT_CHILD";
@@ -27,7 +27,7 @@ fn reexec_child(test_name: &str, env: &str) -> std::process::Output {
         .arg("--test-threads=1")
         .env(env, "1")
         .stdin(std::process::Stdio::null());
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     cmd.output().expect("spawn child test process")
 }
 
@@ -97,7 +97,7 @@ fn run_child() -> ! {
 }
 
 fn thread_count() -> Option<u64> {
-    xvora_tty_utils::sample_process_resources().threads
+    tty_utils::sample_process_resources().threads
 }
 
 /// Child: the session runtime must not pre-warm a 16-wide blocking pool (the cap proof lives in `xvora-tty-utils`).

@@ -56,19 +56,19 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     // A `/model` pick then never records its dismissal and the leader re-nudges every new session
     // Idempotent in embedded mode, where the in-process agent seeds the same cache
     if let Some(campaigns) = update.campaigns.clone() {
-        let rs = xvora_shell::util::config::RemoteSettings {
+        let rs = shell::util::config::RemoteSettings {
             campaigns,
             ..Default::default()
         };
-        xvora_shell::util::config::set_remote_campaigns_from_settings(Some(&rs));
+        shell::util::config::set_remote_campaigns_from_settings(Some(&rs));
     }
 
     if let Some(v) = update.auto_permission_mode_enabled {
         // Keep the pager's auto-permission-mode gate live with the remote settings tier
         // The leader caches it agent-side; the pager process needs its own copy
         // Refresh the startup snapshot so the Shift+Tab cycle and the settings modal both reflect a remote-only enablement or kill-switch without a restart
-        xvora_shell::util::config::cache_remote_auto_permission_mode_enabled(Some(v));
-        app.auto_mode_gate = xvora_shell::util::config::auto_permission_mode_enabled_from_disk();
+        shell::util::config::cache_remote_auto_permission_mode_enabled(Some(v));
+        app.auto_mode_gate = shell::util::config::auto_permission_mode_enabled_from_disk();
         // Mid-session kill switch: when the gate just went off, drop displayed Auto to Ask and clear every agent's per-session flag
         // That downgrade is shared with the startup reconcile; live sessions are ALSO told to leave Auto
         // Clearing only the display would let the agent keep classifier-approving while the UI shows "Ask"
@@ -89,7 +89,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     }
 
     if let Some(v) = update.prompt_suggestions_enabled {
-        xvora_shell::util::config::cache_remote_prompt_suggestions_enabled(Some(v));
+        shell::util::config::cache_remote_prompt_suggestions_enabled(Some(v));
     }
 
     // `permission_mode` is presence-aware (omit / null / string)
@@ -99,7 +99,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
         && app.permission_mode_from_soft_default
     {
         // One config read at the I/O boundary; the applier is deterministic.
-        let root = xvora_shell::config::load_effective_config()
+        let root = shell::config::load_effective_config()
             .unwrap_or_else(|_| broken_config_ask_fallback());
         apply_soft_default_permission_mode(app, root.get("ui"), remote_opt.as_deref());
     }
@@ -119,7 +119,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     // Otherwise the proxy's explicit `false` (sent as a kill switch) clobbers a local test override moments after launch
     if let Some(v) = update.privacy_notice_rollout {
         app.privacy_notice_rollout =
-            xvora_config::env_bool("GROK_PRIVACY_NOTICE_ROLLOUT").unwrap_or(v);
+            config::env_bool("GROK_PRIVACY_NOTICE_ROLLOUT").unwrap_or(v);
     }
     if let Some(v) = update.privacy_banner_reshow_days {
         app.privacy_banner_reshow_days = Some(
@@ -147,7 +147,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
             && app
                 .subscription_tier
                 .as_deref()
-                .is_some_and(xvora_shell::tier::is_restricted_tier_name)
+                .is_some_and(shell::tier::is_restricted_tier_name)
         {
             app.voice_reset();
             app.voice_ui_active = false;
@@ -178,7 +178,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
                 _ => None,
             })
             .or_else(|| {
-                xvora_shell::config::load_effective_config()
+                shell::config::load_effective_config()
                     .ok()
                     .and_then(|cfg| cfg.get("cli")?.get("session_picker_grouped")?.as_bool())
             })
@@ -213,7 +213,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
         && !msg.is_empty()
     {
         // (An empty gate_message would only clear the gate message text, NOT access, so it does not touch the gate here.)
-        let effs = app.impose_gate(xvora_shell::auth::GateInfo {
+        let effs = app.impose_gate(shell::auth::GateInfo {
             message: msg.clone(),
             url: update.gate_url.clone(),
             label: update.gate_label.clone(),
@@ -225,9 +225,9 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     // Loaded unconditionally: the UI flags re-resolve on every update (see below)
     // Updates are rare (post-auth refresh, `/new`), so three small TOML reads are fine
     let (requirements, user_config, managed_config) = (
-        xvora_shell::config::load_merged_requirements(),
-        xvora_shell::config::load_from_disk().ok(),
-        xvora_shell::config::load_managed_config().ok(),
+        shell::config::load_merged_requirements(),
+        shell::config::load_from_disk().ok(),
+        shell::config::load_managed_config().ok(),
     );
 
     // Local layers may beat remote, so re-resolve the full chain into the render cache (mirrors the event_loop.rs startup resolve)
@@ -235,11 +235,11 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     // So None means remote settings cleared it, or an older shell cannot deliver the remote tier at all
     // Either way resolving without a remote value is correct
     // It reverts a previously cached remote enable back to the local/default (off) resolution instead of leaving Some(true) stuck until restart
-    let remote = xvora_shell::util::config::RemoteSettings {
+    let remote = shell::util::config::RemoteSettings {
         group_tool_verbs: update.group_tool_verbs,
         ..Default::default()
     };
-    let resolved = xvora_shell::util::config::resolve_group_tool_verbs(
+    let resolved = shell::util::config::resolve_group_tool_verbs(
         requirements.as_ref(),
         user_config.as_ref(),
         managed_config.as_ref(),
@@ -263,11 +263,11 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
 
     // Same rule as group_tool_verbs above: None also reverts
     // Re-resolve the full local chain with the pushed remote tier so a cleared remote field falls back to local/default instead of staying latched
-    let remote = xvora_shell::util::config::RemoteSettings {
+    let remote = shell::util::config::RemoteSettings {
         collapsed_edit_blocks: update.collapsed_edit_blocks,
         ..Default::default()
     };
-    let resolved = xvora_shell::util::config::resolve_collapsed_edit_blocks(
+    let resolved = shell::util::config::resolve_collapsed_edit_blocks(
         requirements.as_ref(),
         user_config.as_ref(),
         managed_config.as_ref(),
@@ -298,7 +298,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
 
     // Re-resolve tips from config layers and the updated remote tips
     if let Some(remote_tips) = update.tips {
-        use xvora_shell::util::config::resolve_tips;
+        use shell::util::config::resolve_tips;
 
         app.tips = resolve_tips(
             requirements.as_ref(),
@@ -307,8 +307,8 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
             Some(&remote_tips),
         );
         if !app.tips.is_empty() {
-            let grok_home = xvora_tools::util::grok_home::grok_home();
-            app.tip = xvora_shell::util::tips::pick_and_advance(&app.tips, &grok_home);
+            let grok_home = tools::util::grok_home::grok_home();
+            app.tip = shell::util::tips::pick_and_advance(&app.tips, &grok_home);
         } else {
             app.tip = None;
         }
@@ -319,8 +319,8 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     // Outer None means the field is absent (older shell), so keep the tags resolved at startup
     // Env and local [slash_command_tags] always apply via resolve_slash_command_tags
     if let Some(remote_tags) = update.slash_command_tags.as_ref() {
-        use xvora_shell::util::config::resolve_slash_command_tags;
-        let effective_config = xvora_shell::config::load_effective_config().ok();
+        use shell::util::config::resolve_slash_command_tags;
+        let effective_config = shell::config::load_effective_config().ok();
         let empty_toml = toml::Value::Table(Default::default());
         let tags_config = effective_config.as_ref().unwrap_or(&empty_toml);
         *app.command_tags.borrow_mut() =
@@ -347,8 +347,8 @@ pub(super) fn apply_soft_default_permission_mode(
     effective_ui: Option<&toml::Value>,
     remote: Option<&str>,
 ) {
-    let mode = xvora_shell::util::config::selected_permission_mode(effective_ui, remote)
-        .unwrap_or_else(xvora_shell::util::config::default_interactive_permission_mode);
+    let mode = shell::util::config::selected_permission_mode(effective_ui, remote)
+        .unwrap_or_else(shell::util::config::default_interactive_permission_mode);
     app.default_yolo = mode.is_always_approve() && app.yolo_policy_block.is_none();
     let auto = mode.is_auto() && app.auto_mode_gate && !app.default_yolo;
     app.current_ui.permission_mode = Some(if auto {
@@ -356,7 +356,7 @@ pub(super) fn apply_soft_default_permission_mode(
     } else if app.default_yolo {
         "always-approve".to_string()
     } else {
-        xvora_shell::util::config::resolved_display_permission_mode(effective_ui, remote)
+        shell::util::config::resolved_display_permission_mode(effective_ui, remote)
             .to_string()
     });
 }
@@ -381,7 +381,7 @@ pub(super) fn notify_sessions_leave_auto(app: &AppView, session_ids: &[acp::Sess
             .into(),
     );
     let (response_tx, _response_rx) = tokio::sync::oneshot::channel();
-    let args = xvora_acp_lib::AcpArgs {
+    let args = acp_lib::AcpArgs {
         request: notification,
         response_tx,
     };
@@ -409,7 +409,7 @@ pub(super) fn handle_sessions_changed(notif: &acp::ExtNotification, app: &mut Ap
 
 pub(super) fn handle_announcements_update(notif: &acp::ExtNotification, app: &mut AppView) -> bool {
     let Ok(parsed) =
-        serde_json::from_str::<xvora_announcements::AnnouncementsRefreshed>(notif.params.get())
+        serde_json::from_str::<announcements::AnnouncementsRefreshed>(notif.params.get())
     else {
         return false;
     };
@@ -421,9 +421,9 @@ pub(super) fn handle_announcements_update(notif: &acp::ExtNotification, app: &mu
     // Re-merge config layers like startup does: the push carries the remote list only
     // A wholesale replace would drop requirements/user/managed announcements and let the prune erase their persisted hide keys
     // The settings handler performs the same disk reads; pushes are rare
-    let requirements = xvora_shell::config::load_merged_requirements();
-    let user_config = xvora_shell::config::load_from_disk().ok();
-    let managed_config = xvora_shell::config::load_managed_config().ok();
+    let requirements = shell::config::load_merged_requirements();
+    let user_config = shell::config::load_from_disk().ok();
+    let managed_config = shell::config::load_managed_config().ok();
     apply_announcements_update(
         app,
         parsed.r#gen,
@@ -440,18 +440,18 @@ pub(super) fn handle_announcements_update(notif: &acp::ExtNotification, app: &mu
 pub(super) fn apply_announcements_update(
     app: &mut AppView,
     next_gen: u64,
-    remote: &[xvora_announcements::RemoteAnnouncement],
+    remote: &[announcements::RemoteAnnouncement],
     requirements: Option<&toml::Value>,
     user_config: Option<&toml::Value>,
     managed_config: Option<&toml::Value>,
 ) {
-    let merged = xvora_shell::util::config::resolve_announcements(
+    let merged = shell::util::config::resolve_announcements(
         requirements,
         user_config,
         managed_config,
         Some(remote),
     );
-    let announcements = xvora_announcements::filter_expired(merged);
+    let announcements = announcements::filter_expired(merged);
 
     app.announcement = match app.announcement.as_ref() {
         Some(current) => announcements
@@ -464,7 +464,7 @@ pub(super) fn apply_announcements_update(
     app.active_announcements = announcements;
     app.announcements_last_gen = next_gen;
     // Opportunistic per-ID prune on a real update (never per frame) so the hidden set cannot grow unboundedly.
-    if xvora_announcements::prune_hidden_announcement_ids(
+    if announcements::prune_hidden_announcement_ids(
         &mut app.hidden_announcement_ids,
         &app.active_announcements,
     ) {
@@ -477,8 +477,8 @@ pub(super) fn apply_announcements_update(
 }
 
 pub(super) fn pick_random_announcement(
-    announcements: &[xvora_announcements::RemoteAnnouncement],
-) -> Option<xvora_announcements::RemoteAnnouncement> {
+    announcements: &[announcements::RemoteAnnouncement],
+) -> Option<announcements::RemoteAnnouncement> {
     if announcements.is_empty() {
         return None;
     }
@@ -527,7 +527,7 @@ pub(super) struct PagerSettingsUpdate {
     /// `Some` whenever the shell has settings (empty means campaigns withdrawn).
     /// `None`/omitted (settings-less push, older shell) must leave this process's campaign cache untouched.
     #[serde(default)]
-    campaigns: Option<Vec<xvora_shell::util::config::CampaignOverride>>,
+    campaigns: Option<Vec<shell::util::config::CampaignOverride>>,
     #[serde(default)]
     gate_message: Option<String>,
     #[serde(default)]
@@ -558,9 +558,9 @@ pub(super) struct PagerSettingsUpdate {
     /// A malformed gate must not discard the tier, permission mode, and campaigns that arrive with it.
     #[serde(
         default,
-        deserialize_with = "xvora_shell::util::config::deserialize_tolerant"
+        deserialize_with = "shell::util::config::deserialize_tolerant"
     )]
-    consent_gate: Option<xvora_shell::util::config::ConsentGate>,
+    consent_gate: Option<shell::util::config::ConsentGate>,
 }
 
 /// Presence-aware string: omit gives `None` (`#[serde(default)]`), null gives `Some(None)`, and a string gives `Some(Some(_))`.

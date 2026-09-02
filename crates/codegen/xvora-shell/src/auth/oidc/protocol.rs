@@ -399,7 +399,7 @@ pub(super) async fn exchange_code(
     let resp = with_alpha_test_key(
         crate::http::shared_client()
             .post(token_endpoint)
-            .header("x-grok-client-version", xvora_version::VERSION)
+            .header("x-grok-client-version", version::VERSION)
             .form(&[
                 ("grant_type", "authorization_code"),
                 ("code", code),
@@ -531,7 +531,7 @@ async fn refresh_tokens_once(
         tracing::warn!(
             http_status = status,
             oauth2_error = ?error_code,
-            rt_prefix = xvora_auth::bearer_suffix(refresh_token),
+            rt_prefix = auth::bearer_suffix(refresh_token),
             client_id = %client_id,
             principal_type = ?principal_type,
             "OIDC: token refresh HTTP error"

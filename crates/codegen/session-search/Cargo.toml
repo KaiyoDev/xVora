@@ -20,8 +20,8 @@ serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "sync", "time"] }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-xvora-config = { workspace = true }
-xvora-telemetry = { workspace = true }
+config = { workspace = true }
+telemetry = { workspace = true }
 sqlite-journal = { workspace = true, package = "xvora-sqlite-journal" }
 
 [dev-dependencies]

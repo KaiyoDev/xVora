@@ -1,8 +1,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use xvora_markdown::style::test_style::STYLE;
-use xvora_markdown::{render_markdown_ratatui_full, StreamingMarkdownRenderer};
+use markdown::style::test_style::STYLE;
+use markdown::{render_markdown_ratatui_full, StreamingMarkdownRenderer};
 
 const CHUNK_SIZES: [usize; 3] = [1, 16, 32];
 

@@ -380,7 +380,7 @@ impl PendingDump {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let version = xvora_version::installed();
+        let version = version::installed();
 
         tracing::warn!(
             threshold,
@@ -391,7 +391,7 @@ impl PendingDump {
             "heap_profile: threshold_crossed"
         );
 
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::HeapThresholdCrossed {
+        telemetry::session_ctx::log_event(telemetry::events::HeapThresholdCrossed {
             threshold_bytes: threshold,
             resident_bytes: stats.resident,
             allocated_bytes: stats.allocated,
@@ -546,7 +546,7 @@ fn log_upload_result(heap_object: &str, file_size: u64, ok: bool, err: Option<&s
         tracing::info!(
             object_path = %heap_object,
             bytes = file_size,
-            multipart = file_size > xvora_file_utils::gcs::MULTIPART_UPLOAD_THRESHOLD,
+            multipart = file_size > file_utils::gcs::MULTIPART_UPLOAD_THRESHOLD,
             "heap_profile: upload_ok"
         );
         true
@@ -604,11 +604,11 @@ async fn upload_pair(
     let config = gcs_config.with_auth(Some(Arc::clone(&handles.auth_manager)));
 
     if let Err(e) =
-        xvora_file_utils::gcs::upload_file(&config, heap_object, heap_path, heap_ct).await
+        file_utils::gcs::upload_file(&config, heap_object, heap_path, heap_ct).await
     {
         return log_upload_result(heap_object, file_size, false, Some(&e.to_string()));
     }
-    match xvora_file_utils::gcs::upload_file(&config, meta_object, meta_path, meta_ct).await {
+    match file_utils::gcs::upload_file(&config, meta_object, meta_path, meta_ct).await {
         Ok(_) => log_upload_result(heap_object, file_size, true, None),
         Err(e) => log_upload_result(heap_object, file_size, false, Some(&e.to_string())),
     }

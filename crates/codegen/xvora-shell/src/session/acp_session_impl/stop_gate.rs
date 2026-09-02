@@ -17,14 +17,14 @@ fn commit_stop_report(claim: TurnReportClaim<'_>, prompt_id: &str) {
 }
 
 /// `command` is a shell-only field, so a monitor's watch command is carried in `description` instead.
-fn stop_entry_from_task(task: &xvora_tools::types::TaskSnapshot) -> StopBackgroundTask {
+fn stop_entry_from_task(task: &tools::types::TaskSnapshot) -> StopBackgroundTask {
     let command_text =
         clip_stop_entry_text(task.display_command.as_deref().unwrap_or(&task.command));
     let (kind, command, description) = match task.kind {
-        xvora_tools::computer::types::TaskKind::Bash => {
+        tools::computer::types::TaskKind::Bash => {
             (BackgroundTaskType::Shell, Some(command_text), None)
         }
-        xvora_tools::computer::types::TaskKind::Monitor => {
+        tools::computer::types::TaskKind::Monitor => {
             (BackgroundTaskType::Monitor, None, Some(command_text))
         }
     };
@@ -39,7 +39,7 @@ fn stop_entry_from_task(task: &xvora_tools::types::TaskSnapshot) -> StopBackgrou
 }
 
 fn stop_entry_from_subagent(
-    summary: &xvora_tools::implementations::grok_build::task::types::ActiveSubagentSummary,
+    summary: &tools::implementations::grok_build::task::types::ActiveSubagentSummary,
 ) -> StopBackgroundTask {
     StopBackgroundTask {
         id: summary.subagent_id.clone(),
@@ -52,11 +52,11 @@ fn stop_entry_from_subagent(
 }
 
 fn stop_cron_from_scheduled(
-    task: &xvora_tools::implementations::grok_build::scheduler::types::ScheduledTask,
+    task: &tools::implementations::grok_build::scheduler::types::ScheduledTask,
 ) -> StopSessionCron {
     StopSessionCron {
         id: task.id.clone(),
-        schedule: xvora_tools::implementations::grok_build::scheduler::interval::interval_to_human(
+        schedule: tools::implementations::grok_build::scheduler::interval::interval_to_human(
             task.interval_secs,
         ),
         recurring: task.recurring,
@@ -146,8 +146,8 @@ impl SessionActor {
 
     pub(crate) async fn list_active_subagents(
         &self,
-    ) -> Vec<xvora_tools::implementations::grok_build::task::types::ActiveSubagentSummary> {
-        use xvora_tools::implementations::grok_build::task::types::{
+    ) -> Vec<tools::implementations::grok_build::task::types::ActiveSubagentSummary> {
+        use tools::implementations::grok_build::task::types::{
             SubagentEvent, SubagentListActiveRequest,
         };
         let Some(ref event_tx) = self.tool_context.subagent_event_tx else {
@@ -368,9 +368,9 @@ impl SessionActor {
                 block.hook_name, block.reason
             ))
             .await;
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::HookBlocked {
+            telemetry::session_ctx::log_event(telemetry::events::HookBlocked {
                 hook_name: block.hook_name.clone(),
-                cause: xvora_telemetry::events::HookBlockCause::StopBlocked,
+                cause: telemetry::events::HookBlockCause::StopBlocked,
             });
         }
         if blocks.is_empty() {
@@ -389,9 +389,9 @@ mod stop_gate_snapshot_tests {
     use super::*;
 
     fn task_snapshot(
-        kind: xvora_tools::computer::types::TaskKind,
-    ) -> xvora_tools::types::TaskSnapshot {
-        xvora_tools::types::TaskSnapshot {
+        kind: tools::computer::types::TaskKind,
+    ) -> tools::types::TaskSnapshot {
+        tools::types::TaskSnapshot {
             task_id: "task-1".into(),
             command: "sandbox-exec tail -f /var/log/syslog".into(),
             display_command: Some("tail -f /var/log/syslog".into()),
@@ -418,7 +418,7 @@ mod stop_gate_snapshot_tests {
     #[test]
     fn task_snapshot_maps_to_stop_entry() {
         let shell =
-            stop_entry_from_task(&task_snapshot(xvora_tools::computer::types::TaskKind::Bash));
+            stop_entry_from_task(&task_snapshot(tools::computer::types::TaskKind::Bash));
         assert_eq!(shell.r#type, BackgroundTaskType::Shell);
         assert_eq!(shell.command.as_deref(), Some("tail -f /var/log/syslog"));
         assert!(shell.description.is_none());
@@ -426,7 +426,7 @@ mod stop_gate_snapshot_tests {
         assert!(shell.agent_type.is_none());
 
         let monitor = stop_entry_from_task(&task_snapshot(
-            xvora_tools::computer::types::TaskKind::Monitor,
+            tools::computer::types::TaskKind::Monitor,
         ));
         assert_eq!(monitor.r#type, BackgroundTaskType::Monitor);
         assert!(monitor.command.is_none());
@@ -439,7 +439,7 @@ mod stop_gate_snapshot_tests {
     #[test]
     fn subagent_summary_maps_to_stop_entry() {
         let summary =
-            xvora_tools::implementations::grok_build::task::types::ActiveSubagentSummary {
+            tools::implementations::grok_build::task::types::ActiveSubagentSummary {
                 subagent_id: "sub-1".into(),
                 subagent_type: "explore".into(),
                 description: "d".repeat(2000),
@@ -475,7 +475,7 @@ mod stop_gate_snapshot_tests {
 
     #[test]
     fn scheduled_task_maps_to_stop_cron() {
-        let task = xvora_tools::implementations::grok_build::scheduler::types::ScheduledTask::new(
+        let task = tools::implementations::grok_build::scheduler::types::ScheduledTask::new(
             300,
             "check the build".into(),
             true,

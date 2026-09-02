@@ -42,7 +42,7 @@
         let notification =
             |session_id: &str, entries: &[(&str, u64, &str)], running_prompt_id: Option<&str>| {
                 let (tx, _rx) = tokio::sync::oneshot::channel();
-                AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
+                AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
                     request: queue_changed_versioned(session_id, entries, running_prompt_id),
                     response_tx: tx,
                 })
@@ -399,7 +399,7 @@
     fn queue_changed_adopts_running_prompt_id_only_when_unset() {
         // Shell and pager share the xvora-prompt-queue type
         // Serializing the payload as the shell emits it pins the wire shape the handler consumes, not cross-crate compat
-        let shell_payload = xvora_shell::session::prompt_queue::QueueChanged {
+        let shell_payload = shell::session::prompt_queue::QueueChanged {
             session_id: "sess-1".to_string(),
             entries: Vec::new(),
             running_prompt_id: Some("prompt-running".to_string()),
@@ -803,7 +803,7 @@
                     .cloned(),
             );
             handle(
-                AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+                AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                     request,
                     response_tx: tx,
                 }),
@@ -896,7 +896,7 @@
                     .cloned(),
             );
             handle(
-                AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+                AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                     request,
                     response_tx: tx,
                 }),
@@ -974,7 +974,7 @@
                     .cloned(),
             );
             handle(
-                AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+                AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                     request,
                     response_tx: tx,
                 }),
@@ -1046,7 +1046,7 @@
             ))),
         )
         .meta(serde_json::json!({ "promptId": "p2" }).as_object().cloned());
-        let msg = AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+        let msg = AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
             request,
             response_tx: tx,
         });
@@ -1130,7 +1130,7 @@
                 .cloned(),
         );
         handle(
-            AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),
@@ -1365,7 +1365,7 @@
                 .cloned(),
         );
         let affected = handle(
-            AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),
@@ -1426,7 +1426,7 @@
                 .cloned(),
         );
         handle(
-            AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),
@@ -1494,9 +1494,9 @@
     #[test]
     fn bash_kind_round_trips_and_adoption_sets_bash_turn() {
         // Shell and pager share the xvora-prompt-queue type; pin kind through a serde cycle.
-        let shell = xvora_shell::session::prompt_queue::QueueChanged {
+        let shell = shell::session::prompt_queue::QueueChanged {
             session_id: "sess-1".to_string(),
-            entries: vec![xvora_shell::session::prompt_queue::QueueEntryWire {
+            entries: vec![shell::session::prompt_queue::QueueEntryWire {
                 id: "b1".to_string(),
                 version: 0,
                 owner: None,
@@ -1928,7 +1928,7 @@
                 .cloned(),
         );
         let _ = handle(
-            AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),
@@ -1981,7 +1981,7 @@
                 .cloned(),
         );
         let _ = handle(
-            AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),
@@ -2006,7 +2006,7 @@
         agent.deferred_subagent_finishes.insert(
             "child-stale".into(),
             crate::app::agent_view::DeferredSubagentFinish {
-                notification: xvora_shell::extensions::notification::SessionNotification {
+                notification: shell::extensions::notification::SessionNotification {
                     session_id: acp::SessionId::new("sess-a"),
                     update: test_subagent_finished("child-stale"),
                     meta: None,

@@ -9,21 +9,21 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use prometheus::{HistogramVec, IntCounterVec, register_histogram_vec, register_int_counter_vec};
 use serde_json::Value;
-use xvora_computer_hub_sdk::ToolServerHandler;
-use xvora_tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
-use xvora_tool_runtime::{
+use computer_hub_sdk::ToolServerHandler;
+use tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
+use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,
 };
-use xvora_tool_types::ToolDescription;
-use xvora_tools::computer::types::KillOutcome;
-use xvora_tools::computer::types::TaskKind;
-use xvora_tools::implementations::grok_build::scheduler::interval::interval_to_human;
-use xvora_tools::implementations::grok_build::scheduler::types::{
+use tool_types::ToolDescription;
+use tools::computer::types::KillOutcome;
+use tools::computer::types::TaskKind;
+use tools::implementations::grok_build::scheduler::interval::interval_to_human;
+use tools::implementations::grok_build::scheduler::types::{
     SchedulerCommand, SchedulerHandle,
 };
-use xvora_tools::registry::types::FinalizedToolset;
-use xvora_tools::types::resources::Terminal;
-use xvora_workspace_types::rpc::workspace::{
+use tools::registry::types::FinalizedToolset;
+use tools::types::resources::Terminal;
+use workspace_types::rpc::workspace::{
     BackgroundTaskSnapshotWire, KillTaskOutcome, ScheduledTaskSnapshotWire, TasksSnapshotResponse,
 };
 /// Deprecation monitor for the self-attested `caller_session_id` param.
@@ -205,12 +205,12 @@ async fn dispatch_op<Op: WorkspaceOp>(
 /// The list is empty when the session has no terminal backend.
 /// This backs the `workspace.list_background_tasks` RPC, which feeds the post-compaction system reminder.
 async fn list_outstanding_background_tasks(
-    toolset: &xvora_tools::registry::types::FinalizedToolset,
-) -> Vec<xvora_workspace_types::rpc::workspace::BackgroundTaskSummaryWire> {
-    use xvora_tools::computer::types::TaskKind;
-    use xvora_tools::types::resources::Terminal;
-    use xvora_tools::types::tool::ToolKind;
-    use xvora_workspace_types::rpc::workspace::BackgroundTaskSummaryWire;
+    toolset: &tools::registry::types::FinalizedToolset,
+) -> Vec<workspace_types::rpc::workspace::BackgroundTaskSummaryWire> {
+    use tools::computer::types::TaskKind;
+    use tools::types::resources::Terminal;
+    use tools::types::tool::ToolKind;
+    use workspace_types::rpc::workspace::BackgroundTaskSummaryWire;
     let terminal = {
         let res = toolset.resources.lock().await;
         res.get::<Terminal>().map(|t| t.0.clone())
@@ -354,11 +354,11 @@ async fn tasks_snapshot(toolset: &FinalizedToolset) -> TasksSnapshotResponse {
 /// The list is empty when the session has no todo state.
 /// This backs the `workspace.list_todos` RPC, which feeds the post-compaction system reminder.
 async fn list_session_todos(
-    toolset: &xvora_tools::registry::types::FinalizedToolset,
-) -> Vec<xvora_workspace_types::rpc::workspace::TodoSummaryWire> {
-    use xvora_tools::implementations::grok_build::todo::{TodoState, TodoStatus};
-    use xvora_tools::types::resources::State;
-    use xvora_workspace_types::rpc::workspace::TodoSummaryWire;
+    toolset: &tools::registry::types::FinalizedToolset,
+) -> Vec<workspace_types::rpc::workspace::TodoSummaryWire> {
+    use tools::implementations::grok_build::todo::{TodoState, TodoStatus};
+    use tools::types::resources::State;
+    use workspace_types::rpc::workspace::TodoSummaryWire;
     let res = toolset.resources.lock().await;
     let Some(state) = res.get::<State<TodoState>>() else {
         return Vec::new();
@@ -403,18 +403,18 @@ impl WorkspaceRpcHandler {
         use crate::session::checkpoint::TurnBoundary;
         use crate::workspace_ops::*;
         use crate::worktree::{ApplyWorktreeRequest, CreateWorktreeRequest, RemoveWorktreeRequest};
-        use xvora_workspace_types::rpc::git::{GitBranchInfoReq, GitMetadataReq};
-        use xvora_workspace_types::rpc::presence::PresenceNoteReq;
-        use xvora_workspace_types::rpc::search::FuzzyStatusReq;
-        use xvora_workspace_types::rpc::skills::DiscoverPluginsReq;
-        use xvora_workspace_types::rpc::workspace::{
+        use workspace_types::rpc::git::{GitBranchInfoReq, GitMetadataReq};
+        use workspace_types::rpc::presence::PresenceNoteReq;
+        use workspace_types::rpc::search::FuzzyStatusReq;
+        use workspace_types::rpc::skills::DiscoverPluginsReq;
+        use workspace_types::rpc::workspace::{
             ConfigureMcpReq, DeleteScheduledTaskReq, DeleteScheduledTaskResponse, DropSessionReq,
             InstallPluginReq, KillTaskReq, KillTaskResponse, ListBackgroundTasksReq,
             ListBackgroundTasksResponse, ListTodosReq, ListTodosResponse, LoadEnvrcReq,
             LoadPermissionsReq, LoadProjectConfigReq, RefreshPluginsReq, ResolveFileReferencesReq,
             TasksSnapshotReq, ToolDefinitionsReq, UpdateToolConfigReq, WorkspaceInfo,
         };
-        use xvora_workspace_types::rpc::worktree::WorktreeCreateSyncReq;
+        use workspace_types::rpc::worktree::WorktreeCreateSyncReq;
         tracing::debug!(method, "workspace rpc dispatch");
         let params = if params.is_null() {
             serde_json::json!({})
@@ -436,7 +436,7 @@ impl WorkspaceRpcHandler {
                     os: std::env::consts::OS.to_owned(),
                     shell,
                     cwd: cwd.to_string_lossy().into_owned(),
-                    version: Some(xvora_version::VERSION.to_owned()),
+                    version: Some(version::VERSION.to_owned()),
                 };
                 serde_json::to_value(info).map_err(|e| WorkspaceError::HubError(e.to_string()))
             }
@@ -1099,7 +1099,7 @@ impl ToolServerHandler for WorkspaceRpcHandler {
             .get("params")
             .cloned()
             .unwrap_or(Value::Object(Default::default()));
-        let bound_session = ctx.extensions.get::<xvora_tool_runtime::SessionContext>();
+        let bound_session = ctx.extensions.get::<tool_runtime::SessionContext>();
         let session_id = bound_session.as_deref().map(|s| s.0.as_str());
         let start = std::time::Instant::now();
         let result = self.dispatch(method, params, session_id).await;
@@ -1155,7 +1155,7 @@ impl ToolServerHandler for WorkspaceRpcHandler {
                 self.workspace.on_session_ended(session_id.as_str());
             }
             HookEvent::Custom { kind, payload } => {
-                use xvora_tool_protocol::turn_hook::{
+                use tool_protocol::turn_hook::{
                     AFTER_TURN_KIND, AfterTurnPayload, BEFORE_TURN_KIND, BeforeTurnPayload,
                 };
                 match kind.as_str() {
@@ -1211,7 +1211,7 @@ impl ToolServerHandler for WorkspaceRpcHandler {
         }
     }
     async fn handle_hook_request(&self, session_id: SessionId, frame: HookFrame) -> Option<Value> {
-        use xvora_tool_protocol::turn_hook::{self, TurnHookRequest};
+        use tool_protocol::turn_hook::{self, TurnHookRequest};
         let HookEvent::Custom { kind, payload } = frame.event else {
             return None;
         };

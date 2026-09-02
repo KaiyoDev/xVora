@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::session::commands::{PromptCompletionKind, PromptTurnResult};
-use xvora_tools::implementations::grok_build::task::types::SubagentResult;
+use tools::implementations::grok_build::task::types::SubagentResult;
 
 pub(super) enum PromptTurnResultMode {
     Initial { requires_structured_output: bool },

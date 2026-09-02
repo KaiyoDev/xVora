@@ -9,7 +9,7 @@ use crate::session::file_system::{
 use agent_client_protocol as acp;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use xvora_workspace::file_system::FsReadEncoding;
+use workspace::file_system::FsReadEncoding;
 fn default_depth() -> usize {
     1
 }

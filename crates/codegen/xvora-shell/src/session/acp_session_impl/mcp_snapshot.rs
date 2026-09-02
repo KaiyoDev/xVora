@@ -100,7 +100,7 @@ pub(super) async fn refresh_mcp_snapshot_and_schedule_reminder_with(
             }
             gateway_resource_entries.push((
                 qualified_name.clone(),
-                xvora_tools::types::resources::ManagedGatewayToolSource {
+                tools::types::resources::ManagedGatewayToolSource {
                     connector_id: tool.connector_id.clone(),
                     connector_name: tool.connector_name.clone(),
                     tool_id: tool.tool_id.clone(),
@@ -149,7 +149,7 @@ pub(super) async fn refresh_mcp_snapshot_and_schedule_reminder_with(
     }
 
     tool_bridge
-        .update_resource(xvora_tools::types::resources::ManagedGatewayToolCatalog(
+        .update_resource(tools::types::resources::ManagedGatewayToolCatalog(
             gateway_resource_entries.into_iter().collect(),
         ))
         .await;
@@ -242,9 +242,9 @@ impl SessionActor {
     /// [`McpState::initializing_servers`] stays non-empty until that task completes.
     pub(super) async fn wait_for_mcp_templated_prefix_ready(
         &self,
-        template: &xvora_agent::prompt::user_message::UserMessageTemplate,
+        template: &agent::prompt::user_message::UserMessageTemplate,
     ) {
-        use xvora_agent::prompt::user_message::UserMessageTemplate;
+        use agent::prompt::user_message::UserMessageTemplate;
         if matches!(template, UserMessageTemplate::Default) {
             return;
         }

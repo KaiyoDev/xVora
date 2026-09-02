@@ -105,12 +105,12 @@ impl SleepInhibitor {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         // The spawned process is the lock holder: `systemd-inhibit` keeps the idle-inhibit fd itself and runs `sleep infinity` as its child
         // That is the same pid `release()` SIGTERMs on a clean turn end
         // Bind that pid to us so a crashed or killed grok (SIGKILL, `panic=abort` SIGABRT, no Drop runs) cannot leave it running forever
         // A leaked `systemd-inhibit` holds the idle lock and pid slots on shared hosts
-        xvora_tty_utils::kill_on_parent_death_std(&mut cmd);
+        tty_utils::kill_on_parent_death_std(&mut cmd);
         #[allow(clippy::disallowed_methods)] // bound by kill-on-parent-death; released each turn
         let result = cmd.spawn();
 

@@ -39,7 +39,7 @@ pub struct DiskUsageArgs {
 }
 
 pub fn run(args: DiskUsageArgs) -> Result<()> {
-    // resolve_grok_home resolves the home the way the registry does, unlike xvora_config::grok_home()
+    // resolve_grok_home resolves the home the way the registry does, unlike config::grok_home()
     let grok_home = resolve_grok_home()?;
     let mut out = std::io::stdout().lock();
     let present = grok_home

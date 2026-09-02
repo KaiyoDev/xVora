@@ -9,16 +9,16 @@
 //! - `fresh_http1_client`: a crate-internal, on-demand, pool-less HTTP/1.1 client.
 //!   `send_with_retry_escaping_pool` uses it for the final retry attempt to escape a poisoned pool within a tight budget.
 //!
-//! Sampling traffic uses the process-wide shared clients owned by `xvora_sampler::shared_http`.
+//! Sampling traffic uses the process-wide shared clients owned by `sampler::shared_http`.
 //! Every `SamplingClient` shares one HTTP/2 pooled client and one pool-less HTTP/1.1 fallback.
 //! The sampler reads `GROK_POOL_*` and `GROK_CONNECT_TIMEOUT_SECS` once, when its shared client is first built.
 //! `GROK_SAMPLER_SHARED_CLIENT=0` falls back to a fresh client per `SamplingClient`.
 //!
-//! TLS policy (backend pin, roots, provider) lives in `xvora_extra_ca`.
+//! TLS policy (backend pin, roots, provider) lives in `extra_ca`.
 
 use std::sync::OnceLock;
 
-use xvora_workspace::permission::ClientType;
+use workspace::permission::ClientType;
 
 /// Per-attempt ceiling for a startup `/settings` or `/v1/models` fetch; raising it delays how soon the background refresh gives up and retries.
 pub const STARTUP_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
@@ -51,11 +51,11 @@ const _: () = assert!(
 
 /// Startup span timer, local to this crate.
 ///
-/// Replaces `xvora_shell::instrumentation_timer!`, which cannot be referenced here (the shell crate depends on this one).
-/// It routes to the same `xvora_telemetry::instrumentation` API and keeps the Chrome trace span for these startup timings.
+/// Replaces `shell::instrumentation_timer!`, which cannot be referenced here (the shell crate depends on this one).
+/// It routes to the same `telemetry::instrumentation` API and keeps the Chrome trace span for these startup timings.
 macro_rules! startup_timer {
     ($name:literal) => {{
-        use xvora_telemetry::instrumentation::{
+        use telemetry::instrumentation::{
             InstrumentationMode, InstrumentationTimer, TARGET, current_mode,
         };
         let mode = current_mode();
@@ -73,9 +73,9 @@ static CLIENT_TYPE: OnceLock<ClientType> = OnceLock::new();
 
 // `OriginClientInfo` is owned by `xvora-sampler` so `SamplerConfig` can use it without taking a circular dependency on `xvora-shell`
 // It is re-exported here so callers keep the `crate::http::OriginClientInfo` path
-// The telemetry engine in `xvora-telemetry` consumes the same type via `xvora_sampler::OriginClientInfo`
+// The telemetry engine in `xvora-telemetry` consumes the same type via `sampler::OriginClientInfo`
 // The constructors that take `ClientType` (a shell-only type) are free functions below
-pub use xvora_sampler::OriginClientInfo;
+pub use sampler::OriginClientInfo;
 
 /// Construct an [`OriginClientInfo`] from the `GROK_CLIENT_NAME` and `GROK_CLIENT_VERSION` env vars.
 /// Returns `None` when `GROK_CLIENT_NAME` is unset.
@@ -167,7 +167,7 @@ impl UserAgent {
 }
 
 fn agent_version() -> String {
-    xvora_version::VERSION.to_string()
+    version::VERSION.to_string()
 }
 
 /// Set the process-level fallback origin client type for `User-Agent`.
@@ -287,7 +287,7 @@ pub fn shared_client() -> reqwest::Client {
     CLIENT
         .get_or_init(|| {
             let _timer = startup_timer!("startup.http_client_build");
-            xvora_extra_ca::build_reqwest_client(|builder| {
+            extra_ca::build_reqwest_client(|builder| {
                 builder
                     .connect_timeout(std::time::Duration::from_secs(30))
                     .user_agent(process_user_agent_string())
@@ -305,10 +305,10 @@ pub fn shared_client() -> reqwest::Client {
 /// Wrap a raw client with [`AuthRetryMiddleware`] for automatic 401 retry.
 pub fn with_auth_retry(
     client: reqwest::Client,
-    credentials: std::sync::Arc<dyn xvora_auth::AuthCredentialProvider>,
+    credentials: std::sync::Arc<dyn auth::AuthCredentialProvider>,
 ) -> reqwest_middleware::ClientWithMiddleware {
     reqwest_middleware::ClientBuilder::new(client)
-        .with(xvora_auth::AuthRetryMiddleware::new(credentials, 1))
+        .with(auth::AuthRetryMiddleware::new(credentials, 1))
         .build()
 }
 
@@ -327,7 +327,7 @@ pub fn shared_upload_client() -> reqwest::Client {
     static UPLOAD_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     UPLOAD_CLIENT
         .get_or_init(|| {
-            xvora_extra_ca::build_reqwest_client(|builder| {
+            extra_ca::build_reqwest_client(|builder| {
                 builder
                     .http1_only()
                     .pool_max_idle_per_host(2)
@@ -344,7 +344,7 @@ pub fn shared_upload_client() -> reqwest::Client {
 /// The retry policy that uses this client to escape a poisoned pool lives on `send_with_retry_escaping_pool`.
 /// The build can fail under file-descriptor or TLS pressure; the caller must not panic on error (the fallback lives at the call site).
 pub(crate) fn fresh_http1_client() -> reqwest::Result<reqwest::Client> {
-    xvora_extra_ca::build_reqwest_client(|builder| {
+    extra_ca::build_reqwest_client(|builder| {
         builder
             .http1_only()
             .pool_max_idle_per_host(0)
@@ -568,7 +568,7 @@ pub fn shared_startup_blocking_client() -> reqwest::blocking::Client {
     BLOCKING_CLIENT
         .get_or_init(|| {
             let _timer = startup_timer!("startup.http_blocking_client_build");
-            xvora_extra_ca::build_blocking_reqwest_client(|builder| {
+            extra_ca::build_blocking_reqwest_client(|builder| {
                 builder
                     .connect_timeout(STARTUP_FETCH_TIMEOUT)
                     .timeout(STARTUP_FETCH_TIMEOUT)

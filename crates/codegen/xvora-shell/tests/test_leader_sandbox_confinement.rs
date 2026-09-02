@@ -2,7 +2,7 @@
 //!
 //! This test has its own binary: `set_configured_profile` writes a process-global `OnceLock` that other unit tests in this crate also set.
 
-use xvora_shell::leader::{
+use shell::leader::{
     ClientCapabilities, ClientMode, ConnectionError, LeaderEnvUrls, connect_or_spawn,
 };
 

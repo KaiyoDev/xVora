@@ -3,7 +3,7 @@
 //! Every render frame reads these, so they must be cheaper than re-loading `config.toml`.
 //! Call [`prime`] at startup so the first frame never hits disk; as a safety net, the first read lazily seeds from `load_effective_config()`.
 //!
-//! Disk writes live in `xvora_shell::util::config::set_<field>()`; this module only caches in memory.
+//! Disk writes live in `shell::util::config::set_<field>()`; this module only caches in memory.
 //!
 //! The default consts are hardcoded because `Cell::new` needs a `const` value; tests assert they match `UiConfig::default()`.
 //!
@@ -11,7 +11,7 @@
 
 use std::cell::Cell;
 
-use xvora_shared::ui_config::UiConfig;
+use shared::ui_config::UiConfig;
 
 use super::follow_up_behavior::FollowUpBehavior;
 use super::render_mermaid::RenderMermaid;
@@ -666,7 +666,7 @@ fn load_bool_from_effective_config(key: &str, default: bool) -> bool {
 }
 
 fn load_bool_option_from_effective_config(key: &str) -> Option<bool> {
-    let root = xvora_config::load_effective_config_disk_only().ok()?;
+    let root = config::load_effective_config_disk_only().ok()?;
     root.get("ui")
         .and_then(|ui| ui.get(key))
         .and_then(|v| v.as_bool())
@@ -697,7 +697,7 @@ fn text_selection_from_ui(ui: &UiConfig) -> TextSelection {
 }
 
 fn load_keep_text_selection_from_effective_config() -> TextSelection {
-    let root = match xvora_config::load_effective_config_disk_only() {
+    let root = match config::load_effective_config_disk_only() {
         Ok(r) => r,
         Err(_) => return KEEP_TEXT_SELECTION_DEFAULT,
     };
@@ -712,7 +712,7 @@ fn load_keep_text_selection_from_effective_config() -> TextSelection {
 
 /// Read a `[ui].<key>` u8 from the shell's layered effective config.
 fn load_u8_from_effective_config(key: &str, default: u8) -> u8 {
-    let root = match xvora_config::load_effective_config_disk_only() {
+    let root = match config::load_effective_config_disk_only() {
         Ok(r) => r,
         Err(_) => return default,
     };
@@ -725,7 +725,7 @@ fn load_u8_from_effective_config(key: &str, default: u8) -> u8 {
 
 /// Read a `[ui].<key>` string from the shell's layered effective config.
 fn load_str_from_effective_config(key: &str) -> Option<String> {
-    let root = xvora_config::load_effective_config_disk_only().ok()?;
+    let root = config::load_effective_config_disk_only().ok()?;
     root.get("ui")
         .and_then(|ui| ui.get(key))
         .and_then(|v| v.as_str())

@@ -17,12 +17,12 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use xvora_mcp::servers::McpState;
-use xvora_tool_protocol::ToolId;
-use xvora_tool_runtime::WorkspaceViewerContext;
-use xvora_tools::notification::AcknowledgedToolNotification;
-use xvora_tools::notification::types::ToolNotificationHandle;
-use xvora_tools::registry::types::{FinalizedToolset, ToolConfig, ToolServerConfig};
+use mcp::servers::McpState;
+use tool_protocol::ToolId;
+use tool_runtime::WorkspaceViewerContext;
+use tools::notification::AcknowledgedToolNotification;
+use tools::notification::types::ToolNotificationHandle;
+use tools::registry::types::{FinalizedToolset, ToolConfig, ToolServerConfig};
 /// Minimal result types for git error reporting (duplicated from shell session/result).
 pub mod result {
     use serde::Serialize;
@@ -116,7 +116,7 @@ pub struct WorkspaceSession {
     /// [`Self::cancel_hunk_tracker`] fires it on session teardown.
     /// `None` when the tracker is externally owned (e.g. `create_session_with_tracker` / local shell mode).
     ///
-    /// [`HunkTrackerActor`]: xvora_hunk_tracker::HunkTrackerActor
+    /// [`HunkTrackerActor`]: hunk_tracker::HunkTrackerActor
     pub(crate) hunk_tracker_cancel: Option<tokio_util::sync::CancellationToken>,
     pub(crate) file_state_tracker: Arc<FileStateTracker>,
     /// Per-turn hunk deltas keyed by `prompt_index`, captured at finalize and replayed on rewind (only when `workspace_rewind_hunks` is on).
@@ -124,7 +124,7 @@ pub struct WorkspaceSession {
     ///
     /// [`checkpoint_store`]: WorkspaceSession::checkpoint_store
     pub(crate) hunk_checkpoints:
-        Arc<tokio::sync::Mutex<HashMap<usize, xvora_hunk_tracker::HunkTurnDelta>>>,
+        Arc<tokio::sync::Mutex<HashMap<usize, hunk_tracker::HunkTurnDelta>>>,
     /// Git domain of the per-prompt rewind checkpoints (HEAD and the staged set).
     pub(crate) git_checkpoints: crate::session::git::GitCheckpointStore,
     /// Disk-backed durability mirror for finalized checkpoints, fronted by an in-memory cache.
@@ -381,7 +381,7 @@ impl WorkspaceSession {
         self.hunk_tracker.set_working_dir(cwd.clone()).await;
         let toolset = self.toolset();
         let mut res = toolset.resources.lock().await;
-        res.insert(xvora_tools::types::resources::Cwd(cwd));
+        res.insert(tools::types::resources::Cwd(cwd));
         Ok(())
     }
     pub(crate) fn path_virtualization(
@@ -482,7 +482,7 @@ impl WorkspaceSession {
     /// The session-lifetime terminal backend, injected into every toolset re-resolve so background tasks and shell state survive swaps.
     pub(crate) fn terminal_backend(
         &self,
-    ) -> &Arc<dyn xvora_tools::computer::types::TerminalBackend> {
+    ) -> &Arc<dyn tools::computer::types::TerminalBackend> {
         self.terminal_backend.backend()
     }
     /// Explicitly shut the session's terminal backend down (kills all of its child process groups and stops its actor).
@@ -511,7 +511,7 @@ impl WorkspaceSession {
     pub(crate) async fn toolset_terminal_is_session_owned(&self) -> bool {
         let toolset = self.toolset();
         let res = toolset.resources.lock().await;
-        match res.get::<xvora_tools::types::resources::Terminal>() {
+        match res.get::<tools::types::resources::Terminal>() {
             Some(t) => Arc::ptr_eq(&t.0, self.terminal_backend()),
             None => true,
         }
@@ -600,7 +600,7 @@ impl WorkspaceSession {
         let old_toolset = self.toolset();
         let old_terminal = {
             let res = old_toolset.resources.lock().await;
-            res.get::<xvora_tools::types::resources::Terminal>()
+            res.get::<tools::types::resources::Terminal>()
                 .map(|t| t.0.clone())
         };
         if let Some(old_terminal) = old_terminal
@@ -639,7 +639,7 @@ pub struct WorkspaceShared {
     /// so a user can add or remove servers without restarting the process.
     pub(crate) bind_mcp: Option<parking_lot::RwLock<crate::config::BindMcpConfig>>,
     pub(crate) mcp_tools_snapshot: arc_swap::ArcSwap<Vec<ToolConfig>>,
-    pub(crate) events: tokio::sync::broadcast::Sender<xvora_workspace_types::WorkspaceEvent>,
+    pub(crate) events: tokio::sync::broadcast::Sender<workspace_types::WorkspaceEvent>,
     pub(crate) respect_gitignore: bool,
     pub(crate) memory_config: Option<MemoryConfig>,
     pub(crate) hook_registry: Arc<parking_lot::RwLock<xvora_hooks::discovery::HookRegistry>>,
@@ -660,16 +660,16 @@ pub struct WorkspaceShared {
     /// Server config stashed at construction time for deferred connect.
     pub(crate) hub_config: Option<HubConfig>,
     /// Auth provider for xAI service calls.
-    pub(crate) auth_provider: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
+    pub(crate) auth_provider: Option<computer_hub_sdk::SharedAuthProvider>,
     /// Connection-level sink feeding the `ActivityTracker` (drained by `run_activity_feed`); not a network egress.
     /// `None` until `connect_hub()` sets it.
     pub(crate) activity_notify_handle:
-        arc_swap::ArcSwap<Option<xvora_tools::notification::types::ToolNotificationHandle>>,
+        arc_swap::ArcSwap<Option<tools::notification::types::ToolNotificationHandle>>,
     /// Sink for workspace-originated ext-notifications to the client (e.g. `x.ai/search/fuzzy/status`).
     /// Mode-agnostic: the shell wires it to the agent gateway in local mode, and to the server in proxy mode.
     /// `None` until set via [`WorkspaceHandle::set_client_ext_sink`](crate::handle::WorkspaceHandle::set_client_ext_sink).
     pub(crate) client_ext_sink: arc_swap::ArcSwap<Option<ClientExtSink>>,
-    pub(crate) local_registry: xvora_computer_hub_sdk::LocalRegistry,
+    pub(crate) local_registry: computer_hub_sdk::LocalRegistry,
     pub(crate) activity_tracker: std::sync::Arc<crate::activity::ActivityTracker>,
     /// True after the scheduler-liveness poll task started; reconnects must not start a second one.
     pub(crate) scheduler_poll_started: std::sync::atomic::AtomicBool,
@@ -686,7 +686,7 @@ pub struct WorkspaceShared {
     /// Separate from the shell's own `FuzzySearchManager`; this instance serves remote (hub/RPC) clients.
     pub(crate) fuzzy_searches:
         std::sync::Arc<tokio::sync::Mutex<crate::file_system::FuzzySearchManager>>,
-    pub(crate) lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
+    pub(crate) lsp: Option<std::sync::Arc<dyn tools::implementations::lsp::LspBackend>>,
     pub(crate) codebase_indexes:
         std::sync::Arc<parking_lot::Mutex<crate::file_system::CodebaseIndexManager>>,
     /// Finalize the FS rewind checkpoint on non-`Completed` turn-end outcomes (from `GROK_WORKSPACE_REWIND_ALL_OUTCOMES`, default off).
@@ -694,7 +694,7 @@ pub struct WorkspaceShared {
     /// Resolved `$GROK_WORKSPACE_HOME`, the workspace-owned on-disk state root (`<grok_home>/workspace` by default).
     /// The upload queue spills here.
     pub(crate) workspace_home: std::path::PathBuf,
-    pub(crate) upload_queue: Option<std::sync::Arc<xvora_file_utils::queue::UploadQueue>>,
+    pub(crate) upload_queue: Option<std::sync::Arc<file_utils::queue::UploadQueue>>,
     /// Whether collection is disabled (opt-out, or the fail-closed default).
     pub(crate) data_collection_disabled: bool,
     /// Whether per-session `events.jsonl` recording is enabled (`GROK_WORKSPACE_EVENTS_ENABLED=true`).
@@ -710,13 +710,13 @@ pub struct WorkspaceShared {
     /// That sharing lets `Tool*` events resolve the right writer without a back-reference to `WorkspaceShared`.
     /// Stays empty whenever `events_enabled` is `false`.
     pub(crate) session_event_writers:
-        Arc<dashmap::DashMap<String, xvora_session_events::EventWriter>>,
+        Arc<dashmap::DashMap<String, session_events::EventWriter>>,
     /// In-flight before-turn enqueue tasks, keyed by `(session_id, turn)`.
     /// Stored by `on_before_turn`; evicted on every turn-end path.
     /// The `After` turn-hook handler awaits the handle for its ack's `artifact_count`; the fire-and-forget path just drops it (detach, not abort).
     pub(crate) inflight_enqueues: dashmap::DashMap<
         (String, u64),
-        tokio::task::JoinHandle<xvora_file_utils::queue::EnqueueOutcome>,
+        tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>,
     >,
     /// Artifact-producer tasks, awaited by the drain and counted by the status publisher.
     /// See [`WorkspaceHandle::spawn_producer`](crate::handle::WorkspaceHandle).
@@ -742,18 +742,18 @@ impl WorkspaceShared {
     }
     /// The durable upload queue used for archives.
     /// `None` in tests and local mode; see [`WorkspaceShared::upload_queue`].
-    pub fn upload_queue(&self) -> Option<&std::sync::Arc<xvora_file_utils::queue::UploadQueue>> {
+    pub fn upload_queue(&self) -> Option<&std::sync::Arc<file_utils::queue::UploadQueue>> {
         self.upload_queue.as_ref()
     }
     /// Return the per-session `events.jsonl` writer for `session_id`, opened and cached on first use under `workspace_home/sessions/{session_id}/`.
     ///
-    /// When `events_enabled` is `false` this returns [`EventWriter::noop()`](xvora_session_events::EventWriter::noop).
+    /// When `events_enabled` is `false` this returns [`EventWriter::noop()`](session_events::EventWriter::noop).
     /// It touches neither the cache nor the filesystem, so the flag-off path stays byte-for-byte identical to the legacy behaviour.
     /// The returned handle is `Clone + Send + Sync`; callers emit through it directly.
     pub(crate) fn session_event_writer(
         &self,
         session_id: &str,
-    ) -> xvora_session_events::EventWriter {
+    ) -> session_events::EventWriter {
         get_or_open_session_writer(
             self.events_enabled,
             &self.session_event_writers,
@@ -767,7 +767,7 @@ impl WorkspaceShared {
     pub(crate) fn session_event_writer_cached(
         &self,
         session_id: &str,
-    ) -> Option<xvora_session_events::EventWriter> {
+    ) -> Option<session_events::EventWriter> {
         if !self.events_enabled {
             return None;
         }
@@ -784,7 +784,7 @@ impl WorkspaceShared {
         self.hub_config.as_ref().and_then(|c| c.server_id.clone())
     }
     /// Auth provider used for xAI service calls.
-    pub fn auth_provider(&self) -> Option<&xvora_computer_hub_sdk::SharedAuthProvider> {
+    pub fn auth_provider(&self) -> Option<&computer_hub_sdk::SharedAuthProvider> {
         self.auth_provider.as_ref()
     }
     /// Parse the opaque [`server_metadata`](Self::server_metadata) blob into the typed subset the workspace needs (currently `sandbox_id`).
@@ -810,10 +810,10 @@ impl WorkspaceShared {
     }
     /// The tool server, if a server connection is active.
     ///
-    /// Returns a clone of the [`ToolServer`](xvora_computer_hub_sdk::ToolServer) which is cheap (`Arc` bump).
+    /// Returns a clone of the [`ToolServer`](computer_hub_sdk::ToolServer) which is cheap (`Arc` bump).
     /// Uses `try_lock` to avoid blocking on the async mutex from synchronous contexts.
     /// Returns `None` if the lock is held (i.e. a `connect_hub` call is in progress).
-    pub fn hub_server(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
+    pub fn hub_server(&self) -> Option<computer_hub_sdk::ToolServer> {
         self.hub_handle
             .try_lock()
             .ok()
@@ -821,7 +821,7 @@ impl WorkspaceShared {
     }
     /// Like [`Self::hub_server`] but awaits the `hub_handle` lock instead of returning `None` on contention.
     /// Use from async contexts that must not confuse a transient `connect_hub` lock-hold with "no hub connected"; `None` means no hub is connected.
-    pub async fn hub_server_blocking(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
+    pub async fn hub_server_blocking(&self) -> Option<computer_hub_sdk::ToolServer> {
         self.hub_handle
             .lock()
             .await
@@ -858,7 +858,7 @@ impl WorkspaceShared {
     }
     pub fn subscribe_events(
         &self,
-    ) -> tokio::sync::broadcast::Receiver<xvora_workspace_types::WorkspaceEvent> {
+    ) -> tokio::sync::broadcast::Receiver<workspace_types::WorkspaceEvent> {
         self.events.subscribe()
     }
     pub fn codebase_indexes(
@@ -984,7 +984,7 @@ impl WorkspaceShared {
                     );
                     let _ = self
                         .events
-                        .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
+                        .send(workspace_types::WorkspaceEvent::ToolsChanged {
                             session_id: sid,
                         });
                     rebuilt += 1;
@@ -1018,11 +1018,11 @@ impl WorkspaceShared {
 ///   [`EventWriter::open`] uses `create(true).append(true)`, so a re-open after a workspace restart APPENDS to the existing `events.jsonl`.
 pub(crate) fn get_or_open_session_writer(
     enabled: bool,
-    writers: &dashmap::DashMap<String, xvora_session_events::EventWriter>,
+    writers: &dashmap::DashMap<String, session_events::EventWriter>,
     workspace_home: &Path,
     session_id: &str,
-) -> xvora_session_events::EventWriter {
-    use xvora_session_events::EventWriter;
+) -> session_events::EventWriter {
+    use session_events::EventWriter;
     if !enabled {
         return EventWriter::noop();
     }
@@ -1031,8 +1031,8 @@ pub(crate) fn get_or_open_session_writer(
     }
     let sessions_root = workspace_home.join("sessions");
     let dir = sessions_root.join(session_id);
-    let create = xvora_config::create_dir_all_owner_only(&dir);
-    xvora_config::set_dir_owner_only(&sessions_root);
+    let create = config::create_dir_all_owner_only(&dir);
+    config::set_dir_owner_only(&sessions_root);
     if let Err(e) = create {
         tracing::warn!(
             session_id = %session_id,
@@ -1052,7 +1052,7 @@ pub(crate) fn get_or_open_session_writer(
 mod tests {
     use super::get_or_open_session_writer;
     use dashmap::DashMap;
-    use xvora_session_events::{Event, EventWriter};
+    use session_events::{Event, EventWriter};
     fn count_lines(path: &std::path::Path) -> usize {
         std::fs::read_to_string(path)
             .unwrap()

@@ -85,13 +85,13 @@ struct Scrubber {
 impl Scrubber {
     fn from_env() -> Self {
         Self {
-            home_dir: xvora_dirs::home_dir().map(|p| p.to_string_lossy().to_string()),
+            home_dir: dirs::home_dir().map(|p| p.to_string_lossy().to_string()),
             usernames: collect_usernames_from_env(),
         }
     }
 
     fn scrub(&self, s: &str) -> String {
-        let out = xvora_secrets::redact_secrets(s);
+        let out = secrets::redact_secrets(s);
         let out = match self.home_dir.as_deref() {
             Some(home) => Cow::Owned(replace_home_prefix(out.as_ref(), home)),
             None => out,
@@ -100,7 +100,7 @@ impl Scrubber {
     }
 
     fn scrub_value(&self, val: &mut Value) {
-        xvora_secrets::walk_json_strings(val, &mut |s| *s = self.scrub(s));
+        secrets::walk_json_strings(val, &mut |s| *s = self.scrub(s));
     }
 }
 

@@ -24,7 +24,7 @@ use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use tempfile::TempDir;
-use xvora_shell::config::watcher::SkillsFileWatcher;
+use shell::config::watcher::SkillsFileWatcher;
 
 /// Default directory count under `.claude/worktrees/` (override with `GROK_SKILLS_WATCHER_BENCH_DIRS`).
 const DEFAULT_WORKTREE_DIRS: usize = 6_000;

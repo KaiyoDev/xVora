@@ -29,8 +29,8 @@ mod common;
 use serial_test::serial;
 
 use common::{FakeBinGuard, reset_home, set_test_version, test_home};
-use xvora_update::UpdateConfig;
-use xvora_update::auto_update::check_update_status;
+use update::UpdateConfig;
+use update::auto_update::check_update_status;
 
 /// Set up a fake `npm` on PATH and set `GROK_INSTALLER=npm` so the auto-update code dispatches to npm without consulting config.
 /// Pin the installed version to `0.1.181` (matches the user's report).

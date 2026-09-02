@@ -169,7 +169,7 @@ impl SessionMemory {
                     Ok(n) => total_removed += n,
                     Err(e) => {
                         tracing::warn!(
-                            target: xvora_telemetry::memory_log::TARGET,
+                            target: telemetry::memory_log::TARGET,
                             path = %path.display(),
                             error = %e,
                             "DREAM_CLEANUP: failed to remove chunks from index"
@@ -179,7 +179,7 @@ impl SessionMemory {
             }
             if total_removed > 0 {
                 tracing::info!(
-                    target: xvora_telemetry::memory_log::TARGET,
+                    target: telemetry::memory_log::TARGET,
                     chunks_removed = total_removed,
                     files = paths.len(),
                     "DREAM_CLEANUP: removed stale chunks from index"

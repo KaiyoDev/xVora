@@ -47,7 +47,7 @@ pub(crate) fn reconcile_request_metadata(
     request_owned: bool,
     request_id: &str,
     signals: &[String],
-    attempts: &[xvora_sampler::DoomLoopRecoveryAttempt],
+    attempts: &[sampler::DoomLoopRecoveryAttempt],
 ) -> Vec<(Vec<String>, Option<u64>)> {
     if !request_owned {
         return Vec::new();

@@ -13,7 +13,7 @@
 //!
 //! # Crash isolation under `panic = "abort"`: out of process
 //!
-//! The shipped CLI profiles build with `panic = "abort"`, so the `catch_unwind` inside [`xvora_mermaid::render_checked`] is a no-op there.
+//! The shipped CLI profiles build with `panic = "abort"`, so the `catch_unwind` inside [`mermaid::render_checked`] is a no-op there.
 //! A panic in the layout engine over untrusted model output would abort the whole pager.
 //! A synchronous in-process render also could not be killed on timeout.
 //! The render therefore runs **out of process**, in a short-lived child:
@@ -22,12 +22,12 @@
 //!    The subcommand is intercepted at the very top of `main`, before any TUI/agent/runtime init.
 //!    The child reads the source from stdin and the theme/width/height from argv.
 //!    It renders the source to SVG then PNG, writes the PNG atomically to the out-path, and exits 0; any error exits non-zero.
-//! 2. The worker spawns that child with a wall-clock budget ([`RENDER_TIMEOUT`]) via [`xvora_mermaid::run_with_timeout`].
+//! 2. The worker spawns that child with a wall-clock budget ([`RENDER_TIMEOUT`]) via [`mermaid::run_with_timeout`].
 //!    On timeout it **kills and reaps** the child (a real process kill, not a soft signal).
 //!    A child panic (abort), non-zero exit, or timeout is contained to the child and becomes `Failed`, the existing code-block fallback.
 //!    The pager survives.
 //! 3. The child applies the same caps as in-process would.
-//!    Those are the source-size limit ([`xvora_mermaid::RenderLimits`]) and the raster megapixel/height caps (see `xvora-mermaid`).
+//!    Those are the source-size limit ([`mermaid::RenderLimits`]) and the raster megapixel/height caps (see `xvora-mermaid`).
 //!    The parent also rejects obviously-oversized source before spawning, to avoid launching a doomed child.
 //!
 //! Because untrusted source now renders fully isolated, the feature is on by default (no cargo gate).
@@ -40,7 +40,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
 
 use indexmap::IndexMap;
-use xvora_mermaid::{
+use mermaid::{
     MermaidTheme, RenderLimits, RenderParams, RenderedDiagram, SubprocessError, default_engine,
     render_checked, run_with_timeout,
 };
@@ -314,7 +314,7 @@ pub fn render_via_subprocess(
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .envs(xvora_tty_utils::pager_env());
+        .envs(tty_utils::pager_env());
     // The child runs under an `RLIMIT_AS` cap (see `cap_child_address_space`)
     // jemalloc (the default global allocator) pre-reserves virtual address space that scales with its arena count (default ~4×ncpus)
     // On a many-core box that reservation can approach the cap at startup and abort every render
@@ -329,7 +329,7 @@ pub fn render_via_subprocess(
             .env("MALLOC_CONF", "narenas:1");
     }
     // setsid/console detach via the sanctioned helper (never a raw pre_exec).
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
 
     run_render_command(cmd, source.as_bytes(), out_path, timeout)
 }
@@ -635,7 +635,7 @@ fn render_source_to_png(
     theme_dark: bool,
     target_width_px: u32,
     quality: MermaidRenderQuality,
-) -> Result<RenderedDiagram, xvora_mermaid::MermaidError> {
+) -> Result<RenderedDiagram, mermaid::MermaidError> {
     let params = render_params_for(theme_dark, target_width_px, quality);
     render_checked(
         default_engine().as_ref(),
@@ -1833,7 +1833,7 @@ mod tests {
                 .stdin(Stdio::piped())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
-            xvora_tty_utils::detach_std_command(&mut cmd);
+            tty_utils::detach_std_command(&mut cmd);
             cmd
         }
 

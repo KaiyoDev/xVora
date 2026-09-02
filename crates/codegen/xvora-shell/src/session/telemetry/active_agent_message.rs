@@ -3,8 +3,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use xvora_telemetry::TelemetryCtx;
-use xvora_telemetry::events::{
+use telemetry::TelemetryCtx;
+use telemetry::events::{
     ActiveAgentMessageCompleted as Completed,
     ActiveAgentMessageFallbackDisposition as FallbackDisposition,
     ActiveAgentMessageFallbackReason as FallbackReason, ActiveAgentMessageLimitHit as LimitHit,
@@ -12,9 +12,9 @@ use xvora_telemetry::events::{
     ActiveAgentMessageSettled as Settled,
     ActiveAgentMessageSettlementDisposition as SettlementDisposition,
 };
-use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput;
-use xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageOperation;
-use xvora_tools::types::output::ToolOutput;
+use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput;
+use tools::implementations::grok_build::task::types::ActiveAgentMessageOperation;
+use tools::types::output::ToolOutput;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ActiveAgentMessageEvent {
@@ -73,7 +73,7 @@ impl ActiveAgentMessageAdmissionTelemetry {
     }
 }
 
-pub(crate) use xvora_telemetry::events::ActiveAgentMessageFallbackReason;
+pub(crate) use telemetry::events::ActiveAgentMessageFallbackReason;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ActiveAgentMessageSettlementStatus {
@@ -122,13 +122,13 @@ impl ActiveAgentMessageEventSink for ProductEventSink {
     fn emit(&mut self, event: ActiveAgentMessageEvent) {
         match event {
             ActiveAgentMessageEvent::Completed(event) => {
-                xvora_telemetry::session_ctx::log_event(event);
+                telemetry::session_ctx::log_event(event);
             }
             ActiveAgentMessageEvent::LimitHit(event) => {
-                xvora_telemetry::session_ctx::log_event(event);
+                telemetry::session_ctx::log_event(event);
             }
             ActiveAgentMessageEvent::Settled(event) => {
-                xvora_telemetry::session_ctx::log_event(event);
+                telemetry::session_ctx::log_event(event);
             }
         }
     }
@@ -314,7 +314,7 @@ pub(crate) async fn record_settlement(
     let Some((parent_ctx, event)) = project_settlement(admission, status, Instant::now()) else {
         return;
     };
-    xvora_telemetry::with_session_ctx(parent_ctx, async {
+    telemetry::with_session_ctx(parent_ctx, async {
         ProductEventSink.emit(ActiveAgentMessageEvent::Settled(event));
     })
     .await;

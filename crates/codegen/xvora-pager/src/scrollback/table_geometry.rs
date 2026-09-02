@@ -4,7 +4,7 @@
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
-use xvora_markdown::{TableCellCopy, TableCopyMeta};
+use markdown::{TableCellCopy, TableCopyMeta};
 
 /// A cell position within a detected grid: `row` indexes logical rows (the header is row 0), `col` indexes columns left to right.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -525,7 +525,7 @@ fn looks_like_unbreakable_token(s: &str) -> bool {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use xvora_markdown::CellJoin;
+    use markdown::CellJoin;
 
     /// Text source over a static list of lines.
     fn src<'a>(lines: &'a [&'a str]) -> impl Fn(usize) -> Option<String> + 'a {

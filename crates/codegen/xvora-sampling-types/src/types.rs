@@ -385,7 +385,7 @@ pub enum ToolType {
 }
 
 // The canonical definitions live in xvora-tools; the re-export keeps existing `crate::sampling::types::ToolDefinition` imports working
-pub use xvora_tools::types::definition::{FunctionTool, ToolDefinition};
+pub use tools::types::definition::{FunctionTool, ToolDefinition};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]

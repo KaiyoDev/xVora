@@ -27,18 +27,18 @@ const TMP_FILENAME: &str = "active_sessions.json.tmp";
 
 /// Register a session as active (idempotent by session_id).
 pub fn register(session: ActiveSession) -> io::Result<()> {
-    register_in(&xvora_config::grok_home(), session)
+    register_in(&config::grok_home(), session)
 }
 
 /// Non-blocking unregister for signal handlers.
 /// Returns `Ok(false)` on lock contention; the orphan is cleaned up by `collect_crashed` next launch.
 pub fn try_unregister(session_id: &acp::SessionId) -> io::Result<bool> {
-    try_unregister_in(&xvora_config::grok_home(), session_id)
+    try_unregister_in(&config::grok_home(), session_id)
 }
 
 /// Remove entries with dead PIDs and return them.
 pub fn collect_crashed() -> io::Result<Vec<ActiveSession>> {
-    collect_crashed_in(&xvora_config::grok_home())
+    collect_crashed_in(&config::grok_home())
 }
 
 // -- Injectable-root variants (`_in`) for testing ---------------------------

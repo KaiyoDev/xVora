@@ -120,13 +120,13 @@ impl PtyHarness {
         Ok(Self::from_pty(pty, rows, cols))
     }
 
-    /// Spawn from a canonical [`xvora_test_support::TestSandbox`] baseline plus Set-only convenience overrides.
+    /// Spawn from a canonical [`test_support::TestSandbox`] baseline plus Set-only convenience overrides.
     pub fn new_in_sandbox(
         binary: &Path,
         rows: u16,
         cols: u16,
         args: &[&str],
-        sandbox: &xvora_test_support::TestSandbox,
+        sandbox: &test_support::TestSandbox,
         env: &[(&str, &str)],
         cwd: Option<&Path>,
     ) -> Result<Self> {
@@ -143,7 +143,7 @@ impl PtyHarness {
         rows: u16,
         cols: u16,
         args: &[&str],
-        sandbox: &xvora_test_support::TestSandbox,
+        sandbox: &test_support::TestSandbox,
         operations: &[EnvOp<'_>],
         cwd: Option<&Path>,
     ) -> Result<Self> {

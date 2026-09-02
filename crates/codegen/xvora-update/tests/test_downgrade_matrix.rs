@@ -18,11 +18,11 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use common::{FakeBinGuard, reset_home, set_test_version, test_home};
-use xvora_update::UpdateConfig;
-use xvora_update::auto_update::{
+use update::UpdateConfig;
+use update::auto_update::{
     auto_update_target, check_update_status, ensure_latest_on_disk, install_internal_from_base,
 };
-use xvora_update::version::installed_on_disk_version;
+use update::version::installed_on_disk_version;
 
 fn host_platform() -> String {
     let os = if cfg!(target_os = "macos") {

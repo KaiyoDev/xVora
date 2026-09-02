@@ -1,7 +1,7 @@
 //! Handler for x.ai/git/worktree/* extension methods.
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::agent::mvp_agent::MvpAgent;
 use crate::session::ExtMethodResult;
@@ -13,8 +13,8 @@ use crate::session::worktree::{
     create_jj_workspace, create_worktree_async, create_worktree_from_worktree_async,
     rehydrate_session_in_worktree, resolve_session_repo_wide, resume_session_in_worktree,
 };
-use xvora_telemetry::instrument_task;
-use xvora_telemetry::region::Parent;
+use telemetry::instrument_task;
+use telemetry::region::Parent;
 
 type ExtResult = Result<acp::ExtResponse, acp::Error>;
 
@@ -151,7 +151,7 @@ fn log_effective_worktree_type(
 #[tracing::instrument(name = "ext.worktree", skip_all, fields(method = %args.method))]
 pub async fn handle(
     agent: &MvpAgent,
-    ops: &xvora_workspace::WorkspaceOps,
+    ops: &workspace::WorkspaceOps,
     args: &acp::ExtRequest,
 ) -> ExtResult {
     let worktree_type_default = agent.worktree_type;
@@ -228,7 +228,7 @@ pub async fn handle(
             );
             let result = ops
                 .dispatch(
-                    &xvora_workspace::workspace_ops::PrepareWorktreeFromWorktreeReq {
+                    &workspace::workspace_ops::PrepareWorktreeFromWorktreeReq {
                         inner: req.clone(),
                     },
                     None,
@@ -273,7 +273,7 @@ pub async fn handle(
             let source_path = std::path::Path::new(&req.source_worktree_path);
             let resolved_root = ops
                 .dispatch(
-                    &xvora_workspace::workspace_ops::GitResolveRootReq {
+                    &workspace::workspace_ops::GitResolveRootReq {
                         cwd: source_path.to_path_buf(),
                     },
                     None,
@@ -284,13 +284,13 @@ pub async fn handle(
             if let Some(git_root) = resolved_root {
                 let vcs_kind = ops
                     .dispatch(
-                        &xvora_workspace::workspace_ops::DetectVcsKindReq {
+                        &workspace::workspace_ops::DetectVcsKindReq {
                             path: git_root.clone(),
                         },
                         None,
                     )
                     .await
-                    .unwrap_or(xvora_workspace::session::git::VcsKind::Git);
+                    .unwrap_or(workspace::session::git::VcsKind::Git);
                 if vcs_kind.is_jj() {
                     tracing::info!("using jj workspace for subagent isolation");
                     return to_response(create_jj_workspace(&req).await);
@@ -310,7 +310,7 @@ pub async fn handle(
             );
             let result = ops
                 .dispatch(
-                    &xvora_workspace::workspace_ops::CreateWorktreeFromWorktreeSyncReq {
+                    &workspace::workspace_ops::CreateWorktreeFromWorktreeSyncReq {
                         inner: req.into_wire(),
                     },
                     None,
@@ -332,7 +332,7 @@ pub async fn handle(
             apply_grove_worktree_flag(agent, &mut grove_worktree);
             let grove_worktree = grove_worktree.unwrap_or(false);
             let registry_client = agent.session_registry_client();
-            let agent_id = xvora_telemetry::id::agent_id();
+            let agent_id = telemetry::id::agent_id();
 
             to_response(
                 resume_session_in_worktree(
@@ -381,7 +381,7 @@ pub async fn handle(
         }
         // ── Worktree management methods ──────────────────────────────────
         "x.ai/git/worktree/list" => {
-            let req: xvora_workspace::workspace_ops::WorktreeListReq =
+            let req: workspace::workspace_ops::WorktreeListReq =
                 serde_json::from_str(args.params.get())
                     .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             let result = ops
@@ -392,7 +392,7 @@ pub async fn handle(
         }
         "x.ai/git/worktree/show" => {
             let req = serde_json::from_str::<ShowWorktreeRequest>(args.params.get())?;
-            let op = xvora_workspace::workspace_ops::WorktreeShowReq {
+            let op = workspace::workspace_ops::WorktreeShowReq {
                 id_or_path: req.id_or_path,
             };
             let result = ops
@@ -404,7 +404,7 @@ pub async fn handle(
         "x.ai/git/worktree/gc" => {
             let req = serde_json::from_str::<GcWorktreeRequest>(args.params.get())?;
             let max_age_secs = req.max_age.as_deref().map(parse_duration).transpose()?;
-            let op = xvora_workspace::workspace_ops::WorktreeGcReq {
+            let op = workspace::workspace_ops::WorktreeGcReq {
                 dry_run: req.dry_run,
                 max_age_secs,
                 force: req.force,
@@ -417,7 +417,7 @@ pub async fn handle(
         }
         "x.ai/git/worktree/db/stats" => {
             let result = ops
-                .dispatch(&xvora_workspace::workspace_ops::WorktreeDbStatsReq {}, None)
+                .dispatch(&workspace::workspace_ops::WorktreeDbStatsReq {}, None)
                 .await
                 .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             to_response(Ok(result))
@@ -425,7 +425,7 @@ pub async fn handle(
         "x.ai/git/worktree/db/rebuild" => {
             let result = ops
                 .dispatch(
-                    &xvora_workspace::workspace_ops::WorktreeDbRebuildReq {},
+                    &workspace::workspace_ops::WorktreeDbRebuildReq {},
                     None,
                 )
                 .await
@@ -434,7 +434,7 @@ pub async fn handle(
         }
         "x.ai/git/worktree/db/path" => {
             let result = ops
-                .dispatch(&xvora_workspace::workspace_ops::WorktreeDbPathReq {}, None)
+                .dispatch(&workspace::workspace_ops::WorktreeDbPathReq {}, None)
                 .await
                 .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             to_response(Ok(result))
@@ -450,7 +450,7 @@ pub async fn handle(
             let req = serde_json::from_str::<DetachReq>(args.params.get())?;
             let result = ops
                 .dispatch(
-                    &xvora_workspace::workspace_ops::WorktreeDetachReq {
+                    &workspace::workspace_ops::WorktreeDetachReq {
                         id_or_path: req.id_or_path,
                         allow_copy: req.allow_copy,
                     },
@@ -470,7 +470,7 @@ pub async fn handle(
             let req = serde_json::from_str::<SalvageReq>(args.params.get())?;
             let result = ops
                 .dispatch(
-                    &xvora_workspace::workspace_ops::WorktreeSalvageReq {
+                    &workspace::workspace_ops::WorktreeSalvageReq {
                         id_or_path: req.id_or_path,
                         out: req.out,
                     },
@@ -489,7 +489,7 @@ pub async fn handle(
             let req = serde_json::from_str::<CleanReq>(args.params.get())?;
             let result = ops
                 .dispatch(
-                    &xvora_workspace::workspace_ops::WorktreeCleanArtifactsReq {
+                    &workspace::workspace_ops::WorktreeCleanArtifactsReq {
                         id_or_path: req.id_or_path,
                     },
                     None,

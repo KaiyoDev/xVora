@@ -8,8 +8,8 @@
 use std::path::Path;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_tools::computer::types::{AsyncFileSystem, ComputerError};
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use tools::computer::types::{AsyncFileSystem, ComputerError};
 
 /// Wraps xvora-shell's ACP gateway to satisfy xvora-tools' AsyncFileSystem.
 ///

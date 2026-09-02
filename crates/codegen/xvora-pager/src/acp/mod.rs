@@ -19,21 +19,21 @@ pub(crate) fn is_session_update_ext_method(method: &str) -> bool {
     matches!(method, "x.ai/session_notification" | "x.ai/session/update")
 }
 
-use xvora_telemetry::process_info::{
+use telemetry::process_info::{
     Entrypoint, Interactivity, LeaderMode, ProcessIdentity, set_identity,
 };
-use xvora_telemetry::startup;
-pub use xvora_telemetry::startup::{AgentKind, Owner, StartupOutcome, StartupPhase, StartupTimer};
+use telemetry::startup;
+pub use telemetry::startup::{AgentKind, Owner, StartupOutcome, StartupPhase, StartupTimer};
 
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
 use crate::client_identity::{HEADLESS_CLIENT_TYPE, PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
-use xvora_shell::agent::auth_method::AuthMethodKind;
-use xvora_shell::agent::config::Config as AgentConfig;
-use xvora_shell::sampling::types::ReasoningEffort;
+use acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
+use shell::agent::auth_method::AuthMethodKind;
+use shell::agent::config::Config as AgentConfig;
+use shell::sampling::types::ReasoningEffort;
 
 pub use model_state::ModelState;
 
@@ -82,7 +82,7 @@ pub struct AcpConnection {
     pub available_commands: Vec<acp::AvailableCommand>,
     // NOTE: Startup announcements from InitializeResponse.meta are not yet supported.
     // Requires the shell to include announcements in initialize metadata
-    // When available, add field: startup_announcements: Option<Vec<xvora_announcements::RemoteAnnouncement>>
+    // When available, add field: startup_announcements: Option<Vec<announcements::RemoteAnnouncement>>
     /// Whether interactive login is required (deferred auth for `grok.com`).
     pub needs_login: bool,
     /// Login button label from `AuthMethod.name` (e.g., "grok.com", "Acme Corp").
@@ -109,7 +109,7 @@ pub struct AcpConnection {
     ///
     /// In-process mode shares the agent's instance (single token cache); leader mode builds a dedicated one off the same local `auth.json`.
     /// Either way it resolves a fresh bearer per request via the refresh chain.
-    pub auth_manager: std::sync::Arc<xvora_shell::auth::AuthManager>,
+    pub auth_manager: std::sync::Arc<shell::auth::AuthManager>,
 }
 
 /// CLI flags that affect agent configuration, threaded from PagerArgs.
@@ -145,7 +145,7 @@ pub struct ConnectFlags {
     /// Installer field for config.toml.
     pub installer: Option<String>,
     /// Remote settings from early prefetch (used for memory config resolution).
-    pub remote_settings: Option<xvora_shell::util::config::RemoteSettings>,
+    pub remote_settings: Option<shell::util::config::RemoteSettings>,
     /// Override the entire system prompt.
     pub system_prompt_override: Option<String>,
     /// Extra rules appended to the system prompt (from `--rules`).
@@ -154,7 +154,7 @@ pub struct ConnectFlags {
     pub reasoning_effort_override: Option<ReasoningEffort>,
     /// CLI permission rules from the --allow and --deny flags.
     /// Not supported in leader mode (agent config is set at leader startup).
-    pub permission_rules: Vec<xvora_workspace::permission::types::PermissionRule>,
+    pub permission_rules: Vec<workspace::permission::types::PermissionRule>,
     /// Seed agent sessions with always-approve (YOLO) permission mode.
     pub default_yolo_mode: bool,
     /// Seed agent sessions with auto (classifier) permission mode.
@@ -165,12 +165,12 @@ pub struct ConnectFlags {
 /// Connect to an agent: spawn, initialize, authenticate.
 pub async fn connect(cancel: &CancellationToken, flags: ConnectFlags) -> Result<AcpConnection> {
     startup::enter(StartupPhase::ConfigLoad);
-    let raw_config = xvora_shell::config::load_effective_config()
+    let raw_config = shell::config::load_effective_config()
         .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))?;
     let mut agent_config = AgentConfig::new_from_toml_cfg(&raw_config)
         .map_err(|e| anyhow::anyhow!("Failed to create agent config: {}", e))?;
 
-    agent_config.resolve_runtime_fields(&xvora_shell::agent::config::RuntimeResolutionContext {
+    agent_config.resolve_runtime_fields(&shell::agent::config::RuntimeResolutionContext {
         raw_config: &raw_config,
         remote_settings: flags.remote_settings.as_ref(),
         is_headless: false,
@@ -271,7 +271,7 @@ pub async fn connect_via_leader(
     flags: ConnectFlags,
     raw_config: &toml::Value,
 ) -> Result<AcpConnection> {
-    use xvora_shell::leader::{
+    use shell::leader::{
         ClientCapabilities, ClientMode, LeaderReconnector, ReconnectPolicy, connect_or_spawn,
     };
 
@@ -283,7 +283,7 @@ pub async fn connect_via_leader(
 
     startup::enter(StartupPhase::ConfigLoad);
     // The leader path never runs the managed-policy sync in this process.
-    startup::set_auth_mode(xvora_shell::managed_config::classify_auth_mode());
+    startup::set_auth_mode(shell::managed_config::classify_auth_mode());
     let mut agent_config = AgentConfig::new_from_toml_cfg(raw_config)
         .map_err(|e| anyhow::anyhow!("Failed to create agent config: {e}"))?;
     // resolve_telemetry_mode reads remote_settings.
@@ -293,7 +293,7 @@ pub async fn connect_via_leader(
         .client_identifier
         .as_deref()
         .unwrap_or(HEADLESS_CLIENT_TYPE);
-    let env_urls = xvora_shell::leader::LeaderEnvUrls::from(&agent_config.grok_com_config);
+    let env_urls = shell::leader::LeaderEnvUrls::from(&agent_config.grok_com_config);
     let capabilities = ClientCapabilities {
         // Leader agent is pre-running; capabilities carry the mode seeds into session meta
         yolo_mode: flags.default_yolo_mode,
@@ -364,8 +364,8 @@ pub async fn connect_via_leader(
     // Build a dedicated *non-refreshing* one over the same `auth.json`: skip `configure_refresher` so only the agent rotates the token
     // A second refresher would race rotation and could clear credentials on failure
     // This one just reads the valid token, and on expiry adopts the agent's disk-rotated token under the file lock (`try_adopt_disk_token`)
-    let auth_manager = std::sync::Arc::new(xvora_shell::auth::AuthManager::new(
-        &xvora_shell::util::grok_home::grok_home(),
+    let auth_manager = std::sync::Arc::new(shell::auth::AuthManager::new(
+        &shell::util::grok_home::grok_home(),
         agent_config.grok_com_config.clone(),
     ));
 
@@ -375,7 +375,7 @@ pub async fn connect_via_leader(
         leader: LeaderMode::Attached,
         interactivity: Interactivity::Interactive,
     });
-    xvora_shell::agent::init::update_telemetry_config(&agent_config, &auth_manager);
+    shell::agent::init::update_telemetry_config(&agent_config, &auth_manager);
 
     Ok(AcpConnection {
         tx,
@@ -436,7 +436,7 @@ fn unsupported_leader_flags(flags: &ConnectFlags) -> Vec<&'static str> {
 fn apply_config_writes(flags: &ConnectFlags) {
     // Use toml_edit to preserve existing config structure
     let config_path =
-        xvora_shell::util::grok_home::grok_home().join(xvora_config::USER_CONFIG_FILENAME);
+        shell::util::grok_home::grok_home().join(config::USER_CONFIG_FILENAME);
     let content = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut doc = content
         .parse::<toml_edit::DocumentMut>()
@@ -494,7 +494,7 @@ fn client_capabilities_meta(flags: &ConnectFlags) -> serde_json::Value {
         "x.ai/bashOutputNoColor": true,
         "x.ai/gitHeadChanged": true,
     });
-    meta[xvora_status_line::STATUS_LINE_CAPABILITY] = flags.status_line.into();
+    meta[status_line::STATUS_LINE_CAPABILITY] = flags.status_line.into();
     meta
 }
 
@@ -534,7 +534,7 @@ async fn initialize(
         .meta(build_initialize_meta(flags).as_object().cloned());
 
     let resp: acp::InitializeResponse = {
-        let _timer = xvora_telemetry::instrumentation::timer("acp_init.initialize_roundtrip");
+        let _timer = telemetry::instrumentation::timer("acp_init.initialize_roundtrip");
         acp_send(req, tx).await?
     };
 
@@ -756,7 +756,7 @@ async fn bounded_eager_auth(
     Option<serde_json::Value>,
 ) {
     match tokio::time::timeout(
-        xvora_shell::http::STARTUP_AUTH_REFRESH_TIMEOUT,
+        shell::http::STARTUP_AUTH_REFRESH_TIMEOUT,
         eager_auth_or_login_fallback(
             tx,
             auth_methods,
@@ -982,7 +982,7 @@ mod tests {
     /// This test pins the cross-crate contract that the pager actually consumes the shell's output as expected.
     #[test]
     fn shell_built_auth_methods_for_byok_user_skip_login_screen() {
-        use xvora_shell::agent::auth_method::{AuthMethodsBuildInputs, build_auth_methods};
+        use shell::agent::auth_method::{AuthMethodsBuildInputs, build_auth_methods};
 
         let built = build_auth_methods(AuthMethodsBuildInputs {
             // Enterprise-style: model has `env_key` set and the env var resolves, so the shell-side predicate returns true
@@ -1017,7 +1017,7 @@ mod tests {
     /// It then either passes or fails on a meaningful new code path.
     #[test]
     fn startup_auth_xai_api_key_not_first_still_requires_login() {
-        use xvora_shell::agent::auth_method::{GROK_COM_METHOD_ID, XAI_API_KEY_METHOD_ID};
+        use shell::agent::auth_method::{GROK_COM_METHOD_ID, XAI_API_KEY_METHOD_ID};
 
         let methods = vec![
             make_auth_method(GROK_COM_METHOD_ID, "Grok", None),
@@ -1148,7 +1148,7 @@ mod tests {
     /// The agent gates the whole payload on this key, so a misspelling on either side switches the feature off with nothing to show for it.
     #[test]
     fn client_capabilities_meta_advertises_the_status_line_the_config_asked_for() {
-        let key = xvora_status_line::STATUS_LINE_CAPABILITY;
+        let key = status_line::STATUS_LINE_CAPABILITY;
         for wants_a_row in [true, false] {
             let meta = client_capabilities_meta(&ConnectFlags {
                 status_line: wants_a_row,

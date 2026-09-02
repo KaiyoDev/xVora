@@ -4,8 +4,8 @@ pub mod grok_home;
 pub mod secure_file;
 pub mod tips;
 pub mod uname;
-pub use xvora_shared::clipboard;
-pub use xvora_shared::stderr::{stderr_lock, with_locked_stderr};
+pub use shared::clipboard;
+pub use shared::stderr::{stderr_lock, with_locked_stderr};
 /// Generate a pseudo-random f64 in [0.0, 1.0).
 ///
 /// Entropy comes entirely from `RandomState::new()`, which the OS seeds (via `getrandom`) on each call.
@@ -242,7 +242,7 @@ pub fn process_cmdline_args(pid: u32) -> Option<Vec<String>> {
         cmd.args(["-o", "args=", "-p", &pid.to_string()])
             .stdin(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         let output = cmd.output().ok()?;
         if !output.status.success() {
             return None;
@@ -307,7 +307,7 @@ pub fn is_grok_process(pid: u32) -> bool {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         cmd.status().is_ok_and(|s| s.success())
     }
 }
@@ -322,7 +322,7 @@ pub fn is_grok_process_strict(pid: u32) -> bool {
         cmd.args(["-p", &pid.to_string(), "-o", "comm="])
             .stdin(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         match cmd.output() {
             Ok(out) if out.status.success() => {
                 let comm = String::from_utf8_lossy(&out.stdout);

@@ -59,7 +59,7 @@ impl IdentityAttrs {
     /// only, filled by the shell after `from_snapshot`. Env-only API-key
     /// (no `GrokAuth` session) has no principal; we do not invent a
     /// per-install hash.
-    pub fn from_snapshot(snapshot: &xvora_auth::CredentialSnapshot) -> Self {
+    pub fn from_snapshot(snapshot: &auth::CredentialSnapshot) -> Self {
         Self {
             user_id: snapshot.user_id.clone(),
             email: None,

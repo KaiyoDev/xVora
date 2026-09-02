@@ -756,7 +756,7 @@
                 .cloned(),
         );
         let _ = handle(
-            AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
+            AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),

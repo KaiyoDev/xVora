@@ -7,8 +7,8 @@ use crate::session::ExtMethodResult;
 use agent_client_protocol as acp;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use xvora_workspace::file_system::ContentSearchRequest as ContentSearchRequestParams;
-use xvora_workspace::workspace_ops::{FuzzyChangeReq, FuzzyCloseReq, FuzzyOpenReq};
+use workspace::file_system::ContentSearchRequest as ContentSearchRequestParams;
+use workspace::workspace_ops::{FuzzyChangeReq, FuzzyCloseReq, FuzzyOpenReq};
 
 type ExtResult = Result<acp::ExtResponse, acp::Error>;
 

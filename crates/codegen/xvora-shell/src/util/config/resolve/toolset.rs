@@ -1,6 +1,6 @@
 use crate::util::config::RemoteSettings;
 use toml::Value as TomlValue;
-use xvora_tools::implementations::grok_build::ask_user_question;
+use tools::implementations::grok_build::ask_user_question;
 
 /// Resolve whether the bash-harness shadows that swap `find` for `bfs` and `grep` for `ugrep` are enabled.
 /// Precedence (highest first): `requirements.toml` (org policy, wins outright) > a truthy `DISABLE_EMBEDDED_SEARCH_TOOLS` master (forces off)
@@ -9,18 +9,18 @@ use xvora_tools::implementations::grok_build::ask_user_question;
 /// Pass the **merged** requirements ([`crate::config::load_merged_requirements`])
 /// so an org policy in any requirements layer — not only
 /// `~/.grok/requirements.toml` — is honored. Returns `(find_bfs, grep_ugrep)`,
-/// which the caller bakes into a [`xvora_tools::computer::local::SearchShadowConfig`] on the local terminal backend.
+/// which the caller bakes into a [`tools::computer::local::SearchShadowConfig`] on the local terminal backend.
 pub(crate) fn resolve_search_tools_enabled(
     requirements: Option<&TomlValue>,
     user: Option<&TomlValue>,
     managed: Option<&TomlValue>,
 ) -> (bool, bool) {
-    let disable = xvora_config::env_bool("DISABLE_EMBEDDED_SEARCH_TOOLS");
+    let disable = config::env_bool("DISABLE_EMBEDDED_SEARCH_TOOLS");
     fn from_toml(v: Option<&TomlValue>, key: &str) -> Option<bool> {
         v?.get("toolset")?.get("bash")?.get(key)?.as_bool()
     }
     let resolve = |primary: &str, alias: &str, key: &str| -> bool {
-        let env = xvora_config::env_bool(primary).or_else(|| xvora_config::env_bool(alias));
+        let env = config::env_bool(primary).or_else(|| config::env_bool(alias));
         resolve_search_tool_enabled(
             disable,
             from_toml(requirements, key),
@@ -40,9 +40,9 @@ pub(crate) fn resolve_search_tools_enabled(
 /// This is the authoritative parse; the `Config` field of the same name only feeds the unrecognized-key scan.
 pub(crate) fn resolve_shell_env_policy(
     effective_cfg: Option<&TomlValue>,
-) -> Option<xvora_tools::util::ShellEnvironmentPolicy> {
+) -> Option<tools::util::ShellEnvironmentPolicy> {
     let value = effective_cfg?.get("shell_environment_policy")?.clone();
-    match value.try_into::<xvora_tools::util::ShellEnvironmentPolicy>() {
+    match value.try_into::<tools::util::ShellEnvironmentPolicy>() {
         Ok(policy) => Some(policy),
         Err(error) => {
             tracing::warn!(
@@ -492,7 +492,7 @@ fn resolve_ask_user_question_timeout_secs_from_tiers(
         .or(managed)
         .or(remote)
         .unwrap_or(
-            xvora_tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT.as_secs(),
+            tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT.as_secs(),
         )
 }
 
@@ -507,7 +507,7 @@ fn resolve_ask_user_question_timeout_secs(
 ) -> u64 {
     resolve_ask_user_question_timeout_secs_from_tiers(
         ask_user_question_timeout_secs_from_toml(requirements),
-        xvora_tools::implementations::grok_build::ask_user_question::response_timeout_env_secs(),
+        tools::implementations::grok_build::ask_user_question::response_timeout_env_secs(),
         ask_user_question_timeout_secs_from_toml(user),
         ask_user_question_timeout_secs_from_toml(managed)
             .or_else(|| ask_user_question_timeout_secs_from_toml(system_managed)),
@@ -522,7 +522,7 @@ fn resolve_ask_user_question_timeout_secs(
 /// Both fields resolve to concrete values, so the tool's legacy env fallback only runs for consumers that skip this resolver.
 pub(crate) fn resolve_ask_user_question_params_from_disk(
     remote: Option<&RemoteSettings>,
-) -> xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionParams {
+) -> tools::implementations::grok_build::ask_user_question::AskUserQuestionParams {
     let requirements = crate::config::load_merged_requirements();
     let layers = match crate::config::ConfigLayers::load() {
         Ok(l) => Some(l),
@@ -534,7 +534,7 @@ pub(crate) fn resolve_ask_user_question_params_from_disk(
     let user = layers.as_ref().map(|l| &l.user);
     let managed = layers.as_ref().map(|l| &l.managed);
     let system_managed = layers.as_ref().map(|l| &l.system_managed);
-    xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionParams {
+    tools::implementations::grok_build::ask_user_question::AskUserQuestionParams {
         timeout_enabled: Some(
             resolve_ask_user_question_timeout_enabled(
                 requirements.as_ref(),
@@ -667,7 +667,7 @@ fn web_search_options_from_section(
 mod web_search_domains_tests {
     use super::*;
 
-    // Cross-layer precedence and allow/exclude atomicity live in ConfigLayers (see `xvora_config::loader` normalization tests)
+    // Cross-layer precedence and allow/exclude atomicity live in ConfigLayers (see `config::loader` normalization tests)
     // These cover only the section-shaping this module still owns: extraction, the max-5 cap, and the defensive both-set degrade
     fn section(body: &str) -> TomlValue {
         let full: TomlValue = toml::from_str(&format!("[toolset.web_search]\n{body}\n")).unwrap();
@@ -735,7 +735,7 @@ mod web_search_domains_tests {
 mod ask_user_question_timeout_tests {
     use super::*;
     use crate::agent::config::ConfigSource;
-    use xvora_tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT_ENV;
+    use tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT_ENV;
 
     // Both env vars are process-global (a dev exports the secs var for TUI repro); serialize and force them unset so these tests can't go flaky
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -811,7 +811,7 @@ mod ask_user_question_timeout_tests {
     #[test]
     fn timeout_secs_tier_precedence() {
         let d =
-            xvora_tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT.as_secs();
+            tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT.as_secs();
         let r = resolve_ask_user_question_timeout_secs_from_tiers;
         assert_eq!(r(None, None, None, None, None), d);
         assert_eq!(r(Some(1), Some(2), Some(3), Some(4), Some(5)), 1); // requirements highest
@@ -825,7 +825,7 @@ mod ask_user_question_timeout_tests {
     fn timeout_secs_rejects_non_positive_layers() {
         let _g = guard();
         let d =
-            xvora_tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT.as_secs();
+            tools::implementations::grok_build::ask_user_question::RESPONSE_TIMEOUT.as_secs();
         // user 0 and managed negative are dropped; remote fills the gap.
         let zero = toml_ask("timeout_secs = 0");
         let negative = toml_ask("timeout_secs = -5");
@@ -960,7 +960,7 @@ mod tests {
 #[cfg(test)]
 mod shell_env_policy_tests {
     use super::*;
-    use xvora_tools::util::{EnvironmentVariablePattern, ShellEnvironmentPolicyInherit};
+    use tools::util::{EnvironmentVariablePattern, ShellEnvironmentPolicyInherit};
 
     #[test]
     fn resolve_shell_env_policy_absent_parsed_typo_and_typed_error() {

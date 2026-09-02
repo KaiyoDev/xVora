@@ -11,7 +11,7 @@ use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
-use xvora_workspace::session::file_state::RewindPoint;
+use workspace::session::file_state::RewindPoint;
 mod copy;
 #[derive(Clone)]
 enum SessionDirMode {
@@ -1145,7 +1145,7 @@ async fn next_compaction_segment_index(compaction_dir: &std::path::Path) -> u64 
         if let Some(n) = entry
             .file_name()
             .to_str()
-            .and_then(xvora_compaction_transcript::parse_segment_index)
+            .and_then(compaction_transcript::parse_segment_index)
         {
             next = next.max(n + 1);
         }
@@ -1679,7 +1679,7 @@ impl StorageAdapter for JsonlStorageAdapter {
     async fn merge_rewind_points_from(&self, info: &Info, target_index: usize) -> io::Result<()> {
         let points = self.load_rewind_points(info).await?;
         let merged =
-            xvora_workspace::session::file_state::merge_rewind_points_from(points, target_index);
+            workspace::session::file_state::merge_rewind_points_from(points, target_index);
         self.write_jsonl(self.rewind_points_file(info), &merged)
             .await
     }
@@ -1880,7 +1880,7 @@ impl StorageAdapter for JsonlStorageAdapter {
         segment: &crate::extensions::notification::CompactionSegmentFile,
     ) -> io::Result<()> {
         use tokio::io::AsyncWriteExt;
-        use xvora_compaction_transcript::{
+        use compaction_transcript::{
             COMPACTION_DIR, INDEX_FILE, INDEX_HEADER, extract_keywords, render_index_row,
             render_segment_md, segment_filename,
         };

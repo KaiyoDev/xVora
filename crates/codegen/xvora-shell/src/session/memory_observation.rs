@@ -1,8 +1,8 @@
-use xvora_memory::{
+use memory::{
     MemoryObservationSink, MemoryRetrievalMode, MemorySearchErrorClass, MemorySearchObservation,
     MemorySearchSource, MemoryWatcherSyncObservation,
 };
-use xvora_telemetry::memory_telemetry::{
+use telemetry::memory_telemetry::{
     MemoryInjection, MemoryInjectionOutcome, MemorySearch,
     MemorySearchErrorClass as TelemetryErrorClass, MemorySearchMode as TelemetryMode,
     MemorySearchOutcome as TelemetryOutcome, MemorySearchSource as TelemetrySource,
@@ -28,7 +28,7 @@ pub(crate) fn log_memory_injection(
     outcome: MemoryInjectionOutcome,
     metrics: MemoryInjectionMetrics,
 ) {
-    xvora_telemetry::session_ctx::log_event(MemoryInjection {
+    telemetry::session_ctx::log_event(MemoryInjection {
         session_id,
         outcome,
         was_greeting_fallback: metrics.is_greeting_fallback,
@@ -42,7 +42,7 @@ pub(crate) fn log_memory_injection(
 
 impl MemoryObservationSink for TelemetryMemoryObservationSink {
     fn observe_search(&self, observation: MemorySearchObservation) {
-        xvora_telemetry::session_ctx::log_event(MemorySearch {
+        telemetry::session_ctx::log_event(MemorySearch {
             session_id: self.session_id.clone(),
             source: match observation.source {
                 MemorySearchSource::Tool => TelemetrySource::Tool,
@@ -55,9 +55,9 @@ impl MemoryObservationSink for TelemetryMemoryObservationSink {
                 MemoryRetrievalMode::EmbeddingFallback => TelemetryMode::EmbeddingFallback,
             },
             outcome: match observation.outcome {
-                xvora_memory::MemorySearchOutcome::Results => TelemetryOutcome::Results,
-                xvora_memory::MemorySearchOutcome::Empty => TelemetryOutcome::Empty,
-                xvora_memory::MemorySearchOutcome::Error => TelemetryOutcome::Error,
+                memory::MemorySearchOutcome::Results => TelemetryOutcome::Results,
+                memory::MemorySearchOutcome::Empty => TelemetryOutcome::Empty,
+                memory::MemorySearchOutcome::Error => TelemetryOutcome::Error,
             },
             query_length: observation.query_length,
             keyword_count: observation.keyword_count,
@@ -77,7 +77,7 @@ impl MemoryObservationSink for TelemetryMemoryObservationSink {
     }
 
     fn observe_watcher_sync(&self, observation: MemoryWatcherSyncObservation) {
-        xvora_telemetry::session_ctx::log_event(MemoryWatcherSync {
+        telemetry::session_ctx::log_event(MemoryWatcherSync {
             session_id: self.session_id.clone(),
             dirty_file_count: observation.dirty_file_count,
             claimed: observation.is_claimed,

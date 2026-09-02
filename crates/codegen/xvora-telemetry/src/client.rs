@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use chrono::{Local, SecondsFormat};
 use serde_json::json;
-use xvora_mixpanel::Mixpanel;
+use mixpanel::Mixpanel;
 
 use crate::config::{TelemetryConfig, TelemetryMode, deployment_id_from_key};
 use crate::http::OriginClientInfo;
@@ -229,7 +229,7 @@ impl EventEnrichment {
             is_interactive: identity.map(|i| i.interactivity == Interactivity::Interactive),
             is_ci: *IS_CI.get_or_init(is_ci_env),
             release_channel: crate::process_info::release_channel().map(|c| c.as_str()),
-            dev_build: xvora_version::IS_DEV_BUILD,
+            dev_build: version::IS_DEV_BUILD,
             os: std::env::consts::OS,
             arch: std::env::consts::ARCH,
             cpu_cores: process.cpu_cores,

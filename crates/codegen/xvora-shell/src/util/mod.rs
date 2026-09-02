@@ -8,8 +8,8 @@ pub(crate) mod text_sanitize;
 pub(crate) mod user_identity;
 
 // The foundation utilities live in `xvora-shell-base` (upstream of this crate so they build in parallel)
-// Re-exported at the original paths so existing `crate::util::…` and `xvora_shell::util::…` users compile unchanged
-pub use xvora_shell_base::util::*;
+// Re-exported at the original paths so existing `crate::util::…` and `shell::util::…` users compile unchanged
+pub use shell_base::util::*;
 
 pub(crate) fn is_user_instruction_path(
     path: &std::path::Path,
@@ -53,11 +53,11 @@ impl Drop for AbortOnDrop {
 /// Expand a leading `~` to the home directory; other paths pass through.
 pub(crate) fn expand_home(s: &str) -> std::path::PathBuf {
     if let Some(stripped) = s.strip_prefix("~/") {
-        if let Some(home) = xvora_dirs::home_dir() {
+        if let Some(home) = dirs::home_dir() {
             return home.join(stripped);
         }
     } else if s == "~"
-        && let Some(home) = xvora_dirs::home_dir()
+        && let Some(home) = dirs::home_dir()
     {
         return home;
     }
@@ -86,13 +86,13 @@ mod expand_home_tests {
 
     #[test]
     fn bare_tilde() {
-        let home = xvora_dirs::home_dir().expect("home_dir required for this test");
+        let home = dirs::home_dir().expect("home_dir required for this test");
         assert_eq!(expand_home("~"), home);
     }
 
     #[test]
     fn tilde_slash() {
-        let home = xvora_dirs::home_dir().expect("home_dir required for this test");
+        let home = dirs::home_dir().expect("home_dir required for this test");
         assert_eq!(expand_home("~/foo/bar"), home.join("foo/bar"));
     }
 

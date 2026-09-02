@@ -820,7 +820,7 @@ impl FileStateTracker {
 }
 
 // Canonical in xvora-workspace-types; re-exported for existing paths.
-pub use xvora_workspace_types::rpc::session::{
+pub use workspace_types::rpc::session::{
     ConflictType, FileRewindConflict, FileRewindResponse,
 };
 

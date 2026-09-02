@@ -31,10 +31,10 @@ use common::{
     FakeBinGuard, can_exec_shell_scripts, host_platform, make_update_config, reset_home,
     set_test_version, small_good_artifact, test_home,
 };
-use xvora_update::auto_update::{
+use update::auto_update::{
     CliUpdateTrigger, ensure_latest_on_disk, install_internal_from_base, run_update,
 };
-use xvora_update::version::installed_on_disk_version;
+use update::version::installed_on_disk_version;
 
 /// Assert the active `~/.grok/bin/grok` resolves to the expected versioned
 /// binary, actually runs, and has exactly the expected content (the content

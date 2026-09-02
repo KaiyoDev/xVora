@@ -2,7 +2,7 @@
 //! Colors come from the `md_*` fields on the current [`Theme`], which are already quantized to the terminal's color capability level.
 
 use anstyle::{Ansi256Color, AnsiColor, Color, Style};
-use xvora_markdown::MarkdownStyle;
+use markdown::MarkdownStyle;
 
 /// Convert `ratatui::style::Color` to `anstyle::Color`.
 ///

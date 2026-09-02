@@ -15,7 +15,7 @@ fn acp_update(session_update_json: &str) -> String {
     )
 }
 
-fn xvora_update(session_update_json: &str) -> String {
+fn update(session_update_json: &str) -> String {
     format!(
         r#"{{"timestamp":1,"method":"_x.ai/session/update","params":{{"sessionId":"s","update":{session_update_json}}}}}"#
     )
@@ -127,7 +127,7 @@ fn test_single_pass_handles_rewind() {
         acp_update(
             r#"{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"second reply"}}"#,
         ),
-        xvora_update(
+        update(
             r#"{"sessionUpdate":"rewind_marker","target_prompt_index":1,"created_at":"2024-01-01"}"#,
         ),
         acp_update(

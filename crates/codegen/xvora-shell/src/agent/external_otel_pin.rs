@@ -374,7 +374,7 @@ pub fn getenv_with_pins<'a>(
 /// Sentry, Tokio, `build_otel_layer`, or `external::init`. Do not call
 /// from `run()`, `init_tracing`, or `init_tracing_simple`.
 pub unsafe fn strip_conflicting_process_env() {
-    let Some(req) = xvora_config::load_merged_requirements() else {
+    let Some(req) = config::load_merged_requirements() else {
         return;
     };
     // SAFETY: caller contract — single-threaded composition root.

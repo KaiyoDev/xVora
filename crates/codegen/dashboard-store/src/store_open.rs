@@ -25,7 +25,7 @@ impl WorkspaceStore {
     /// [`crate::StoreError::Sqlite`] otherwise.
     pub fn open(db_path: &Path) -> Result<Self> {
         if let Some(parent) = db_path.parent() {
-            xvora_config::create_dir_all_owner_only(parent)?;
+            config::create_dir_all_owner_only(parent)?;
         }
         let mode = JournalMode::for_db_path(db_path);
         let effective = mode.effective_db_path(db_path);

@@ -1,7 +1,7 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use serde_json::json;
-use xvora_tools::mcp_elicitation::{
+use tools::mcp_elicitation::{
     ElicitFieldKind, McpElicitExtRequest, McpElicitExtResponse, McpElicitModeFields,
 };
 

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use agent_client_protocol::{self as acp};
-use xvora_workspace::session::file_state::{FileSnapshot, FlexiblePath, RewindPoint};
+use workspace::session::file_state::{FileSnapshot, FlexiblePath, RewindPoint};
 
 use crate::session::info::Info;
 use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};

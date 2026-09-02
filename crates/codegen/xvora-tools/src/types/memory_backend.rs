@@ -10,8 +10,8 @@
 /// Tracing target for memory system events.
 ///
 /// Use `tracing::info!(target: MEMORY_LOG_TARGET, ...)` in `xvora-tools`.
-/// Mirrors `xvora_shell::session::memory_log::TARGET`.
-pub const MEMORY_LOG_TARGET: &str = "xvora_memory";
+/// Mirrors `shell::session::memory_log::TARGET`.
+pub const MEMORY_LOG_TARGET: &str = "memory";
 
 /// Staleness threshold (days): show a note suggesting verification.
 const STALE_NOTE_DAYS: f64 = 1.0;

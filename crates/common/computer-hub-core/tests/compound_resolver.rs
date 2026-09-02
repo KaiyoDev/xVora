@@ -9,18 +9,18 @@ use async_trait::async_trait;
 
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use xvora_computer_hub_core::{
+use computer_hub_core::{
     CompoundResolver, ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport,
     ToolHandle, ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome,
 };
-use xvora_tool_protocol::{
+use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind, UserId,
 };
-use xvora_tool_runtime::{
+use tool_runtime::{
     SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError, ToolStreamItem,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EmptyArgs {}
@@ -38,7 +38,7 @@ impl Tool for StubTool {
         self.id.clone()
     }
 
-    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new(self.id.as_str(), format!("stub for {}", self.id))
     }
 
@@ -178,15 +178,15 @@ impl ToolRegistry for PlaneRegistry {
 
     fn list_servers_for_user(
         &self,
-        _user_id: &xvora_tool_protocol::UserId,
-    ) -> Vec<xvora_computer_hub_core::registry::ServerRecord> {
+        _user_id: &tool_protocol::UserId,
+    ) -> Vec<computer_hub_core::registry::ServerRecord> {
         Vec::new()
     }
 
     fn get_server_record(
         &self,
         _connection_id: &ConnectionId,
-    ) -> Option<xvora_computer_hub_core::registry::ServerRecord> {
+    ) -> Option<computer_hub_core::registry::ServerRecord> {
         None
     }
 }
@@ -312,7 +312,7 @@ async fn resolve_and_dispatch_misses_yield_terminal_not_found() {
     let item = stream.next().await.expect("terminal");
     match item {
         ToolStreamItem::Terminal(Err(ref e))
-            if e.kind == xvora_tool_runtime::ToolErrorKind::NotFound =>
+            if e.kind == tool_runtime::ToolErrorKind::NotFound =>
         {
             assert!(
                 e.detail.contains("missing"),

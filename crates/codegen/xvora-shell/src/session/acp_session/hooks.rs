@@ -9,7 +9,7 @@ use serde_json::value::RawValue;
 use xvora_hooks::event::{
     HookEventEnvelope, HookEventName, HookPayload, MAX_HOOK_FEEDBACK_CHARS, clip_text,
 };
-use xvora_telemetry::events::{ClientHookGateOutcome, HookBlockCause};
+use telemetry::events::{ClientHookGateOutcome, HookBlockCause};
 
 use super::{SessionActor, ToolLoop};
 use crate::extensions::hooks::{
@@ -235,7 +235,7 @@ impl SessionActor {
         cause: HookBlockCause,
         detail: &str,
     ) -> Result<ToolLoop, acp::Error> {
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::HookBlocked {
+        telemetry::session_ctx::log_event(telemetry::events::HookBlocked {
             hook_name: hook_name.clone(),
             cause,
         });
@@ -285,8 +285,8 @@ impl SessionActor {
                     let (response, gate_outcome) =
                         classify(self.send_hook_run(&dispatch, timeout).await);
                     let elapsed = started.elapsed();
-                    xvora_telemetry::session_ctx::log_event(
-                        xvora_telemetry::events::ClientHookGate {
+                    telemetry::session_ctx::log_event(
+                        telemetry::events::ClientHookGate {
                             callback_id: callback_id.to_string(),
                             tool_name: tool_name.map(str::to_string),
                             outcome: gate_outcome,

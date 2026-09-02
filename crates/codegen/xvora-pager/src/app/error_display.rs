@@ -33,13 +33,13 @@ impl WireErrorType {
         match s {
             "auth_transient" => Self::AuthTransient,
             "legacy_auth" => Self::LegacyAuth,
-            s if s == xvora_shell::extensions::notification::CONTEXT_LENGTH_ERROR_TYPE => {
+            s if s == shell::extensions::notification::CONTEXT_LENGTH_ERROR_TYPE => {
                 Self::ContextLength
             }
             "encrypted_content_mismatch" => Self::EncryptedContentMismatch,
-            s if s == xvora_shell::extensions::notification::DISK_FULL_ERROR_TYPE => Self::DiskFull,
+            s if s == shell::extensions::notification::DISK_FULL_ERROR_TYPE => Self::DiskFull,
             s => s
-                .parse::<xvora_shell::sampling::error::SamplingErrorKind>()
+                .parse::<shell::sampling::error::SamplingErrorKind>()
                 .map(Into::into)
                 .unwrap_or(Self::Other),
         }
@@ -53,9 +53,9 @@ pub(crate) fn wire_error_kind(raw: Option<&str>) -> Option<WireErrorType> {
 }
 
 /// The shared vocabulary maps 1:1 onto the pager's wire types; kinds without their own copy render as [`Self::Other`].
-impl From<xvora_shell::sampling::error::SamplingErrorKind> for WireErrorType {
-    fn from(kind: xvora_shell::sampling::error::SamplingErrorKind) -> Self {
-        use xvora_shell::sampling::error::SamplingErrorKind as K;
+impl From<shell::sampling::error::SamplingErrorKind> for WireErrorType {
+    fn from(kind: shell::sampling::error::SamplingErrorKind) -> Self {
+        use shell::sampling::error::SamplingErrorKind as K;
         match kind {
             K::Auth => Self::Auth,
             K::Http => Self::Http,
@@ -202,7 +202,7 @@ pub(crate) fn format_request_failure(
 fn truncation_recovered_from_untyped_raw(error_type: Option<WireErrorType>, raw: &str) -> bool {
     error_type.is_none()
         && parse_http_status(raw).is_none()
-        && raw.contains(xvora_shell::sampling::error::MAX_TOKENS_TRUNCATION_MESSAGE)
+        && raw.contains(shell::sampling::error::MAX_TOKENS_TRUNCATION_MESSAGE)
 }
 
 fn refine_untyped_wire(

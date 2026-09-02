@@ -1,8 +1,8 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
-use xvora_sampler::SamplerConfig;
-use xvora_tools::implementations::grok_build;
-use xvora_tools::registry::types::ToolConfig;
+use sampler::SamplerConfig;
+use tools::implementations::grok_build;
+use tools::registry::types::ToolConfig;
 
 /// The tool-server binary defaults to a 5-minute foreground ceiling (`DEFAULT_MAX_TIMEOUT_MS`).
 /// Production opts *up* to 10h by sending this explicitly, overridable via config.toml.
@@ -111,7 +111,7 @@ impl WebFetchToolConfig {
         remote_proxy: Option<&str>,
         remote_domains: Option<&[String]>,
         context_window_tokens: Option<u64>,
-    ) -> xvora_tools::implementations::grok_build::web_fetch::WebFetchParams {
+    ) -> tools::implementations::grok_build::web_fetch::WebFetchParams {
         use crate::agent::config::env_string;
 
         let proxy_endpoint = self
@@ -129,9 +129,9 @@ impl WebFetchToolConfig {
 
         let allow_local = self
             .allow_local
-            .or_else(|| xvora_config::env_bool("GROK_WEB_FETCH_ALLOW_LOCAL"));
+            .or_else(|| config::env_bool("GROK_WEB_FETCH_ALLOW_LOCAL"));
 
-        xvora_tools::implementations::grok_build::web_fetch::WebFetchParams {
+        tools::implementations::grok_build::web_fetch::WebFetchParams {
             proxy_endpoint,
             allowed_domains,
             context_window_tokens,
@@ -142,7 +142,7 @@ impl WebFetchToolConfig {
 }
 
 /// This is the *shell-side* config that holds sampling-level settings (e.g., web search API key from the sampling client).
-/// It is distinct from `xvora_tools::registry::types::ToolsetConfig` which holds tool-implementation-level config (bash limits, web search mode).
+/// It is distinct from `tools::registry::types::ToolsetConfig` which holds tool-implementation-level config (bash limits, web search mode).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ShellToolsetConfig {
@@ -418,8 +418,8 @@ mod tests {
             .unwrap();
 
         for mut def in [
-            xvora_agent::config::AgentDefinition::plan(),
-            xvora_agent::config::AgentDefinition::explore(),
+            agent::config::AgentDefinition::plan(),
+            agent::config::AgentDefinition::explore(),
         ] {
             let name = def.name.clone();
             assert!(

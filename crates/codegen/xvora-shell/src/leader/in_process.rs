@@ -7,7 +7,7 @@ use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader, simplex};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_util::compat::{TokioAsyncReadCompatExt as _, TokioAsyncWriteCompatExt as _};
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
@@ -40,7 +40,7 @@ pub fn spawn_agent(
             });
         tokio::task::spawn_local(
             GatewayReceiver::new(gateway_rx, conn)
-                .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
+                .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
                 .run(),
         );
         let _ = handle_io.await;

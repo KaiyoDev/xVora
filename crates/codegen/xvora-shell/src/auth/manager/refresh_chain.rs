@@ -71,7 +71,7 @@ impl AuthManager {
                 return Ok(refreshed);
             }
             // Debug: the verdict transition is already logged once by `record_permanent_failure`.
-            xvora_telemetry::unified_log::debug(
+            telemetry::unified_log::debug(
                 "auth: refresh_chain short-circuit on permanent failure",
                 /*sid*/ None,
                 Some(serde_json::json!({
@@ -178,7 +178,7 @@ impl AuthManager {
             // Claim the slot before re-checking the gate: a sleep either sees our slot (and waits for us) or we see its gate and back out
             let _in_flight = InFlightGuard::new(self);
             if self.is_sleep_gated() {
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "auth.sleep.refresh_deferred",
                     /*sid*/ None,
                     Some(serde_json::json!({
@@ -193,12 +193,12 @@ impl AuthManager {
             }
             // A dark wake sends no `WillSleep`, so hold the system awake for the exchange.
             let _awake = if self.is_dark_wake() {
-                xvora_telemetry::unified_log::debug(
+                telemetry::unified_log::debug(
                     "auth.refresh.dark_wake_assertion",
                     /*sid*/ None,
                     Some(serde_json::json!({ "reason": format!("{reason:?}") })),
                 );
-                xvora_system_power::hold_awake("grok: OIDC token refresh")
+                system_power::hold_awake("grok: OIDC token refresh")
             } else {
                 None
             };
@@ -284,7 +284,7 @@ impl AuthManager {
                 payload["error"] = error.to_string().into();
             }
         }
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "auth.refresh.lock_timeout",
             /*sid*/ None,
             Some(payload),
@@ -334,7 +334,7 @@ impl AuthManager {
     fn defer_refresh_for_power_state(&self, reason: RefreshReason) -> Result<(), AuthError> {
         match self.power_state_deferral(reason) {
             Some(RefreshDeferral::SleepImminent { has_live_token }) => {
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "auth.sleep.refresh_deferred",
                     /*sid*/ None,
                     Some(serde_json::json!({
@@ -347,7 +347,7 @@ impl AuthManager {
                 ))
             }
             Some(RefreshDeferral::DarkWake) => {
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "auth.dark_wake.refresh_deferred",
                     /*sid*/ None,
                     Some(serde_json::json!({ "reason": format!("{reason:?}") })),
@@ -373,14 +373,14 @@ impl AuthManager {
         if file_lock.still_live(&self.path) {
             return Ok(LockOutcome::Held(file_lock));
         }
-        xvora_telemetry::unified_log::warn(
+        telemetry::unified_log::warn(
             "auth.refresh.lock_lost_before_idp",
             /*sid*/ None,
             Some(serde_json::json!({ "reason": format!("{reason:?}") })),
         );
         let replacer = lock::read_holder_at(&self.path);
-        xvora_telemetry::session_ctx::log_event(
-            xvora_telemetry::events::AuthLockReplacedOutFromUnder {
+        telemetry::session_ctx::log_event(
+            telemetry::events::AuthLockReplacedOutFromUnder {
                 holder_pid: replacer.and_then(|h| h.pid),
                 holder_state: replacer.map(|h| h.state.label()),
                 holder_age_secs: replacer.and_then(|h| h.age_secs),

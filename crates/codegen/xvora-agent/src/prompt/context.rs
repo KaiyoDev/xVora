@@ -69,8 +69,8 @@ pub enum PromptAudience {
     /// Child/subagent session. Compact base template, no persona/subagent catalogs.
     Subagent,
 }
-use xvora_tools::bridge::ToolBridge;
-use xvora_tools::types::template_renderer::TemplateRenderer;
+use tools::bridge::ToolBridge;
+use tools::types::template_renderer::TemplateRenderer;
 /// Agent-specific inputs for system prompt rendering.
 ///
 /// Serializable (JSON/YAML) so users can dump it and inspect fields.

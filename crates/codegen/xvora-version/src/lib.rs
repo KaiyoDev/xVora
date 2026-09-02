@@ -42,7 +42,7 @@ pub fn installed_semver() -> Result<Version, semver::Error> {
 }
 
 /// Formats the compiled version with a channel label for user-facing display, e.g. `"0.2.5 [stable]"`.
-/// `channel_label` is pre-formatted by `xvora_update::channel_label()`: `" [alpha]"`, `" [stable]"`, or `""` when no pointer is cached.
+/// `channel_label` is pre-formatted by `update::channel_label()`: `" [alpha]"`, `" [stable]"`, or `""` when no pointer is cached.
 pub fn display_version(channel_label: &str) -> String {
     format!("{}{}", VERSION, channel_label)
 }

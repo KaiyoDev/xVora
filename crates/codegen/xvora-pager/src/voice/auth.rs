@@ -10,8 +10,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use xvora_tools::types::SharedApiKeyProvider;
-use xvora_voice::{SharedVoiceAuth, VoiceAuthProvider};
+use tools::types::SharedApiKeyProvider;
+use voice::{SharedVoiceAuth, VoiceAuthProvider};
 
 /// Adapts the shell's `ApiKeyProvider` onto [`VoiceAuthProvider`].
 ///
@@ -34,8 +34,8 @@ impl VoiceAuthProvider for AuthManagerVoiceAuth {
 /// Build the voice bearer provider from the connection's `AuthManager`.
 ///
 /// Works for every auth method: OAuth / grok.com / OIDC session tokens and `XAI_API_KEY` / per-model BYOK keys.
-pub fn build_voice_auth(auth_manager: Arc<xvora_shell::auth::AuthManager>) -> SharedVoiceAuth {
+pub fn build_voice_auth(auth_manager: Arc<shell::auth::AuthManager>) -> SharedVoiceAuth {
     Arc::new(AuthManagerVoiceAuth(
-        xvora_shell::auth::shared_api_key_provider(auth_manager),
+        shell::auth::shared_api_key_provider(auth_manager),
     ))
 }

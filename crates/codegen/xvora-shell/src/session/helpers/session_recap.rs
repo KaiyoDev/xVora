@@ -67,7 +67,7 @@ pub(crate) fn build_instruction_items(
     strip_reasoning: bool,
 ) -> Vec<ConversationItem> {
     let mut items = if strip_reasoning {
-        xvora_chat_state::compaction_utils::strip_reasoning_blocks(conversation)
+        chat_state::compaction_utils::strip_reasoning_blocks(conversation)
     } else {
         conversation
     };

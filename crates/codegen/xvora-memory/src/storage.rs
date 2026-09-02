@@ -5,9 +5,9 @@
 
 use std::path::{Path, PathBuf};
 
-use xvora_tools::util::grok_home::grok_home;
+use tools::util::grok_home::grok_home;
 
-/// Write-operation scope. Distinct from `xvora_agent::config::MemoryScope` (agent memory dir).
+/// Write-operation scope. Distinct from `agent::config::MemoryScope` (agent memory dir).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryScope {
     /// Global memory, shared across all workspaces.
@@ -101,8 +101,8 @@ impl MemoryStorage {
     /// Returns 0 if the index doesn't exist or the query fails.
     pub fn total_chunk_count(&self) -> usize {
         let db_path = self.workspace_dir.join("index.sqlite");
-        // Journal-mode-aware open: never mmap a legacy WAL -shm on network mounts (SIGBUS); see xvora_sqlite_journal::JournalMode::open_readonly
-        xvora_sqlite_journal::JournalMode::for_db_path(&db_path)
+        // Journal-mode-aware open: never mmap a legacy WAL -shm on network mounts (SIGBUS); see sqlite_journal::JournalMode::open_readonly
+        sqlite_journal::JournalMode::for_db_path(&db_path)
             .open_readonly(&db_path)
             .and_then(|c| c.query_row("SELECT COUNT(*) FROM chunks", [], |r| r.get::<_, i64>(0)))
             .unwrap_or(0) as usize

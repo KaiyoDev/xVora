@@ -16,8 +16,8 @@ use crate::handle::WorkspaceHandle;
 use crate::workspace_ops::WorkspaceOp;
 
 // Canonical in xvora-workspace-types; re-exported for existing paths.
-use xvora_workspace_types::rpc::fs::FsReadEncoding;
-pub use xvora_workspace_types::rpc::fs::{
+use workspace_types::rpc::fs::FsReadEncoding;
+pub use workspace_types::rpc::fs::{
     FsDeleteFileReq, FsExistsData, FsExistsReq, FsListData, FsListNode, FsListReq, FsReadFileData,
     FsReadFileReq, FsWriteFileReq,
 };

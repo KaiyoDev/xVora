@@ -3,7 +3,7 @@ use std::time::SystemTime;
 
 use agent_client_protocol as acp;
 use pretty_assertions::assert_eq;
-use xvora_tools::computer::types::TaskKind;
+use tools::computer::types::TaskKind;
 
 use super::*;
 

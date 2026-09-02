@@ -13,15 +13,15 @@ use computer_hub_mcp_adapter::{
 };
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde_json::Value;
-use xvora_computer_hub_sdk::ToolServerHandler;
-use xvora_mcp::rmcp;
-use xvora_mcp::servers::{
+use computer_hub_sdk::ToolServerHandler;
+use mcp::rmcp;
+use mcp::servers::{
     MCP_TOOL_NAME_DELIMITER, McpClient, McpClientTimeoutOverrides, McpSpawnCtx, OauthInteractivity,
     parse_mcp_qualified_name,
 };
-use xvora_tool_protocol::{SessionId, ToolId};
-use xvora_tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
-use xvora_tool_types::ToolDescription;
+use tool_protocol::{SessionId, ToolId};
+use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
+use tool_types::ToolDescription;
 
 use crate::error::{WorkspaceError, WorkspaceResult};
 use crate::session::{SessionMcpServer, WorkspaceMcpBinding, WorkspaceSession};
@@ -31,7 +31,7 @@ use crate::session::{SessionMcpServer, WorkspaceMcpBinding, WorkspaceSession};
 /// both directions.
 ///
 /// Implemented by the production
-/// [`ToolServer`](xvora_computer_hub_sdk::ToolServer). The seam exists so the
+/// [`ToolServer`](computer_hub_sdk::ToolServer). The seam exists so the
 /// reload tests can substitute an in-memory hub — a real `ToolServer` cannot
 /// be built without a live hub connection.
 pub(crate) trait HubToolRegistry: Send + Sync {
@@ -45,23 +45,23 @@ pub(crate) trait HubToolRegistry: Send + Sync {
         handler: Arc<dyn ToolServerHandler>,
         sessions: Vec<SessionId>,
         life: u64,
-    ) -> impl Future<Output = Result<(), xvora_computer_hub_sdk::ClientError>> + Send;
+    ) -> impl Future<Output = Result<(), computer_hub_sdk::ClientError>> + Send;
 
     fn unregister_tool_dynamic(
         &self,
         tool_id: &ToolId,
         session_id: &SessionId,
         life: u64,
-    ) -> impl Future<Output = Result<bool, xvora_computer_hub_sdk::ClientError>> + Send;
+    ) -> impl Future<Output = Result<bool, computer_hub_sdk::ClientError>> + Send;
 }
 
-impl HubToolRegistry for xvora_computer_hub_sdk::ToolServer {
+impl HubToolRegistry for computer_hub_sdk::ToolServer {
     async fn register_tool_dynamic(
         &self,
         handler: Arc<dyn ToolServerHandler>,
         sessions: Vec<SessionId>,
         life: u64,
-    ) -> Result<(), xvora_computer_hub_sdk::ClientError> {
+    ) -> Result<(), computer_hub_sdk::ClientError> {
         Self::register_tool_dynamic(self, handler, sessions, life).await
     }
 
@@ -70,7 +70,7 @@ impl HubToolRegistry for xvora_computer_hub_sdk::ToolServer {
         tool_id: &ToolId,
         session_id: &SessionId,
         life: u64,
-    ) -> Result<bool, xvora_computer_hub_sdk::ClientError> {
+    ) -> Result<bool, computer_hub_sdk::ClientError> {
         Self::unregister_tool_dynamic(self, tool_id, session_id, life).await
     }
 }
@@ -88,14 +88,14 @@ impl McpClientTransportAdapter {
 
 #[async_trait]
 impl McpTransport for McpClientTransportAdapter {
-    async fn initialize(&self) -> Result<McpServerInfo, xvora_computer_hub_mcp_adapter::McpError> {
+    async fn initialize(&self) -> Result<McpServerInfo, computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
         let info = service.peer_info().ok_or_else(|| {
-            xvora_computer_hub_mcp_adapter::McpError::Transport("no peer info after init".into())
+            computer_hub_mcp_adapter::McpError::Transport("no peer info after init".into())
         })?;
         // rmcp 3.x makes the server implementation identity optional on peer info.
         let server_info = info.server_info.as_ref();
@@ -108,12 +108,12 @@ impl McpTransport for McpClientTransportAdapter {
 
     async fn list_tools(
         &self,
-    ) -> Result<Vec<McpToolDefinition>, xvora_computer_hub_mcp_adapter::McpError> {
+    ) -> Result<Vec<McpToolDefinition>, computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
         let mut all_tools = Vec::new();
         let mut cursor: Option<String> = None;
@@ -123,7 +123,7 @@ impl McpTransport for McpClientTransportAdapter {
                     rmcp::model::PaginatedRequestParams::default().with_cursor(cursor.clone()),
                 ))
                 .await
-                .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+                .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
             all_tools.extend(result.tools.into_iter().map(|t| McpToolDefinition {
                 name: t.name.to_string(),
@@ -144,12 +144,12 @@ impl McpTransport for McpClientTransportAdapter {
         &self,
         name: &str,
         arguments: Value,
-    ) -> Result<McpCallResult, xvora_computer_hub_mcp_adapter::McpError> {
+    ) -> Result<McpCallResult, computer_hub_mcp_adapter::McpError> {
         let service = self
             .client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
         // MCP spec requires arguments to be an object; coerce if needed.
         let args_object = match arguments {
             Value::Object(map) => Some(map),
@@ -167,7 +167,7 @@ impl McpTransport for McpClientTransportAdapter {
                 params
             })
             .await
-            .map_err(|e| xvora_computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
+            .map_err(|e| computer_hub_mcp_adapter::McpError::Transport(e.to_string()))?;
 
         Ok(McpCallResult {
             content: result
@@ -188,7 +188,7 @@ impl McpTransport for McpClientTransportAdapter {
         })
     }
 
-    async fn close(&self) -> Result<(), xvora_computer_hub_mcp_adapter::McpError> {
+    async fn close(&self) -> Result<(), computer_hub_mcp_adapter::McpError> {
         // No-op: cleanup happens when McpClient is dropped.
         Ok(())
     }
@@ -456,14 +456,14 @@ pub(crate) async fn begin_mcp_drive(
 /// after closing out the [`McpState`] init bookkeeping, as does the
 /// session's teardown cancelling `mcp_cancel`.
 ///
-/// [`McpState`]: xvora_mcp::servers::McpState
+/// [`McpState`]: mcp::servers::McpState
 pub(crate) async fn drive_server_starts(
     session: &WorkspaceSession,
     session_id: &str,
     configs: Vec<agent_client_protocol::McpServer>,
     discovery_timeout: Duration,
     first_party: &HashSet<String>,
-    event_writer: xvora_session_events::EventWriter,
+    event_writer: session_events::EventWriter,
     outcomes: tokio::sync::mpsc::Sender<Result<StartedMcpServer, McpStartFailure>>,
     drive_scope: (tokio_util::sync::CancellationToken, u64),
 ) -> WorkspaceResult<()> {
@@ -477,7 +477,7 @@ pub(crate) async fn drive_server_starts(
     let discovery_deadline = tokio::time::Instant::now() + discovery_timeout;
     let mut remaining_names: HashSet<String> = configs
         .iter()
-        .map(|config| xvora_mcp::servers::mcp_server_name(config).to_owned())
+        .map(|config| mcp::servers::mcp_server_name(config).to_owned())
         .collect();
     {
         // Same binding → mcp_state nesting AND the same life comparison as
@@ -526,7 +526,7 @@ pub(crate) async fn drive_server_starts(
     let mut pending: FuturesUnordered<_> = configs
         .into_iter()
         .map(|config| {
-            let server_name = xvora_mcp::servers::mcp_server_name(&config).to_owned();
+            let server_name = mcp::servers::mcp_server_name(&config).to_owned();
             let bridge_session_id = sid.clone();
             let overrides = &overrides;
             let ctx = if first_party.contains(&server_name) {
@@ -536,7 +536,7 @@ pub(crate) async fn drive_server_starts(
             };
             async move {
                 let client =
-                    xvora_mcp::servers::start_mcp_server(config, Some(overrides), None, None, ctx)
+                    mcp::servers::start_mcp_server(config, Some(overrides), None, None, ctx)
                         .await
                         .map_err(|error| McpStartFailure {
                             name: server_name.clone(),
@@ -670,7 +670,7 @@ pub(crate) fn dedupe_servers_last_wins(servers: &mut Vec<agent_client_protocol::
     // Iterate from the back so the LAST occurrence of each name is the one
     // kept, preserving its position.
     for index in (0..servers.len()).rev() {
-        let name = xvora_mcp::servers::mcp_server_name(&servers[index]).to_owned();
+        let name = mcp::servers::mcp_server_name(&servers[index]).to_owned();
         if !seen.insert(name) {
             servers.remove(index);
             dropped += 1;
@@ -710,7 +710,7 @@ pub(crate) async fn connect_servers(
     configs: Vec<agent_client_protocol::McpServer>,
     discovery_timeout: Duration,
     first_party: &HashSet<String>,
-    event_writer: xvora_session_events::EventWriter,
+    event_writer: session_events::EventWriter,
 ) -> WorkspaceResult<(StartedMcp, u64)> {
     let drive_scope = begin_mcp_drive(session).await?;
     let life = drive_scope.1;
@@ -1010,7 +1010,7 @@ pub(crate) async fn converge_session(
     desired: &crate::config::BindMcpConfig,
     tool_server: &impl HubToolRegistry,
     reclaim: McpReclaim,
-    event_writer: xvora_session_events::EventWriter,
+    event_writer: session_events::EventWriter,
 ) -> WorkspaceResult<SessionMcpDelta> {
     let sid = SessionId::new(session_id)
         .map_err(|error| WorkspaceError::HubError(format!("invalid session_id: {error}")))?;
@@ -1027,7 +1027,7 @@ pub(crate) async fn converge_session(
     let wanted: Vec<String> = desired
         .servers()
         .iter()
-        .map(|config| xvora_mcp::servers::mcp_server_name(config).to_owned())
+        .map(|config| mcp::servers::mcp_server_name(config).to_owned())
         .collect();
     // The diff keeps unchanged servers' clients alive and forgets the rest.
     // Its `added` doubles as "redefined" for names already running.
@@ -1057,7 +1057,7 @@ pub(crate) async fn converge_session(
         let configs = desired
             .servers()
             .iter()
-            .filter(|config| starting.contains(xvora_mcp::servers::mcp_server_name(config)))
+            .filter(|config| starting.contains(mcp::servers::mcp_server_name(config)))
             .cloned()
             .collect();
         let drive_scope = begin_mcp_drive(session).await?;
@@ -1286,7 +1286,7 @@ mod tests {
                 "server-{:03}",
                 crate::config::BindMcpConfig::MAX_SERVERS - 1
             ),
-            xvora_mcp::servers::mcp_server_name(
+            mcp::servers::mcp_server_name(
                 &servers[crate::config::BindMcpConfig::MAX_SERVERS - 1]
             ),
         );
@@ -1317,7 +1317,7 @@ mod tests {
                     panic!("fixture builds http servers only");
                 };
                 (
-                    xvora_mcp::servers::mcp_server_name(server),
+                    mcp::servers::mcp_server_name(server),
                     http.url.as_str(),
                 )
             })

@@ -9,7 +9,7 @@ use std::time::SystemTime;
 
 use base64::Engine;
 use ignore::{WalkBuilder, overrides::OverrideBuilder};
-use xvora_workspace_types::rpc::fs::FsReadEncoding;
+use workspace_types::rpc::fs::FsReadEncoding;
 
 /// Hard cap on entries collected per list call before sorting.
 /// A pathological directory truncates (`truncated = true`) instead of ballooning memory.

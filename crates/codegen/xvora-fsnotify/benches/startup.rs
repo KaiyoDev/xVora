@@ -25,7 +25,7 @@ use std::path::Path;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use tempfile::TempDir;
-use xvora_fsnotify::{FsConfig, FsEventSource};
+use fsnotify::{FsConfig, FsEventSource};
 
 const TOTAL_DIRS: usize = 12_000;
 

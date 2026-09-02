@@ -57,7 +57,7 @@ fn load_or_compute_agent_id() -> String {
         }
     }
 
-    let cache_path = xvora_config::grok_home().join("agent_id");
+    let cache_path = config::grok_home().join("agent_id");
     if let Ok(cached) = std::fs::read_to_string(&cache_path) {
         let cached = cached.trim();
         if !cached.is_empty() {
@@ -94,7 +94,7 @@ fn write_agent_id_cache(path: &std::path::Path, id: &str) -> std::io::Result<()>
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    xvora_config::fs_atomic::write_atomically(path, id, Some(0o600))
+    config::fs_atomic::write_atomically(path, id, Some(0o600))
 }
 
 /// Best effort: tightens caches written world-readable by older builds.

@@ -4,9 +4,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use support::{pin_env, send_one, settle_pool, test_config};
-use xvora_sampler::{PrewarmOutcome, SamplingClient, prewarm_transport};
-use xvora_test_support::counting_server::spawn_http_server;
-use xvora_test_support::spawn_counting_server;
+use sampler::{PrewarmOutcome, SamplingClient, prewarm_transport};
+use test_support::counting_server::spawn_http_server;
+use test_support::spawn_counting_server;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn prewarm_wire_lifecycle() {

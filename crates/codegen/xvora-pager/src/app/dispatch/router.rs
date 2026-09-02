@@ -119,7 +119,7 @@ use crate::app::app_view::{ActiveView, AppView, AuthState};
 use crate::app::consent::ConsentState;
 use crate::scrollback::types::DisplayMode;
 use crate::views::session_picker::CONTENT_EXPAND_OFFSET;
-use xvora_telemetry::session_ctx::log_event;
+use telemetry::session_ctx::log_event;
 pub(super) fn dispatch_copy_auth_url(
     app: &mut AppView,
     copy: impl FnOnce(&str) -> crate::clipboard::ClipboardDelivery,
@@ -149,7 +149,7 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
     let effects = match action {
         Action::Quit | Action::QuitConfirmed => {
             if let Some(tx) = &app.voice_cmd_tx {
-                let _ = tx.try_send(xvora_voice::VoiceCommand::Shutdown);
+                let _ = tx.try_send(voice::VoiceCommand::Shutdown);
             }
             let mut effects = unregister_all_active_sessions(app);
             effects.push(Effect::Quit);
@@ -964,7 +964,7 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
                 &app.hidden_announcement_ids,
             )
             .filter(|a| crate::views::announcements::is_dismissible(a))
-            .map(xvora_announcements::announcement_hide_key);
+            .map(announcements::announcement_hide_key);
             if let Some(key) = shown_key
                 && app.hidden_announcement_ids.insert(key)
             {
@@ -997,7 +997,7 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
             ) {
                 let url = url.to_owned();
                 let promo_id = promo.id.clone();
-                log_event(xvora_telemetry::events::AnnouncementCtaClicked {
+                log_event(telemetry::events::AnnouncementCtaClicked {
                     id: promo_id,
                     source: surface,
                 });
@@ -1048,7 +1048,7 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
         Action::SetCodingDataSharing { opted_in } => set_coding_data_sharing(
             app,
             opted_in,
-            xvora_telemetry::events::CodingDataConsentSource::Settings,
+            telemetry::events::CodingDataConsentSource::Settings,
         ),
         Action::ToggleYolo => dispatch_toggle_yolo(app),
         Action::ToggleMultiline => dispatch_toggle_multiline(app),
@@ -1519,7 +1519,7 @@ fn restore_stash_where_the_draft_was_consumed(app: &mut AppView) {
 pub(super) fn dispatch_action_result(
     app: &mut AppView,
     agent_id: crate::app::agent::AgentId,
-    result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+    result: Result<hooks_plugins_types::ActionOutcome, String>,
 ) -> Vec<Effect> {
     use hooks_plugins_types::OutcomeStatus;
     let Some(agent) = app.agents.get_mut(&agent_id) else {
@@ -1540,7 +1540,7 @@ pub(super) fn dispatch_action_result(
                 if let Some(ref mut modal) = agent.extensions_modal {
                     if !outcome.message.trim().is_empty() && modal.result_notice.is_none() {
                         let entry_index = match modal.last_plugins_action {
-                            Some(xvora_hooks_plugins_types::PluginsAction::Uninstall {
+                            Some(hooks_plugins_types::PluginsAction::Uninstall {
                                 ..
                             }) => None,
                             _ => modal.pending_entry_index,
@@ -1561,7 +1561,7 @@ pub(super) fn dispatch_action_result(
                         effects.push(Effect::PluginsAction {
                             agent_id,
                             session_id,
-                            action: xvora_hooks_plugins_types::PluginsAction::Reload,
+                            action: hooks_plugins_types::PluginsAction::Reload,
                         });
                     } else if let Some(modal) = agent.extensions_modal.as_mut() {
                         effects.push(Effect::FetchHooksList {
@@ -1591,7 +1591,7 @@ pub(super) fn dispatch_action_result(
                 if let Some(ref mut modal) = agent.extensions_modal {
                     let confirmed_action = modal.last_plugins_action.as_ref().map(|a| {
                         let mut action = a.clone();
-                        if let xvora_hooks_plugins_types::PluginsAction::Uninstall {
+                        if let hooks_plugins_types::PluginsAction::Uninstall {
                             ref mut confirmed,
                             ..
                         } = action

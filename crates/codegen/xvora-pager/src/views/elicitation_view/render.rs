@@ -6,7 +6,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
-use xvora_tools::mcp_elicitation::ElicitFieldKind;
+use tools::mcp_elicitation::ElicitFieldKind;
 
 use crate::theme::Theme;
 

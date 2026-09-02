@@ -33,7 +33,7 @@ fn test_actor_inner(
 ) -> ActorGuard {
     let (tx, rx) = mpsc::unbounded_channel();
     let (disk_full_tx, disk_full_rx) = tokio::sync::watch::channel(false);
-    let sampling_client = OaiCompatClient::new(xvora_sampler::SamplerConfig::default()).unwrap();
+    let sampling_client = OaiCompatClient::new(sampler::SamplerConfig::default()).unwrap();
     let mut summary =
         crate::session::summary::SummaryGenerator::new(crate::session::summary::SummaryConfig {
             sampling_client,
@@ -1170,7 +1170,7 @@ async fn manual_rename_next_flush_does_not_revert_backend_title() {
     use crate::auth::{AuthManager, GrokAuth};
     use crate::remote::BackendClient;
     use crate::session::export::ExportedMetadata;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     const OLD_TITLE: &str = "Auto first-prompt summary";
     const NEW_TITLE: &str = "Manual rename";
@@ -1293,7 +1293,7 @@ struct SaveTitle {
 }
 
 fn save_session_titles(
-    server: &xvora_test_support::MockInferenceServer,
+    server: &test_support::MockInferenceServer,
     session_id: &str,
 ) -> Vec<SaveTitle> {
     let path = format!("/sessions/{session_id}/data");
@@ -1327,7 +1327,7 @@ fn save_session_titles(
         .collect()
 }
 
-fn request_path_summary(server: &xvora_test_support::MockInferenceServer) -> Vec<String> {
+fn request_path_summary(server: &test_support::MockInferenceServer) -> Vec<String> {
     server
         .requests()
         .iter()
@@ -1336,7 +1336,7 @@ fn request_path_summary(server: &xvora_test_support::MockInferenceServer) -> Vec
 }
 
 async fn wait_for_save_session_titles(
-    server: &xvora_test_support::MockInferenceServer,
+    server: &test_support::MockInferenceServer,
     session_id: &str,
 ) -> Vec<SaveTitle> {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -1362,7 +1362,7 @@ async fn manual_after_auto_last_flush_is_manual() {
     use crate::auth::{AuthManager, GrokAuth};
     use crate::remote::BackendClient;
     use crate::session::export::ExportedMetadata;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     const AUTO: &str = "Auto title";
     const MANUAL: &str = "Manual wins";
@@ -1466,7 +1466,7 @@ async fn auto_after_committed_manual_emits_no_set_title() {
     use crate::auth::{AuthManager, GrokAuth};
     use crate::remote::BackendClient;
     use crate::session::export::ExportedMetadata;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     const AUTO: &str = "Rejected auto";
     const MANUAL: &str = "Pinned manual";
@@ -1599,7 +1599,7 @@ async fn reset_title_to_auto_then_generated_title_is_adopted() {
     use crate::session::export::ExportedMetadata;
     use crate::session::helpers::session_summary::title_fallback_from_user_text;
     use crate::session::persistence::PersistenceContentChunk;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     const AUTO: &str = "Auto first title";
     const MANUAL: &str = "Pinned manual";

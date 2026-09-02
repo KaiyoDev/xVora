@@ -12,14 +12,14 @@ use std::collections::BTreeMap;
 use std::num::NonZeroU64;
 use std::path::PathBuf;
 use std::sync::Arc;
-use xvora_agent::prompt::skills::SkillsConfig;
-use xvora_sampler::{AuthScheme, SamplerConfig};
+use agent::prompt::skills::SkillsConfig;
+use sampler::{AuthScheme, SamplerConfig};
 use xvora_sampling_types::{
     CompactionAtTokens, CompactionsRemaining, REASONING_EFFORT_META_KEY,
     REASONING_EFFORTS_META_KEY, ReasoningEffort, ReasoningEffortOption,
     reasoning_effort_meta_value, reasoning_efforts_meta_value,
 };
-use xvora_tools::types::compat::{
+use tools::types::compat::{
     COMPAT_CELLS, CompatConfig, CompatConfigToml, CompatRemoteKey, CompatSurface, CompatVendor,
 };
 /// Determines behavior like relay sync enablement.
@@ -675,7 +675,7 @@ pub(crate) fn env_string(name: &str) -> Option<String> {
         Some(trimmed.to_string())
     }
 }
-pub use xvora_config::env_bool;
+pub use config::env_bool;
 /// Compaction-mode precedence (env > config > remote settings > default, with unrecognized values at each source falling through).
 /// `remote` sits just above the default, mirroring `feature_flag` in `resolve_bool_flag`.
 /// Pure so it's unit-testable without mutating process env.
@@ -683,7 +683,7 @@ pub(crate) fn resolve_compaction_mode_from(
     env: Option<&str>,
     config: Option<&str>,
     remote: Option<&str>,
-) -> xvora_chat_state::CompactionMode {
+) -> chat_state::CompactionMode {
     use chat_state::CompactionMode;
     env.and_then(CompactionMode::parse)
         .or_else(|| config.and_then(CompactionMode::parse))
@@ -696,7 +696,7 @@ pub(crate) fn resolve_compaction_detail_from(
     env: Option<&str>,
     config: Option<&str>,
     remote: Option<&str>,
-) -> xvora_chat_state::CompactionDetail {
+) -> chat_state::CompactionDetail {
     use chat_state::CompactionDetail;
     env.and_then(CompactionDetail::parse)
         .or_else(|| config.and_then(CompactionDetail::parse))
@@ -710,7 +710,7 @@ fn resolve_compat_cell(
     remote: Option<bool>,
     default: bool,
 ) -> Resolved<bool> {
-    resolve_compat_cell_with_env(xvora_config::env_bool(env), cfg, remote, default)
+    resolve_compat_cell_with_env(config::env_bool(env), cfg, remote, default)
 }
 pub(crate) fn resolve_compat_cell_with_env(
     env: Option<bool>,
@@ -776,7 +776,7 @@ pub(crate) enum CompatConfigCellError {
 }
 pub(crate) fn compat_config_cell(
     raw_config: Result<&toml::Value, ()>,
-    cell: xvora_tools::types::compat::CompatCell,
+    cell: tools::types::compat::CompatCell,
 ) -> Result<Option<bool>, CompatConfigCellError> {
     let raw = raw_config.map_err(|()| CompatConfigCellError::Unavailable)?;
     let Some(compat) = raw.get("compat") else {
@@ -867,8 +867,8 @@ pub(crate) fn resolve_enabled(
         .default(default)
         .resolve()
 }
-pub(crate) use xvora_telemetry::config::env_telemetry_mode;
-pub use xvora_telemetry::config::{TelemetryConfig, TelemetryMode};
+pub(crate) use telemetry::config::env_telemetry_mode;
+pub use telemetry::config::{TelemetryConfig, TelemetryMode};
 /// Plugin system configuration from `[plugins]` section in config.toml.
 ///
 /// ```toml
@@ -906,12 +906,12 @@ impl PluginsConfig {
             return;
         }
         let mut paths = Vec::new();
-        if let Some(home) = xvora_dirs::home_dir() {
+        if let Some(home) = dirs::home_dir() {
             paths.push(home.join(".claude").join("settings.json"));
         }
         for path in &paths {
             let (claude_enabled, claude_disabled) =
-                xvora_agent::plugins::marketplace::load_enabled_disabled_plugins(path);
+                agent::plugins::marketplace::load_enabled_disabled_plugins(path);
             for name in claude_enabled {
                 if !self.disabled.contains(&name) && !self.enabled.contains(&name) {
                     self.enabled.push(name);
@@ -924,8 +924,8 @@ impl PluginsConfig {
             }
         }
     }
-    pub(crate) fn to_discovery_config(&self) -> xvora_agent::plugins::discovery::DiscoveryConfig {
-        xvora_agent::plugins::discovery::DiscoveryConfig {
+    pub(crate) fn to_discovery_config(&self) -> agent::plugins::discovery::DiscoveryConfig {
+        agent::plugins::discovery::DiscoveryConfig {
             cli_plugin_dirs: self.cli_plugin_dirs.clone(),
             config_paths: self.paths.iter().map(std::path::PathBuf::from).collect(),
             disabled: self.disabled.clone(),
@@ -1364,7 +1364,7 @@ pub struct Config {
     pub desktop: Option<toml::Value>,
     /// Top-level `announcements` array: consumed by `resolve_announcements`.
     #[serde(default, skip_serializing)]
-    pub announcements: Vec<xvora_announcements::RemoteAnnouncement>,
+    pub announcements: Vec<announcements::RemoteAnnouncement>,
     /// `[tips]` section: consumed by `merge_tips`.
     #[serde(default, skip_serializing)]
     pub tips: Option<crate::util::config::TipsOverride>,
@@ -1429,7 +1429,7 @@ pub struct Config {
     #[serde(skip)]
     pub remote_settings: Option<crate::util::config::RemoteSettings>,
     #[serde(skip)]
-    pub cli_agents: Vec<xvora_agent::config::AgentDefinition>,
+    pub cli_agents: Vec<agent::config::AgentDefinition>,
     #[serde(skip)]
     pub cli_agent_overrides: CliAgentOverrides,
     /// Whether subagent (task tool) support is enabled.
@@ -1448,11 +1448,11 @@ pub struct Config {
     pub subagents_sampling_limit: usize,
     #[serde(skip)]
     pub subagents_limit_behavior:
-        xvora_tools::implementations::grok_build::task::admission::LimitBehavior,
+        tools::implementations::grok_build::task::admission::LimitBehavior,
     #[serde(skip)]
     pub workflow_max_concurrent_agents: usize,
     #[serde(skip)]
-    pub media_gen_batch_limits: xvora_tools::media_gen_limits::MediaGenBatchLimits,
+    pub media_gen_batch_limits: tools::media_gen_limits::MediaGenBatchLimits,
     /// Per-subagent model ID overrides from `[subagents.models]` in config.toml.
     /// Keys are agent names, values are model IDs.
     /// Set alongside `subagents_enabled` from `SubagentsConfig::resolve()`.
@@ -1503,7 +1503,7 @@ pub struct Config {
     /// Resolved by [`crate::config::ToolsConfig::resolve`].
     #[serde(skip)]
     pub zdr_video_output_s3:
-        Option<xvora_tools::implementations::grok_build::video_gen::ZdrVideoOutputS3Config>,
+        Option<tools::implementations::grok_build::video_gen::ZdrVideoOutputS3Config>,
     /// Whether to enrich path-not-found errors with CWD reminders, "dropped repo folder" correction, and similar-name suggestions.
     /// Default `false`.
     /// Enabled via remote settings.
@@ -1543,14 +1543,14 @@ pub struct Config {
 pub struct CliAgentOverrides {
     pub tools: Option<Vec<String>>,
     pub disallowed_tools: Option<Vec<String>>,
-    pub permission_rules: Vec<xvora_workspace::permission::types::PermissionRule>,
+    pub permission_rules: Vec<workspace::permission::types::PermissionRule>,
     pub max_turns: Option<u32>,
-    pub permission_mode: Option<xvora_agent::config::PermissionMode>,
+    pub permission_mode: Option<agent::config::PermissionMode>,
 }
 impl CliAgentOverrides {
     /// Apply to the *main-session* agent, which the operator defines directly: the flags are authoritative, so they replace the agent's own fields.
     /// Spawned subagents instead layer these on top of an author's definition; see [`Self::apply_to_subagent_definition`].
-    pub(crate) fn apply_to_definition(&self, def: &mut xvora_agent::config::AgentDefinition) {
+    pub(crate) fn apply_to_definition(&self, def: &mut agent::config::AgentDefinition) {
         if let Some(ref tools) = self.tools {
             def.tools = tools.clone();
         }
@@ -1566,7 +1566,7 @@ impl CliAgentOverrides {
     /// See [`AgentDefinition::session_tools_allowlist`].
     pub(crate) fn apply_to_subagent_definition(
         &self,
-        def: &mut xvora_agent::config::AgentDefinition,
+        def: &mut agent::config::AgentDefinition,
     ) {
         def.session_tools_allowlist = self.tools.clone();
         def.session_tools_denylist = self.disallowed_tools.clone();
@@ -1593,10 +1593,10 @@ fn resolve_subagent_permission_mode(
         _ => own,
     }
 }
-pub use xvora_agent::config::AgentDefinition;
-pub use xvora_agent::config::Effort;
-pub use xvora_agent::config::PermissionMode;
-pub use xvora_shared::ui_config::{ContextualHints, UiConfig};
+pub use agent::config::AgentDefinition;
+pub use agent::config::Effort;
+pub use agent::config::PermissionMode;
+pub use shared::ui_config::{ContextualHints, UiConfig};
 /// Set in `config.toml` under `[agent]`:
 ///
 /// ```toml
@@ -1618,7 +1618,7 @@ pub use xvora_shared::ui_config::{ContextualHints, UiConfig};
 #[serde(default)]
 pub struct AgentSelectionConfig {
     /// Name of a built-in or discovered agent definition.
-    /// Looked up via `xvora_agent::discovery::by_name_in_cwd()`.
+    /// Looked up via `agent::discovery::by_name_in_cwd()`.
     /// Examples: "grok-build", "browser-use", or a custom agent name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -1735,7 +1735,7 @@ impl Default for Config {
             default_yolo_mode: false,
             default_auto_mode: false,
             agent_profile_path: None,
-            client_version: Some(xvora_version::VERSION.to_string()),
+            client_version: Some(version::VERSION.to_string()),
             mode: AgentMode::default(),
             remote_settings: None,
             cli_agents: Vec::new(),
@@ -1743,13 +1743,13 @@ impl Default for Config {
             subagents_enabled: true,
             subagents_max_depth: crate::config::SubagentsConfig::DEFAULT_MAX_DEPTH,
             subagents_max_concurrent:
-                xvora_tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
+                tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
             subagents_sampling_limit:
-                xvora_tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
+                tools::implementations::grok_build::task::admission::DEFAULT_MAX_CONCURRENT,
             subagents_limit_behavior: Default::default(),
             workflow_max_concurrent_agents:
                 crate::session::workflow::host_service::DEFAULT_WORKFLOW_MAX_CONCURRENT_AGENTS,
-            media_gen_batch_limits: xvora_tools::media_gen_limits::MediaGenBatchLimits::default(),
+            media_gen_batch_limits: tools::media_gen_limits::MediaGenBatchLimits::default(),
             subagent_model_overrides: std::collections::HashMap::new(),
             subagent_toggle: std::collections::HashMap::new(),
             subagent_roles: std::collections::HashMap::new(),
@@ -2223,7 +2223,7 @@ impl Config {
         };
         self.disable_zdr_incompatible_tools = tools.disable_zdr_incompatible_tools;
         self.zdr_video_output_s3 = tools.zdr_video_output_s3;
-        self.media_gen_batch_limits = xvora_tools::media_gen_limits::MediaGenBatchLimits {
+        self.media_gen_batch_limits = tools::media_gen_limits::MediaGenBatchLimits {
             max_image: crate::config::ToolsConfig::resolve_max_parallel_image_gen_calls(
                 std::env::var(crate::config::ToolsConfig::ENV_MAX_PARALLEL_IMAGE_GEN_CALLS)
                     .ok()
@@ -2516,8 +2516,8 @@ impl Config {
     }
     /// Automatic worktree GC policy.
     /// Precedence: env kill/dry-run > `[worktree.auto_gc]` TOML > remote `worktree_auto_gc` > defaults.
-    /// Platform age-expiry (`process_cwd_scan_available`: linux+macos) is enforced inside `xvora_fast_worktree::maybe_auto_gc`, not here.
-    pub(crate) fn resolve_worktree_auto_gc(&self) -> xvora_fast_worktree::ResolvedWorktreeAutoGc {
+    /// Platform age-expiry (`process_cwd_scan_available`: linux+macos) is enforced inside `fast_worktree::maybe_auto_gc`, not here.
+    pub(crate) fn resolve_worktree_auto_gc(&self) -> fast_worktree::ResolvedWorktreeAutoGc {
         crate::util::config::resolve_worktree_auto_gc_from_settings(
             Some(&self.worktree.auto_gc),
             self.remote_settings
@@ -2578,7 +2578,7 @@ impl Config {
     /// `imagine_tools_disabled` is a remote force-off (env/config cannot re-enable).
     /// Otherwise: requirement > env > `[features]` > remote > default.
     pub(crate) fn resolve_image_gen(&self) -> Resolved<bool> {
-        use xvora_tools::implementations::grok_build::IMAGE_GEN_TOOL_NAME;
+        use tools::implementations::grok_build::IMAGE_GEN_TOOL_NAME;
         if let Some(pinned) = self.requirements.image_gen.pinned() {
             return Resolved::new(pinned, ConfigSource::Requirement);
         }
@@ -2602,7 +2602,7 @@ impl Config {
     /// `image_edit` tool gate.
     /// Same denylist / requirement pattern as [`Self::resolve_image_gen`]; no `[features]` key (defaults on).
     pub(crate) fn resolve_image_edit(&self) -> Resolved<bool> {
-        use xvora_tools::implementations::grok_build::IMAGE_EDIT_TOOL_NAME;
+        use tools::implementations::grok_build::IMAGE_EDIT_TOOL_NAME;
         if let Some(pinned) = self.requirements.image_edit.pinned() {
             return Resolved::new(pinned, ConfigSource::Requirement);
         }
@@ -2620,7 +2620,7 @@ impl Config {
     /// Registered as a pair; denylisting either tool name (or `video_gen`) disables both.
     /// Otherwise same precedence as [`Self::resolve_image_gen`].
     pub(crate) fn resolve_video_gen(&self) -> Resolved<bool> {
-        use xvora_tools::implementations::grok_build::{
+        use tools::implementations::grok_build::{
             IMAGE_TO_VIDEO_TOOL_NAME, REFERENCE_TO_VIDEO_TOOL_NAME,
         };
         if let Some(pinned) = self.requirements.video_gen.pinned() {
@@ -2901,7 +2901,7 @@ impl Config {
     }
     /// Resolve the mode: env `GROK_COMPACTION_MODE` > config > remote settings > default, with unrecognized values falling through.
     /// For `Segments`, attach the separately-resolved detail level.
-    pub(crate) fn resolve_compaction_mode(&self) -> xvora_chat_state::CompactionMode {
+    pub(crate) fn resolve_compaction_mode(&self) -> chat_state::CompactionMode {
         resolve_compaction_mode_from(
             env_string("GROK_COMPACTION_MODE").as_deref(),
             self.features.compaction_mode.as_deref(),
@@ -2924,7 +2924,7 @@ impl Config {
     }
     /// Precedence: env `GROK_COMPACTION_DETAIL` > config `features.compaction_detail` > remote `compaction_detail` > default (`verbose`).
     /// Drives the `segments` verbatim detail level.
-    fn resolve_compaction_detail(&self) -> xvora_chat_state::CompactionDetail {
+    fn resolve_compaction_detail(&self) -> chat_state::CompactionDetail {
         resolve_compaction_detail_from(
             env_string("GROK_COMPACTION_DETAIL").as_deref(),
             self.features.compaction_detail.as_deref(),
@@ -3216,7 +3216,7 @@ pub(crate) fn read_requirements_toml() -> Option<toml::Value> {
 /// Meanwhile `internal_pipeline_consumed_otel_vars` would block the external stream, exactly the split this design forbids.
 pub(crate) fn external_otel_master_switch_resolved() -> bool {
     external_otel_master_switch_from(
-        xvora_config::load_merged_requirements().as_ref(),
+        config::load_merged_requirements().as_ref(),
         env_bool("GROK_EXTERNAL_OTEL"),
         crate::config::load_effective_config().ok().as_ref(),
     )
@@ -3250,8 +3250,8 @@ fn telemetry_otel_ms(t: &toml::Value, key: &str) -> Option<String> {
 }
 fn telemetry_otel_file_config(
     t: &toml::Value,
-) -> xvora_telemetry::external::ExternalOtelFileConfig {
-    xvora_telemetry::external::ExternalOtelFileConfig {
+) -> telemetry::external::ExternalOtelFileConfig {
+    telemetry::external::ExternalOtelFileConfig {
         enabled: t.get("otel_enabled").and_then(toml::Value::as_bool),
         metrics_exporter: telemetry_otel_str(t, "otel_metrics_exporter"),
         logs_exporter: telemetry_otel_str(t, "otel_logs_exporter"),
@@ -3298,9 +3298,9 @@ fn telemetry_otel_file_config(
 /// That config already includes managed-config layers distributed by `grok setup`.
 /// Requirements pins are applied on top, and the remote layer is restrictive-only and asynchronous ([`apply_external_otel_remote_policy`]).
 pub fn resolve_external_otel_config(
-    client: xvora_telemetry::external::config::ExternalClientInfo,
-) -> Option<xvora_telemetry::external::ExternalOtelConfig> {
-    let requirements = xvora_config::load_merged_requirements();
+    client: telemetry::external::config::ExternalClientInfo,
+) -> Option<telemetry::external::ExternalOtelConfig> {
+    let requirements = config::load_merged_requirements();
     resolve_external_otel_config_with(
         crate::config::load_effective_config().ok().as_ref(),
         requirements.as_ref(),
@@ -3314,12 +3314,12 @@ pub(crate) fn resolve_external_otel_config_with(
     effective_config: Option<&toml::Value>,
     requirements: Option<&toml::Value>,
     getenv: impl Fn(&str) -> Option<String>,
-    client: xvora_telemetry::external::config::ExternalClientInfo,
+    client: telemetry::external::config::ExternalClientInfo,
     internal_pipeline_consumed_otel_vars: bool,
-) -> Option<xvora_telemetry::external::ExternalOtelConfig> {
+) -> Option<telemetry::external::ExternalOtelConfig> {
     let pins =
         crate::agent::external_otel_pin::RequirementOtelPins::from_requirements(requirements);
-    let file_cfg: Option<xvora_telemetry::external::ExternalOtelFileConfig> = effective_config
+    let file_cfg: Option<telemetry::external::ExternalOtelFileConfig> = effective_config
         .and_then(|cfg| cfg.get("telemetry"))
         .cloned()
         .map(|mut telemetry| {
@@ -3329,7 +3329,7 @@ pub(crate) fn resolve_external_otel_config_with(
             telemetry_otel_file_config(&telemetry)
         });
     let getenv_pinned = crate::agent::external_otel_pin::getenv_with_pins(&pins, getenv);
-    let mut resolved = xvora_telemetry::external::ExternalOtelConfig::resolve_with(
+    let mut resolved = telemetry::external::ExternalOtelConfig::resolve_with(
         getenv_pinned,
         file_cfg.as_ref(),
     )?;
@@ -3343,12 +3343,12 @@ pub(crate) fn apply_external_otel_remote_policy(
     settings: Option<&crate::util::config::RemoteSettings>,
 ) {
     let Some(settings) = settings else { return };
-    let policy = xvora_telemetry::external::ExternalOtelRemotePolicy {
+    let policy = telemetry::external::ExternalOtelRemotePolicy {
         force_disable: settings.external_otel_disabled.unwrap_or(false),
         lock_content_gates: settings.external_otel_content_gates_locked.unwrap_or(false),
     };
     if policy.force_disable || policy.lock_content_gates {
-        xvora_telemetry::external::apply_remote_policy(policy);
+        telemetry::external::apply_remote_policy(policy);
     }
 }
 /// Seed free-function remote caches after writing `Config.remote_settings`.
@@ -3365,7 +3365,7 @@ pub fn apply_remote_settings_side_effects(settings: Option<&crate::util::config:
         let origin_trusted = crate::util::is_prod_cli_chat_proxy_url(
             &EndpointsConfig::from_effective_config().proxy_url(),
         );
-        xvora_config::signed_policy::apply_remote_managed_config_signature_verification(
+        config::signed_policy::apply_remote_managed_config_signature_verification(
             s.managed_config_signature_verification,
             origin_trusted,
         );
@@ -3396,10 +3396,10 @@ pub fn apply_remote_settings_side_effects(settings: Option<&crate::util::config:
 /// Read `env.<key>` from Claude-compat `managed_settings.json`.
 /// `Some(true)` indicates a force-off signal from a Mac-MDM-style admin policy.
 fn managed_settings_env_flag(key: &str) -> Option<bool> {
-    let path = xvora_config::claude_managed_settings_path()?;
+    let path = config::claude_managed_settings_path()?;
     let content = std::fs::read_to_string(&path).ok()?;
     let json: serde_json::Value = serde_json::from_str(&content).ok()?;
-    xvora_workspace::permission::resolution::json_env_flag(json.get("env"), key)
+    workspace::permission::resolution::json_env_flag(json.get("env"), key)
 }
 /// Assemble the final model map. Priority (highest wins):
 /// config.toml `[model.*]` > prefetched (remote) > hardcoded defaults.
@@ -4501,7 +4501,7 @@ pub struct AutoModeConfig {
     /// How much context the classifier prompt includes.
     /// `None` means the wire fn's built-in default (`just_command`).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub prompt_type: Option<xvora_workspace::permission::ClassifierPromptType>,
+    pub prompt_type: Option<workspace::permission::ClassifierPromptType>,
     /// Routing slug for a dedicated classifier model.
     /// `None` inherits the session model.
     /// Resolved via `resolve_aux_model_sampling_config`.
@@ -4695,7 +4695,7 @@ impl<'de> Deserialize<'de> for FeatureEntries {
 pub(crate) struct ResolvedCredentials {
     pub api_key: Option<String>,
     pub base_url: String,
-    pub auth_type: xvora_chat_state::AuthType,
+    pub auth_type: chat_state::AuthType,
     pub auth_scheme: AuthScheme,
 }
 /// First usable BYOK credential: a non-empty (trimmed) api_key, else the first set, non-empty env_key value.
@@ -4719,14 +4719,14 @@ pub(crate) fn resolve_credentials(
         (
             Some(key),
             info.base_url.clone(),
-            xvora_chat_state::AuthType::ApiKey,
+            chat_state::AuthType::ApiKey,
         )
     } else if let Some(provider) = model.auth_provider.as_ref() {
         debug_assert!(model.effective_auth_provider().is_some());
         (
             provider.cached_token(),
             info.base_url.clone(),
-            xvora_chat_state::AuthType::ApiKey,
+            chat_state::AuthType::ApiKey,
         )
     } else if let Some(key) = session_key
         && crate::auth::backend::AuthBackend::may_receive_session(
@@ -4737,14 +4737,14 @@ pub(crate) fn resolve_credentials(
         (
             Some(key.to_owned()),
             info.base_url.clone(),
-            xvora_chat_state::AuthType::SessionToken,
+            chat_state::AuthType::SessionToken,
         )
     } else if let Ok(key) = crate::agent::auth_method::read_xai_api_key_env() {
         let url = model
             .api_base_url
             .clone()
             .unwrap_or_else(|| info.base_url.clone());
-        (Some(key), url, xvora_chat_state::AuthType::ApiKey)
+        (Some(key), url, chat_state::AuthType::ApiKey)
     } else {
         if let Some(ref env_keys) = model.env_key
             && !env_keys.is_empty()
@@ -4759,7 +4759,7 @@ pub(crate) fn resolve_credentials(
         (
             None,
             info.base_url.clone(),
-            xvora_chat_state::AuthType::ApiKey,
+            chat_state::AuthType::ApiKey,
         )
     };
     let auth_scheme = info.auth_scheme;
@@ -4784,12 +4784,12 @@ pub(crate) fn enforce_disable_api_key_auth(
     session_key: Option<&str>,
 ) {
     if disable_api_key_auth
-        && creds.auth_type == xvora_chat_state::AuthType::ApiKey
+        && creds.auth_type == chat_state::AuthType::ApiKey
         && crate::util::is_xai_api_url(&creds.base_url)
     {
-        creds.auth_type = xvora_chat_state::AuthType::SessionToken;
+        creds.auth_type = chat_state::AuthType::SessionToken;
         creds.api_key = session_key.map(str::to_owned);
-        xvora_telemetry::unified_log::debug(
+        telemetry::unified_log::debug(
             "auth: kill switch blocked a first-party API key at the credential seam",
             None,
             Some(serde_json::json!({
@@ -4810,7 +4810,7 @@ fn resolve_credentials_enforced(
     enforce_disable_api_key_auth(&mut credentials, disable_api_key_auth, session_key);
     credentials
 }
-pub use xvora_telemetry::config::deployment_id_from_key;
+pub use telemetry::config::deployment_id_from_key;
 /// Try to resolve credentials for a model by loading the effective config.
 /// Returns `None` (with a warning) if config loading, parsing, or model lookup fails.
 /// `session_key` should only be passed when `auth_type` is `SessionToken`; callers must guard this.
@@ -5055,8 +5055,8 @@ pub(crate) fn finalize_image_describe_sampler_config(
 pub(crate) fn resolve_chat_state_auth_type(
     model_id: &str,
     session_key: Option<&str>,
-    fallback: xvora_chat_state::AuthType,
-) -> xvora_chat_state::AuthType {
+    fallback: chat_state::AuthType,
+) -> chat_state::AuthType {
     try_resolve_model_credentials(model_id, session_key)
         .map(|r| r.auth_type)
         .unwrap_or(fallback)

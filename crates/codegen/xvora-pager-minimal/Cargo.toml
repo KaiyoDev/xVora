@@ -31,7 +31,7 @@ tracing = { workspace = true }
 # Native scrollback / inline viewport engine (`insert_before`, viewport sizing).
 # Used only via the pager's re-exported `PagerTerminal`; see the
 # `[package.metadata.cargo-shear]` note above.
-xvora-ratatui-inline = { workspace = true, package = "xvora-ratatui-inline" }
+ratatui-inline = { workspace = true }
 
 # `DiffLine` hunk fixtures for the committed-edit render tests. A normal (not
 # dev) dependency because gazelle lists `src/commit_tests.rs` in the library
@@ -42,8 +42,8 @@ xvora-pager-diff = { path = "../xvora-pager-diff" }
 # Misc used by the commit/live/full-view paths.
 chrono = { workspace = true }
 similar = { workspace = true }
-xvora-shell = { workspace = true }
-xvora-version = { workspace = true }
+shell = { workspace = true }
+version = { workspace = true }
 token-estimation = { workspace = true, package = "xvora-token-estimation" }
 
 [dev-dependencies]

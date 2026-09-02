@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 use clap::{Subcommand, ValueEnum};
-use xvora_shell::util::config::{McpServerConfig, McpServerTransportConfig};
+use shell::util::config::{McpServerConfig, McpServerTransportConfig};
 
 use crate::util::display_user_grok_path;
 
@@ -160,8 +160,8 @@ pub async fn run(mcp_args: McpArgs) -> Result<()> {
 fn run_list(json: bool) -> Result<()> {
     // Include project-scoped servers (nearest definition wins), matching what a session started in this directory would load from config.toml files
     let cwd = current_dir_or_exit();
-    let servers = xvora_shell::util::config::load_mcp_server_configs_with_project(&cwd);
-    let disabled = xvora_shell::util::config::disabled_mcp_server_names(&cwd);
+    let servers = shell::util::config::load_mcp_server_configs_with_project(&cwd);
+    let disabled = shell::util::config::disabled_mcp_server_names(&cwd);
 
     if json {
         let payload: serde_json::Value = servers
@@ -260,7 +260,7 @@ async fn run_add(args: AddArgs) -> Result<()> {
     };
 
     let path = scope_target(args.scope);
-    xvora_shell::util::config::save_mcp_server_config_at(&path, name, &config).await?;
+    shell::util::config::save_mcp_server_config_at(&path, name, &config).await?;
     println!("Added {summary} to {} config", args.scope.label());
     println!("File modified: {}", scope_display(args.scope, &path));
     Ok(())
@@ -491,15 +491,15 @@ fn current_dir_or_exit() -> PathBuf {
 /// Resolve the config file path for a scope.
 fn scope_target(scope: McpScope) -> PathBuf {
     match scope {
-        McpScope::User => xvora_shell::util::config::user_config_path(),
-        McpScope::Project => xvora_shell::util::config::project_config_path(&current_dir_or_exit()),
+        McpScope::User => shell::util::config::user_config_path(),
+        McpScope::Project => shell::util::config::project_config_path(&current_dir_or_exit()),
     }
 }
 
 /// Display form of a scope's config file path.
 fn scope_display(scope: McpScope, path: &Path) -> String {
     match scope {
-        McpScope::User => display_user_grok_path(xvora_config::USER_CONFIG_FILENAME),
+        McpScope::User => display_user_grok_path(config::USER_CONFIG_FILENAME),
         McpScope::Project => path.display().to_string(),
     }
 }
@@ -520,7 +520,7 @@ fn select_remove_site(
     project_site: Option<PathBuf>,
     scope: Option<McpScope>,
 ) -> Result<(McpScope, PathBuf), RemoveError> {
-    use xvora_shell::util::config::user_config_path;
+    use shell::util::config::user_config_path;
 
     match scope {
         Some(McpScope::User) => user_defined
@@ -549,7 +549,7 @@ fn surviving_definition(
             user_defined.then(|| {
                 (
                     McpScope::User,
-                    xvora_shell::util::config::user_config_path(),
+                    shell::util::config::user_config_path(),
                 )
             })
         })
@@ -558,7 +558,7 @@ fn surviving_definition(
 /// Known names come from TOML, the disabled list, compat JSON, and plugins.
 /// Gateway connectors are rejected earlier (colon names).
 fn mcp_server_is_known(name: &str, cwd: &Path) -> bool {
-    xvora_shell::util::config::cli_known_mcp_server_names(cwd).contains(name)
+    shell::util::config::cli_known_mcp_server_names(cwd).contains(name)
 }
 
 fn is_gateway_cli_toggle_name(name: &str) -> bool {
@@ -566,7 +566,7 @@ fn is_gateway_cli_toggle_name(name: &str) -> bool {
 }
 
 fn available_mcp_server_names(cwd: &Path) -> Vec<String> {
-    let mut names: Vec<String> = xvora_shell::util::config::cli_known_mcp_server_names(cwd)
+    let mut names: Vec<String> = shell::util::config::cli_known_mcp_server_names(cwd)
         .into_iter()
         .collect();
     names.sort();
@@ -598,12 +598,12 @@ async fn run_set_enabled(name: &str, enabled: bool) -> Result<()> {
         std::process::exit(1);
     }
 
-    let was_disabled = xvora_shell::util::config::disabled_mcp_server_names(&cwd).contains(name);
+    let was_disabled = shell::util::config::disabled_mcp_server_names(&cwd).contains(name);
 
     let modified =
-        xvora_shell::util::config::save_mcp_server_enabled_in(name, enabled, &cwd).await?;
+        shell::util::config::save_mcp_server_enabled_in(name, enabled, &cwd).await?;
 
-    let now_disabled = xvora_shell::util::config::disabled_mcp_server_names(&cwd).contains(name);
+    let now_disabled = shell::util::config::disabled_mcp_server_names(&cwd).contains(name);
     let now_enabled = !now_disabled;
 
     if enabled && now_disabled {
@@ -626,12 +626,12 @@ async fn run_set_enabled(name: &str, enabled: bool) -> Result<()> {
         println!("Disabled MCP server '{name}'.");
     }
 
-    let user_config = xvora_shell::util::config::user_config_path();
+    let user_config = shell::util::config::user_config_path();
     for path in &modified {
         if path == &user_config {
             println!(
                 "File modified: {}",
-                display_user_grok_path(xvora_config::USER_CONFIG_FILENAME)
+                display_user_grok_path(config::USER_CONFIG_FILENAME)
             );
         } else {
             println!("File modified: {}", path.display());
@@ -641,7 +641,7 @@ async fn run_set_enabled(name: &str, enabled: bool) -> Result<()> {
 }
 
 async fn run_remove(name: &str, requested_scope: Option<McpScope>) -> Result<()> {
-    use xvora_shell::util::config::{
+    use shell::util::config::{
         delete_mcp_server_config_at, mcp_server_defined_at, user_config_path,
     };
 
@@ -649,7 +649,7 @@ async fn run_remove(name: &str, requested_scope: Option<McpScope>) -> Result<()>
 
     // Project configs from cwd up to the repo root, nearest first.
     let find_project_site = || {
-        xvora_shell::config::find_project_configs(&cwd)
+        shell::config::find_project_configs(&cwd)
             .into_iter()
             .rev()
             .find(|path| mcp_server_defined_at(path, name))
@@ -668,7 +668,7 @@ async fn run_remove(name: &str, requested_scope: Option<McpScope>) -> Result<()>
             eprintln!("MCP server '{name}' exists in multiple scopes:");
             eprintln!(
                 "  user: {}",
-                display_user_grok_path(xvora_config::USER_CONFIG_FILENAME)
+                display_user_grok_path(config::USER_CONFIG_FILENAME)
             );
             eprintln!("  project: {}", project_path.display());
             eprintln!("Specify which one to remove, e.g.: grok mcp remove {name} --scope project");
@@ -702,7 +702,7 @@ async fn run_remove(name: &str, requested_scope: Option<McpScope>) -> Result<()>
 
 async fn run_doctor(json: bool, name: Option<String>) -> Result<()> {
     let cwd = current_dir_or_exit();
-    let report = xvora_shell::mcp_doctor::run_doctor(&cwd, name.as_deref()).await;
+    let report = shell::mcp_doctor::run_doctor(&cwd, name.as_deref()).await;
 
     if let Some(ref filter) = name
         && report.servers.is_empty()
@@ -720,7 +720,7 @@ async fn run_doctor(json: bool, name: Option<String>) -> Result<()> {
             serde_json::to_string_pretty(&report).unwrap_or_default()
         );
     } else {
-        xvora_shell::mcp_doctor::print_report(&report);
+        shell::mcp_doctor::print_report(&report);
     }
 
     if report.failing_count > 0 {
@@ -1275,7 +1275,7 @@ mod tests {
             defined
                 .path()
                 .join(".grok")
-                .join(xvora_config::USER_CONFIG_FILENAME),
+                .join(config::USER_CONFIG_FILENAME),
             format!(
                 r#"
 [mcp_servers.{name}]
@@ -1325,7 +1325,7 @@ url = "https://mcp.example.test/sse"
 
     #[test]
     fn select_remove_site_covers_scope_presence_matrix() {
-        let user = xvora_shell::util::config::user_config_path();
+        let user = shell::util::config::user_config_path();
         let project = PathBuf::from("/repo/.grok/config.toml");
 
         // No scope: a single hit resolves, both scopes is ambiguous, neither is NotFound
@@ -1369,7 +1369,7 @@ url = "https://mcp.example.test/sse"
 
     #[test]
     fn surviving_definition_prefers_project_then_user() {
-        let user = xvora_shell::util::config::user_config_path();
+        let user = shell::util::config::user_config_path();
         let project = PathBuf::from("/repo/.grok/config.toml");
 
         // The mirror of the remove note: a user-scope delete with a project survivor (and vice versa) must still report the remaining site

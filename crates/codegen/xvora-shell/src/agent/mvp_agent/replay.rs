@@ -13,7 +13,7 @@ use crate::session::storage::ReplayToolCollapser;
 /// Unbounded enqueue with sync pager apply peaks the pager at multi-GB on huge sessions; this keeps ACP apply roughly windowed.
 pub(super) const REPLAY_COMPLETION_WINDOW: usize = 64;
 
-type ReplayCompletionRx = tokio::sync::oneshot::Receiver<xvora_acp_lib::AcpResult<()>>;
+type ReplayCompletionRx = tokio::sync::oneshot::Receiver<acp_lib::AcpResult<()>>;
 
 /// Sliding window of replay completion receivers.
 /// Awaits the oldest when full so at most [`REPLAY_COMPLETION_WINDOW`] notifications sit un-acked.
@@ -199,7 +199,7 @@ impl MvpAgent {
         let mut replay_timer = crate::instrumentation_timer!("session.load_session_replay");
         replay_timer.with_field("session_id", session_id.0.as_ref());
         replay_timer.with_field("cwd", cwd.as_str());
-        replay_timer.with_subphase(xvora_telemetry::startup::Subphase::SessionReplay);
+        replay_timer.with_subphase(telemetry::startup::Subphase::SessionReplay);
 
         let Some(updates_path) = updates_file_path.as_ref() else {
             tracing::warn!(session_id = %session_id.0, "replay: no updates file path");
@@ -398,7 +398,7 @@ mod drain_tests {
             drain.push(rx).await;
         }
         let (overflow_tx, overflow_rx) =
-            tokio::sync::oneshot::channel::<xvora_acp_lib::AcpResult<()>>();
+            tokio::sync::oneshot::channel::<acp_lib::AcpResult<()>>();
         {
             let push = drain.push(overflow_rx);
             tokio::pin!(push);

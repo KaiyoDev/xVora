@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use xvora_tools::types::memory_backend::{MemoryBackend, MemorySearchResult};
+use tools::types::memory_backend::{MemoryBackend, MemorySearchResult};
 
 use super::embedding::EmbeddingProvider as _;
 use super::observation::{
@@ -51,8 +51,8 @@ fn select_search_error_class(
 #[derive(Clone, Default)]
 pub struct EndpointScopedCredentials {
     endpoint: Option<reqwest::Url>,
-    auth_credentials: Option<Arc<dyn xvora_auth::AuthCredentialProvider>>,
-    api_key_provider: Option<xvora_tools::types::SharedApiKeyProvider>,
+    auth_credentials: Option<Arc<dyn auth::AuthCredentialProvider>>,
+    api_key_provider: Option<tools::types::SharedApiKeyProvider>,
 }
 
 // Manual Debug that redacts the credential handles; only their presence shows.
@@ -79,8 +79,8 @@ impl EndpointScopedCredentials {
     pub fn for_endpoint(
         endpoint: &str,
         is_trusted: impl FnOnce(&str) -> bool,
-        auth_credentials: Option<Arc<dyn xvora_auth::AuthCredentialProvider>>,
-        api_key_provider: Option<xvora_tools::types::SharedApiKeyProvider>,
+        auth_credentials: Option<Arc<dyn auth::AuthCredentialProvider>>,
+        api_key_provider: Option<tools::types::SharedApiKeyProvider>,
     ) -> Self {
         if is_trusted(endpoint)
             && let Ok(url) = reqwest::Url::parse(endpoint)
@@ -101,11 +101,11 @@ impl EndpointScopedCredentials {
         Self::none()
     }
 
-    fn auth_credentials(&self) -> Option<&Arc<dyn xvora_auth::AuthCredentialProvider>> {
+    fn auth_credentials(&self) -> Option<&Arc<dyn auth::AuthCredentialProvider>> {
         self.auth_credentials.as_ref()
     }
 
-    fn api_key_provider(&self) -> Option<&xvora_tools::types::SharedApiKeyProvider> {
+    fn api_key_provider(&self) -> Option<&tools::types::SharedApiKeyProvider> {
         self.api_key_provider.as_ref()
     }
 
@@ -278,7 +278,7 @@ impl MemoryBackendImpl {
     /// Open a read-only connection for simple queries (`total_chunks`, `get`).
     fn open_readonly(&self) -> Result<rusqlite::Connection, rusqlite::Error> {
         // Journal-mode-aware open (busy_timeout included): never mmap a legacy WAL -shm on network mounts (SIGBUS); see JournalMode::open_readonly
-        xvora_sqlite_journal::JournalMode::for_db_path(&self.db_path).open_readonly(&self.db_path)
+        sqlite_journal::JournalMode::for_db_path(&self.db_path).open_readonly(&self.db_path)
     }
 
     async fn make_embedding_provider(&self) -> Option<super::embedding::ApiEmbeddingProvider> {
@@ -1120,7 +1120,7 @@ mod factory_tests {
     #[tokio::test]
     async fn make_embedding_provider_uses_async_api_key_resolution() {
         use std::sync::atomic::{AtomicU32, Ordering};
-        use xvora_tools::types::ApiKeyProvider;
+        use tools::types::ApiKeyProvider;
 
         struct AsyncProbe {
             sync_calls: Arc<AtomicU32>,
@@ -1145,7 +1145,7 @@ mod factory_tests {
 
         let sync_calls = Arc::new(AtomicU32::new(0));
         let async_calls = Arc::new(AtomicU32::new(0));
-        let probe: xvora_tools::types::SharedApiKeyProvider = Arc::new(AsyncProbe {
+        let probe: tools::types::SharedApiKeyProvider = Arc::new(AsyncProbe {
             sync_calls: sync_calls.clone(),
             async_calls: async_calls.clone(),
         });
@@ -1199,7 +1199,7 @@ mod tests {
 
     /// An api-key provider that fails the test if its key is ever resolved, proving a scoped-away credential is never consulted.
     struct PanicKey;
-    impl xvora_tools::types::ApiKeyProvider for PanicKey {
+    impl tools::types::ApiKeyProvider for PanicKey {
         fn current_api_key(&self) -> Option<String> {
             panic!("scoped-away credential must not be resolved");
         }
@@ -1254,7 +1254,7 @@ mod tests {
     /// The session provider would panic if resolved.
     #[tokio::test]
     async fn test_build_drops_credentials_when_request_url_differs() {
-        let session: xvora_tools::types::SharedApiKeyProvider = Arc::new(PanicKey);
+        let session: tools::types::SharedApiKeyProvider = Arc::new(PanicKey);
 
         let scoped = EndpointScopedCredentials::for_endpoint(
             "https://api.x.ai/v1",
@@ -1286,7 +1286,7 @@ mod tests {
     #[tokio::test]
     async fn test_trusted_endpoint_prefers_session_credential() {
         struct StubAuth;
-        impl xvora_auth::HttpAuth for StubAuth {
+        impl auth::HttpAuth for StubAuth {
             fn apply(
                 &self,
                 builder: reqwest::RequestBuilder,
@@ -1296,17 +1296,17 @@ mod tests {
             }
         }
         #[async_trait::async_trait]
-        impl xvora_auth::AuthCredentialProvider for StubAuth {
-            fn snapshot(&self) -> xvora_auth::CredentialSnapshot {
-                xvora_auth::CredentialSnapshot::default()
+        impl auth::AuthCredentialProvider for StubAuth {
+            fn snapshot(&self) -> auth::CredentialSnapshot {
+                auth::CredentialSnapshot::default()
             }
             async fn refresh_after_unauthorized(&self) -> bool {
                 false
             }
         }
 
-        let auth: Arc<dyn xvora_auth::AuthCredentialProvider> = Arc::new(StubAuth);
-        let api_key: xvora_tools::types::SharedApiKeyProvider = Arc::new(PanicKey);
+        let auth: Arc<dyn auth::AuthCredentialProvider> = Arc::new(StubAuth);
+        let api_key: tools::types::SharedApiKeyProvider = Arc::new(PanicKey);
         let scoped = EndpointScopedCredentials::for_endpoint(
             "https://api.x.ai/v1",
             |_| true,
@@ -1330,12 +1330,12 @@ mod tests {
     #[test]
     fn endpoint_scoped_credentials_trust_gate_and_url_match() {
         struct AnyKey;
-        impl xvora_tools::types::ApiKeyProvider for AnyKey {
+        impl tools::types::ApiKeyProvider for AnyKey {
             fn current_api_key(&self) -> Option<String> {
                 None
             }
         }
-        let key = || Arc::new(AnyKey) as xvora_tools::types::SharedApiKeyProvider;
+        let key = || Arc::new(AnyKey) as tools::types::SharedApiKeyProvider;
 
         let denied = EndpointScopedCredentials::for_endpoint(
             "https://byok.example/v1",

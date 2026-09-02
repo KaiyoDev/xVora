@@ -70,7 +70,7 @@ fn tool_execution_span(
 /// Takes the span by value: these fields are recorded exactly once.
 fn record_tool_span_outcome(
     span: tracing::Span,
-    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+    result: &Result<ToolRunResult, tool_runtime::ToolError>,
 ) -> bool {
     let (success, result_size) = match result {
         Ok(tool_result) => (
@@ -87,9 +87,9 @@ fn record_tool_span_outcome(
 /// Maps a typed tool result onto the fixed span/log outcome set (`success` / `error` / `unconfirmed`).
 /// A delivery the tool could not confirm still dispatched successfully, so it reports `unconfirmed`, never `error`.
 pub(super) fn tool_output_span_outcome(
-    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+    result: &Result<ToolRunResult, tool_runtime::ToolError>,
 ) -> &'static str {
-    use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageDisposition;
+    use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageDisposition;
     match result {
         Ok(tool_result) => match &tool_result.output {
             ToolsToolOutput::SendSubagentMessage(output) => match output.disposition() {
@@ -109,7 +109,7 @@ fn is_interruptible_wait_tool(tool_name: &str, args: &serde_json::Value) -> bool
         "get_task_output"
         | "get_command_or_subagent_output"
         | "get_task_or_subagent_output"
-        | "get_terminal_command_output" => xvora_tool_types::task_output_waits_from_json(args),
+        | "get_terminal_command_output" => tool_types::task_output_waits_from_json(args),
         "wait_tasks" | "wait_commands_or_subagents" | "wait_tasks_or_subagents" => true,
         "Await" | "AwaitShell" => true,
         _ => false,
@@ -185,14 +185,14 @@ pub(super) fn is_file_backed_exit_plan_input(tool_input: &ToolInput) -> bool {
     false
 }
 pub(super) fn is_file_backed_exit_plan_kind(
-    kind: Option<xvora_tools::types::tool::ToolKind>,
+    kind: Option<tools::types::tool::ToolKind>,
 ) -> bool {
-    matches!(kind, Some(xvora_tools::types::tool::ToolKind::ExitPlan))
+    matches!(kind, Some(tools::types::tool::ToolKind::ExitPlan))
 }
 /// Split ExitPlan-kind calls into the tail so they run after the rest of the batch.
 fn split_exit_plan_tail(
     calls: Vec<crate::sampling::types::ToolCallResponse>,
-    kind_of: impl Fn(&str) -> Option<xvora_tools::types::tool::ToolKind>,
+    kind_of: impl Fn(&str) -> Option<tools::types::tool::ToolKind>,
 ) -> (
     Vec<crate::sampling::types::ToolCallResponse>,
     Vec<crate::sampling::types::ToolCallResponse>,
@@ -256,7 +256,7 @@ pub(super) enum PlanApprovalOutcome {
 }
 impl PlanApprovalOutcome {
     fn from_response(
-        resp: &xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse,
+        resp: &tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse,
     ) -> Self {
         match resp.outcome.as_str() {
             "approved" => Self::Approved,
@@ -271,41 +271,41 @@ impl PlanApprovalOutcome {
 /// Any other error (including a non-`acp_send` error) defaults to `false` so the approval is kept pending and never auto-approved.
 fn ext_method_no_client(err: &acp::Error) -> bool {
     matches!(
-        xvora_acp_lib::acp_channel_failure(err),
-        Some(xvora_acp_lib::AcpChannelFailure::SendFailed)
+        acp_lib::acp_channel_failure(err),
+        Some(acp_lib::AcpChannelFailure::SendFailed)
     )
 }
 /// CONTENT-gated tool bodies for the external stream. Capture-time cap so
 /// multi-MB bodies are not retained; emit still drops them when CONTENT is off.
 fn external_tool_bodies(
-    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+    result: &Result<ToolRunResult, tool_runtime::ToolError>,
 ) -> (Option<String>, Option<String>) {
     match result {
         Ok(tool_result) if tool_result.output.is_error() => {
             let body = tool_result.output.to_prompt_format();
             (
-                Some(xvora_telemetry::external::truncate::cap_bytes(
+                Some(telemetry::external::truncate::cap_bytes(
                     &body,
-                    xvora_telemetry::external::truncate::MAX_CONTENT_BYTES,
+                    telemetry::external::truncate::MAX_CONTENT_BYTES,
                 )),
-                Some(xvora_telemetry::external::truncate::cap_bytes(
+                Some(telemetry::external::truncate::cap_bytes(
                     &body,
-                    xvora_telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
+                    telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
                 )),
             )
         }
         Ok(tool_result) => (
-            Some(xvora_telemetry::external::truncate::cap_bytes(
+            Some(telemetry::external::truncate::cap_bytes(
                 &tool_result.output.to_prompt_format(),
-                xvora_telemetry::external::truncate::MAX_CONTENT_BYTES,
+                telemetry::external::truncate::MAX_CONTENT_BYTES,
             )),
             None,
         ),
         Err(e) => (
             None,
-            Some(xvora_telemetry::external::truncate::cap_bytes(
+            Some(telemetry::external::truncate::cap_bytes(
                 &e.to_string(),
-                xvora_telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
+                telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
             )),
         ),
     }
@@ -364,7 +364,7 @@ impl SessionActor {
         parsed: Option<&ToolInput>,
     ) -> Option<acp::Meta> {
         let toolset = self.agent.borrow().tool_bridge().toolset();
-        xvora_tools::normalization::merge_tool_meta(
+        tools::normalization::merge_tool_meta(
             &toolset,
             existing.map(serde_json::Value::Object),
             wire_name,
@@ -439,9 +439,9 @@ impl SessionActor {
     pub(super) fn media_gen_over_cap(
         &self,
         calls: &[xvora_sampling_types::ToolCall],
-    ) -> Vec<xvora_tools::media_gen_limits::MediaGenOverCap> {
+    ) -> Vec<tools::media_gen_limits::MediaGenOverCap> {
         let kind_of = |name: &str| self.agent.borrow().tool_bridge().tool_kind(name);
-        xvora_tools::media_gen_limits::over_cap_by_name(
+        tools::media_gen_limits::over_cap_by_name(
             calls.iter().map(|c| (c.name.as_str(), kind_of(&c.name))),
             &self.rebuild_spec.media_gen_batch_limits,
         )
@@ -453,7 +453,7 @@ impl SessionActor {
         tool_calls: Vec<crate::sampling::types::ToolCallResponse>,
     ) -> Result<Vec<crate::sampling::types::ToolCallResponse>, acp::Error> {
         let kind_of = |name: &str| self.agent.borrow().tool_bridge().tool_kind(name);
-        let (allowed, rejected) = xvora_tools::media_gen_limits::partition_media_gen_batch(
+        let (allowed, rejected) = tools::media_gen_limits::partition_media_gen_batch(
             tool_calls,
             |c| c.function.name.as_str(),
             |c| kind_of(&c.function.name),
@@ -493,10 +493,10 @@ impl SessionActor {
                 .borrow()
                 .tool_bridge()
                 .tool_kind(name)
-                .and_then(|k| xvora_tools::media_gen_limits::max_calls_per_batch(k, limits))
+                .and_then(|k| tools::media_gen_limits::max_calls_per_batch(k, limits))
                 .unwrap_or(0);
             let admitted = allowed.iter().filter(|c| c.function.name == *name).count();
-            xvora_telemetry::unified_log::info(
+            telemetry::unified_log::info(
                 "shell.media_gen.batch_rejected",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -570,7 +570,7 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    xvora_tool_protocol::session_event::SessionEvent::ToolCallStarted {
+                    tool_protocol::session_event::SessionEvent::ToolCallStarted {
                         tool_call_id: call.id.clone(),
                         tool_name: call.function.name.clone(),
                         turn_number: self.current_turn_number.get(),
@@ -594,7 +594,7 @@ impl SessionActor {
                             }
                             other => format!("{other:?}"),
                         };
-                        self.emit_event(xvora_session_events::Event::McpToolCallCompleted {
+                        self.emit_event(session_events::Event::McpToolCallCompleted {
                             server_name: server.to_string(),
                             tool_name: tool.to_string(),
                             call_id: format!(
@@ -686,7 +686,7 @@ impl SessionActor {
             (
                 param_names.clone(),
                 toolset
-                    .tool_name_for_kind(xvora_tools::types::tool::ToolKind::Workflow)
+                    .tool_name_for_kind(tools::types::tool::ToolKind::Workflow)
                     .unwrap_or_else(|| "workflow".to_owned()),
                 workflow_write_smoke_check::workflow_param_name("script_path", &param_names),
                 workflow_write_smoke_check::workflow_param_name("validate_only", &param_names),
@@ -916,7 +916,7 @@ impl SessionActor {
                     let duration_ms = exec_start.elapsed().as_millis() as u64;
                     let outcome = tool_output_span_outcome(&result);
                     let success = record_tool_span_outcome(tool_span_for_record, &result);
-                    xvora_telemetry::unified_log::info(
+                    telemetry::unified_log::info(
                         "shell.tool.exec_done",
                         Some(session_id.as_ref()),
                         Some(serde_json::json!({
@@ -940,7 +940,7 @@ impl SessionActor {
             approved.into_iter().map(Some).collect();
         let (dispatch_tx, mut dispatch_rx) = tokio::sync::mpsc::unbounded_channel::<(
             usize,
-            Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+            Result<ToolRunResult, tool_runtime::ToolError>,
             u64,
         )>();
         let drainer = tokio::spawn(
@@ -991,9 +991,9 @@ impl SessionActor {
                             .and_then(serde_json::Value::as_bool)
                             .unwrap_or(false)
                         {
-                            xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Queue
+                            tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Queue
                         } else {
-                            xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Steer
+                            tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Steer
                         };
                         crate::session::telemetry::record_completed_tool_output(
                             &tool_result.output,
@@ -1005,7 +1005,7 @@ impl SessionActor {
                 }
                 Err(_) => true,
             };
-            let (ext_tool_output, ext_error_message) = if xvora_telemetry::external::is_active() {
+            let (ext_tool_output, ext_error_message) = if telemetry::external::is_active() {
                 external_tool_bodies(&result)
             } else {
                 (None, None)
@@ -1160,7 +1160,7 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    xvora_tool_protocol::session_event::SessionEvent::ToolCallCompleted {
+                    tool_protocol::session_event::SessionEvent::ToolCallCompleted {
                         tool_call_id: prepared.call_id.clone(),
                         tool_name: prepared.tool_name.clone(),
                         duration_ms,
@@ -1168,7 +1168,7 @@ impl SessionActor {
                     },
                 )
                 .await;
-            let (ext_file_path, ext_parameters) = if xvora_telemetry::external::is_active() {
+            let (ext_file_path, ext_parameters) = if telemetry::external::is_active() {
                 let parsed: Option<serde_json::Value> =
                     serde_json::from_str(&prepared.raw_arguments).ok();
                 let file_path = parsed.as_ref().and_then(|v| {
@@ -1181,7 +1181,7 @@ impl SessionActor {
             } else {
                 (None, None)
             };
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::ToolCallCompleted {
+            telemetry::session_ctx::log_event(telemetry::events::ToolCallCompleted {
                 tool_name: prepared.tool_name.clone(),
                 outcome: tool_outcome,
                 hook_rewrote,
@@ -1189,7 +1189,7 @@ impl SessionActor {
                 tool_result_size_bytes,
                 file_path: ext_file_path,
                 parameters: ext_parameters,
-                tool_use_id: xvora_telemetry::external::is_active()
+                tool_use_id: telemetry::external::is_active()
                     .then(|| prepared.call_id.clone()),
                 tool_output: ext_tool_output,
                 error_message: ext_error_message,
@@ -1372,7 +1372,7 @@ impl SessionActor {
             let early_raw_input =
                 serde_json::from_str::<serde_json::Value>(&call.function.arguments).ok();
             let subagent_background =
-                xvora_tools::is_task_tool_id(&call.function.name).then(|| {
+                tools::is_task_tool_id(&call.function.name).then(|| {
                     early_raw_input
                         .as_ref()
                         .and_then(|v| v.get("run_in_background").or_else(|| v.get("background")))
@@ -1586,34 +1586,34 @@ impl SessionActor {
             )
             .meta(self.stamp_tool_meta(None, &call.function.name, Some(&tool_input)));
             let (telemetry_access_kind, _access_detail) = match &access_kind {
-                xvora_workspace::permission::AccessKind::Read(p) => (
-                    xvora_telemetry::events::AccessKind::Read,
+                workspace::permission::AccessKind::Read(p) => (
+                    telemetry::events::AccessKind::Read,
                     p.clone().unwrap_or_default(),
                 ),
-                xvora_workspace::permission::AccessKind::Edit(p) => {
-                    (xvora_telemetry::events::AccessKind::Edit, p.clone())
+                workspace::permission::AccessKind::Edit(p) => {
+                    (telemetry::events::AccessKind::Edit, p.clone())
                 }
-                xvora_workspace::permission::AccessKind::Bash(cmd) => {
-                    (xvora_telemetry::events::AccessKind::Bash, cmd.clone())
+                workspace::permission::AccessKind::Bash(cmd) => {
+                    (telemetry::events::AccessKind::Bash, cmd.clone())
                 }
-                xvora_workspace::permission::AccessKind::Grep { path, glob } => (
-                    xvora_telemetry::events::AccessKind::Grep,
+                workspace::permission::AccessKind::Grep { path, glob } => (
+                    telemetry::events::AccessKind::Grep,
                     path.clone().or_else(|| glob.clone()).unwrap_or_default(),
                 ),
-                xvora_workspace::permission::AccessKind::MCPTool { name, .. } => {
-                    (xvora_telemetry::events::AccessKind::Mcp, name.clone())
+                workspace::permission::AccessKind::MCPTool { name, .. } => {
+                    (telemetry::events::AccessKind::Mcp, name.clone())
                 }
-                xvora_workspace::permission::AccessKind::WebFetch(u) => {
-                    (xvora_telemetry::events::AccessKind::Web, u.clone())
+                workspace::permission::AccessKind::WebFetch(u) => {
+                    (telemetry::events::AccessKind::Web, u.clone())
                 }
-                xvora_workspace::permission::AccessKind::WebSearch(q) => {
-                    (xvora_telemetry::events::AccessKind::Web, q.clone())
+                workspace::permission::AccessKind::WebSearch(q) => {
+                    (telemetry::events::AccessKind::Web, q.clone())
                 }
-                xvora_workspace::permission::AccessKind::AgentMessage { subagent_id } => (
-                    xvora_telemetry::events::AccessKind::AgentMessage,
+                workspace::permission::AccessKind::AgentMessage { subagent_id } => (
+                    telemetry::events::AccessKind::AgentMessage,
                     subagent_id.clone(),
                 ),
-                _ => (xvora_telemetry::events::AccessKind::Other, String::new()),
+                _ => (telemetry::events::AccessKind::Other, String::new()),
             };
             let canonical_permission_tool_name =
                 crate::session::telemetry::canonical_permission_tool_name(&access_kind);
@@ -1623,13 +1623,13 @@ impl SessionActor {
                 None
             };
             let perm_mode = if self.permissions.is_yolo_mode() {
-                xvora_telemetry::enums::PermissionMode::AlwaysApprove
+                telemetry::enums::PermissionMode::AlwaysApprove
             } else if self.permissions.is_auto_mode() {
-                xvora_telemetry::enums::PermissionMode::Auto
+                telemetry::enums::PermissionMode::Auto
             } else {
-                xvora_telemetry::enums::PermissionMode::Ask
+                telemetry::enums::PermissionMode::Ask
             };
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PermissionPrompted {
+            telemetry::session_ctx::log_event(telemetry::events::PermissionPrompted {
                 tool_name: canonical_permission_tool_name.clone(),
                 access_kind: telemetry_access_kind,
                 permission_mode: perm_mode,
@@ -1641,7 +1641,7 @@ impl SessionActor {
                 !self.session_info.id.0.is_empty(),
                 "permission reverse-request must carry a non-empty sessionId (design §5.4)"
             );
-            let path_context = Some(xvora_workspace::permission::types::RequestPathContext {
+            let path_context = Some(workspace::permission::types::RequestPathContext {
                 real_cwd: std::path::PathBuf::from(self.session_info.cwd.as_str()),
                 display_cwd: self
                     .display_cwd
@@ -1672,16 +1672,16 @@ impl SessionActor {
                 &call.function.name,
                 match &decision {
                     Decision::Allow | Decision::Ask => {
-                        xvora_session_events::types::PermissionDecision::Allow
+                        session_events::types::PermissionDecision::Allow
                     }
                     Decision::Reject(_) | Decision::PolicyDeny(_) => {
-                        xvora_session_events::types::PermissionDecision::Deny
+                        session_events::types::PermissionDecision::Deny
                     }
                     Decision::Cancelled => {
-                        xvora_session_events::types::PermissionDecision::Cancelled
+                        session_events::types::PermissionDecision::Cancelled
                     }
                     Decision::FollowupMessage(_) => {
-                        xvora_session_events::types::PermissionDecision::Followup
+                        session_events::types::PermissionDecision::Followup
                     }
                 },
                 perm_start,
@@ -1704,7 +1704,7 @@ impl SessionActor {
                 wait_ms = resolved.wait_ms as i64,
             )
             .in_scope(|| {});
-            xvora_telemetry::session_ctx::log_event({
+            telemetry::session_ctx::log_event({
                 let payload = crate::session::telemetry::permission_decision_payload(
                     canonical_permission_tool_name,
                     telemetry_access_kind,
@@ -1713,15 +1713,15 @@ impl SessionActor {
                     manager_event.as_ref(),
                     resolved,
                 );
-                let tool_input = if xvora_telemetry::external::is_active() {
-                    xvora_telemetry::events::ExternalToolInput {
+                let tool_input = if telemetry::external::is_active() {
+                    telemetry::events::ExternalToolInput {
                         parameters: Some(raw_input.clone()),
                         tool_use_id: Some(call.id.clone()),
                     }
                 } else {
-                    xvora_telemetry::events::ExternalToolInput::default()
+                    telemetry::events::ExternalToolInput::default()
                 };
-                xvora_telemetry::events::PermissionDecisionRecord {
+                telemetry::events::PermissionDecisionRecord {
                     payload,
                     tool_input,
                 }
@@ -1906,7 +1906,7 @@ impl SessionActor {
             .tool_bridge()
             .tool_kind(&call.function.name)
             .map(|k| {
-                use xvora_tools::types::tool::ToolKind;
+                use tools::types::tool::ToolKind;
                 matches!(
                     k,
                     ToolKind::Read
@@ -1947,11 +1947,11 @@ impl SessionActor {
         tool_call_id: &acp::ToolCallId,
         plan_content: Option<String>,
     ) -> Result<
-        xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse,
+        tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse,
         acp::Error,
     > {
         use agent_client_protocol::Client as _;
-        use xvora_tools::implementations::grok_build::exit_plan_mode::{
+        use tools::implementations::grok_build::exit_plan_mode::{
             ExitPlanModeExtRequest, ExitPlanModeExtResponse,
         };
         let ext_req = ExitPlanModeExtRequest {
@@ -2009,7 +2009,7 @@ impl SessionActor {
             *self.turn_prompt_mode.lock() = PromptMode::Agent;
             self.persist_plan_mode_state();
             self.enqueue_current_mode_update(acp::SessionModeId::new(
-                xvora_tools::types::SessionMode::Default.as_id(),
+                tools::types::SessionMode::Default.as_id(),
             ));
         }
     }
@@ -2168,7 +2168,7 @@ impl SessionActor {
                         acp::ToolCallLocation::new(read_file.path)
                             // Same normalization as the canonical `_meta` input, so one event can't show two start lines
                             .line(
-                                xvora_tools::normalization::norm_offset_i64(read_file.offset)
+                                tools::normalization::norm_offset_i64(read_file.offset)
                                     .map(|l| l as u32),
                             ),
                     ],
@@ -2235,8 +2235,8 @@ impl SessionActor {
                     "Wait tasks: {} ids, mode={}",
                     wait.task_ids.len(),
                     match wait.mode {
-                        xvora_tool_types::WaitMode::WaitAny => "wait_any",
-                        xvora_tool_types::WaitMode::WaitAll => "wait_all",
+                        tool_types::WaitMode::WaitAny => "wait_any",
+                        tool_types::WaitMode::WaitAll => "wait_all",
                     }
                 ),
                 acp::ToolKind::Other,
@@ -2250,10 +2250,10 @@ impl SessionActor {
                 vec![],
             ),
             ToolInput::Skill(skill) => {
-                xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillDispatched {
+                telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
                     skill_name: skill.skill.clone(),
                     plugin_source: None,
-                    trigger: xvora_telemetry::events::SkillTrigger::SkillTool,
+                    trigger: telemetry::events::SkillTrigger::SkillTool,
                 });
                 tracing::info_span!(
                     "skill.activated",
@@ -2368,7 +2368,7 @@ impl SessionActor {
                     let rest = &rest[rest.find('"')? + 1..];
                     Some(rest[..rest.find('"')?].to_string())
                 };
-                use xvora_tools::implementations::grok_build::workflow::WorkflowSource;
+                use tools::implementations::grok_build::workflow::WorkflowSource;
                 let inline_name = match &w.source {
                     WorkflowSource::Script { script } => script_name(script),
                     _ => None,
@@ -2468,11 +2468,11 @@ impl SessionActor {
     async fn skill_for_read_path(
         &self,
         path: &str,
-    ) -> Option<xvora_tools::implementations::skills::types::SkillInfo> {
+    ) -> Option<tools::implementations::skills::types::SkillInfo> {
         if self.is_chat_kind {
             return None;
         }
-        let read_path = xvora_tools::types::resources::resolve_model_path(
+        let read_path = tools::types::resources::resolve_model_path(
             self.tool_context.cwd.as_path(),
             self.display_cwd.get().map(Path::new),
             path,
@@ -2488,7 +2488,7 @@ impl SessionActor {
                 crate::session::telemetry::is_same_skill_file(Path::new(&skill.path), &read_path)
             })
     }
-    fn emit_skill_md_read(&self, skill: xvora_tools::implementations::skills::types::SkillInfo) {
+    fn emit_skill_md_read(&self, skill: tools::implementations::skills::types::SkillInfo) {
         let skill_source = if skill.plugin_name.is_some() {
             "plugin"
         } else {
@@ -2504,10 +2504,10 @@ impl SessionActor {
             skill_source = skill_source,
         )
         .in_scope(|| {});
-        xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillDispatched {
+        telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
             skill_name: skill.name,
             plugin_source: skill.plugin_name,
-            trigger: xvora_telemetry::events::SkillTrigger::SkillMdRead,
+            trigger: telemetry::events::SkillTrigger::SkillMdRead,
         });
     }
     fn make_pre_tool_use_envelope(
@@ -2535,7 +2535,7 @@ impl SessionActor {
         tool_call_id: &acp::ToolCallId,
         call_id: &str,
         function_name: &str,
-        err: xvora_tool_runtime::ToolError,
+        err: tool_runtime::ToolError,
         raw_arguments: &str,
         model_id: &str,
     ) -> Result<(), acp::Error> {
@@ -2549,7 +2549,7 @@ impl SessionActor {
         );
         self.signals_handle().record_tool_failure(function_name);
         let message = build_tool_parse_error_message(function_name, &err, raw_arguments);
-        let title = (err.kind == xvora_tool_runtime::ToolErrorKind::NotFound)
+        let title = (err.kind == tool_runtime::ToolErrorKind::NotFound)
             .then(|| format!("Agent tried calling a tool that doesn't exist: {function_name}"));
         self.send_update(
             acp::SessionUpdate::ToolCallUpdate(acp::ToolCallUpdate::new(
@@ -2573,7 +2573,7 @@ impl SessionActor {
     /// Queued auto-wake synthetic prompts for a task/subagent the model already learned about are dropped before they get flushed to chat history.
     /// Flushed, they would appear as a trailing `<system-reminder>` with no assistant reply.
     ///
-    /// The ID list comes from `xvora_tools::reminders::task_completion::consumed_completion_ids`.
+    /// The ID list comes from `tools::reminders::task_completion::consumed_completion_ids`.
     /// `TaskCompletionReminder` uses the same predicate; they cannot drift because they share the function.
     ///
     /// Reservations are deliberately not released here: the tool result that triggered this sweep is what consumed the completion.
@@ -2654,10 +2654,10 @@ impl SessionActor {
     /// It scans successful foreground bash commands, plus MCP `create_pull_request` results (url/number parsed from the result text).
     /// Backgrounded commands are not scanned.
     fn record_git_pr_signals(&self, effective_tool_name: &str, result: &ToolRunResult) {
-        use xvora_telemetry::enums::PrCreationSource;
-        use xvora_tools::util::git_detect;
+        use telemetry::enums::PrCreationSource;
+        use tools::util::git_detect;
         match &result.output {
-            xvora_tools::types::output::ToolOutput::Bash(b) if b.exit_code == 0 => {
+            tools::types::output::ToolOutput::Bash(b) if b.exit_code == 0 => {
                 let Some(ops) = git_detect::detect_git_ops(&b.command, &b.output_for_prompt) else {
                     return;
                 };
@@ -2669,10 +2669,10 @@ impl SessionActor {
                 }
                 if ops.pr_merged {
                     self.signals_handle().record_pr_merged();
-                    xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::PrMerged {});
+                    telemetry::session_ctx::log_event(telemetry::events::PrMerged {});
                 }
             }
-            xvora_tools::types::output::ToolOutput::MCP(m)
+            tools::types::output::ToolOutput::MCP(m)
                 if !m.is_error && is_mcp_create_pull_request(effective_tool_name) =>
             {
                 let pr = git_detect::PrRef::find_in(&result.prompt_text).unwrap_or_default();
@@ -2691,8 +2691,8 @@ impl SessionActor {
     /// `finalize_turn_bookkeeping`.
     fn record_pr_created(
         &self,
-        pr: xvora_tools::util::git_detect::PrRef,
-        source: xvora_telemetry::enums::PrCreationSource,
+        pr: tools::util::git_detect::PrRef,
+        source: telemetry::enums::PrCreationSource,
     ) {
         self.signals_handle()
             .record_pr_created(crate::session::signals::PrCreatedSignal {
@@ -2720,7 +2720,7 @@ impl SessionActor {
         } = args;
         let (mut result, mut tool_layer_images) = drained.into_parts();
         let consumed_ids =
-            xvora_tools::reminders::task_completion::consumed_completion_ids(&result.output);
+            tools::reminders::task_completion::consumed_completion_ids(&result.output);
         if !consumed_ids.is_empty() {
             self.drop_pending_items_for_consumed_completions(&consumed_ids)
                 .await;
@@ -2731,12 +2731,12 @@ impl SessionActor {
         if matches!(
             &result.output,
             ToolsToolOutput::SearchReplace(
-                xvora_tools::types::output::SearchReplaceOutput::EditsApplied(_)
+                tools::types::output::SearchReplaceOutput::EditsApplied(_)
             ) | ToolsToolOutput::Bash(_)
         ) {
             self.maybe_notify_git_branch().await;
         }
-        if let xvora_tools::types::output::ToolOutput::Bash(ref b) = result.output
+        if let tools::types::output::ToolOutput::Bash(ref b) = result.output
             && b.was_bare_echo
         {
             self.signals_handle().record_bare_echo();
@@ -2768,8 +2768,8 @@ impl SessionActor {
             }
             if matches!(
                 &result.output,
-                xvora_tools::types::output::ToolOutput::EnterPlanMode(_)
-                    | xvora_tools::types::output::ToolOutput::ExitPlanMode(_)
+                tools::types::output::ToolOutput::EnterPlanMode(_)
+                    | tools::types::output::ToolOutput::ExitPlanMode(_)
             ) {
                 let plan_path = self.plan_mode.lock().plan_file_path().display().to_string();
                 if let Some(ref mut content) = tool_update.fields.content {
@@ -2898,11 +2898,11 @@ impl SessionActor {
         tool_parsed_args: &serde_json::Value,
         effective_tool_name: &str,
         requested_tool_name: &str,
-        tool_layer_images: Vec<xvora_tools::util::base64_images::ExtractedImage>,
+        tool_layer_images: Vec<tools::util::base64_images::ExtractedImage>,
     ) -> (
         String,
         Vec<ContentPart>,
-        Vec<xvora_tools::util::base64_images::ExtractedImage>,
+        Vec<tools::util::base64_images::ExtractedImage>,
     ) {
         use crate::session::acp_conversion::maybe_rewrite;
         let mut prompt_text = prompt_text;
@@ -2913,9 +2913,9 @@ impl SessionActor {
                 ToolsToolOutput::ReadFile(ReadFileOutput::ImageContent(_))
                     | ToolsToolOutput::ReadFile(ReadFileOutput::PdfPageImages(_))
             ) {
-            xvora_tools::util::base64_images::extract_base64_images(prompt_text)
+            tools::util::base64_images::extract_base64_images(prompt_text)
         } else {
-            xvora_tools::util::base64_images::ExtractionResult {
+            tools::util::base64_images::ExtractionResult {
                 text: prompt_text,
                 images: Vec::new(),
             }
@@ -3087,7 +3087,7 @@ fn execute_tool_call_parts(
     Vec<acp::ToolCallLocation>,
     Vec<acp::ToolCallContent>,
 ) {
-    let display = xvora_tools::util::strip_redundant_session_cd(command, cwd);
+    let display = tools::util::strip_redundant_session_cd(command, cwd);
     (
         format!("Execute `{display}`"),
         acp::ToolKind::Execute,
@@ -3116,7 +3116,7 @@ mod execute_tool_call_parts_tests {
 #[cfg(test)]
 mod mcp_error_routing_tests {
     use super::is_mcp_error_result;
-    use xvora_tools::types::output::{MCPOutput, TodoWriteOutput, ToolOutput};
+    use tools::types::output::{MCPOutput, TodoWriteOutput, ToolOutput};
     #[test]
     fn only_mcp_error_results_route_to_post_tool_use_failure() {
         let mcp_error = ToolOutput::MCP(MCPOutput::errored(
@@ -3153,8 +3153,8 @@ mod exit_plan_tail_predicate_tests {
     use super::{
         is_file_backed_exit_plan_input, is_file_backed_exit_plan_kind, split_exit_plan_tail,
     };
-    use xvora_tools::types::ToolInput;
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::ToolInput;
+    use tools::types::tool::ToolKind;
     fn call(name: &str, args: &str) -> crate::sampling::types::ToolCallResponse {
         crate::sampling::types::ToolCallResponse {
             id: format!("call_{name}"),
@@ -3175,7 +3175,7 @@ mod exit_plan_tail_predicate_tests {
         assert!(!is_file_backed_exit_plan_kind(Some(ToolKind::Edit)));
         assert!(!is_file_backed_exit_plan_kind(None));
         assert!(is_file_backed_exit_plan_input(&ToolInput::ExitPlanMode(
-            xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeInput {}
+            tools::implementations::grok_build::exit_plan_mode::ExitPlanModeInput {}
         )));
     }
     fn mixed(calls: Vec<crate::sampling::types::ToolCallResponse>) -> bool {
@@ -3296,8 +3296,8 @@ mod exit_plan_intercept_tests {
 mod plan_mode_edit_gate_tests {
     use super::{PlanEditGate, plan_mode_edit_gate};
     use crate::session::plan_mode::PlanModeTracker;
-    use xvora_tools::types::ToolInput;
-    use xvora_workspace::permission::AccessKind;
+    use tools::types::ToolInput;
+    use workspace::permission::AccessKind;
     /// Tracker with plan mode Active and plan file at `/tmp/gate-session/plan.md`.
     fn active_tracker() -> PlanModeTracker {
         let mut t = PlanModeTracker::new(std::path::PathBuf::from("/tmp/gate-session"));
@@ -3309,7 +3309,7 @@ mod plan_mode_edit_gate_tests {
         plan_mode_edit_gate(tracker, input, &AccessKind::from(input))
     }
     fn search_replace(path: &str) -> ToolInput {
-        use xvora_tools::implementations::grok_build::search_replace::SearchReplaceInput;
+        use tools::implementations::grok_build::search_replace::SearchReplaceInput;
         ToolInput::SearchReplace(SearchReplaceInput {
             file_path: path.into(),
             old_string: "a".into(),
@@ -3318,7 +3318,7 @@ mod plan_mode_edit_gate_tests {
         })
     }
     fn write(path: &str) -> ToolInput {
-        use xvora_tools::implementations::opencode::write::WriteInput;
+        use tools::implementations::opencode::write::WriteInput;
         ToolInput::Write(WriteInput {
             file_path: path.into(),
             content: "x".into(),
@@ -3354,7 +3354,7 @@ mod plan_mode_edit_gate_tests {
     /// `apply_patch` carries a placeholder access path, never the plan file: always rejected in plan mode (conservative).
     #[test]
     fn apply_patch_rejected_in_plan_mode() {
-        use xvora_tools::implementations::codex::apply_patch::ApplyPatchInput;
+        use tools::implementations::codex::apply_patch::ApplyPatchInput;
         let t = active_tracker();
         assert_eq!(
             gate(
@@ -3368,7 +3368,7 @@ mod plan_mode_edit_gate_tests {
     }
     #[test]
     fn task_not_gated_in_plan_mode() {
-        use xvora_tool_types::TaskToolInput;
+        use tool_types::TaskToolInput;
         let t = active_tracker();
         assert_eq!(
             gate(
@@ -3393,7 +3393,7 @@ mod plan_mode_edit_gate_tests {
     /// Plan mode blocks edits, not bash/reads.
     #[test]
     fn non_edit_tools_not_gated() {
-        use xvora_tools::implementations::BashToolInput;
+        use tools::implementations::BashToolInput;
         let t = active_tracker();
         assert_eq!(
             gate(
@@ -3432,7 +3432,7 @@ mod plan_approval_helper_tests {
         PlanApprovalOutcome, ResumeAction, ext_method_no_client, resume_action_for,
         revise_plan_message,
     };
-    use xvora_tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse;
+    use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeExtResponse;
     fn resp(outcome: &str) -> ExitPlanModeExtResponse {
         ExitPlanModeExtResponse {
             outcome: outcome.into(),
@@ -3464,7 +3464,7 @@ mod plan_approval_helper_tests {
     }
     #[test]
     fn ext_method_no_client_defaults_false_for_untagged_error() {
-        assert!(!ext_method_no_client(&xvora_acp_lib::acp_internal_error(
+        assert!(!ext_method_no_client(&acp_lib::acp_internal_error(
             "unrelated internal error"
         )));
     }
@@ -3499,7 +3499,7 @@ mod wait_interrupt_tests {
     #[tokio::test(start_paused = true)]
     async fn pending_interjection_aborts_in_flight_wait() {
         use super::InterjectionBuffer;
-        use xvora_interjection_core::PendingInterjection;
+        use interjection_core::PendingInterjection;
         let buf: InterjectionBuffer<agent_client_protocol::ImageContent> =
             InterjectionBuffer::default();
         let out = tokio::select! {

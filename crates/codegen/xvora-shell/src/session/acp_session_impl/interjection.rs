@@ -9,13 +9,13 @@ use super::*;
 // Re-exported for `acp_session.rs`, which does `pub(crate) use interjection::*;`
 // Retained code and co-located tests keep resolving by `acp_session::` path
 #[allow(unused_imports)]
-pub(crate) use xvora_interjection_core::{
+pub(crate) use interjection_core::{
     INTERRUPT_NOTE, InterjectionBuffer, drain_formatted, format_interjection, frame_user_turn,
 };
 
 /// Shell instantiation of the shared entry type: images are ACP content.
 pub(crate) type PendingInterjection =
-    xvora_interjection_core::PendingInterjection<acp::ImageContent>;
+    interjection_core::PendingInterjection<acp::ImageContent>;
 
 /// Prompt-id prefix for interjections that missed their turn and were converted into standalone prompt turns.
 /// They arrived while the session was idle, or after the running turn's final drain.
@@ -255,14 +255,14 @@ impl SessionActor {
         // Those attribute the turn, which this skill did not start
         // `SkillDispatched` still carries `plugin_source`, so dispatch counts stay complete
         for sk in &parsed {
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SlashCommandUsed {
+            telemetry::session_ctx::log_event(telemetry::events::SlashCommandUsed {
                 command: sk.name.clone(),
                 args_provided: !sk.args.is_empty(),
             });
-            xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SkillDispatched {
+            telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
                 skill_name: sk.name.clone(),
                 plugin_source: sk.plugin_name.clone(),
-                trigger: xvora_telemetry::events::SkillTrigger::SlashCommand,
+                trigger: telemetry::events::SkillTrigger::SlashCommand,
             });
         }
         slash_commands::build_skill_information_for_refs(

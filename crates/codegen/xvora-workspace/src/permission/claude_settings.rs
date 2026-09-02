@@ -340,11 +340,11 @@ pub fn find_claude_settings_paths(cwd: &Path) -> Vec<PathBuf> {
 /// Global (user-tier) `~/.claude` settings paths, highest-priority-first.
 /// Split out of [`find_claude_settings_paths`] so [`claude_settings_paths_for_trust`] can load ONLY the user tier when a folder is untrusted.
 ///
-/// `xvora_dirs::home_dir()` matches Node's `os.homedir()` (`USERPROFILE` on Windows), used by both the settings' authoring tool and the import scanner.
+/// `dirs::home_dir()` matches Node's `os.homedir()` (`USERPROFILE` on Windows), used by both the settings' authoring tool and the import scanner.
 /// A path returned here therefore tests as global in the scanner's `is_global` check (`claude_import.rs::scan_importable_settings`).
 fn global_claude_settings_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    if let Some(home) = xvora_dirs::home_dir() {
+    if let Some(home) = dirs::home_dir() {
         let global = home.join(".claude");
         paths.push(global.join("settings.local.json"));
         paths.push(global.join("settings.json"));
@@ -477,7 +477,7 @@ pub fn is_claude_import_marked() -> bool {
     if std::env::var("_GROK_CLAUDE_MARKER_OVERRIDE").as_deref() == Ok("1") {
         return true;
     }
-    let Some(config_path) = xvora_config::user_grok_home().map(|g| g.join("config.toml")) else {
+    let Some(config_path) = config::user_grok_home().map(|g| g.join("config.toml")) else {
         return false;
     };
     let Ok(contents) = std::fs::read_to_string(&config_path) else {

@@ -18,7 +18,7 @@ impl RoleCapability {
     /// Keyed on the `can_*` flags (`can_search` for grep, `can_execute` for terminal/bash).
     fn is_satisfied(
         self,
-        summary: &xvora_tools::implementations::grok_build::task::types::SubagentTypeSummary,
+        summary: &tools::implementations::grok_build::task::types::SubagentTypeSummary,
     ) -> bool {
         match self {
             Self::Skeptic => summary.can_read && summary.can_search,
@@ -35,7 +35,7 @@ pub(crate) struct PanelResolveCache {
     /// Maps a harness `agent_type` to its describe outcome (the coordinator's answer for the role's `general-purpose` toolset on that harness).
     describe: std::collections::HashMap<
         String,
-        xvora_tools::implementations::grok_build::task::types::SubagentDescribeOutcome,
+        tools::implementations::grok_build::task::types::SubagentDescribeOutcome,
     >,
 }
 
@@ -47,7 +47,7 @@ fn role_tool_names_from(
     cache: &PanelResolveCache,
     inherit: &crate::session::goal_role_tools::RoleToolNames,
 ) -> crate::session::goal_role_tools::RoleToolNames {
-    use xvora_tools::implementations::grok_build::task::types::SubagentDescribeOutcome;
+    use tools::implementations::grok_build::task::types::SubagentDescribeOutcome;
     // `override_.agent_type` is the committed harness; the cache is keyed on it.
     match override_.agent_type.as_deref() {
         Some(harness) => match cache.describe.get(harness) {
@@ -88,7 +88,7 @@ impl SessionActor {
             Some(path) => tokio::fs::read_to_string(path)
                 .await
                 .ok()
-                .map(|text| xvora_tools::util::truncate_str(&text, 16 * 1024).to_owned()),
+                .map(|text| tools::util::truncate_str(&text, 16 * 1024).to_owned()),
             None => None,
         };
         let active_model = self
@@ -143,7 +143,7 @@ impl SessionActor {
     }
 
     fn record_goal_round_progress(&self, detail: &str, failed: bool) {
-        let detail = xvora_tools::util::truncate_str(detail.trim(), 500).to_owned();
+        let detail = tools::util::truncate_str(detail.trim(), 500).to_owned();
         let mut tracker = self.goal_tracker.lock();
         let round = tracker.snapshot_mut().map(|snapshot| {
             snapshot.total_worker_rounds = snapshot.total_worker_rounds.saturating_add(1);
@@ -630,7 +630,7 @@ impl SessionActor {
         choice: &crate::agent::config::GoalRoleModelChoice,
         capability: RoleCapability,
         event_tx: &tokio::sync::mpsc::UnboundedSender<
-            xvora_tools::implementations::grok_build::task::types::SubagentEvent,
+            tools::implementations::grok_build::task::types::SubagentEvent,
         >,
     ) -> (
         crate::session::goal_planner::RoleSpawnOverride,
@@ -669,17 +669,17 @@ impl SessionActor {
         pair: &crate::util::config::GoalRoleModel,
         capability: RoleCapability,
         event_tx: &tokio::sync::mpsc::UnboundedSender<
-            xvora_tools::implementations::grok_build::task::types::SubagentEvent,
+            tools::implementations::grok_build::task::types::SubagentEvent,
         >,
         available_models: &indexmap::IndexMap<String, crate::agent::config::ModelEntry>,
         cache: &mut PanelResolveCache,
     ) -> crate::session::goal_planner::RoleSpawnOverride {
         use crate::session::events::{Event, GoalRoleModelFailOpenReason as Reason};
         use crate::session::goal_planner::RoleSpawnOverride;
-        use xvora_tools::implementations::grok_build::task::backend::{
+        use tools::implementations::grok_build::task::backend::{
             ChannelBackend, SubagentBackend,
         };
-        use xvora_tools::implementations::grok_build::task::types::SubagentDescribeOutcome;
+        use tools::implementations::grok_build::task::types::SubagentDescribeOutcome;
 
         let fail_open = |reason: Reason| {
             self.emit_event(Event::GoalRoleModelFailOpen {
@@ -697,7 +697,7 @@ impl SessionActor {
         if !entry.info.user_selectable {
             return fail_open(Reason::ModelUnauthorized);
         }
-        if xvora_agent::config::is_strict_harness_agent_type(&pair.agent_type)
+        if agent::config::is_strict_harness_agent_type(&pair.agent_type)
             && !crate::agent::subagent::subagent_harness_flavor_is_representable(&pair.agent_type)
         {
             return fail_open(Reason::HarnessFlavorUnsupported);
@@ -749,7 +749,7 @@ impl SessionActor {
     }
 
     pub(super) async fn resolve_goal_tool_names(&self) -> GoalToolNames {
-        use xvora_tools::types::tool::ToolKind;
+        use tools::types::tool::ToolKind;
         let bridge = self.agent.borrow().tool_bridge().clone();
         GoalToolNames {
             goal: bridge
@@ -770,7 +770,7 @@ impl SessionActor {
     pub(crate) async fn resolve_inherit_role_tool_names(
         &self,
     ) -> crate::session::goal_role_tools::RoleToolNames {
-        use xvora_tools::types::tool::ToolKind;
+        use tools::types::tool::ToolKind;
         let bridge = self.agent.borrow().tool_bridge().clone();
         crate::session::goal_role_tools::RoleToolNames::from_parent(
             bridge.tool_for_kind(ToolKind::Read).await,
@@ -1570,7 +1570,7 @@ impl SessionActor {
 
     async fn has_pending_goal_todos(&self) -> bool {
         use crate::tools::todo::{TodoState, TodoStatus};
-        use xvora_tools::types::resources::State;
+        use tools::types::resources::State;
         let bridge = self.tool_bridge_handle();
         match bridge.read_resource::<State<TodoState>>().await {
             Some(state) => state.0.todo_items_with_ids().any(|(_id, item)| {
@@ -1597,9 +1597,9 @@ impl SessionActor {
         &self,
         current_tokens: i64,
         purpose: DrainPurpose,
-        extra: Vec<xvora_tools::implementations::grok_build::update_goal::UpdateGoalEnvelope>,
+        extra: Vec<tools::implementations::grok_build::update_goal::UpdateGoalEnvelope>,
     ) {
-        use xvora_tools::implementations::grok_build::update_goal::{RejectReason, UpdateGoalAck};
+        use tools::implementations::grok_build::update_goal::{RejectReason, UpdateGoalAck};
         if !self.goal_harness_enabled() {
             let reject = || UpdateGoalAck::Rejected {
                 reason: RejectReason::HarnessDisabled,
@@ -2078,10 +2078,10 @@ impl SessionActor {
         attempt: u32,
         outcome: crate::session::goal_classifier::GoalClassifierOutcome,
         notify: &crate::session::goal_orchestrator::GoalNotifySender,
-    ) -> xvora_tools::implementations::grok_build::update_goal::UpdateGoalAck {
+    ) -> tools::implementations::grok_build::update_goal::UpdateGoalAck {
         use crate::session::goal_classifier::GoalClassifierOutcome;
         use crate::session::goal_tracker::GoalClassifierVerdict;
-        use xvora_tools::implementations::grok_build::update_goal::UpdateGoalAck;
+        use tools::implementations::grok_build::update_goal::UpdateGoalAck;
 
         let current_tokens = self.chat_state_handle.get_total_tokens().await as i64;
         let (tokens_used, finished_marginal) = self.goal_tokens(current_tokens);
@@ -2223,7 +2223,7 @@ impl SessionActor {
 #[cfg(test)]
 mod role_capability_tests {
     use super::RoleCapability;
-    use xvora_tools::implementations::grok_build::task::types::SubagentTypeSummary;
+    use tools::implementations::grok_build::task::types::SubagentTypeSummary;
 
     fn summary(can_read: bool, can_search: bool, can_execute: bool) -> SubagentTypeSummary {
         SubagentTypeSummary {
@@ -2254,10 +2254,10 @@ mod role_tool_names_tests {
     use super::{PanelResolveCache, role_tool_names_from};
     use crate::session::goal_planner::RoleSpawnOverride;
     use crate::session::goal_role_tools::RoleToolNames;
-    use xvora_tools::implementations::grok_build::task::types::{
+    use tools::implementations::grok_build::task::types::{
         SubagentDescribeOutcome, SubagentTypeSummary,
     };
-    use xvora_tools::types::tool::ToolKind;
+    use tools::types::tool::ToolKind;
 
     /// A named summary (distinct from the inherit/default names) so tests can tell `from_summary` output from the inherit fallback.
     fn cursor_summary() -> SubagentTypeSummary {

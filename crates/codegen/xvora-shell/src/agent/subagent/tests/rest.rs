@@ -3,7 +3,7 @@ use super::*;
 use super::super::resume_window::resume_inherited_prefix_len;
 use crate::test_support::lsp_runtime::{ctx_with_toggle, test_gateway};
 use crate::upload::trace::SubagentSpawnedRef;
-use xvora_tools::implementations::grok_build::task::backend::ChannelBackend;
+use tools::implementations::grok_build::task::backend::ChannelBackend;
 #[test]
 fn normalize_forked_context_strips_project_layout() {
     use xvora_sampling_types::conversation::ConversationItem;
@@ -623,14 +623,14 @@ fn inherited_child_toolset_cannot_reintroduce_workflow() {
 /// A pointer sends resume down the rehydrate path, which deletes the directory and rebuilds it from a snapshot that lacks whatever kept it.
 #[tokio::test]
 async fn kept_worktree_leaves_no_resume_pointer() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{git_commit_all, seed_repo};
+    test_utils::require_git!();
+    use test_utils::git::{git_commit_all, seed_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = seed_repo(temp.path());
     std::fs::write(repo.join(".gitignore"), ".env\n").unwrap();
     git_commit_all(&repo, "ignore env");
     let wt = temp.path().join("subagent-keeps");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt)
+    fast_worktree::WorktreeBuilder::new(&repo, &wt)
         .standalone(true)
         .create()
         .unwrap();
@@ -678,12 +678,12 @@ async fn kept_worktree_leaves_no_resume_pointer() {
 /// Linked on purpose: only there is the registration's reflog the last name for a commit, which the second half of this test is about.
 #[tokio::test]
 async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_directory() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::seed_repo_with_remote;
+    test_utils::require_git!();
+    use test_utils::git::seed_repo_with_remote;
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-1");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
+    fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
     let meta_dir = temp.path().join("meta");
     write_subagent_meta(&meta_dir, &snapshot_test_meta("reclaim-1"));
     let disposal = crate::agent::subagent::handle_request::dispose_worktree_after_completion(
@@ -715,12 +715,12 @@ async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_director
 /// The disposal gives it a lasting second name in the repository before removing the directory, so the commit stays readable.
 #[tokio::test]
 async fn disposal_names_a_reflog_only_commit_before_removing_the_worktree() {
-    xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
+    test_utils::require_git!();
+    use test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-2");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
+    fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
     let discarded = reflog_only_commit(&wt, None);
     let meta_dir = temp.path().join("meta");
     write_subagent_meta(&meta_dir, &snapshot_test_meta("reclaim-2"));
@@ -1182,13 +1182,13 @@ fn token_estimation_for_window_safety() {
             ConversationItem::user("Hello, how are you?"),
             ConversationItem::assistant("I'm doing well, thank you!"),
         ];
-    let estimated = xvora_chat_state::estimate_conversation_tokens(&conversation);
+    let estimated = chat_state::estimate_conversation_tokens(&conversation);
     assert!(estimated > 0, "should produce non-zero estimate");
     assert!(
             estimated < 100,
             "short conversation should have small token estimate"
         );
-    assert_eq!(xvora_chat_state::estimate_conversation_tokens(&[]), 0);
+    assert_eq!(chat_state::estimate_conversation_tokens(&[]), 0);
 }
 #[test]
 fn token_estimation_accounts_for_images() {
@@ -1200,7 +1200,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let text_tokens = xvora_chat_state::estimate_conversation_tokens(&text_only);
+    let text_tokens = chat_state::estimate_conversation_tokens(&text_only);
     let with_image = vec![ConversationItem::User(UserItem {
             content: vec![
                 ContentPart::Text {
@@ -1213,7 +1213,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let image_tokens = xvora_chat_state::estimate_conversation_tokens(&with_image);
+    let image_tokens = chat_state::estimate_conversation_tokens(&with_image);
     assert_eq!(
             image_tokens,
             text_tokens + 765,
@@ -1228,7 +1228,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let multi_tokens = xvora_chat_state::estimate_conversation_tokens(&multi_image);
+    let multi_tokens = chat_state::estimate_conversation_tokens(&multi_image);
     assert_eq!(multi_tokens, 765 * 3, "three images = 3 * 765 tokens");
 }
 #[test]
@@ -1327,7 +1327,7 @@ fn drain_cancelled_finish_broadcasts(
 ) -> usize {
     let mut count = 0;
     while let Ok(msg) = gateway_rx.try_recv() {
-        let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+        let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
             continue;
         };
         assert_eq!(args.request.method.as_ref(), "x.ai/session_notification");
@@ -1803,7 +1803,7 @@ async fn live_reconcile_overlapping_ticks_emit_once() {
     assert_eq!(cmd_finishes, 1);
     let mut gateway_finishes = 0;
     while let Ok(msg) = gateway_rx.try_recv() {
-        let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+        let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
             continue;
         };
         let notification: SessionNotification = serde_json::from_str(
@@ -2261,9 +2261,9 @@ async fn read_parent_sampling_config_live_never_strips_a_fallback_key() {
     );
     ctx.auth = None;
     let chat = spawn_test_parent_chat_state("grok-4.5");
-    chat.update_credentials(xvora_chat_state::Credentials {
+    chat.update_credentials(chat_state::Credentials {
         api_key: Some("xvora-env-fallback".to_string()),
-        auth_type: xvora_chat_state::AuthType::SessionToken,
+        auth_type: chat_state::AuthType::SessionToken,
         alpha_test_key: None,
         client_version: None,
     });
@@ -2452,7 +2452,7 @@ async fn read_parent_sampling_config_fallback_resolves_compactions_remaining_fro
 /// With `None` (inherit) the pin wins, and an unknown override falls through to the pin.
 #[tokio::test]
 async fn runtime_override_wins_over_subagents_models_pin_in_precedence_path() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let build_ctx = || {
         let mut models = indexmap::IndexMap::new();
         models.insert("goal-model".to_string(), test_model_entry("goal-model"));
@@ -2509,7 +2509,7 @@ async fn runtime_override_wins_over_subagents_models_pin_in_precedence_path() {
 /// The runtime override wins in `resolve_effective_model_config`.
 #[tokio::test]
 async fn fork_context_pins_parent_model_over_overrides() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let build_ctx = || {
         let mut ctx = ctx_with_toggle(HashMap::new());
         ctx.sampling_config.model = "parent-model".to_string();
@@ -2561,7 +2561,7 @@ async fn fork_context_pins_parent_model_over_overrides() {
 /// A "heavy"/custom parent is treated identically to any other.
 #[tokio::test]
 async fn resolve_subagent_inherits_parent_model_without_pins() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     for parent_model in ["grok-4.5", "composer-2-fast", "my-custom-byok-model"] {
         let mut ctx = ctx_with_toggle(HashMap::new());
         ctx.sampling_config.model = parent_model.to_string();
@@ -2585,7 +2585,7 @@ async fn resolve_subagent_inherits_parent_model_without_pins() {
 /// honor the pin identically now that the heavy-model gate is gone.
 #[tokio::test]
 async fn resolve_subagent_config_override_pin_applies_for_any_parent() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     for parent_model in ["grok-4.5", "composer-2-fast"] {
         let mut ctx = ctx_with_toggle(HashMap::new());
         ctx.sampling_config.model = parent_model.to_string();
@@ -2610,7 +2610,7 @@ async fn resolve_subagent_config_override_pin_applies_for_any_parent() {
 /// An explicit `AgentDefinition.model = Override(id)` pin routes the subagent to that model even when the parent runs a light model.
 #[tokio::test]
 async fn resolve_subagent_agent_definition_pin_applies_for_light_parent() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.sampling_config.model = "grok-4.5".to_string();
     ctx.model_id = acp::ModelId::new("grok-4.5");
@@ -2629,7 +2629,7 @@ async fn resolve_subagent_agent_definition_pin_applies_for_light_parent() {
 /// Priority 1 (`[subagents.models]`) wins over Priority 2 (`AgentDefinition.model`) when both pins are set and both resolve.
 #[tokio::test]
 async fn resolve_subagent_config_override_wins_over_agent_definition() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.sampling_config.model = "grok-4.5".to_string();
     ctx.model_id = acp::ModelId::new("grok-4.5");
@@ -2653,7 +2653,7 @@ async fn resolve_subagent_config_override_wins_over_agent_definition() {
 /// as an unknown id — inherit the parent.
 #[tokio::test]
 async fn resolve_subagent_config_override_unselectable_model_falls_through_to_inherit() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.sampling_config.model = "grok-4.5".to_string();
     ctx.model_id = acp::ModelId::new("grok-4.5");
@@ -2684,7 +2684,7 @@ async fn resolve_subagent_config_override_unselectable_model_falls_through_to_in
 /// subagent overrides. Only a fleet pin does.
 #[tokio::test]
 async fn resolve_subagent_config_override_user_allowlist_still_applies() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.sampling_config.model = "grok-4.5".to_string();
     ctx.model_id = acp::ModelId::new("grok-4.5");
@@ -2709,7 +2709,7 @@ async fn resolve_subagent_config_override_user_allowlist_still_applies() {
 /// Missing `agent_config` cannot be told from a fleet pin — fail closed.
 #[tokio::test]
 async fn resolve_subagent_config_override_none_agent_config_blocks_unselectable() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.sampling_config.model = "grok-4.5".to_string();
     ctx.model_id = acp::ModelId::new("grok-4.5");
@@ -2731,7 +2731,7 @@ async fn resolve_subagent_config_override_none_agent_config_blocks_unselectable(
 /// An unresolvable `[subagents.models]` pin (model absent from `available_models`) falls through to inherit the parent model.
 #[tokio::test]
 async fn resolve_subagent_config_override_unknown_model_falls_through_to_inherit() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.sampling_config.model = "grok-4.5".to_string();
     ctx.model_id = acp::ModelId::new("grok-4.5");
@@ -2749,7 +2749,7 @@ async fn resolve_subagent_config_override_unknown_model_falls_through_to_inherit
 /// An unresolvable `AgentDefinition.model` pin (model absent from `available_models`) falls through to inherit the parent model.
 #[tokio::test]
 async fn resolve_subagent_agent_definition_unknown_model_falls_through_to_inherit() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let mut ctx = ctx_with_toggle(HashMap::new());
     ctx.sampling_config.model = "grok-4.5".to_string();
     ctx.model_id = acp::ModelId::new("grok-4.5");
@@ -2766,7 +2766,7 @@ async fn resolve_subagent_agent_definition_unknown_model_falls_through_to_inheri
 /// Spawn-time credentials are cache-only: a cold spawn has no key, never the parent session key.
 #[tokio::test]
 async fn subagent_override_provider_model_spawns_cache_only_credentials() {
-    use xvora_agent::config::ModelOverride;
+    use agent::config::ModelOverride;
     let dir = tempfile::tempdir().unwrap();
     let provider = crate::auth::test_counting_provider(
         "test-subagent-spawn",
@@ -2916,7 +2916,7 @@ fn persona_injection_into_empty_conversation() {
 mod cancellation_error_message_tests {
     use super::super::cancellation_error_message;
     use crate::session::commands::CancellationContext;
-    use xvora_session_events::types::CancellationCategory;
+    use session_events::types::CancellationCategory;
     #[test]
     fn permission_rejected_with_context() {
         let ctx = CancellationContext {
@@ -3025,7 +3025,7 @@ fn filter_inheritance_all_passes_everything_through() {
     let pool = make_pool(&["github", "linear", "slack"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::All,
+        &agent::config::McpInheritance::All,
     );
     let result = result.expect("All should return Some");
     assert_eq!(pool_names(&result), vec!["github", "linear", "slack"]);
@@ -3035,7 +3035,7 @@ fn filter_inheritance_none_returns_none() {
     let pool = make_pool(&["github", "linear"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::None,
+        &agent::config::McpInheritance::None,
     );
     assert!(result.is_none());
 }
@@ -3044,7 +3044,7 @@ fn filter_inheritance_named_selects_specific_servers() {
     let pool = make_pool(&["github", "linear", "slack", "jira"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Named(
+        &agent::config::McpInheritance::Named(
             vec!["github".into(), "slack".into()],
         ),
     );
@@ -3056,7 +3056,7 @@ fn filter_inheritance_except_excludes_specific_servers() {
     let pool = make_pool(&["github", "linear", "slack", "jira"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Except(
+        &agent::config::McpInheritance::Except(
             vec!["linear".into(), "jira".into()],
         ),
     );
@@ -3068,7 +3068,7 @@ fn filter_inheritance_named_empty_list_gives_empty_pool() {
     let pool = make_pool(&["github", "linear"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Named(vec![]),
+        &agent::config::McpInheritance::Named(vec![]),
     );
     let result = result.expect("Named([]) should return Some (empty pool)");
     assert_eq!(result.server_names().count(), 0);
@@ -3078,7 +3078,7 @@ fn filter_inheritance_except_empty_list_keeps_all() {
     let pool = make_pool(&["github", "linear"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Except(vec![]),
+        &agent::config::McpInheritance::Except(vec![]),
     );
     let result = result.expect("Except([]) should return Some");
     assert_eq!(pool_names(&result), vec!["github", "linear"]);
@@ -3088,7 +3088,7 @@ fn filter_inheritance_named_nonexistent_servers_ignored() {
     let pool = make_pool(&["github", "linear"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Named(
+        &agent::config::McpInheritance::Named(
             vec![
                 "nonexistent".into(),
                 "github".into(),
@@ -3103,7 +3103,7 @@ fn filter_inheritance_except_nonexistent_servers_ignored() {
     let pool = make_pool(&["github", "linear"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Except(vec!["nonexistent".into()]),
+        &agent::config::McpInheritance::Except(vec!["nonexistent".into()]),
     );
     let result = result.expect("Except should return Some");
     assert_eq!(pool_names(&result), vec!["github", "linear"]);
@@ -3113,7 +3113,7 @@ fn filter_inheritance_named_all_nonexistent_gives_empty() {
     let pool = make_pool(&["github", "linear"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Named(vec!["foo".into(), "bar".into()]),
+        &agent::config::McpInheritance::Named(vec!["foo".into(), "bar".into()]),
     );
     let result = result.expect("Named should return Some");
     assert_eq!(result.server_names().count(), 0);
@@ -3123,7 +3123,7 @@ fn filter_inheritance_except_all_servers_gives_empty() {
     let pool = make_pool(&["github", "linear"]);
     let result = super::filter_pool_by_inheritance(
         pool,
-        &xvora_agent::config::McpInheritance::Except(
+        &agent::config::McpInheritance::Except(
             vec!["github".into(), "linear".into()],
         ),
     );
@@ -3135,7 +3135,7 @@ fn resolve_inherited_pool_all_passes_parent_pool() {
     let pool = make_pool(&["github", "atlassian"]);
     let result = super::resolve_inherited_mcp_pool(
             Some(pool),
-            &xvora_agent::config::McpInheritance::All,
+            &agent::config::McpInheritance::All,
         )
         .expect("All should return Some");
     assert_eq!(pool_names(&result), vec!["atlassian", "github"]);
@@ -3145,7 +3145,7 @@ fn resolve_inherited_pool_none_returns_none() {
     let pool = make_pool(&["github", "atlassian"]);
     let result = super::resolve_inherited_mcp_pool(
         Some(pool),
-        &xvora_agent::config::McpInheritance::None,
+        &agent::config::McpInheritance::None,
     );
     assert!(result.is_none());
 }
@@ -3154,7 +3154,7 @@ fn resolve_inherited_pool_named_filters() {
     let pool = make_pool(&["github", "atlassian", "slack"]);
     let result = super::resolve_inherited_mcp_pool(
             Some(pool),
-            &xvora_agent::config::McpInheritance::Named(vec!["atlassian".into()]),
+            &agent::config::McpInheritance::Named(vec!["atlassian".into()]),
         )
         .expect("Named should return Some");
     assert_eq!(pool_names(&result), vec!["atlassian"]);
@@ -3163,7 +3163,7 @@ fn resolve_inherited_pool_named_filters() {
 fn resolve_inherited_pool_missing_parent_returns_none() {
     let result = super::resolve_inherited_mcp_pool(
         None,
-        &xvora_agent::config::McpInheritance::All,
+        &agent::config::McpInheritance::All,
     );
     assert!(result.is_none());
 }
@@ -3174,7 +3174,7 @@ fn plugin_agents_inherit_parent_mcp_pool_by_default() {
     let pool = make_pool(&["atlassian", "github"]);
     let inherited = super::resolve_inherited_mcp_pool(
             Some(pool),
-            &xvora_agent::config::McpInheritance::All,
+            &agent::config::McpInheritance::All,
         )
         .expect("plugin children inherit parent pool with mcpInheritance=all");
     assert_eq!(pool_names(&inherited), vec!["atlassian", "github"]);
@@ -3184,7 +3184,7 @@ fn plugin_agents_can_opt_out_via_mcp_inheritance_none() {
     let pool = make_pool(&["atlassian"]);
     let inherited = super::resolve_inherited_mcp_pool(
         Some(pool),
-        &xvora_agent::config::McpInheritance::None,
+        &agent::config::McpInheritance::None,
     );
     assert!(
             inherited.is_none(),
@@ -3194,13 +3194,13 @@ fn plugin_agents_can_opt_out_via_mcp_inheritance_none() {
 fn make_test_skill(
     name: &str,
     plugin: Option<&str>,
-) -> xvora_tools::implementations::skills::types::SkillInfo {
-    xvora_tools::implementations::skills::types::SkillInfo {
+) -> tools::implementations::skills::types::SkillInfo {
+    tools::implementations::skills::types::SkillInfo {
         name: name.into(),
         display_name: None,
         description: format!("{name} skill"),
         path: format!("/skills/{name}/SKILL.md"),
-        scope: xvora_tools::implementations::skills::types::SkillScope::Local,
+        scope: tools::implementations::skills::types::SkillScope::Local,
         enabled: true,
         user_invocable: true,
         plugin_name: plugin.map(Into::into),

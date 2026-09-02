@@ -105,8 +105,8 @@ impl OidcRefresher {
                 "oidc refresh: disk has valid AT, adopting instead of consuming RT",
                 None,
                 Some(serde_json::json!({
-                    "disk_key_prefix": xvora_auth::bearer_suffix(&disk_now.key),
-                    "tried_key_prefix": xvora_auth::bearer_suffix(&tried.key),
+                    "disk_key_prefix": auth::bearer_suffix(&disk_now.key),
+                    "tried_key_prefix": auth::bearer_suffix(&tried.key),
                 })),
             );
             self.note_refresh_progress();
@@ -126,11 +126,11 @@ impl OidcRefresher {
                 "tried_rt_prefix": tried
                     .refresh_token
                     .as_deref()
-                    .map(xvora_auth::bearer_suffix),
+                    .map(auth::bearer_suffix),
                 "disk_rt_prefix": disk_now
                     .refresh_token
                     .as_deref()
-                    .map(xvora_auth::bearer_suffix),
+                    .map(auth::bearer_suffix),
             })),
         );
 
@@ -180,7 +180,7 @@ impl TokenRefresher for OidcRefresher {
                 "oidc refresh: sibling refreshed, adopting valid disk AT",
                 None,
                 Some(serde_json::json!({
-                    "disk_key_prefix": xvora_auth::bearer_suffix(&d.key),
+                    "disk_key_prefix": auth::bearer_suffix(&d.key),
                 })),
             );
             self.note_refresh_progress();
@@ -210,7 +210,7 @@ impl TokenRefresher for OidcRefresher {
         );
 
         // Snapshot for diagnostic upload on failure (user id, never email).
-        let pre_token = xvora_auth::bearer_suffix(&auth.key).to_owned();
+        let pre_token = auth::bearer_suffix(&auth.key).to_owned();
         let pre_user_id = if auth.user_id.is_empty() {
             "unknown".into()
         } else {

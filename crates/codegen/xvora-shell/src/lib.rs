@@ -9,36 +9,36 @@
 #[cfg(all(test, feature = "dhat-heap"))]
 #[global_allocator]
 static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
-pub(crate) use xvora_telemetry::unified_log;
+pub(crate) use telemetry::unified_log;
 pub use xvora_tracing_macros::{teprintln, timed, tprintln};
 pub mod agent;
 pub mod auth;
 pub mod builtin;
-pub use xvora_bundle as bundle;
+pub use bundle as bundle;
 pub mod claude_import;
 pub mod claude_import_state;
 pub mod cli_models;
 pub mod config;
 #[cfg(all(test, feature = "config-docs"))]
 pub mod config_docs;
-pub use xvora_shell_base::cpu_profile;
-pub use xvora_shell_base::env;
+pub use shell_base::cpu_profile;
+pub use shell_base::env;
 pub mod extensions;
-pub use xvora_foreign_sessions as foreign_sessions;
+pub use foreign_sessions as foreign_sessions;
 pub mod heap_profile;
-pub use xvora_http as http;
+pub use http as http;
 pub mod inspect;
 pub mod instrumentation;
 pub mod leader;
 pub mod managed_config;
 pub mod mcp_doctor;
-pub use xvora_models as models;
+pub use models as models;
 pub mod plugin;
 pub mod relay;
 pub mod remote;
 pub mod sampling;
 pub mod session;
-pub use xvora_shell_terminal as terminal;
+pub use shell_terminal as terminal;
 #[cfg(test)]
 pub(crate) mod test_support;
 pub mod tier;

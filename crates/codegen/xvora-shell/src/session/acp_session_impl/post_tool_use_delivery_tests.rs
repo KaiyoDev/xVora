@@ -5,9 +5,9 @@ use xvora_hooks::dispatcher::{
 };
 use xvora_hooks::event::MAX_HOOK_OUTPUT_REPLACEMENT_CHARS;
 use xvora_hooks::result::HookRunResult;
-use xvora_tools::types::output::{MCPOutput, ToolOutput as ToolsToolOutput};
+use tools::types::output::{MCPOutput, ToolOutput as ToolsToolOutput};
 
-const TAG: &str = xvora_tools::reminders::DEFAULT_REMINDER_TAG;
+const TAG: &str = tools::reminders::DEFAULT_REMINDER_TAG;
 
 fn plan(result: PostToolUseResult, output: &ToolsToolOutput) -> PostToolUseDelivery {
     plan_post_tool_use_delivery(result, output, TAG, &mut [])

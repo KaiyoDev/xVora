@@ -47,7 +47,7 @@ async fn fetch_user_info(
             "X-XAI-Token-Auth",
             auth_manager.grok_com_config().token_header.as_str(),
         )
-        .header("x-grok-client-version", xvora_version::VERSION)
+        .header("x-grok-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),
@@ -92,7 +92,7 @@ pub(crate) async fn single_check(
     {
         Ok(ui) => ui,
         Err(kind) => {
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "paywall_check_error",
                 None,
                 Some(serde_json::json!({ "user_id": user_id, "kind": kind })),
@@ -100,7 +100,7 @@ pub(crate) async fn single_check(
             return None;
         }
     };
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "paywall_check_result",
         None,
         Some(serde_json::json!({
@@ -115,7 +115,7 @@ pub(crate) async fn single_check(
     if !is_qualifying_tier(&new_tier) {
         return None;
     }
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "paywall_check_subscription_detected",
         None,
         Some(serde_json::json!({
@@ -133,7 +133,7 @@ pub(crate) async fn single_check(
     {
         BoundedRefresh::Resolved(result) => {
             if let Err(e) = *result {
-                xvora_telemetry::unified_log::warn(
+                telemetry::unified_log::warn(
                     "paywall_check_error",
                     None,
                     Some(serde_json::json!({
@@ -146,7 +146,7 @@ pub(crate) async fn single_check(
             false
         }
         BoundedRefresh::DeadlineElapsed => {
-            xvora_telemetry::unified_log::warn(
+            telemetry::unified_log::warn(
                 "paywall_check_error",
                 None,
                 Some(serde_json::json!({
@@ -158,7 +158,7 @@ pub(crate) async fn single_check(
             true
         }
     };
-    xvora_telemetry::unified_log::info(
+    telemetry::unified_log::info(
         "paywall_check_unblocked",
         None,
         Some(serde_json::json!({ "user_id": user_id, "new_tier": new_tier })),

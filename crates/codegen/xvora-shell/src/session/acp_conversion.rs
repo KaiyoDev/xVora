@@ -1,6 +1,6 @@
 //! ACP conversion functions for `xvora-tools`'s `ToolOutput`.
 //!
-//! These standalone functions convert `xvora_tools::types::output::ToolOutput`
+//! These standalone functions convert `tools::types::output::ToolOutput`
 //! into ACP protocol types (`acp::ToolCallUpdate`, `acp::Plan`).
 //!
 //! `raw_output` is serialized directly from ToolOutput via serde, with no manual JSON
@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use agent_client_protocol as acp;
-use xvora_tool_types::{KillTaskOutput, TaskOutputOutput};
-use xvora_tools::types::output::{
+use tool_types::{KillTaskOutput, TaskOutputOutput};
+use tools::types::output::{
     ApplyPatchOutput, CodexGrepFilesOutput, ListDirOutput, MCPOutputDetails, ReadFileOutput,
     SearchReplaceEditContextInformation, SearchReplaceEditDetail, SearchReplaceOutput, ToolOutput,
 };
@@ -291,7 +291,7 @@ pub(crate) fn acp_tool_update(
         // Success (Content) maps to Completed; errors (DomainNotAllowed, CrossHostRedirect) map to Failed
         // This matches the pattern used by ReadFile, ListDir, and SearchReplace.
         ToolOutput::WebFetch(web_fetch_output) => {
-            use xvora_tools::types::output::WebFetchOutput;
+            use tools::types::output::WebFetchOutput;
             let status = match web_fetch_output {
                 WebFetchOutput::Content(_) => acp::ToolCallStatus::Completed,
                 WebFetchOutput::DomainNotAllowed(_)
@@ -315,7 +315,7 @@ pub(crate) fn acp_tool_update(
         // Error variants (e.g., DuplicateId) get `Failed` status so the Python
         // side can distinguish tool-logic errors from infra errors via raw_output.
         ToolOutput::Todo(todo_output) => {
-            use xvora_tools::types::output::TodoWriteOutput;
+            use tools::types::output::TodoWriteOutput;
             let (status, content) = match todo_output {
                 TodoWriteOutput::TodosUpdated(_) => (acp::ToolCallStatus::Completed, None),
                 TodoWriteOutput::DuplicateId(msg) | TodoWriteOutput::InvalidArgument(msg) => (
@@ -549,7 +549,7 @@ pub(crate) fn acp_tool_update(
             ))
         }
         ToolOutput::SendSubagentMessage(send) => {
-            use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageDisposition;
+            use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageDisposition;
 
             let status = match send.disposition() {
                 SendSubagentMessageDisposition::Accepted
@@ -568,10 +568,10 @@ pub(crate) fn acp_tool_update(
         }
         ToolOutput::AskUserQuestion(ask) => {
             let message = match ask {
-                xvora_tools::types::output::AskUserQuestionOutput::UserAnswered { message } => {
+                tools::types::output::AskUserQuestionOutput::UserAnswered { message } => {
                     message.clone()
                 }
-                xvora_tools::types::output::AskUserQuestionOutput::QuestionsSent {
+                tools::types::output::AskUserQuestionOutput::QuestionsSent {
                     message,
                     ..
                 } => message.clone(),
@@ -588,7 +588,7 @@ pub(crate) fn acp_tool_update(
         }
         ToolOutput::EnterPlanMode(enter) => {
             let message = match enter {
-                xvora_tools::types::output::EnterPlanModeOutput::Entered { message, .. } => {
+                tools::types::output::EnterPlanModeOutput::Entered { message, .. } => {
                     message.clone()
                 }
             };
@@ -605,10 +605,10 @@ pub(crate) fn acp_tool_update(
         }
         ToolOutput::ExitPlanMode(exit) => {
             let message = match exit {
-                xvora_tools::types::output::ExitPlanModeOutput::PlanReady { message, .. } => {
+                tools::types::output::ExitPlanModeOutput::PlanReady { message, .. } => {
                     message.clone()
                 }
-                xvora_tools::types::output::ExitPlanModeOutput::EmptyPlan { message, .. } => {
+                tools::types::output::ExitPlanModeOutput::EmptyPlan { message, .. } => {
                     message.clone()
                 }
             };
@@ -650,7 +650,7 @@ pub(crate) fn acp_tool_update(
 /// The `id` is not directly represented in `PlanEntry` but the ordering is preserved.
 pub(crate) fn acp_plan_update(output: &ToolOutput) -> Option<acp::Plan> {
     use crate::tools::todo::plan_entry_from_todo_item;
-    use xvora_tools::types::output::TodoWriteOutput;
+    use tools::types::output::TodoWriteOutput;
     match output {
         ToolOutput::Todo(TodoWriteOutput::TodosUpdated(success)) => {
             let entries = success
@@ -753,11 +753,11 @@ fn build_apply_patch_edit_details(
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use xvora_tools::types::output::*;
+    use tools::types::output::*;
 
     #[test]
     fn test_acp_tool_update_send_subagent_message_outcomes_are_terminal() {
-        use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput::*;
+        use tools::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput::*;
 
         for (send, expected_status) in [
             (
@@ -823,7 +823,7 @@ mod tests {
         let output = ToolOutput::Todo(TodoWriteOutput::TodosUpdated(TodoWriteSuccess {
             summary_for_prompt: "tasks".to_string(),
             todos: vec![],
-            state: xvora_tools::implementations::grok_build::todo::TodoState::default(),
+            state: tools::implementations::grok_build::todo::TodoState::default(),
         }));
         let update = acp_tool_update(&output, "call-1", None, None).unwrap();
         assert_eq!(update.fields.status, Some(acp::ToolCallStatus::Completed));
@@ -832,7 +832,7 @@ mod tests {
     #[test]
     fn test_turn_end_plan_cleanup_preserves_semantics_and_priority() {
         use crate::tools::todo::plan_entry_from_todo_item;
-        use xvora_tools::implementations::grok_build::todo::{TodoItem, TodoPriority, TodoStatus};
+        use tools::implementations::grok_build::todo::{TodoItem, TodoPriority, TodoStatus};
 
         // Simulate a mixed todo list at turn end.
         let items = [
@@ -899,13 +899,13 @@ mod tests {
     fn test_acp_plan_update_todo() {
         let output = ToolOutput::Todo(TodoWriteOutput::TodosUpdated(TodoWriteSuccess {
             summary_for_prompt: "tasks".to_string(),
-            todos: vec![xvora_tools::implementations::grok_build::todo::TodoItem {
+            todos: vec![tools::implementations::grok_build::todo::TodoItem {
                 content: "Task 1".to_string(),
-                priority: xvora_tools::implementations::grok_build::todo::TodoPriority::Medium,
-                status: xvora_tools::implementations::grok_build::todo::TodoStatus::Completed,
+                priority: tools::implementations::grok_build::todo::TodoPriority::Medium,
+                status: tools::implementations::grok_build::todo::TodoStatus::Completed,
                 meta: None,
             }],
-            state: xvora_tools::implementations::grok_build::todo::TodoState::default(),
+            state: tools::implementations::grok_build::todo::TodoState::default(),
         }));
         let plan = acp_plan_update(&output).unwrap();
         assert_eq!(plan.entries.len(), 1);
