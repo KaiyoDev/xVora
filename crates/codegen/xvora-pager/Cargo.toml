@@ -113,7 +113,7 @@ status-line = { workspace = true }
 workspace = { workspace = true }
 # Foreign coding-agent session discovery.
 foreign-sessions = { workspace = true }
-token-estimation = { workspace = true, package = "xvora-token-estimation" }
+token-estimation = { workspace = true  }
 telemetry = { workspace = true }
 xvora-fast-worktree = { path = "../fast-worktree", features = ["metadata"] }
 backon = { workspace = true }

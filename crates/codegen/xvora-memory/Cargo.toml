@@ -38,7 +38,7 @@ http = { workspace = true }
 tools = { workspace = true }
 version = { workspace = true }
 sqlite-journal = { workspace = true }
-token-estimation = { workspace = true, package = "xvora-token-estimation" }
+token-estimation = { workspace = true  }
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true }

@@ -44,7 +44,7 @@ chrono = { workspace = true }
 similar = { workspace = true }
 shell = { workspace = true }
 version = { workspace = true }
-token-estimation = { workspace = true, package = "xvora-token-estimation" }
+token-estimation = { workspace = true  }
 
 [dev-dependencies]
 # The unit tests reuse the pager's test-only view-model constructors

@@ -27,7 +27,7 @@ uuid = { workspace = true }
 # Home-root resolution for the per-tool session stores (dirs::home_dir is banned).
 # dirs = { workspace = true }
 # Journal-mode probe: foreign stores are opened only under local WAL.
-sqlite-journal = { workspace = true, package = "xvora-sqlite-journal" }
+sqlite-journal = { workspace = true  }
 # Codex rollout files may be zstd-compressed.
 zstd = { workspace = true }
 

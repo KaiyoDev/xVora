@@ -15,15 +15,15 @@ encoding_rs = { workspace = true, optional = true }
 fs2 = { workspace = true }
 educe = { workspace = true, features = ["Debug"] }
 async-openai = { workspace = true }
-tty-utils = { workspace = true, package = "xvora-tty-utils" }
+tty-utils = { workspace = true  }
 auth = { workspace = true }
 xvora-config = { path = "../xvora-config" }
 extra-ca = { workspace = true }
 xvora-tools-api = { path = "../xvora-tools-api" }
 xvora-workspace-types = { path = "../xvora-workspace-types" }
 version = { workspace = true }
-interjection-core = { workspace = true, package = "xvora-interjection-core" }
-token-estimation = { workspace = true, package = "xvora-token-estimation" }
+interjection-core = { workspace = true  }
+token-estimation = { workspace = true  }
 async-lsp = { workspace = true }
 async-stream = { workspace = true }
 async-trait = { workspace = true }
@@ -53,11 +53,11 @@ schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
-tool-runtime = { workspace = true, package = "xvora-tool-runtime" }
-tool-types = { workspace = true, package = "xvora-tool-types" }
-tool-protocol = { workspace = true, package = "xvora-tool-protocol" }
-computer-hub-core = { workspace = true, package = "xvora-computer-hub-core" }
-computer-hub-sdk = { workspace = true, package = "xvora-computer-hub-sdk" }
+tool-runtime = { workspace = true  }
+tool-types = { workspace = true  }
+tool-protocol = { workspace = true  }
+computer-hub-core = { workspace = true  }
+computer-hub-sdk = { workspace = true  }
 
 futures = { workspace = true }
 similar = { workspace = true }
@@ -89,7 +89,7 @@ which = { workspace = true }
 chrono = { workspace = true }
 futures-util = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-file-utils = { path = "../file-utils", package = "xvora-file-utils" }
+file-utils = { path = "../file-utils"  }
 dhat = { workspace = true, optional = true }
 zstd = { workspace = true }
 
@@ -112,7 +112,7 @@ tokio = { workspace = true, features = ["test-util"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 wiremock = { workspace = true }
 test-support = { workspace = true }
-test-utils = { workspace = true, package = "xvora-test-utils" }
+test-utils = { workspace = true  }
 
 [build-dependencies]
 reqwest = { workspace = true, features = ["blocking", "rustls-tls"] }
