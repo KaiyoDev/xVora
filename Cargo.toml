@@ -285,62 +285,33 @@ circuit-breaker = {  path = "crates/common/circuit-breaker", package = "xvora-ci
 computer-hub-core = {  path = "crates/common/computer-hub-core", package = "xvora-computer-hub-core" }
 computer-hub-sdk = {  path = "crates/common/computer-hub-sdk", package = "xvora-computer-hub-sdk" }
   gix-status = { path = "crates/codegen/xvora-gix-status" , package = "xvora-gix-status"}
-xvora-gix-status = { path = "crates/codegen/xvora-gix-status" , package = "xvora-gix-status"}
-xvora-fsnotify = { path = "crates/codegen/xvora-fsnotify" }
   agent = { path = "crates/codegen/xvora-agent", package = "xvora-agent" }
-xvora-agent = { path = "crates/codegen/xvora-agent" }
   announcements = { path = "crates/codegen/xvora-announcements" , package = "xvora-announcements"}
-xvora-announcements = { path = "crates/codegen/xvora-announcements" , package = "xvora-announcements"}
   auth = { path = "crates/codegen/xvora-auth", package = "xvora-auth" }
-xvora-auth = { path = "crates/codegen/xvora-auth" }
   config = { path = "crates/codegen/xvora-config" , package = "xvora-config"}
-xvora-config = { path = "crates/codegen/xvora-config" , package = "xvora-config"}
   config-types = { path = "crates/codegen/xvora-config-types" , package = "xvora-config-types"}
-xvora-config-types = { path = "crates/codegen/xvora-config-types" , package = "xvora-config-types"}
   env = { path = "crates/codegen/xvora-env", package = "xvora-env" }
-xvora-env = { path = "crates/codegen/xvora-env" }
-xvora-http = { path = "crates/codegen/xvora-http" }
   markdown = { path = "crates/codegen/xvora-markdown" , package = "xvora-markdown"}
-xvora-markdown = { path = "crates/codegen/xvora-markdown" , package = "xvora-markdown"}
   markdown-core = { path = "crates/codegen/xvora-markdown-core" , package = "xvora-markdown-core"}
-xvora-markdown-core = { path = "crates/codegen/xvora-markdown-core" , package = "xvora-markdown-core"}
   mcp = { path = "crates/codegen/xvora-mcp" , package = "xvora-mcp"}
-xvora-mcp = { path = "crates/codegen/xvora-mcp" , package = "xvora-mcp"}
   memory = { path = "crates/codegen/xvora-memory" , package = "xvora-memory"}
-xvora-memory = { path = "crates/codegen/xvora-memory" , package = "xvora-memory"}
   mermaid = { path = "crates/codegen/xvora-mermaid" , package = "xvora-mermaid"}
-xvora-mermaid = { path = "crates/codegen/xvora-mermaid" , package = "xvora-mermaid"}
   models = { path = "crates/codegen/xvora-models" , package = "xvora-models"}
-xvora-models = { path = "crates/codegen/xvora-models" , package = "xvora-models"}
-xvora-sampler = { path = "crates/codegen/xvora-sampler" }
   secrets = { path = "crates/codegen/xvora-secrets" , package = "xvora-secrets"}
-xvora-secrets = { path = "crates/codegen/xvora-secrets" , package = "xvora-secrets"}
   shared = { path = "crates/codegen/xvora-shared" , package = "xvora-shared"}
-xvora-shared = { path = "crates/codegen/xvora-shared" , package = "xvora-shared"}
   shell = { path = "crates/codegen/xvora-shell", package = "xvora-shell" }
-xvora-shell = { path = "crates/codegen/xvora-shell" }
   shell-base = { path = "crates/codegen/xvora-shell-base" , package = "xvora-shell-base"}
-xvora-shell-base = { path = "crates/codegen/xvora-shell-base" , package = "xvora-shell-base"}
   shell-session-support = { path = "crates/codegen/xvora-shell-session-support" , package = "xvora-shell-session-support"}
-xvora-shell-session-support = { path = "crates/codegen/xvora-shell-session-support" , package = "xvora-shell-session-support"}
   telemetry = { path = "crates/codegen/xvora-telemetry" , package = "xvora-telemetry"}
-xvora-telemetry = { path = "crates/codegen/xvora-telemetry" , package = "xvora-telemetry"}
   test-support = { path = "crates/codegen/xvora-test-support" , package = "xvora-test-support"}
-xvora-test-support = { path = "crates/codegen/xvora-test-support" , package = "xvora-test-support"}
   tools = { path = "crates/codegen/xvora-tools", package = "xvora-tools" }
-xvora-tools = { path = "crates/codegen/xvora-tools" }
   tools-api = { path = "crates/codegen/xvora-tools-api" , package = "xvora-tools-api"}
-xvora-tools-api = { path = "crates/codegen/xvora-tools-api" , package = "xvora-tools-api"}
   version = { path = "crates/codegen/xvora-version" , package = "xvora-version"}
-xvora-version = { path = "crates/codegen/xvora-version" , package = "xvora-version"}
   workspace = { path = "crates/codegen/xvora-workspace" , package = "xvora-workspace"}
-xvora-workspace = { path = "crates/codegen/xvora-workspace" , package = "xvora-workspace"}
   workspace-types = { path = "crates/codegen/xvora-workspace-types" , package = "xvora-workspace-types"}
-xvora-workspace-types = { path = "crates/codegen/xvora-workspace-types" , package = "xvora-workspace-types"}
 hooks-plugins-types = {  path = "crates/codegen/hooks-plugins-types", package = "xvora-hooks-plugins-types" }
 interjection-core = {  path = "crates/common/interjection-core", package = "xvora-interjection-core" }
   mixpanel = { path = "crates/codegen/xvora-mixpanel" , package = "xvora-mixpanel"}
-xvora-mixpanel = { path = "crates/codegen/xvora-mixpanel" , package = "xvora-mixpanel"}
 prompt-queue = {  path = "crates/codegen/prompt-queue", package = "xvora-prompt-queue" }
 proto-build = { path = "crates/build/proto-build" }
 ratatui-inline = {  path = "crates/codegen/ratatui-inline", package = "xvora-ratatui-inline" }
@@ -362,32 +333,11 @@ ptyctl-cli = { path = "crates/codegen/ptyctl-cli" }
 chat-state = {  path = "crates/codegen/chat-state", package = "xvora-chat-state" }
 codebase-graph = {  path = "crates/codegen/codebase-graph", package = "xvora-codebase-graph" }
   compaction-transcript = { path = "crates/codegen/xvora-compaction-transcript", package = "xvora-compaction-transcript" }
-xvora-compaction-transcript = { path = "crates/codegen/xvora-compaction-transcript" }
 computer-hub-mcp-adapter = {  path = "crates/common/computer-hub-mcp-adapter", package = "xvora-computer-hub-mcp-adapter" }
 crash-handler = {  path = "crates/codegen/crash-handler", package = "xvora-crash-handler" }
-xvora-dirs = { path = "crates/codegen/xvora-dirs" }
 fast-worktree = {  path = "crates/codegen/fast-worktree", package = "xvora-fast-worktree" }
 file-utils = {  path = "crates/codegen/file-utils", package = "xvora-file-utils" }
-xvora-compaction = { path = "crates/common/xvora-compaction" }
-xvora-hooks = { path = "crates/codegen/xvora-hooks" }
-xvora-pager = { path = "crates/codegen/xvora-pager" }
-xvora-pager-bin = { path = "crates/codegen/xvora-pager-bin" }
-xvora-pager-minimal = { path = "crates/codegen/xvora-pager-minimal" }
-xvora-pager-pty-harness = { path = "crates/codegen/xvora-pager-pty-harness" }
-xvora-pager-render = { path = "crates/codegen/xvora-pager-render" }
-xvora-paths = { path = "crates/codegen/xvora-paths" }
-xvora-plugin-marketplace = { path = "crates/codegen/xvora-plugin-marketplace" }
-xvora-sampling-types = { path = "crates/codegen/xvora-sampling-types" }
-xvora-sandbox = { path = "crates/codegen/xvora-sandbox" }
-xvora-subagent-resolution = { path = "crates/codegen/xvora-subagent-resolution" }
-xvora-update = { path = "crates/codegen/xvora-update" }
-xvora-voice = { path = "crates/codegen/xvora-voice" }
-xvora-workspace-client = { path = "crates/codegen/xvora-workspace-client" }
 hunk-tracker = {  path = "crates/codegen/hunk-tracker", package = "xvora-hunk-tracker" }
-xvora-workflow = { path = "crates/codegen/xvora-workflow" }
-xvora-workspace-daemon = { path = "crates/codegen/xvora-workspace-daemon" }
-xvora-pager-diff = { path = "crates/codegen/xvora-pager-diff" }
-xvora-gboom = { path = "crates/codegen/xvora-gboom" }
 axum-server = "0.8"
 ctor = "0.4"
 dhat = "0.3"
@@ -419,46 +369,6 @@ session-search = { path = "crates/codegen/session-search" }
 shell-terminal = { path = "crates/codegen/shell-terminal" }
 status-line = { path = "crates/codegen/status-line" }
 foreign-sessions = { path = "crates/codegen/foreign-sessions" }
-xvora-tracing = { path = "crates/common/xvora-tracing" }
-xvora-acp-lib = { path = "crates/codegen/acp-lib", package = "xvora-acp-lib" }
-xvora-agent-lifecycle = { path = "crates/codegen/agent-lifecycle", package = "xvora-agent-lifecycle" }
-xvora-chat-state = { path = "crates/codegen/chat-state", package = "xvora-chat-state" }
-xvora-circuit-breaker = { path = "crates/common/circuit-breaker", package = "xvora-circuit-breaker" }
-xvora-codebase-graph = { path = "crates/codegen/codebase-graph", package = "xvora-codebase-graph" }
-xvora-computer-hub-core = { path = "crates/common/computer-hub-core", package = "xvora-computer-hub-core" }
-xvora-computer-hub-mcp-adapter = { path = "crates/common/computer-hub-mcp-adapter", package = "xvora-computer-hub-mcp-adapter" }
-xvora-computer-hub-sdk = { path = "crates/common/computer-hub-sdk", package = "xvora-computer-hub-sdk" }
-xvora-crash-handler = { path = "crates/codegen/crash-handler", package = "xvora-crash-handler" }
-xvora-fast-worktree = { path = "crates/codegen/fast-worktree", package = "xvora-fast-worktree" }
-xvora-file-utils = { path = "crates/codegen/file-utils", package = "xvora-file-utils" }
-xvora-hooks-plugins-types = { path = "crates/codegen/hooks-plugins-types", package = "xvora-hooks-plugins-types" }
-xvora-hunk-tracker = { path = "crates/codegen/hunk-tracker", package = "xvora-hunk-tracker" }
-xvora-interjection-core = { path = "crates/common/interjection-core", package = "xvora-interjection-core" }
-xvora-markdown-fuzz = { path = "crates/codegen/xvora-markdown/fuzz", package = "xvora-markdown-fuzz" }
-xvora-prompt-queue = { path = "crates/codegen/prompt-queue", package = "xvora-prompt-queue" }
-xvora-ratatui-inline = { path = "crates/codegen/ratatui-inline", package = "xvora-ratatui-inline" }
-xvora-ratatui-textarea = { path = "crates/codegen/ratatui-textarea", package = "xvora-ratatui-textarea" }
-xvora-sqlite-journal = { path = "crates/codegen/sqlite-journal", package = "xvora-sqlite-journal" }
-xvora-system-power = { path = "crates/codegen/system-power", package = "xvora-system-power" }
-xvora-test-utils = { path = "crates/common/test-utils", package = "xvora-test-utils" }
-xvora-token-estimation = { path = "crates/codegen/token-estimation", package = "xvora-token-estimation" }
-xvora-tool-protocol = { path = "crates/common/tool-protocol", package = "xvora-tool-protocol" }
-xvora-tool-runtime = { path = "crates/common/tool-runtime", package = "xvora-tool-runtime" }
-xvora-tool-types = { path = "crates/common/tool-types", package = "xvora-tool-types" }
-xvora-tty-utils = { path = "crates/codegen/tty-utils", package = "xvora-tty-utils" }
-xvora-proto-build = { path = "crates/build/proto-build", package = "proto-build" }
-xvora-status-line = { path = "crates/codegen/status-line", package = "status-line" }
-xvora-shell-terminal = { path = "crates/codegen/shell-terminal", package = "shell-terminal" }
-xvora-session-search = { path = "crates/codegen/session-search", package = "session-search" }
-xvora-session-events = { path = "crates/codegen/session-events", package = "session-events" }
-xvora-message-delivery-core = { path = "crates/common/message-delivery-core", package = "message-delivery-core" }
-xvora-fuzzy-file-search = { path = "crates/codegen/fuzzy-file-search", package = "fuzzy-file-search" }
-xvora-foreign-sessions = { path = "crates/codegen/foreign-sessions", package = "foreign-sessions" }
-xvora-extra-ca = { path = "crates/codegen/extra-ca", package = "extra-ca" }
-xvora-diag-server = { path = "crates/codegen/diag-server", package = "diag-server" }
-xvora-dashboard-store = { path = "crates/codegen/dashboard-store", package = "dashboard-store" }
-xvora-bundle = { path = "crates/codegen/bundle", package = "bundle" }
-xvora-active-sessions = { path = "crates/codegen/active-sessions", package = "active-sessions" }
 sampler = { path = "crates/codegen/xvora-sampler", package = "xvora-sampler" }
 [profile.release]
 incremental = true
