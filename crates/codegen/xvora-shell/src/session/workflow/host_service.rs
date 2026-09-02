@@ -10,6 +10,7 @@ use xvora_tools::implementations::grok_build::task::types::{
     ModelOverrideProvenance, SubagentCancelRequest, SubagentCancelTarget, SubagentEvent,
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
 };
+use xvora_workflow as workflow;
 use xvora_workflow::{AgentOpts, AgentResult, BudgetState, HostError, WorkflowHostRequest};
 
 use super::notify::WorkflowNotifySender;

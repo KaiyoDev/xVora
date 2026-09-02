@@ -1,4 +1,5 @@
 use super::*;
+extern crate prompt_queue as _pq;
 use agent_lifecycle::ShutdownPolicy;
 
 /// Outcome of a queue send-now request ([`SessionActor::handle_interject_queued_prompt`]).
@@ -1105,7 +1106,7 @@ impl SessionActor {
         pending: &mut std::collections::VecDeque<InputItem>,
         skip_ids: &[&str],
     ) {
-        use prompt_queue::{CombineGate, combine_prefix_len};
+        use _pq::{CombineGate, combine_prefix_len};
 
         if pending.len() < 2 {
             return;
@@ -1130,7 +1131,7 @@ impl SessionActor {
         }
     }
 
-    fn combine_gate(item: &InputItem) -> prompt_queue::CombineGate<'_> {
+    fn combine_gate(item: &InputItem) -> _pq::CombineGate<'_> {
         let is_bash = Self::extract_bash_command(&item.prompt_blocks).is_some();
         let is_plain_prompt = item.is_queue_editable()
             && item.queue_meta.as_ref().map(|m| m.kind.as_str()) == Some("prompt")
@@ -1159,7 +1160,7 @@ impl SessionActor {
             .as_ref()
             .map(|m| m.text.as_str())
             .unwrap_or("");
-        prompt_queue::CombineGate {
+        _pq::CombineGate {
             id: item.prompt_id.as_str(),
             // A row with its own override can't merge into another turn (the merge would drop its override)
             is_plain_prompt: is_plain_prompt
@@ -1194,7 +1195,7 @@ impl SessionActor {
     }
 
     fn joined_text_blocks(blocks: &[acp::ContentBlock]) -> String {
-        use prompt_queue::join_texts;
+        use _pq::join_texts;
         join_texts(blocks.iter().filter_map(|block| match block {
             acp::ContentBlock::Text(t) if !t.text.is_empty() => Some(t.text.as_str()),
             _ => None,
@@ -1202,7 +1203,7 @@ impl SessionActor {
     }
 
     fn append_text_to_prompt(item: &mut InputItem, extra: &str) {
-        use prompt_queue::TEXT_SEPARATOR;
+        use _pq::TEXT_SEPARATOR;
 
         if extra.is_empty() {
             return;
@@ -1234,7 +1235,7 @@ impl SessionActor {
     }
 
     fn stamp_combined_display_texts_meta(item: &mut InputItem) {
-        use prompt_queue::stamp_combined_display_texts;
+        use _pq::stamp_combined_display_texts;
 
         let Some(segs) = item
             .queue_meta

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use super::super::acp_session::SessionActor;
 use super::named_workflow_args::parse_named_workflow_args;
+use xvora_workflow as workflow;
 
 impl SessionActor {
     pub(crate) fn named_workflow_snapshot(

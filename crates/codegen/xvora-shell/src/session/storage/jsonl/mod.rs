@@ -1145,7 +1145,7 @@ async fn next_compaction_segment_index(compaction_dir: &std::path::Path) -> u64 
         if let Some(n) = entry
             .file_name()
             .to_str()
-            .and_then(compaction_transcript::parse_segment_index)
+            .and_then(xvora_compaction_transcript::parse_segment_index)
         {
             next = next.max(n + 1);
         }

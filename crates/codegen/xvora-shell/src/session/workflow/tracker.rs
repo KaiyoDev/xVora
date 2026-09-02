@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
+use xvora_workflow as workflow;
 use xvora_workflow::{PauseKind, PhaseMeta, WorkflowOutcome};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use xvora_sampling_types::ReasoningEffort;
+use xvora_workflow as workflow;
 use xvora_workflow::{Journal, WorkflowOutcome, WorkflowRunParams};
 
 use super::host_service::{

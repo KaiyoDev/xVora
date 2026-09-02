@@ -6,6 +6,7 @@ use crate::session::persistence::PersistenceMsg;
 
 use super::store::WorkflowRunStore;
 use super::tracker::WorkflowRunState;
+use xvora_workflow as workflow;
 
 #[derive(Clone)]
 pub(crate) struct WorkflowNotifySender {

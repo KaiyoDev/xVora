@@ -7,6 +7,8 @@ pub(crate) mod schema_contract;
 pub(crate) mod store;
 pub(crate) mod tracker;
 
+use xvora_workflow as workflow;
+
 #[cfg(test)]
 mod builtin_tests {
     #[test]

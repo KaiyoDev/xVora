@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
+use xvora_workflow as workflow;
 use xvora_workflow::{WorkflowMeta, extract_meta};
 
 pub(crate) const MAX_WORKFLOW_SOURCE_BYTES: u64 = 1024 * 1024;

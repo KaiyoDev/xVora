@@ -51,7 +51,7 @@ async fn write_compaction_segment_numbers_and_indexes_resume_safely() {
     adapter.write_compaction_segment(&info, &seg("second")).await.unwrap();
     let base = adapter
         .session_dir(&info)
-        .join(compaction_transcript::COMPACTION_DIR);
+        .join(xvora_compaction_transcript::COMPACTION_DIR);
     let read = |p: &str| std::fs::read_to_string(base.join(p)).unwrap();
     assert!(read("segment_000.md").contains("# HISTORICAL -- DO NOT EDIT"));
     assert!(read("segment_001.md").contains("second"));

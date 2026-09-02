@@ -90,12 +90,12 @@ fn canonicalize_existing_ancestor(path: &Path) -> Option<PathBuf> {
 /// The path grammar lives in `compaction_transcript`.
 pub(super) fn compaction_artifact_read(
     args: &serde_json::Value,
-) -> Option<compaction_transcript::CompactionArtifact> {
+) -> Option<xvora_compaction_transcript::CompactionArtifact> {
     let path = str_arg(
         args,
         &["target_file", "file_path", "path", "target_directory"],
     )?;
-    compaction_transcript::classify_compaction_path(path)
+    xvora_compaction_transcript::classify_compaction_path(path)
 }
 
 /// Map a backend-hosted tool name to a user-facing title, ACP ToolKind, and `raw_input` JSON for display in the pager's tool call UI.

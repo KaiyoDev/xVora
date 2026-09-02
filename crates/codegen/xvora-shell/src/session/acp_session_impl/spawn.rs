@@ -10,6 +10,7 @@ use crate::remote::DEFAULT_CONTEXT_WINDOW;
 use xvora_telemetry::region;
 use xvora_telemetry::region::Parent as SpanParent;
 use xvora_telemetry::subagent_spawn::phase_region_under;
+use xvora_workflow as workflow;
 /// Partition CLI `--allow` rules under the pin: a catch-all allow substitutes for the blocked `--yolo`, so drop it when `policy_block` is set.
 /// Catch-all means `Allow(Any)` `*` / `**` plus a bare or match-all Bash/MCP/WebFetch grant (`resolution::is_catchall_allow`).
 /// Every other rule is kept, and with no pin nothing is dropped.

@@ -1,4 +1,5 @@
 use xvora_sampling_types::{ReasoningEffort, ReasoningEffortOption};
+use xvora_workflow as workflow;
 
 pub(crate) struct NamedWorkflowArgs {
     pub args: serde_json::Value,

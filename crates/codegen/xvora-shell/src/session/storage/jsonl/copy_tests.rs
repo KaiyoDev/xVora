@@ -377,7 +377,7 @@ async fn copy_session_data_copies_compaction_segments_when_enabled() {
 
     let dst = adapter
         .session_dir(&target_info)
-        .join(compaction_transcript::COMPACTION_DIR);
+        .join(xvora_compaction_transcript::COMPACTION_DIR);
     assert!(dst.join("segment_000.md").is_file());
     assert!(dst.join("segment_001.md").is_file());
     assert!(dst.join("INDEX.md").is_file());
@@ -399,7 +399,7 @@ async fn copy_session_data_copies_compaction_segments_when_enabled() {
     assert!(
         !adapter
             .session_dir(&target2)
-            .join(compaction_transcript::COMPACTION_DIR)
+            .join(xvora_compaction_transcript::COMPACTION_DIR)
             .exists()
     );
 }
