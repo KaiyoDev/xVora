@@ -22,7 +22,7 @@ thiserror = { workspace = true }
 tempfile = { workspace = true }
 serial_test = "3"
 criterion = { workspace = true }
-tracing-macros = { path = "../tracing-macros" }
+xvora-tracing-macros = { path = "../tracing-macros", package = "tracing-macros" }
 
 [[bench]]
 name = "startup"

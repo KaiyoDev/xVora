@@ -89,7 +89,7 @@ which = { workspace = true }
 chrono = { workspace = true }
 futures-util = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-file-utils = { path = "../file-utils" }
+file-utils = { path = "../file-utils", package = "xvora-file-utils" }
 dhat = { workspace = true, optional = true }
 zstd = { workspace = true }
 

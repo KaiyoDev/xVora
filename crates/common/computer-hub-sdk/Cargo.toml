@@ -1,6 +1,6 @@
 [package]
 license = "Apache-2.0"
-name = "computer-hub-sdk"
+name = "xvora-computer-hub-sdk"
 version = "0.1.0"
 edition.workspace = true
 description = "SDK for the xAI Computer Hub: connection pool, transparent reconnect, tool harness, and tool-server runtime."
@@ -41,10 +41,10 @@ opentelemetry-proto = { workspace = true }
 prost = { workspace = true }
 base64 = { workspace = true }
 
-tool-protocol = { workspace = true }
-tool-runtime = { workspace = true }
-tool-types = { workspace = true }
-computer-hub-core = { workspace = true }
+xvora-tool-protocol = { workspace = true }
+xvora-tool-runtime = { workspace = true }
+xvora-tool-types = { workspace = true }
+xvora-computer-hub-core = { workspace = true }
 xvora-tracing = { workspace = true }
 
 # Integration tests that need heavier backend deps live in a separate sibling crate to keep this dev-dep set minimal.

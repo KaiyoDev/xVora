@@ -219,7 +219,7 @@ def main():
     synced = []
     for grok_crate in sorted(changed_crates):
         if grok_crate not in CRATE_MAP:
-            print(f"  ⏭ skip (no map): {grok_crate}")
+            print(f"  skip skip (no map): {grok_crate}")
             continue
         layer, xvora_crate = CRATE_MAP[grok_crate]
         sync_crate(grok_crate, layer, xvora_crate)

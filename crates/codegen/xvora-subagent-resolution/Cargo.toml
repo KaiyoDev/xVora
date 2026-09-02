@@ -14,7 +14,7 @@ tracing = { workspace = true }
 xvora-agent = { path = "../xvora-agent" }
 xvora-sampling-types = { path = "../xvora-sampling-types" }
 xvora-tools = { path = "../xvora-tools" }
-tool-types.workspace = true
+xvora-tool-types.workspace = true
 
 [features]
 default = []

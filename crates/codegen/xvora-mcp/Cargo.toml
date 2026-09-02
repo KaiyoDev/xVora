@@ -3,18 +3,18 @@ license = "Apache-2.0"
 name = "xvora-mcp"
 version = "0.1.0"
 edition.workspace = true
-description = "MCP integration crate. Quarantines rmcp + reqwest 0.13 (rmcp 2.1 requires reqwest >= 0.13.2 while the rest of the workspace uses reqwest 0.12) and owns the MCP credential store and OAuth flow orchestrator."
+description = "MCP integration crate. Quarantines rmcp + reqwest 0.13 (rmcp 3.x requires reqwest >= 0.13.2 while the rest of the workspace uses reqwest 0.12) and owns the MCP credential store and OAuth flow orchestrator."
 authors = ["xAI"]
 
 [dependencies]
-rmcp = { version = "2.1", features = [
+rmcp = { version = "3.2", features = [
     "auth",
     "client",
     "transport-async-rw",
     "transport-streamable-http-client-reqwest",
     "reqwest",
 ] }
-extra-ca = { workspace = true }
+xvora-extra-ca = { workspace = true }
 xvora-version = { workspace = true }
 # reqwest 0.13 feature set for MCP transports. Notably:
 # - `blocking` is for build-script style use (not actually used here today, but
@@ -42,14 +42,14 @@ url = { workspace = true }
 webbrowser = { workspace = true }
 xvora-config = { workspace = true }
 
-# For mcp_http_client.rs (rmcp trait signatures). Must match rmcp 2.1's own
+# For mcp_http_client.rs (rmcp trait signatures). Must match rmcp 3.x's own
 # versions or the trait types won't unify.
 http = { workspace = true }
 sse-stream = "0.2"
 
 # Deps for servers.rs.
 agent-client-protocol = { workspace = true }
-session-events = { workspace = true }
+xvora-session-events = { workspace = true }
 futures = { workspace = true }
 regex = { workspace = true }
 which = { workspace = true }
@@ -61,9 +61,9 @@ xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
 xvora-tools = { workspace = true }
 xvora-telemetry = { workspace = true }
 xvora-workspace-types = { workspace = true }
-tool-protocol = { workspace = true }
-tool-runtime = { workspace = true }
-tool-types = { workspace = true }
+xvora-tool-protocol = { workspace = true }
+xvora-tool-runtime = { workspace = true }
+xvora-tool-types = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
@@ -73,7 +73,7 @@ libc = { workspace = true }
 serial_test = { workspace = true }
 # Used in servers.rs test `test_same_raw_name_different_servers_no_local_registry_collision`
 # to verify MCP tools register into a `LocalRegistry` without collision.
-computer-hub-sdk = { workspace = true }
+xvora-computer-hub-sdk = { workspace = true }
 # `test-util` enables `tokio::time::pause` / `advance`, required by
 # the deterministic timing tests in `liveness.rs`.
 tokio = { workspace = true, features = ["test-util"] }

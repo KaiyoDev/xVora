@@ -11,7 +11,7 @@ authors = ["xAI"]
 # doc links, so keep it ignored rather than dropping the dep (which would break
 # those links).
 [package.metadata.cargo-shear]
-ignored = ["ratatui-inline"]
+ignored = ["xvora-ratatui-inline"]
 
 [dependencies]
 # The pager crate whose view-model (AppView / views / scrollback) this render
@@ -31,7 +31,7 @@ tracing = { workspace = true }
 # Native scrollback / inline viewport engine (`insert_before`, viewport sizing).
 # Used only via the pager's re-exported `PagerTerminal`; see the
 # `[package.metadata.cargo-shear]` note above.
-ratatui-inline = { workspace = true }
+xvora-ratatui-inline = { workspace = true }
 
 # `DiffLine` hunk fixtures for the committed-edit render tests. A normal (not
 # dev) dependency because gazelle lists `src/commit_tests.rs` in the library

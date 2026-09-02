@@ -21,9 +21,9 @@ tracing = { workspace = true }
 urlencoding = { workspace = true }
 xvora-config-types = { workspace = true }
 xvora-models = { workspace = true }
-status-line = { workspace = true }
+xvora-status-line = { workspace = true }
 xvora-tools = { workspace = true }
-tty-utils = { workspace = true }
+xvora-tty-utils = { workspace = true }
 
 [dev-dependencies]
 uuid = { workspace = true, features = ["v4"] }

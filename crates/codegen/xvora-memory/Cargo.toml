@@ -37,7 +37,7 @@ xvora-config-types = { workspace = true }
 xvora-http = { workspace = true }
 xvora-tools = { workspace = true }
 xvora-version = { workspace = true }
-sqlite-journal = { workspace = true }
+xvora-sqlite-journal = { workspace = true }
 token-estimation = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]

@@ -1,6 +1,6 @@
 [package]
 license = "Apache-2.0"
-name = "chat-state"
+name = "xvora-chat-state"
 version = "0.1.0"
 edition.workspace = true
 description = "Actor-based chat state management for xAI agents"
