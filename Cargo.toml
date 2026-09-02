@@ -383,6 +383,7 @@ xvora-sqlite-journal = { path = "crates/codegen/sqlite-journal" }
 xvora-status-line = { path = "crates/codegen/status-line" }
 xvora-test-support = { path = "crates/codegen/xvora-test-support" }
 xvora-workspace = { path = "crates/codegen/xvora-workspace" }
+xvora-ratatui-textarea = { path = "crates/codegen/ratatui-textarea" }
 [profile.release]
 incremental = true
 panic = "abort"
