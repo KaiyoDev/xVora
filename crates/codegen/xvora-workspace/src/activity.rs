@@ -18,9 +18,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use dashmap::DashMap;
-use xvora_file_utils::queue::UploadQueueStats;
+use file_utils::queue::UploadQueueStats;
 use xvora_session_events::{Event, EventWriter, ToolCompletedSource, ToolOutcome};
-use xvora_tool_protocol::{IdleWithholdReason, ToolServerLifecycleStatus, ToolServerStatusPayload};
+use tool_protocol::{IdleWithholdReason, ToolServerLifecycleStatus, ToolServerStatusPayload};
 
 const LIFECYCLE_NONE: u8 = 0;
 const LIFECYCLE_DRAINING: u8 = 1;

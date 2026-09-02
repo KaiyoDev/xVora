@@ -396,7 +396,7 @@ fn effective_max_age_precedence() {
 #[test]
 fn run_pass_prunes_orphan_grove_pins_after_grace() {
     xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
 
     let mut fx = crate::db::GrokHomeFixture::new();
     let grove = fx.isolate_xdg_grove_data();

@@ -4,7 +4,7 @@
 //! Stdout markers distinguish skip (unenforceable environment) from pass/fail.
 
 use super::build_session_runtime;
-use xvora_tty_utils::runtime::MAX_BLOCKING_THREADS;
+use tty_utils::runtime::MAX_BLOCKING_THREADS;
 
 /// This env var routes the re-exec'd test binary into the child logic.
 const CHILD_ENV: &str = "XAI_GROK_SHELL_RUNTIME_CONTAINMENT_CHILD";

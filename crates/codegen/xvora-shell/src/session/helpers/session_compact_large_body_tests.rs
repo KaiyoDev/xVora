@@ -13,7 +13,7 @@ use std::io::Write;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
-use xvora_chat_state::image_budget::{
+use chat_state::image_budget::{
     IMAGE_COMPACT_RECLAIM_TARGET_BYTES, IMAGE_COMPACT_TRIGGER_BYTES,
 };
 

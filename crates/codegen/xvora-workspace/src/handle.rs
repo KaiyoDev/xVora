@@ -8,9 +8,9 @@ use prometheus::{
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use xvora_hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
-use xvora_tool_protocol::turn_hook::TurnHookOutcome;
-use xvora_tool_protocol::{SessionId, ToolId, ToolServerStatusPayload};
+use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
+use tool_protocol::turn_hook::TurnHookOutcome;
+use tool_protocol::{SessionId, ToolId, ToolServerStatusPayload};
 /// Default SIGTERM drain budget (ms); override via `GROK_WORKSPACE_TERMINATION_GRACE_MS`.
 /// 45s fits under the K8s grace period.
 const DEFAULT_TERMINATION_GRACE_MS: u64 = 45_000;
@@ -203,10 +203,10 @@ use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
 use xvora_diag_server::DiagHandle;
-use xvora_file_utils::queue::EnqueueOutcome;
+use file_utils::queue::EnqueueOutcome;
 use xvora_session_events::types::CancellationCategory;
 use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
-use xvora_tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
+use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
 /// Per-domain checkpoint captures, by domain and turn outcome.
 pub(crate) static REWIND_CHECKPOINT_CAPTURE_TOTAL: std::sync::LazyLock<IntCounterVec> =
     std::sync::LazyLock::new(|| {
@@ -1362,7 +1362,7 @@ impl WorkspaceHandle {
         session_id: &str,
         request: &xvora_tool_protocol::turn_hook::TurnHookRequest,
     ) -> xvora_tool_protocol::turn_hook::HookReply {
-        use xvora_tool_protocol::turn_hook::{HookReply, TurnHookRequest};
+        use tool_protocol::turn_hook::{HookReply, TurnHookRequest};
         match request {
             TurnHookRequest::Before(payload) => {
                 self.on_before_turn(session_id, payload).await;
@@ -4650,7 +4650,7 @@ async fn enqueue_workspace_tool_definitions(
     object_path: &str,
     bytes: &[u8],
 ) -> xvora_file_utils::queue::EnqueueOutcome {
-    use xvora_file_utils::queue::EnqueueOutcome;
+    use file_utils::queue::EnqueueOutcome;
     let outcome = upload_queue
         .enqueue_bytes_blocking(
             bytes,
@@ -4690,7 +4690,7 @@ async fn enqueue_workspace_tool_definitions(
 fn turn_outcome_label(
     outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome,
 ) -> TurnOutcomeLabel {
-    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+    use tool_protocol::turn_hook::TurnHookOutcome;
     match outcome {
         TurnHookOutcome::Completed => TurnOutcomeLabel::Completed,
         TurnHookOutcome::Cancelled => TurnOutcomeLabel::Cancelled,
@@ -4878,7 +4878,7 @@ impl xvora_tool_runtime::ToolDyn for SessionToolHandle {
         ctx: xvora_tool_runtime::ToolCallContext,
         args: serde_json::Value,
     ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
-        use xvora_tool_runtime::{ToolError, ToolErrorKind, ToolStreamItem, terminal_only};
+        use tool_runtime::{ToolError, ToolErrorKind, ToolStreamItem, terminal_only};
         let session = match self.workspace.session(&self.session_id) {
             Some(s) => s,
             None => {

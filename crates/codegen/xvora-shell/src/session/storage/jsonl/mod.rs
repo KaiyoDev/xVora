@@ -10,7 +10,7 @@ use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
-use xvora_chat_state::StrictAppendAck;
+use chat_state::StrictAppendAck;
 use xvora_workspace::session::file_state::RewindPoint;
 mod copy;
 #[derive(Clone)]

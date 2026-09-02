@@ -10,7 +10,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::sync::mpsc::UnboundedReceiver;
-use xvora_acp_lib::AcpClientMessage;
+use acp_lib::AcpClientMessage;
 use xvora_workspace::session::git::normalize_repo_url;
 
 #[test]

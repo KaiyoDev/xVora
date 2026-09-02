@@ -9,7 +9,7 @@
 
 use serde_json::Value;
 use tracing::warn;
-use xvora_tool_protocol::{
+use tool_protocol::{
     SessionId, ToolId, ToolNotificationFrame, ToolServerStatusPayload, ToolsChanged,
 };
 

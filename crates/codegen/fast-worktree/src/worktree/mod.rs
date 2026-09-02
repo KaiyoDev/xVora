@@ -75,7 +75,7 @@ mod tests {
         assert!(!is_grove_strategy("linked"));
     }
     use tempfile::TempDir;
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
 
     #[test]
     fn test_create_worktree_simple() {

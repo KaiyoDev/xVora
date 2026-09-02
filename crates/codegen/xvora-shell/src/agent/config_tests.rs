@@ -904,7 +904,7 @@ fn undefined_auth_provider_fails_closed() {
 }
 #[tokio::test]
 async fn resolve_credentials_serves_cached_provider_token() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let mut model = test_model_entry("m", "https://litellm.example/v1", None, None, None);
     let provider = crate::auth::AuthProviderRef::new(
         "resolve-creds-test".into(),
@@ -1301,7 +1301,7 @@ fn first_own_credential_empty_api_key_falls_through_to_env_key() {
 #[test]
 #[serial]
 fn resolve_credentials_multi_env_key_uses_lc_alias() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let primary = "GROK_TEST_MULTI_ENV_PRIMARY";
     let alias = "GROK_TEST_MULTI_ENV_LC_ALIAS";
     unsafe {
@@ -1336,7 +1336,7 @@ fn resolve_credentials_multi_env_key_uses_lc_alias() {
 #[test]
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_session() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     use xvora_test_support::EnvGuard;
     let primary = "GROK_TEST_EMPTY_ENV_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_LC_ALIAS";
@@ -1353,7 +1353,7 @@ fn resolve_credentials_empty_env_key_falls_through_to_session() {
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_global_key() {
     use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     use xvora_test_support::EnvGuard;
     let sentinel = "xvora-global-sentinel-key";
     let primary = "GROK_TEST_EMPTY_ENV_GLOBAL_PRIMARY";
@@ -1371,7 +1371,7 @@ fn resolve_credentials_empty_env_key_falls_through_to_global_key() {
 }
 #[test]
 fn resolve_credentials_empty_api_key_falls_through_to_session() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let model = test_model_entry("m", "https://api.x.ai/v1", Some(""), None, None);
     assert!(!model.has_own_credentials());
     let creds = resolve_credentials(&model, Some("session-jwt"));
@@ -1401,7 +1401,7 @@ fn config_toml_env_key_array_parses() {
 }
 #[test]
 fn resolve_credentials_sets_auth_type() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let model = test_model_entry("m", "https://api.x.ai/v1", None, None, None);
     let creds = resolve_credentials(&model, Some("tok"));
     assert_eq!(creds.auth_type, AuthType::SessionToken);
@@ -1413,7 +1413,7 @@ fn resolve_credentials_sets_auth_type() {
 #[test]
 #[serial_test::serial]
 fn resolve_credentials_env_key_byok_keeps_api_key_auth_with_session() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let env_var = "REGRESSION_BYOK_TOKEN_FOR_AUTH_TYPE_TEST";
     unsafe {
         std::env::set_var(env_var, "sk-byok-test-value");
@@ -1490,7 +1490,7 @@ fn api_key_creds(base_url: &str) -> ResolvedCredentials {
 /// `disable_api_key_auth` kill switch (Claude `forceLoginMethod` parity).
 #[test]
 fn enforce_disable_api_key_auth_blocks_first_party_only() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let mut creds = api_key_creds("https://api.x.ai/v1");
     enforce_disable_api_key_auth(&mut creds, false, Some("session-jwt"));
     assert_eq!(creds.auth_type, AuthType::ApiKey);
@@ -1521,7 +1521,7 @@ fn enforce_disable_api_key_auth_blocks_first_party_only() {
 /// (`try_resolve_model_credentials` loads global config, so this exercises its resolve and enforce core.)
 #[test]
 fn try_resolve_model_credentials_swaps_first_party_own_key_under_kill_switch() {
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let entry = test_model_entry(
         "m",
         "https://api.x.ai/v1",
@@ -1810,7 +1810,7 @@ fn parses_auto_compact_threshold_percent() {
 }
 #[test]
 fn compaction_mode_precedence_env_over_config_over_remote_over_default() {
-    use xvora_chat_state::CompactionMode;
+    use chat_state::CompactionMode;
     assert_eq!(
         resolve_compaction_mode_from(Some("transcript"), Some("segments"), Some("summary")),
         CompactionMode::Transcript
@@ -1836,7 +1836,7 @@ fn compaction_mode_precedence_env_over_config_over_remote_over_default() {
 /// The detail-specific facts are remote settings routing and the `Verbose` default (with unrecognized values falling through).
 #[test]
 fn compaction_detail_resolves_remote_settings_and_verbose_default() {
-    use xvora_chat_state::CompactionDetail;
+    use chat_state::CompactionDetail;
     assert_eq!(
         resolve_compaction_detail_from(None, None, Some("minimal")),
         CompactionDetail::Minimal

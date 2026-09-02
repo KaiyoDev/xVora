@@ -18,7 +18,7 @@ use base64::Engine as _;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use xvora_chat_state::compaction_utils::{extract_real_user_queries, extract_user_query};
+use chat_state::compaction_utils::{extract_real_user_queries, extract_user_query};
 use xvora_sampling_types::conversation::{ContentPart, ConversationItem, UserItem};
 use xvora_tools::util::truncate::truncate_middle;
 /// Per-entry character cap for the conversation outline sent to the vision model.

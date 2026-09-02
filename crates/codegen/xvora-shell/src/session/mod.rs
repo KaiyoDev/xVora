@@ -78,7 +78,7 @@ pub(crate) fn image_blocks(
         })
         .collect()
 }
-pub use xvora_agent_lifecycle::{
+pub use agent_lifecycle::{
     AnalyticsClass, CompactionClass, InputAuthority, InputPolicy, QueuePolicy, ShutdownPolicy,
     TurnBoundary,
 };

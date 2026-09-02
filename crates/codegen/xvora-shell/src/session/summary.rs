@@ -10,7 +10,7 @@ use crate::session::info::Info;
 use crate::session::persistence::PersistenceMsg;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 enum State {
     /// No summary generated yet. The next [`SummaryGenerator::update`] call will attempt one.

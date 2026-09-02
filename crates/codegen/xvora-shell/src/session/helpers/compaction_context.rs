@@ -9,7 +9,7 @@
 
 use std::path::PathBuf;
 
-pub use xvora_chat_state::compaction_utils::{
+pub use chat_state::compaction_utils::{
     BackgroundTaskSummary, CompactionInputs, CompactionServerSummary, CompactionStateContext,
     RunningSubagentSummary, ScheduledLoopSummary, TodoSummary, TodoSummaryStatus,
     WorkflowRunSummary, extract_last_user_query, extract_messages_since_last_user,

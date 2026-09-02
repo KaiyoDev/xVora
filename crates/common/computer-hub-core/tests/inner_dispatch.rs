@@ -9,19 +9,19 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
-use xvora_computer_hub_core::{
+use computer_hub_core::{
     CompoundResolver, ConnectionCleanupReport, ErasedTool, InnerDispatchForResolver, ResolvedTool,
     SessionCleanupReport, ToolHandle, ToolRegistry, ToolSessionBindOutcome,
     ToolSessionUnbindOutcome,
 };
-use xvora_tool_protocol::{
+use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind, UserId,
 };
-use xvora_tool_runtime::{
+use tool_runtime::{
     SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolDispatch, ToolError, ToolStreamItem,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EchoArgs {

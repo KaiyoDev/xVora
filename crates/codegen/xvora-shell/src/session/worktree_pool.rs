@@ -12,7 +12,7 @@
 
 use std::path::{Path, PathBuf};
 
-use xvora_tty_utils::git_command;
+use tty_utils::git_command;
 
 use crate::util::grok_home::grok_home;
 

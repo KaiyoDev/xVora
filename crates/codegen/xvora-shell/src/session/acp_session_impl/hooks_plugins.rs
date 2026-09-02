@@ -94,7 +94,7 @@ impl SessionActor {
         self: &Arc<Self>,
         action: xvora_hooks_plugins_types::HooksAction,
     ) -> xvora_hooks_plugins_types::ActionOutcome {
-        use xvora_hooks_plugins_types::{ActionOutcome, HooksAction, OutcomeStatus};
+        use hooks_plugins_types::{ActionOutcome, HooksAction, OutcomeStatus};
 
         match action {
             HooksAction::Reload => {
@@ -305,7 +305,7 @@ impl SessionActor {
         self: &Arc<Self>,
         action: xvora_hooks_plugins_types::PluginsAction,
     ) -> xvora_hooks_plugins_types::ActionOutcome {
-        use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus, PluginsAction};
+        use hooks_plugins_types::{ActionOutcome, OutcomeStatus, PluginsAction};
 
         match action {
             PluginsAction::Reload => match &self.plugin_registry_handle {

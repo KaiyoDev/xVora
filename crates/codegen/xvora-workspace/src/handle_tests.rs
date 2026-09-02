@@ -8,7 +8,7 @@ use crate::session::tool_config::resolve_session_toolset;
 use crate::session::tool_config::test_support::{TestSessionContextFactory, baseline_config, tc};
 use axum::response::IntoResponse;
 use std::sync::Arc;
-use xvora_tool_runtime::ToolCallContext;
+use tool_runtime::ToolCallContext;
 use xvora_tools::registry::types::ToolServerConfig;
 use xvora_tools::types::tool::ToolKind;
 use xvora_workspace_types::WorkspaceEvent;
@@ -186,7 +186,7 @@ pub(crate) fn register_bash_cco_stub_on(handle: &WorkspaceHandle, session_id: &s
         .expect("register bash_cco_stub");
 }
 pub(crate) fn assert_bash_cco_terminal(typed: &xvora_tool_runtime::TypedToolOutput) {
-    use xvora_tool_runtime::ToolOutput as _;
+    use tool_runtime::ToolOutput as _;
     let resp = typed
         .chat_completion_output()
         .expect("bash chat_completion_output must be preserved");
@@ -205,7 +205,7 @@ pub(crate) async fn drain_terminal_ok(
     > + Unpin,
 ) -> xvora_tool_runtime::TypedToolOutput {
     use futures::StreamExt;
-    use xvora_tool_runtime::ToolStreamItem;
+    use tool_runtime::ToolStreamItem;
     while let Some(item) = stream.next().await {
         match item {
             ToolStreamItem::Terminal(Ok(t)) => return t,
@@ -219,7 +219,7 @@ pub(crate) async fn drain_terminal_ok(
 }
 #[tokio::test]
 async fn local_harness_preserves_bash_chat_completion_output() {
-    use xvora_tool_runtime::ToolCallContext;
+    use tool_runtime::ToolCallContext;
     let handle = make_handle();
     register_bash_cco_stub(&handle);
     let harness = handle.create_local_harness("main").expect("local harness");
@@ -1722,7 +1722,7 @@ pub(crate) fn make_handle_with_events() -> (WorkspaceHandle, tempfile::TempDir) 
 #[tokio::test]
 async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
     use xvora_session_events::ToolOutcome;
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
     let (handle, home) = make_handle_with_events();
     let sid = "sess-int";
     handle
@@ -1812,7 +1812,7 @@ async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
 /// Both before-turn hook delivery styles sync YOLO state into the session.
 #[tokio::test]
 async fn before_turn_hooks_sync_session_yolo_mode() {
-    use xvora_tool_protocol::turn_hook::{BeforeTurnPayload, TurnHookRequest};
+    use tool_protocol::turn_hook::{BeforeTurnPayload, TurnHookRequest};
     let handle = make_handle();
     let session = handle.session("main").expect("main session");
     assert!(!session.yolo_mode(), "fail-closed default");
@@ -1863,7 +1863,7 @@ async fn before_turn_hooks_sync_session_yolo_mode() {
 /// YOLO transitions emit `yolo_toggled` in events.jsonl; repeats don't.
 #[tokio::test]
 async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
-    use xvora_tool_protocol::turn_hook::BeforeTurnPayload;
+    use tool_protocol::turn_hook::BeforeTurnPayload;
     let (handle, home) = make_handle_with_events();
     let sid = "sess-yolo";
     let _session = handle
@@ -1914,7 +1914,7 @@ async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
 #[tokio::test]
 async fn events_disabled_keeps_noop_and_writes_nothing() {
     use xvora_session_events::ToolOutcome;
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
     let handle = make_handle();
     assert!(
         !handle.shared().events_enabled,
@@ -1968,7 +1968,7 @@ async fn events_disabled_keeps_noop_and_writes_nothing() {
 /// Events already written to disk must survive.
 #[tokio::test]
 async fn session_end_evicts_event_writer_without_data_loss() {
-    use xvora_tool_protocol::turn_hook::BeforeTurnPayload;
+    use tool_protocol::turn_hook::BeforeTurnPayload;
     let (handle, home) = make_handle_with_events();
     let sid = "sess-evict";
     handle
@@ -2097,7 +2097,7 @@ fn is_safe_object_segment_rejects_traversal() {
 #[test]
 fn turn_outcome_label_maps_every_variant() {
     use xvora_session_events::TurnOutcomeLabel;
-    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+    use tool_protocol::turn_hook::TurnHookOutcome;
     assert!(matches!(
         turn_outcome_label(TurnHookOutcome::Completed),
         TurnOutcomeLabel::Completed
@@ -7098,7 +7098,7 @@ fn cancellation_category_decode_round_trips() {
 /// Nothing is registered in `inflight_enqueues` and the ack machinery has nothing to await.
 #[tokio::test]
 async fn no_upload_queue_registers_no_inflight_enqueue() {
-    use xvora_tool_protocol::turn_hook::BeforeTurnPayload;
+    use tool_protocol::turn_hook::BeforeTurnPayload;
     let handle = make_handle();
     handle
         .on_before_turn(
@@ -7123,7 +7123,7 @@ async fn no_upload_queue_registers_no_inflight_enqueue() {
 /// The turn-end path evicts a stored inflight before-turn entry.
 #[tokio::test]
 async fn compute_turn_injections_after_returns_skipped_ack_without_queue() {
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
+    use tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
     let handle = make_handle();
     handle.shared().inflight_enqueues.insert(
         ("main".to_owned(), 3),
@@ -7184,7 +7184,7 @@ async fn compute_turn_injections_after_returns_skipped_ack_without_queue() {
 /// The request channel is the only turn signal the server-side sampler sends.
 #[tokio::test]
 async fn compute_turn_injections_before_runs_turn_start_and_replies_noop() {
-    use xvora_tool_protocol::turn_hook::{BeforeTurnPayload, HookReply, TurnHookRequest};
+    use tool_protocol::turn_hook::{BeforeTurnPayload, HookReply, TurnHookRequest};
     let handle = make_handle();
     let reply = handle
         .compute_turn_injections(
@@ -7209,7 +7209,7 @@ async fn compute_turn_injections_before_runs_turn_start_and_replies_noop() {
 /// The category string becomes the enum's snake_case form and the context object passes through verbatim.
 #[tokio::test]
 async fn after_turn_decodes_cancellation_fields_into_events_jsonl() {
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
     let (handle, home) = make_handle_with_events();
     let sid = "sess-cancel";
     handle
@@ -7520,7 +7520,7 @@ fn make_handle_with_queue_routing(
     Arc<xvora_file_utils::queue::UploadQueue>,
     tempfile::TempDir,
 ) {
-    use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
+    use computer_hub_sdk::auth::{AuthCredential, AuthProvider};
     let factory = Arc::new(TestSessionContextFactory::new());
     let cwd = factory.temp.path().to_path_buf();
     let config = WorkspaceConfig {
@@ -8296,7 +8296,7 @@ async fn bind_without_session_root_skips_mount_hook() {
 }
 #[tokio::test]
 async fn local_harness_virtualizes_inbound_and_outbound() {
-    use xvora_tool_runtime::ToolCallContext;
+    use tool_runtime::ToolCallContext;
     let handle = make_handle();
     let session = handle
         .create_session_with_cwd("virt-local", None)

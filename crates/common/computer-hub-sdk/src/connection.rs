@@ -49,7 +49,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 use url::Url;
-use xvora_tool_protocol::{
+use tool_protocol::{
     ConnectionId, ConnectionKind, JsonRpcId, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion,
     Method, PingFrame, PongFrame, ResponseOutcome, SessionId,
 };

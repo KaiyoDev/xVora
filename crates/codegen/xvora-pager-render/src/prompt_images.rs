@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
-use xvora_ratatui_textarea::ElementId;
+use ratatui_textarea::ElementId;
 
 /// Tracing target for image-pipeline diagnostics.
 ///

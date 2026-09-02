@@ -3,7 +3,7 @@
 //! This module owns the wire envelope shapes and the method-to-event mapping, kept out of `headless.rs`.
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::{AcpArgsBox, AcpResult};
+use acp_lib::{AcpArgsBox, AcpResult};
 
 use crate::headless::reducer::{Lifecycle, StreamEvent};
 

@@ -14,12 +14,12 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde_json::Value;
 
-use xvora_tool_protocol::{SessionId, ToolCapabilities, ToolId, ToolRegistration};
-use xvora_tool_runtime::{
+use tool_protocol::{SessionId, ToolCapabilities, ToolId, ToolRegistration};
+use tool_runtime::{
     ListToolsContext, Tool, ToolCallContext, ToolError, ToolOutput, ToolStream, ToolStreamItem,
     TypedToolOutput, terminal_only,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 use crate::registry::ToolRegistry;
 

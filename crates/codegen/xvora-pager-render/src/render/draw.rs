@@ -44,7 +44,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
-use xvora_ratatui_inline::LinkSpan;
+use ratatui_inline::LinkSpan;
 /// Defined here (beside [`TermWriter`]) so the `render` module does not depend on `app`.
 /// Re-exported from `app` as `crate::app::PagerTerminal` for existing call sites.
 pub type PagerTerminal = xvora_ratatui_inline::Terminal<CrosstermBackend<TermWriter>>;

@@ -67,10 +67,10 @@ pub use server::{
     ToolServer, ToolServerBuilder, ToolServerHandler, WeakToolServer,
 };
 pub use trace_donate::{HubDonatingReporter, TraceDonationPump};
-pub use xvora_computer_hub_core::{
+pub use computer_hub_core::{
     GROK_BOT_TOOL_DESCRIPTIONS, GROK_BOT_TOOL_IDS, grok_bot_tool_arguments_schema,
     grok_bot_tool_description, is_grok_bot_tool,
 };
 // Re-exported so consumers that depend only on the SDK can recognize the
 // server's `workspace_unavailable` error without also pulling in the core crate.
-pub use xvora_computer_hub_core::is_workspace_unavailable;
+pub use computer_hub_core::is_workspace_unavailable;

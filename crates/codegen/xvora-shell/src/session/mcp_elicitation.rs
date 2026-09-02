@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use agent_client_protocol as acp;
 use agent_client_protocol::Client as _;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_mcp::elicitation::{
     ElicitationInbox, ElicitationJob, cancel_result, elicit_result_from_wire,
 };

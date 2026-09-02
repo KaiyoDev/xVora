@@ -11,9 +11,9 @@ use std::time::Duration;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
 use tokio::time::sleep_until;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_fsnotify::{FsEvent, FsEventKind};
-use xvora_hunk_tracker::HunkTrackerHandle;
+use hunk_tracker::HunkTrackerHandle;
 use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 
 use crate::session::acp_session::SessionActor;
@@ -92,7 +92,7 @@ fn fs_event_to_codebase_graph_event(
     paths: &[PathBuf],
     kind: FsEventKind,
 ) -> xvora_codebase_graph::FileEvent {
-    use xvora_codebase_graph::{FileEvent, FileEventKind};
+    use codebase_graph::{FileEvent, FileEventKind};
     let kind = match kind {
         FsEventKind::Created => FileEventKind::Created,
         FsEventKind::Modified => FileEventKind::Modified,
@@ -1065,7 +1065,7 @@ mod tests {
 
     #[test]
     fn parse_diff_name_status() {
-        use xvora_codebase_graph::FileEventKind;
+        use codebase_graph::FileEventKind;
         let root = Path::new("/repo");
 
         let ev = parse_diff_name_status_line("M\tsrc/main.rs", root).unwrap();

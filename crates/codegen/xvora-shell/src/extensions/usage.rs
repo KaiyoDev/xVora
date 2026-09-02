@@ -59,7 +59,7 @@ async fn handle_session_usage(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtRe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_chat_state::UsageLedger;
+    use chat_state::UsageLedger;
     use xvora_sampling_types::TokenUsage;
 
     fn usage(prompt: u32, completion: u32) -> TokenUsage {

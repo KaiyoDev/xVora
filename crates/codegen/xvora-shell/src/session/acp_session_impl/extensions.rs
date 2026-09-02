@@ -3,8 +3,8 @@
 use std::rc::Rc;
 use std::sync::Weak;
 
-use xvora_agent_lifecycle::LocalExtensionRegistry;
-use xvora_agent_lifecycle::LocalExtensionRegistryBuilder;
+use agent_lifecycle::LocalExtensionRegistry;
+use agent_lifecycle::LocalExtensionRegistryBuilder;
 
 use super::*;
 

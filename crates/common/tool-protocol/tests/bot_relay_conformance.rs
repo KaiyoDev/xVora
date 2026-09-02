@@ -5,7 +5,7 @@
 //! types. Harness locations: `fixtures/bot_relay/README.md`.
 
 use serde_json::{Value, json};
-use xvora_tool_protocol::{
+use tool_protocol::{
     BotBindConversationParams, BotCommandParams, BotEmptyResult, BotEventChannel, BotEventEnvelope,
     BotRelayError, BotRelayErrorCode, BotRosterResult, BotStatusResult, BotSubscribeParams,
     BotTranscriptOffboxParams, BotTranscriptOffboxResult, BotVncDescriptorParams,

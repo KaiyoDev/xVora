@@ -16,8 +16,8 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use xvora_computer_hub_sdk::harness::ToolHarness;
-use xvora_tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
+use computer_hub_sdk::harness::ToolHarness;
+use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 use xvora_workspace_types::rpc::agents_md::{AgentConfigFile, DiscoverAgentsMdReq};
 use xvora_workspace_types::rpc::code_nav::{
     CodeFindDefinitionsReq, CodeFindReferencesReq, CodeGotoDefinitionReq, CodeGotoReferencesReq,
@@ -589,10 +589,10 @@ mod tests {
     use super::*;
     use schemars::JsonSchema;
     use serde::Deserialize;
-    use xvora_computer_hub_sdk::harness::LocalRegistry;
-    use xvora_tool_protocol::{SessionId, ToolId};
-    use xvora_tool_runtime::{Tool, ToolError};
-    use xvora_tool_types::ToolDescription;
+    use computer_hub_sdk::harness::LocalRegistry;
+    use tool_protocol::{SessionId, ToolId};
+    use tool_runtime::{Tool, ToolError};
+    use tool_types::ToolDescription;
     use xvora_workspace_types::rpc::RpcActivityClass;
     #[derive(Debug, Deserialize, JsonSchema)]
     struct RpcArgs {

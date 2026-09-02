@@ -5,7 +5,7 @@ use std::fmt;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use xvora_circuit_breaker::RetryPolicy;
+use circuit_breaker::RetryPolicy;
 
 use crate::provider_error::{parse_provider_error, parse_provider_error_str};
 

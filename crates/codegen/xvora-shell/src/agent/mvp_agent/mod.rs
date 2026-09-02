@@ -45,7 +45,7 @@ use agent_client_protocol::Client as _;
 use agent_client_protocol::{self as acp, AuthenticateResponse};
 use indexmap::IndexMap;
 use tokio::sync::oneshot;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use crate::agent::auth_method;
 use crate::agent::config::{self, Config as AgentConfig, ModelEntry, resolve_credentials};
 use crate::agent::feedback_client::FeedbackClient;
@@ -97,7 +97,7 @@ use crate::upload::turn::{
 use tokio_util::sync::CancellationToken;
 use xvora_paths::AbsPathBuf;
 use xvora_workspace::session::git::GitDiscoveryResult;
-use xvora_hunk_tracker::HunkTrackerActor;
+use hunk_tracker::HunkTrackerActor;
 /// Hard-error message for legacy Direct hub-bind sessions (`x.ai/cloud_server_id`).
 pub(crate) const DIRECT_HUB_CLOUD_REMOVED_MSG: &str = "Direct hub cloud removed; use Gateway (envId or existing-workspace attach)";
 /// Reject session `_meta` that still requests Direct hub bind.
@@ -1090,7 +1090,7 @@ fn explicit_startup_hints(
     meta.and_then(|m| m.get("startupHints"))
         .and_then(|v| serde_json::from_value(v.clone()).ok())
 }
-use xvora_chat_state::conversation_util::replace_or_insert_system_head;
+use chat_state::conversation_util::replace_or_insert_system_head;
 /// Non-empty `systemPromptOverride` from session meta (preferred) or init meta.
 /// A blank string (empty or whitespace-only) is treated as "no override" so a client cannot accidentally blank the system prompt.
 fn system_prompt_override_from_meta<'a>(

@@ -173,7 +173,7 @@ fn post_unblock_jwt_retry_in_flight_guard_clears_on_drop() {
 }
 mod hunk_tracking_mode {
     use super::super::{plan_hunk_tracking, resolve_hunk_tracking_mode};
-    use xvora_hunk_tracker::TrackingMode;
+    use hunk_tracker::TrackingMode;
     #[test]
     fn off_and_disabled_disable_tracking() {
         assert_eq!(resolve_hunk_tracking_mode(Some("off")), None);
@@ -6276,7 +6276,7 @@ fn interactive_trust_prompt_reloads_all_same_workspace_sessions() {
 #[serial_test::serial]
 fn interactive_trust_prompt_reprompts_after_untrust() {
     use xvora_test_support::EnvGuard;
-    use xvora_hooks_plugins_types::HooksAction;
+    use hooks_plugins_types::HooksAction;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");

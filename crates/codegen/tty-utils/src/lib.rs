@@ -13,7 +13,7 @@
 //! # Usage
 //!
 //! ```rust,no_run
-//! use xvora_tty_utils::{detach_command, pager_env};
+//! use tty_utils::{detach_command, pager_env};
 //! use std::process::Stdio;
 //!
 //! let mut cmd = tokio::process::Command::new("git");
@@ -26,7 +26,7 @@
 //! For `std::process::Command`:
 //!
 //! ```rust,no_run
-//! use xvora_tty_utils::{detach_std_command, pager_env};
+//! use tty_utils::{detach_std_command, pager_env};
 //! use std::process::Stdio;
 //!
 //! let mut cmd = std::process::Command::new("git");

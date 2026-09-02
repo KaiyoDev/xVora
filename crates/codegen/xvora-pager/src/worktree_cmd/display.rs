@@ -4,7 +4,7 @@ use crate::util::{format_age, format_bytes, pad_to_width, truncate_to_width, uni
 use std::io::Write;
 use std::path::Path;
 use unicode_width::UnicodeWidthStr;
-use xvora_fast_worktree::WorktreeRecord;
+use fast_worktree::WorktreeRecord;
 const REPO_WIDTH: usize = 6;
 const BRANCH_WIDTH: usize = 20;
 const AGE_WIDTH: usize = 10;

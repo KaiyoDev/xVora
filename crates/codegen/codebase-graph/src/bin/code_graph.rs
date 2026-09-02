@@ -32,7 +32,7 @@ use std::time::Instant;
 
 use clap::{Parser, Subcommand};
 
-use xvora_codebase_graph::{
+use codebase_graph::{
     IndexBuilder, Navigator, ScopeGraphIndex, get_cache_path, load_index, save_index,
 };
 

@@ -1284,7 +1284,7 @@ mod tests {
     #[test]
     fn write_scoped_access_respects_edit_deny_and_not_read_allow() {
         use crate::permission::rules::parse_permission_rule;
-        use xvora_tool_types::TaskToolInput;
+        use tool_types::TaskToolInput;
         use xvora_tools::implementations::opencode::edit::EditInput;
         use xvora_tools::types::ToolInput;
 

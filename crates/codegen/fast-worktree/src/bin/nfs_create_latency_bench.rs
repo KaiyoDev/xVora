@@ -83,10 +83,10 @@ mod mac {
     use std::process::{Command, Stdio};
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use std::time::Instant;
-    use xvora_fast_worktree::create_latency_stamp::{
+    use fast_worktree::create_latency_stamp::{
         LIBRARY_CREATE_ENV, format_create_p50, format_create_stamp,
     };
-    use xvora_fast_worktree::{
+    use fast_worktree::{
         CreationMode, NfsWorktreeOpts, WorkingTreeMode, WorktreeBuilder, remove_worktree,
     };
 

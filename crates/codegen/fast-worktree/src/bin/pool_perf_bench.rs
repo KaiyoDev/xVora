@@ -21,7 +21,7 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use clap::Parser;
 
-use xvora_fast_worktree::{CreationMode, WorktreeBuilder, WorktreeSync, remove_worktree};
+use fast_worktree::{CreationMode, WorktreeBuilder, WorktreeSync, remove_worktree};
 
 // ============================================================================
 // CLI

@@ -189,7 +189,7 @@ impl TraceUploadReason {
 
 #[cfg(test)]
 mod tests {
-    use xvora_file_utils::UploadMethod;
+    use file_utils::UploadMethod;
 
     use super::TraceUploadReason;
 

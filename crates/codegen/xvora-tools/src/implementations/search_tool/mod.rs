@@ -362,7 +362,7 @@ mod tests {
     use crate::types::tool_index::{
         SearchSnapshot, ServerSummary, ToolIndex, ToolSearchIndex, ToolSearchResult,
     };
-    use xvora_tool_runtime::Tool;
+    use tool_runtime::Tool;
 
     struct StaticToolIndex {
         snapshot: SearchSnapshot,

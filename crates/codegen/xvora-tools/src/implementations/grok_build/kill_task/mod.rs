@@ -15,7 +15,7 @@ use crate::types::resources::Terminal;
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::ToolKind;
 use crate::types::tool::ToolNamespace;
-use xvora_tool_types::{KillTaskOutput, KillTaskResult, KillTaskToolInput};
+use tool_types::{KillTaskOutput, KillTaskResult, KillTaskToolInput};
 
 // ───────────────────────────────────────────────────────────────────────────
 // Tool implementation

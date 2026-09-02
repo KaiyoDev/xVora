@@ -844,7 +844,7 @@ pub struct WorkspaceConfig {
 }
 /// Metadata a tool server announces so hub consumers can identify and route to it.
 /// Re-export of the protocol crate's single catalog of well-known registration-metadata keys; every field is optional and independently sourced.
-pub use xvora_tool_protocol::ServerIdentityMetadata as WorkspaceServerMetadata;
+pub use tool_protocol::ServerIdentityMetadata as WorkspaceServerMetadata;
 /// Merge an env-sourced logical session id into caller-supplied tool-server metadata (`None` on the restore/local path).
 ///
 /// `env_session_id` is the raw `GROK_SESSION_ID`; empty is normalized to absent.

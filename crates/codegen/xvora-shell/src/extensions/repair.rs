@@ -11,7 +11,7 @@
 use agent_client_protocol as acp;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
-use xvora_chat_state::compaction_utils::HistoryRepairReport;
+use chat_state::compaction_utils::HistoryRepairReport;
 
 use super::{ExtResult, parse_params, to_raw_response};
 use crate::agent::MvpAgent;

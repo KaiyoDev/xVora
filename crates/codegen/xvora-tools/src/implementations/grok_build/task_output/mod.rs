@@ -21,7 +21,7 @@ use crate::types::requirements::{Expr, ToolParamsRequirement, ToolRequirement};
 use crate::types::resources::{SharedResources, Terminal, TruncationCfg};
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::{ToolKind, ToolNamespace};
-use xvora_tool_types::{
+use tool_types::{
     MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput,
 };
 
@@ -382,7 +382,7 @@ impl TaskOutputTool {
     }
 }
 
-pub(crate) use xvora_tool_types::MAX_MULTI_WAIT_IDS;
+pub(crate) use tool_types::MAX_MULTI_WAIT_IDS;
 
 /// Terminal task statuses as produced by `snapshot_to_result` /
 /// `format_subagent_snapshot`; multi-wait summaries count these as finished.

@@ -4,7 +4,7 @@ use super::KillTaskTool;
 use crate::implementations::grok_build::task_output::background_bash_requires_exprs;
 use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::tool::{ToolKind, ToolNamespace};
-use xvora_tool_types::{KillTaskOutput, KillTaskToolInput};
+use tool_types::{KillTaskOutput, KillTaskToolInput};
 
 fn kill_terminal_command_requires_expr() -> Expr<ToolRequirement> {
     Expr::Or(background_bash_requires_exprs())

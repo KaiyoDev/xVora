@@ -17,7 +17,7 @@ use prometheus::{
 use rand::Rng;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use xvora_computer_hub_sdk::{
+use computer_hub_sdk::{
     AuthCredential, AuthIdentity, AuthProvider, OnRefreshCallback, PrincipalKey, RefreshEvent,
 };
 

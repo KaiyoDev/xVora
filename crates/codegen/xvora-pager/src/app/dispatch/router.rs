@@ -1521,7 +1521,7 @@ pub(super) fn dispatch_action_result(
     agent_id: crate::app::agent::AgentId,
     result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
 ) -> Vec<Effect> {
-    use xvora_hooks_plugins_types::OutcomeStatus;
+    use hooks_plugins_types::OutcomeStatus;
     let Some(agent) = app.agents.get_mut(&agent_id) else {
         return vec![];
     };

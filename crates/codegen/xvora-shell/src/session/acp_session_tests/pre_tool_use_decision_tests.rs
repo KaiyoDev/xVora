@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::AcpAgentGatewaySender;
+use acp_lib::AcpAgentGatewaySender;
 use xvora_tools::registry::types::ToolConfig;
 
 use super::support::*;

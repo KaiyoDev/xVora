@@ -13,7 +13,7 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tokio_util::sync::CancellationToken;
 
 use agent_client_protocol as acp;
-use xvora_acp_lib::{
+use acp_lib::{
     AcpClientChannel, AcpGatewayReceiver, AcpGatewaySender, LineBufferedRead, acp_channels,
 };
 pub use xvora_shell::leader::ConnectionStatus;
@@ -257,7 +257,7 @@ pub(crate) fn bridge_channels(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_acp_lib::acp_send;
+    use acp_lib::acp_send;
 
     #[tokio::test]
     async fn forward_outbound_line_delivers_on_live_channel() {

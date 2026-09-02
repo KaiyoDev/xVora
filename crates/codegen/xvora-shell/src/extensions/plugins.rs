@@ -2,7 +2,7 @@
 
 use agent_client_protocol as acp;
 use serde::Deserialize;
-use xvora_hooks_plugins_types::{
+use hooks_plugins_types::{
     HookStatus, McpStatus, PluginInfo, PluginOrigin, PluginScope, PluginsListResponse,
 };
 

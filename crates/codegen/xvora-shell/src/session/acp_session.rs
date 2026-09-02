@@ -62,7 +62,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Mutex as TokioMutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_agent::AgentDefinition;
 use xvora_agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
 use xvora_agent::prompt::skills::SkillsConfig;

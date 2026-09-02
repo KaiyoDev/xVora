@@ -1449,7 +1449,7 @@ mod tests {
 
     #[test]
     fn compaction_request_file_v2_roundtrips_attempt_details() {
-        use xvora_chat_state::compaction_utils::CompactionAttempt;
+        use chat_state::compaction_utils::CompactionAttempt;
         let artifact = CompactionRequestFile {
             schema_version: 2,
             request_id: "req-1".into(),

@@ -7,7 +7,7 @@ use super::reasoning_effort::EffortTarget;
 use crate::auth::PreferredAuthMethod;
 use crate::upload::trace::PromptMetadataParams;
 use xvora_tools::implementations::grok_build::task::backend::SubagentBackend;
-use xvora_tty_utils::ProcessScope;
+use tty_utils::ProcessScope;
 struct SessionConfigInputs {
     model_id: acp::ModelId,
     effort_options: Vec<ReasoningEffortOption>,

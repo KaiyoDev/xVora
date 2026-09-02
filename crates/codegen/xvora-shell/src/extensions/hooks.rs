@@ -4,7 +4,7 @@ use agent_client_protocol as acp;
 use serde::Deserialize;
 use xvora_hooks::event::{HookEventEnvelope, HookEventName};
 use xvora_hooks::matcher::HookMatcher;
-use xvora_hooks_plugins_types::{HookEvent, HookHandlerType, HookInfo};
+use hooks_plugins_types::{HookEvent, HookHandlerType, HookInfo};
 
 use crate::agent::MvpAgent;
 

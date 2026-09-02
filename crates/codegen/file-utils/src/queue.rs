@@ -25,7 +25,7 @@ use tokio::io::{AsyncRead, ReadBuf};
 use tokio::sync::{Notify, mpsc, oneshot};
 use tracing::Instrument;
 use xvora_auth::AuthCredentialProvider;
-use xvora_circuit_breaker::{Disposition, RetryPolicy};
+use circuit_breaker::{Disposition, RetryPolicy};
 /// Resolves current upload credentials at upload time, plus optional
 /// hooks the queue worker uses to wire refresh-aware credentials and
 /// `auth_401_attribution` emission into the per-upload `StorageClient`.

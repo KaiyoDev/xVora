@@ -2533,7 +2533,7 @@ async fn explicit_session_dir_does_not_tighten_parent() {
 #[tokio::test]
 async fn usage_json_rewrites_session_and_appends_turns() {
     use crate::session::usage_file::{SessionUsageFile, UsageSummary};
-    use xvora_chat_state::UsageLedger;
+    use chat_state::UsageLedger;
     use xvora_sampling_types::TokenUsage;
     let temp_dir = TempDir::new().unwrap();
     let info = create_test_info();

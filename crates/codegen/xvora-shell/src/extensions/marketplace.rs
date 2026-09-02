@@ -2,7 +2,7 @@
 //! Scanning and install logic live in the `xvora-plugin-marketplace` crate.
 
 use agent_client_protocol as acp;
-use xvora_hooks_plugins_types::{
+use hooks_plugins_types::{
     MarketplaceAction, MarketplaceActionRequest, MarketplaceListResponse, MarketplacePluginEntry,
     MarketplaceScanResult,
 };
@@ -199,7 +199,7 @@ async fn handle_update(
     source_url_or_path: &str,
     plugin_relative_path: &str,
 ) -> xvora_hooks_plugins_types::ActionOutcome {
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
     let sources = load_filtered_marketplace_sources();
@@ -353,7 +353,7 @@ async fn handle_install(
     source_url_or_path: &str,
     plugin_relative_path: &str,
 ) -> xvora_hooks_plugins_types::ActionOutcome {
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
     let sources = load_filtered_marketplace_sources();
@@ -578,7 +578,7 @@ async fn handle_uninstall(
     source_url_or_path: &str,
     plugin_relative_path: &str,
 ) -> xvora_hooks_plugins_types::ActionOutcome {
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
     let mut registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
@@ -784,7 +784,7 @@ fn to_plugin_entry(
 /// Add a new git or local-path marketplace source to `~/.grok/config.toml`.
 async fn handle_add_source(url: &str) -> xvora_hooks_plugins_types::ActionOutcome {
     use crate::plugin::{self, MarketplaceAddInput};
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
 
     let url = url.trim();
     if url.is_empty() {
@@ -1044,7 +1044,7 @@ async fn handle_remove_source(
 /// Holds the flock for the whole read-modify-write so a concurrent auto-register can't re-add the source mid-removal.
 fn remove_source_locked(source_url_or_path: &str) -> xvora_hooks_plugins_types::ActionOutcome {
     use crate::plugin;
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
 
     let grok_home = xvora_config::grok_home();
     let _flock = acquire_init_lock(&grok_home).ok();

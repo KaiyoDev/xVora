@@ -2,7 +2,7 @@ use super::conversions::hashes_line_up;
 use super::*;
 use crate::test_support::{add_worktree, publish, seed_source};
 use std::path::PathBuf;
-use xvora_test_utils::git::{run_git, run_git_with_env};
+use test_utils::git::{run_git, run_git_with_env};
 
 #[path = "safety_tests/conversions.rs"]
 mod conversions;

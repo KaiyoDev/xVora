@@ -1266,7 +1266,7 @@ mod tests {
     async fn test_shutdown_with_upload_queue_drains() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
         use std::sync::Arc;
-        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1517,7 +1517,7 @@ mod tests {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
         use std::sync::Arc;
         use std::time::Instant;
-        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1561,7 +1561,7 @@ mod tests {
         use axum::{Router, body::Body, http::StatusCode, response::IntoResponse, routing::post};
         use std::sync::Arc;
         use std::time::Instant;
-        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         async fn slow_handler(_body: Body) -> impl IntoResponse {
             tokio::time::sleep(Duration::from_secs(60)).await;

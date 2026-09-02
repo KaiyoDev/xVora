@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use xvora_acp_lib::AcpAgentGatewaySender;
+use acp_lib::AcpAgentGatewaySender;
 
 use super::support::*;
 use super::*;

@@ -461,7 +461,7 @@ pub(crate) async fn rehydrate_session_in_worktree(
         let btrfs_delegate = btrfs_delegate_from_env();
         let _recreate = region!("worktree.cwd_recreate", Parent::Inherit);
         tokio::task::spawn_blocking(move || {
-            use xvora_fast_worktree::{
+            use fast_worktree::{
                 CreationMode, IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder,
             };
             let mut builder = WorktreeBuilder::new(&source, &dest)

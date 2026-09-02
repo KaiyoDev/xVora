@@ -96,7 +96,7 @@ pub(super) fn cta_install_relative_path(
 pub(super) fn cta_install_error_category(
     result: &Result<xvora_hooks_plugins_types::ActionOutcome, String>,
 ) -> Option<String> {
-    use xvora_hooks_plugins_types::OutcomeStatus;
+    use hooks_plugins_types::OutcomeStatus;
     match result {
         Ok(outcome) => match outcome.status {
             OutcomeStatus::Success => None,

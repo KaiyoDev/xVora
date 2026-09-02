@@ -3,7 +3,7 @@
 
 use std::str::FromStr;
 
-use xvora_tool_protocol::{
+use tool_protocol::{
     ConnectionId, IdError, RequestId, ServerId, SessionId, ToolCallId, ToolId, UserId,
 };
 
@@ -93,7 +93,7 @@ fn server_id_rejects_empty() {
 
 #[test]
 fn session_id_rejects_hub_reserved_prefix() {
-    use xvora_tool_protocol::HUB_RESERVED_SESSION_PREFIX;
+    use tool_protocol::HUB_RESERVED_SESSION_PREFIX;
     for bad in [
         format!("{HUB_RESERVED_SESSION_PREFIX}botrelay:rotate:u"),
         format!("{HUB_RESERVED_SESSION_PREFIX}"),

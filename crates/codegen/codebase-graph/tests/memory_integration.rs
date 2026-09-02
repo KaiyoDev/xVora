@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
-use xvora_codebase_graph::{
+use codebase_graph::{
     FileEvent, IndexBuilder, IndexManager, IndexManagerConfig, load_index, save_index,
 };
 

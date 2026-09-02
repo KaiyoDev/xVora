@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use xvora_computer_hub_sdk::ToolHarness;
+use computer_hub_sdk::ToolHarness;
 use xvora_tools::types::output::ToolRunResult;
 use xvora_workspace_client::{WorkspaceClient, is_transport_fatal};
 pub use xvora_workspace_types::rpc::agents_md::DiscoverAgentsMdReq;
@@ -155,7 +155,7 @@ fn hunk_line_info_to_wire(info: &xvora_hunk_tracker::types::HunkLineInfo) -> Hun
     }
 }
 fn hunk_source_to_wire(source: xvora_hunk_tracker::types::HunkSource) -> HunkSourceWire {
-    use xvora_hunk_tracker::types::HunkSource as S;
+    use hunk_tracker::types::HunkSource as S;
     match source {
         S::AgentEdit { prompt_index } => HunkSourceWire::AgentEdit { prompt_index },
         S::ExternalEditOnAgentFile => HunkSourceWire::ExternalEditOnAgentFile,
@@ -177,7 +177,7 @@ fn hunk_to_wire(hunk: &xvora_hunk_tracker::types::Hunk) -> HunkWire {
 fn file_content_status_to_wire(
     status: xvora_hunk_tracker::types::FileContentStatus,
 ) -> FileContentStatusWire {
-    use xvora_hunk_tracker::types::FileContentStatus as S;
+    use hunk_tracker::types::FileContentStatus as S;
     match status {
         S::Missing => FileContentStatusWire::Missing,
         S::Binary => FileContentStatusWire::Binary,
@@ -2054,7 +2054,7 @@ mod tests {
     /// A `Hunk`'s wire mirror serializes byte-for-byte like the heavy type.
     #[test]
     fn hunk_to_wire_serializes_identically() {
-        use xvora_hunk_tracker::types::{Hunk, HunkSource};
+        use hunk_tracker::types::{Hunk, HunkSource};
         let mut hunk = Hunk::file_created(
             std::path::PathBuf::from("/repo/a.rs"),
             "new\n".to_string(),
@@ -2071,8 +2071,8 @@ mod tests {
     /// A `FileContentEntry`'s wire mirror serializes identically (including the `skip_serializing_if` handling on absent baseline content).
     #[test]
     fn file_content_entry_to_wire_serializes_identically() {
-        use xvora_hunk_tracker::FileContentEntry;
-        use xvora_hunk_tracker::types::FileContentView;
+        use hunk_tracker::FileContentEntry;
+        use hunk_tracker::types::FileContentView;
         let entry = FileContentEntry {
             path: std::path::PathBuf::from("/repo/a.rs"),
             baseline: FileContentView::missing(),
@@ -2089,8 +2089,8 @@ mod tests {
     #[test]
     fn session_summary_to_wire_serializes_identically() {
         use std::sync::Arc;
-        use xvora_hunk_tracker::SessionSummary;
-        use xvora_hunk_tracker::types::{Hunk, HunkSource, TurnSummary};
+        use hunk_tracker::SessionSummary;
+        use hunk_tracker::types::{Hunk, HunkSource, TurnSummary};
         let hunk = Hunk::file_created(
             std::path::PathBuf::from("/repo/a.rs"),
             "x\n".to_string(),

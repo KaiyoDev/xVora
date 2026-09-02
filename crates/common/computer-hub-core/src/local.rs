@@ -10,8 +10,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 
-use xvora_tool_protocol::{SessionId, ToolId, UserId};
-use xvora_tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput};
+use tool_protocol::{SessionId, ToolId, UserId};
+use tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput};
 
 use crate::resolver::CompoundResolver;
 use crate::transport::{Principal, Transport, TransportKind};

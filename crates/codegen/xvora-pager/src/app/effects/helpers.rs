@@ -2,7 +2,7 @@
 use std::path::Path;
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use xvora_acp_lib::{AcpAgentTx, acp_send};
+use acp_lib::{AcpAgentTx, acp_send};
 use super::actions::{PermissionModePersist, SubagentKillOutcome, TaskResult};
 use super::agent::AgentId;
 use crate::unified_log as ulog;

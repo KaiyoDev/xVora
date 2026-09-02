@@ -2,14 +2,14 @@
 //! wire decode path (`error_from_envelope` / `tool_error_from_wire`).
 
 use serde_json::json;
-use xvora_computer_hub_core::{
+use computer_hub_core::{
     error_from_envelope, is_workspace_unavailable, tool_error_from_wire,
 };
-use xvora_tool_protocol::{
+use tool_protocol::{
     JsonRpcError, ToolErrorWire, WORKSPACE_UNAVAILABLE_SUBCODE, WorkspaceGonePhase,
     WorkspaceGoneReason, WorkspaceUnavailableDetails, workspace_unavailable_wire,
 };
-use xvora_tool_runtime::{ToolError, ToolErrorKind};
+use tool_runtime::{ToolError, ToolErrorKind};
 
 const REASONS: [WorkspaceGoneReason; 6] = [
     WorkspaceGoneReason::IdleTimeout,

@@ -291,7 +291,7 @@ mod tests {
     use crate::notification::types::ToolNotificationHandle;
     use crate::types::resources::{Resources, SharedResources, State};
     use crate::types::tool_metadata::test_ctx;
-    use xvora_tool_runtime::Tool;
+    use tool_runtime::Tool;
 
     fn scheduler_resources() -> (SharedResources, tokio_util::sync::CancellationToken) {
         let mut resources = Resources::new();

@@ -9,12 +9,12 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use prometheus::{HistogramVec, IntCounterVec, register_histogram_vec, register_int_counter_vec};
 use serde_json::Value;
-use xvora_computer_hub_sdk::ToolServerHandler;
-use xvora_tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
-use xvora_tool_runtime::{
+use computer_hub_sdk::ToolServerHandler;
+use tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
+use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 use xvora_tools::computer::types::KillOutcome;
 use xvora_tools::computer::types::TaskKind;
 use xvora_tools::implementations::grok_build::scheduler::interval::interval_to_human;
@@ -1155,7 +1155,7 @@ impl ToolServerHandler for WorkspaceRpcHandler {
                 self.workspace.on_session_ended(session_id.as_str());
             }
             HookEvent::Custom { kind, payload } => {
-                use xvora_tool_protocol::turn_hook::{
+                use tool_protocol::turn_hook::{
                     AFTER_TURN_KIND, AfterTurnPayload, BEFORE_TURN_KIND, BeforeTurnPayload,
                 };
                 match kind.as_str() {
@@ -1211,7 +1211,7 @@ impl ToolServerHandler for WorkspaceRpcHandler {
         }
     }
     async fn handle_hook_request(&self, session_id: SessionId, frame: HookFrame) -> Option<Value> {
-        use xvora_tool_protocol::turn_hook::{self, TurnHookRequest};
+        use tool_protocol::turn_hook::{self, TurnHookRequest};
         let HookEvent::Custom { kind, payload } = frame.event else {
             return None;
         };

@@ -25,7 +25,7 @@
 
 use std::path::{Path, PathBuf};
 
-use xvora_fast_worktree::{
+use fast_worktree::{
     CleanupReport, RemoveReport, WorktreeBuilder, WorktreeReport, cleanup_worktrees_in,
     remove_worktree,
 };

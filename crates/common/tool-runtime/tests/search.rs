@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use xvora_tool_runtime::{SearchSnapshot, ServerSummary, ToolSearchIndex, ToolSearchResult};
+use tool_runtime::{SearchSnapshot, ServerSummary, ToolSearchIndex, ToolSearchResult};
 
 struct StubIndex {
     summaries: Vec<ServerSummary>,

@@ -12,7 +12,7 @@ use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 use xvora_telemetry::startup::{self, StartupPhase};
 
-use xvora_acp_lib::{
+use acp_lib::{
     AcpAgentChannel, AcpClientChannel, AcpClientTx, AcpGatewayReceiver, AcpGatewaySender,
     acp_channels,
 };

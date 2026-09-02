@@ -684,7 +684,7 @@ pub(crate) fn resolve_compaction_mode_from(
     config: Option<&str>,
     remote: Option<&str>,
 ) -> xvora_chat_state::CompactionMode {
-    use xvora_chat_state::CompactionMode;
+    use chat_state::CompactionMode;
     env.and_then(CompactionMode::parse)
         .or_else(|| config.and_then(CompactionMode::parse))
         .or_else(|| remote.and_then(CompactionMode::parse))
@@ -697,7 +697,7 @@ pub(crate) fn resolve_compaction_detail_from(
     config: Option<&str>,
     remote: Option<&str>,
 ) -> xvora_chat_state::CompactionDetail {
-    use xvora_chat_state::CompactionDetail;
+    use chat_state::CompactionDetail;
     env.and_then(CompactionDetail::parse)
         .or_else(|| config.and_then(CompactionDetail::parse))
         .or_else(|| remote.and_then(CompactionDetail::parse))

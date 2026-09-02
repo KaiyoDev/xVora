@@ -5,11 +5,11 @@ use std::sync::Arc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use xvora_tool_protocol::ToolId;
-use xvora_tool_runtime::{
+use tool_protocol::ToolId;
+use tool_runtime::{
     ArcTool, Cwd, ListToolsContext, Tool, ToolCallContext, ToolError, ToolOutput,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 #[derive(Deserialize, JsonSchema)]
 struct NoArgs {}

@@ -16,7 +16,7 @@ use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::resources::{Terminal, TruncationCfg};
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::{ToolKind, ToolNamespace};
-use xvora_tool_types::{MultiTaskOutputResult, TaskOutputOutput, WaitMode, WaitTasksToolInput};
+use tool_types::{MultiTaskOutputResult, TaskOutputOutput, WaitMode, WaitTasksToolInput};
 
 #[derive(Debug, Default)]
 pub struct WaitTasksTool;
@@ -256,7 +256,7 @@ mod tests {
     use super::*;
     use crate::types::tool_metadata::ToolMetadata;
     use crate::types::tool_metadata::test_ctx;
-    use xvora_tool_runtime::Tool;
+    use tool_runtime::Tool;
 
     #[test]
     fn tool_name_and_kind() {

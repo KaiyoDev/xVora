@@ -11,7 +11,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
-use xvora_ratatui_inline::LinkSpan;
+use ratatui_inline::LinkSpan;
 
 use crate::theme::Theme;
 

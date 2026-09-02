@@ -3,7 +3,7 @@ use std::path::Path;
 use xvora_workspace::session::git::VcsKind;
 
 // Re-export from xvora-chat-state; the canonical definition lives there
-pub(crate) use xvora_chat_state::compaction_utils::extract_user_query;
+pub(crate) use chat_state::compaction_utils::extract_user_query;
 
 pub(crate) fn user_query(user_message: String) -> String {
     format!(

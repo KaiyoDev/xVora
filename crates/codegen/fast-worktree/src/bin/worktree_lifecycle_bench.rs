@@ -15,7 +15,7 @@ use anyhow::{Context, Result, bail, ensure};
 use clap::Parser;
 use serde::Serialize;
 use tempfile::NamedTempFile;
-use xvora_fast_worktree::{
+use fast_worktree::{
     CreationMode, IgnoredFilesMode, NfsWorktreeClient, NfsWorktreeOpts, WorkingTreeMode,
     WorktreeBuilder, dest_is_known_unmounted, is_grove_strategy, remove_worktree,
 };

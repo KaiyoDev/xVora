@@ -25,7 +25,7 @@ fn locked_worktrees_fixture(temp: &tempfile::TempDir) -> WorktreesFixture {
 }
 
 fn committed_repo(root: &Path) -> PathBuf {
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
     let repo = root.join("repo");
     std::fs::create_dir_all(&repo).unwrap();
     init_git_repo(&repo);

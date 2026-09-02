@@ -2,7 +2,7 @@
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use xvora_chat_state::UsageLedger;
+use chat_state::UsageLedger;
 use xvora_sampling_types::reported_cost_ticks;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

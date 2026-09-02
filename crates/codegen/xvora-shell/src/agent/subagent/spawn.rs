@@ -16,7 +16,7 @@ use crate::extensions::notification::{SessionNotification, SessionUpdate};
 use crate::session::SessionCommand;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 pub(crate) use xvora_tools::implementations::grok_build::task::coordinator::{
     self, ChildCompletion, ChildRunOutput, StartedChild,
 };

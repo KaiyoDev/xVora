@@ -7,7 +7,7 @@
 
 use thiserror::Error;
 use url::Url;
-use xvora_tool_protocol::{IdError, JsonRpcError, ToolCallId, ToolErrorWire};
+use tool_protocol::{IdError, JsonRpcError, ToolCallId, ToolErrorWire};
 
 /// Errors surfaced by the client SDK.
 #[derive(Debug, Error)]
@@ -202,7 +202,7 @@ impl From<tokio::sync::oneshot::error::RecvError> for ClientError {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use xvora_tool_protocol::{
+    use tool_protocol::{
         WORKSPACE_UNAVAILABLE_SUBCODE, WorkspaceGonePhase, WorkspaceGoneReason,
         workspace_unavailable_wire,
     };

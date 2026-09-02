@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use url::Url;
-use xvora_file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
+use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
 use xvora_workspace::permission::PermissionEvent;
 /// Upload the canonical tool definitions trace and wait for completion.
 ///
@@ -573,7 +573,7 @@ pub(crate) async fn upload_plugin_state(
     .await;
 }
 use super::gcs::WithAuth as _;
-use xvora_file_utils::gcs::upload_bytes;
+use file_utils::gcs::upload_bytes;
 pub(crate) async fn upload_artifact_to_gcs(
     ctx: &PromptTraceContext,
     gcs_path: &str,
@@ -2116,7 +2116,7 @@ pub(crate) mod tests {
     #[test]
     fn dynamic_resolver_supplies_proxy_credentials_and_attribution() {
         use crate::session::repo_changes::UploadMethod;
-        use xvora_file_utils::queue::TraceExportSource;
+        use file_utils::queue::TraceExportSource;
         let dir = tempfile::tempdir().unwrap();
         let auth_manager = Arc::new(crate::auth::AuthManager::new(
             dir.path(),
@@ -2157,7 +2157,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn dynamic_resolver_auth_recovery_wakes_on_already_rotated_token() {
         use crate::session::repo_changes::UploadMethod;
-        use xvora_file_utils::queue::TraceExportSource;
+        use file_utils::queue::TraceExportSource;
         let dir = tempfile::tempdir().unwrap();
         let auth_manager = Arc::new(crate::auth::AuthManager::new(
             dir.path(),
@@ -2199,7 +2199,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn dynamic_resolver_auth_recovery_ignores_session_token_for_deployment_key() {
         use crate::session::repo_changes::UploadMethod;
-        use xvora_file_utils::queue::TraceExportSource;
+        use file_utils::queue::TraceExportSource;
         let dir = tempfile::tempdir().unwrap();
         let auth_manager = Arc::new(crate::auth::AuthManager::new(
             dir.path(),

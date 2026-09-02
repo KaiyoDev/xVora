@@ -6,7 +6,7 @@ use crate::types::process_manager::format_system_time_rfc3339;
 use crate::util::truncate::{
     DEFAULT_SOFT_WRAP_WIDTH, PREVIEW_SIZE, soft_wrap_lines, truncate_with_preview,
 };
-use xvora_tool_types::TaskOutputResult;
+use tool_types::TaskOutputResult;
 
 /// Convert a TaskSnapshot to a TaskOutputResult, with output truncation.
 pub(crate) fn snapshot_to_result(

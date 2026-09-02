@@ -2127,7 +2127,7 @@ async fn run_promote_cancel_with_worktree(
 #[tokio::test]
 async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
     xvora_test_utils::require_git!();
-    use xvora_test_utils::git::{git_commit_all, init_git_repo};
+    use test_utils::git::{git_commit_all, init_git_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = temp.path().join("repo");
     std::fs::create_dir(&repo).unwrap();
@@ -2367,7 +2367,7 @@ fn byok_model_entry(model_id: &str) -> crate::agent::config::ModelEntry {
 #[test]
 fn subagent_auth_type_rule() {
     use crate::agent::auth_method::{CACHED_TOKEN_AUTH_METHOD_ID, XAI_API_KEY_METHOD_ID};
-    use xvora_chat_state::AuthType;
+    use chat_state::AuthType;
     let session = acp::AuthMethodId::new(CACHED_TOKEN_AUTH_METHOD_ID);
     let api_key = acp::AuthMethodId::new(XAI_API_KEY_METHOD_ID);
     let byok = byok_model_entry("grok-byok");

@@ -22,17 +22,17 @@ use futures::stream::BoxStream;
 use serde_json::Value;
 use tracing::warn;
 
-use xvora_tool_protocol::{
+use tool_protocol::{
     JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Method,
     ResponseOutcome, SessionId, ToolCallId, ToolCallParams, ToolCallProgressFrame, ToolCallResult,
     ToolCapabilities, ToolErrorWire, ToolId, ToolOutputWire, UserId, WORKSPACE_UNAVAILABLE_SUBCODE,
 };
-use xvora_tool_runtime::{
+use tool_runtime::{
     BehaviorVersion, ContentBlock, Cwd, ListToolsContext, ToolCallContext,
     ToolChatCompletionResponse, ToolError, ToolErrorKind, ToolProgress, ToolStream, ToolStreamItem,
     TypedToolOutput, terminal_only,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 use crate::resolver::ToolHandle;
 use crate::transport::{Principal, Transport, TransportKind};
@@ -403,7 +403,7 @@ pub fn output_to_value(output: ToolOutputWire) -> Value {
 }
 
 fn map_block(block: xvora_tool_protocol::McpBlock) -> ContentBlock {
-    use xvora_tool_protocol::McpBlock;
+    use tool_protocol::McpBlock;
     match block {
         McpBlock::Text { text } => ContentBlock::Text { text },
         McpBlock::Image { mime_type, data } => ContentBlock::Image {

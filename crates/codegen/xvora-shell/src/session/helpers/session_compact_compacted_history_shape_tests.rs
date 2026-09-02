@@ -4,7 +4,7 @@ use crate::session::helpers::compaction_context::{
     SubagentToolNames, to_system_reminder_sync,
 };
 use std::collections::BTreeSet;
-use xvora_chat_state::compaction_utils::{
+use chat_state::compaction_utils::{
     CompactedHistoryInput, build_compacted_history as build_compacted_history_shared,
 };
 /// Thin wrapper around the shared `build_compacted_history` from `xvora-chat-state`.
@@ -268,7 +268,7 @@ fn test_auto_continue_prompt_has_no_user_query_tags() {
 /// This exercises the same code path as `run_compact_inner` in `acp_session.rs`: build, sanitize, validate, then fall back if needed.
 #[test]
 fn sanitize_then_validate_produces_valid_history() {
-    use xvora_chat_state::compaction_utils::{
+    use chat_state::compaction_utils::{
         sanitize_compacted_history, validate_compacted_history,
     };
     let raw = vec![
@@ -297,7 +297,7 @@ fn sanitize_then_validate_produces_valid_history() {
 /// An example is a result-before-call that the sanitizer strips but the caller re-introduces somehow.
 #[test]
 fn fallback_minimal_history_has_no_tool_results() {
-    use xvora_chat_state::compaction_utils::validate_compacted_history;
+    use chat_state::compaction_utils::validate_compacted_history;
     let state_context = CompactionStateContext {
         cwd_generation: 0,
         destination_project_instructions: None,

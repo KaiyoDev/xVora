@@ -17,8 +17,8 @@
 //!
 //! ```rust
 //! use serde::Serialize;
-//! use xvora_tool_runtime::render::ToolOutput;
-//! use xvora_tool_runtime::ContentBlock;
+//! use tool_runtime::render::ToolOutput;
+//! use tool_runtime::ContentBlock;
 //!
 //! #[derive(Serialize)]
 //! struct BashOutput {
@@ -41,7 +41,7 @@
 //!
 //! ```rust
 //! use serde::Serialize;
-//! use xvora_tool_runtime::render::ToolOutput;
+//! use tool_runtime::render::ToolOutput;
 //!
 //! #[derive(Serialize)]
 //! struct SimpleOutput { answer: String }

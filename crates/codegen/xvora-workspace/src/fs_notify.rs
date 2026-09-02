@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use xvora_fsnotify::{FsEvent, FsEventKind};
-use xvora_hunk_tracker::HunkTrackerHandle;
+use hunk_tracker::HunkTrackerHandle;
 
 /// True if `path` lies under a hidden component below `cwd`.
 ///
@@ -78,7 +78,7 @@ pub(crate) fn fs_event_to_codebase_graph_event(
     paths: &[PathBuf],
     kind: FsEventKind,
 ) -> xvora_codebase_graph::FileEvent {
-    use xvora_codebase_graph::{FileEvent, FileEventKind};
+    use codebase_graph::{FileEvent, FileEventKind};
     let graph_kind = match kind {
         FsEventKind::Created => FileEventKind::Created,
         FsEventKind::Modified => FileEventKind::Modified,
@@ -289,7 +289,7 @@ pub(crate) fn ws_event_to_codebase_graph_event(
     path: &std::path::Path,
     kind: xvora_workspace_types::FsEventKind,
 ) -> xvora_codebase_graph::FileEvent {
-    use xvora_codebase_graph::{FileEvent, FileEventKind};
+    use codebase_graph::{FileEvent, FileEventKind};
     let graph_kind = match kind {
         xvora_workspace_types::FsEventKind::Created => FileEventKind::Created,
         xvora_workspace_types::FsEventKind::Modified => FileEventKind::Modified,
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn codebase_graph_event_mapping() {
-        use xvora_codebase_graph::FileEventKind;
+        use codebase_graph::FileEventKind;
         let paths = vec![PathBuf::from("/workspace/src/main.rs")];
 
         let ev = fs_event_to_codebase_graph_event(&paths, FsEventKind::Created);
@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn parse_diff_name_status_all_variants() {
         use std::path::Path;
-        use xvora_codebase_graph::FileEventKind;
+        use codebase_graph::FileEventKind;
         let root = Path::new("/repo");
 
         let ev = parse_diff_name_status_line("M\tsrc/main.rs", root).unwrap();

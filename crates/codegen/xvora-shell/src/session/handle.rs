@@ -6,8 +6,8 @@ use super::persistence::{LocalFeedbackEntry, PersistenceMsg};
 use agent_client_protocol as acp;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::{mpsc, oneshot};
-use xvora_file_utils::queue::UploadQueue;
-use xvora_hunk_tracker::HunkTrackerHandle;
+use file_utils::queue::UploadQueue;
+use hunk_tracker::HunkTrackerHandle;
 use xvora_sampling_types::ReasoningEffort;
 /// Coarse lifecycle state of a session as known to the leader/agent.
 ///

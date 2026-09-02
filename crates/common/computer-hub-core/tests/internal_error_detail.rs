@@ -4,9 +4,9 @@
 //! constant.
 
 use serde_json::json;
-use xvora_computer_hub_core::{error_from_envelope, tool_error_from_wire};
-use xvora_tool_protocol::{JsonRpcError, RequestId, ToolErrorWire};
-use xvora_tool_runtime::ToolErrorKind;
+use computer_hub_core::{error_from_envelope, tool_error_from_wire};
+use tool_protocol::{JsonRpcError, RequestId, ToolErrorWire};
+use tool_runtime::ToolErrorKind;
 
 #[test]
 fn internal_with_detail_reconstructs_the_wire_detail() {

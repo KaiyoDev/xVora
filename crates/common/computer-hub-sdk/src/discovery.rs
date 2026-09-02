@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use xvora_tool_protocol::{ServerInfo, SessionId};
+use tool_protocol::{ServerInfo, SessionId};
 
 use crate::pool::HubConnectionPool;
 use crate::{AuthProvider, ClientError, ToolHarnessBuilder};

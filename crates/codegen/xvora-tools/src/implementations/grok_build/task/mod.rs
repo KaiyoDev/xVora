@@ -32,7 +32,7 @@ use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::resources::{SessionFolder, SharedResources};
 use crate::types::tool::{ToolKind, ToolNamespace};
 use regex::Regex;
-use xvora_tool_types::{SubagentCompletedOutput, SubagentIsolationMode, TaskToolInput};
+use tool_types::{SubagentCompletedOutput, SubagentIsolationMode, TaskToolInput};
 
 pub const TASK_TOOL_NAME: &str = "task";
 
@@ -774,7 +774,7 @@ mod tests {
     use crate::types::tool_metadata::test_ctx;
     use std::sync::Arc;
     use tokio::sync::mpsc;
-    use xvora_tool_types::SubagentCapabilityMode;
+    use tool_types::SubagentCapabilityMode;
 
     /// Backend whose `ValidateType` events are auto-acked with `Ok`.
     fn make_backend() -> (

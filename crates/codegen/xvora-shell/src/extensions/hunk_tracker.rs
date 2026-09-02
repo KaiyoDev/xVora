@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{ExtResult, parse_params, to_ext_response};
 use crate::agent::MvpAgent;
-use xvora_hunk_tracker::{
+use hunk_tracker::{
     FileContentEntry, FileContentStatus, FileContentView, Hunk, HunkTrackerHandle,
 };
 use xvora_workspace::workspace_ops::{
@@ -541,7 +541,7 @@ mod tests {
     use std::collections::HashSet;
     use std::path::PathBuf;
     use std::sync::Arc;
-    use xvora_hunk_tracker::{
+    use hunk_tracker::{
         FileContentStatus, FileContentView, Hunk, HunkId, HunkLineInfo, HunkSource,
     };
 
@@ -878,7 +878,7 @@ mod tests {
     /// GetAllFileContentsResponse serializes with all fields using camelCase
     #[test]
     fn get_all_file_contents_response_serializes_correctly() {
-        use xvora_hunk_tracker::FileContentEntry;
+        use hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![FileContentEntry {
@@ -919,7 +919,7 @@ mod tests {
     /// GetAllFileContentsResponse handles missing baseline (new file)
     #[test]
     fn get_all_file_contents_response_missing_baseline() {
-        use xvora_hunk_tracker::FileContentEntry;
+        use hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![FileContentEntry {
@@ -945,7 +945,7 @@ mod tests {
     /// GetAllFileContentsResponse handles binary files
     #[test]
     fn get_all_file_contents_response_binary_file() {
-        use xvora_hunk_tracker::FileContentEntry;
+        use hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![FileContentEntry {
@@ -983,7 +983,7 @@ mod tests {
     /// GetAllFileContentsResponse with multiple files preserves all entries
     #[test]
     fn get_all_file_contents_response_multiple_files() {
-        use xvora_hunk_tracker::FileContentEntry;
+        use hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![

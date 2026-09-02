@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 use agent_client_protocol as acp;
 use serial_test::serial;
 use tokio::sync::{mpsc, oneshot};
-use xvora_acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
+use acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
 use xvora_paths::AbsPathBuf;
 use xvora_workspace::permission::types::{
     PatternMode, PermissionConfig, PermissionRule, RuleAction, ToolFilter,

@@ -15,7 +15,7 @@ use std::path::Path;
 use std::sync::Once;
 
 use rusqlite::params;
-use xvora_sqlite_journal::JournalMode;
+use sqlite_journal::JournalMode;
 
 use super::chunker::{chunk_hash, chunk_markdown};
 use super::schema;

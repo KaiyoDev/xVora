@@ -27,7 +27,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
 use xvora_auth::AuthCredentialProvider;
-use xvora_circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
+use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 
 use crate::circuit_breaker_observer::TracingObserver;
 

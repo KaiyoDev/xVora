@@ -3808,7 +3808,7 @@ fn plain_send_during_pending_subagent_wait_keeps_confirmed_queue_row_reachable()
     use crate::app::app_view::InputOutcome;
     use crate::app::prompt_queue::QueueEntryWire;
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);
@@ -4100,7 +4100,7 @@ fn goal_send_now_painted_block_survives_removed_from_queue_response() {
 /// The shell converted it into an interjection and dropped the queue row; the block waits for the interjection notification's claim.
 #[test]
 fn goal_send_now_painted_block_survives_queue_changed_removal() {
-    use xvora_acp_lib::AcpClientMessage;
+    use acp_lib::AcpClientMessage;
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);

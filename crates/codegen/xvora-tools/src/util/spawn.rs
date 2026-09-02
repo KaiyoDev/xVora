@@ -4,7 +4,7 @@
 //! [`xvora_tty_utils`] crate; this module adds the logging reap wrapper
 //! (tracing is unavailable there).
 
-pub use xvora_tty_utils::{
+pub use tty_utils::{
     ProcessGroup, ProcessScope, detach_command, detach_search_command, global_process_scope,
     new_process_group,
 };

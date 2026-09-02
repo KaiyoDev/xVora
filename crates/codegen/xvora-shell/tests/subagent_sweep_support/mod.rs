@@ -13,7 +13,7 @@ use xvora_test_support::{
     InferenceEndpoint, InferenceRequestMatcher, MockInferenceServer, ResourceSnapshot, RssSampler,
     ScriptedResponse, SseEvent,
 };
-use xvora_test_utils::env::env_usize;
+use test_utils::env::env_usize;
 
 use crate::acp_harness;
 use crate::perf_harness::{PerfRecorder, spawn_agent_thread};

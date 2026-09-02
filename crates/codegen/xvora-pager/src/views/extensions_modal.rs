@@ -378,7 +378,7 @@ fn plugin_count_label(n: usize) -> String {
 /// A missing origin (older shell) or an unrecognized variant (newer shell) falls back to the scope plus the legacy `marketplace_source` label.
 /// The fallback still yields sensible groups.
 pub fn plugin_group(plugin: &xvora_hooks_plugins_types::PluginInfo) -> PluginGroup {
-    use xvora_hooks_plugins_types::{PluginOrigin, PluginScope};
+    use hooks_plugins_types::{PluginOrigin, PluginScope};
 
     match &plugin.origin {
         Some(PluginOrigin::ProjectGrok) => PluginGroup::new(0, "origin:project", "Project"),
@@ -1370,7 +1370,7 @@ pub fn action_telemetry_label(tab: ExtensionsTab, ch: char) -> Option<String> {
 
 /// Resolve a key press to a button action based on the active tab.
 pub fn resolve_key(tab: ExtensionsTab, ch: char) -> Option<ButtonAction> {
-    use xvora_hooks_plugins_types::{HooksAction, MarketplaceAction, PluginsAction};
+    use hooks_plugins_types::{HooksAction, MarketplaceAction, PluginsAction};
 
     match (tab, ch) {
         // Plugins tab
@@ -1591,7 +1591,7 @@ pub fn build_action_from_input(
     command_prefix: &str,
     field_texts: &[String],
 ) -> Option<ButtonAction> {
-    use xvora_hooks_plugins_types::{HooksAction, PluginsAction};
+    use hooks_plugins_types::{HooksAction, PluginsAction};
 
     let first = field_texts.first().map(|s| s.trim()).unwrap_or("");
 
@@ -2526,7 +2526,7 @@ fn skill_source_str(skill: &SkillInfo) -> String {
 
 /// Build picker fields for an expanded plugin.
 fn build_plugin_fields(plugin: &xvora_hooks_plugins_types::PluginInfo) -> Vec<String> {
-    use xvora_hooks_plugins_types::McpStatus;
+    use hooks_plugins_types::McpStatus;
     let mut components = Vec::new();
     if !plugin.skill_names.is_empty() {
         components.push(format!("skills: {}", plugin.skill_names.join(", ")));
@@ -2562,7 +2562,7 @@ const NO_DETECTABLE_COMPONENTS: &str = "no detectable components";
 fn component_categories(
     components: &xvora_hooks_plugins_types::PluginComponents,
 ) -> [(&'static str, &[xvora_hooks_plugins_types::ComponentItem]); 6] {
-    use xvora_hooks_plugins_types::ComponentCategory;
+    use hooks_plugins_types::ComponentCategory;
     components.categories().map(|(category, items)| {
         let label = match category {
             ComponentCategory::Skills => "skills",
@@ -6761,7 +6761,7 @@ mod tests {
 
     #[test]
     fn plugin_group_maps_each_origin_variant() {
-        use xvora_hooks_plugins_types::PluginOrigin;
+        use hooks_plugins_types::PluginOrigin;
         for (origin, rank, key, label) in [
             (PluginOrigin::ProjectGrok, 0, "origin:project", "Project"),
             (
@@ -6821,7 +6821,7 @@ mod tests {
 
     #[test]
     fn plugin_group_merges_claude_marketplace_and_installed() {
-        use xvora_hooks_plugins_types::PluginOrigin;
+        use hooks_plugins_types::PluginOrigin;
         let catalog = plugin_group(&make_plugin_with_origin(
             "a",
             PluginOrigin::ClaudeMarketplace {
@@ -6879,7 +6879,7 @@ mod tests {
 
     #[test]
     fn plugins_render_groups_with_headers_in_rank_order() {
-        use xvora_hooks_plugins_types::PluginOrigin;
+        use hooks_plugins_types::PluginOrigin;
         let mut state = plugins_modal_state(vec![
             make_plugin_with_origin(
                 "mp-tool",
@@ -6918,7 +6918,7 @@ mod tests {
 
     #[test]
     fn plugins_render_multiple_plugins_under_one_group() {
-        use xvora_hooks_plugins_types::PluginOrigin;
+        use hooks_plugins_types::PluginOrigin;
         let mut state = plugins_modal_state(vec![
             make_plugin_with_origin("solo-tool", PluginOrigin::UserGrok),
             make_plugin_with_origin(
@@ -6976,7 +6976,7 @@ mod tests {
 
     #[test]
     fn plugins_collapsed_group_hides_rows_and_search_forces_open() {
-        use xvora_hooks_plugins_types::PluginOrigin;
+        use hooks_plugins_types::PluginOrigin;
         let mut plugin = make_plugin_with_origin("user-tool", PluginOrigin::UserGrok);
         plugin.root = "/opt/p1".into();
         let mut state = plugins_modal_state(vec![plugin]);
@@ -7013,7 +7013,7 @@ mod tests {
 
     #[test]
     fn plugins_status_filter_omits_empty_groups() {
-        use xvora_hooks_plugins_types::PluginOrigin;
+        use hooks_plugins_types::PluginOrigin;
         let mut disabled = make_plugin_with_origin("off-tool", PluginOrigin::UserClaude);
         disabled.enabled = false;
         let mut state = plugins_modal_state(vec![
@@ -7247,7 +7247,7 @@ mod tests {
 
     #[test]
     fn plugins_sort_az_by_name_within_group() {
-        use xvora_hooks_plugins_types::PluginOrigin;
+        use hooks_plugins_types::PluginOrigin;
         let mut state = plugins_modal_state(vec![
             make_plugin_with_origin("Zebra", PluginOrigin::UserGrok),
             make_plugin_with_origin("alpha", PluginOrigin::UserGrok),

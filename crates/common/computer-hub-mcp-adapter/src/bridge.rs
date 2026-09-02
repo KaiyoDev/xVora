@@ -10,9 +10,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 use tracing::{debug, info, warn};
-use xvora_tool_protocol::{McpBlock, SessionId, ToolId, ToolOutputWire};
-use xvora_tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput, terminal_only};
-use xvora_tool_types::ToolDescription;
+use tool_protocol::{McpBlock, SessionId, ToolId, ToolOutputWire};
+use tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput, terminal_only};
+use tool_types::ToolDescription;
 
 use crate::transport::McpTransport;
 use crate::types::{McpCallResult, McpContent, McpError, McpServerInfo, McpToolDefinition};
@@ -467,7 +467,7 @@ mod tests {
             .find(|h| h.tool_id.as_str() == "search")
             .unwrap();
 
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
         let desc = handler.description();
         assert_eq!(desc.name, "search");
         assert_eq!(desc.description, "Search for items");
@@ -503,7 +503,7 @@ mod tests {
             .unwrap();
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let args = serde_json::json!({"query": "test"});
@@ -546,7 +546,7 @@ mod tests {
         let handler = &handle.bridge.handlers()[0];
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let mut stream = handler
@@ -595,7 +595,7 @@ mod tests {
         let handler = &handle.bridge.handlers()[0];
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let mut stream = handler.handle_call(ctx, Value::Null).await;
@@ -625,7 +625,7 @@ mod tests {
         let handler = &handle.bridge.handlers()[0];
 
         use futures::StreamExt;
-        use xvora_computer_hub_sdk::ToolServerHandler;
+        use computer_hub_sdk::ToolServerHandler;
 
         let ctx = ToolCallContext::default();
         let mut stream = handler.handle_call(ctx, Value::Null).await;

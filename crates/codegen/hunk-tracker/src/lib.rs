@@ -29,7 +29,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use xvora_hunk_tracker::{HunkTrackerActor, HunkEvent, TrackingMode, HunkAction};
+//! use hunk_tracker::{HunkTrackerActor, HunkEvent, TrackingMode, HunkAction};
 //! use tokio::sync::mpsc;
 //!
 //! // Create event channel

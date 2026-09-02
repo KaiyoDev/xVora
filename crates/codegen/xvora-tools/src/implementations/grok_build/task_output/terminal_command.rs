@@ -3,7 +3,7 @@
 use super::{TaskOutputTool, background_bash_requires_exprs};
 use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::tool::{ToolKind, ToolNamespace};
-use xvora_tool_types::{TaskOutputOutput, TaskOutputToolInput};
+use tool_types::{TaskOutputOutput, TaskOutputToolInput};
 
 fn terminal_command_output_requires_expr() -> Expr<ToolRequirement> {
     Expr::Or(background_bash_requires_exprs())

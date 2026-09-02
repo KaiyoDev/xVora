@@ -12,7 +12,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use xvora_tool_protocol::{ToolErrorWire, ToolId};
+use tool_protocol::{ToolErrorWire, ToolId};
 
 /// Discriminator for tool errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
