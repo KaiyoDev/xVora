@@ -183,7 +183,7 @@ fn grep_timeout_secs(is_wsl: bool) -> u64 {
 
 /// Grep's wall-clock timeout for the current platform.
 fn grep_timeout() -> Duration {
-    Duration::from_secs(grep_timeout_secs(xvora_tty_utils::is_wsl()))
+    Duration::from_secs(grep_timeout_secs(tty_utils::is_wsl()))
 }
 
 /// Resolve the effective line/entry budget for this call.
@@ -2616,7 +2616,7 @@ mod tests {
         drop(child);
 
         let deadline = std::time::Instant::now() + Duration::from_secs(5);
-        while !xvora_tty_utils::process_not_running(pid) {
+        while !tty_utils::process_not_running(pid) {
             assert!(
                 std::time::Instant::now() < deadline,
                 "rg (pid {pid}) still running 5s after its Child was dropped — leaked"

@@ -1358,7 +1358,7 @@ async fn run_agent_command(
         let cancel = CancellationToken::new();
         match mode {
             ClientMode::Stdio => {
-                if let Err(error) = xvora_tty_utils::kill_current_process_on_parent_death() {
+                if let Err(error) = tty_utils::kill_current_process_on_parent_death() {
                     tracing::warn!(
                         %error,
                         "failed to bind to parent death; stdio bridge will not die \
@@ -1967,14 +1967,14 @@ fn main() {
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.worker_threads(workers.get()).enable_all();
     let runtime =
-        xvora_tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
+        tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
             eprintln!("grok: failed to start tokio runtime: {e}");
             shutdown_and_flush_telemetry(1);
         });
     let result = run_and_shutdown(runtime, async_main(args), RUNTIME_SHUTDOWN_GRACE);
     xvora_telemetry::debug_log::flush();
     if let Err(e) = result {
-        xvora_tty_utils::restore_native_stderr();
+        tty_utils::restore_native_stderr();
         finalize_span_profile();
         match e.downcast_ref::<xvora_pager::app::StartupFailure>() {
             Some(startup) => eprintln!("{}", startup.user_report()),

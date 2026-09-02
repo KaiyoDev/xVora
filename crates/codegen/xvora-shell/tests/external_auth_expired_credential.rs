@@ -25,7 +25,7 @@ use xvora_acp_lib::{
 };
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::agent::mvp_agent::MvpAgent;
-use xvora_test_support::{MockInferenceServer, MockModelEntry};
+use test_support::{MockInferenceServer, MockModelEntry};
 
 const DUPLEX_BUFFER_BYTES: usize = 8 * 1024 * 1024;
 const RPC_TIMEOUT: Duration = Duration::from_secs(60);

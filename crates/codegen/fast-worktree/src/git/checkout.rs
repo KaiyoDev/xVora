@@ -19,9 +19,9 @@ pub const GIT_AUTH_SUPPRESSION_ENVS: [(&str, &str); 4] = [
 /// Git command with auth/LFS/SSH prompt suppression and `--no-optional-locks`.
 pub(crate) fn git_command() -> Command {
     let mut cmd = Command::new("git");
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
-    cmd.envs(xvora_tty_utils::pager_env());
+    cmd.envs(tty_utils::pager_env());
     for &(key, val) in &GIT_AUTH_SUPPRESSION_ENVS {
         cmd.env(key, val);
     }

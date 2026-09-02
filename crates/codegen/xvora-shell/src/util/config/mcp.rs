@@ -1860,7 +1860,7 @@ mod tests {
     fn session_registry_local_override_precedence() {
         let toml_true: TomlValue = toml::from_str("[cli]\nsession_registry = true").unwrap();
         {
-            let _g = xvora_test_support::EnvGuard::set(SESSION_REGISTRY_ENV_VAR, "false");
+            let _g = test_support::EnvGuard::set(SESSION_REGISTRY_ENV_VAR, "false");
             assert_eq!(
                 session_registry_local_override_sourced(Some(&toml_true)),
                 Some((false, RegistrySource::Env)),
@@ -1868,7 +1868,7 @@ mod tests {
             );
         }
         {
-            let _g = xvora_test_support::EnvGuard::set(SESSION_REGISTRY_ENV_VAR, "bogus");
+            let _g = test_support::EnvGuard::set(SESSION_REGISTRY_ENV_VAR, "bogus");
             assert_eq!(
                 session_registry_local_override_sourced(Some(&toml_true)),
                 Some((true, RegistrySource::ConfigToml)),
@@ -1876,7 +1876,7 @@ mod tests {
             );
         }
         {
-            let _g = xvora_test_support::EnvGuard::unset(SESSION_REGISTRY_ENV_VAR);
+            let _g = test_support::EnvGuard::unset(SESSION_REGISTRY_ENV_VAR);
             assert_eq!(session_registry_local_override_sourced(None), None);
         }
     }
@@ -1887,7 +1887,7 @@ mod tests {
     #[serial_test::serial]
     fn load_cli_plugin_registry_includes_project_config_path_plugins() {
         let home = tempfile::tempdir().unwrap();
-        let _env = xvora_test_support::EnvGuard::set("GROK_HOME", home.path());
+        let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
 
         let repo = tempfile::tempdir().unwrap();
         git2::Repository::init(repo.path()).unwrap();

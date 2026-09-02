@@ -38,7 +38,7 @@ use xvora_shell::leader::{
     LEADER_SOCKET_ENV, LeaderClient, LeaderEnvUrls, LeaderLock, LeaderReconnector,
     LeaderServerControlState, LeaderServerMetadata, ReconnectPolicy, run_leader_server,
 };
-use xvora_test_support::MockInferenceServer;
+use test_support::MockInferenceServer;
 
 use super::actions::{Action, TaskResult};
 use super::agent::AgentState;

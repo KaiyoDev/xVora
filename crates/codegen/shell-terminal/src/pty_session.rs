@@ -81,7 +81,7 @@ pub struct PtySession {
 enum Shell {
     Running {
         child: Box<dyn portable_pty::Child + Send + Sync>,
-        group: Option<Arc<xvora_tty_utils::ProcessGroup>>,
+        group: Option<Arc<tty_utils::ProcessGroup>>,
     },
     Reaped(Option<portable_pty::ExitStatus>),
 }
@@ -107,7 +107,7 @@ impl Shell {
         }
     }
 
-    fn attach_group(&mut self, enrolled: Arc<xvora_tty_utils::ProcessGroup>) {
+    fn attach_group(&mut self, enrolled: Arc<tty_utils::ProcessGroup>) {
         if let Shell::Running { group, .. } = self {
             *group = Some(enrolled);
         }
@@ -117,7 +117,7 @@ impl Shell {
     /// It follows the same order as [`reap`], and it has to wait: `killpg` returns before the kernel has zombified the leader.
     /// Dropping straight after would leak it and retire the group with it.
     fn reap_now(&mut self) {
-        if self.hangup() && self.wait_exit(xvora_tty_utils::HANGUP_GRACE) {
+        if self.hangup() && self.wait_exit(tty_utils::HANGUP_GRACE) {
             return;
         }
         self.kill();
@@ -190,7 +190,7 @@ impl UnregisteredShell {
         self.0.pid()
     }
 
-    fn attach_group(&mut self, enrolled: Arc<xvora_tty_utils::ProcessGroup>) {
+    fn attach_group(&mut self, enrolled: Arc<tty_utils::ProcessGroup>) {
         self.0.attach_group(enrolled);
     }
 
@@ -293,7 +293,7 @@ pub async fn create_pty(
     if let Some(pid) = shell.pid() {
         // `enroll_terminal_pid` reaps with a grace wait if it loses the close race, so run it off-task
         let enrolled = tokio::task::spawn_blocking(move || {
-            xvora_tty_utils::global_process_scope().enroll_terminal_pid(pid)
+            tty_utils::global_process_scope().enroll_terminal_pid(pid)
         })
         .await
         .map_err(|e| TerminalExtError::Internal(format!("enroll task failed: {e}")))?
@@ -344,7 +344,7 @@ pub async fn create_pty(
     let mut registry = PTY_REGISTRY.lock().await;
 
     // The scope can close during the setup above, and teardown has already run by then: publishing here would advertise a shell it just killed
-    if xvora_tty_utils::global_process_scope().is_closed() {
+    if tty_utils::global_process_scope().is_closed() {
         return Err(TerminalExtError::Internal(
             "process scope closed while the shell was starting".to_string(),
         ));
@@ -652,7 +652,7 @@ fn reap(entry: &Arc<Mutex<PtySession>>) {
         session.input_tx.take();
         session.shell.hangup()
     };
-    if hung_up && wait_for_exit(entry, xvora_tty_utils::HANGUP_GRACE) {
+    if hung_up && wait_for_exit(entry, tty_utils::HANGUP_GRACE) {
         return;
     }
     entry.blocking_lock().shell.kill();
@@ -1019,7 +1019,7 @@ mod tests {
                     "background job did not get its own process group"
                 );
 
-                let scope = xvora_tty_utils::ProcessScope::new();
+                let scope = tty_utils::ProcessScope::new();
                 let _group = scope.enroll_terminal_pid(shell).expect("enroll");
                 scope.kill_all();
 

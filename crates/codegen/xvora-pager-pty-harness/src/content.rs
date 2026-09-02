@@ -10,13 +10,13 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use xvora_test_support::{MockInferenceServer, TestSandbox};
+use test_support::{MockInferenceServer, TestSandbox};
 
-pub use xvora_test_support::mock_server::LogEntry;
-pub use xvora_test_support::mock_server::MockModelEntry as MockModel;
-pub use xvora_test_support::mock_server::StorageUpload;
-pub use xvora_test_support::sse;
-pub use xvora_test_support::{
+pub use test_support::mock_server::LogEntry;
+pub use test_support::mock_server::MockModelEntry as MockModel;
+pub use test_support::mock_server::StorageUpload;
+pub use test_support::sse;
+pub use test_support::{
     InferenceEndpoint, InferenceExpectation, InferenceRequestMatcher, ScriptedResponse, SseEvent,
 };
 

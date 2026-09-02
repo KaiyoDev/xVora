@@ -112,7 +112,7 @@ pub(crate) fn bridge_channels(
         .name("pager-leader-bridge".into())
         .spawn(move || -> Result<()> {
             let mut builder = tokio::runtime::Builder::new_current_thread();
-            let rt = xvora_tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()?;
+            let rt = tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()?;
             let local = tokio::task::LocalSet::new();
             local.block_on(&rt, async move {
                 let leader_tx_shared = Arc::new(TokioMutex::new(leader_tx));

@@ -24,7 +24,7 @@ pub fn create_snapshot(source: &Path, dest: &Path) -> Result<()> {
     );
 
     let mut cmd = Command::new("btrfs");
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
     // OsStr args: a non-UTF-8 path must not silently collapse to ".".
     let output = cmd
@@ -315,7 +315,7 @@ fn expose_or_reclaim_snapshot(
 /// Delete a BTRFS subvolume/snapshot.
 pub fn delete_snapshot(path: &Path) -> Result<()> {
     let mut cmd = Command::new("btrfs");
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
     // Pass the path as OsStr (no lossy `to_str`) so a non-UTF-8 path can never
     // silently collapse to "." and delete the current directory's subvolume.

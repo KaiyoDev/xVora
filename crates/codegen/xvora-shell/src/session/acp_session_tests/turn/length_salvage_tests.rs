@@ -6,8 +6,8 @@ use super::support::*;
 use super::*;
 use std::sync::Arc;
 use std::time::Duration;
-use xvora_test_support::sse::chat_completion_script_exact;
-use xvora_test_support::{MockInferenceServer, ScriptedResponse, SseEvent};
+use test_support::sse::chat_completion_script_exact;
+use test_support::{MockInferenceServer, ScriptedResponse, SseEvent};
 /// Distinctive fragment of the continue reminder.
 const REMINDER_MARKER: &str = "exceeded the output token limit";
 /// `SessionActor` turn futures overflow the default test thread stack.

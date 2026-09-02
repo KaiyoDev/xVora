@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use portable_pty::{CommandBuilder, ExitStatus, PtySize, native_pty_system};
-use xvora_test_support::{TestProcessTree, TestSandbox, process_has_exited_without_reap};
+use test_support::{TestProcessTree, TestSandbox, process_has_exited_without_reap};
 
 const PTY_DROP_REAP_TIMEOUT: Duration = Duration::from_millis(250);
 const PTY_REAP_POLL: Duration = Duration::from_millis(10);
@@ -587,7 +587,7 @@ fn set_operations<'a>(env: &'a [(&'a str, &'a str)]) -> Vec<EnvOp<'a>> {
 }
 
 /// Prepare the child environment.
-/// Content-backed callers provide a [`xvora_test_support::TestSandbox`], which always clears inheritance.
+/// Content-backed callers provide a [`test_support::TestSandbox`], which always clears inheritance.
 /// The explicitly named inherited-env path is reserved for terminal probing and grok-wrap fixtures.
 /// Caller overrides are always applied last.
 fn apply_child_env(cmd: &mut CommandBuilder, sandbox: Option<&TestSandbox>, env: &[EnvOp<'_>]) {

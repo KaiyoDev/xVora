@@ -1303,7 +1303,7 @@ mod tests {
     fn test_shutdown_budgets_fit_under_session_flush_grace() {
         use crate::agent::activity::SESSION_FLUSH_GRACE;
         // `nonempty_drain_budget` reads env; pin default regardless of CI presets.
-        let _unset = xvora_test_support::env::EnvGuard::unset("GROK_SESSION_EXIT_DRAIN_SECS");
+        let _unset = test_support::env::EnvGuard::unset("GROK_SESSION_EXIT_DRAIN_SECS");
         assert!(
             SHUTDOWN_SIGNAL_SYNC_TIMEOUT + SHUTDOWN_DRAIN_HARD_MAX <= SESSION_FLUSH_GRACE,
             "sync + hard-max drain must fit under flush grace"
@@ -1333,7 +1333,7 @@ mod tests {
     fn test_nonempty_drain_budget_env_raises_cap() {
         {
             let _guard =
-                xvora_test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "7");
+                test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "7");
             assert_eq!(
                 nonempty_drain_budget(Duration::from_secs(30)),
                 Duration::from_secs(7),
@@ -1342,7 +1342,7 @@ mod tests {
         }
         {
             let _guard =
-                xvora_test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "99");
+                test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "99");
             assert_eq!(
                 nonempty_drain_budget(Duration::from_secs(30)),
                 SHUTDOWN_DRAIN_HARD_MAX,
@@ -1852,8 +1852,8 @@ mod author_identity_tests {
     #[serial_test::serial]
     async fn env_var_identity_reaches_the_wire_end_to_end() {
         let _email =
-            xvora_test_support::env::EnvGuard::set("GROK_TEST_WORK_EMAIL", "ada@corp.example");
-        let _name = xvora_test_support::env::EnvGuard::set("GROK_TEST_WORK_NAME", "Ada Lovelace");
+            test_support::env::EnvGuard::set("GROK_TEST_WORK_EMAIL", "ada@corp.example");
+        let _name = test_support::env::EnvGuard::set("GROK_TEST_WORK_NAME", "Ada Lovelace");
 
         // The loader expands `$VAR` at load, exactly as a trusted config tier ships it.
         let mut value = toml::from_str::<toml::Value>(
@@ -1918,7 +1918,7 @@ email = ["$GROK_TEST_WORK_EMAIL"]
     #[tokio::test]
     #[serial_test::serial]
     async fn workflow_merges_user_metadata_into_submission() {
-        let _guard = xvora_test_support::env::EnvGuard::set(
+        let _guard = test_support::env::EnvGuard::set(
             "GROK_USER_METADATA",
             r#"{"team": "platform-tools"}"#,
         );

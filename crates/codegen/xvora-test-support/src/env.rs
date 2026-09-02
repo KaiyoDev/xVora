@@ -121,8 +121,8 @@ fn ensure_local_grok_binary(binary: &Path) {
     cmd.current_dir(workspace_root())
         .args(["build", "-p", "xvora-pager-bin", "--bin", "xvora-pager"])
         .stdin(std::process::Stdio::null())
-        .envs(xvora_tty_utils::pager_env());
-    xvora_tty_utils::detach_std_command(&mut cmd);
+        .envs(tty_utils::pager_env());
+    tty_utils::detach_std_command(&mut cmd);
     let output = cmd
         .output()
         .unwrap_or_else(|e| panic!("failed to spawn {cargo} to build xvora-pager: {e}"));

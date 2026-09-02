@@ -100,7 +100,7 @@ mod mac {
         cmd.stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         let Ok(out) = cmd.output() else {
             return 0;
         };
@@ -340,7 +340,7 @@ mod mac {
     fn stamp_host() -> String {
         let mut cmd = Command::new("sw_vers");
         cmd.arg("-productVersion");
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         if let Ok(out) = cmd.output() {
             let v = String::from_utf8_lossy(&out.stdout).trim().to_string();
             if !v.is_empty() {

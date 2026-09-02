@@ -13,7 +13,7 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::debug;
 use tracing::warn;
-use xvora_tty_utils::ProcessGroup;
+use tty_utils::ProcessGroup;
 
 const MAX_CAPTURE_BYTES: usize = 1024 * 1024;
 

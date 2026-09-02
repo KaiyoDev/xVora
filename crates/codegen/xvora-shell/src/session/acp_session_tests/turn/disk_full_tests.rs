@@ -3,10 +3,10 @@ use super::*;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use xvora_test_support::sse::{
+use test_support::sse::{
     responses_api_reasoning_then_tool_call_events, responses_api_script_exact,
 };
-use xvora_test_support::{MockInferenceServer, ScriptedResponse};
+use test_support::{MockInferenceServer, ScriptedResponse};
 
 /// `SessionActor` turn futures overflow the default test thread stack.
 fn block_on_session(f: impl FnOnce() + Send + 'static) {

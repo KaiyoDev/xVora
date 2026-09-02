@@ -2016,7 +2016,7 @@ mod tests {
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null());
-            xvora_tty_utils::detach_std_command(&mut cmd);
+            tty_utils::detach_std_command(&mut cmd);
             SpawnedChild(cmd.spawn().expect("spawn test child"))
         };
         let marked = spawn(&["-c", "sleep 30; true", "sh", RELAY_ON_DEMAND_FLAG]);

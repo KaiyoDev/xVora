@@ -1791,7 +1791,7 @@ fn unavailable_campaign_default_falls_back_to_config_default() {
 // ── ModelFetchAuth::resolve priority tests ──────────────────────
 
 use serial_test::serial;
-use xvora_test_support::EnvGuard;
+use test_support::EnvGuard;
 
 #[test]
 #[serial]

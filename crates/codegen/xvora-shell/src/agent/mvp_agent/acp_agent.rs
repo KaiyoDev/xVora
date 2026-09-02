@@ -1678,7 +1678,7 @@ impl acp::Agent for MvpAgent {
                         Parent::Root,
                         async move {
                             let git_out = |args: &[&str]| -> Option<String> {
-                                xvora_tty_utils::git_command()
+                                tty_utils::git_command()
                                     .current_dir(&cwd_str)
                                     .args(args)
                                     .output()
@@ -1771,7 +1771,7 @@ impl acp::Agent for MvpAgent {
                         turn: i32,
                         cwd: String,
                     ) {
-                        let repo_head_at_end = xvora_tty_utils::git_command()
+                        let repo_head_at_end = tty_utils::git_command()
                             .current_dir(&cwd)
                             .args(["rev-parse", "HEAD"])
                             .output()

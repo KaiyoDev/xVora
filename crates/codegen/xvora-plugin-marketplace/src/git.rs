@@ -233,7 +233,7 @@ fn unique_reclone_suffix() -> u128 {
         .unwrap_or(0)
 }
 
-pub use xvora_tty_utils::{GIT_AUTH_SUPPRESSION_ENVS, git_command, git_command_locking};
+pub use tty_utils::{GIT_AUTH_SUPPRESSION_ENVS, git_command, git_command_locking};
 
 fn clone_cli_command(url: &str, branch: Option<&str>, dest: &Path) -> std::process::Command {
     let mut cmd = git_command();
@@ -276,12 +276,12 @@ fn run_git_timed(cmd: &mut Command, what: &str, timeout: Duration) -> Result<(),
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("failed to run git {what}: {e}"))?;
-    let group = match xvora_tty_utils::global_process_scope().enroll_std(&child) {
+    let group = match tty_utils::global_process_scope().enroll_std(&child) {
         Ok(group) => group,
         Err(error) => {
             let _ = child.kill();
             if !matches!(
-                xvora_tty_utils::wait_child_bounded(&mut child, xvora_tty_utils::KILL_REAP_TIMEOUT,),
+                tty_utils::wait_child_bounded(&mut child, tty_utils::KILL_REAP_TIMEOUT,),
                 Ok(Some(_))
             ) {
                 transfer_git_cleanup(
@@ -311,7 +311,7 @@ fn run_git_timed(cmd: &mut Command, what: &str, timeout: Duration) -> Result<(),
         }
     };
 
-    match xvora_tty_utils::wait_child_bounded(&mut child, timeout) {
+    match tty_utils::wait_child_bounded(&mut child, timeout) {
         Ok(Some(status)) => {
             drop(group);
             finish_git_status(what, status, stderr)
@@ -325,7 +325,7 @@ fn run_git_timed(cmd: &mut Command, what: &str, timeout: Duration) -> Result<(),
             ))
         }
         Err(error) => {
-            let identity = if xvora_tty_utils::is_child_wait_identity_uncertain(&error) {
+            let identity = if tty_utils::is_child_wait_identity_uncertain(&error) {
                 CleanupIdentity::Uncertain
             } else {
                 CleanupIdentity::Certain
@@ -356,7 +356,7 @@ fn finish_git_status(what: &str, status: ExitStatus, stderr: StderrReader) -> Re
 
 // Inherited writers (persistent ssh) never EOF; bound the drain and reap a still-blocked reader.
 fn finish_stderr_or_reap(what: &str, mut stderr: StderrReader) -> Option<Vec<u8>> {
-    match stderr.finish_bounded(xvora_tty_utils::KILL_REAP_TIMEOUT) {
+    match stderr.finish_bounded(tty_utils::KILL_REAP_TIMEOUT) {
         Some(Ok(bytes)) => Some(bytes),
         Some(Err(error)) => {
             tracing::debug!(
@@ -389,7 +389,7 @@ enum CleanupIdentity {
 fn kill_git_child(
     what: &str,
     mut child: Child,
-    group: Arc<xvora_tty_utils::ProcessGroup>,
+    group: Arc<tty_utils::ProcessGroup>,
     stderr: Option<StderrReader>,
     identity: CleanupIdentity,
 ) -> Option<Vec<u8>> {
@@ -413,7 +413,7 @@ fn kill_git_child(
         }
     };
     let child =
-        match xvora_tty_utils::wait_child_bounded(&mut child, xvora_tty_utils::KILL_REAP_TIMEOUT) {
+        match tty_utils::wait_child_bounded(&mut child, tty_utils::KILL_REAP_TIMEOUT) {
             Ok(Some(_)) => {
                 drop(group);
                 None
@@ -432,7 +432,7 @@ fn kill_git_child(
 }
 
 struct GitReaperOwners {
-    child: Option<(Child, Option<Arc<xvora_tty_utils::ProcessGroup>>)>,
+    child: Option<(Child, Option<Arc<tty_utils::ProcessGroup>>)>,
     stderr: Option<StderrReader>,
 }
 
@@ -453,7 +453,7 @@ fn transfer_git_cleanup(what: &str, mut owners: GitReaperOwners) {
         && let Some((child, group)) = owners.child.take()
     {
         if let Err((error, child, group)) =
-            xvora_tty_utils::spawn_child_reaper("marketplace-git-reaper", child, group)
+            tty_utils::spawn_child_reaper("marketplace-git-reaper", child, group)
         {
             tracing::error!(error = %error, operation = what, child_id = child.id(), has_group = group.is_some(), "git cleanup bounded abandonment: reaper thread spawn failed");
         }
@@ -900,7 +900,7 @@ mod tests {
     fn run_git_timed_drains_more_than_a_pipe_buffer_without_false_timeout() {
         let mut cmd = Command::new("sh");
         cmd.args(["-c", "head -c 262144 /dev/zero >&2"]);
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
 
         run_git_timed(&mut cmd, "stderr-flood", Duration::from_secs(3)).expect("git command");
     }
@@ -910,7 +910,7 @@ mod tests {
     fn run_git_timed_timeout_includes_captured_stderr() {
         let mut cmd = Command::new("sh");
         cmd.args(["-c", "printf 'fatal: still cloning\\n' >&2; exec sleep 30"]);
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
 
         let err = run_git_timed(&mut cmd, "clone", Duration::from_secs(1)).unwrap_err();
         assert!(err.contains("timed out"), "{err}");
@@ -925,7 +925,7 @@ mod tests {
             "-c",
             "head -c 262144 /dev/zero >&2; printf '\\nfatal: late failure\\n' >&2; exit 1",
         ]);
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
 
         let err = run_git_timed(&mut cmd, "fetch", Duration::from_secs(3)).unwrap_err();
         assert!(err.contains("fatal: late failure"), "{err}");

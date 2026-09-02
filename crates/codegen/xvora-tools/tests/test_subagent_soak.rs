@@ -19,8 +19,8 @@ use serde::{Serialize, Serializer};
 use strum::{EnumCount, IntoEnumIterator};
 use tokio_util::sync::CancellationToken;
 
-use xvora_test_support::env::env_parse;
-use xvora_test_support::resources::{ResourceGrowth, ResourceSnapshot};
+use test_support::env::env_parse;
+use test_support::resources::{ResourceGrowth, ResourceSnapshot};
 use xvora_tools::implementations::grok_build::task::admission::SubagentLimits;
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::coordinator::{

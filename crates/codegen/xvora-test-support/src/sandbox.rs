@@ -132,9 +132,9 @@ impl TestSandbox {
             .map_or_else(|| OsString::from("git"), OsString::to_owned);
         let mut cmd = Command::new(git);
         self.apply_to_std_command(&mut cmd);
-        xvora_tty_utils::detach_std_command(&mut cmd);
-        cmd.stdin(Stdio::null()).envs(xvora_tty_utils::pager_env());
-        for &(key, value) in &xvora_tty_utils::GIT_AUTH_SUPPRESSION_ENVS {
+        tty_utils::detach_std_command(&mut cmd);
+        cmd.stdin(Stdio::null()).envs(tty_utils::pager_env());
+        for &(key, value) in &tty_utils::GIT_AUTH_SUPPRESSION_ENVS {
             cmd.env(key, value);
         }
         cmd.arg("--no-optional-locks");

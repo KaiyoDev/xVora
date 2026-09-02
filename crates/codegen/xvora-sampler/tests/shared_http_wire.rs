@@ -9,7 +9,7 @@ use std::sync::atomic::Ordering;
 
 use support::{send_one, test_config};
 use xvora_sampler::SamplingClient;
-use xvora_test_support::spawn_counting_server;
+use test_support::spawn_counting_server;
 
 /// Pin the env these assertions depend on before any client is built.
 /// Ambient shell exports (`GROK_SAMPLER_SHARED_CLIENT=0`, `GROK_POOL_MAX_IDLE=0`) could otherwise flip the expected pooling behavior.

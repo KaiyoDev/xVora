@@ -407,7 +407,7 @@ fn run_pass_prunes_orphan_grove_pins_after_grace() {
     git_commit_all(&repo, "c");
     let oid = {
         let mut cmd = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         let out = cmd
             .current_dir(&repo)
             .args(["rev-parse", "HEAD"])
@@ -417,7 +417,7 @@ fn run_pass_prunes_orphan_grove_pins_after_grace() {
     };
     let pin = "refs/grok/worktrees/wt-orphan";
     let mut uref = std::process::Command::new("git");
-    xvora_tty_utils::detach_std_command(&mut uref);
+    tty_utils::detach_std_command(&mut uref);
     assert!(
         uref.current_dir(&repo)
             .args(["update-ref", pin, &oid])
@@ -468,7 +468,7 @@ fn run_pass_prunes_orphan_grove_pins_after_grace() {
     );
     assert_eq!(report.pin_gc_pruned, 1, "{report:?}");
     let mut show = std::process::Command::new("git");
-    xvora_tty_utils::detach_std_command(&mut show);
+    tty_utils::detach_std_command(&mut show);
     let shown = show
         .current_dir(&repo)
         .args(["show-ref", "--verify", pin])

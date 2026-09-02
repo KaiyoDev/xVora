@@ -9,7 +9,7 @@ use crate::auth::{AuthManager, AuthMode, GrokAuth, GrokComConfig};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
-use xvora_test_support::{MockInferenceServer, MockModelEntry};
+use test_support::{MockInferenceServer, MockModelEntry};
 
 /// The token the mock server accepts and the refresher mints on success.
 const FRESH_TOKEN: &str = "refreshed-test-token";

@@ -6,7 +6,7 @@ use tokio::process::Command;
 use tokio::time;
 
 use crate::runner::{AsyncTerminalRunner, TerminalError, TerminalRunRequest, TerminalRunResult};
-use xvora_tty_utils::KILL_REAP_TIMEOUT;
+use tty_utils::KILL_REAP_TIMEOUT;
 
 pub struct LocalTerminalRunner;
 
@@ -120,7 +120,7 @@ impl AsyncTerminalRunner for LocalTerminalRunner {
         // On timeout the group is killed so grandchildren can't keep running (and can't hold the output pipes open past the kill)
         // This is the same pattern as `gateway_bridge::local_workspace_supervisor`
         // The group kill is extra on top of the direct kill, so a failure to create or attach the group only logs and the shell keeps running
-        let process_group = match xvora_tty_utils::ProcessGroup::new() {
+        let process_group = match tty_utils::ProcessGroup::new() {
             Ok(mut group) => {
                 if let Err(e) = group.attach(&child) {
                     // e.g. the child already exited.

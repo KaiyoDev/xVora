@@ -567,7 +567,7 @@ mod tests {
     use xvora_test_utils::git::{git_commit_all, init_git_repo};
     fn git_rev_parse(repo: &Path, rev: &str) -> String {
         let mut cmd = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         let out = cmd
             .current_dir(repo)
             .args(["rev-parse", rev])
@@ -675,7 +675,7 @@ mod tests {
         git_commit_all(&repo, "orphan");
         let orphan = git_rev_parse(&repo, "HEAD");
         let mut reset = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut reset);
+        tty_utils::detach_std_command(&mut reset);
         assert!(
             reset
                 .current_dir(&repo)
@@ -686,7 +686,7 @@ mod tests {
         );
         let pin = "refs/grok/worktrees/wt-live";
         let mut uref = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut uref);
+        tty_utils::detach_std_command(&mut uref);
         assert!(
             uref.current_dir(&repo)
                 .args(["update-ref", pin, &orphan])
@@ -722,7 +722,7 @@ mod tests {
         assert_eq!(report.pruned, 0);
         assert!(pin_exists(&repo, "wt-live").unwrap());
         let mut gc = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut gc);
+        tty_utils::detach_std_command(&mut gc);
         assert!(
             gc.current_dir(&repo)
                 .args(["gc", "--prune=now"])
@@ -731,7 +731,7 @@ mod tests {
                 .success()
         );
         let mut cat = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut cat);
+        tty_utils::detach_std_command(&mut cat);
         let cat_out = cat
             .current_dir(&repo)
             .args(["cat-file", "-t", &orphan])
@@ -755,7 +755,7 @@ mod tests {
         let oid = git_rev_parse(&repo, "HEAD");
         let pin = "refs/grok/worktrees/wt-orphan";
         let mut uref = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut uref);
+        tty_utils::detach_std_command(&mut uref);
         assert!(
             uref.current_dir(&repo)
                 .args(["update-ref", pin, &oid])
@@ -787,7 +787,7 @@ mod tests {
         let oid = git_rev_parse(&repo, "HEAD");
         let pin = "refs/grok/worktrees/wt-fly";
         let mut uref = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut uref);
+        tty_utils::detach_std_command(&mut uref);
         assert!(
             uref.current_dir(&repo)
                 .args(["update-ref", pin, &oid])
@@ -815,7 +815,7 @@ mod tests {
         git_commit_all(&repo, "orphan");
         let orphan = git_rev_parse(&repo, "HEAD");
         let mut reset = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut reset);
+        tty_utils::detach_std_command(&mut reset);
         assert!(
             reset
                 .current_dir(&repo)
@@ -826,7 +826,7 @@ mod tests {
         );
         let pin = "refs/grok/worktrees/wt-mask";
         let mut uref = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut uref);
+        tty_utils::detach_std_command(&mut uref);
         assert!(
             uref.current_dir(&repo)
                 .args(["update-ref", pin, &orphan])
@@ -871,7 +871,7 @@ mod tests {
         assert_eq!(r2.pruned, 0);
         assert!(pin_exists(&repo, "wt-mask").unwrap());
         let mut gc = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut gc);
+        tty_utils::detach_std_command(&mut gc);
         assert!(
             gc.current_dir(&repo)
                 .args(["gc", "--prune=now"])
@@ -880,7 +880,7 @@ mod tests {
                 .success()
         );
         let mut cat = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut cat);
+        tty_utils::detach_std_command(&mut cat);
         let cat_out = cat
             .current_dir(&repo)
             .args(["cat-file", "-t", &orphan])
@@ -901,7 +901,7 @@ mod tests {
         std::fs::write(repo.join("tracked.txt"), "keep\n").unwrap();
         git_commit_all(&repo, "keep");
         let mut uref = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut uref);
+        tty_utils::detach_std_command(&mut uref);
         assert!(
             uref.current_dir(&repo)
                 .args(["update-ref", "refs/heads/main", "HEAD"])
@@ -932,7 +932,7 @@ mod tests {
             "foreign pin_ref in orphan state must not prune: {report:?}"
         );
         let mut check = std::process::Command::new("git");
-        xvora_tty_utils::detach_std_command(&mut check);
+        tty_utils::detach_std_command(&mut check);
         assert!(
             check
                 .current_dir(&repo)

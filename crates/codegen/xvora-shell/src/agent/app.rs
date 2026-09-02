@@ -233,7 +233,7 @@ pub async fn run_stdio_agent(
     memory_config: Option<crate::config::MemoryConfig>,
 ) -> anyhow::Result<()> {
     register_fs_watch_runtime();
-    if let Err(error) = xvora_tty_utils::kill_current_process_on_parent_death() {
+    if let Err(error) = tty_utils::kill_current_process_on_parent_death() {
         tracing::warn!(
             %error,
             "failed to bind to parent death; agent will not die with its \

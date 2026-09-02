@@ -38,10 +38,10 @@ fn drop_cli_catchall_allows(
 /// Build the per-session current-thread tokio runtime.
 ///
 /// Construction acquires fds (epoll/kqueue, waker) and fails with `EMFILE`/`EAGAIN` under resource pressure.
-/// This only caps the blocking pool; pre-warming is reserved for process-lifetime runtimes (`xvora_tty_utils::runtime`).
+/// This only caps the blocking pool; pre-warming is reserved for process-lifetime runtimes (`tty_utils::runtime`).
 pub(crate) fn build_session_runtime() -> std::io::Result<tokio::runtime::Runtime> {
     let mut builder = tokio::runtime::Builder::new_current_thread();
-    xvora_tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
+    tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
 }
 fn configured_memory_retrieval_mode(
     config: Option<&crate::config::MemoryConfig>,

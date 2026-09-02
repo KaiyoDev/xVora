@@ -255,7 +255,7 @@ fn build_preview_command(cfg: &PreviewArgs) -> io::Result<tokio::process::Comman
     {
         use std::os::unix::process::CommandExt;
 
-        // Raw pre_exec, NOT xvora_tty_utils::detach_command
+        // Raw pre_exec, NOT tty_utils::detach_command
         // The proxy must stay in the workspace-server's session/pgid to share its escape from the launcher's process-group reap
         // The setsid that detach_command performs would be actively wrong here
         // The daemonized server also owns no controlling TTY, so the detach rationale does not apply
@@ -265,7 +265,7 @@ fn build_preview_command(cfg: &PreviewArgs) -> io::Result<tokio::process::Comman
         let parent_pid = std::process::id();
         // Read env pre-fork: env access is not async-signal-safe inside pre_exec.
         // It is set when the always-on protect succeeds and/or `--oom-protect` forces it
-        let oom_protect = std::env::var_os(xvora_tty_utils::RESET_CHILD_OOM_ENV).is_some();
+        let oom_protect = std::env::var_os(tty_utils::RESET_CHILD_OOM_ENV).is_some();
         // SAFETY: the closure runs in the forked child between fork and exec, so
         // it calls only async-signal-safe libc functions (`prctl`, `getppid`,
         // `open`/`write`/`close`, `_exit`) and touches no allocation/locks/Rust
@@ -292,7 +292,7 @@ fn build_preview_command(cfg: &PreviewArgs) -> io::Result<tokio::process::Comman
                     // "-500\n" matches PREVIEW_PROXY_OOM_SCORE_ADJ; the bytes are static because pre_exec allows no formatting or allocation
                     write_oom_score_adj_raw(b"-500\n")?;
                 } else {
-                    xvora_tty_utils::reset_oom_score_adj()?;
+                    tty_utils::reset_oom_score_adj()?;
                 }
                 Ok(())
             });

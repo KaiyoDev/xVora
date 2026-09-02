@@ -160,15 +160,15 @@ mod tests {
     /// Isolate HOME/GROK_HOME so ambient user MCP config cannot pad discovery.
     fn isolated_home() -> (
         tempfile::TempDir,
-        xvora_test_support::EnvGuard,
-        xvora_test_support::EnvGuard,
+        test_support::EnvGuard,
+        test_support::EnvGuard,
     ) {
         let home = tempfile::tempdir().unwrap();
         let grok_home = home.path().join(".grok");
         std::fs::create_dir_all(&grok_home).unwrap();
         std::fs::write(grok_home.join("config.toml"), "").unwrap();
-        let home_guard = xvora_test_support::EnvGuard::set("HOME", home.path());
-        let grok_guard = xvora_test_support::EnvGuard::set("GROK_HOME", &grok_home);
+        let home_guard = test_support::EnvGuard::set("HOME", home.path());
+        let grok_guard = test_support::EnvGuard::set("GROK_HOME", &grok_home);
         (home, home_guard, grok_guard)
     }
 

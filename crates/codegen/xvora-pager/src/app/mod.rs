@@ -612,7 +612,7 @@ pub async fn run(
     ) {
         args.force_login = false;
     }
-    xvora_tty_utils::redirect_native_stderr();
+    tty_utils::redirect_native_stderr();
     let refreshed_auth = tokio::time::timeout(
         xvora_shell::http::STARTUP_AUTH_REFRESH_TIMEOUT,
         xvora_shell::auth::try_ensure_fresh_auth(&grok_com_config),
@@ -1042,7 +1042,7 @@ pub async fn run(
     let restore_result = restore_terminal(terminal, writer_thread, current_screen_mode());
     drop(agent_guard);
     xvora_telemetry::session_ctx::drain_at_process_exit().await;
-    xvora_tty_utils::global_process_scope().kill_all();
+    tty_utils::global_process_scope().kill_all();
     crate::app::status_line::metrics::global().report_health();
     if let Err(cleanup_error) = restore_result {
         match &result {
@@ -1642,7 +1642,7 @@ fn restore_terminal_with(
     let _ = terminal::disable_raw_mode();
     signal_handler::mark_restored();
     crash_handler::disable_terminal_escape_restore();
-    xvora_tty_utils::restore_native_stderr();
+    tty_utils::restore_native_stderr();
     drain_result
 }
 fn restore_terminal(
@@ -1685,8 +1685,8 @@ fn set_panic_hook() {
         let _ = terminal::disable_raw_mode();
         signal_handler::mark_restored();
         crash_handler::disable_terminal_escape_restore();
-        xvora_tty_utils::restore_native_stderr();
-        xvora_tty_utils::global_process_scope().kill_all();
+        tty_utils::restore_native_stderr();
+        tty_utils::global_process_scope().kill_all();
         crate::memory_trace::record_crash_sample();
         hook(info);
     }));

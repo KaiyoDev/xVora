@@ -396,7 +396,7 @@ fn clone_repo(
     }
 
     // Match marketplace cache: BatchMode SSH, empty ASKPASS, skip LFS smudge.
-    let mut cmd = xvora_tty_utils::git_command();
+    let mut cmd = tty_utils::git_command();
     cmd.arg("clone").arg("--depth").arg("1");
 
     if let Some(r) = git_ref {
@@ -471,7 +471,7 @@ fn run_git_in(cwd: &Path, args: &[&str]) -> Result<(), String> {
 
 fn run_git_in_capture(cwd: &Path, args: &[&str]) -> Result<std::process::Output, String> {
     // Same auth/LFS/SSH suppression as marketplace cache clones.
-    let mut cmd = xvora_tty_utils::git_command();
+    let mut cmd = tty_utils::git_command();
     cmd.args(args).current_dir(cwd);
     let output = cmd
         .output()
@@ -716,7 +716,7 @@ pub fn update_repo(
                 });
             }
 
-            let mut cmd = xvora_tty_utils::git_command();
+            let mut cmd = tty_utils::git_command();
             cmd.args(["pull", "--ff-only"]).current_dir(repo_path);
             let output = cmd.output().map_err(|e| InstallError::InstallFailed {
                 detail: format!("failed to run git pull: {e}"),

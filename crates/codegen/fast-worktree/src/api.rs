@@ -1090,7 +1090,7 @@ fn try_btrfs_remove(
     // Case 2 (legacy bind mount): unmount first, then delete snapshot.
     if btrfs_info.bind_mount_source.is_some() {
         let mut umount_cmd = std::process::Command::new("umount");
-        xvora_tty_utils::detach_std_command(&mut umount_cmd);
+        tty_utils::detach_std_command(&mut umount_cmd);
         umount_cmd.stdin(std::process::Stdio::null());
         let output = umount_cmd
             .arg(worktree_path)
@@ -1217,7 +1217,7 @@ fn try_btrfs_remove_from_metadata_inner(
                 // snapshot subvolume can be deleted; a symlink needs no umount.
                 if !target_is_symlink {
                     let mut umount_cmd = std::process::Command::new("umount");
-                    xvora_tty_utils::detach_std_command(&mut umount_cmd);
+                    tty_utils::detach_std_command(&mut umount_cmd);
                     umount_cmd.stdin(std::process::Stdio::null());
                     if let Ok(output) = umount_cmd.arg(target).output() {
                         unmounted = output.status.success();
@@ -1420,7 +1420,7 @@ fn cleanup_orphaned_btrfs_snapshots_inner(
                     let _ = std::fs::remove_file(&meta.mount_target);
                 } else {
                     let mut umount_cmd = std::process::Command::new("umount");
-                    xvora_tty_utils::detach_std_command(&mut umount_cmd);
+                    tty_utils::detach_std_command(&mut umount_cmd);
                     umount_cmd.stdin(std::process::Stdio::null());
                     let _ = umount_cmd.arg(&meta.mount_target).output();
                     let _ = std::fs::remove_dir(&meta.mount_target);

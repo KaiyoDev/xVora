@@ -82,7 +82,7 @@ pub fn bootstrap(
 
 /// Prints the error to the user's real stderr (undoing any TUI redirect) and exits.
 pub(crate) fn exit_on_config_error<T>(e: BootstrapError) -> T {
-    xvora_tty_utils::restore_native_stderr();
+    tty_utils::restore_native_stderr();
     eprintln!("\nConfiguration error:\n\n    {e}\n");
     std::process::exit(1);
 }

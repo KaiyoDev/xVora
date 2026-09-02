@@ -1073,7 +1073,7 @@ fn run_create_worker(
 ) -> Result<WorkerResult> {
     let executable = std::env::current_exe().context("resolve lifecycle worker executable")?;
     let mut command = std::process::Command::new(executable);
-    xvora_tty_utils::detach_std_command(&mut command);
+    tty_utils::detach_std_command(&mut command);
     command
         .arg("--worker")
         .arg("--source")
@@ -1139,7 +1139,7 @@ fn run_worker(cli: &Cli) -> Result<()> {
     }
     if let Some(hook) = cli.worker_hook.as_deref() {
         let mut command = std::process::Command::new("sh");
-        xvora_tty_utils::detach_std_command(&mut command);
+        tty_utils::detach_std_command(&mut command);
         command.args(["-c", hook]);
         #[allow(clippy::disallowed_methods)]
         // Test-only worker hook; controller owns this worker group.

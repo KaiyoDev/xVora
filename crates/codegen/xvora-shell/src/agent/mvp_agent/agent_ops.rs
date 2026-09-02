@@ -7,7 +7,7 @@ use super::reasoning_effort::EffortTarget;
 use crate::auth::PreferredAuthMethod;
 use crate::upload::trace::PromptMetadataParams;
 use xvora_tools::implementations::grok_build::task::backend::SubagentBackend;
-use xvora_tty_utils::ProcessScope;
+use tty_utils::ProcessScope;
 /// `preferred` model, else catalog `current`, else first with own credentials.
 fn byok_from_models(
     models: &indexmap::IndexMap<String, ModelEntry>,

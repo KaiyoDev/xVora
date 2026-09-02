@@ -1163,7 +1163,7 @@ fn worktree_target_cwd(home: &std::path::Path) -> String {
 #[serial_test::serial]
 async fn fork_with_default_kind_into_worktree_cwd_stamps_worktree_identity() {
     let home = TempDir::new().unwrap();
-    let _env = xvora_test_support::EnvGuard::set("GROK_HOME", home.path());
+    let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
     let adapter = JsonlStorageAdapter::with_root(home.path().join("sessions-root"));
     let source_info = Info {
         id: acp::SessionId::new("src-plain-fork"),
@@ -1192,7 +1192,7 @@ async fn fork_with_default_kind_into_worktree_cwd_stamps_worktree_identity() {
 #[serial_test::serial]
 async fn explicit_subagent_fork_kind_wins_over_worktree_target_cwd() {
     let home = TempDir::new().unwrap();
-    let _env = xvora_test_support::EnvGuard::set("GROK_HOME", home.path());
+    let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
     let adapter = JsonlStorageAdapter::with_root(home.path().join("sessions-root"));
     let source_info = Info {
         id: acp::SessionId::new("src-subagent-fork"),

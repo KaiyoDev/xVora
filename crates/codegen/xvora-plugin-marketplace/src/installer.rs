@@ -503,7 +503,7 @@ fn clone_repo_to_path(
     }
 
     // git_command applies the same auth/LFS/SSH suppression as the marketplace cache clones
-    let mut cmd = xvora_tty_utils::git_command();
+    let mut cmd = tty_utils::git_command();
     cmd.arg("clone").arg("--depth").arg("1");
     if let Some(r) = git_ref {
         cmd.arg("--branch").arg(r);
@@ -564,7 +564,7 @@ fn run_git_in(cwd: &Path, args: &[&str]) -> Result<(), String> {
 }
 
 fn run_git_in_capture(cwd: &Path, args: &[&str]) -> Result<std::process::Output, String> {
-    let mut cmd = xvora_tty_utils::git_command();
+    let mut cmd = tty_utils::git_command();
     cmd.args(args).current_dir(cwd);
     let output = cmd
         .output()

@@ -12,7 +12,7 @@ use xvora_shell::session::storage::search::{
     start_if_enabled,
 };
 use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
-use xvora_test_support::EnvGuard;
+use test_support::EnvGuard;
 
 fn home() -> &'static std::path::Path {
     static HOME: OnceLock<(tempfile::TempDir, EnvGuard)> = OnceLock::new();

@@ -938,8 +938,8 @@ impl HostService {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_command(&mut cmd);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_command(&mut cmd);
 
         let output = tokio::time::timeout(DIFF_TIMEOUT, cmd.output())
             .await

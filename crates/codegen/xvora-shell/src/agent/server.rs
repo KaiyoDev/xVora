@@ -283,7 +283,7 @@ fn persistent_agent_thread(
     ready_tx: tokio::sync::oneshot::Sender<Result<(), std::io::ErrorKind>>,
 ) -> std::io::Result<()> {
     let mut builder = tokio::runtime::Builder::new_current_thread();
-    let rt = match xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all()) {
+    let rt = match tty_utils::runtime::build_with_blocking_pool(builder.enable_all()) {
         Ok(rt) => {
             if ready_tx.send(Ok(())).is_err() {
                 // The boot was cancelled; drop `rt` so its keep-alive pool does not overlap a respawn's 16-wide pre-warm (EAGAIN)

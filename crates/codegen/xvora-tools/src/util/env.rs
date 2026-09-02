@@ -1,11 +1,11 @@
 //! Environment variable helpers and process isolation for terminal execution.
 //!
-//! All implementations now live in the lightweight [`xvora_tty_utils`] crate
+//! All implementations now live in the lightweight [`tty_utils`] crate
 //! so that every crate in the workspace can use them without pulling in the
 //! heavyweight `xvora-tools` dependency. This module re-exports the public
 //! API for backward compatibility.
 
-pub use xvora_tty_utils::{detach_from_tty, pager_env};
+pub use tty_utils::{detach_from_tty, pager_env};
 
 /// The positive-integer env contract shared by limits and timeouts: plain
 /// digits only; `None` for anything else, including zero.

@@ -748,7 +748,7 @@ mod tests {
         );
     }
 
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
 
     #[test]
     #[serial_test::serial]

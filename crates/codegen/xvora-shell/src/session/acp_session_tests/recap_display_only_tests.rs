@@ -134,7 +134,7 @@ fn assert_messages_reasoning_stripped(body: &serde_json::Value, label: &str) {
 /// Reasoning effort sits ahead of the conversation in the prompt, so an auxiliary call that drops it diverges from the main turn right away.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_projects_agent_messages_without_mutating_history() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -183,7 +183,7 @@ async fn side_question_projects_agent_messages_without_mutating_history() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn auxiliary_calls_send_the_session_reasoning_effort() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -234,7 +234,7 @@ async fn auxiliary_calls_send_the_session_reasoning_effort() {
 /// When a backend drops `prompt_cache_key`, the conv id is all that ties the call to its conversation, so it must be the parent session id.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_routes_on_the_session_id_when_the_key_is_not_forwarded() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -889,7 +889,7 @@ fn over_budget_recap_serializes_to_well_formed_messages_request() {
 /// The recap sends the main turn's tools and the session id as `prompt_cache_key`, so it rides the parent turn's prefix cache.
 #[tokio::test(flavor = "current_thread")]
 async fn recap_request_rides_parent_prompt_cache() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -959,7 +959,7 @@ async fn recap_request_rides_parent_prompt_cache() {
 #[tokio::test(flavor = "current_thread")]
 async fn recap_request_sends_hosted_tools_under_backend_search() {
     use xvora_sampling_types::HostedTool;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1112,7 +1112,7 @@ async fn new_prompt_aborts_in_flight_turn_summary() {
 /// Happy path: a successful side-call persists the summary and broadcasts it transiently, then clears the task slot.
 #[tokio::test(flavor = "current_thread")]
 async fn turn_summary_generate_persists_and_broadcasts() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1208,7 +1208,7 @@ async fn turn_summary_generate_persists_and_broadcasts() {
 #[tokio::test(flavor = "current_thread")]
 async fn recap_hosted_tools_reflect_the_active_per_turn_override() {
     use xvora_sampling_types::{HostedTool, SearchDateBound, ToolOverrides, XSearchOptions};
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1286,7 +1286,7 @@ async fn recap_hosted_tools_reflect_the_active_per_turn_override() {
 /// A `/btw` call sends the main turn's tools and the session id as `prompt_cache_key`, so it reuses the parent's cached prefix.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_request_rides_parent_prompt_cache() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1390,7 +1390,7 @@ async fn side_question_request_rides_parent_prompt_cache() {
 /// Recap and `/btw` must replay the parent conversation verbatim and append one instruction. The cache key buys nothing if the prefix moved.
 #[tokio::test(flavor = "current_thread")]
 async fn auxiliary_calls_keep_the_main_turn_prefix() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1448,7 +1448,7 @@ async fn auxiliary_calls_keep_the_main_turn_prefix() {
 #[tokio::test(flavor = "current_thread")]
 async fn messages_side_calls_preserve_completed_reasoning() {
     use xvora_sampling_types::{ReasoningEffort, rs};
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1564,7 +1564,7 @@ async fn messages_side_calls_preserve_completed_reasoning() {
 #[tokio::test(flavor = "current_thread")]
 async fn messages_side_calls_strip_reasoning_without_supported_thinking_effort() {
     use xvora_sampling_types::{ReasoningEffort, synthesized_reasoning_item};
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1676,7 +1676,7 @@ async fn messages_side_calls_strip_reasoning_without_supported_thinking_effort()
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_trims_reasoning_orphaned_by_mid_turn_truncation() {
     use xvora_sampling_types::conversation::{AssistantItem, ToolCall};
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local

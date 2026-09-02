@@ -9,7 +9,7 @@ use agent_client_protocol::{self as acp, Agent as _};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 use xvora_shell::waterfall;
-use xvora_test_support::{
+use test_support::{
     InferenceEndpoint, InferenceRequestMatcher, MockInferenceServer, ResourceSnapshot, RssSampler,
     ScriptedResponse, SseEvent,
 };

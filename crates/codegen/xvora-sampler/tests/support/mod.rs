@@ -1,5 +1,5 @@
 //! Sampler-specific helpers for the shared-HTTP-client integration binaries: config and request drivers for real `SamplingClient`s.
-//! The generic connection-counting server lives in `xvora_test_support`.
+//! The generic connection-counting server lives in `test_support`.
 
 use std::sync::Arc;
 

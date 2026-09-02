@@ -10,7 +10,7 @@ use serde_json::json;
 use xvora_shell::sampling::{ContentPart, ConversationItem};
 use xvora_shell::session::info::Info;
 use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
-use xvora_test_support::ScriptedResponse;
+use test_support::ScriptedResponse;
 
 const SESSION_ID: &str = "poisoned-image-session";
 
@@ -59,7 +59,7 @@ async fn seed_poisoned_session(cwd: &std::path::Path, image_url: &str) -> Info {
 }
 
 /// `/v1/chat/completions` bodies from the main turn, excluding the turn-summary requests.
-fn chat_completion_bodies(server: &xvora_test_support::MockInferenceServer) -> Vec<String> {
+fn chat_completion_bodies(server: &test_support::MockInferenceServer) -> Vec<String> {
     server
         .requests()
         .into_iter()

@@ -180,7 +180,7 @@ impl tool_runtime::Tool for GlobTool {
             // stderr is never read; a pipe would block rg once warnings fill it.
             // Cached descriptor, not `Stdio::null()`: an unlinked `/dev/null`
             // must not fail the spawn.
-            .stderr(xvora_tty_utils::null_stdio());
+            .stderr(tty_utils::null_stdio());
         crate::util::detach_search_command(&mut cmd);
 
         #[allow(clippy::disallowed_methods)] // search helper, waited on below

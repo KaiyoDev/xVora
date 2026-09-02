@@ -59,7 +59,7 @@ pub async fn git_status_short_pinned(
     // Held for the whole run to bound ODB contention.
     let _permit = crate::git_odb::try_acquire_odb();
 
-    let mut cmd = xvora_tty_utils::git_command();
+    let mut cmd = tty_utils::git_command();
     cmd.args(["-c", fsmonitor.git_config_arg()]);
     cmd.args(["status", "--short", "--branch", "--untracked-files=normal"])
         .current_dir(&working_directory)
@@ -214,7 +214,7 @@ fn git_status_impl(working_directory: &Path) -> Result<String, FsError> {
 /// This function is called from background tasks (system prompt generation) and must never contend with foreground git operations.
 #[tracing::instrument(level = "debug", skip(cwd))]
 fn run_git(cwd: &Path, args: &[&str]) -> Option<String> {
-    let output = xvora_tty_utils::git_command()
+    let output = tty_utils::git_command()
         .args(args)
         .current_dir(cwd)
         .stdout(std::process::Stdio::piped())

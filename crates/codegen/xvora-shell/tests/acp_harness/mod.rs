@@ -249,7 +249,7 @@ fn set_test_env(grok_home: &std::path::Path, server_url: &str) {
 /// One `#[test]` per binary: the env is global.
 pub fn run_agent_test<F, Fut>(body: F)
 where
-    F: FnOnce(std::path::PathBuf, std::rc::Rc<xvora_test_support::MockInferenceServer>) -> Fut,
+    F: FnOnce(std::path::PathBuf, std::rc::Rc<test_support::MockInferenceServer>) -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
     xvora_extra_ca::ensure_default_crypto_provider();
@@ -262,7 +262,7 @@ where
         .expect("mock runtime");
     let server = std::rc::Rc::new(
         mock_rt
-            .block_on(xvora_test_support::MockInferenceServer::start())
+            .block_on(test_support::MockInferenceServer::start())
             .expect("mock server"),
     );
     let grok_home = tempfile::TempDir::new().expect("grok home");

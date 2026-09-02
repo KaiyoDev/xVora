@@ -532,7 +532,7 @@ mod tests {
         )));
     }
 
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
 
     // ── Helpers ─────────────────────────────────────────────────────────
 

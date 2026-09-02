@@ -302,7 +302,7 @@ impl VideoViewerState {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut ffmpeg_cmd);
+        tty_utils::detach_std_command(&mut ffmpeg_cmd);
         let status = ffmpeg_cmd.status();
 
         match &status {
@@ -420,7 +420,7 @@ pub fn extract_poster_frame(path: &std::path::Path) -> Option<(Vec<u8>, u32, u32
             .arg("-")
             .stdin(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
-        xvora_tty_utils::detach_std_command(&mut cmd);
+        tty_utils::detach_std_command(&mut cmd);
         cmd.output()
             .ok()
             .filter(|o| o.status.success() && !o.stdout.is_empty())
@@ -476,7 +476,7 @@ fn ffprobe_metadata(path: &std::path::Path) -> Option<(u32, u32, f64, f64)> {
     .arg(path)
     .stdin(std::process::Stdio::null())
     .stderr(std::process::Stdio::null());
-    xvora_tty_utils::detach_std_command(&mut cmd);
+    tty_utils::detach_std_command(&mut cmd);
     let output = match cmd.output() {
         Ok(o) => o,
         Err(e) => {

@@ -57,7 +57,7 @@ fn build_worker_runtime() -> std::io::Result<tokio::runtime::Runtime> {
     builder
         .worker_threads(workers)
         .thread_name("subagent-worker");
-    xvora_tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
+    tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
 }
 struct ShellChildRunner {
     agent_ref: LocalRef<MvpAgent>,

@@ -243,7 +243,7 @@ fn main() -> anyhow::Result<()> {
         Some(ref p) => dunce::canonicalize(p)?,
         None => std::env::current_dir()?,
     };
-    let oom_protection = xvora_tty_utils::protect_from_oom_kill();
+    let oom_protection = tty_utils::protect_from_oom_kill();
     let _pidfile_guard = if args.daemonize {
         let anchor = |p: PathBuf| if p.is_absolute() { p } else { cwd.join(p) };
         args.log_file = anchor(std::mem::take(&mut args.log_file));
@@ -268,13 +268,13 @@ fn main() -> anyhow::Result<()> {
     };
     #[cfg(unix)]
     if should_set_reset_child_oom(oom_protection.is_ok(), args.oom_protect) {
-        unsafe { std::env::set_var(xvora_tty_utils::RESET_CHILD_OOM_ENV, "1") };
+        unsafe { std::env::set_var(tty_utils::RESET_CHILD_OOM_ENV, "1") };
     }
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder
-        .worker_threads(xvora_tty_utils::runtime::capped_worker_threads().get())
+        .worker_threads(tty_utils::runtime::capped_worker_threads().get())
         .enable_all();
-    let rt = xvora_tty_utils::runtime::build_with_blocking_pool(&mut builder)?;
+    let rt = tty_utils::runtime::build_with_blocking_pool(&mut builder)?;
     rt.block_on(run(args, cwd, oom_protection, oom_protect_applied))
 }
 /// Whether to set `GROK_TOOLS_RESET_CHILD_OOM` after the always-on protect attempt.

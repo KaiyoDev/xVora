@@ -272,7 +272,7 @@ async fn spawn_agent_thread_direct(
     // Off the UI worker: failure must fail spawn, not start ACP.
     let rt = tokio::task::spawn_blocking(|| {
         let mut builder = tokio::runtime::Builder::new_current_thread();
-        xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all())
+        tty_utils::runtime::build_with_blocking_pool(builder.enable_all())
     })
     .await
     .map_err(|e| anyhow::anyhow!("agent runtime worker join: {e}"))?
@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn worker_runtime_teardown_bounded_despite_inflight_blocking_task() {
         let mut builder = tokio::runtime::Builder::new_current_thread();
-        let rt = xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all()).unwrap();
+        let rt = tty_utils::runtime::build_with_blocking_pool(builder.enable_all()).unwrap();
         let (started_tx, started_rx) = std::sync::mpsc::channel();
         rt.handle().spawn_blocking(move || {
             let _ = started_tx.send(());

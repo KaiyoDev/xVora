@@ -33,8 +33,8 @@ fn ensure_local_pager_binary(binary: &std::path::Path) -> Result<()> {
     cmd.current_dir(workspace_root()?)
         .args(["build", "-p", "xvora-pager-bin", "--bin", "xvora-pager"])
         .stdin(Stdio::null())
-        .envs(xvora_tty_utils::pager_env());
-    xvora_tty_utils::detach_std_command(&mut cmd);
+        .envs(tty_utils::pager_env());
+    tty_utils::detach_std_command(&mut cmd);
     let output = cmd
         .output()
         .with_context(|| format!("failed to spawn {cargo} to build xvora-pager"))?;

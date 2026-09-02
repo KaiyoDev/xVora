@@ -2322,8 +2322,8 @@ mod tests {
         }
     }
     #[cfg(feature = "local-workspace")]
-    fn advertised_tools_env() -> xvora_test_support::EnvGuard {
-        xvora_test_support::EnvGuard::set(
+    fn advertised_tools_env() -> test_support::EnvGuard {
+        test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV,
             "workspace.fs_list,workspace.fs_read_file,workspace.fs_write_file,workspace.fs_exists,workspace.fs_delete_file,workspace.put_files,workspace.get_files",
         )
@@ -2348,7 +2348,7 @@ mod tests {
     #[test]
     fn resolve_local_workspace_empty_cli_attach_falls_back_to_env() {
         let _env = advertised_tools_env();
-        let _sid = xvora_test_support::EnvGuard::set(
+        let _sid = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV,
             "srv-from-env",
         );
@@ -2367,13 +2367,13 @@ mod tests {
     #[test]
     fn resolve_local_workspace_cwd_only_is_not_a_request() {
         let tmp = tempfile::tempdir().unwrap();
-        let _cwd = xvora_test_support::EnvGuard::set(
+        let _cwd = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_CWD_ENV,
             tmp.path().to_str().unwrap(),
         );
-        let _enable = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ENV);
-        let _mode = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
-        let _sid = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
+        let _enable = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ENV);
+        let _mode = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
+        let _sid = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
         let cfg = resolve_local_workspace_config(true, None, None, Some(tmp.path())).unwrap();
         assert!(
             cfg.is_none(),
@@ -2402,11 +2402,11 @@ mod tests {
     #[test]
     fn resolve_local_workspace_own_env_defaults() {
         let _env = advertised_tools_env();
-        let _enable = xvora_test_support::EnvGuard::set(GROK_CHAT_LOCAL_WORKSPACE_ENV, "1");
-        let _mode = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
-        let _sid = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
+        let _enable = test_support::EnvGuard::set(GROK_CHAT_LOCAL_WORKSPACE_ENV, "1");
+        let _mode = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_MODE_ENV);
+        let _sid = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV);
         let cwd = tempfile::tempdir().unwrap();
-        let _cwd = xvora_test_support::EnvGuard::set(
+        let _cwd = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_CWD_ENV,
             cwd.path().to_str().unwrap(),
         );
@@ -2436,15 +2436,15 @@ mod tests {
     #[serial_test::serial(USERPROFILE)]
     #[test]
     fn resolve_local_workspace_defaults_cwd_and_denies_home() {
-        let _tools = xvora_test_support::EnvGuard::set(
+        let _tools = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV,
             "workspace.fs_list",
         );
-        let _allow = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
+        let _allow = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
         let home = tempfile::tempdir().unwrap();
         let home_str = home.path().to_str().unwrap();
-        let _home = xvora_test_support::EnvGuard::set("HOME", home_str);
-        let _userprofile = xvora_test_support::EnvGuard::set("USERPROFILE", home_str);
+        let _home = test_support::EnvGuard::set("HOME", home_str);
+        let _userprofile = test_support::EnvGuard::set("USERPROFILE", home_str);
         let err =
             resolve_local_workspace_config(true, None, Some("srv"), Some(home.path())).unwrap_err();
         assert!(err.to_string().contains("ALLOW_HOME"), "unexpected: {err}");
@@ -2454,7 +2454,7 @@ mod tests {
     #[test]
     fn resolve_local_workspace_refuses_uncheckable_toolset() {
         let _tools =
-            xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV);
+            test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV);
         let tmp = tempfile::tempdir().unwrap();
         let err =
             resolve_local_workspace_config(true, None, Some("srv"), Some(tmp.path())).unwrap_err();
@@ -2467,7 +2467,7 @@ mod tests {
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS)]
     #[test]
     fn resolve_local_workspace_refuses_non_fs_toolset() {
-        let _tools = xvora_test_support::EnvGuard::set(
+        let _tools = test_support::EnvGuard::set(
             GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV,
             "workspace.fs_list,workspace.bash",
         );
@@ -2492,9 +2492,9 @@ mod tests {
     #[serial_test::serial(GROK_HOME)]
     #[test]
     fn local_workspace_non_tty_requires_ack() {
-        let _ack = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV);
+        let _ack = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV);
         let home = tempfile::tempdir().unwrap();
-        let _home = xvora_test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
         let cfg = LocalWorkspaceConfig {
             mode: LocalWorkspaceMode::Attach,
             cwd: Some(std::path::PathBuf::from("/tmp/repo")),
@@ -2510,7 +2510,7 @@ mod tests {
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME)]
     #[test]
     fn validate_local_workspace_cwd_denies_root() {
-        let _allow = xvora_test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
+        let _allow = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ALLOW_HOME_ENV);
         let err = validate_local_workspace_cwd(std::path::Path::new("/")).unwrap_err();
         assert!(err.to_string().contains("ALLOW_HOME"), "{err}");
     }

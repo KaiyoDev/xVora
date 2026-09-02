@@ -1095,8 +1095,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_std_command(&mut shell);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_std_command(&mut shell);
         let status = shell.status().unwrap();
         assert!(status.success());
         assert_eq!(
@@ -1126,8 +1126,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_std_command(&mut shell);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_std_command(&mut shell);
         let status = shell.status().unwrap();
         assert!(status.success());
         assert_eq!(
@@ -1160,8 +1160,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .envs(xvora_tty_utils::pager_env());
-    xvora_tty_utils::detach_std_command(&mut shell);
+        .envs(tty_utils::pager_env());
+    tty_utils::detach_std_command(&mut shell);
     let status = shell.status().unwrap();
     assert!(status.success());
     assert_eq!(std::fs::read_to_string(&capture).unwrap(), "bypass");
@@ -1199,8 +1199,8 @@ fn shell_aliases_expand_to_exact_argv_and_bypass_is_explicit() {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(xvora_tty_utils::pager_env());
-        xvora_tty_utils::detach_std_command(&mut shell);
+            .envs(tty_utils::pager_env());
+        tty_utils::detach_std_command(&mut shell);
         assert!(shell.status().unwrap().success());
         assert_eq!(
             std::fs::read_to_string(fish_capture).unwrap(),

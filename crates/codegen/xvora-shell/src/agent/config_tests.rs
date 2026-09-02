@@ -1,6 +1,6 @@
 use super::*;
 use serial_test::serial;
-use xvora_test_support::EnvGuard;
+use test_support::EnvGuard;
 #[test]
 fn main_cli_tools_override_preserves_profile_injection_policy() {
     let overrides = CliAgentOverrides {
@@ -928,7 +928,7 @@ async fn resolve_credentials_serves_cached_provider_token() {
 /// A set `env_key` shadows even a warm provider cache at resolve time, so the static credential wins on the wire and the provider never governs.
 #[tokio::test]
 async fn set_env_key_shadows_warm_provider_at_resolve_time() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let var = "GROK_TEST_ENVKEY_SHADOW";
     let _guard = EnvGuard::set(var, "env-token");
     let mut model = test_model_entry("m", "https://litellm.example/v1", None, Some(var), None);
@@ -1285,7 +1285,7 @@ fn env_keys_resolve_skips_whitespace_only_value() {
 #[test]
 #[serial]
 fn first_own_credential_empty_api_key_falls_through_to_env_key() {
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let var = "GROK_TEST_FIRST_OWN_CRED_ENV";
     let _guard = EnvGuard::set(var, "env-token");
     let env_key = EnvKeys::single(var);
@@ -1337,7 +1337,7 @@ fn resolve_credentials_multi_env_key_uses_lc_alias() {
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_session() {
     use xvora_chat_state::AuthType;
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let primary = "GROK_TEST_EMPTY_ENV_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_LC_ALIAS";
     let _primary = EnvGuard::set(primary, "");
@@ -1354,7 +1354,7 @@ fn resolve_credentials_empty_env_key_falls_through_to_session() {
 fn resolve_credentials_empty_env_key_falls_through_to_global_key() {
     use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
     use xvora_chat_state::AuthType;
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let sentinel = "xvora-global-sentinel-key";
     let primary = "GROK_TEST_EMPTY_ENV_GLOBAL_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_GLOBAL_ALIAS";

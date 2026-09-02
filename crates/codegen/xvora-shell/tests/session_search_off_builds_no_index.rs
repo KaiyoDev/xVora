@@ -4,7 +4,7 @@ use agent_client_protocol as acp;
 use xvora_shell::session::info::Info;
 use xvora_shell::session::storage::search::{IndexDecision, SessionSearchRequest, execute_search};
 use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
-use xvora_test_support::EnvGuard;
+use test_support::EnvGuard;
 
 #[tokio::test]
 async fn saved_session_is_neither_indexed_nor_found_with_search_off() {

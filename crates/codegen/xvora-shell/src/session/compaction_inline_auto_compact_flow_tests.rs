@@ -828,7 +828,7 @@ async fn family_switch_compacts_lossy_with_new_model() {
                 }),
                 ConversationItem::assistant("done"),
             ]);
-            let server = xvora_test_support::MockInferenceServer::start()
+            let server = test_support::MockInferenceServer::start()
                 .await
                 .expect("mock inference server");
             actor
@@ -1331,7 +1331,7 @@ async fn transient_auto_compact_failure_notifies_with_real_error() {
 /// So the announced episodes clear and the MCP reminder goes dirty for a re-announcement at the next injection.
 #[tokio::test(flavor = "current_thread")]
 async fn compaction_rearms_failed_server_announcements() {
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1380,7 +1380,7 @@ async fn compaction_rearms_failed_server_announcements() {
 #[tokio::test(flavor = "current_thread")]
 async fn forked_prefix_released_under_pressure_and_stays_released() {
     use crate::session::compaction_config::SUPPRESS_NONE;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
@@ -1452,7 +1452,7 @@ async fn forked_prefix_released_under_pressure_and_stays_released() {
 #[tokio::test(flavor = "current_thread")]
 async fn forked_release_still_over_threshold_suppresses_auto() {
     use crate::session::compaction_config::SUPPRESS_STICKY;
-    use xvora_test_support::MockInferenceServer;
+    use test_support::MockInferenceServer;
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {

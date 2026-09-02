@@ -18,10 +18,10 @@ use super::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use xvora_test_support::sse::{
+use test_support::sse::{
     responses_api_reasoning_then_tool_call_events, responses_api_script_exact,
 };
-use xvora_test_support::{MockInferenceServer, ScriptedResponse};
+use test_support::{MockInferenceServer, ScriptedResponse};
 
 /// Derived from the harness's own thresholds so retuning them retunes this suite instead of breaking it.
 /// The scripted tool is `todo_write`, which is in the problematically-repeating tier, so this tracks that tier's constants.

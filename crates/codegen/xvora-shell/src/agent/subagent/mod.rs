@@ -115,7 +115,7 @@ pub(crate) struct SubagentSpawnContext {
     /// It is the root's, not an intermediate parent's.
     /// The Spawn arm of `handle_command` in xvora-tools task/coordinator.rs re-parents nested Spawn requests to the root parent.
     /// Every subagent therefore resolves back to the root session.
-    pub process_scope: Option<xvora_tty_utils::ProcessScope>,
+    pub process_scope: Option<tty_utils::ProcessScope>,
     /// Parent's client-registered hooks, inherited so the subagent's tool calls hit the same PreToolUse gate.
     /// Its events fire the same observe hooks over the parent's connection.
     /// Empty when the parent has none.

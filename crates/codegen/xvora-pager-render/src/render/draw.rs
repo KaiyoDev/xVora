@@ -288,7 +288,7 @@ pub fn spawn_writer_thread() -> (
         .spawn(move || -> std::io::Result<()> {
             #[cfg(not(windows))]
             let mut writer: Box<dyn std::io::Write> = {
-                let tui_out = xvora_tty_utils::dup_tui_stderr().unwrap_or_else(|_| {
+                let tui_out = tty_utils::dup_tui_stderr().unwrap_or_else(|_| {
                     use std::os::unix::io::{AsRawFd, FromRawFd};
                     let fd = unsafe { libc::dup(std::io::stderr().as_raw_fd()) };
                     unsafe { std::fs::File::from_raw_fd(fd) }

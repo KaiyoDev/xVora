@@ -2932,7 +2932,7 @@ mod welcome_workspace_mode {
     #[test]
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ACK)]
     fn welcome_new_session_sets_own_override() {
-        let _ack = xvora_test_support::EnvGuard::set(
+        let _ack = test_support::EnvGuard::set(
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
             "1",
         );
@@ -3039,11 +3039,11 @@ mod welcome_workspace_mode {
     #[test]
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ACK)]
     fn confirm_ack_skips_reapply_and_sets_oneshot() {
-        let _ack = xvora_test_support::EnvGuard::unset(
+        let _ack = test_support::EnvGuard::unset(
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
         );
         let home = tempfile::tempdir().unwrap();
-        let _home = xvora_test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
         set_active_local_workspace(None).unwrap();
         let tmp = tempfile::tempdir().unwrap();
         let mut app = test_app();
@@ -3075,7 +3075,7 @@ mod welcome_workspace_mode {
     #[test]
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ACK)]
     fn welcome_local_worktree_always_keeps_oneshot_until_create() {
-        let _ack = xvora_test_support::EnvGuard::set(
+        let _ack = test_support::EnvGuard::set(
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
             "1",
         );
@@ -3116,7 +3116,7 @@ mod welcome_workspace_mode {
     #[test]
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ACK)]
     fn failed_worktree_create_clears_welcome_oneshot() {
-        let _ack = xvora_test_support::EnvGuard::set(
+        let _ack = test_support::EnvGuard::set(
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
             "1",
         );
@@ -3151,11 +3151,11 @@ mod welcome_workspace_mode {
     #[test]
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ACK)]
     fn confirm_ack_honors_worktree_always() {
-        let _ack = xvora_test_support::EnvGuard::unset(
+        let _ack = test_support::EnvGuard::unset(
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
         );
         let home = tempfile::tempdir().unwrap();
-        let _home = xvora_test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
         set_active_local_workspace(None).unwrap();
         let tmp = tempfile::tempdir().unwrap();
         let mut app = test_app();
@@ -3403,7 +3403,7 @@ mod welcome_workspace_mode {
     #[test]
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ACK)]
     fn pick_in_worktree_no_git_clears_history_bypass() {
-        let _ack = xvora_test_support::EnvGuard::set(
+        let _ack = test_support::EnvGuard::set(
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
             "1",
         );

@@ -178,10 +178,10 @@ async fn subagent_spawn_context_inherits_parent_process_scope() {
     let agent = build_minimal_agent_for_tests();
     let sid = acp::SessionId::new("parent-process-scope");
     let mut handle = make_test_handle("test-model", false, None);
-    let parent_scope = xvora_tty_utils::ProcessScope::new();
+    let parent_scope = tty_utils::ProcessScope::new();
     handle.tool_context.process_scope = Some(parent_scope.clone());
     agent.insert_resident(&sid, handle);
-    let owner = std::sync::Arc::new(xvora_tty_utils::ProcessGroup::new().expect("process group"));
+    let owner = std::sync::Arc::new(tty_utils::ProcessGroup::new().expect("process group"));
     parent_scope.register(&owner);
     let ctx = agent.build_subagent_spawn_context(sid.0.as_ref());
     let inherited = ctx
@@ -239,7 +239,7 @@ async fn subagent_spawn_context_resolves_rate_limit_attempts_against_child_model
 fn subagent_spawn_context_resolves_compaction_mode_like_parent() {
     use crate::agent::config::Config;
     use xvora_chat_state::{CompactionDetail, CompactionMode};
-    use xvora_test_support::EnvGuard;
+    use test_support::EnvGuard;
     let _mode = EnvGuard::unset("GROK_COMPACTION_MODE");
     let _detail = EnvGuard::unset("GROK_COMPACTION_DETAIL");
     let mut ctx = crate::test_support::lsp_runtime::ctx_with_toggle(Default::default());
