@@ -14,8 +14,8 @@ use crate::upload::gcs::WithAuth as _;
 use agent_client_protocol as acp;
 use file_utils::gcs::upload_bytes;
 use std::sync::Arc;
-use tokio::sync::oneshot;
 use telemetry::id::agent_id;
+use tokio::sync::oneshot;
 #[tracing::instrument(skip_all, fields(method = %args.method))]
 pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     match args.method.as_ref() {

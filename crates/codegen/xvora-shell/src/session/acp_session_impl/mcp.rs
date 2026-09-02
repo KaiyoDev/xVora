@@ -621,8 +621,7 @@ impl SessionActor {
         error: &crate::session::mcp_servers::McpError,
         client_for_auth: Option<std::sync::Arc<crate::session::mcp_servers::McpClient>>,
     ) {
-        let detail =
-            || tools::util::truncate_str_with_marker(&error.to_string(), 200).into_owned();
+        let detail = || tools::util::truncate_str_with_marker(&error.to_string(), 200).into_owned();
         let mut state = self.mcp_state.lock().await;
         if error.is_auth_rejection() {
             if !state.settle_unreachable_attempt_unretryable(server_name, token) {
@@ -772,9 +771,7 @@ impl SessionActor {
         unconnected_configured: &std::collections::HashSet<String>,
         hint: Option<&str>,
     ) -> bool {
-        use tools::implementations::search_tool::{
-            build_delta_reminder, build_server_reminder,
-        };
+        use tools::implementations::search_tool::{build_delta_reminder, build_server_reminder};
         let (mut reminder_text, announcements_changed, to_announce) = {
             let mut announced = self.mcp_announcements.lock();
             let text = match self.mcp_reminder_mode {
@@ -1175,10 +1172,9 @@ impl SessionActor {
                 mcp_state.finish_init();
             } else {
                 mcp_state.cancel_init();
-                self.events
-                    .emit(session_events::Event::McpInitCancelled {
-                        reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
-                    });
+                self.events.emit(session_events::Event::McpInitCancelled {
+                    reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
+                });
             }
             drop(mcp_state);
             self.register_shared_client_tools().await;
@@ -1247,10 +1243,9 @@ impl SessionActor {
                 mcp_state.finish_init();
             } else {
                 mcp_state.cancel_init();
-                self.events
-                    .emit(session_events::Event::McpInitCancelled {
-                        reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
-                    });
+                self.events.emit(session_events::Event::McpInitCancelled {
+                    reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
+                });
             }
             drop(mcp_state);
             self.register_shared_client_tools().await;
@@ -1320,16 +1315,15 @@ impl SessionActor {
                     let cfg = mcp_server_configs
                         .iter()
                         .find(|c| mcp_server_name(c) == sname.as_str());
-                    self.events
-                        .emit(session_events::Event::McpServerFailed {
-                            server_name: sname,
-                            transport: cfg.map(|c| mcp_transport_str(c).to_string()),
-                            target: cfg.map(mcp_target_str),
-                            error_type: e.error_category(),
-                            error_message: e.to_string(),
-                            duration_ms: None,
-                            timeout_sec: None,
-                        });
+                    self.events.emit(session_events::Event::McpServerFailed {
+                        server_name: sname,
+                        transport: cfg.map(|c| mcp_transport_str(c).to_string()),
+                        target: cfg.map(mcp_target_str),
+                        error_type: e.error_category(),
+                        error_message: e.to_string(),
+                        duration_ms: None,
+                        timeout_sec: None,
+                    });
                     None
                 }
             })
@@ -1342,10 +1336,9 @@ impl SessionActor {
             let mut mcp_state = self.mcp_state.lock().await;
             if mcp_state.generation() != generation {
                 mcp_state.cancel_init();
-                self.events
-                    .emit(session_events::Event::McpInitCancelled {
-                        reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
-                    });
+                self.events.emit(session_events::Event::McpInitCancelled {
+                    reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
+                });
                 return;
             }
             let failed_spawns: Vec<String> = mcp_state
@@ -1643,12 +1636,12 @@ impl SessionActor {
                                                 e
                                             );
                                             event_writer.emit(
-                                            session_events::Event::McpToolRegistrationFailed {
-                                                server_name: server_name.clone(),
-                                                tool_name: qualified_name.clone(),
-                                                error: e.to_string(),
-                                            },
-                                        );
+                                                session_events::Event::McpToolRegistrationFailed {
+                                                    server_name: server_name.clone(),
+                                                    tool_name: qualified_name.clone(),
+                                                    error: e.to_string(),
+                                                },
+                                            );
                                         } else {
                                             tracing::debug!(
                                                 "Registered MCP tool '{}' from server '{}'",
@@ -1685,15 +1678,13 @@ impl SessionActor {
                                     .get(server_name.as_str())
                                     .copied()
                                     .unwrap_or("unknown");
-                                event_writer.emit(
-                                    session_events::Event::McpServerConnected {
-                                        server_name: server_name.clone(),
-                                        transport: transport_str.to_string(),
-                                        tool_count,
-                                        duration_ms: elapsed.as_millis() as u64,
-                                        tools: registered_tool_names,
-                                    },
-                                );
+                                event_writer.emit(session_events::Event::McpServerConnected {
+                                    server_name: server_name.clone(),
+                                    transport: transport_str.to_string(),
+                                    tool_count,
+                                    duration_ms: elapsed.as_millis() as u64,
+                                    tools: registered_tool_names,
+                                });
                                 crate::session::telemetry::emit_mcp_connection_span(
                                     "connected",
                                     server_name.as_str(),
@@ -1814,18 +1805,16 @@ impl SessionActor {
                     // Wake `wait_for_mcp_templated_prefix_ready`.
                     mcp_handshakes_done.notify_waiters();
 
-                    telemetry::session_ctx::log_event(
-                        telemetry::events::McpInitCompleted {
-                            total_duration_ms: handshake_start.elapsed().as_millis() as u64,
-                            server_count,
-                            servers_succeeded,
-                            servers_failed,
-                            servers_auth_required,
-                            total_tools_registered,
-                            strategy: mcp_strategy,
-                            is_reinit,
-                        },
-                    );
+                    telemetry::session_ctx::log_event(telemetry::events::McpInitCompleted {
+                        total_duration_ms: handshake_start.elapsed().as_millis() as u64,
+                        server_count,
+                        servers_succeeded,
+                        servers_failed,
+                        servers_auth_required,
+                        total_tools_registered,
+                        strategy: mcp_strategy,
+                        is_reinit,
+                    });
                     event_writer.emit(session_events::Event::McpInitCompleted {
                         total_servers: server_count,
                         succeeded: servers_succeeded,

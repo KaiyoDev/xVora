@@ -72,10 +72,7 @@ impl tool_runtime::Tool for WriteTool {
         tool_protocol::ToolId::new("write").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "write",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -230,10 +227,9 @@ mod tests {
             file_path: tmp.path().join("new.txt").to_string_lossy().into_owned(),
             content: "hello\nworld\n".to_string(),
         };
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(shared_resources.clone()), input)
-                .await
-                .unwrap();
+        let result = tool_runtime::Tool::run(&tool, test_ctx(shared_resources.clone()), input)
+            .await
+            .unwrap();
 
         match &result {
             SearchReplaceOutput::EditsApplied(applied) => {
@@ -420,8 +416,7 @@ mod tests {
             file_path: "/tmp/test.txt".to_string(),
             content: "data".to_string(),
         };
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
 
         assert!(result.is_err());
         assert!(
@@ -446,8 +441,7 @@ mod tests {
             file_path: "/tmp/test.txt".to_string(),
             content: "data".to_string(),
         };
-        let result =
-            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
 
         assert!(result.is_err());
         assert!(

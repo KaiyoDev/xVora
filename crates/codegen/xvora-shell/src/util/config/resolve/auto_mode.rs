@@ -450,8 +450,8 @@ mod auto_permission_mode_gate_tests {
     #[test]
     fn merge_auto_mode_config_precedence() {
         use crate::agent::config::AutoModeConfig;
-        use xvora_sampling_types::ReasoningEffort;
         use workspace::permission::ClassifierPromptType;
+        use xvora_sampling_types::ReasoningEffort;
         // config wins where set; remote fills the gaps.
         let config = AutoModeConfig {
             enabled: Some(true),
@@ -525,8 +525,8 @@ mod auto_permission_mode_gate_tests {
     #[test]
     fn auto_mode_classifier_defaults_apply_when_unset() {
         use crate::agent::config::AutoModeConfig;
-        use xvora_sampling_types::ReasoningEffort;
         use workspace::permission::ClassifierPromptType;
+        use xvora_sampling_types::ReasoningEffort;
         // With config unset and an effective model that supports reasoning effort, the defaults are full (transcript) and low
         let (pt, eff) = auto_mode_classifier_defaults(&AutoModeConfig::default(), true);
         assert_eq!(pt, ClassifierPromptType::Full);

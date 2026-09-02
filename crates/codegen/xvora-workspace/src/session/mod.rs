@@ -13,11 +13,11 @@ use crate::hub::{HubConfig, HubHandle};
 use crate::session::file_state::FileStateTracker;
 use computer_hub_mcp_adapter::McpBridgeHandle;
 use hunk_tracker::HunkTrackerHandle;
+use mcp::servers::McpState;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use mcp::servers::McpState;
 use tool_protocol::ToolId;
 use tool_runtime::WorkspaceViewerContext;
 use tools::notification::AcknowledgedToolNotification;
@@ -480,9 +480,7 @@ impl WorkspaceSession {
         &self.async_fs
     }
     /// The session-lifetime terminal backend, injected into every toolset re-resolve so background tasks and shell state survive swaps.
-    pub(crate) fn terminal_backend(
-        &self,
-    ) -> &Arc<dyn tools::computer::types::TerminalBackend> {
+    pub(crate) fn terminal_backend(&self) -> &Arc<dyn tools::computer::types::TerminalBackend> {
         self.terminal_backend.backend()
     }
     /// Explicitly shut the session's terminal backend down (kills all of its child process groups and stops its actor).
@@ -709,15 +707,12 @@ pub struct WorkspaceShared {
     /// Held in an `Arc` shared with [`ActivityTracker`](crate::activity::ActivityTracker).
     /// That sharing lets `Tool*` events resolve the right writer without a back-reference to `WorkspaceShared`.
     /// Stays empty whenever `events_enabled` is `false`.
-    pub(crate) session_event_writers:
-        Arc<dashmap::DashMap<String, session_events::EventWriter>>,
+    pub(crate) session_event_writers: Arc<dashmap::DashMap<String, session_events::EventWriter>>,
     /// In-flight before-turn enqueue tasks, keyed by `(session_id, turn)`.
     /// Stored by `on_before_turn`; evicted on every turn-end path.
     /// The `After` turn-hook handler awaits the handle for its ack's `artifact_count`; the fire-and-forget path just drops it (detach, not abort).
-    pub(crate) inflight_enqueues: dashmap::DashMap<
-        (String, u64),
-        tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>,
-    >,
+    pub(crate) inflight_enqueues:
+        dashmap::DashMap<(String, u64), tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>>,
     /// Artifact-producer tasks, awaited by the drain and counted by the status publisher.
     /// See [`WorkspaceHandle::spawn_producer`](crate::handle::WorkspaceHandle).
     pub(crate) producer_tasks: tokio_util::task::TaskTracker,
@@ -750,10 +745,7 @@ impl WorkspaceShared {
     /// When `events_enabled` is `false` this returns [`EventWriter::noop()`](session_events::EventWriter::noop).
     /// It touches neither the cache nor the filesystem, so the flag-off path stays byte-for-byte identical to the legacy behaviour.
     /// The returned handle is `Clone + Send + Sync`; callers emit through it directly.
-    pub(crate) fn session_event_writer(
-        &self,
-        session_id: &str,
-    ) -> session_events::EventWriter {
+    pub(crate) fn session_event_writer(&self, session_id: &str) -> session_events::EventWriter {
         get_or_open_session_writer(
             self.events_enabled,
             &self.session_event_writers,
@@ -984,9 +976,7 @@ impl WorkspaceShared {
                     );
                     let _ = self
                         .events
-                        .send(workspace_types::WorkspaceEvent::ToolsChanged {
-                            session_id: sid,
-                        });
+                        .send(workspace_types::WorkspaceEvent::ToolsChanged { session_id: sid });
                     rebuilt += 1;
                 }
                 Err(e) => {

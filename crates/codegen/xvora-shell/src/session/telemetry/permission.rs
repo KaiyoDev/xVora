@@ -199,9 +199,7 @@ pub(crate) fn permission_outcome(decision: &Decision) -> PermissionOutcome {
 /// Callers pass the ONE [`ResolvedDecisionTelemetry`] they already built and fed to the `tool.decision` span.
 /// Mode, wait, and source are never re-derived, so the span and product rails cannot observe different shell state.
 /// Content-free analytics come from [`manager_permission_analytics`].
-pub(crate) fn canonical_permission_tool_name(
-    access: &workspace::permission::AccessKind,
-) -> String {
+pub(crate) fn canonical_permission_tool_name(access: &workspace::permission::AccessKind) -> String {
     workspace::permission::prompter_tool_name_for_access(access)
 }
 

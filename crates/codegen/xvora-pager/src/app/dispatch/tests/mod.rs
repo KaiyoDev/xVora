@@ -688,16 +688,16 @@ fn make_ask_user_question_args(
         tool_call_id: tool_call_id.into(),
         mode: tools::implementations::grok_build::ask_user_question::AskUserQuestionMode::Default,
         questions: vec![Question {
-                question: "ACP-driven question".into(),
-                options: vec![QuestionOption {
-                    label: "ok".into(),
-                    description: "ok".into(),
-                    preview: None,
-                    id: None,
-                }],
-                multi_select: Some(false),
-                            id: None,
+            question: "ACP-driven question".into(),
+            options: vec![QuestionOption {
+                label: "ok".into(),
+                description: "ok".into(),
+                preview: None,
+                id: None,
             }],
+            multi_select: Some(false),
+            id: None,
+        }],
     };
     let (tx, rx) = tokio::sync::oneshot::channel();
     let ext = acp::ExtRequest::new(

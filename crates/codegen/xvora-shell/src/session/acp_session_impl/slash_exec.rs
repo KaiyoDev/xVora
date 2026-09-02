@@ -89,15 +89,15 @@ impl SessionActor {
             BuiltinAction::HooksTrust => {
                 let msg = match Self::do_hooks_trust_project(&self.session_info.cwd) {
                     Ok(root) => {
-                        telemetry::session_ctx::log_event(
-                            telemetry::events::HookTrusted { success: true },
-                        );
+                        telemetry::session_ctx::log_event(telemetry::events::HookTrusted {
+                            success: true,
+                        });
                         format!("Trusted: {}.", root.display())
                     }
                     Err(e) => {
-                        telemetry::session_ctx::log_event(
-                            telemetry::events::HookTrusted { success: false },
-                        );
+                        telemetry::session_ctx::log_event(telemetry::events::HookTrusted {
+                            success: false,
+                        });
                         e
                     }
                 };
@@ -152,9 +152,9 @@ impl SessionActor {
                     // paths are under ~/.grok/ to prevent hook path injection.
                     match crate::config::add_hooks_path(&path) {
                         Ok(()) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::HookAdded { success: true },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::HookAdded {
+                                success: true,
+                            });
                             self.send_host_turn_slash_command_output(&format!(
                                 "Added hook path: {path}\n\
                                  Restart session to load hooks from this path."
@@ -162,9 +162,9 @@ impl SessionActor {
                             .await;
                         }
                         Err(e) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::HookAdded { success: false },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::HookAdded {
+                                success: false,
+                            });
                             self.send_host_turn_slash_command_output(&format!(
                                 "Failed to add hook path: {e}"
                             ))
@@ -183,18 +183,18 @@ impl SessionActor {
                 } else {
                     match crate::config::remove_hooks_path(&path) {
                         Ok(true) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::HookRemoved { success: true },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::HookRemoved {
+                                success: true,
+                            });
                             self.send_host_turn_slash_command_output(&format!(
                                 "Removed hook path: {path}\nRestart session to stop loading hooks from this path."
                             ))
                             .await;
                         }
                         Ok(false) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::HookRemoved { success: false },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::HookRemoved {
+                                success: false,
+                            });
                             self.send_host_turn_slash_command_output(&format!(
                                 "{path} is not a user-registered hook directory; \
                                  config-defined hook sources cannot be removed from here."
@@ -202,9 +202,9 @@ impl SessionActor {
                             .await;
                         }
                         Err(e) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::HookRemoved { success: false },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::HookRemoved {
+                                success: false,
+                            });
                             self.send_host_turn_slash_command_output(&format!(
                                 "Failed to remove hook path: {e}"
                             ))
@@ -295,15 +295,15 @@ impl SessionActor {
                     Some(handle) => {
                         // An explicit user reload forces a full re-copy of locally installed plugins
                         let msg = self.reload_plugins_impl(handle, true).await;
-                        telemetry::session_ctx::log_event(
-                            telemetry::events::PluginReloaded { success: true },
-                        );
+                        telemetry::session_ctx::log_event(telemetry::events::PluginReloaded {
+                            success: true,
+                        });
                         self.send_host_turn_slash_command_output(&msg).await;
                     }
                     None => {
-                        telemetry::session_ctx::log_event(
-                            telemetry::events::PluginReloaded { success: false },
-                        );
+                        telemetry::session_ctx::log_event(telemetry::events::PluginReloaded {
+                            success: false,
+                        });
                         self.send_host_turn_slash_command_output(
                             "No plugin registry handle available. Start a new session to discover plugins.",
                         )
@@ -402,12 +402,10 @@ impl SessionActor {
                     let path_str = resolved.to_string_lossy().to_string();
                     match crate::config::add_plugin_path(&path_str) {
                         Ok(()) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::PluginAdded {
-                                    source: telemetry::events::PluginSource::LocalPath,
-                                    success: true,
-                                },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::PluginAdded {
+                                source: telemetry::events::PluginSource::LocalPath,
+                                success: true,
+                            });
                             let msg = format!("Added plugin path: {path_str}");
                             self.send_host_turn_slash_command_output(&msg).await;
                             if let Some(ref handle) = self.plugin_registry_handle {
@@ -416,12 +414,10 @@ impl SessionActor {
                             }
                         }
                         Err(e) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::PluginAdded {
-                                    source: telemetry::events::PluginSource::LocalPath,
-                                    success: false,
-                                },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::PluginAdded {
+                                source: telemetry::events::PluginSource::LocalPath,
+                                success: false,
+                            });
                             self.send_host_turn_slash_command_output(&format!(
                                 "Failed to add plugin path: {e}"
                             ))
@@ -450,9 +446,9 @@ impl SessionActor {
                     let path_str = resolved.to_string_lossy().to_string();
                     match crate::config::remove_plugin_path(&path_str) {
                         Ok(()) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::PluginRemoved { success: true },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::PluginRemoved {
+                                success: true,
+                            });
                             let msg = format!("Removed plugin path: {path_str}");
                             self.send_host_turn_slash_command_output(&msg).await;
                             if let Some(ref handle) = self.plugin_registry_handle {
@@ -461,9 +457,9 @@ impl SessionActor {
                             }
                         }
                         Err(e) => {
-                            telemetry::session_ctx::log_event(
-                                telemetry::events::PluginRemoved { success: false },
-                            );
+                            telemetry::session_ctx::log_event(telemetry::events::PluginRemoved {
+                                success: false,
+                            });
                             self.send_host_turn_slash_command_output(&format!(
                                 "Failed to remove plugin path: {e}"
                             ))
@@ -491,15 +487,10 @@ impl SessionActor {
                         let install_source =
                             agent::plugins::git_install::parse_install_source(&source, cwd);
                         let source_desc = match &install_source {
-                            agent::plugins::git_install::InstallSource::Git {
-                                url, ..
-                            } => {
+                            agent::plugins::git_install::InstallSource::Git { url, .. } => {
                                 format!("remote git repo: {url}")
                             }
-                            agent::plugins::git_install::InstallSource::Local {
-                                path,
-                                ..
-                            } => {
+                            agent::plugins::git_install::InstallSource::Local { path, .. } => {
                                 format!("local directory: {}", path.display())
                             }
                         };

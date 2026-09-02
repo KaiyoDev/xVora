@@ -4003,8 +4003,7 @@ fn worktree_auto_gc_section_parses_from_toml() {
         Some(&Some(3600))
     );
     assert_eq!(
-        p.max_age_by_kind
-            .get(&fast_worktree::WorktreeKind::Manual),
+        p.max_age_by_kind.get(&fast_worktree::WorktreeKind::Manual),
         Some(&None)
     );
 }
@@ -7870,10 +7869,7 @@ fn mcp_recursive_config_watch_feature_flag_used_when_no_higher_layer() {
 #[test]
 #[serial_test::serial(remote_sig_disarm)]
 fn remote_settings_disarm_managed_config_signatures() {
-    config::signed_policy::apply_remote_managed_config_signature_verification(
-        Some(true),
-        true,
-    );
+    config::signed_policy::apply_remote_managed_config_signature_verification(Some(true), true);
     assert!(config::signed_policy::verification_active());
     let settings = crate::util::config::RemoteSettings {
         managed_config_signature_verification: Some(false),
@@ -7887,26 +7883,17 @@ fn remote_settings_disarm_managed_config_signatures() {
     };
     apply_remote_settings_side_effects(Some(&settings));
     assert!(config::signed_policy::verification_active());
-    config::signed_policy::apply_remote_managed_config_signature_verification(
-        Some(false),
-        true,
-    );
+    config::signed_policy::apply_remote_managed_config_signature_verification(Some(false), true);
     apply_remote_settings_side_effects(None);
     assert!(!config::signed_policy::verification_active());
-    config::signed_policy::apply_remote_managed_config_signature_verification(
-        Some(true),
-        true,
-    );
+    config::signed_policy::apply_remote_managed_config_signature_verification(Some(true), true);
     assert!(config::signed_policy::verification_active());
 }
 /// Keyed path: prod proxy origin can disarm; env override cannot.
 #[test]
 #[serial_test::serial(remote_sig_disarm)]
 fn remote_settings_disarm_requires_prod_proxy_when_keys_embedded() {
-    config::signed_policy::apply_remote_managed_config_signature_verification(
-        Some(true),
-        true,
-    );
+    config::signed_policy::apply_remote_managed_config_signature_verification(Some(true), true);
     assert!(config::signed_policy::verification_active());
     let settings = crate::util::config::RemoteSettings {
         managed_config_signature_verification: Some(false),
@@ -7920,10 +7907,7 @@ fn remote_settings_disarm_requires_prod_proxy_when_keys_embedded() {
         !config::signed_policy::verification_active(),
         "prod proxy origin must allow disarm when keys are embedded"
     );
-    config::signed_policy::apply_remote_managed_config_signature_verification(
-        Some(true),
-        true,
-    );
+    config::signed_policy::apply_remote_managed_config_signature_verification(Some(true), true);
     assert!(config::signed_policy::verification_active());
     unsafe {
         std::env::set_var(
@@ -7939,10 +7923,7 @@ fn remote_settings_disarm_requires_prod_proxy_when_keys_embedded() {
     unsafe {
         std::env::remove_var("GROK_CLI_CHAT_PROXY_BASE_URL");
     }
-    config::signed_policy::apply_remote_managed_config_signature_verification(
-        Some(true),
-        true,
-    );
+    config::signed_policy::apply_remote_managed_config_signature_verification(Some(true), true);
 }
 #[test]
 fn a_status_line_the_parser_could_not_read_in_full_reaches_grok_inspect() {

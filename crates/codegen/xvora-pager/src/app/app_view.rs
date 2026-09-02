@@ -17,13 +17,13 @@ use crate::render::draw::CursorState;
 use crate::scrollback::render::ScratchBuffer;
 use crate::views::prompt_widget::PromptWidget;
 use crate::views::welcome::WelcomePromptFocus;
+use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use crossterm::event::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind};
 use indexmap::IndexMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use acp_lib::AcpAgentTx;
 /// State for the "New Worktree" popup dialog on the welcome screen.
 #[derive(Debug, Default)]
 pub struct NewWorktreeDialogState {
@@ -730,16 +730,12 @@ pub struct AppView {
     /// A newer read-only schema was opened; suppress writes but keep reads.
     pub workspace_writes_disabled: bool,
     /// Exact metadata payloads that have consumed their one automatic retry.
-    pub workspace_retry_metadata: std::collections::HashMap<
-        dashboard_store::SessionId,
-        dashboard_store::MemberMetadata,
-    >,
+    pub workspace_retry_metadata:
+        std::collections::HashMap<dashboard_store::SessionId, dashboard_store::MemberMetadata>,
     /// Last metadata payloads that exhausted or cannot use their retry.
     /// An identical payload stays suppressed until its agent metadata changes.
-    pub workspace_failed_metadata: std::collections::HashMap<
-        dashboard_store::SessionId,
-        dashboard_store::MemberMetadata,
-    >,
+    pub workspace_failed_metadata:
+        std::collections::HashMap<dashboard_store::SessionId, dashboard_store::MemberMetadata>,
     /// Server-authoritative shared prompt queues, keyed by `sessionId`.
     /// Reconciled from `x.ai/queue/changed` broadcasts so every client renders the same ordered queue (including prompts queued by other clients).
     /// Empty in non-leader mode.
@@ -1344,12 +1340,10 @@ impl AppView {
         self.gate = meta.gate.clone();
         if was_gated && self.gate.is_none() {
             self.paywall_check_started = None;
-            telemetry::session_ctx::log_event(
-                telemetry::events::SubscriptionActivated {
-                    auth_method: self.login_method_id.as_ref().map(|id| id.0.to_string()),
-                    upsell_shown_this_session: self.access_gate_shown_logged,
-                },
-            );
+            telemetry::session_ctx::log_event(telemetry::events::SubscriptionActivated {
+                auth_method: self.login_method_id.as_ref().map(|id| id.0.to_string()),
+                upsell_shown_this_session: self.access_gate_shown_logged,
+            });
         }
         self.subscription_tier = meta.subscription_tier.clone();
         let was_api_key = self.is_api_key_auth;
@@ -5098,12 +5092,10 @@ impl AppView {
                 .announcement_cta_impressions_logged
                 .insert((key.clone(), surface))
             {
-                telemetry::session_ctx::log_event(
-                    telemetry::events::AnnouncementCtaShown {
-                        id: id.clone(),
-                        source: surface,
-                    },
-                );
+                telemetry::session_ctx::log_event(telemetry::events::AnnouncementCtaShown {
+                    id: id.clone(),
+                    source: surface,
+                });
             }
         }
     }

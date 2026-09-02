@@ -103,12 +103,8 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
     // The doctor report then shows an untrusted folder's project-plugin MCP servers as blocked
     // No session resolve has run for a one-shot doctor, so resolve and record the verdict here, then gate plugins on it
     let project_trusted = crate::agent::folder_trust::resolve_and_record(cwd, None, false);
-    let discovered_plugins = agent::plugins::discover_plugins(
-        Some(cwd),
-        &plugin_config,
-        &trust_store,
-        project_trusted,
-    );
+    let discovered_plugins =
+        agent::plugins::discover_plugins(Some(cwd), &plugin_config, &trust_store, project_trusted);
     plugin_config.populate_plugin_lists(&discovered_plugins);
     let plugin_registry = agent::plugins::PluginRegistry::from_discovered(
         discovered_plugins,

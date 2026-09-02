@@ -2246,8 +2246,7 @@ pub(crate) struct SessionPickerRenderCtx<'a> {
     pub(crate) loading: bool,
     pub(crate) pending_hint: Option<crate::views::shortcuts_bar::PendingHint>,
     pub(crate) shortcuts_area: Option<Rect>,
-    pub(crate) content_results:
-        Option<&'a [shell::extensions::session_search::SearchSessionHit]>,
+    pub(crate) content_results: Option<&'a [shell::extensions::session_search::SearchSessionHit]>,
     pub(crate) content_loading: bool,
     /// The query `sessions` were server-fetched with (see [`crate::views::session_picker::effective_filter_query`]).
     pub(crate) entries_query: Option<&'a str>,

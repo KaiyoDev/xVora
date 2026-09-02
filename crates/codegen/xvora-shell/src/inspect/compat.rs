@@ -117,9 +117,7 @@ impl ExternalCompatReport {
 pub(super) fn resolve_inspect_compat(
     effective_config: Result<&toml::Value, ()>,
 ) -> ExternalCompatReport {
-    resolve_inspect_compat_with_env(effective_config, |cell| {
-        config::env_bool(cell.env_var())
-    })
+    resolve_inspect_compat_with_env(effective_config, |cell| config::env_bool(cell.env_var()))
 }
 
 pub(super) fn resolve_inspect_compat_with_env(

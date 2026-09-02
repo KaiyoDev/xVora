@@ -1,7 +1,7 @@
 //! Handler for x.ai/git/worktree/* extension methods.
 
-use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent_client_protocol as acp;
 
 use crate::agent::mvp_agent::MvpAgent;
 use crate::session::ExtMethodResult;
@@ -424,10 +424,7 @@ pub async fn handle(
         }
         "x.ai/git/worktree/db/rebuild" => {
             let result = ops
-                .dispatch(
-                    &workspace::workspace_ops::WorktreeDbRebuildReq {},
-                    None,
-                )
+                .dispatch(&workspace::workspace_ops::WorktreeDbRebuildReq {}, None)
                 .await
                 .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             to_response(Ok(result))

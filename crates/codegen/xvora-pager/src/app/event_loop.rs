@@ -15,8 +15,8 @@ use crate::client_identity::{PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
 use crate::theme::system_appearance::{self, SystemAppearanceWatcher};
 use crate::theme::{Theme, ThemeKind, cache as theme_cache};
 
-use agent_client_protocol as acp;
 use acp_lib::{AcpClientMessage, acp_send};
+use agent_client_protocol as acp;
 
 use super::actions::{Action, Effect, TaskResult};
 use super::app_view::{
@@ -1341,9 +1341,7 @@ pub(crate) async fn run(
         if connection.auth_methods.is_empty() {
             // preferred_method pin unavailable: no advertised method to start
             app.auth_state = super::app_view::AuthState::Pending {
-                error: Some(
-                    shell::agent::auth_method::PREFERRED_API_KEY_UNAVAILABLE.to_string(),
-                ),
+                error: Some(shell::agent::auth_method::PREFERRED_API_KEY_UNAVAILABLE.to_string()),
             };
             vec![]
         } else {
@@ -1437,10 +1435,8 @@ pub(crate) async fn run(
         if let Some(table) = raw.as_table() {
             // Voice inherits the same resolved endpoints base as chat (config > GROK_XAI_API_BASE_URL env > default)
             let endpoints_base =
-                shell::agent::config::EndpointsConfig::from_config_value(raw)
-                    .xvora_api_base_url;
-            app.voice_config =
-                voice::VoiceConfig::from_config_table(table, Some(&endpoints_base));
+                shell::agent::config::EndpointsConfig::from_config_value(raw).xvora_api_base_url;
+            app.voice_config = voice::VoiceConfig::from_config_table(table, Some(&endpoints_base));
         }
     }
     // Stamp request-identity headers so the STT handshake attributes voice usage to grok-cli server-side (mirrors sampler / imagine)
@@ -1493,12 +1489,11 @@ pub(crate) async fn run(
     // The authoritative per-session value rides the `session/new` / `session/load` response
     // But `/loop` can be reached from the session-less dashboard and from a session whose response has not landed yet; both need an answer now
     // This is the same resolver the shell runs at spawn, so the seed agrees with the flag as it stands today
-    app.scheduler_background_loops_seed =
-        shell::util::config::resolve_scheduler_background_loops(
-            remote_settings
-                .as_ref()
-                .and_then(|s| s.scheduler_background_loops),
-        );
+    app.scheduler_background_loops_seed = shell::util::config::resolve_scheduler_background_loops(
+        remote_settings
+            .as_ref()
+            .and_then(|s| s.scheduler_background_loops),
+    );
 
     app.usage_billing_redirect_url = remote_settings
         .as_ref()
@@ -3451,9 +3446,7 @@ fn sync_appearance_watcher(watcher: &mut Option<SystemAppearanceWatcher>) {
 }
 
 fn emit_event_loop_stall(window: super::event_loop_stall::StallWindow) {
-    telemetry::session_ctx::log_event(super::event_loop_stall::event_loop_stall_event(
-        window,
-    ));
+    telemetry::session_ctx::log_event(super::event_loop_stall::event_loop_stall_event(window));
 }
 
 fn flush_pending_stall(stall_rollup: &mut super::event_loop_stall::StallRollup) {

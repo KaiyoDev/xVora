@@ -710,10 +710,7 @@ impl RenderBlock {
     ///
     /// The block stores the raw `ContextInfo` snapshot and model name and rebuilds its styled output on every redraw.
     /// Theme switches thus take effect without re-running `/context`.
-    pub fn context_info(
-        snapshot: shell::session::ContextInfo,
-        model: impl Into<String>,
-    ) -> Self {
+    pub fn context_info(snapshot: shell::session::ContextInfo, model: impl Into<String>) -> Self {
         RenderBlock::ContextInfo(ContextInfoBlock::new(snapshot, model))
     }
 
@@ -1089,10 +1086,7 @@ impl RenderBlock {
         }
     }
 
-    pub fn with_table_copy_meta<R>(
-        &self,
-        f: impl FnOnce(&[markdown::TableCopyMeta]) -> R,
-    ) -> R {
+    pub fn with_table_copy_meta<R>(&self, f: impl FnOnce(&[markdown::TableCopyMeta]) -> R) -> R {
         match self {
             RenderBlock::AgentMessage(b) => b.content().with_table_copy_meta(f),
             RenderBlock::Thinking(b) => b.content().with_table_copy_meta(f),
@@ -1378,8 +1372,8 @@ mod searchable_text_tests {
     use crate::scrollback::blocks::SearchLineMatch;
     use crate::scrollback::blocks::tool::memory_search::{MemoryResult, MemorySearchToolCallBlock};
     use crate::scrollback::blocks::tool::{LifecycleEventBlock, WebSearchToolCallBlock};
-    use std::time::Duration;
     use shell::session::ContextInfo;
+    use std::time::Duration;
 
     #[test]
     fn system_indexes_message_text() {

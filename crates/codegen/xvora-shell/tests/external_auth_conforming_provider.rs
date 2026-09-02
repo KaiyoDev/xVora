@@ -12,9 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use shell::auth::{
-    AuthMode, GrokAuth, GrokComConfig, ensure_authenticated, try_ensure_fresh_auth,
-};
+use shell::auth::{AuthMode, GrokAuth, GrokComConfig, ensure_authenticated, try_ensure_fresh_auth};
 
 const STALE_TOKEN: &str = "stale-token-the-provider-will-not-renew";
 const SSO_TOKEN: &str = "token-minted-by-the-interactive-flow";

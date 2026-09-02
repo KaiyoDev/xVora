@@ -25,16 +25,6 @@ mod jemalloc_malloc_conf {
     static MALLOC_CONF: MallocConfPtr = MallocConfPtr(CONF.as_ptr());
 }
 use anyhow::Result;
-use std::net::SocketAddr;
-use std::num::NonZeroUsize;
-use tokio_util::sync::CancellationToken;
-use xvora_pager::app::{
-    AgentCmd, Command, EARLY_PREFETCH_WAIT, HeadlessArgs, LeaderMgmtArgs, LeaderMgmtCommand,
-    LeaderMode, LeaderTargetArgs, PagerArgs, resolve_leader_mode, resolve_use_leader,
-    warn_leader_disabled_by_sandbox,
-};
-use xvora_pager::app::{WorkspaceMgmtArgs, WorkspaceMgmtCommand, WorkspaceStartArgs};
-use xvora_pager::client_identity::PAGER_CLIENT_VERSION;
 use shell::agent::app::{run_headless, run_leader, run_stdio_agent};
 use shell::agent::config::Config as AgentConfig;
 use shell::leader::{
@@ -44,9 +34,19 @@ use shell::leader::{
 use shell::leader::{
     ControlPayload, LeaderClient, LeaderEnvUrls, connect_or_spawn, socket_path_for_ws_url,
 };
+use std::net::SocketAddr;
+use std::num::NonZeroUsize;
 use telemetry::process_info::{
     Entrypoint, Interactivity, ProcessIdentity, ReleaseChannel, set_identity, set_release_channel,
 };
+use tokio_util::sync::CancellationToken;
+use xvora_pager::app::{
+    AgentCmd, Command, EARLY_PREFETCH_WAIT, HeadlessArgs, LeaderMgmtArgs, LeaderMgmtCommand,
+    LeaderMode, LeaderTargetArgs, PagerArgs, resolve_leader_mode, resolve_use_leader,
+    warn_leader_disabled_by_sandbox,
+};
+use xvora_pager::app::{WorkspaceMgmtArgs, WorkspaceMgmtCommand, WorkspaceStartArgs};
+use xvora_pager::client_identity::PAGER_CLIENT_VERSION;
 fn process_identity(command: Option<&Command>, is_interactive: bool) -> Option<ProcessIdentity> {
     use telemetry::process_info::LeaderMode::Standalone;
     let (entrypoint, interactivity) = match command {
@@ -173,8 +173,8 @@ fn print_serve_startup_info(bind_addr: SocketAddr, secret: &str) {
 const HEADLESS_ENTRYPOINT: &str = "headless";
 /// Initialize simple tracing for non-TUI agent modes.
 fn init_tracing_simple(app_entrypoint: &'static str) {
-    use tracing_subscriber::{EnvFilter, Layer as _, fmt, layer::SubscriberExt as _};
     use telemetry::debug_log::RMCP_SSE_NOISE_TARGET;
+    use tracing_subscriber::{EnvFilter, Layer as _, fmt, layer::SubscriberExt as _};
     let default_filter = if app_entrypoint == HEADLESS_ENTRYPOINT {
         "off"
     } else {
@@ -1317,12 +1317,12 @@ async fn run_agent_command(
         if !agent_args.plugin_dirs.is_empty() {
             eprintln!("{PLUGIN_DIR_LEADER_WARNING}");
         }
-        use std::sync::Arc;
-        use tokio::io::AsyncWriteExt;
-        use tokio::sync::Mutex as TokioMutex;
         use shell::leader::{
             ClientCapabilities, ClientMode, LeaderReconnector, ReconnectPolicy, connect_or_spawn,
         };
+        use std::sync::Arc;
+        use tokio::io::AsyncWriteExt;
+        use tokio::sync::Mutex as TokioMutex;
         let mode = match &agent_args.mode {
             Some(AgentCmd::Stdio) => ClientMode::Stdio,
             Some(AgentCmd::Headless(_)) | None => ClientMode::Headless,
@@ -1875,8 +1875,7 @@ fn dispatch_version_if_requested(args: &PagerArgs) -> bool {
     if !args.version {
         return false;
     }
-    if let Err(error) = write_version(&mut std::io::stdout().lock(), update::channel_label())
-    {
+    if let Err(error) = write_version(&mut std::io::stdout().lock(), update::channel_label()) {
         eprintln!("Error: {error}");
         std::process::exit(1);
     }
@@ -1969,11 +1968,10 @@ fn main() {
     let workers = cli_worker_threads();
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.worker_threads(workers.get()).enable_all();
-    let runtime =
-        tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
-            eprintln!("grok: failed to start tokio runtime: {e}");
-            shutdown_and_flush_telemetry(1);
-        });
+    let runtime = tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
+        eprintln!("grok: failed to start tokio runtime: {e}");
+        shutdown_and_flush_telemetry(1);
+    });
     let result = run_and_shutdown(runtime, async_main(args), RUNTIME_SHUTDOWN_GRACE);
     telemetry::debug_log::flush();
     if let Err(e) = result {
@@ -2439,8 +2437,7 @@ fn build_update_config() -> UpdateConfig {
     let mut config = UpdateConfig::from_environment(&environment);
     cryptify::flow_stmt!({
         {
-            config.deployment_key =
-                shell::agent::config::EndpointsConfig::default().deployment_key;
+            config.deployment_key = shell::agent::config::EndpointsConfig::default().deployment_key;
         }
     });
     config.npm_registry = std::env::var(obfstr::obfstr!("GROK_NPM_REGISTRY"))

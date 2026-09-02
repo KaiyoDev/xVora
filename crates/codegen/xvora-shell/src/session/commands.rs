@@ -74,9 +74,7 @@ pub const ACTION_STATIONARITY_CATEGORY: &str = "action_stationarity";
 /// `_meta.cancellationCategory` wire name of a cancel category: an explicit match so a variant rename cannot silently change the wire.
 /// This is deliberately a second vocabulary next to the serde snake_case of the events.jsonl / after-turn rails.
 /// `_meta` shipped PascalCase and clients match it.
-pub fn meta_category_str(
-    category: session_events::types::CancellationCategory,
-) -> &'static str {
+pub fn meta_category_str(category: session_events::types::CancellationCategory) -> &'static str {
     use session_events::types::CancellationCategory;
     match category {
         CancellationCategory::HookDenied => HOOK_DENIED_CATEGORY,
@@ -441,9 +439,8 @@ pub enum SessionCommand {
     /// Refused while a turn is in flight.
     RepairHistory {
         dry_run: bool,
-        respond_to: oneshot::Sender<
-            anyhow::Result<chat_state::compaction_utils::HistoryRepairReport>,
-        >,
+        respond_to:
+            oneshot::Sender<anyhow::Result<chat_state::compaction_utils::HistoryRepairReport>>,
     },
     GetRewindPoints {
         respond_to: oneshot::Sender<RewindPointsResponse>,

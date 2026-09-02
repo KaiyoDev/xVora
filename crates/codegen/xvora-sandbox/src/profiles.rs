@@ -240,8 +240,8 @@ impl ProfileName {
                 if real == home.join(path.file_name()?) {
                     return Some(real);
                 }
-                let default_sessions = dirs::home_dir()
-                    .map(|user_home| user_home.join(".grok").join("sessions"));
+                let default_sessions =
+                    dirs::home_dir().map(|user_home| user_home.join(".grok").join("sessions"));
                 if path.file_name() == Some(std::ffi::OsStr::new("sessions"))
                     && default_sessions.as_ref() == Some(&real)
                 {
@@ -336,9 +336,8 @@ impl ProfileName {
                 .collect();
             #[cfg(unix)]
             {
-                let files =
-                    config::validated_hook_json_files_for_sources(&profile.write_deny)
-                        .map_err(|e| anyhow::anyhow!("hook JSON alias validation failed: {e}"))?;
+                let files = config::validated_hook_json_files_for_sources(&profile.write_deny)
+                    .map_err(|e| anyhow::anyhow!("hook JSON alias validation failed: {e}"))?;
                 for f in files {
                     if !pairs.iter().any(|(p, _)| p == &f) {
                         pairs.push((f, false));

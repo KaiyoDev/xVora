@@ -8,11 +8,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use url::Url;
 use computer_hub_sdk::{
     AuthCredential, AuthIdentity, AuthProvider, OidcAuthProviderBuilder, OnRefreshCallback,
     RefreshEvent,
 };
+use url::Url;
 
 use crate::status_config::ProactiveRefreshConfig;
 

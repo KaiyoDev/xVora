@@ -25,22 +25,22 @@ use crate::upload::trace::{
     upload_metadata, upload_session_state, upload_subagent_metadata, upload_turn_result,
 };
 use crate::upload::turn::{PromptTraceContext, complete_prompt_trace};
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent::config::{McpInheritance, ModelOverride, PermissionMode};
 use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
+use session_events::types::CancellationCategory;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
-use agent::config::{McpInheritance, ModelOverride, PermissionMode};
-use xvora_sampling_types::conversation::ConversationItem;
-use session_events::types::CancellationCategory;
-use xvora_subagent_resolution::ResumeSourceData;
 use tools::implementations::grok_build::monitor::types::MonitorEventBuffer;
 use tools::implementations::grok_build::task::types::*;
 use tools::types::tool::ToolKind;
 use workspace::file_system::AsyncFileSystem;
+use xvora_sampling_types::conversation::ConversationItem;
+use xvora_subagent_resolution::ResumeSourceData;
 mod attempt_runner;
 mod spawn;
 pub(crate) use spawn::{
@@ -163,8 +163,7 @@ pub(crate) struct SubagentSpawnContext {
     /// Parent's notification handle for reparenting on subagent exit.
     /// When a subagent exits, its surviving tasks (monitors, bg commands) need their notification handles swapped to this.
     /// Events then route to the parent's notification bridge.
-    pub parent_notification_handle:
-        Option<tools::notification::types::ToolNotificationHandle>,
+    pub parent_notification_handle: Option<tools::notification::types::ToolNotificationHandle>,
     /// Parent's scheduler handle.
     /// When `Some`, the subagent reuses the parent's scheduler actor so scheduled tasks survive subagent exit.
     pub parent_scheduler_handle:
@@ -1123,8 +1122,7 @@ async fn bootstrap_initial_context(
                         ));
                     }
                 };
-                let estimated_tokens =
-                    chat_state::estimate_conversation_tokens(&conversation);
+                let estimated_tokens = chat_state::estimate_conversation_tokens(&conversation);
                 let context_window = window.context_window;
                 if !window.fits(estimated_tokens) {
                     let limit = window.token_limit();
@@ -1571,9 +1569,7 @@ fn resolve_subagent_toolset(
 /// The client-facing name is `ToolConfig::resolve_client_name(default_id)`, so a `name_override` is reflected.
 /// `default_id` is the unqualified tool id (the `"<namespace>:"` prefix on `tc.id` is stripped).
 /// The read/search/execute flags are what the per-role capability gates key on.
-fn summarize_tool_config(
-    config: &tools::registry::types::ToolServerConfig,
-) -> SubagentTypeSummary {
+fn summarize_tool_config(config: &tools::registry::types::ToolServerConfig) -> SubagentTypeSummary {
     let mut tool_names: HashMap<ToolKind, String> = HashMap::new();
     for tc in &config.tools {
         let Some(kind) = tc.kind else { continue };

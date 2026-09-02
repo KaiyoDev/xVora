@@ -881,8 +881,7 @@ pub(crate) async fn upload_unified_log(ctx: &PromptTraceContext, wait: UploadWai
         wait,
     )
     .await;
-    let full_log_bytes =
-        tokio::task::spawn_blocking(telemetry::unified_log::snapshot_log).await;
+    let full_log_bytes = tokio::task::spawn_blocking(telemetry::unified_log::snapshot_log).await;
     let user_id = ctx
         .auth_manager
         .current_or_expired()
@@ -1177,8 +1176,7 @@ pub(crate) fn spawn_startup_spill_reconcile(
     tokio::spawn(async move {
         match queue {
             Some(queue) => {
-                let report =
-                    workspace::recovery::run_startup_recovery(&grok_home, &queue).await;
+                let report = workspace::recovery::run_startup_recovery(&grok_home, &queue).await;
                 tracing::info!(?report, "startup spill recovery complete");
                 queue.cleanup_orphans(file_utils::queue::DEFAULT_MAX_AGE);
             }

@@ -29,8 +29,8 @@ use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
 use crate::client_identity::{HEADLESS_CLIENT_TYPE, PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
-use agent_client_protocol as acp;
 use acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
+use agent_client_protocol as acp;
 use shell::agent::auth_method::AuthMethodKind;
 use shell::agent::config::Config as AgentConfig;
 use shell::sampling::types::ReasoningEffort;
@@ -435,8 +435,7 @@ fn unsupported_leader_flags(flags: &ConnectFlags) -> Vec<&'static str> {
 /// Write config.toml fields based on CLI flags.
 fn apply_config_writes(flags: &ConnectFlags) {
     // Use toml_edit to preserve existing config structure
-    let config_path =
-        shell::util::grok_home::grok_home().join(config::USER_CONFIG_FILENAME);
+    let config_path = shell::util::grok_home::grok_home().join(config::USER_CONFIG_FILENAME);
     let content = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut doc = content
         .parse::<toml_edit::DocumentMut>()

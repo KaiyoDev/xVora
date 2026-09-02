@@ -246,9 +246,9 @@ impl SessionActor {
             let snapshot = self.tool_metadata_snapshot.clone();
             let tool_index = crate::session::tool_index::Bm25ToolSearchIndex::new(snapshot);
             bridge
-                .update_resource(tools::types::tool_index::ToolIndex(
-                    std::sync::Arc::new(tool_index),
-                ))
+                .update_resource(tools::types::tool_index::ToolIndex(std::sync::Arc::new(
+                    tool_index,
+                )))
                 .await;
             if let Some(client) = self.rebuild_spec.managed_gateway_tool_client.clone() {
                 bridge.update_resource(client).await;

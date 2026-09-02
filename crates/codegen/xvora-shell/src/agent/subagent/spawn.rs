@@ -14,9 +14,9 @@ use super::ShellCompletionData;
 use crate::agent::mvp_agent::{LocalRef, MvpAgent};
 use crate::extensions::notification::{SessionNotification, SessionUpdate};
 use crate::session::SessionCommand;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 pub(crate) use tools::implementations::grok_build::task::coordinator::{
     self, ChildCompletion, ChildRunOutput, StartedChild,
 };
@@ -141,16 +141,15 @@ impl coordinator::ChildRunner for ShellChildRunner {
                         "subagent worker runtime failed to build"
                     );
                     return coordinator::ChildRunOutput {
-                        result:
-                            tools::implementations::grok_build::task::types::SubagentResult {
-                                success: false,
-                                error: Some(format!(
-                                    "Failed to start the subagent worker runtime: {err}"
-                                )),
-                                subagent_id: run.request.id.clone(),
-                                child_session_id: run.request.id,
-                                ..Default::default()
-                            },
+                        result: tools::implementations::grok_build::task::types::SubagentResult {
+                            success: false,
+                            error: Some(format!(
+                                "Failed to start the subagent worker runtime: {err}"
+                            )),
+                            subagent_id: run.request.id.clone(),
+                            child_session_id: run.request.id,
+                            ..Default::default()
+                        },
                         completion_data: Default::default(),
                         snapshot_ref: None,
                     };
@@ -434,8 +433,7 @@ pub(crate) fn inject_subagent_completed_prompt(params: InjectParams) {
         }
         return;
     };
-    let summary =
-        tools::implementations::grok_build::task::completion_summary(request, result);
+    let summary = tools::implementations::grok_build::task::completion_summary(request, result);
     let message = tools::reminders::task_completion::format_subagent_completion(
         &summary,
         Some(task_output_tool_name),

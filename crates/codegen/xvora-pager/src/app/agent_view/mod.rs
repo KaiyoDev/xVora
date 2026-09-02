@@ -1892,12 +1892,10 @@ fn translate_local_submit(
             let option = qv.questions.first().and_then(|q| q.options.get(*idx));
             let id = option.and_then(|o| o.id.as_deref());
             if id == Some(super::dispatch::CREDIT_LIMIT_RETRY_OPTION_ID) {
-                telemetry::session_ctx::log_event(
-                    telemetry::events::CreditLimitUpsellClicked {
-                        surface: telemetry::events::CreditLimitUpsellSurface::QuestionModal,
-                        choice: telemetry::events::CreditLimitChoice::RetryLastPrompt,
-                    },
-                );
+                telemetry::session_ctx::log_event(telemetry::events::CreditLimitUpsellClicked {
+                    surface: telemetry::events::CreditLimitUpsellSurface::QuestionModal,
+                    choice: telemetry::events::CreditLimitChoice::RetryLastPrompt,
+                });
                 return InputOutcome::Action(Action::RetryCreditLimitPrompt);
             }
             let url = id.unwrap_or(super::dispatch::UPSELL_URL_PAYG);
@@ -1905,12 +1903,10 @@ fn translate_local_submit(
                 .get(*idx)
                 .copied()
                 .unwrap_or(telemetry::events::CreditLimitChoice::PayAsYouGo);
-            telemetry::session_ctx::log_event(
-                telemetry::events::CreditLimitUpsellClicked {
-                    surface: telemetry::events::CreditLimitUpsellSurface::QuestionModal,
-                    choice,
-                },
-            );
+            telemetry::session_ctx::log_event(telemetry::events::CreditLimitUpsellClicked {
+                surface: telemetry::events::CreditLimitUpsellSurface::QuestionModal,
+                choice,
+            });
             InputOutcome::Action(Action::OpenUrl(url.to_string()))
         }
         LocalQuestionKind::FreeUsageUpsell { source } => {
@@ -1920,12 +1916,10 @@ fn translate_local_submit(
                 .and_then(|q| q.options.get(*idx))
                 .and_then(|o| o.id.as_deref())
                 .unwrap_or(super::dispatch::UPSELL_URL_UPGRADE);
-            telemetry::session_ctx::log_event(
-                telemetry::events::SuperGrokUpsellClicked {
-                    source,
-                    auth_method: None,
-                },
-            );
+            telemetry::session_ctx::log_event(telemetry::events::SuperGrokUpsellClicked {
+                source,
+                auth_method: None,
+            });
             InputOutcome::Action(Action::OpenUrl(url.to_string()))
         }
         LocalQuestionKind::AgentTypeMismatch { model_id, effort } => {

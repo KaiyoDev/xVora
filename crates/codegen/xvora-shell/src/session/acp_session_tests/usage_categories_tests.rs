@@ -25,14 +25,12 @@ fn install_mcp_servers(actor: &SessionActor) {
 async fn seed_skills(actor: &SessionActor, names: &[&str]) {
     let skills = names
         .iter()
-        .map(
-            |name| tools::implementations::skills::types::SkillInfo {
-                name: name.to_string(),
-                description: format!("Does {name} things."),
-                path: format!("/skills/{name}/SKILL.md"),
-                ..Default::default()
-            },
-        )
+        .map(|name| tools::implementations::skills::types::SkillInfo {
+            name: name.to_string(),
+            description: format!("Does {name} things."),
+            path: format!("/skills/{name}/SKILL.md"),
+            ..Default::default()
+        })
         .collect();
     let bridge = actor.tool_bridge_handle();
     bridge

@@ -77,25 +77,23 @@ impl SessionActor {
         total_chunks_at_end: usize,
         session_end_result: &str,
     ) {
-        telemetry::session_ctx::log_event(
-            telemetry::memory_telemetry::MemorySessionSummary {
-                session_id: self.session_info.id.to_string(),
-                memory_enabled: self.memory.is_enabled(),
-                session_duration_secs: self.session_start.elapsed().as_secs(),
-                flush_count: telem.flush_count,
-                flush_success_count: telem.flush_success_count,
-                flush_error_count: telem.flush_error_count,
-                tool_search_count: telem.tool_search_count,
-                injection_count: telem.injection_count,
-                recovery_search_count: telem.compaction_recovery_count,
-                total_chunks_at_end,
-                chunks_added_this_session: telem.chunks_added as usize,
-                session_end_result: session_end_result.to_owned(),
-                dream_count: telem.dream_count,
-                dream_success_count: telem.dream_success_count,
-                dream_error_count: telem.dream_error_count,
-            },
-        );
+        telemetry::session_ctx::log_event(telemetry::memory_telemetry::MemorySessionSummary {
+            session_id: self.session_info.id.to_string(),
+            memory_enabled: self.memory.is_enabled(),
+            session_duration_secs: self.session_start.elapsed().as_secs(),
+            flush_count: telem.flush_count,
+            flush_success_count: telem.flush_success_count,
+            flush_error_count: telem.flush_error_count,
+            tool_search_count: telem.tool_search_count,
+            injection_count: telem.injection_count,
+            recovery_search_count: telem.compaction_recovery_count,
+            total_chunks_at_end,
+            chunks_added_this_session: telem.chunks_added as usize,
+            session_end_result: session_end_result.to_owned(),
+            dream_count: telem.dream_count,
+            dream_success_count: telem.dream_success_count,
+            dream_error_count: telem.dream_error_count,
+        });
     }
 
     /// Session-end memory save and summary telemetry, shared by the Shutdown and channel-closed arms.
@@ -750,17 +748,15 @@ impl SessionActor {
             "error"
         };
         self.memory.record_flush_result(flush_outcome);
-        telemetry::session_ctx::log_event(
-            telemetry::memory_telemetry::MemoryFlushComplete {
-                session_id: self.session_info.id.to_string(),
-                trigger: trigger.to_owned(),
-                outcome: flush_outcome.to_owned(),
-                duration_ms: flush_start.elapsed().as_millis() as u64,
-                response_length: response_len,
-                accepted_length: accepted_len,
-                was_truncated,
-            },
-        );
+        telemetry::session_ctx::log_event(telemetry::memory_telemetry::MemoryFlushComplete {
+            session_id: self.session_info.id.to_string(),
+            trigger: trigger.to_owned(),
+            outcome: flush_outcome.to_owned(),
+            duration_ms: flush_start.elapsed().as_millis() as u64,
+            response_length: response_len,
+            accepted_length: accepted_len,
+            was_truncated,
+        });
 
         let flush_trigger = match trigger {
             "slash_command" => telemetry::events::MemoryFlushTrigger::SlashCommand,
@@ -791,9 +787,7 @@ impl SessionActor {
             self.chat_state_handle.get_conversation(),
         );
         let chat_history =
-            chat_state::compaction_utils::prepare_conversation_for_summarization(
-                conversation,
-            );
+            chat_state::compaction_utils::prepare_conversation_for_summarization(conversation);
         MemoryFlushSnapshot {
             counts,
             chat_history,

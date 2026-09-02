@@ -1,3 +1,4 @@
+use agent::prompt::skills::SkillsConfig;
 use agent_client_protocol as acp;
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -5,7 +6,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use toml::Value as TomlValue;
 use toml::map::Map as TomlMap;
-use agent::prompt::skills::SkillsConfig;
 use tools::types::compat::{CompatConfig, CompatConfigToml};
 
 pub use mcp::oauth_config::{McpOAuthConfig, McpOAuthConfigMap};
@@ -1711,12 +1711,8 @@ pub fn load_cli_plugin_registry(cwd: &std::path::Path) -> agent::plugins::Plugin
     let project_trusted = crate::agent::folder_trust::resolve_and_record(cwd, None, false);
     let plugins_cfg = crate::config::resolve_effective_plugins_config(cwd);
     let mut plugin_config = plugins_cfg.to_discovery_config();
-    let discovered = agent::plugins::discover_plugins(
-        Some(cwd),
-        &plugin_config,
-        &trust_store,
-        project_trusted,
-    );
+    let discovered =
+        agent::plugins::discover_plugins(Some(cwd), &plugin_config, &trust_store, project_trusted);
     plugin_config.populate_plugin_lists(&discovered);
     agent::plugins::PluginRegistry::from_discovered(
         discovered,

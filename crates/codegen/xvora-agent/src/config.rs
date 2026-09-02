@@ -1092,9 +1092,7 @@ impl MemoryScope {
     pub fn resolve_dir(self, agent_name: &str, project_cwd: &std::path::Path) -> ResolvedMemoryDir {
         match self {
             Self::User => ResolvedMemoryDir {
-                path: config::grok_home()
-                    .join("agent-memory")
-                    .join(agent_name),
+                path: config::grok_home().join("agent-memory").join(agent_name),
                 is_project_scoped: false,
             },
             Self::Project => ResolvedMemoryDir {
@@ -1386,10 +1384,7 @@ impl AgentDefinition {
     }
     /// Swap the definition's file tools for the equivalents in `file_tools` (hashline vs standard), slot by slot.
     /// Never grants a slot the definition doesn't already have (read-only toolsets stay read-only).
-    pub fn override_file_tools(
-        &mut self,
-        file_tools: Vec<tools::registry::types::ToolConfig>,
-    ) {
+    pub fn override_file_tools(&mut self, file_tools: Vec<tools::registry::types::ToolConfig>) {
         const FILE_TOOL_SLOTS: &[[&str; 2]] = &[
             ["GrokBuild:read_file", "GrokBuildHashline:hashline_read"],
             [
@@ -1521,9 +1516,7 @@ impl AgentDefinition {
     pub fn general_purpose() -> Self {
         use crate::prompt::subagent_prompts;
         Self {
-            description: tool_types::GENERAL_PURPOSE_SUBAGENT
-                .description
-                .to_string(),
+            description: tool_types::GENERAL_PURPOSE_SUBAGENT.description.to_string(),
             tool_config: general_purpose_toolset(),
             prompt_body: Some(subagent_prompts::GENERAL_PURPOSE_PROMPT.to_string()),
             ..Self::base(BuiltinAgentName::GeneralPurpose, "")

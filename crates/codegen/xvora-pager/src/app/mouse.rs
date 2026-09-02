@@ -203,11 +203,9 @@ impl AgentView {
                         tracing::warn!(error = %e, "couldn't persist plugin CTA dismissal");
                     }
                     self.plugin_cta.dismissed.insert(plugin_id.clone());
-                    telemetry::session_ctx::log_event(
-                        telemetry::events::PluginCtaDismissed {
-                            plugin_name: plugin_id,
-                        },
-                    );
+                    telemetry::session_ctx::log_event(telemetry::events::PluginCtaDismissed {
+                        plugin_name: plugin_id,
+                    });
                     self.plugin_cta.phase = CtaPhase::Hidden;
                     self.plugin_cta.hit_connect.clear();
                     self.plugin_cta.hit_dismiss.clear();

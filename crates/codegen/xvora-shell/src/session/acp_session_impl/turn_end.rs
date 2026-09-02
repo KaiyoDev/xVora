@@ -131,8 +131,7 @@ impl SessionActor {
     pub(super) async fn outstanding_reply_for_prompt(
         &self,
         prompt_id: &str,
-    ) -> Option<tools::implementations::grok_build::task::types::SubagentOutstandingReply>
-    {
+    ) -> Option<tools::implementations::grok_build::task::types::SubagentOutstandingReply> {
         let Some(tx) = &self.tool_context.subagent_event_tx else {
             return Some(Default::default());
         };
@@ -156,9 +155,7 @@ impl SessionActor {
     /// Whether usage should be reported incomplete; the error-path attach and tests call this.
     /// Delegates to [`super::turn::UsageDrainOutcome::report_incomplete`].
     pub(super) fn usage_incomplete_from_reply(
-        reply: Option<
-            &tools::implementations::grok_build::task::types::SubagentOutstandingReply,
-        >,
+        reply: Option<&tools::implementations::grok_build::task::types::SubagentOutstandingReply>,
     ) -> bool {
         super::turn::UsageDrainOutcome::from_outstanding_reply(reply).report_incomplete()
     }

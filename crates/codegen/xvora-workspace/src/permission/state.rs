@@ -3,8 +3,8 @@
 use crate::permission::types::EditPolicy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use xvora_paths::AbsPathBuf;
 use tools::util::grok_home::grok_home;
+use xvora_paths::AbsPathBuf;
 
 const VALIDATED_MCP_SERVER_GRANTS_VERSION: i64 = 1;
 
@@ -1246,10 +1246,7 @@ allowed_mcp_servers = ["a"]
         let dir = dunce::canonicalize(tmp.path()).unwrap();
         let cwd = AbsPathBuf::new(dir.clone()).unwrap();
         // Guard: skip if the system temp dir is itself inside a repo.
-        if agent::repo::RepoDirChain::resolve(&dir)
-            .git_root
-            .is_none()
-        {
+        if agent::repo::RepoDirChain::resolve(&dir).git_root.is_none() {
             assert_eq!(permission_scope_root(&cwd), dir);
             assert!(legacy_state_dir(&cwd, &state_dir_for_cwd(&cwd)).is_none());
         }

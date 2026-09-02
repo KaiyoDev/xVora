@@ -15,8 +15,7 @@ pub use tty_utils::{
 pub async fn reap_killed_search_child(
     child: &mut tokio::process::Child,
 ) -> Option<std::process::ExitStatus> {
-    let status =
-        tty_utils::reap_killed_bounded(child, tty_utils::KILL_REAP_TIMEOUT).await;
+    let status = tty_utils::reap_killed_bounded(child, tty_utils::KILL_REAP_TIMEOUT).await;
     if status.is_none() {
         tracing::warn!(
             reap_timeout_secs = tty_utils::KILL_REAP_TIMEOUT.as_secs(),

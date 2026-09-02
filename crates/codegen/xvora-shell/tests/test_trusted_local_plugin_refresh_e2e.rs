@@ -14,14 +14,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use serial_test::serial;
-use tempfile::TempDir;
 use agent::plugins::SharedPluginRegistryHandle;
 use agent::plugins::discovery::DiscoveryConfig;
 use agent::plugins::git_install::{InstallSource, install_from_source};
-use agent::plugins::install_registry::{
-    InstallKind, InstallRegistry, InstalledRepo, RepoPlugin,
-};
+use agent::plugins::install_registry::{InstallKind, InstallRegistry, InstalledRepo, RepoPlugin};
+use serial_test::serial;
+use tempfile::TempDir;
 use test_support::*;
 
 fn write_minimal_plugin(dir: &Path, name: &str) {

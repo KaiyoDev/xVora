@@ -27,8 +27,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, warn};
-use url::Url;
 use tool_protocol::{
     ConnectionKind, HookEvent, HookFrame, HookReplyFrame, JsonRpcError, JsonRpcId,
     JsonRpcNotification, JsonRpcResponse, JsonRpcVersion, Method, ResponseOutcome, SessionId,
@@ -40,6 +38,8 @@ use tool_runtime::{
     ToolStreamItem, TraceContext, TypedToolOutput,
 };
 use tool_types::ToolDescription;
+use tracing::{debug, warn};
+use url::Url;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::cancel::CancelRegistry;
@@ -89,8 +89,7 @@ fn system_notify_ack_from_outcome(
         // require `data` absent so a richer error still flows through the normal taxonomy.
         ResponseOutcome::Error(err)
             if err.data.is_none()
-                && tool_protocol::error_codes::string_for(err.code)
-                    == Some("method_not_found") =>
+                && tool_protocol::error_codes::string_for(err.code) == Some("method_not_found") =>
         {
             Ok(SystemNotifyAck::ForwardingUnsupported)
         }
@@ -2345,9 +2344,8 @@ async fn execute_call(
         .unwrap_or_else(fastrace::Span::noop);
 
     let mut ctx = ToolCallContext::new(params.tool_call_id.clone());
-    ctx.extensions.insert(tool_runtime::SessionContext(
-        session_id.as_str().to_owned(),
-    ));
+    ctx.extensions
+        .insert(tool_runtime::SessionContext(session_id.as_str().to_owned()));
     if let Some(cwd) = params.cwd {
         ctx.extensions.insert(Cwd(std::path::PathBuf::from(cwd)));
     }

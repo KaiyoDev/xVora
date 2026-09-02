@@ -3,9 +3,9 @@ use super::*;
 use crate::terminal::AsyncTerminalRunner;
 use crate::terminal::runner::{TerminalError, TerminalRunRequest, TerminalRunResult};
 use tokio::sync::mpsc;
-use xvora_paths::AbsPathBuf;
 use workspace::file_system::MockFs;
 use workspace::permission::PermissionHandle;
+use xvora_paths::AbsPathBuf;
 #[derive(Debug)]
 struct DummyTerminal;
 #[async_trait::async_trait]
@@ -282,8 +282,7 @@ async fn test_should_auto_compact_triggers_at_threshold() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(85_000, 100_000, 85, gateway_tx, persistence_tx).await;
             let result =
@@ -301,8 +300,7 @@ async fn test_should_auto_compact_below_threshold() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(84_000, 100_000, 85, gateway_tx, persistence_tx).await;
             let result =
@@ -316,8 +314,7 @@ async fn test_check_auto_compact_needed_uses_state() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(90_000, 100_000, 85, gateway_tx, persistence_tx).await;
             let result = actor.check_auto_compact_needed().await;
@@ -334,8 +331,7 @@ async fn test_context_window_override_affects_auto_compact() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(86_000, 100_000, 85, gateway_tx, persistence_tx).await;
             let result = actor.check_auto_compact_needed().await;
@@ -359,8 +355,7 @@ async fn test_context_window_override_to_smaller_triggers_compact() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(86_000, 200_000, 85, gateway_tx, persistence_tx).await;
             let result = actor.check_auto_compact_needed().await;
@@ -384,8 +379,7 @@ async fn test_response_header_context_window_downgrade_rejected() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(200_000, 500_000, 85, gateway_tx, persistence_tx).await;
             let cfg_before = actor.chat_state_handle.get_sampling_config().await.unwrap();

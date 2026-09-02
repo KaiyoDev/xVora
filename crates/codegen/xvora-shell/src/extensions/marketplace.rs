@@ -820,8 +820,7 @@ async fn handle_add_source(url: &str) -> hooks_plugins_types::ActionOutcome {
     };
 
     // Local paths never match the git-URL allowlist, so a restricted strictKnownMarketplaces policy blocks them (intentionally fail-closed)
-    let allowlist =
-        &workspace::permission::resolution::managed_settings().marketplace_allowlist;
+    let allowlist = &workspace::permission::resolution::managed_settings().marketplace_allowlist;
     if allowlist.is_restricted() && !allowlist.is_url_allowed(&identity) {
         return ActionOutcome {
             status: OutcomeStatus::ValidationError,
@@ -1023,9 +1022,7 @@ fn add_marketplace_source(
 
 /// Remove a marketplace source from `~/.grok/config.toml` and uninstall all
 /// plugins that were installed from it.
-async fn handle_remove_source(
-    source_url_or_path: &str,
-) -> hooks_plugins_types::ActionOutcome {
+async fn handle_remove_source(source_url_or_path: &str) -> hooks_plugins_types::ActionOutcome {
     let src = source_url_or_path.to_string();
     // Lock, then run the blocking FS work off the reactor
     let _save_guard = crate::util::config::lock_config_writes().await;
@@ -1225,12 +1222,7 @@ fn is_default_skills_plugin_subdir(plugin_subdir: &str) -> bool {
 }
 
 fn default_skills_repo_keys<'a>(
-    repos: impl IntoIterator<
-        Item = (
-            &'a str,
-            &'a agent::plugins::install_registry::InstalledRepo,
-        ),
-    >,
+    repos: impl IntoIterator<Item = (&'a str, &'a agent::plugins::install_registry::InstalledRepo)>,
 ) -> Vec<&'a str> {
     repos
         .into_iter()

@@ -7,8 +7,8 @@ use crate::permission::bash_command_splitting::{
 use crate::permission::types::{
     AccessKind, Decision, PatternMode, PermissionConfig, PermissionRule, RuleAction, ToolFilter,
 };
-use xvora_paths::normalize_lexically;
 use tools::implementations::grok_build::web_fetch::domain::normalize_domain;
+use xvora_paths::normalize_lexically;
 
 /// A security-gate escalation with `Ask` provenance.
 /// The bash-command and shell-file gates only escalate (rule `Allow` is dropped), so these three arms cover every gate outcome.

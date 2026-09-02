@@ -4,11 +4,11 @@
 
 mod trust;
 
+pub use ratatui_textarea::{ClipboardProvider, InternalClipboard};
 pub use trust::{
     ClipboardDelivery, ClipboardEnvironment, NativeClipboardPreflight, Osc52Capability,
     expected_delivery, native_clipboard_preflight,
 };
-pub use ratatui_textarea::{ClipboardProvider, InternalClipboard};
 
 use std::sync::OnceLock;
 
@@ -183,10 +183,8 @@ fn write_tmux_buffer(text: &str) -> bool {
         #[allow(clippy::disallowed_methods)] // short-lived clipboard helper, waited on below
         let mut child = cmd.spawn()?;
         // Bounded wait: a wedged tmux server must not freeze the UI thread.
-        let status = shared::clipboard::wait_with_deadline(
-            &mut child,
-            std::time::Duration::from_secs(2),
-        )?;
+        let status =
+            shared::clipboard::wait_with_deadline(&mut child, std::time::Duration::from_secs(2))?;
         if !status.success() {
             return Err(format!("tmux load-buffer exited with {status}").into());
         }

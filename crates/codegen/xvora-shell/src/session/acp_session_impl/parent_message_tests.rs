@@ -385,8 +385,7 @@ async fn completion_fallback_appends_after_retained_queue() {
     await_with_timeout(local.run_until(async {
         let (actor, _) = await_with_timeout(super::super::support::build_actor()).await;
         let task = super::super::support::running_task_stub("running");
-        let binding =
-            message_delivery_core::TurnBinding::new("running".to_owned(), task.epoch);
+        let binding = message_delivery_core::TurnBinding::new("running".to_owned(), task.epoch);
         let (completion_tx, _completion_rx) = mpsc::unbounded_channel();
         {
             let mut state = await_with_timeout(actor.state.lock()).await;
@@ -600,9 +599,7 @@ async fn unresolved_persistence_barrier_does_not_block_hard_teardown() {
             .expect("barrier was enqueued");
 
         await_with_timeout(
-            actor.settle_all_parent_messages(
-                message_delivery_core::TerminalCause::HardTeardown,
-            ),
+            actor.settle_all_parent_messages(message_delivery_core::TerminalCause::HardTeardown),
         )
         .await;
         let state = actor.state.lock().await;

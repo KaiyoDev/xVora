@@ -820,9 +820,7 @@ impl FileStateTracker {
 }
 
 // Canonical in xvora-workspace-types; re-exported for existing paths.
-pub use workspace_types::rpc::session::{
-    ConflictType, FileRewindConflict, FileRewindResponse,
-};
+pub use workspace_types::rpc::session::{ConflictType, FileRewindConflict, FileRewindResponse};
 
 /// Rewind files to the state before `target_prompt_index`.
 ///

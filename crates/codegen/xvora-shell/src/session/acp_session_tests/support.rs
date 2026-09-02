@@ -708,8 +708,8 @@ pub(crate) fn install_permission_manager(
     yolo: bool,
     gateway: acp_lib::AcpAgentGatewaySender,
 ) {
-    use xvora_paths::AbsPathBuf;
     use workspace::permission::{ClientType, spawn_permission_manager};
+    use xvora_paths::AbsPathBuf;
     let cwd = AbsPathBuf::new(std::path::PathBuf::from(actor.session_info.cwd.clone()))
         .unwrap_or_else(|_| AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap());
     let (handle, _ev) = spawn_permission_manager(

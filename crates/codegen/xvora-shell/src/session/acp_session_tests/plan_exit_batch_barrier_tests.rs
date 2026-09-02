@@ -86,9 +86,7 @@ async fn seeded_active_plan_actor_with_edit_tools() -> (
         .agent
         .borrow()
         .tool_bridge()
-        .update_resource(tools::types::resources::PlanFilePath(
-            plan_path.clone(),
-        ))
+        .update_resource(tools::types::resources::PlanFilePath(plan_path.clone()))
         .await;
     // Phase-2 file tools dispatch through workspace_ops; without a bound session, search_replace hard-errors before writing plan.md
     actor
@@ -198,11 +196,11 @@ async fn mixed_permission_cancel_skips_exit_reverse_request() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            use xvora_paths::AbsPathBuf;
             use tools::implementations::grok_build::enter_plan_mode::EnterPlanModeTool;
             use tools::implementations::grok_build::exit_plan_mode::ExitPlanModeTool;
             use tools::registry::types::ToolConfig;
             use workspace::permission::{ClientType, spawn_permission_manager};
+            use xvora_paths::AbsPathBuf;
 
             let (gateway_tx, mut gateway_rx) =
                 tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();

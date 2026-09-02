@@ -1227,10 +1227,7 @@ fn dispatch_reset_session_title_clears_titles_and_emits_effect() {
             assert_eq!(*agent_id, AgentId(0));
             assert_eq!(session_id.0.as_ref(), "test-session");
             assert_eq!(cwd, std::path::Path::new("/tmp"));
-            assert_eq!(
-                *kind,
-                shell::session::unified_list::SessionKind::Build
-            );
+            assert_eq!(*kind, shell::session::unified_list::SessionKind::Build);
             assert_eq!(previous_display_name.as_deref(), Some("Manual"));
             assert_eq!(previous_generated_title.as_deref(), Some("Manual"));
         }

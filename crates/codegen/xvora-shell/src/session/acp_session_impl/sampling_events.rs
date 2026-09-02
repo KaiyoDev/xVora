@@ -16,10 +16,7 @@ impl SessionActor {
     /// Called from the drainer task spawned in `spawn_session_actor`, which loops `while let Some(event) = sampler_event_rx.recv().await`.
     /// This function only maps events; recovery (compaction, friendly errors) lives in [`Self::handle_sampling_failure`] in the turn loop.
     /// Recovery runs there because it needs per-turn state and may call back into `sampler_handle.update_config` or resubmit.
-    pub(crate) async fn handle_sampling_event(
-        self: &Arc<Self>,
-        event: sampler::SamplingEvent,
-    ) {
+    pub(crate) async fn handle_sampling_event(self: &Arc<Self>, event: sampler::SamplingEvent) {
         use sampler::{SamplingChannel, SamplingEvent};
 
         let request_owned = self

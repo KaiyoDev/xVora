@@ -154,10 +154,8 @@ impl WorkspaceSession {
             return;
         }
         prompts.sort_unstable();
-        let mut file_states: HashMap<
-            std::path::PathBuf,
-            hunk_tracker::FileHunkStateSnapshot,
-        > = HashMap::new();
+        let mut file_states: HashMap<std::path::PathBuf, hunk_tracker::FileHunkStateSnapshot> =
+            HashMap::new();
         let mut turn_index: HashMap<usize, HashSet<HunkId>> = HashMap::new();
         for idx in prompts {
             let delta = &store[&idx];

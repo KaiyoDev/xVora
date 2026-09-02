@@ -9,8 +9,8 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
-use std::path::PathBuf;
 use shell::claude_import::{ImportPlan, ImportableItem, PathKind, find_project_root};
+use std::path::PathBuf;
 use workspace::permission::types::RuleAction;
 
 use crate::theme::Theme;

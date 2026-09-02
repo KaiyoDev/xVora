@@ -545,14 +545,7 @@ fn surviving_definition(
 ) -> Option<(McpScope, PathBuf)> {
     project_site
         .map(|path| (McpScope::Project, path))
-        .or_else(|| {
-            user_defined.then(|| {
-                (
-                    McpScope::User,
-                    shell::util::config::user_config_path(),
-                )
-            })
-        })
+        .or_else(|| user_defined.then(|| (McpScope::User, shell::util::config::user_config_path())))
 }
 
 /// Known names come from TOML, the disabled list, compat JSON, and plugins.
@@ -600,8 +593,7 @@ async fn run_set_enabled(name: &str, enabled: bool) -> Result<()> {
 
     let was_disabled = shell::util::config::disabled_mcp_server_names(&cwd).contains(name);
 
-    let modified =
-        shell::util::config::save_mcp_server_enabled_in(name, enabled, &cwd).await?;
+    let modified = shell::util::config::save_mcp_server_enabled_in(name, enabled, &cwd).await?;
 
     let now_disabled = shell::util::config::disabled_mcp_server_names(&cwd).contains(name);
     let now_enabled = !now_disabled;

@@ -14,8 +14,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use xvora_pager_pty_harness::{PtyHarness, pager_binary};
 use test_support::TestSandbox;
+use xvora_pager_pty_harness::{PtyHarness, pager_binary};
 
 const ROWS: u16 = 40;
 const COLS: u16 = 120;

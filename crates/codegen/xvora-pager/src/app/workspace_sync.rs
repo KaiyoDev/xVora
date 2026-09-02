@@ -2,11 +2,11 @@
 use super::actions::Effect;
 use super::agent_view::AgentView;
 use super::app_view::AppView;
-use std::time::UNIX_EPOCH;
 use dashboard_store::{
     MAX_CWD_BYTES, MAX_MODEL_BYTES, MAX_SUMMARY_BYTES, MAX_TITLE_BYTES, Member, MemberKind,
     MemberMetadata, MemberOrigin, NewMember, SessionId, WORKSPACE_CAPACITY,
 };
+use std::time::UNIX_EPOCH;
 /// Record that agent state may need mirroring into the initialized workspace.
 pub(crate) fn request(app: &mut AppView) {
     if app.workspace_dashboard_enabled

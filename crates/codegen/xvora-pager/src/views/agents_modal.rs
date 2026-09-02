@@ -9,19 +9,19 @@ use crate::theme::Theme;
 use crate::views::modal_window::{
     self, ModalContentArea, ModalSizing, ModalWindowConfig, ModalWindowState, Shortcut,
 };
+use agent::config::{AgentDefinition, AgentScope, BuiltinAgentName};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
+use shell::agent::config::AgentSelectionConfig;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use unicode_width::UnicodeWidthStr;
-use agent::config::{AgentDefinition, AgentScope, BuiltinAgentName};
-use shell::agent::config::AgentSelectionConfig;
 use tools::implementations::skills::discovery::extract_first_paragraph;
 use tools::registry::types::ToolServerConfig;
 use tools::types::template_renderer::TemplateRenderer;
 use tools::types::tool::ToolKind;
+use unicode_width::UnicodeWidthStr;
 /// Which tab is active in the agents modal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentsTab {

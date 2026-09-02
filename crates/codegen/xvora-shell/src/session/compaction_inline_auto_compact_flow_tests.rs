@@ -7,9 +7,9 @@ use crate::terminal::runner::{TerminalError, TerminalRunRequest, TerminalRunResu
 use std::sync::OnceLock;
 use std::sync::atomic::Ordering::Relaxed;
 use tokio::sync::mpsc;
-use xvora_paths::AbsPathBuf;
 use workspace::file_system::MockFs;
 use workspace::permission::PermissionHandle;
+use xvora_paths::AbsPathBuf;
 #[derive(Debug)]
 struct DummyTerminal;
 #[async_trait::async_trait]
@@ -1845,8 +1845,7 @@ async fn get_transcript_path_returns_some_when_file_exists() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor =
                 create_test_actor(50_000, 200_000, 85, gateway_tx, persistence_tx).await;

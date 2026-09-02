@@ -1,7 +1,7 @@
 //! Dedicated binary: production `remove_var` must not race the lib test suite.
 
-use std::process::Stdio;
 use shell::agent::external_otel_pin;
+use std::process::Stdio;
 use tty_utils::{detach_std_command, pager_env};
 
 const DECOY: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";

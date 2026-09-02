@@ -3,9 +3,9 @@ use super::*;
 use crate::terminal::AsyncTerminalRunner;
 use crate::terminal::runner::{TerminalError, TerminalRunRequest, TerminalRunResult};
 use tokio::sync::mpsc;
-use xvora_paths::AbsPathBuf;
 use workspace::file_system::MockFs;
 use workspace::permission::PermissionHandle;
+use xvora_paths::AbsPathBuf;
 #[derive(Debug)]
 struct DummyTerminal;
 #[async_trait::async_trait]

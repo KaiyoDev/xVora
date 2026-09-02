@@ -210,10 +210,7 @@ impl MarkdownContent {
         f(state.renderer.view().hyperlinks)
     }
 
-    pub fn with_table_copy_meta<R>(
-        &self,
-        f: impl FnOnce(&[markdown::TableCopyMeta]) -> R,
-    ) -> R {
+    pub fn with_table_copy_meta<R>(&self, f: impl FnOnce(&[markdown::TableCopyMeta]) -> R) -> R {
         let state = self.state.borrow();
         f(state.renderer.view().tables)
     }

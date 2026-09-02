@@ -11,9 +11,7 @@ use telemetry::region;
 use telemetry::region::Parent as SpanParent;
 use telemetry::subagent_spawn::phase_region_under;
 static SESSIONS_ACTIVE: telemetry::activity::ActivityGauge =
-    telemetry::activity::ActivityGauge::residency(
-        telemetry::activity::SESSIONS_ACTIVE_KEY,
-    );
+    telemetry::activity::ActivityGauge::residency(telemetry::activity::SESSIONS_ACTIVE_KEY);
 /// Drop catch-all `--allow` rules (the `--yolo` substitute, see `resolution::is_catchall_allow`)
 /// when `policy_block` is set; keep everything else. Pure, so it is unit-testable.
 fn drop_cli_catchall_allows(
@@ -286,9 +284,7 @@ pub(crate) async fn spawn_session_actor(
     todo_gate: bool,
     remote_settings: Option<crate::util::config::RemoteSettings>,
     laziness_debug_log: Option<std::path::PathBuf>,
-    parent_terminal_backend: Option<
-        std::sync::Arc<dyn tools::computer::types::TerminalBackend>,
-    >,
+    parent_terminal_backend: Option<std::sync::Arc<dyn tools::computer::types::TerminalBackend>>,
     parent_scheduler_handle: Option<
         tools::implementations::grok_build::scheduler::types::SchedulerHandle,
     >,
@@ -337,7 +333,8 @@ pub(crate) async fn spawn_session_actor(
             crate::agent::folder_trust::project_scope_allowed(tool_context.cwd.as_path());
         let yolo_lock = workspace::permission::resolution::yolo_policy_lock();
         let yolo_pin = yolo_lock.as_ref().map(|lock| lock.reason.message());
-        let mut permission_config = workspace::permission::resolution::resolve_permission_config_with_fallback_pinned(
+        let mut permission_config =
+            workspace::permission::resolution::resolve_permission_config_with_fallback_pinned(
                 tool_context.cwd.as_path(),
                 project_trusted,
                 yolo_lock.as_ref(),
@@ -365,10 +362,9 @@ pub(crate) async fn spawn_session_actor(
                     config.rules = merged;
                 }
                 None => {
-                    permission_config =
-                        Some(workspace::permission::types::PermissionConfig::new(
-                            cli_permission_rules,
-                        ));
+                    permission_config = Some(workspace::permission::types::PermissionConfig::new(
+                        cli_permission_rules,
+                    ));
                 }
             }
         }
@@ -599,8 +595,7 @@ pub(crate) async fn spawn_session_actor(
     let file_state_handle = FileStateHandle::new(file_state_tracker.clone());
     let task_completion_reservations =
         tools::reminders::task_completion::TaskCompletionReservations::default();
-    let task_wake_suppressed =
-        tools::reminders::task_completion::TaskWakeSuppressed::default();
+    let task_wake_suppressed = tools::reminders::task_completion::TaskWakeSuppressed::default();
     tool_context.task_completion_reservations = Some(task_completion_reservations.clone());
     tool_context.task_wake_suppressed = Some(task_wake_suppressed.clone());
     let synthetic_trace_tx_shared: std::sync::Arc<
@@ -706,8 +701,7 @@ pub(crate) async fn spawn_session_actor(
                 std::sync::Arc::new(crate::terminal::AcpTerminalAdapter::new(
                     tool_context.gateway.clone().unwrap(),
                     tool_context.session_id.clone().unwrap(),
-                ))
-                    as std::sync::Arc<dyn tools::computer::types::TerminalBackend>
+                )) as std::sync::Arc<dyn tools::computer::types::TerminalBackend>
             }
             TerminalBackendKind::LocalPersistent => {
                 std::sync::Arc::new(LocalTerminalBackend::new_local_with_persistent_shell(
@@ -885,23 +879,21 @@ pub(crate) async fn spawn_session_actor(
         );
         let mc = memory_config.as_ref();
         let total_chunks = storage.total_chunk_count();
-        telemetry::session_ctx::log_event(
-            telemetry::memory_telemetry::MemorySessionInit {
-                session_id: session_info.id.to_string(),
-                memory_enabled: true,
-                watcher_config_enabled: watcher_config.enabled,
-                watcher_started,
-                temporal_decay_enabled: mc.is_none_or(|c| c.search.temporal_decay.enabled),
-                mmr_enabled: mc.is_some_and(|c| c.search.mmr.enabled),
-                mmr_lambda: mc.map_or(0.7, |c| c.search.mmr.lambda),
-                half_life_days: mc.map_or(30.0, |c| c.search.temporal_decay.half_life_days),
-                embedding_dimensions: mc.map_or(1024, |c| c.embedding.dimensions),
-                total_chunks,
-                total_files: storage.list_memory_files().map_or(0, |f| f.len()),
-                has_global_memory_md: storage.global_memory_file().exists(),
-                has_workspace_memory_md: storage.workspace_memory_file().exists(),
-            },
-        );
+        telemetry::session_ctx::log_event(telemetry::memory_telemetry::MemorySessionInit {
+            session_id: session_info.id.to_string(),
+            memory_enabled: true,
+            watcher_config_enabled: watcher_config.enabled,
+            watcher_started,
+            temporal_decay_enabled: mc.is_none_or(|c| c.search.temporal_decay.enabled),
+            mmr_enabled: mc.is_some_and(|c| c.search.mmr.enabled),
+            mmr_lambda: mc.map_or(0.7, |c| c.search.mmr.lambda),
+            half_life_days: mc.map_or(30.0, |c| c.search.temporal_decay.half_life_days),
+            embedding_dimensions: mc.map_or(1024, |c| c.embedding.dimensions),
+            total_chunks,
+            total_files: storage.list_memory_files().map_or(0, |f| f.len()),
+            has_global_memory_md: storage.global_memory_file().exists(),
+            has_workspace_memory_md: storage.workspace_memory_file().exists(),
+        });
         Some(backend)
     } else {
         tracing::debug!(
@@ -919,12 +911,10 @@ pub(crate) async fn spawn_session_actor(
             .and_then(|r| r.scheduler_background_loops),
     );
     let managed_gateway_tool_client = auth_manager.as_ref().map(|am| {
-        tools::types::resources::ManagedGatewayToolClient(Arc::new(
-            ShellManagedGatewayToolClient {
-                proxy_base_url: managed_mcp_proxy_base_url.clone(),
-                auth_manager: am.clone(),
-            },
-        ))
+        tools::types::resources::ManagedGatewayToolClient(Arc::new(ShellManagedGatewayToolClient {
+            proxy_base_url: managed_mcp_proxy_base_url.clone(),
+            auth_manager: am.clone(),
+        }))
     });
     let mcp_state = {
         let mut state = McpState::new_with_meta(mcp_servers.clone(), mcp_meta_config_map);
@@ -1055,64 +1045,59 @@ pub(crate) async fn spawn_session_actor(
         })
         .await;
     let memory_retrieval_mode = configured_memory_retrieval_mode(memory_config.as_ref());
-    let harness_metrics = if !startup_hints.is_subagent
-        && (telemetry_enabled || telemetry::external::is_active())
-    {
-        let plugin_names = plugin_registry
-            .as_ref()
-            .map(|reg| {
-                reg.active_plugins()
+    let harness_metrics =
+        if !startup_hints.is_subagent && (telemetry_enabled || telemetry::external::is_active()) {
+            let plugin_names = plugin_registry
+                .as_ref()
+                .map(|reg| {
+                    reg.active_plugins()
+                        .iter()
+                        .map(|p| p.name.clone())
+                        .collect()
+                })
+                .unwrap_or_default();
+            Some(super::telemetry::SessionHarnessMetrics {
+                session_id: session_info.id.0.to_string(),
+                client_identifier: session_client_identifier.clone(),
+                model_id: session_model_id.0.to_string(),
+                agent_name: initial_agent_name,
+                permission_mode: if session_yolo_mode {
+                    telemetry::enums::PermissionMode::AlwaysApprove
+                } else if session_auto_mode
+                    && crate::util::config::auto_permission_mode_enabled_from_disk()
+                {
+                    telemetry::enums::PermissionMode::Auto
+                } else {
+                    telemetry::enums::PermissionMode::Ask
+                },
+                mcp_server_names: mcp_servers
                     .iter()
-                    .map(|p| p.name.clone())
-                    .collect()
+                    .map(|s| mcp_server_name(s).to_owned())
+                    .collect(),
+                lsp_server_names: tool_context.lsp_server_names.clone(),
+                memory_enabled: memory_config.as_ref().is_some_and(|config| config.enabled),
+                memory_retrieval_mode,
+                auto_update,
+                cwd: tool_context.cwd.as_str().to_owned(),
+                skill_names: agent.tool_bridge().skill_discovery_snapshot_names().await,
+                compat,
+                plugin_registry: plugin_registry.clone(),
+                plugin_names,
             })
-            .unwrap_or_default();
-        Some(super::telemetry::SessionHarnessMetrics {
-            session_id: session_info.id.0.to_string(),
-            client_identifier: session_client_identifier.clone(),
-            model_id: session_model_id.0.to_string(),
-            agent_name: initial_agent_name,
-            permission_mode: if session_yolo_mode {
-                telemetry::enums::PermissionMode::AlwaysApprove
-            } else if session_auto_mode
-                && crate::util::config::auto_permission_mode_enabled_from_disk()
-            {
-                telemetry::enums::PermissionMode::Auto
-            } else {
-                telemetry::enums::PermissionMode::Ask
-            },
-            mcp_server_names: mcp_servers
-                .iter()
-                .map(|s| mcp_server_name(s).to_owned())
-                .collect(),
-            lsp_server_names: tool_context.lsp_server_names.clone(),
-            memory_enabled: memory_config.as_ref().is_some_and(|config| config.enabled),
-            memory_retrieval_mode,
-            auto_update,
-            cwd: tool_context.cwd.as_str().to_owned(),
-            skill_names: agent.tool_bridge().skill_discovery_snapshot_names().await,
-            compat,
-            plugin_registry: plugin_registry.clone(),
-            plugin_names,
-        })
-    } else {
-        None
-    };
+        } else {
+            None
+        };
     let resolved_task_output =
-        tools::reminders::task_completion::resolve_task_output_tool_name(agent.tool_bridge())
-            .await;
+        tools::reminders::task_completion::resolve_task_output_tool_name(agent.tool_bridge()).await;
     let resolved_read =
         tools::reminders::task_completion::resolve_read_tool_name(agent.tool_bridge()).await;
     let resolved_scheduler_delete =
-        tools::reminders::task_completion::resolve_scheduler_delete_tool_name(
-            agent.tool_bridge(),
-        )
-        .await;
+        tools::reminders::task_completion::resolve_scheduler_delete_tool_name(agent.tool_bridge())
+            .await;
     let _ = task_output_tool_name.set(resolved_task_output.clone());
     let _ = read_tool_name.set(resolved_read);
-    tool_context.task_output_tool_name = resolved_task_output.unwrap_or_else(|| {
-        tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL.to_string()
-    });
+    tool_context.task_output_tool_name = resolved_task_output
+        .unwrap_or_else(|| tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL.to_string());
     tool_context.scheduler_delete_tool_name = resolved_scheduler_delete;
     let scheduler_handle_for_handle = {
         let toolset = agent.tool_bridge().toolset();
@@ -1260,12 +1245,11 @@ pub(crate) async fn spawn_session_actor(
         None
     };
     let force_compact = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let resolved_workspace_root = workspace::session::git::find_git_root_from_path(
-        std::path::Path::new(&session_info.cwd),
-    )
-    .ok()
-    .map(|p| p.to_string_lossy().to_string())
-    .unwrap_or_else(|| session_info.cwd.clone());
+    let resolved_workspace_root =
+        workspace::session::git::find_git_root_from_path(std::path::Path::new(&session_info.cwd))
+            .ok()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| session_info.cwd.clone());
     let current_prompt_id = std::sync::Arc::new(std::sync::Mutex::new(None));
     let pending_interactions: crate::session::pending_interaction::PendingInteractions =
         std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
@@ -1934,9 +1918,9 @@ pub(crate) async fn spawn_session_actor(
             .agent
             .borrow()
             .tool_bridge()
-            .update_resource(tools::types::tool_index::ToolIndex(
-                std::sync::Arc::new(tool_index),
-            ))
+            .update_resource(tools::types::tool_index::ToolIndex(std::sync::Arc::new(
+                tool_index,
+            )))
             .await;
     }
     if let Some(client) = managed_gateway_tool_client.clone() {
@@ -2043,18 +2027,16 @@ pub(crate) async fn spawn_session_actor(
                 } else {
                     0
                 };
-                telemetry::session_ctx::log_event(
-                    telemetry::memory_telemetry::MemoryReindex {
-                        session_id: session_id_for_reindex.clone(),
-                        source: "init".to_owned(),
-                        added: total_added,
-                        updated: total_updated,
-                        removed: total_removed,
-                        embedded: embedded_count,
-                        duration_ms: reindex_start.elapsed().as_millis() as u64,
-                        trigger: "init".to_owned(),
-                    },
-                );
+                telemetry::session_ctx::log_event(telemetry::memory_telemetry::MemoryReindex {
+                    session_id: session_id_for_reindex.clone(),
+                    source: "init".to_owned(),
+                    added: total_added,
+                    updated: total_updated,
+                    removed: total_removed,
+                    embedded: embedded_count,
+                    duration_ms: reindex_start.elapsed().as_millis() as u64,
+                    trigger: "init".to_owned(),
+                });
                 chunks_added_counter
                     .fetch_add(total_added as u64, std::sync::atomic::Ordering::Relaxed);
             }
@@ -2394,9 +2376,7 @@ pub(crate) async fn spawn_session_on_thread(
     todo_gate: bool,
     remote_settings: Option<crate::util::config::RemoteSettings>,
     laziness_debug_log: Option<std::path::PathBuf>,
-    parent_terminal_backend: Option<
-        std::sync::Arc<dyn tools::computer::types::TerminalBackend>,
-    >,
+    parent_terminal_backend: Option<std::sync::Arc<dyn tools::computer::types::TerminalBackend>>,
     parent_scheduler_handle: Option<
         tools::implementations::grok_build::scheduler::types::SchedulerHandle,
     >,

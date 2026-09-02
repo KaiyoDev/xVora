@@ -476,9 +476,7 @@ pub(crate) fn hash_auth_key(key: &str) -> u64 {
 /// Both therefore honor the same paths/ignore/disabled as a live session.
 /// Session spawn parses the same table separately through the typed `Config.skills` (agent/config.rs).
 /// Keep these in sync rather than adding a fourth parse path.
-pub(crate) fn parse_skills_config(
-    config: &toml::Value,
-) -> agent::prompt::skills::SkillsConfig {
+pub(crate) fn parse_skills_config(config: &toml::Value) -> agent::prompt::skills::SkillsConfig {
     config
         .get("skills")
         .and_then(|v| v.clone().try_into().ok())

@@ -1267,8 +1267,7 @@ mod tests {
         init_git_repo(&repo_path);
         std::fs::write(repo_path.join("file.txt"), "content").unwrap();
         git_commit_all(&repo_path, "initial");
-        let branch =
-            test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
+        let branch = test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
         test_utils::git::run_git(
             &repo_path,
             &[
@@ -1306,10 +1305,7 @@ mod tests {
             format!("+refs/heads/{branch}:refs/remotes/origin/{branch}")
         );
         assert_eq!(
-            test_utils::git::run_git(
-                &worktree_path,
-                &["config", "--get", "remote.origin.url"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["config", "--get", "remote.origin.url"]),
             "https://github.com/xvora-org/xvora.git"
         );
     }
@@ -1342,10 +1338,7 @@ mod tests {
 
         assert!(!worktree_path.join(".git/shallow").exists());
         assert_eq!(
-            test_utils::git::run_git(
-                &worktree_path,
-                &["rev-parse", "--is-shallow-repository"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "--is-shallow-repository"]),
             "false"
         );
         assert_eq!(
@@ -1399,10 +1392,7 @@ mod tests {
             &repo_path,
             &["update-ref", "refs/remotes/origin/feature", &a],
         );
-        test_utils::git::run_git(
-            &repo_path,
-            &["update-ref", "refs/remotes/origin/noise", &b],
-        );
+        test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/noise", &b]);
         std::fs::write(repo_path.join(".git/shallow"), format!("{b}\n")).unwrap();
 
         let worktree_path = temp.path().join("standalone");
@@ -1445,10 +1435,7 @@ mod tests {
             "after checkout, graft B is unused and its parent is in the ODB"
         );
         assert_eq!(
-            test_utils::git::run_git(
-                &worktree_path,
-                &["rev-parse", "--is-shallow-repository"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "--is-shallow-repository"]),
             "false"
         );
         assert_eq!(
@@ -1484,10 +1471,7 @@ mod tests {
             &repo_path,
             &["update-ref", "refs/remotes/origin/feature", &a],
         );
-        test_utils::git::run_git(
-            &repo_path,
-            &["update-ref", "refs/remotes/origin/noise", &b],
-        );
+        test_utils::git::run_git(&repo_path, &["update-ref", "refs/remotes/origin/noise", &b]);
 
         let worktree_path = temp.path().join("standalone");
         WorktreeBuilder::new(repo_path, worktree_path.clone())
@@ -1529,8 +1513,7 @@ mod tests {
         std::fs::write(repo_path.join("file.txt"), "content").unwrap();
         git_commit_all(&repo_path, "initial");
         let head = test_utils::git::run_git(&repo_path, &["rev-parse", "HEAD"]);
-        let branch =
-            test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
+        let branch = test_utils::git::run_git(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"]);
         test_utils::git::run_git(
             &repo_path,
             &["update-ref", "refs/remotes/origin/main", &head],
@@ -1561,10 +1544,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            test_utils::git::run_git(
-                &worktree_path,
-                &["rev-parse", "refs/remotes/origin/main"]
-            ),
+            test_utils::git::run_git(&worktree_path, &["rev-parse", "refs/remotes/origin/main"]),
             head
         );
         assert_eq!(

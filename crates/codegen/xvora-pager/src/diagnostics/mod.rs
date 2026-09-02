@@ -2440,8 +2440,7 @@ mod tests {
             remediation.fix.contains("condition = \"always\"")
                 && remediation.config_path.as_deref()
                     == Some(
-                        crate::util::display_user_grok_path(config::USER_CONFIG_FILENAME)
-                            .as_str(),
+                        crate::util::display_user_grok_path(config::USER_CONFIG_FILENAME).as_str(),
                     )
         }));
     }

@@ -34,12 +34,12 @@ pub(super) fn to_block(tool_call: &acp::ToolCall) -> RenderBlock {
     let input = tool_call.raw_input.clone().and_then(|input| {
         serde_json::from_value::<SendSubagentMessageInput>(input.clone())
             .ok()
-            .or_else(|| {
-                match serde_json::from_value::<tools::types::ToolInput>(input).ok()? {
+            .or_else(
+                || match serde_json::from_value::<tools::types::ToolInput>(input).ok()? {
                     tools::types::ToolInput::SendSubagentMessage(input) => Some(input),
                     _ => None,
-                }
-            })
+                },
+            )
     });
     let output =
         tool_call

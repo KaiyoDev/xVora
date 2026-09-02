@@ -147,10 +147,7 @@ impl tool_runtime::Tool for SchedulerCreateTool {
         tool_protocol::ToolId::new(SCHEDULER_CREATE_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "scheduler_create",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -246,14 +243,10 @@ impl tool_runtime::Tool for SchedulerCreateTool {
         }
 
         let interval_secs = interval_secs.ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments(
-                "interval is required when creating a task",
-            )
+            tool_runtime::ToolError::invalid_arguments("interval is required when creating a task")
         })?;
         let prompt = input.prompt.ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments(
-                "prompt is required when creating a task",
-            )
+            tool_runtime::ToolError::invalid_arguments("prompt is required when creating a task")
         })?;
 
         let durable = input.durable.unwrap_or(false);

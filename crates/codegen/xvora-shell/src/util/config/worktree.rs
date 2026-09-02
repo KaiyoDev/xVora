@@ -216,10 +216,7 @@ pub(crate) fn resolve_worktree_auto_gc_from_settings(
     use workspace::worktree::worktree_auto_gc_layer_from_settings;
     let local_layer = local.map(worktree_auto_gc_layer_from_settings);
     let remote_layer = remote.map(worktree_auto_gc_layer_from_settings);
-    fast_worktree::resolve_worktree_auto_gc_from_layers(
-        local_layer.as_ref(),
-        remote_layer.as_ref(),
-    )
+    fast_worktree::resolve_worktree_auto_gc_from_layers(local_layer.as_ref(), remote_layer.as_ref())
 }
 
 #[cfg(test)]

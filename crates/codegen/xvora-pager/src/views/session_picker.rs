@@ -1137,9 +1137,7 @@ mod tests {
         }
     }
 
-    fn make_content_hit(
-        session_id: &str,
-    ) -> shell::extensions::session_search::SearchSessionHit {
+    fn make_content_hit(session_id: &str) -> shell::extensions::session_search::SearchSessionHit {
         shell::extensions::session_search::SearchSessionHit {
             session_id: session_id.into(),
             summary: session_id.into(),

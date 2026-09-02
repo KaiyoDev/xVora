@@ -3,8 +3,8 @@ mod support;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use support::{pin_env, send_one, settle_pool, test_config};
 use sampler::{PrewarmOutcome, SamplingClient, prewarm_transport};
+use support::{pin_env, send_one, settle_pool, test_config};
 use test_support::counting_server::spawn_http_server;
 use test_support::spawn_counting_server;
 

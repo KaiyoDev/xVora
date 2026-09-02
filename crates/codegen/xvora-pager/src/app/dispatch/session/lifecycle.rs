@@ -24,8 +24,8 @@ use crate::scrollback::block::RenderBlock;
 use crate::scrollback::blocks::SessionEvent;
 use crate::scrollback::state::ScrollbackState;
 use agent_client_protocol as acp;
-use std::time::Instant;
 use shell::sampling::types::ReasoningEffort;
+use std::time::Instant;
 /// A deferred model switch to apply once the session exists, plus any effort error to report.
 /// `switch` is still populated when a `-m` model was stashed even if the effort token failed, so an invalid effort never drops the CLI model override.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -6,9 +6,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use bm25::{Language, SearchEngineBuilder};
-use tools::types::tool_index::{
-    SearchSnapshot, ServerSummary, ToolSearchIndex, ToolSearchResult,
-};
+use tools::types::tool_index::{SearchSnapshot, ServerSummary, ToolSearchIndex, ToolSearchResult};
 
 use super::mcp_servers::MCP_TOOL_NAME_DELIMITER;
 

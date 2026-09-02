@@ -3,15 +3,15 @@
 //! The session actor needs it for non-tool operations (ACP communication, git, rewind, etc.).
 //! Tool execution goes through the ToolBridge, which has its own SessionContext from xvora-tools.
 use crate::terminal::AsyncTerminalRunner;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;
 use std::sync::Arc;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_paths::AbsPathBuf;
 use tty_utils::ProcessScope;
 use workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
 use workspace::session::file_state::FileStateHandle;
+use xvora_paths::AbsPathBuf;
 #[derive(Debug, Clone, Default)]
 pub struct TaskOutputTokenBudget {
     inner: Arc<parking_lot::Mutex<TaskOutputTokenBudgetState>>,
@@ -339,8 +339,8 @@ impl ToolContext {
             task_wake_suppressed: None,
             synthetic_trace_tx: None,
             synthetic_trace_tx_shared: None,
-            task_output_tool_name:
-                tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL.to_string(),
+            task_output_tool_name: tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL
+                .to_string(),
             scheduler_delete_tool_name: None,
             auto_wake_enabled: true,
             goal_loop_active_gate: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -400,8 +400,8 @@ mod tests {
     use hunk_tracker::HunkTrackerHandle;
     use std::collections::HashMap;
     use std::sync::Arc;
-    use xvora_paths::AbsPathBuf;
     use workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
+    use xvora_paths::AbsPathBuf;
     impl ToolContext {
         pub(crate) fn new_local_context(
             cwd: AbsPathBuf,
@@ -434,8 +434,8 @@ mod tests {
                 task_wake_suppressed: None,
                 synthetic_trace_tx: None,
                 synthetic_trace_tx_shared: None,
-                task_output_tool_name:
-                    tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL.to_string(),
+                task_output_tool_name: tools::reminders::task_completion::DEFAULT_TASK_OUTPUT_TOOL
+                    .to_string(),
                 scheduler_delete_tool_name: None,
                 auto_wake_enabled: true,
                 goal_loop_active_gate: Arc::new(std::sync::atomic::AtomicBool::new(false)),

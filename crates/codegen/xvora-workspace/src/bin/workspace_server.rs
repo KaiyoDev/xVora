@@ -3,10 +3,10 @@
 //! Reads OIDC credentials from `~/.grok/auth.json`, connects to a
 //! server, exposes workspace tools, and refreshes tokens automatically.
 use clap::Parser;
+use diag_server::{self as diag_server, DiagHandle, ErrorClass};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-use diag_server::{self as diag_server, DiagHandle, ErrorClass};
 use workspace::config::merge_session_metadata;
 use workspace::error::WorkspaceError;
 use xvora_workspace_daemon::daemonize;
@@ -644,8 +644,7 @@ mod tests {
             ErrorClass::HubAuth
         );
         let network = WorkspaceError::HubError(
-            computer_hub_sdk::ClientError::NetworkError("connection refused".into())
-                .to_string(),
+            computer_hub_sdk::ClientError::NetworkError("connection refused".into()).to_string(),
         );
         assert_eq!(
             classify_hub_connect_failure(&network.to_string()),

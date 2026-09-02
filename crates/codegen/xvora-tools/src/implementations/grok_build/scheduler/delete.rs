@@ -64,10 +64,7 @@ impl tool_runtime::Tool for SchedulerDeleteTool {
         tool_protocol::ToolId::new("scheduler_delete").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "scheduler_delete",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -118,10 +115,7 @@ impl tool_runtime::Tool for SchedulerDeleteTool {
         let removed = reply_rx
             .await
             .map_err(|_| {
-                tool_runtime::ToolError::custom(
-                    "process_manager",
-                    "Scheduler actor dropped reply",
-                )
+                tool_runtime::ToolError::custom("process_manager", "Scheduler actor dropped reply")
             })?
             .map_err(scheduler_tool_error)?;
 

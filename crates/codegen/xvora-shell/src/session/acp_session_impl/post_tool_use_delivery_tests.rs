@@ -1,11 +1,11 @@
 use super::{PostToolUseDelivery, plan_post_tool_use_delivery, substitute_rendered_output};
+use tools::types::output::{MCPOutput, ToolOutput as ToolsToolOutput};
 use xvora_hooks::dispatcher::{
     AdditionalContext, OutputReplacement, PostToolUseBlock, PostToolUseResult, ReplacementKind,
     SelectedReplacement,
 };
 use xvora_hooks::event::MAX_HOOK_OUTPUT_REPLACEMENT_CHARS;
 use xvora_hooks::result::HookRunResult;
-use tools::types::output::{MCPOutput, ToolOutput as ToolsToolOutput};
 
 const TAG: &str = tools::reminders::DEFAULT_REMINDER_TAG;
 

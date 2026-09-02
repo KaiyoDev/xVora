@@ -76,10 +76,7 @@ impl RelocationView {
     /// Session directories with a persisted `summary.json`, optionally restricted to `cwd`.
     /// A session id present under multiple cwd buckets is ambiguous and skipped.
     pub(crate) fn session_dirs(&self, cwd: Option<&str>) -> Result<Vec<PathBuf>> {
-        let cwd_parent = cwd.map(|cwd| {
-            self.sessions_root
-                .join(config::encode_cwd_dirname(cwd))
-        });
+        let cwd_parent = cwd.map(|cwd| self.sessions_root.join(config::encode_cwd_dirname(cwd)));
         Ok(self
             .persisted_candidates
             .values()

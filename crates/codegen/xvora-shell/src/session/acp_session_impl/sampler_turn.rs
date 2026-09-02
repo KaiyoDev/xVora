@@ -223,10 +223,7 @@ pub(super) async fn call_with_auth_retry<F, Fut>(
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<
-            Output = Result<
-                tools::types::output::ToolRunResult,
-                tool_runtime::ToolError,
-            >,
+            Output = Result<tools::types::output::ToolRunResult, tool_runtime::ToolError>,
         >,
 {
     let result = call().await;
@@ -799,9 +796,7 @@ impl SessionActor {
         let classify_timeout = crate::util::config::auto_mode_classify_timeout(&auto_cfg);
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(
             Vec<workspace::permission::ClassifierMessage>,
-            tokio::sync::oneshot::Sender<
-                Result<String, workspace::permission::ClassifierFailure>,
-            >,
+            tokio::sync::oneshot::Sender<Result<String, workspace::permission::ClassifierFailure>>,
         )>();
         let session = Arc::clone(self);
         // One shared worker serializes parent and subagent classifier requests.
@@ -818,12 +813,11 @@ impl SessionActor {
                             let config = session.reconstruct_full_config().await;
                             let context_window = config.context_window;
                             let model = config.model.clone();
-                            let client =
-                                sampler::SamplingClient::new(config).map_err(|e| {
-                                    workspace::permission::ClassifierFailure::TransportError(
-                                        e.to_string(),
-                                    )
-                                })?;
+                            let client = sampler::SamplingClient::new(config).map_err(|e| {
+                                workspace::permission::ClassifierFailure::TransportError(
+                                    e.to_string(),
+                                )
+                            })?;
                             (client, model, context_window)
                         }
                     };
@@ -841,12 +835,9 @@ impl SessionActor {
                         .collect::<Vec<_>>();
                     let input_tokens = chat_state::estimate_conversation_tokens(&items);
                     if !classifier_request_fits_context(input_tokens, context_window) {
-                        return Err(
-                            workspace::permission::ClassifierFailure::TransportError(
-                                "permission auto classifier request exceeds context window"
-                                    .to_owned(),
-                            ),
-                        );
+                        return Err(workspace::permission::ClassifierFailure::TransportError(
+                            "permission auto classifier request exceeds context window".to_owned(),
+                        ));
                     }
                     let request = ConversationRequest {
                         items,
@@ -859,9 +850,7 @@ impl SessionActor {
                         max_output_tokens: None,
                         // Structured output: constrain the model to the {thinking, shouldBlock, reason} schema
                         // The response is then guaranteed parseable (parity with forced-classify tooling)
-                        json_schema: Some(
-                            workspace::permission::classifier_output_json_schema(),
-                        ),
+                        json_schema: Some(workspace::permission::classifier_output_json_schema()),
                         // Resolved `[auto_mode]` effort: explicit config/remote, else the built-in `Low` default when the model supports it
                         // None means the provider default
                         reasoning_effort: classifier_reasoning_effort,
@@ -876,9 +865,7 @@ impl SessionActor {
                         .await
                         .map_err(|_| workspace::permission::ClassifierFailure::Timeout)?
                         .map_err(|e| {
-                            workspace::permission::ClassifierFailure::TransportError(
-                                e.to_string(),
-                            )
+                            workspace::permission::ClassifierFailure::TransportError(e.to_string())
                         })?;
                     Ok(response.assistant_text())
                 }
@@ -890,8 +877,7 @@ impl SessionActor {
                 let _ = respond_to.send(result);
             }
         });
-        let clf =
-            workspace::permission::LlmPermissionClassifier::with_channel(tx, prompt_type);
+        let clf = workspace::permission::LlmPermissionClassifier::with_channel(tx, prompt_type);
         debug_assert!(
             clf.has_side_query(),
             "channel-wired classifier must report has_side_query"

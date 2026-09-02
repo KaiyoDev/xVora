@@ -373,10 +373,10 @@ pub struct TracingHandle {
 /// }
 /// ```
 pub fn init_tracing() -> TracingHandle {
+    use telemetry::debug_log::RMCP_SSE_NOISE_TARGET;
     use tracing_subscriber::{
         EnvFilter, Layer as _, filter::LevelFilter, fmt, layer::SubscriberExt as _,
     };
-    use telemetry::debug_log::RMCP_SSE_NOISE_TARGET;
     let (make_writer, rx) = TracingChannelMakeWriter::new();
     let payload_level = "off";
     let directives = format!(

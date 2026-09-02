@@ -198,10 +198,7 @@ impl WorkspaceBindConfig {
                     unserved_tool_ids.push(entry.id.clone());
                     continue;
                 }
-                match tools::registry::proto_convert::tool_config_from_entry(
-                    idx,
-                    entry.clone(),
-                ) {
+                match tools::registry::proto_convert::tool_config_from_entry(idx, entry.clone()) {
                     Ok(tc) => served.push(tc),
                     Err(err) => return ResolvedToolset::InvalidToolConfig(err),
                 }
@@ -1029,8 +1026,7 @@ mod bind_mcp_config_tests {
         }));
         assert_eq!(config.servers().len(), BindMcpConfig::MAX_SERVERS);
         let first = mcp::servers::mcp_server_name(&config.servers()[0]);
-        let last =
-            mcp::servers::mcp_server_name(&config.servers()[BindMcpConfig::MAX_SERVERS - 1]);
+        let last = mcp::servers::mcp_server_name(&config.servers()[BindMcpConfig::MAX_SERVERS - 1]);
         assert_eq!(first, "server-000");
         assert_eq!(
             last,

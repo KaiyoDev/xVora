@@ -571,10 +571,9 @@ pub(crate) fn acp_tool_update(
                 tools::types::output::AskUserQuestionOutput::UserAnswered { message } => {
                     message.clone()
                 }
-                tools::types::output::AskUserQuestionOutput::QuestionsSent {
-                    message,
-                    ..
-                } => message.clone(),
+                tools::types::output::AskUserQuestionOutput::QuestionsSent { message, .. } => {
+                    message.clone()
+                }
             };
             Some(acp::ToolCallUpdate::new(
                 acp::ToolCallId::new(Arc::from(tool_call_id)),

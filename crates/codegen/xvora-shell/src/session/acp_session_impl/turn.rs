@@ -2,12 +2,12 @@
 use super::*;
 use crate::session::InputAuthority;
 use crate::util::dual_clock::DualClock;
-use tracing::Instrument;
 use tools::implementations::grok_build::LoopFireMode;
 use tools::implementations::grok_build::task::types::{
     SubagentEvent, SubagentMarkUsageNotAppliedRequest, SubagentWaitPromptDrainedRequest,
 };
 use tools::types::tool::ToolKind;
+use tracing::Instrument;
 static TURNS_ACTIVE: telemetry::activity::ActivityGauge =
     telemetry::activity::ActivityGauge::work(telemetry::activity::TURNS_ACTIVE_KEY);
 /// Synthetic tool for schema-constrained final answers on backends without native
@@ -68,9 +68,7 @@ impl UsageDrainOutcome {
     /// Map an outstanding reply without a multi-second drain (cancel path).
     /// Same policy as freeze's terminal outcome: a live foreground child is fail-closed; sticky and background are report-only.
     pub(super) fn from_outstanding_reply(
-        reply: Option<
-            &tools::implementations::grok_build::task::types::SubagentOutstandingReply,
-        >,
+        reply: Option<&tools::implementations::grok_build::task::types::SubagentOutstandingReply>,
     ) -> Self {
         match reply {
             None => Self {
@@ -400,8 +398,7 @@ impl SessionActor {
         let _turn_active_guard =
             TurnActiveGuard::activate(self.tool_context.is_turn_active.as_ref());
         let _session_turn_active_guard = TurnActiveGuard::activate(Some(&self.session_turn_active));
-        let turn_start_input =
-            agent_lifecycle::TurnStartInput::new(input_origin.is_synthetic());
+        let turn_start_input = agent_lifecycle::TurnStartInput::new(input_origin.is_synthetic());
         for contributor in self.extension_registry.turn_lifecycle_contributors() {
             contributor
                 .on_turn_start_with_policy(&turn_start_input, policy)
@@ -598,19 +595,15 @@ impl SessionActor {
                     );
                 }
                 for sk in &parsed_skills {
-                    telemetry::session_ctx::log_event(
-                        telemetry::events::SlashCommandUsed {
-                            command: sk.name.clone(),
-                            args_provided: !sk.args.is_empty(),
-                        },
-                    );
-                    telemetry::session_ctx::log_event(
-                        telemetry::events::SkillDispatched {
-                            skill_name: sk.name.clone(),
-                            plugin_source: sk.plugin_name.clone(),
-                            trigger: telemetry::events::SkillTrigger::SlashCommand,
-                        },
-                    );
+                    telemetry::session_ctx::log_event(telemetry::events::SlashCommandUsed {
+                        command: sk.name.clone(),
+                        args_provided: !sk.args.is_empty(),
+                    });
+                    telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
+                        skill_name: sk.name.clone(),
+                        plugin_source: sk.plugin_name.clone(),
+                        trigger: telemetry::events::SkillTrigger::SlashCommand,
+                    });
                     let skill_source = if sk.plugin_name.is_some() {
                         "plugin"
                     } else {
@@ -627,15 +620,13 @@ impl SessionActor {
                     )
                     .in_scope(|| {});
                     if let Some(ref pname) = sk.plugin_name {
-                        telemetry::session_ctx::log_event(
-                            telemetry::events::PluginUsed {
-                                plugin_id: pname.clone(),
-                                plugin_name: pname.clone(),
-                                skill_name: Some(sk.name.clone()),
-                                hook_event: None,
-                                success: true,
-                            },
-                        );
+                        telemetry::session_ctx::log_event(telemetry::events::PluginUsed {
+                            plugin_id: pname.clone(),
+                            plugin_name: pname.clone(),
+                            skill_name: Some(sk.name.clone()),
+                            hook_event: None,
+                            success: true,
+                        });
                         tracing::info_span!(
                             "plugin.used",
                             plugin_name = %pname,
@@ -680,13 +671,11 @@ impl SessionActor {
             redirect_kind,
         });
         self.observability_bridge
-            .emit(
-                tool_protocol::session_event::SessionEvent::TurnStarted {
-                    turn_number,
-                    model_id: model_id.clone(),
-                    yolo_mode,
-                },
-            )
+            .emit(tool_protocol::session_event::SessionEvent::TurnStarted {
+                turn_number,
+                model_id: model_id.clone(),
+                yolo_mode,
+            })
             .await;
         self.send_before_turn_event(tool_protocol::turn_hook::BeforeTurnPayload {
             turn_number: self.chat_state_handle.get_prompt_index().await as u64,
@@ -836,10 +825,7 @@ impl SessionActor {
             let query =
                 crate::session::placeholder_images::strip_paths_from_image_placeholders(query);
             let query = if send_now && !verbatim {
-                interjection_core::frame_user_turn(
-                    interjection_core::INTERJECTION_NOTE,
-                    &query,
-                )
+                interjection_core::frame_user_turn(interjection_core::INTERJECTION_NOTE, &query)
             } else {
                 query
             };
@@ -932,8 +918,7 @@ impl SessionActor {
                     model_id,
                     client_identifier: effective_client_identifier,
                     screen_mode: prompt_screen_mode,
-                    prompt_text: telemetry::external::is_active()
-                        .then(|| user_message.to_owned()),
+                    prompt_text: telemetry::external::is_active().then(|| user_message.to_owned()),
                     command_name: otel_command_name,
                 };
                 telemetry::session_ctx::log_event_dual(self.telemetry_enabled, ev);
@@ -987,9 +972,7 @@ impl SessionActor {
                 crate::session::placeholder_images::attached_image_references(&user_images)
             };
             self.tool_bridge_handle()
-                .update_resource(tools::types::resources::AttachedImages(
-                    attached_image_refs,
-                ))
+                .update_resource(tools::types::resources::AttachedImages(attached_image_refs))
                 .await;
             if trace_gcs_config.is_some() {
                 self.chat_state_handle.begin_turn_capture();
@@ -1244,15 +1227,13 @@ impl SessionActor {
         let turn_tool_count = self.events.tool_count_this_turn();
         let bridge_outcome = turn_result_to_hook_outcome(&result);
         self.observability_bridge
-            .emit(
-                tool_protocol::session_event::SessionEvent::TurnEnded {
-                    turn_number: current_prompt_index as u64,
-                    outcome: bridge_outcome,
-                    duration_ms: turn_duration_ms,
-                    tool_call_count: turn_tool_count,
-                    model_id: turn_model_id.clone(),
-                },
-            )
+            .emit(tool_protocol::session_event::SessionEvent::TurnEnded {
+                turn_number: current_prompt_index as u64,
+                outcome: bridge_outcome,
+                duration_ms: turn_duration_ms,
+                tool_call_count: turn_tool_count,
+                model_id: turn_model_id.clone(),
+            })
             .await;
         if telemetry::external::is_active() {
             let committed = self
@@ -1426,14 +1407,12 @@ impl SessionActor {
                 })
                 .await;
                 let error_category = Self::classify_turn_error(err);
-                telemetry::session_ctx::log_session_event(
-                    telemetry::events::ApiError {
-                        error_category: error_category.clone(),
-                        model_id: turn_model_id.clone(),
-                        status_code: None,
-                        duration_ms: Some(turn_duration_ms),
-                    },
-                );
+                telemetry::session_ctx::log_session_event(telemetry::events::ApiError {
+                    error_category: error_category.clone(),
+                    model_id: turn_model_id.clone(),
+                    status_code: None,
+                    duration_ms: Some(turn_duration_ms),
+                });
                 telemetry::session_ctx::log_event(telemetry::events::TurnCompleted {
                     outcome: telemetry::events::Outcome::Error,
                     duration_ms: turn_duration_ms,
@@ -2071,8 +2050,7 @@ impl SessionActor {
             }
         };
         inject_results.retain(|result| Self::is_first_turn_memory_score_visible(result.score));
-        let outcome = if outcome
-            == telemetry::memory_telemetry::MemoryInjectionOutcome::Results
+        let outcome = if outcome == telemetry::memory_telemetry::MemoryInjectionOutcome::Results
             && inject_results.is_empty()
         {
             telemetry::memory_telemetry::MemoryInjectionOutcome::Empty
@@ -2422,14 +2400,12 @@ impl SessionActor {
                         "problematically_repeating": problematically_repeating,
                     })),
                 );
-                telemetry::session_ctx::log_event(
-                    telemetry::events::ActionStationarityStop {
-                        true_noop,
-                        problematically_repeating,
-                        run_len,
-                        tool_name: tool_name.clone(),
-                    },
-                );
+                telemetry::session_ctx::log_event(telemetry::events::ActionStationarityStop {
+                    true_noop,
+                    problematically_repeating,
+                    run_len,
+                    tool_name: tool_name.clone(),
+                });
                 let snapshot = self
                     .finalize_turn_bookkeeping(
                         req_id,
@@ -2462,13 +2438,11 @@ impl SessionActor {
                         "problematically_repeating": problematically_repeating,
                     })),
                 );
-                telemetry::session_ctx::log_event(
-                    telemetry::events::ActionStationarityNudge {
-                        problematically_repeating,
-                        run_len,
-                        tool_name: tool_name.clone(),
-                    },
-                );
+                telemetry::session_ctx::log_event(telemetry::events::ActionStationarityNudge {
+                    problematically_repeating,
+                    run_len,
+                    tool_name: tool_name.clone(),
+                });
                 let reminder = self
                     .tool_bridge_handle()
                     .render_prompt(
@@ -2622,11 +2596,9 @@ impl SessionActor {
                 phase: crate::session::events::Phase::WaitingForModel,
             });
             self.observability_bridge
-                .emit(
-                    tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: tool_protocol::session_event::SessionPhase::Sampling,
-                    },
-                )
+                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
+                    phase: tool_protocol::session_event::SessionPhase::Sampling,
+                })
                 .await;
             telemetry::unified_log::info(
                 "shell.turn.inference_start",
@@ -2718,9 +2690,8 @@ impl SessionActor {
                     if matches!(kind, sampler::SamplingErrorKind::Api) {
                         auth_retry_schedule.reset_on_success();
                     }
-                    let delay = sampler::jitter_backoff(transient_backoff_delay(
-                        transient_retry_attempts,
-                    ));
+                    let delay =
+                        sampler::jitter_backoff(transient_backoff_delay(transient_retry_attempts));
                     transient_retry_attempts += 1;
                     let prompt_total = self.transient_retries_prompt_total.get() + 1;
                     self.transient_retries_prompt_total.set(prompt_total);
@@ -2950,28 +2921,23 @@ impl SessionActor {
             let model_duration_ms = model_timer.elapsed().as_millis() as u64;
             {
                 let model_id = self.current_model_id().await;
-                telemetry::session_ctx::log_event(
-                    telemetry::events::ModelResponseReceived {
-                        model_id,
-                        duration_ms: model_duration_ms,
-                        stop_reason: response
-                            .stop_reason
-                            .as_ref()
-                            .map(|r| format!("{r:?}").to_ascii_lowercase()),
-                        prompt_tokens: response.usage.as_ref().map(|u| u.prompt_tokens),
-                        completion_tokens: response.usage.as_ref().map(|u| u.completion_tokens),
-                        reasoning_tokens: response.usage.as_ref().map(|u| u.reasoning_tokens),
-                        cached_prompt_tokens: response
-                            .usage
-                            .as_ref()
-                            .map(|u| u.cached_prompt_tokens),
-                        cache_creation_tokens: response
-                            .usage
-                            .as_ref()
-                            .map(|u| u.cache_creation_prompt_tokens),
-                        cost_usd_ticks: response.cost_usd_ticks,
-                    },
-                );
+                telemetry::session_ctx::log_event(telemetry::events::ModelResponseReceived {
+                    model_id,
+                    duration_ms: model_duration_ms,
+                    stop_reason: response
+                        .stop_reason
+                        .as_ref()
+                        .map(|r| format!("{r:?}").to_ascii_lowercase()),
+                    prompt_tokens: response.usage.as_ref().map(|u| u.prompt_tokens),
+                    completion_tokens: response.usage.as_ref().map(|u| u.completion_tokens),
+                    reasoning_tokens: response.usage.as_ref().map(|u| u.reasoning_tokens),
+                    cached_prompt_tokens: response.usage.as_ref().map(|u| u.cached_prompt_tokens),
+                    cache_creation_tokens: response
+                        .usage
+                        .as_ref()
+                        .map(|u| u.cache_creation_prompt_tokens),
+                    cost_usd_ticks: response.cost_usd_ticks,
+                });
             }
             self.record_response_token_usage(&response, Some(model_duration_ms));
             let response_completed = self.response_completed_update(&response);
@@ -3387,11 +3353,9 @@ impl SessionActor {
                 phase: crate::session::events::Phase::ToolExecution,
             });
             self.observability_bridge
-                .emit(
-                    tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: tool_protocol::session_event::SessionPhase::ToolExecution,
-                    },
-                )
+                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
+                    phase: tool_protocol::session_event::SessionPhase::ToolExecution,
+                })
                 .await;
             let execute_tool_calls_result = self.execute_tool_calls(tool_call_responses).await;
             match execute_tool_calls_result {
@@ -4012,10 +3976,7 @@ mod last_sample_span_tests {
         let span = turn_span();
         let mut totals = TurnSpanTotals::default();
         totals.record(&span, &sample(Some(StopReason::ToolCalls), true, 40));
-        record_failed_sample_on_turn_span(
-            &span,
-            sampler::SamplingErrorKind::MaxTokensTruncation,
-        );
+        record_failed_sample_on_turn_span(&span, sampler::SamplingErrorKind::MaxTokensTruncation);
         let f = fields.lock().unwrap();
         assert_eq!(
             f.strs.get("stop_reason").map(String::as_str),

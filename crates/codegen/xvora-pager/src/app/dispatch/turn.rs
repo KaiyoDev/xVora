@@ -32,9 +32,7 @@ fn cancel_subagents_pref_canonical(stop: bool) -> &'static str {
     }
 }
 
-fn cancel_subagents_pref_canonical_from_ui(
-    ui: &shell::agent::config::UiConfig,
-) -> &'static str {
+fn cancel_subagents_pref_canonical_from_ui(ui: &shell::agent::config::UiConfig) -> &'static str {
     match ui.cancel_subagents_on_turn_cancel.as_deref() {
         Some("always_stop") => "always_stop",
         Some("always_continue") => "always_continue",

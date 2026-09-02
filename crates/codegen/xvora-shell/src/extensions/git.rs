@@ -223,10 +223,7 @@ async fn resolve_git_root(
     if let Some(sid) = session_id {
         if let Some(cwd) = agent.get_session_cwd(sid) {
             let result = ops
-                .dispatch(
-                    &workspace::workspace_ops::GitResolveRootReq { cwd },
-                    None,
-                )
+                .dispatch(&workspace::workspace_ops::GitResolveRootReq { cwd }, None)
                 .await
                 .map_err(|e| {
                     acp::Error::invalid_params()
@@ -261,10 +258,7 @@ async fn try_resolve_git_root(
         && let Some(cwd) = agent.get_session_cwd(sid)
     {
         return ops
-            .dispatch(
-                &workspace::workspace_ops::GitResolveRootReq { cwd },
-                None,
-            )
+            .dispatch(&workspace::workspace_ops::GitResolveRootReq { cwd }, None)
             .await
             .ok()
             .flatten();

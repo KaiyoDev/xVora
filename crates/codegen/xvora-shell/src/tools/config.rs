@@ -1,6 +1,6 @@
 use crate::models;
-use serde::{Deserialize, Serialize};
 use sampler::SamplerConfig;
+use serde::{Deserialize, Serialize};
 use tools::implementations::grok_build;
 use tools::registry::types::ToolConfig;
 

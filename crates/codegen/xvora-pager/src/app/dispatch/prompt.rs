@@ -1238,9 +1238,10 @@ pub(super) fn handle_prompt_response(
         // The needle matches both the raw "Unauthorized (401)" dump and the banner-formatted "Request failed (401): …" text
         let reauth_prompted = scrollback_has_recent_reauth_prompt(&agent.scrollback)
             || (http_status == Some(401)
-                && result.as_ref().err().is_some_and(|e| {
-                    e.contains(shell::extensions::notification::HTTP_401_NEEDLE)
-                }));
+                && result
+                    .as_ref()
+                    .err()
+                    .is_some_and(|e| e.contains(shell::extensions::notification::HTTP_401_NEEDLE)));
         let request_failed_shown = scrollback_has_recent_request_failed(&agent.scrollback);
         // A dedicated prompt/modal/banner replaces the generic TurnFailed marker and error toast
         // The cases: rate limit, free-usage paywall, model incompatibility, credit 402/403, 401 re-auth, context overflow, and disk-full

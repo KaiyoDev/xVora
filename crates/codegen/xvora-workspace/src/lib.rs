@@ -68,8 +68,8 @@ pub use session::{WorkspaceSession, WorkspaceShared};
 pub use session::{file_state, git, jj};
 pub use upload::environment::{WorkspaceEnvironment, WorkspaceIdentity};
 pub use workspace_ops::{WorkspaceOp, WorkspaceOps};
-pub use xvora_workspace_client::WorkspaceClient;
 pub use workspace_types::WorkspaceEvent;
+pub use xvora_workspace_client::WorkspaceClient;
 /// Zero-init every workspace metric family so idle panels render a `0` baseline instead of "No data".
 /// Idempotent; call once at workspace-server startup.
 pub fn init_metrics() {

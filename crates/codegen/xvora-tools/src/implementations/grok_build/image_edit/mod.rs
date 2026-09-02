@@ -118,9 +118,7 @@ async fn resolve_to_data_url(value: &str) -> Result<String, tool_runtime::ToolEr
 
     let raw_bytes = if value.starts_with("data:image/") {
         let comma = value.find(',').ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments(
-                "malformed data URL in image reference",
-            )
+            tool_runtime::ToolError::invalid_arguments("malformed data URL in image reference")
         })?;
         if !value[..comma].contains(";base64") {
             return Err(tool_runtime::ToolError::invalid_arguments(
@@ -282,10 +280,7 @@ impl tool_runtime::Tool for ImageEditTool {
         tool_protocol::ToolId::new("image_edit").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "image_edit",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),

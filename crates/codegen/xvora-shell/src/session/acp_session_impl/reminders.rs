@@ -417,8 +417,7 @@ fn format_workflow_completion_reminder(
             format_workflow_elapsed(run.elapsed_ms_floor)
         );
         if let Some(summary) = run.result_summary.as_deref() {
-            let capped =
-                tools::util::truncate_str(summary, WORKFLOW_RESULT_SUMMARY_REMINDER_CAP);
+            let capped = tools::util::truncate_str(summary, WORKFLOW_RESULT_SUMMARY_REMINDER_CAP);
             buf.push_str("\n  Result:\n");
             for line in capped.lines() {
                 let _ = writeln!(buf, "    {line}");
@@ -611,8 +610,7 @@ impl SessionActor {
                     "draining between-turn bash task completions"
                 );
                 let task_output_name =
-                    tools::reminders::task_completion::resolve_task_output_tool_name(&bridge)
-                        .await;
+                    tools::reminders::task_completion::resolve_task_output_tool_name(&bridge).await;
                 let read_tool_name =
                     tools::reminders::task_completion::resolve_read_tool_name(&bridge).await;
                 let reminder =
@@ -671,12 +669,11 @@ impl SessionActor {
             subagent_ids = ?ids,
             "draining between-turn subagent completions"
         );
-        let reminder =
-            tools::reminders::task_completion::format_between_turn_completion_reminder(
-                &completions,
-                &bridge,
-            )
-            .await;
+        let reminder = tools::reminders::task_completion::format_between_turn_completion_reminder(
+            &completions,
+            &bridge,
+        )
+        .await;
         self.push_system_reminder(&reminder);
     }
     pub(super) async fn drain_between_turn_workflow_completions(&self, goal_loop_active: bool) {

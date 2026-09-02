@@ -18,9 +18,9 @@ use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use shell::tools::{TodoItem, TodoPriority, TodoStatus};
 use xvora_pager::appearance::LayoutConfig;
 use xvora_pager::views::todo_pane::TodoPane;
-use shell::tools::{TodoItem, TodoPriority, TodoStatus};
 
 type Scenario = (&'static str, &'static str, Vec<TodoItem>);
 

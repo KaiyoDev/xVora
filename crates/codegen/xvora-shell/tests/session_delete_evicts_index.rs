@@ -92,8 +92,7 @@ async fn deleting_a_session_clears_only_its_own_search_row() {
 
     let auth = Arc::new(AuthManager::new(root, GrokComConfig::default()));
 
-    let session_dir =
-        shell::util::grok_home::sessions_cwd_dir_in(root, "/ws-a").join("orphan");
+    let session_dir = shell::util::grok_home::sessions_cwd_dir_in(root, "/ws-a").join("orphan");
     std::fs::remove_dir_all(&session_dir).unwrap();
     let deletion = delete_session_history("orphan", None, false, auth.clone(), Some(&index))
         .await

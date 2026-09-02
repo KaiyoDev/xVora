@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender;
+use agent_client_protocol as acp;
+use workspace::permission::{AccessKind, ClientType, PermissionRequest, spawn_permission_manager};
 use xvora_paths::AbsPathBuf;
-use workspace::permission::{
-    AccessKind, ClientType, PermissionRequest, spawn_permission_manager,
-};
 
 use super::support::create_test_actor;
 use super::{PersistenceMsg, SessionActor};
@@ -309,8 +307,8 @@ fn build_classifier_turns_captures_tool_use_excludes_text_and_results() {
 
 #[test]
 fn build_classifier_turns_projects_full_filtered_resident_prefix() {
-    use xvora_sampling_types::synthesized_reasoning_item;
     use workspace::permission::ClassifierTurn;
+    use xvora_sampling_types::synthesized_reasoning_item;
 
     let backend_tool: super::ConversationItem = serde_json::from_value(serde_json::json!({
         "type": "backend_tool_call",
@@ -371,8 +369,8 @@ fn build_classifier_turns_projects_full_filtered_resident_prefix() {
 
 #[test]
 fn build_classifier_turns_filters_non_user_carriers() {
-    use xvora_sampling_types::ContentPart;
     use workspace::permission::ClassifierTurn;
+    use xvora_sampling_types::ContentPart;
 
     let mut tool_image = super::ConversationItem::user("[Image extracted from tool result above]");
     tool_image.add_image("data:image/png;base64,abc");

@@ -6,9 +6,9 @@ use crate::util::grok_home;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
+use telemetry::events::{LoginFailed, LoginFailureKind};
 use tokio::io::AsyncBufReadExt as _;
 use tokio::sync::{mpsc, oneshot};
-use telemetry::events::{LoginFailed, LoginFailureKind};
 pub(crate) type StderrCallback = Box<dyn Fn(&str)>;
 /// Reject a cached credential that lacks `oidc_issuer`, has a mismatched issuer, or whose team principal violates the `force_login_team_uuid` pin.
 /// Interactive login then starts fresh instead of reusing a stale or wrong-team session.
@@ -504,11 +504,7 @@ pub(super) async fn run_auth_flow_steps(
         if disk_auth.as_ref().is_some_and(|d| {
             !crate::auth::is_expired(d) && is_cached_credential_compatible(d, grok_com_config)
         }) {
-            telemetry::unified_log::info(
-                "auth run_auth_flow using valid disk token",
-                None,
-                None,
-            );
+            telemetry::unified_log::info("auth run_auth_flow using valid disk token", None, None);
             let d = disk_auth.unwrap();
             let ret = d.clone();
             auth_manager.hot_swap(d);

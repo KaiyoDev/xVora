@@ -811,9 +811,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
             vec![
                 Effect::SetSessionMode {
                     session_id: session_id.clone(),
-                    mode_id: acp::SessionModeId::new(
-                        tools::types::SessionMode::Default.as_id(),
-                    ),
+                    mode_id: acp::SessionModeId::new(tools::types::SessionMode::Default.as_id()),
                 },
                 Effect::PersistPermissionMode {
                     canonical: "auto",
@@ -881,9 +879,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
             vec![
                 Effect::SetSessionMode {
                     session_id: session_id.clone(),
-                    mode_id: acp::SessionModeId::new(
-                        tools::types::SessionMode::Default.as_id(),
-                    ),
+                    mode_id: acp::SessionModeId::new(tools::types::SessionMode::Default.as_id()),
                 },
                 Effect::PersistPermissionMode {
                     canonical: "auto",
@@ -911,9 +907,7 @@ fn dispatch_cycle_mode_inner(app: &mut AppView) -> Vec<Effect> {
             if in_plan {
                 effects.push(Effect::SetSessionMode {
                     session_id: session_id.clone(),
-                    mode_id: acp::SessionModeId::new(
-                        tools::types::SessionMode::Default.as_id(),
-                    ),
+                    mode_id: acp::SessionModeId::new(tools::types::SessionMode::Default.as_id()),
                 });
             }
             if in_yolo || in_auto {

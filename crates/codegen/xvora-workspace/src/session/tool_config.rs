@@ -12,9 +12,7 @@ use crate::error::{WorkspaceError, WorkspaceResult};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tools::registry::types::{
-    FinalizedToolset, ToolConfig, ToolRegistryBuilder, ToolServerConfig,
-};
+use tools::registry::types::{FinalizedToolset, ToolConfig, ToolRegistryBuilder, ToolServerConfig};
 use tools::types::tool::ToolKind;
 /// Entry point for session creation: runs [`resolve_session_toolset_rebuild`] around a fresh factory-built terminal backend.
 /// The backend lives for the session; it is returned so the caller can store it on the session being created.
@@ -322,10 +320,7 @@ impl WorkspaceSessionContextFactory {
         }
     }
     /// Factory with auth: gen tools use the provider's live token.
-    pub fn with_auth(
-        auth: computer_hub_sdk::SharedAuthProvider,
-        api_base_url: String,
-    ) -> Self {
+    pub fn with_auth(auth: computer_hub_sdk::SharedAuthProvider, api_base_url: String) -> Self {
         Self {
             auth: Some(auth),
             api_base_url: Some(api_base_url),

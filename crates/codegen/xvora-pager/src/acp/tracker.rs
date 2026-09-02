@@ -24,10 +24,10 @@ use chrono::{DateTime, Local, TimeZone};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tracing::debug;
 use tools::types::output::{BashOutput, ToolOutput};
 use tools::types::output::{ReadFileOutput, SearchToolOutput, WebFetchOutput};
 use tools::util::strip_redundant_session_cd;
+use tracing::debug;
 /// Convert a UTC millisecond timestamp to local time.
 fn utc_ms_to_local(ms: i64) -> DateTime<Local> {
     chrono::Utc
@@ -180,21 +180,19 @@ impl WritingToolCall {
             Some(name) => {
                 use tools::types::tool::ToolKind;
                 let copy =
-                    tools::tool_taxonomy::writing_tool_kind(name).and_then(
-                        |kind| match kind {
-                            ToolKind::Write => Some("Writing file"),
-                            ToolKind::Edit => Some("Writing edit"),
-                            ToolKind::Execute => Some("Writing command"),
-                            ToolKind::Plan => Some("Updating todo list"),
-                            ToolKind::Workflow => Some("Writing workflow"),
-                            ToolKind::ImageGen => Some("Writing image prompt"),
-                            ToolKind::ImageToVideo | ToolKind::ReferenceToVideo => {
-                                Some("Writing video prompt")
-                            }
-                            ToolKind::AskUser => Some("Preparing question"),
-                            _ => None,
-                        },
-                    );
+                    tools::tool_taxonomy::writing_tool_kind(name).and_then(|kind| match kind {
+                        ToolKind::Write => Some("Writing file"),
+                        ToolKind::Edit => Some("Writing edit"),
+                        ToolKind::Execute => Some("Writing command"),
+                        ToolKind::Plan => Some("Updating todo list"),
+                        ToolKind::Workflow => Some("Writing workflow"),
+                        ToolKind::ImageGen => Some("Writing image prompt"),
+                        ToolKind::ImageToVideo | ToolKind::ReferenceToVideo => {
+                            Some("Writing video prompt")
+                        }
+                        ToolKind::AskUser => Some("Preparing question"),
+                        _ => None,
+                    });
                 match copy {
                     Some(copy) => format!("{copy}{ordinal}…"),
                     None => {
@@ -2571,9 +2569,7 @@ fn parse_file_paths_from_stdout(stdout: &str) -> Vec<String> {
 fn extract_listdir_content(raw: &Option<serde_json::Value>) -> Option<String> {
     let val = raw.as_ref()?;
     match serde_json::from_value::<ToolOutput>(val.clone()) {
-        Ok(ToolOutput::ListDir(tools::types::output::ListDirOutput::Content(c))) => {
-            Some(c.content)
-        }
+        Ok(ToolOutput::ListDir(tools::types::output::ListDirOutput::Content(c))) => Some(c.content),
         _ => None,
     }
 }

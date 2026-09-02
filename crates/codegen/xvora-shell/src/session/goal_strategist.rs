@@ -15,9 +15,9 @@ use crate::session::goal_planner::{
     RoleSpawnOverride, SpawnError, parse_terminal_response, spawn_with_fail_open_retry,
 };
 use crate::session::goal_role_tools::RoleToolNames;
+use session_events::EventWriter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use session_events::EventWriter;
 use tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
@@ -538,9 +538,7 @@ mod tests {
 
     #[tokio::test]
     async fn channel_spawner_request_is_harness_internal() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {
@@ -580,9 +578,7 @@ mod tests {
     /// 3-role parity: an explicit strategist pair threads `agent_type` as the request's `harness_agent_type`, not the subagent_type.
     #[tokio::test]
     async fn channel_spawner_threads_harness_override_to_request() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {
             event_tx: tx,
@@ -1178,10 +1174,7 @@ mod tests {
     fn strategist_template_renders_per_agent_type_names() {
         use tools::implementations::grok_build::task::types::SubagentTypeSummary;
         let mut tool_names = std::collections::HashMap::new();
-        tool_names.insert(
-            tools::types::tool::ToolKind::Read,
-            "alt_read".to_string(),
-        );
+        tool_names.insert(tools::types::tool::ToolKind::Read, "alt_read".to_string());
         tool_names.insert(
             tools::types::tool::ToolKind::Execute,
             "alt_shell".to_string(),

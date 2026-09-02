@@ -6,8 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
-use hunk_tracker::HunkTrackerHandle;
 use fsnotify::{FsEvent, FsEventKind};
+use hunk_tracker::HunkTrackerHandle;
 
 /// True if `path` lies under a hidden component below `cwd`.
 ///
@@ -186,21 +186,14 @@ pub(crate) fn spawn_fs_event_forwarder_roots(
 
 const GIT_DIFF_REBUILD_THRESHOLD: usize = 500;
 
-fn parse_diff_name_status_line(
-    line: &str,
-    repo_root: &Path,
-) -> Option<codebase_graph::FileEvent> {
+fn parse_diff_name_status_line(line: &str, repo_root: &Path) -> Option<codebase_graph::FileEvent> {
     let mut parts = line.splitn(3, '\t');
     let status = parts.next()?.trim();
     let path = parts.next()?;
 
     match status.chars().next()? {
-        'A' => Some(codebase_graph::FileEvent::created(
-            repo_root.join(path),
-        )),
-        'D' => Some(codebase_graph::FileEvent::removed(
-            repo_root.join(path),
-        )),
+        'A' => Some(codebase_graph::FileEvent::created(repo_root.join(path))),
+        'D' => Some(codebase_graph::FileEvent::removed(repo_root.join(path))),
         'R' | 'C' => {
             let new_path = parts.next()?;
             Some(codebase_graph::FileEvent::renamed(
@@ -208,9 +201,7 @@ fn parse_diff_name_status_line(
                 repo_root.join(new_path),
             ))
         }
-        _ => Some(codebase_graph::FileEvent::modified(
-            repo_root.join(path),
-        )),
+        _ => Some(codebase_graph::FileEvent::modified(repo_root.join(path))),
     }
 }
 
@@ -277,11 +268,9 @@ pub(crate) async fn refresh_codebase_graph_after_head_change(
     }
 
     if let Some(count) = files_updated {
-        let _ = events_tx.send(
-            workspace_types::WorkspaceEvent::CodebaseIndexUpdated {
-                files_indexed: count,
-            },
-        );
+        let _ = events_tx.send(workspace_types::WorkspaceEvent::CodebaseIndexUpdated {
+            files_indexed: count,
+        });
     }
 }
 

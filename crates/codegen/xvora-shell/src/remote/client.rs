@@ -317,14 +317,13 @@ impl BackendClient {
         mut self,
         manager: std::sync::Arc<crate::auth::AuthManager>,
     ) -> Self {
-        let credentials: std::sync::Arc<dyn auth::AuthCredentialProvider> =
-            std::sync::Arc::new(
-                crate::auth::credential_provider::ShellAuthCredentialProvider::new(
-                    manager.clone(),
-                    None,
-                    None,
-                ),
-            );
+        let credentials: std::sync::Arc<dyn auth::AuthCredentialProvider> = std::sync::Arc::new(
+            crate::auth::credential_provider::ShellAuthCredentialProvider::new(
+                manager.clone(),
+                None,
+                None,
+            ),
+        );
         self.client = crate::http::with_auth_retry(self.reqwest_client.clone(), credentials);
         self.auth_manager = Some(manager);
         self

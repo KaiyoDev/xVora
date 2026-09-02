@@ -423,17 +423,11 @@ fn voice_toggle_starts_and_stops() {
 
     dispatch(Action::VoiceToggle, &mut app);
     assert!(app.voice_listening());
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttPress)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttPress)));
 
     dispatch(Action::VoiceToggle, &mut app);
     assert!(!app.voice_listening());
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttRelease)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttRelease)));
 }
 
 #[test]
@@ -473,10 +467,7 @@ fn voice_toggle_starts_without_voice_mode_prereq() {
         app.voice_listening(),
         "Ctrl+Space starts recording without a /voice prerequisite"
     );
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttPress)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttPress)));
 }
 
 #[test]
@@ -498,10 +489,7 @@ fn voice_mode_enable_starts_recording_and_stays_on() {
         !app.voice_state.pending_cold_start(),
         "pipeline already up — no re-request"
     );
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttPress)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttPress)));
 
     // `EnableVoiceMode` is start-only (not a toggle): running it again while already recording is idempotent, no stop, no second PttPress
     dispatch(Action::EnableVoiceMode, &mut app);
@@ -599,10 +587,7 @@ fn voice_toggle_can_always_stop_even_with_flag_disabled() {
         !app.voice_listening(),
         "must stop an active recording even with the flag off"
     );
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttRelease)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttRelease)));
 }
 
 #[test]
@@ -623,10 +608,7 @@ fn voice_stop_stops_and_drops_pending_cold_start() {
     assert!(!app.voice_listening());
     assert!(!app.voice_state.pending_cold_start());
     assert!(!app.voice_state.hold());
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttRelease)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttRelease)));
 }
 
 /// A stray Ctrl+Space release must NOT cancel a cold-start queued by `/voice` or a Ctrl+Space toggle (`hold` is false for those).
@@ -675,10 +657,7 @@ fn voice_stt_language_change_recycles_pipeline() {
         !app.voice_listening(),
         "recycling the pipeline must end the in-flight session (no lingering hot mic)"
     );
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::Shutdown)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::Shutdown)));
     assert!(matches!(
         effects.as_slice(),
         [Effect::PersistSetting {
@@ -789,10 +768,7 @@ fn voice_submit_includes_interim() {
     };
     assert_eq!(text, "hello world");
     assert!(!app.voice_listening());
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttRelease)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttRelease)));
 }
 
 #[test]

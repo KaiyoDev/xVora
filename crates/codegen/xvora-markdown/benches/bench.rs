@@ -4,9 +4,7 @@ use std::hint::black_box;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
-use markdown::{
-    MarkdownStyle, StreamingMarkdownRenderer, Syntect, render_markdown_ratatui_full,
-};
+use markdown::{MarkdownStyle, StreamingMarkdownRenderer, Syntect, render_markdown_ratatui_full};
 
 /// Default style for benchmarking.
 fn default_style() -> MarkdownStyle {

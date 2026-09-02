@@ -84,8 +84,7 @@ fn make_test_config_full_raw() -> (
         session_cmd_tx,
         task_completion_reservations:
             tools::reminders::task_completion::TaskCompletionReservations::default(),
-        task_wake_suppressed: tools::reminders::task_completion::TaskWakeSuppressed::default(
-        ),
+        task_wake_suppressed: tools::reminders::task_completion::TaskWakeSuppressed::default(),
         synthetic_trace_tx: Arc::new(std::sync::Mutex::new(None)),
         task_output_tool_name: Arc::new(std::sync::OnceLock::new()),
         read_tool_name: Arc::new(std::sync::OnceLock::new()),
@@ -804,16 +803,15 @@ async fn scheduled_task_created_is_persisted() {
     // A `/loop` create must be persisted (like TaskBackgrounded) so a second terminal that resumes the session restores the loop from replay
     // Otherwise it stays invisible until the loop next fires
     let (config, _gateway_rx, mut persistence_rx, _cmd_rx) = make_test_config_full();
-    let notification = ToolNotification::ScheduledTaskCreated(
-        tools::notification::types::ScheduledTaskCreated {
+    let notification =
+        ToolNotification::ScheduledTaskCreated(tools::notification::types::ScheduledTaskCreated {
             task_id: "loop-1".into(),
             prompt: "check deploy".into(),
             human_schedule: "every 5 minutes".into(),
             next_fire_at: Some("2026-01-01T00:00:00Z".into()),
             generation: "generation-a".into(),
             revision: 1,
-        },
-    );
+        });
     let mut offsets = HashMap::new();
 
     handle_notification(&config, notification, &mut offsets).await;
@@ -1150,8 +1148,8 @@ async fn scheduled_task_fired_is_not_persisted() {
     // `_fired` recurs on every interval; persisting it would grow the updates log without bound
     // Loops are restored from create/delete, so the fire stays gateway-only (the pager self-heals the entry on a live fire if needed)
     let (config, mut gateway_rx, mut persistence_rx, _cmd_rx) = make_test_config_full();
-    let notification = ToolNotification::ScheduledTaskFired(
-        tools::notification::types::ScheduledTaskFired {
+    let notification =
+        ToolNotification::ScheduledTaskFired(tools::notification::types::ScheduledTaskFired {
             task_id: "loop-1".into(),
             prompt: "check deploy".into(),
             human_schedule: "every 5 minutes".into(),
@@ -1159,8 +1157,7 @@ async fn scheduled_task_fired_is_not_persisted() {
             subagent_id: Some("subagent-1".into()),
             generation: "generation-a".into(),
             revision: 3,
-        },
-    );
+        });
     let mut offsets = HashMap::new();
 
     handle_notification(&config, notification, &mut offsets).await;

@@ -5,11 +5,11 @@
 
 use std::time::Duration;
 
-use toml::Value as TomlValue;
 use shell::util::config::{
     DISPLAY_REFRESH_DEFAULT_CADENCE_MS, MotionCadence, RemoteSettings, resolve_display_refresh,
     resolve_motion_cadence,
 };
+use toml::Value as TomlValue;
 
 /// Inclusive bounds for motion cadence env knobs (`GROK_MIN_DRAW_MS`, `GROK_SCROLL_CADENCE_MS`).
 const CADENCE_ENV_MIN_MS: u64 = 1;

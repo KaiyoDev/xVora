@@ -191,15 +191,13 @@ impl AgentView {
         enabled: Option<bool>,
     ) {
         if let Some(ref state) = self.extensions_modal {
-            telemetry::session_ctx::log_event(
-                telemetry::events::ExtensionsModalAction {
-                    tab: state.active_tab.telemetry_tab(),
-                    action: action.into(),
-                    input_method,
-                    target,
-                    enabled,
-                },
-            );
+            telemetry::session_ctx::log_event(telemetry::events::ExtensionsModalAction {
+                tab: state.active_tab.telemetry_tab(),
+                action: action.into(),
+                input_method,
+                target,
+                enabled,
+            });
         }
     }
 
@@ -1097,9 +1095,7 @@ impl AgentView {
             }
             crate::views::picker::PickerOutcome::Selected(_)
             | crate::views::picker::PickerOutcome::Expand(_) => self
-                .extensions_modal_expand_or_auth(
-                    telemetry::events::ExtensionsInputMethod::Mouse,
-                ),
+                .extensions_modal_expand_or_auth(telemetry::events::ExtensionsInputMethod::Mouse),
             crate::views::picker::PickerOutcome::NonSelectableClick(idx) => {
                 self.extensions_modal_toggle_mcp_section_at(
                     idx,
@@ -1400,10 +1396,7 @@ impl AgentView {
                 if let Some(ref mut state) = self.extensions_modal {
                     state.modal_message = None;
                     state.last_plugins_action = Some(plugins_action.clone());
-                    if matches!(
-                        plugins_action,
-                        hooks_plugins_types::PluginsAction::Reload
-                    ) {
+                    if matches!(plugins_action, hooks_plugins_types::PluginsAction::Reload) {
                         // Reload rebuilds the entire plugin registry; show tab-level "Loading..." instead of a single-entry badge
                         state.pending_action = Some("Reloading...".into());
                         state.pending_entry_index = None;
@@ -2441,11 +2434,7 @@ mod extensions_action_target_tests {
         assert_eq!(enabled, None);
     }
 
-    fn hook_info(
-        name: &str,
-        source_dir: &str,
-        disabled: bool,
-    ) -> hooks_plugins_types::HookInfo {
+    fn hook_info(name: &str, source_dir: &str, disabled: bool) -> hooks_plugins_types::HookInfo {
         hooks_plugins_types::HookInfo {
             name: name.into(),
             event: hooks_plugins_types::HookEvent::PreToolUse,
@@ -3177,10 +3166,9 @@ mod extensions_modal_confirmation_tests {
         mcp.picker_state.selected = 0;
 
         let mut plugins = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        plugins.plugins_data =
-            TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
-                plugins: vec![plugin_info("my-plugin")],
-            });
+        plugins.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
+            plugins: vec![plugin_info("my-plugin")],
+        });
         plugins.entry_data_indices = vec![Some(0)];
         plugins.entry_group_keys = vec![None];
         plugins.picker_state.selected = 0;
@@ -3266,11 +3254,9 @@ mod extensions_modal_confirmation_tests {
                 modal: hooks,
                 button: ButtonAction::RemoveSelectedHook,
                 message_sub: format!("Remove hook source \"{hook_label}\"?"),
-                expected: ConfirmationAction::Hooks(
-                    hooks_plugins_types::HooksAction::Remove {
-                        path: source.into(),
-                    },
-                ),
+                expected: ConfirmationAction::Hooks(hooks_plugins_types::HooksAction::Remove {
+                    path: source.into(),
+                }),
                 row: 0,
             },
         ]

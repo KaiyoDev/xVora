@@ -58,8 +58,8 @@ fn partition_rules_by_scope(
 #[cfg(test)]
 mod partition_rules_by_scope_tests {
     use super::partition_rules_by_scope;
-    use std::path::Path;
     use agent::prompt::agents_md::AgentConfigFile;
+    use std::path::Path;
     fn file(path: &str) -> AgentConfigFile {
         AgentConfigFile {
             file_name: Path::new(path)
@@ -213,8 +213,7 @@ mod partition_rules_by_scope_tests {
             &vendor_homes,
             &[Path::new("/repo")],
         );
-        let rules =
-            agent::prompt::user_message::format_rules_section(&workspace, &user).unwrap();
+        let rules = agent::prompt::user_message::format_rules_section(&workspace, &user).unwrap();
         let reminder = agent::prompt::agents_md::format_agents_md_section(&files).unwrap();
         for body in [
             "repo-agents-body",

@@ -4,15 +4,15 @@
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
-use agent_client_protocol::{self as acp, Agent as _};
-use serde_json::json;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
+use agent_client_protocol::{self as acp, Agent as _};
+use serde_json::json;
 use shell::agent::config::Config as AgentConfig;
 use shell::agent::mvp_agent::MvpAgent;
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 /// Matches production's `MAX_BUFFER_SIZE` in `agent::app`.
 pub const DUPLEX_BUFFER_BYTES: usize = 8 * 1024 * 1024;
@@ -253,10 +253,7 @@ where
     F: FnOnce(std::path::PathBuf, std::rc::Rc<test_support::MockInferenceServer>) -> Fut,
     Fut: std::future::Future<Output = ()>,
 {
-    run_agent_test_with_models(
-        vec![test_support::MockModelEntry::new("test-model")],
-        body,
-    )
+    run_agent_test_with_models(vec![test_support::MockModelEntry::new("test-model")], body)
 }
 
 /// [`run_agent_test`] with a custom `/v1/models` catalog.
@@ -277,9 +274,7 @@ where
         .expect("mock runtime");
     let server = std::rc::Rc::new(
         mock_rt
-            .block_on(test_support::MockInferenceServer::start_with_models(
-                models,
-            ))
+            .block_on(test_support::MockInferenceServer::start_with_models(models))
             .expect("mock server"),
     );
     let grok_home = tempfile::TempDir::new().expect("grok home");

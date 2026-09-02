@@ -236,10 +236,7 @@ pub(crate) fn parse_cli_agents(
     Ok(agents)
 }
 
-pub(crate) fn apply_agent_flag(
-    agent: &Option<String>,
-    config: &mut shell::agent::config::Config,
-) {
+pub(crate) fn apply_agent_flag(agent: &Option<String>, config: &mut shell::agent::config::Config) {
     if let Some(agent) = agent {
         match resolve_agent_arg(agent) {
             ResolvedAgent::FilePath(path) => config.agent_profile_path = Some(path),

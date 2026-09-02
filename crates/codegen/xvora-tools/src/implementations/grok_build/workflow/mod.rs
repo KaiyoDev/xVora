@@ -304,10 +304,7 @@ impl tool_runtime::Tool for WorkflowTool {
         tool_protocol::ToolId::new(WORKFLOW_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             WORKFLOW_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),

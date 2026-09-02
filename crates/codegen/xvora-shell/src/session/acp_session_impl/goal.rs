@@ -676,9 +676,7 @@ impl SessionActor {
     ) -> crate::session::goal_planner::RoleSpawnOverride {
         use crate::session::events::{Event, GoalRoleModelFailOpenReason as Reason};
         use crate::session::goal_planner::RoleSpawnOverride;
-        use tools::implementations::grok_build::task::backend::{
-            ChannelBackend, SubagentBackend,
-        };
+        use tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
         use tools::implementations::grok_build::task::types::SubagentDescribeOutcome;
 
         let fail_open = |reason: Reason| {

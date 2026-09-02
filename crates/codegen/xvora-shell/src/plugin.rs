@@ -724,8 +724,7 @@ pub(crate) fn load_marketplace_sources() -> Vec<MarketplaceSource> {
 /// Like [`load_marketplace_sources`] but drops git sources blocked by the managed `marketplace_allowlist`.
 /// Install paths must use this so policy cannot be bypassed.
 pub(crate) fn load_filtered_marketplace_sources() -> Vec<MarketplaceSource> {
-    let allowlist =
-        &workspace::permission::resolution::managed_settings().marketplace_allowlist;
+    let allowlist = &workspace::permission::resolution::managed_settings().marketplace_allowlist;
     filter_sources_by_allowlist(load_marketplace_sources(), allowlist)
 }
 

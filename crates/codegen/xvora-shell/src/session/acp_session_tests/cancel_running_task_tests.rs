@@ -1708,10 +1708,7 @@ async fn handle_prompt_send_now_frames_interjection_envelope() {
             let expected_assembled = format!("<user_query>\n{query}\n</user_query>");
             assert_eq!(
                 user.text_content(),
-                frame_user_turn(
-                    interjection_core::INTERJECTION_NOTE,
-                    &expected_assembled
-                )
+                frame_user_turn(interjection_core::INTERJECTION_NOTE, &expected_assembled)
             );
             prompt_task.abort();
         })

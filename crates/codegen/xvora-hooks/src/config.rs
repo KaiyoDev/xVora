@@ -813,11 +813,7 @@ mod tests {
     fn config_layer(source_name: &str, toml_src: &str) -> config::HookConfigLayer {
         let value: toml::Value = toml::from_str(toml_src).unwrap();
         let hooks = value.get("hooks").cloned().unwrap();
-        config::HookConfigLayer::new(
-            config::HookProvenance::Managed,
-            source_name,
-            hooks,
-        )
+        config::HookConfigLayer::new(config::HookProvenance::Managed, source_name, hooks)
     }
 
     #[test]

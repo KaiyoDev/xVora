@@ -24,15 +24,14 @@
 use crate::error::{WorkspaceError, WorkspaceResult};
 use crate::handle::WorkspaceHandle;
 use async_trait::async_trait;
-use serde_json::Value;
-use std::sync::Arc;
-use tokio::task::JoinHandle;
-use url::Url;
 use computer_hub_sdk::{
     AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
     ToolServerBuilder, ToolServerHandler,
 };
 use diag_server::DiagHandle;
+use serde_json::Value;
+use std::sync::Arc;
+use tokio::task::JoinHandle;
 use tool_protocol::ToolId;
 use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, ToolStreamItem, TypedToolOutput,
@@ -40,6 +39,7 @@ use tool_runtime::{
 };
 use tool_types::ToolDescription;
 use tools::registry::types::ToolConfig;
+use url::Url;
 /// Configuration for connecting to a server instance.
 ///
 /// Passed via [`WorkspaceConfig::hub_config`](crate::config::WorkspaceConfig::hub_config).
@@ -980,9 +980,7 @@ mod tests {
             )
             .expect("register_tool must succeed");
     }
-    async fn drain_counts<T>(
-        mut stream: tool_runtime::ToolStream<T>,
-    ) -> (usize, usize, bool) {
+    async fn drain_counts<T>(mut stream: tool_runtime::ToolStream<T>) -> (usize, usize, bool) {
         let mut progress = 0;
         let mut terminal = 0;
         let mut last_is_terminal = false;
@@ -1908,8 +1906,9 @@ mod tests {
             Ok(tools::types::output::ToolOutput::Bash(
                 tools::types::output::BashOutput {
                     output: stdout.as_bytes().to_vec(),
-                    output_for_prompt:
-                        tools::types::output::BashOutput::make_output_for_prompt(stdout),
+                    output_for_prompt: tools::types::output::BashOutput::make_output_for_prompt(
+                        stdout,
+                    ),
                     exit_code: 0,
                     command: "cat /workspace/conv-abc/out.txt".into(),
                     truncated: false,

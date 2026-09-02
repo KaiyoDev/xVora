@@ -14,6 +14,8 @@ use std::fs::File as StdFile;
 // Positional read traits live in different modules per platform; the
 // methods we use (read_at on Unix, seek_read on Windows) have the same
 // signature, so the call site cfg-branches on the method name only.
+use auth::AuthCredentialProvider;
+use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 #[cfg(unix)]
 use std::os::unix::fs::FileExt;
 #[cfg(windows)]
@@ -26,8 +28,6 @@ use tokio::sync::Semaphore;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
-use auth::AuthCredentialProvider;
-use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 
 use crate::circuit_breaker_observer::TracingObserver;
 
@@ -1116,10 +1116,7 @@ impl StorageClient {
         // cli-chat-proxy logs and metrics see the real end-user client
         // (e.g. "0.1.210-alpha.5", "grok-shell" / "grok-pager").
         // Falls back to the library's own version for bins/tests.
-        let version = self
-            .client_version
-            .as_deref()
-            .unwrap_or(version::VERSION);
+        let version = self.client_version.as_deref().unwrap_or(version::VERSION);
         let mut builder = builder.header("x-grok-client-version", version);
 
         if let Some(id) = &self.client_identifier {

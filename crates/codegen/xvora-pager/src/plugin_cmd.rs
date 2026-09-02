@@ -14,9 +14,9 @@ use serde::Serialize;
 
 use agent::plugins::install_registry::{InstallKind, InstallRegistry};
 use agent::plugins::manifest::{ManifestLoadResult, PluginManifest, load_manifest};
+use shell::plugin::{self, RepoUpdateOutcome, UninstallError};
 use xvora_plugin_marketplace::SourceKind;
 use xvora_plugin_marketplace::git::SourceCacheLease;
-use shell::plugin::{self, RepoUpdateOutcome, UninstallError};
 
 // ── JSON output types ───────────────────────────────────────────────
 
@@ -867,8 +867,7 @@ fn marketplace_add(
     };
 
     // Local paths never match the git-URL allowlist, so a restricted strictKnownMarketplaces policy blocks them; intentionally fail-closed
-    let allowlist =
-        &workspace::permission::resolution::managed_settings().marketplace_allowlist;
+    let allowlist = &workspace::permission::resolution::managed_settings().marketplace_allowlist;
     if allowlist.is_restricted() && !allowlist.is_url_allowed(&identity) {
         bail!("Marketplace source blocked: {}", allowlist.block_reason());
     }

@@ -69,9 +69,7 @@ pub(super) fn managed_config_enabled_from_layers(
 }
 
 /// The principal a verified payload binds: `deployment_id`, else `team_id` (server parity).
-pub(super) fn served_principal_of(
-    payload: &config::signed_policy::SignedPayload,
-) -> Option<&str> {
+pub(super) fn served_principal_of(payload: &config::signed_policy::SignedPayload) -> Option<&str> {
     payload
         .deployment_id
         .as_deref()

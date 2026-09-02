@@ -2,9 +2,7 @@ use crate::session::user_message::user_query;
 use agent_client_protocol::{self as acp, ImageContent};
 use serde::Deserialize;
 use std::path::PathBuf;
-use workspace::file_system::{
-    FileReference, render_embedded_resource, render_file_reference,
-};
+use workspace::file_system::{FileReference, render_embedded_resource, render_file_reference};
 /// Some templates put `<user_query>` last (context first); Grok puts it first.
 /// Keeping them separate lets the caller truncate context without searching for the query boundary in a flat string.
 #[derive(Debug, Clone)]

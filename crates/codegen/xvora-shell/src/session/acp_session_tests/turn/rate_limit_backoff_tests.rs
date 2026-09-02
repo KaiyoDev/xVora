@@ -97,8 +97,7 @@ pub(super) async fn actor_under_test(
     };
     let (sampler_event_tx, sampler_event_rx) =
         tokio::sync::mpsc::unbounded_channel::<sampler::SamplingEvent>();
-    let sampler_handle =
-        sampler::SamplerActor::spawn(sampling_cfg, retry_policy, sampler_event_tx);
+    let sampler_handle = sampler::SamplerActor::spawn(sampling_cfg, retry_policy, sampler_event_tx);
 
     let (gateway_tx, gateway_rx) = tokio::sync::mpsc::unbounded_channel();
     let captured_retries = drain_gateway(gateway_rx);

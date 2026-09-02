@@ -28,17 +28,17 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::time::Duration;
 
-use agent_client_protocol as acp;
-use tempfile::TempDir;
-use tokio::task::JoinSet;
-use tokio_util::sync::CancellationToken;
 use acp_lib::{AcpClientRx, acp_send};
+use agent_client_protocol as acp;
 use shell::leader::{
     ClientCapabilities as LeaderClientCapabilities, ClientMode, ConnectionStatus,
     LEADER_SOCKET_ENV, LeaderClient, LeaderEnvUrls, LeaderLock, LeaderReconnector,
     LeaderServerControlState, LeaderServerMetadata, ReconnectPolicy, run_leader_server,
 };
+use tempfile::TempDir;
 use test_support::MockInferenceServer;
+use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
 
 use super::actions::{Action, TaskResult};
 use super::agent::AgentState;
@@ -351,10 +351,7 @@ impl PagerLeaderCluster {
             .await;
         }));
 
-        generation_tasks.extend(shell::leader::in_process::spawn_agent(
-            acp_rx,
-            response_tx,
-        ));
+        generation_tasks.extend(shell::leader::in_process::spawn_agent(acp_rx, response_tx));
         self.generation_tasks = generation_tasks;
 
         let deadline = tokio::time::Instant::now() + Duration::from_secs(10);

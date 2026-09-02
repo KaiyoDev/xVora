@@ -8,6 +8,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent
 use ratatui::layout::Rect;
 use std::sync::Arc;
 
+use shell::agent::config::UiConfig;
 use xvora_pager::app::actions::Action;
 use xvora_pager::settings::{
     EnumChoice, PagerLocalSnapshot, SettingCategory, SettingKind, SettingMeta, SettingOwner,
@@ -17,7 +18,6 @@ use xvora_pager::views::settings_modal::{
     RowEntry, SettingsKeyOutcome, SettingsModalMode, SettingsModalState, handle_settings_key,
     handle_settings_mouse,
 };
-use shell::agent::config::UiConfig;
 
 // ---------------------------------------------------------------------------
 // Compile-time exhaustive matrix
@@ -3962,8 +3962,8 @@ fn restart_pill_visible_when_expanded() {
 /// That is the exact repro a user hit with a previously-set Off value in a fresh session.
 #[test]
 fn restart_pill_hidden_when_edited_but_collapsed() {
-    use xvora_pager::settings::{PagerLocalSnapshot, SettingsRegistry};
     use shell::agent::config::UiConfig;
+    use xvora_pager::settings::{PagerLocalSnapshot, SettingsRegistry};
 
     // Construct a state where `show_tips` is NOT at its registered default of `true`
     let mut s = SettingsModalState::new(
@@ -4127,9 +4127,9 @@ fn reset_confirm_overlay_renders_prompt_with_setting_label_and_default() {
 /// Catches a formatter regression where a registry catalog reorder or a missing display string would render an empty or garbled prompt.
 #[test]
 fn reset_confirm_prompt_helper_builds_well_formed_string_for_every_setting() {
+    use shell::agent::config::UiConfig;
     use xvora_pager::settings::{PagerLocalSnapshot, SettingsRegistry};
     use xvora_pager::views::modal::{ActiveModal, ModalConfirmation, reset_confirm_prompt};
-    use shell::agent::config::UiConfig;
     let reg = SettingsRegistry::defaults();
     for meta in reg.all() {
         let state = Box::new(SettingsModalState::new(

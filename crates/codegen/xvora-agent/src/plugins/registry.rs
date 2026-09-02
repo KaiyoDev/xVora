@@ -77,9 +77,7 @@ pub struct LoadedPlugin {
 impl LoadedPlugin {
     /// Data directory for this plugin: `~/.grok/plugin-data/<plugin_id>/`.
     pub fn data_dir(&self) -> PathBuf {
-        config::grok_home()
-            .join("plugin-data")
-            .join(&self.id.0)
+        config::grok_home().join("plugin-data").join(&self.id.0)
     }
 
     /// Plugin root path as a string (for env var substitution).
@@ -431,9 +429,7 @@ impl SharedPluginRegistryHandle {
 /// Paths come from `find_skill_md_paths` and are deduped by normalized parent-dir basename, the identity the skill loader dedupes on.
 /// Counts therefore equal what actually loads, both for overlapping dir entries and for same-basename dirs at different paths.
 pub fn skill_md_paths(skill_dirs: &[PathBuf]) -> Vec<PathBuf> {
-    use tools::implementations::skills::discovery::{
-        find_skill_md_paths, normalize_skill_name,
-    };
+    use tools::implementations::skills::discovery::{find_skill_md_paths, normalize_skill_name};
 
     let mut paths: Vec<PathBuf> = skill_dirs
         .iter()

@@ -30,8 +30,7 @@ pub fn entry_title(agent: &AgentView) -> String {
     if let Some(title) = agent.generated_session_title.as_deref() {
         let trimmed = title.trim();
         if !trimmed.is_empty() {
-            let clean =
-                tools::implementations::skills::skill::extract_skill_display_text(trimmed);
+            let clean = tools::implementations::skills::skill::extract_skill_display_text(trimmed);
             let text = clean.as_deref().unwrap_or(trimmed);
             return truncate_title(&sanitize_display_text(text));
         }
@@ -39,8 +38,7 @@ pub fn entry_title(agent: &AgentView) -> String {
     if let Some(text) = first_user_prompt_text(agent) {
         let trimmed = text.trim();
         if !trimmed.is_empty() {
-            let clean =
-                tools::implementations::skills::skill::extract_skill_display_text(trimmed);
+            let clean = tools::implementations::skills::skill::extract_skill_display_text(trimmed);
             let display = clean.as_deref().unwrap_or(trimmed);
             return truncate_title(&sanitize_display_text(display));
         }

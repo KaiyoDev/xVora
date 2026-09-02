@@ -69,9 +69,7 @@ fn resolve_shell_display() -> String {
 
     #[cfg(not(unix))]
     {
-        config::shell::detect_windows_shell()
-            .name()
-            .to_string()
+        config::shell::detect_windows_shell().name().to_string()
     }
 }
 

@@ -19,8 +19,8 @@ use chat_state::compaction_utils::{extract_real_user_queries, extract_user_query
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use xvora_sampling_types::conversation::{ContentPart, ConversationItem, UserItem};
 use tools::util::truncate::truncate_middle;
+use xvora_sampling_types::conversation::{ContentPart, ConversationItem, UserItem};
 /// Per-entry character cap for the conversation outline sent to the vision model.
 /// Mirrors the compat-harness behavior.
 pub(crate) const OUTLINE_PER_ENTRY_CAP: usize = 1_500;

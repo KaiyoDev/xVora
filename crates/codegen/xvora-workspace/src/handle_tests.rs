@@ -138,10 +138,7 @@ impl tool_runtime::Tool for BashCcoStub {
     fn id(&self) -> tool_protocol::ToolId {
         tool_protocol::ToolId::new(BASH_CCO_STUB_NAME).expect("valid tool id")
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(BASH_CCO_STUB_NAME, "bash cco stub")
     }
     async fn run(
@@ -200,9 +197,8 @@ pub(crate) fn assert_bash_cco_terminal(typed: &tool_runtime::TypedToolOutput) {
     assert!(!cer.command_timed_out);
 }
 pub(crate) async fn drain_terminal_ok(
-    mut stream: impl futures::Stream<
-        Item = tool_runtime::ToolStreamItem<tool_runtime::TypedToolOutput>,
-    > + Unpin,
+    mut stream: impl futures::Stream<Item = tool_runtime::ToolStreamItem<tool_runtime::TypedToolOutput>>
+    + Unpin,
 ) -> tool_runtime::TypedToolOutput {
     use futures::StreamExt;
     use tool_runtime::ToolStreamItem;
@@ -1544,9 +1540,9 @@ async fn restarted_workspace_recreates_session_and_reports_lost_task() {
         )
         .await
         .expect("get_task_output must answer, not error");
-    let tools::types::output::ToolOutput::TaskOutput(
-        tool_types::TaskOutputOutput::TaskNotFound(msg),
-    ) = &result.output
+    let tools::types::output::ToolOutput::TaskOutput(tool_types::TaskOutputOutput::TaskNotFound(
+        msg,
+    )) = &result.output
     else {
         panic!("expected TaskNotFound, got: {:?}", result.output);
     };
@@ -1743,14 +1739,15 @@ async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
     tracker.tool_call_completed("c1", Some(sid), ToolOutcome::Success);
     handle.on_yolo_toggled(sid, true);
     handle.on_mcp_server_toggled(sid, "linear", false);
-    handle.shared().session_event_writer(sid).emit(
-        session_events::Event::McpToolCallStarted {
+    handle
+        .shared()
+        .session_event_writer(sid)
+        .emit(session_events::Event::McpToolCallStarted {
             server_name: "linear".into(),
             tool_name: "list_issues".into(),
             call_id: "mcp-1".into(),
             timeout_sec: 30,
-        },
-    );
+        });
     handle
         .on_after_turn(
             sid,
@@ -2318,9 +2315,8 @@ fn make_queue_backed_handle_with(
         bind_mcp: None,
     };
     let home = tempfile::tempdir().expect("workspace home tempdir");
-    let auth: computer_hub_sdk::SharedAuthProvider = Arc::new(
-        computer_hub_sdk::auth::AuthCredential::bearer("test-token"),
-    );
+    let auth: computer_hub_sdk::SharedAuthProvider =
+        Arc::new(computer_hub_sdk::auth::AuthCredential::bearer("test-token"));
     let proxy = Arc::new(crate::upload::ProxyStorageConfig::new(
         auth,
         "http://127.0.0.1:1/v1".to_string(),
@@ -2387,10 +2383,7 @@ async fn environment_artifact_enqueued_when_queue_present() {
         .emit_environment_artifact("sess-env", std::path::Path::new("/work"), None)
         .await;
     assert!(
-        matches!(
-            outcome,
-            Some(file_utils::queue::EnqueueOutcome::Enqueued)
-        ),
+        matches!(outcome, Some(file_utils::queue::EnqueueOutcome::Enqueued)),
         "expected Enqueued, got {outcome:?}"
     );
     assert_eq!(
@@ -3483,9 +3476,8 @@ fn workspace_shared_auth_provider_uses_workspace_config() {
     let service_auth: computer_hub_sdk::SharedAuthProvider = Arc::new(
         computer_hub_sdk::auth::AuthCredential::bearer("xvora-service-token"),
     );
-    let hub_auth: computer_hub_sdk::SharedAuthProvider = Arc::new(
-        computer_hub_sdk::auth::AuthCredential::bearer("hub-token"),
-    );
+    let hub_auth: computer_hub_sdk::SharedAuthProvider =
+        Arc::new(computer_hub_sdk::auth::AuthCredential::bearer("hub-token"));
     let hub_cfg = crate::hub::HubConfig {
         url: url::Url::parse("ws://127.0.0.1:9/ws").unwrap(),
         auth: hub_auth.clone(),
@@ -3920,9 +3912,7 @@ async fn fork_session_inherits_viewer_ctx_from_parent() {
     );
 }
 /// Build the resolver exactly the way `connect_hub` does: session catalog handlers and the workspace RPC handler.
-fn bind_resolver_fixture(
-    handle: &WorkspaceHandle,
-) -> computer_hub_sdk::SessionHandlerResolver {
+fn bind_resolver_fixture(handle: &WorkspaceHandle) -> computer_hub_sdk::SessionHandlerResolver {
     let catalog_toolset = handle.session("main").expect("main session").toolset();
     let mut catalog = build_session_routed_handlers(&catalog_toolset, handle);
     let rpc_handler: Arc<dyn computer_hub_sdk::ToolServerHandler> =
@@ -4248,12 +4238,9 @@ async fn bind_records_which_tools_each_mcp_server_contributed() {
     let handle = WorkspaceHandle::new(config).unwrap();
     handle.create_session("main").unwrap();
     let resolver = bind_resolver_fixture(&handle);
-    resolver(
-        tool_protocol::SessionId::new("attributed").unwrap(),
-        None,
-    )
-    .await
-    .expect("bind must succeed");
+    resolver(tool_protocol::SessionId::new("attributed").unwrap(), None)
+        .await
+        .expect("bind must succeed");
     let hub = FakeHubRegistry::default();
     converge_with(&handle, "attributed", &hub, crate::mcp::McpReclaim::Always).await;
     assert_eq!(
@@ -4279,12 +4266,9 @@ async fn a_shadowed_mcp_tool_is_not_attributed_to_its_server() {
     let handle = WorkspaceHandle::new(config).unwrap();
     handle.create_session("main").unwrap();
     let resolver = bind_resolver_fixture(&handle);
-    resolver(
-        tool_protocol::SessionId::new("shadowed").unwrap(),
-        None,
-    )
-    .await
-    .expect("bind must succeed");
+    resolver(tool_protocol::SessionId::new("shadowed").unwrap(), None)
+        .await
+        .expect("bind must succeed");
     let hub = FakeHubRegistry::default();
     converge_with(&handle, "shadowed", &hub, crate::mcp::McpReclaim::Always).await;
     assert_eq!(
@@ -4293,11 +4277,8 @@ async fn a_shadowed_mcp_tool_is_not_attributed_to_its_server() {
         "the server is running but owns no advertised id"
     );
     assert!(
-        !fake_hub_tool_ids(
-            &hub,
-            &tool_protocol::SessionId::new("shadowed").unwrap()
-        )
-        .contains(&"read_file".to_owned()),
+        !fake_hub_tool_ids(&hub, &tool_protocol::SessionId::new("shadowed").unwrap())
+            .contains(&"read_file".to_owned()),
         "the shadowed MCP tool must not be registered over the native one"
     );
     server_task.abort();
@@ -4454,12 +4435,9 @@ async fn a_failed_server_is_retried_by_the_next_convergence() {
     handle.create_session("main").unwrap();
     let resolver = bind_resolver_fixture(&handle);
     let hub = FakeHubRegistry::default();
-    resolver(
-        tool_protocol::SessionId::new("failed-mcp").unwrap(),
-        None,
-    )
-    .await
-    .unwrap();
+    resolver(tool_protocol::SessionId::new("failed-mcp").unwrap(), None)
+        .await
+        .unwrap();
     let delta = converge_with(&handle, "failed-mcp", &hub, crate::mcp::McpReclaim::Always).await;
     assert_eq!(delta.failed, vec!["hanging".to_owned()]);
     let request_count = state.session_ids.lock().len();
@@ -4490,12 +4468,9 @@ async fn duplicate_bind_mcp_tool_ids_are_rejected() {
     let handle = WorkspaceHandle::new(config).unwrap();
     handle.create_session("main").unwrap();
     let resolver = bind_resolver_fixture(&handle);
-    resolver(
-        tool_protocol::SessionId::new("duplicates").unwrap(),
-        None,
-    )
-    .await
-    .unwrap();
+    resolver(tool_protocol::SessionId::new("duplicates").unwrap(), None)
+        .await
+        .unwrap();
     let hub = FakeHubRegistry::default();
     converge_with(&handle, "duplicates", &hub, crate::mcp::McpReclaim::Always).await;
     assert_eq!(
@@ -4507,11 +4482,8 @@ async fn duplicate_bind_mcp_tool_ids_are_rejected() {
         "an ambiguous id is refused from both servers"
     );
     assert!(
-        !fake_hub_tool_ids(
-            &hub,
-            &tool_protocol::SessionId::new("duplicates").unwrap()
-        )
-        .contains(&"echo".to_owned())
+        !fake_hub_tool_ids(&hub, &tool_protocol::SessionId::new("duplicates").unwrap())
+            .contains(&"echo".to_owned())
     );
     first_task.abort();
     second_task.abort();
@@ -6525,12 +6497,9 @@ async fn strict_bind_with_explicit_toolset_serves_it_end_to_end() {
 async fn lax_bind_without_metadata_uses_default_catalog_end_to_end() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let resolved = resolver(
-        tool_protocol::SessionId::new("bind-e2e-lax").unwrap(),
-        None,
-    )
-    .await
-    .expect("bind must succeed");
+    let resolved = resolver(tool_protocol::SessionId::new("bind-e2e-lax").unwrap(), None)
+        .await
+        .expect("bind must succeed");
     let names = handler_names(&resolved);
     assert!(
         names.iter().any(|n| n == "read_file") && names.iter().any(|n| n == "grep"),

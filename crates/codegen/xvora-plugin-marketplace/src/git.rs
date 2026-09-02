@@ -412,18 +412,17 @@ fn kill_git_child(
             None
         }
     };
-    let child =
-        match tty_utils::wait_child_bounded(&mut child, tty_utils::KILL_REAP_TIMEOUT) {
-            Ok(Some(_)) => {
-                drop(group);
-                None
-            }
-            Ok(None) => Some((child, group)),
-            Err(error) => {
-                tracing::warn!(error = %error, operation = what, "git bounded reap failed");
-                Some((child, group))
-            }
-        };
+    let child = match tty_utils::wait_child_bounded(&mut child, tty_utils::KILL_REAP_TIMEOUT) {
+        Ok(Some(_)) => {
+            drop(group);
+            None
+        }
+        Ok(None) => Some((child, group)),
+        Err(error) => {
+            tracing::warn!(error = %error, operation = what, "git bounded reap failed");
+            Some((child, group))
+        }
+    };
     if child.is_some() {
         transfer_git_cleanup(what, GitReaperOwners { child, stderr });
         return None;

@@ -1,11 +1,11 @@
 //! Subagent definition discovery and tool-policy resolution, matching the production spawn path.
 use crate::config::{SubagentPersona, SubagentRole};
 use crate::types::{EffectiveRuntimeConfig, ResolutionError};
-use std::collections::HashMap;
-use std::path::Path;
 use agent::config::{AgentDefinition, IsolationMode};
 use agent::plugins::PluginRegistry;
 use agent::prompt::context::{PromptAudience, PromptContext};
+use std::collections::HashMap;
+use std::path::Path;
 use tool_types::{SubagentCapabilityMode, SubagentIsolationMode};
 use tools::implementations::grok_build::task::types::{
     SubagentCapabilityModeExt, SubagentRuntimeOverrides, prune_orphaned_background_task_tools,
@@ -75,14 +75,11 @@ pub fn discover_agent_definition(
 }
 /// Sorted agent names the model can request under the current discovery context.
 pub fn available_agent_names(context: &DefinitionResolutionContext<'_>) -> Vec<String> {
-    let mut available: Vec<String> = agent::discovery::all_subagents_with_plugins(
-        context.cwd,
-        context.toggles,
-        context.plugins,
-    )
-    .into_iter()
-    .map(|entry| entry.name)
-    .collect();
+    let mut available: Vec<String> =
+        agent::discovery::all_subagents_with_plugins(context.cwd, context.toggles, context.plugins)
+            .into_iter()
+            .map(|entry| entry.name)
+            .collect();
     for definition in context.cli_agents {
         if context
             .toggles
@@ -229,9 +226,10 @@ pub fn apply_child_tool_policy(
             .retain(|tool| tool.kind != Some(ToolKind::Task));
         prune_orphaned_background_task_tools(&mut definition.tool_config);
     }
-    definition.tool_config.tools.retain(|tool| {
-        !tools::implementations::grok_build::is_workflow_tool(tool.kind, &tool.id)
-    });
+    definition
+        .tool_config
+        .tools
+        .retain(|tool| !tools::implementations::grok_build::is_workflow_tool(tool.kind, &tool.id));
 }
 /// Resolve runtime overrides and definition defaults in the production order.
 pub fn resolve_runtime_config(

@@ -1,12 +1,12 @@
 //! `AuthManager` is the single source of truth for `auth.json` and the in-memory bearer cache.
 //! Mutations go through `refresh_chain` or `update`; lock and enrichment helpers live in submodules.
 
+use auth::bearer_suffix;
 use chrono::{Duration, Utc};
 use parking_lot::RwLock;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration as StdDuration;
-use auth::bearer_suffix;
 
 use tokio_util::sync::CancellationToken;
 
@@ -1309,11 +1309,7 @@ impl AuthManager {
         match new_state {
             // Recovery (or first observation in GROK_AUTH mode).
             DiskAuthState::Ok => {
-                telemetry::unified_log::info(
-                    "auth disk state: entry present",
-                    None,
-                    Some(ctx),
-                );
+                telemetry::unified_log::info("auth disk state: entry present", None, Some(ctx));
             }
             // Credential loss on disk: the line that answers "when did auth.json disappear and what did this process see"
             DiskAuthState::FileMissing

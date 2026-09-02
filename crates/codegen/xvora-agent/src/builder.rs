@@ -475,10 +475,7 @@ impl AgentBuilder {
         self
     }
     /// Set the dynamic API key provider for tool HTTP clients.
-    pub fn with_api_key_provider(
-        mut self,
-        provider: tools::types::SharedApiKeyProvider,
-    ) -> Self {
+    pub fn with_api_key_provider(mut self, provider: tools::types::SharedApiKeyProvider) -> Self {
         self.api_key_provider = Some(provider);
         self
     }
@@ -491,10 +488,7 @@ impl AgentBuilder {
     /// `sampler::SamplerConfig::attribution_callback` so
     /// all 401s share the same `AuthManager` reference and land in
     /// the same Axiom dataset.
-    pub fn with_attribution_callback(
-        mut self,
-        callback: tools::SharedAttributionCallback,
-    ) -> Self {
+    pub fn with_attribution_callback(mut self, callback: tools::SharedAttributionCallback) -> Self {
         self.attribution_callback = Some(callback);
         self
     }
@@ -829,9 +823,8 @@ impl AgentBuilder {
                     .retain(|tc| !lifecycle.contains(&short_tool_name(&tc.id)));
             }
         }
-        if let tools::implementations::grok_build::web_fetch::WebFetchConfig::Enabled {
-            ref params,
-        } = self.web_fetch_config
+        if let tools::implementations::grok_build::web_fetch::WebFetchConfig::Enabled { ref params } =
+            self.web_fetch_config
             && let Ok(params_value) = serde_json::to_value(params)
             && let Some(obj) = params_value.as_object()
         {
@@ -1050,12 +1043,10 @@ impl AgentBuilder {
         .map_err(|e| AgentBuildError::ToolError(e.to_string()))?;
         if let Some(bytes) = self.mcp_max_output_bytes {
             tool_bridge.toolset().resources.lock().await.insert(
-                tools::types::resources::TruncationCfg(
-                    tools::types::context::TruncationConfig {
-                        mcp_max_output_bytes: Some(bytes),
-                        ..Default::default()
-                    },
-                ),
+                tools::types::resources::TruncationCfg(tools::types::context::TruncationConfig {
+                    mcp_max_output_bytes: Some(bytes),
+                    ..Default::default()
+                }),
             );
         }
         if let Some(names) = self.persisted_announced_skill_names {
@@ -1209,15 +1200,14 @@ impl AgentBuilder {
     }
 }
 /// CLI naming for the shared [`tool_types::build_task_description`] builder.
-const TASK_TOOL_NAMING: tool_types::TaskToolNaming<'static> =
-    tool_types::TaskToolNaming {
-        task_tool: "${{ tools.by_kind.task }}",
-        subagent_type_param: "${{ params.task.subagent_type }}",
-        run_in_background_param: "${{ params.task.run_in_background }}",
-        resume_from_param: "${{ params.task.resume_from }}",
-        background_retrieval_tool: "${{ tools.by_kind.background_task_action }}",
-        isolation_param: "${{ params.task.isolation }}",
-    };
+const TASK_TOOL_NAMING: tool_types::TaskToolNaming<'static> = tool_types::TaskToolNaming {
+    task_tool: "${{ tools.by_kind.task }}",
+    subagent_type_param: "${{ params.task.subagent_type }}",
+    run_in_background_param: "${{ params.task.run_in_background }}",
+    resume_from_param: "${{ params.task.resume_from }}",
+    background_retrieval_tool: "${{ tools.by_kind.background_task_action }}",
+    isolation_param: "${{ params.task.isolation }}",
+};
 /// Concise task-tool description for child sessions.
 /// Delegation from a child is possible but discouraged; prefer doing the work directly.
 ///
@@ -1317,9 +1307,7 @@ fn resolve_shell_for_prompt() -> String {
     }
     #[cfg(not(unix))]
     {
-        config::shell::detect_windows_shell()
-            .name()
-            .to_string()
+        config::shell::detect_windows_shell().name().to_string()
     }
 }
 #[cfg(test)]
@@ -1330,11 +1318,12 @@ mod tests {
         use tools::computer::local::LocalTerminalBackend;
         let mut definition = crate::config::AgentDefinition::default_grok_build();
         if predeclared {
-            definition.tool_config.tools.push(
-                tools::registry::types::ToolConfig::for_tool::<
+            definition
+                .tool_config
+                .tools
+                .push(tools::registry::types::ToolConfig::for_tool::<
                     tools::implementations::grok_build::SendSubagentMessageTool,
-                >(),
-            );
+                >());
         }
         let mut builder = AgentBuilder::new(
             std::env::temp_dir(),

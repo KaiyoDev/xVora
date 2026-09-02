@@ -3129,9 +3129,7 @@ async fn agent_rebuild_republishes_the_configured_cutoff() {
 
             // Rebuilding to a seedless definition must clear the cell; a stale bound is a divergence.
             actor
-                .handle_rebuild_agent_for_definition(
-                    agent::AgentDefinition::default_grok_build(),
-                )
+                .handle_rebuild_agent_for_definition(agent::AgentDefinition::default_grok_build())
                 .await
                 .expect("second rebuild should succeed");
             assert!(

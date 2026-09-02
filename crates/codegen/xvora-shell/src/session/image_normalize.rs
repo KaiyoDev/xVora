@@ -298,8 +298,7 @@ pub(crate) fn inline_attach_verdict(data_b64: &str) -> InlineAttachVerdict {
     let Ok(raw) = base64::engine::general_purpose::STANDARD.decode(data_b64) else {
         return InlineAttachVerdict::Unreadable;
     };
-    let Ok((w, h, _)) = tools::util::image_validate::validate_image_bytes_with(&raw, false)
-    else {
+    let Ok((w, h, _)) = tools::util::image_validate::validate_image_bytes_with(&raw, false) else {
         return InlineAttachVerdict::Unreadable;
     };
     if w < MIN_VISION_SIDE_PX

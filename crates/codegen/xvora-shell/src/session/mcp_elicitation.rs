@@ -2,12 +2,10 @@ use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use agent_client_protocol::Client as _;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
-use mcp::elicitation::{
-    ElicitationInbox, ElicitationJob, cancel_result, elicit_result_from_wire,
-};
+use mcp::elicitation::{ElicitationInbox, ElicitationJob, cancel_result, elicit_result_from_wire};
 use mcp::wire::MCP_ELICIT;
 use tools::mcp_elicitation::{McpElicitExtRequest, McpElicitExtResponse};
 

@@ -367,11 +367,9 @@ fn collect_config_skills(config_paths: &[String], git_root: Option<&Path>) -> Ve
     let mut skills = parse_skill_files(skill_files);
     // Provenance metadata only (scope still drives precedence): lets inspect and UIs tell `[skills].paths` entries from plain user/repo skills
     for skill in &mut skills {
-        skill.config_source = Some(
-            tools::types::config_source::ConfigSource::ConfigToml {
-                path: PathBuf::from(&skill.path),
-            },
-        );
+        skill.config_source = Some(tools::types::config_source::ConfigSource::ConfigToml {
+            path: PathBuf::from(&skill.path),
+        });
     }
     skills
 }
@@ -1867,11 +1865,9 @@ mod tests {
     fn dedupe_skills_name_collision_does_not_propagate_config_source() {
         let winner = make_skill("same-name", "/some/path/a/SKILL.md");
         let mut loser = make_skill("same-name", "/some/path/b/SKILL.md");
-        loser.config_source = Some(
-            tools::types::config_source::ConfigSource::ConfigToml {
-                path: PathBuf::from("/some/path/b/SKILL.md"),
-            },
-        );
+        loser.config_source = Some(tools::types::config_source::ConfigSource::ConfigToml {
+            path: PathBuf::from("/some/path/b/SKILL.md"),
+        });
 
         let deduped = dedupe_skills(vec![winner, loser]);
 

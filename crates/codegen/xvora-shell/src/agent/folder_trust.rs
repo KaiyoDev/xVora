@@ -428,8 +428,7 @@ pub(crate) fn filter_untrusted_project_lsp(
             tools::types::config_source::ConfigSource,
         ),
     >,
-) -> std::collections::BTreeMap<String, tools::implementations::lsp::config::LspServerConfig>
-{
+) -> std::collections::BTreeMap<String, tools::implementations::lsp::config::LspServerConfig> {
     tools::implementations::lsp::config::filter_project_lsp_when_untrusted(
         sourced,
         project_scope_allowed(cwd),

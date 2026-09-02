@@ -2,9 +2,7 @@ use agent_client_protocol as acp;
 use serde::{Deserialize, Serialize};
 
 use crate::util::config as cli_config;
-use agent::prompt::skills::{
-    CompatConfig, SkillInfo, SkillsConfig, list_skills_with_plugins,
-};
+use agent::prompt::skills::{CompatConfig, SkillInfo, SkillsConfig, list_skills_with_plugins};
 
 use super::ExtResult;
 
@@ -354,9 +352,7 @@ pub async fn handle(
                 if total == 1 { "" } else { "s" },
             );
 
-            telemetry::session_ctx::log_event(telemetry::events::SkillRemoved {
-                success: true,
-            });
+            telemetry::session_ctx::log_event(telemetry::events::SkillRemoved { success: true });
             super::to_ext_response(Ok(SkillsRemoveResponse {
                 path: resolved,
                 skills,

@@ -218,10 +218,7 @@ impl tool_runtime::Tool for SkillTool {
         tool_protocol::ToolId::new("skill").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "skill",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),

@@ -13,9 +13,9 @@
 
 use std::time::{Duration, Instant};
 
+use acp_lib::AcpClientMessage;
 use agent_client_protocol as acp;
 use serde::Deserialize;
-use acp_lib::AcpClientMessage;
 
 use super::actions::TaskResult;
 use super::agent::AgentId;

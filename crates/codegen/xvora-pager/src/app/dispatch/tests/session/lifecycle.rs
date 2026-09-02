@@ -22,10 +22,7 @@ fn voice_on_welcome_creates_session_and_records() {
     };
     assert!(app.voice_listening(), "capture starts into the new session");
     assert_eq!(app.voice_recording_target(), Some(VoiceTarget::Agent(id)));
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttPress)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttPress)));
 }
 #[test]
 fn voice_final_routes_to_recording_session_not_active_view() {
@@ -85,10 +82,7 @@ fn voice_auto_stops_when_leaving_recording_session() {
         app.voice_recording_target().is_none(),
         "target dropped on leave"
     );
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttRelease)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttRelease)));
 }
 #[test]
 fn chip_submit_without_session_keeps_chips_and_does_not_send() {

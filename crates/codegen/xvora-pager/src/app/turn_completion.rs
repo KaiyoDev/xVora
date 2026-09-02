@@ -27,8 +27,7 @@ pub(crate) const CANCELLATION_CONTEXT_KEY: &str = "cancellationContext";
 /// `_meta` key distinguishing a queued prompt that never ran from a real cancel.
 pub(crate) const COMPLETION_KIND_KEY: &str = shell::session::commands::COMPLETION_KIND_KEY;
 /// `_meta.completionKind` of [`shell::session::commands::PromptCompletionKind::RemovedFromQueue`].
-pub(crate) const REMOVED_FROM_QUEUE_KIND: &str =
-    shell::session::commands::REMOVED_FROM_QUEUE_KIND;
+pub(crate) const REMOVED_FROM_QUEUE_KIND: &str = shell::session::commands::REMOVED_FROM_QUEUE_KIND;
 
 /// Unknown tokens stay [`TurnStopReason::Unknown`], which maps to `TurnCompleted` (live `_` arm).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -527,11 +527,7 @@ fn protected_edit_reason(path: &Path) -> Option<ProtectedEditReason> {
 /// Matched directly inside any `.grok` dir (user-global default and workspace overlays) and directly under a custom `$GROK_HOME`.
 /// A custom home has no `.grok` component, so the component match alone cannot see it.
 fn protected_grok_config_file(path: &Path, components: &[&str]) -> Option<ProtectedEditReason> {
-    protected_grok_config_file_with_home(
-        path,
-        components,
-        config::user_grok_home().as_deref(),
-    )
+    protected_grok_config_file_with_home(path, components, config::user_grok_home().as_deref())
 }
 
 fn protected_grok_config_file_with_home(
@@ -1616,9 +1612,7 @@ mod tests {
             );
         }
         // Same file names elsewhere (or with no resolvable home) stay ordinary.
-        let elsewhere = home_path
-            .join("sub")
-            .join(config::SANDBOX_CONFIG_FILENAME);
+        let elsewhere = home_path.join("sub").join(config::SANDBOX_CONFIG_FILENAME);
         assert_eq!(
             protected_grok_config_file_with_home(
                 &elsewhere,

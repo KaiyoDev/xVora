@@ -1,14 +1,14 @@
 mod display;
+use acp_lib::acp_send;
 use agent_client_protocol as acp;
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use fast_worktree::WorktreeRecord;
 /// Reuse the agent's own report types rather than copies, so a field added there cannot go missing here.
 pub use fast_worktree::{DbStats, GcReport, KeptWorktree, RebuildReport};
+use shell::agent::config::Config as AgentConfig;
 use std::io::Write;
 use tokio_util::sync::CancellationToken;
-use acp_lib::acp_send;
-use shell::agent::config::Config as AgentConfig;
 #[derive(Debug, clap::Args, Clone)]
 pub struct WorktreeArgs {
     #[command(subcommand)]

@@ -388,9 +388,7 @@ impl SessionActor {
 mod stop_gate_snapshot_tests {
     use super::*;
 
-    fn task_snapshot(
-        kind: tools::computer::types::TaskKind,
-    ) -> tools::types::TaskSnapshot {
+    fn task_snapshot(kind: tools::computer::types::TaskKind) -> tools::types::TaskSnapshot {
         tools::types::TaskSnapshot {
             task_id: "task-1".into(),
             command: "sandbox-exec tail -f /var/log/syslog".into(),
@@ -417,17 +415,15 @@ mod stop_gate_snapshot_tests {
 
     #[test]
     fn task_snapshot_maps_to_stop_entry() {
-        let shell =
-            stop_entry_from_task(&task_snapshot(tools::computer::types::TaskKind::Bash));
+        let shell = stop_entry_from_task(&task_snapshot(tools::computer::types::TaskKind::Bash));
         assert_eq!(shell.r#type, BackgroundTaskType::Shell);
         assert_eq!(shell.command.as_deref(), Some("tail -f /var/log/syslog"));
         assert!(shell.description.is_none());
         assert_eq!(shell.status, "running");
         assert!(shell.agent_type.is_none());
 
-        let monitor = stop_entry_from_task(&task_snapshot(
-            tools::computer::types::TaskKind::Monitor,
-        ));
+        let monitor =
+            stop_entry_from_task(&task_snapshot(tools::computer::types::TaskKind::Monitor));
         assert_eq!(monitor.r#type, BackgroundTaskType::Monitor);
         assert!(monitor.command.is_none());
         assert_eq!(
@@ -438,13 +434,12 @@ mod stop_gate_snapshot_tests {
 
     #[test]
     fn subagent_summary_maps_to_stop_entry() {
-        let summary =
-            tools::implementations::grok_build::task::types::ActiveSubagentSummary {
-                subagent_id: "sub-1".into(),
-                subagent_type: "explore".into(),
-                description: "d".repeat(2000),
-                elapsed_ms: 5,
-            };
+        let summary = tools::implementations::grok_build::task::types::ActiveSubagentSummary {
+            subagent_id: "sub-1".into(),
+            subagent_type: "explore".into(),
+            description: "d".repeat(2000),
+            elapsed_ms: 5,
+        };
         let entry = stop_entry_from_subagent(&summary);
         assert_eq!(entry.r#type, BackgroundTaskType::Subagent);
         assert_eq!(entry.agent_type.as_deref(), Some("explore"));

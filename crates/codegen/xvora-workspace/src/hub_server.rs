@@ -7,9 +7,9 @@ use crate::rpc_envelope::{RpcEnvelope, envelope_err};
 use crate::workspace_ops::{RpcActivityClass, WorkspaceOp, WorkspaceRpc};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use computer_hub_sdk::ToolServerHandler;
 use prometheus::{HistogramVec, IntCounterVec, register_histogram_vec, register_int_counter_vec};
 use serde_json::Value;
-use computer_hub_sdk::ToolServerHandler;
 use tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
 use tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,
@@ -18,9 +18,7 @@ use tool_types::ToolDescription;
 use tools::computer::types::KillOutcome;
 use tools::computer::types::TaskKind;
 use tools::implementations::grok_build::scheduler::interval::interval_to_human;
-use tools::implementations::grok_build::scheduler::types::{
-    SchedulerCommand, SchedulerHandle,
-};
+use tools::implementations::grok_build::scheduler::types::{SchedulerCommand, SchedulerHandle};
 use tools::registry::types::FinalizedToolset;
 use tools::types::resources::Terminal;
 use workspace_types::rpc::workspace::{

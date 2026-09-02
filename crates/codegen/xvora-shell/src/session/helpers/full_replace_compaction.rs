@@ -17,8 +17,8 @@ use compaction::{
     FullReplaceObserver, LlmCompactionOutput,
 };
 use sampler::SamplerConfig as SamplingConfig;
-use xvora_sampling_types::{ConversationItem, HostedTool, ToolSpec};
 use telemetry::events::{CompactionRetryDegraded, CompactionTrigger};
+use xvora_sampling_types::{ConversationItem, HostedTool, ToolSpec};
 
 use chat_state::compaction_utils::{
     CompactionAttempt, MAX_CAPTURED_SUMMARY_CHARS, bound_captured_output,

@@ -627,10 +627,7 @@ mod tests {
 
         let loaded = load_and_clear_manifest(dir.path());
         assert_eq!(loaded.len(), 1);
-        assert_eq!(
-            loaded[0].kind,
-            tools::computer::types::TaskKind::Monitor
-        );
+        assert_eq!(loaded[0].kind, tools::computer::types::TaskKind::Monitor);
     }
 
     #[test]

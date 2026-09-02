@@ -7,6 +7,10 @@ use crate::auth::AuthMode;
 use crate::auth::{AuthManager, GrokAuth, GrokComConfig, run_auth_flow};
 use crate::leader::protocol::InternalMethod;
 use crate::util::grok_home;
+use acp_lib::{
+    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
+    LineBufferedRead,
+};
 use agent_client_protocol as acp;
 use parking_lot::Mutex;
 use std::pin::Pin;
@@ -18,10 +22,6 @@ use tokio::sync::{Mutex as TokioMutex, mpsc};
 use tokio::time::Duration;
 use tokio_util::compat::{TokioAsyncReadCompatExt as _, TokioAsyncWriteCompatExt as _};
 use tracing::{debug, info, warn};
-use acp_lib::{
-    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
-    LineBufferedRead,
-};
 const MAX_BUFFER_SIZE: usize = 8 * 1024 * 1024;
 use indexmap::IndexMap;
 /// Configuration for periodic auto-update checking in leader mode.
@@ -1421,9 +1421,7 @@ mod tests {
     #[serial_test::serial]
     fn embedded_otel_gate_keeps_a_session_user_fail_closed() {
         use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
-        use telemetry::external::{
-            is_settings_gate_open, mark_external_otel_settings_resolved,
-        };
+        use telemetry::external::{is_settings_gate_open, mark_external_otel_settings_resolved};
         unsafe fn set_or_clear(key: &str, value: Option<std::ffi::OsString>) {
             match value {
                 Some(v) => unsafe { std::env::set_var(key, v) },

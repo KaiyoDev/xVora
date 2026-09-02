@@ -3,6 +3,7 @@
 //! `xvora-pager` uses this module to set up OTLP trace export.
 //! Session-level spans (with `session_id`, tool timings, inference latency, etc.) are available in the product observability backend.
 use crate::instrumentation;
+use auth::AuthCredentialProvider;
 use opentelemetry::global;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
@@ -11,7 +12,6 @@ use std::sync::{Arc, OnceLock};
 use tracing_opentelemetry::OpenTelemetryLayer;
 use tracing_subscriber::Layer as _;
 use tracing_subscriber::registry::LookupSpan;
-use auth::AuthCredentialProvider;
 mod redact;
 static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 const ENV_OTEL_FILTER: &str = "GROK_OTEL_FILTER";

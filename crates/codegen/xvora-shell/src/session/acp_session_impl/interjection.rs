@@ -14,8 +14,7 @@ pub(crate) use interjection_core::{
 };
 
 /// Shell instantiation of the shared entry type: images are ACP content.
-pub(crate) type PendingInterjection =
-    interjection_core::PendingInterjection<acp::ImageContent>;
+pub(crate) type PendingInterjection = interjection_core::PendingInterjection<acp::ImageContent>;
 
 /// Prompt-id prefix for interjections that missed their turn and were converted into standalone prompt turns.
 /// They arrived while the session was idle, or after the running turn's final drain.

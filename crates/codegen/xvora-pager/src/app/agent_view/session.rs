@@ -1137,9 +1137,8 @@ impl AgentView {
                 snap.free_tokens = token_estimation::free_tokens(snap.total, used);
             }
             None => {
-                self.context_state = Some(shell::session::ContextInfo::from_notification(
-                    used, total,
-                ));
+                self.context_state =
+                    Some(shell::session::ContextInfo::from_notification(used, total));
             }
         }
     }

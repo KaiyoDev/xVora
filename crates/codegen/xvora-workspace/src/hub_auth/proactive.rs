@@ -11,15 +11,15 @@ use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
+use computer_hub_sdk::{
+    AuthCredential, AuthIdentity, AuthProvider, OnRefreshCallback, PrincipalKey, RefreshEvent,
+};
 use prometheus::{
     Histogram, IntCounterVec, exponential_buckets, register_histogram, register_int_counter_vec,
 };
 use rand::Rng;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use computer_hub_sdk::{
-    AuthCredential, AuthIdentity, AuthProvider, OnRefreshCallback, PrincipalKey, RefreshEvent,
-};
 
 use crate::status_config::ProactiveRefreshConfig;
 

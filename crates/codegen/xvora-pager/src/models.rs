@@ -1,9 +1,9 @@
 //! `grok models` subcommand.
 
 use anyhow::Result;
-use tokio_util::sync::CancellationToken;
 use shell::agent::config::Config as AgentConfig;
 use shell::cli_models::{AuthStatus, list_models};
+use tokio_util::sync::CancellationToken;
 
 use crate::client_identity::{PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
 

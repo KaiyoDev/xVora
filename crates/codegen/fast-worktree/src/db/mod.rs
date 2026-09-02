@@ -459,8 +459,7 @@ pub fn now_epoch_secs() -> i64 {
 
 /// Resolve the grok home: `$GROK_HOME`, else `<home>/.grok`.
 pub fn resolve_grok_home() -> Result<PathBuf> {
-    dirs::resolve_grok_home()
-        .context("neither $GROK_HOME nor a home directory could be resolved")
+    dirs::resolve_grok_home().context("neither $GROK_HOME nor a home directory could be resolved")
 }
 
 /// Serializes tests that mutate the process-global `GROK_HOME` env var so they

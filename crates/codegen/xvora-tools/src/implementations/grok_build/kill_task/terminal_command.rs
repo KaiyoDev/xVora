@@ -44,10 +44,7 @@ impl tool_runtime::Tool for KillTerminalCommandTool {
         tool_protocol::ToolId::new("kill_terminal_command").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "kill_terminal_command",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),

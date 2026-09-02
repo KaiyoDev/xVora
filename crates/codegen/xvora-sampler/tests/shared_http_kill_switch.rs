@@ -6,8 +6,8 @@ mod support;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use support::{send_one, test_config};
 use sampler::SamplingClient;
+use support::{send_one, test_config};
 use test_support::spawn_counting_server;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

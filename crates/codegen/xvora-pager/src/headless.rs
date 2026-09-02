@@ -10,8 +10,8 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
-use agent_client_protocol as acp;
 use acp_lib::{AcpAgentTx, AcpClientMessageBox, AcpClientRx, acp_send};
+use agent_client_protocol as acp;
 use shell::agent::auth_method::AuthMethodKind;
 use shell::agent::config::Config as AgentConfig;
 use shell::extensions::task::{CancelSubagentRequest, KillTaskRequest};
@@ -408,8 +408,7 @@ fn stop_reason_wire(reason: acp::StopReason) -> String {
 
 /// Configured MCP servers for the `init` line; all report `"connected"` (status is not resolved here).
 fn mcp_server_names(cwd: &Path) -> Vec<McpServer> {
-    let servers =
-        cli_config::load_mcp_servers(cwd, &tools::types::compat::CompatConfig::default());
+    let servers = cli_config::load_mcp_servers(cwd, &tools::types::compat::CompatConfig::default());
     servers
         .iter()
         .filter_map(|s| {
@@ -470,8 +469,8 @@ async fn authenticate(
     let method_id = crate::acp::select_eager_auth_method(auths, default_auth_method_id)
         .ok_or_else(|| {
             use std::io::IsTerminal;
-            let interactive = std::io::stdin().is_terminal()
-                && !shell::util::clipboard::is_remote_session();
+            let interactive =
+                std::io::stdin().is_terminal() && !shell::util::clipboard::is_remote_session();
             anyhow::anyhow!("{}", auth_required_message(interactive))
         })?;
     let kind = AuthMethodKind::from_id(&method_id);
@@ -1334,9 +1333,9 @@ pub async fn run_single_turn(
                     ),
                 }
             }
-            let stop_reason_override =
-                (shell::sampling::error::stop_reason_for_turn_error(&err) == "MaxTokens")
-                    .then_some("max_tokens");
+            let stop_reason_override = (shell::sampling::error::stop_reason_for_turn_error(&err)
+                == "MaxTokens")
+                .then_some("max_tokens");
             emitter.on_error(&msg, stop_reason_override);
             Err(anyhow::anyhow!("{msg}"))
         }

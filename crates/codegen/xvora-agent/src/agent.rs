@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use xvora_sampling_types::HostedTool;
 use tools::bridge::ToolBridge;
 use tools::types::definition::ToolDefinition;
+use xvora_sampling_types::HostedTool;
 
 use crate::compaction::CompactionPolicy;
 use crate::config::{AgentDefinition, CompletionRequirement, PermissionMode};

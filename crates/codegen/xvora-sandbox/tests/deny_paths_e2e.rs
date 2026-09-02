@@ -834,8 +834,7 @@ fn fixture_homes(
     let home = unique_temp_dir(&format!("{tag}-home"));
     let grok = unique_temp_dir(&format!("{tag}-grok"));
     let workspace = unique_temp_dir(&format!("{tag}-ws"));
-    fs::write(grok.join(config::SANDBOX_CONFIG_FILENAME), "")
-        .expect("empty global sandbox.toml");
+    fs::write(grok.join(config::SANDBOX_CONFIG_FILENAME), "").expect("empty global sandbox.toml");
     (
         home.clone(),
         grok.clone(),
@@ -868,8 +867,7 @@ fn run_deny_case(
         .join(", ");
     fs::create_dir_all(tmp.join(".grok")).expect("mkdir .grok");
     fs::write(
-        tmp.join(".grok")
-            .join(config::SANDBOX_CONFIG_FILENAME),
+        tmp.join(".grok").join(config::SANDBOX_CONFIG_FILENAME),
         format!("[profiles.{profile}]\nextends = \"workspace\"\ndeny = [{deny_list}]\n"),
     )
     .expect("write sandbox.toml");

@@ -28,15 +28,15 @@
 //! The subagent channels are wrapped in a `ChannelBackend` behind `SubagentBackendResource`.
 //! On rebuild, we must reuse the **same** senders so the existing coordinator keeps receiving requests.
 //! A fresh channel would orphan the running coordinator.
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedSender;
 use agent::config::AgentDefinition;
 use agent::error::AgentBuildError;
 use agent::prompt::context::PromptAudience;
 use agent::prompt::skills::SkillsConfig;
 use agent::{Agent, AgentBuilder, CompactionPolicy, ReminderPolicy};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedSender;
 use tools::computer::types::{AsyncFileSystem, TerminalBackend};
 use tools::implementations::grok_build::app_builder::AppBuilderDeployerConfig;
 use tools::implementations::grok_build::ask_user_question::types::UserQuestionRequest;
@@ -124,8 +124,7 @@ pub(crate) struct AgentRebuildSpec {
     /// Keep the two on one resolve.
     pub scheduler_background_loops: bool,
     pub mcp_state: Arc<tokio::sync::Mutex<crate::session::mcp_servers::McpState>>,
-    pub managed_gateway_tool_client:
-        Option<tools::types::resources::ManagedGatewayToolClient>,
+    pub managed_gateway_tool_client: Option<tools::types::resources::ManagedGatewayToolClient>,
     pub is_non_interactive: bool,
     pub system_prompt_label: String,
     pub owner_session_id: Option<String>,
@@ -326,12 +325,9 @@ impl AgentRebuildSpec {
         agent
             .tool_bridge()
             .update_resources_with(|resources| {
-                resources
-                    .insert(
-                        TaskModelValidator::new(move |requested| {
-                            model_validator.task_model_error(requested)
-                        }),
-                    );
+                resources.insert(TaskModelValidator::new(move |requested| {
+                    model_validator.task_model_error(requested)
+                }));
                 if let Some(event_tx) = subagent_event_tx.clone() {
                     use tools::implementations::grok_build::task::backend::{
                         ChannelBackend, SubagentBackendResource,
@@ -340,57 +336,42 @@ impl AgentRebuildSpec {
                         MaxSubagentDepth, SessionIdResource, SubagentDepthCounter,
                         SubagentEventSender,
                     };
-                    resources
-                        .insert(
-                            SubagentBackendResource(
-                                Arc::new(
-                                    subagent_coordinator_sender
-                                        .as_ref()
-                                        .map_or_else(
-                                            || ChannelBackend::for_session(
-                                                event_tx.clone(),
-                                                session_id_str.clone(),
-                                            ),
-                                            |sender| ChannelBackend::for_coordinator_session(
-                                                sender.clone(),
-                                                session_id_str.clone(),
-                                            ),
-                                        ),
-                                ),
-                            ),
-                        );
+                    resources.insert(SubagentBackendResource(Arc::new(
+                        subagent_coordinator_sender.as_ref().map_or_else(
+                            || {
+                                ChannelBackend::for_session(
+                                    event_tx.clone(),
+                                    session_id_str.clone(),
+                                )
+                            },
+                            |sender| {
+                                ChannelBackend::for_coordinator_session(
+                                    sender.clone(),
+                                    session_id_str.clone(),
+                                )
+                            },
+                        ),
+                    )));
                     resources.insert(SubagentDepthCounter(*subagent_depth));
                     resources.insert(MaxSubagentDepth(*subagents_max_depth));
                     resources.insert(SessionIdResource(session_id_str.clone()));
                     resources.insert(SubagentEventSender(event_tx));
-                    resources
-                        .insert(
-                            crate::tools::tool_context::subagent_foreground_wait(
-                                Arc::clone(blocking_wait_depth),
-                            ),
-                        );
+                    resources.insert(crate::tools::tool_context::subagent_foreground_wait(
+                        Arc::clone(blocking_wait_depth),
+                    ));
                     if let Some(buffer) = monitor_event_buffer.clone() {
                         resources.insert(buffer);
                     }
                 }
-                resources
-                    .insert(
-                        tools::types::resources::RespectGitignore(
-                            *respect_gitignore,
-                        ),
-                    );
-                resources
-                    .insert(
-                        tools::types::resources::SchedulerBackgroundLoops(
-                            *scheduler_background_loops,
-                        ),
-                    );
-                resources
-                    .insert(
-                        tools::types::resources::PathNotFoundHints(
-                            *path_not_found_hints,
-                        ),
-                    );
+                resources.insert(tools::types::resources::RespectGitignore(
+                    *respect_gitignore,
+                ));
+                resources.insert(tools::types::resources::SchedulerBackgroundLoops(
+                    *scheduler_background_loops,
+                ));
+                resources.insert(tools::types::resources::PathNotFoundHints(
+                    *path_not_found_hints,
+                ));
                 if let Some(client) = managed_gateway_tool_client.clone() {
                     resources.insert(client);
                 }
@@ -409,11 +390,9 @@ pub(crate) fn test_rebuild_spec_default() -> Arc<AgentRebuildSpec> {
     let (uq_tx, _uq_rx) = tokio::sync::mpsc::unbounded_channel();
     Arc::new(AgentRebuildSpec {
         working_directory: std::env::temp_dir(),
-        terminal_backend: Arc::new(
-            tools::computer::local::LocalTerminalBackend::new_local(
-                tools::computer::local::SearchShadowConfig::default(),
-            ),
-        ),
+        terminal_backend: Arc::new(tools::computer::local::LocalTerminalBackend::new_local(
+            tools::computer::local::SearchShadowConfig::default(),
+        )),
         fs_backend: Arc::new(tools::computer::local::LocalFs),
         tools_notification_handle: ToolNotificationHandle::noop(),
         bridge_state_path: std::env::temp_dir().join("test_tool_state.json"),

@@ -6,12 +6,10 @@ impl SessionActor {
     /// Trust the current project via the unified folder-trust store.
     /// Same as `--trust`: also allows repo-local MCP/LSP for this folder.
     pub(super) fn do_hooks_trust_project(cwd: &str) -> Result<std::path::PathBuf, String> {
-        let root =
-            workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
-                .map_err(|_| {
-                    "Not in a git repository. Project hooks require a git worktree root."
-                        .to_string()
-                })?;
+        let root = workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
+            .map_err(|_| {
+                "Not in a git repository. Project hooks require a git worktree root.".to_string()
+            })?;
         workspace::folder_trust::grant_folder_trust(&root);
         Ok(root)
     }
@@ -21,9 +19,8 @@ impl SessionActor {
     pub(super) fn do_hooks_untrust_project(
         cwd: &str,
     ) -> Result<(std::path::PathBuf, bool), String> {
-        let root =
-            workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
-                .map_err(|_| "Not in a git repository.".to_string())?;
+        let root = workspace::session::git::find_git_root_from_path(std::path::Path::new(cwd))
+            .map_err(|_| "Not in a git repository.".to_string())?;
         // revoke_folder_trust persists set_untrusted and downgrades the decision cache so the untrust applies at the next reload, not just restart
         let was_trusted = crate::agent::folder_trust::revoke_folder_trust(&root);
         Ok((root, was_trusted))
@@ -421,9 +418,7 @@ impl SessionActor {
                         }
 
                         // Proceed with removal.
-                        if let Err(e) =
-                            agent::plugins::git_install::remove_repo_path(&repo_path)
-                        {
+                        if let Err(e) = agent::plugins::git_install::remove_repo_path(&repo_path) {
                             tracing::warn!("Failed to remove repo path: {e}");
                         }
                         registry.remove(&repo_key);
@@ -655,9 +650,9 @@ impl SessionActor {
     /// Reload hooks mid-session: re-discovers global and project hooks, re-evaluates project trust, and re-appends plugin-contributed hooks.
     /// `pub(super)` so the `SessionCommand::ReloadHooks` arm in `run_session` (parent module) can call it after an interactive folder-trust grant.
     pub(super) async fn reload_hooks_impl(self: &std::sync::Arc<Self>) -> String {
-        let git_root = workspace::session::git::find_git_root_from_path(
-            std::path::Path::new(&self.session_info.cwd),
-        )
+        let git_root = workspace::session::git::find_git_root_from_path(std::path::Path::new(
+            &self.session_info.cwd,
+        ))
         .ok();
         // Reconcile folder-trust so a mid-session /hooks-trust (or --trust) grant counts on reload, then gate project hook sources on the verdict
         let cwd = std::path::Path::new(&self.session_info.cwd);

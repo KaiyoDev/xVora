@@ -168,9 +168,7 @@ pub(super) fn resolve_session_shell() -> String {
 
     #[cfg(not(unix))]
     {
-        config::shell::detect_windows_shell()
-            .name()
-            .to_string()
+        config::shell::detect_windows_shell().name().to_string()
     }
 }
 
@@ -240,10 +238,8 @@ impl SessionActor {
 
         use tools::types::ToolInput;
         // Use the stripped command as the description so the pager shows the real command (not a generic label) while satisfying the required field
-        let title_command = tools::util::strip_redundant_session_cd(
-            &command,
-            self.tool_context.cwd.as_path(),
-        );
+        let title_command =
+            tools::util::strip_redundant_session_cd(&command, self.tool_context.cwd.as_path());
         let tool_input = ToolInput::Bash(BashToolInput {
             command: command.clone(),
             timeout: None,

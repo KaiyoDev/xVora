@@ -1,5 +1,5 @@
-use agent_client_protocol as acp;
 use acp_lib::AcpResult;
+use agent_client_protocol as acp;
 
 pub use tools::implementations::grok_build::exit_plan_mode::{
     ExitPlanModeExtRequest, ExitPlanModeExtResponse,

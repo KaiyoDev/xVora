@@ -13,10 +13,7 @@ const CANARY_CMD: &str = "CANARY_BASH_COMMAND_ls_la";
 const CANARY_RESPONSE: &str = "CANARY_ASSISTANT_PROSE do not export";
 const OAUTH_EMAIL: &str = "otel.parity@example.com";
 
-fn deny_decision(
-    command: &str,
-    tool_use_id: &str,
-) -> telemetry::events::PermissionDecisionRecord {
+fn deny_decision(command: &str, tool_use_id: &str) -> telemetry::events::PermissionDecisionRecord {
     telemetry::events::PermissionDecisionRecord {
         payload: telemetry::events::PermissionDecisionPayload {
             tool_name: "run_terminal_cmd".into(),

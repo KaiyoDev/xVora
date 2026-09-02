@@ -434,9 +434,9 @@ pub async fn persist_models_default(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use config::ConfigLayers;
     use serial_test::serial;
     use tempfile::tempdir;
-    use config::ConfigLayers;
     use test_support::EnvGuard;
 
     fn models_default_patch(default: &str) -> toml::Table {

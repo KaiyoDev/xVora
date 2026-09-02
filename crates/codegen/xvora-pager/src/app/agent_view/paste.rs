@@ -194,12 +194,10 @@ impl AgentView {
                         );
                     }
                     if ctx.source.tip_showing() {
-                        telemetry::session_ctx::log_event(
-                            telemetry::events::ContextualTip {
-                                tip: telemetry::events::ContextualTipKind::ImageInput,
-                                action: telemetry::events::ContextualTipAction::Accepted,
-                            },
-                        );
+                        telemetry::session_ctx::log_event(telemetry::events::ContextualTip {
+                            tip: telemetry::events::ContextualTipKind::ImageInput,
+                            action: telemetry::events::ContextualTipAction::Accepted,
+                        });
                     }
                     self.prompt.refresh_slash(&self.session.models);
                     ClipboardPasteCompletion::Handled

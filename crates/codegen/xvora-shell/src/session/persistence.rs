@@ -34,8 +34,8 @@ use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};
 use crate::session::visibility::ClassifiedSessionKind;
 use crate::tools::todo::TodoState;
 use crate::util::grok_home::grok_home;
-use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent_client_protocol as acp;
 use xvora_sampling_types::ReasoningEffort;
 
 use crate::extensions::notification::{
@@ -1025,10 +1025,9 @@ pub fn default_model_id() -> acp::ModelId {
 
 impl Summary {
     pub(crate) fn new(info: &Info, model_id: acp::ModelId) -> std::io::Result<Self> {
-        let git_metadata =
-            workspace::session::git::resolve_persisted_session_git_metadata_sync(
-                std::path::Path::new(&info.cwd),
-            );
+        let git_metadata = workspace::session::git::resolve_persisted_session_git_metadata_sync(
+            std::path::Path::new(&info.cwd),
+        );
         let mut summary = Self {
             info: info.clone(),
             cwd_generation: 0,

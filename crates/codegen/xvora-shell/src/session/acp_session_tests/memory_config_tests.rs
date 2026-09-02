@@ -2,9 +2,9 @@ use super::support::*;
 use super::*;
 use crate::session::memory::MemorySearchSource;
 use tokio::sync::mpsc;
-use xvora_paths::AbsPathBuf;
 use workspace::file_system::MockFs;
 use workspace::permission::PermissionHandle;
+use xvora_paths::AbsPathBuf;
 #[test]
 fn first_turn_memory_visibility_matches_displayed_score() {
     assert_eq!(

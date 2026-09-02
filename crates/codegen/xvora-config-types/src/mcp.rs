@@ -2,10 +2,10 @@
 
 use agent_client_protocol as acp;
 use indexmap::IndexMap;
+use mcp::oauth_config::McpOAuthConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use mcp::oauth_config::McpOAuthConfig;
 
 /// serde default helper.
 fn default_true() -> bool {

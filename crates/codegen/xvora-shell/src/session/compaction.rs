@@ -652,13 +652,11 @@ impl SessionActor {
                 context_window,
                 "auto-compaction suppressed after deterministic compaction failure"
             );
-            telemetry::session_ctx::log_event(
-                telemetry::events::AutoCompactSuppressed {
-                    reason: reason.as_str(),
-                    estimated_tokens,
-                    context_window,
-                },
-            );
+            telemetry::session_ctx::log_event(telemetry::events::AutoCompactSuppressed {
+                reason: reason.as_str(),
+                estimated_tokens,
+                context_window,
+            });
             self.send_xai_notification(
                 crate::extensions::notification::SessionUpdate::AutoCompactFailed {
                     error: Self::suppress_notification_message(reason, detail),
@@ -930,8 +928,8 @@ impl SessionActor {
             .map(|c| c.api_backend == ApiBackend::Messages)
             .unwrap_or(false);
         let model_id = sampling_config.map(|c| c.model).unwrap_or_default();
-        let compaction = telemetry::events::CompactionScope::begin(
-            telemetry::events::CompactionBeginParams {
+        let compaction =
+            telemetry::events::CompactionScope::begin(telemetry::events::CompactionBeginParams {
                 trigger,
                 tokens_used: tokens_before,
                 context_window,
@@ -950,8 +948,7 @@ impl SessionActor {
                 },
                 two_pass_enabled: self.two_pass_active(),
                 is_subagent: self.startup_hints.is_subagent,
-            },
-        );
+            });
         let compact_source = trigger_str;
         self.dispatch_hook(
             xvora_hooks::event::HookEventName::PreCompact,
@@ -985,9 +982,7 @@ impl SessionActor {
                 summary_strips_reasoning,
             )
         } else {
-            chat_state::compaction_utils::prepare_conversation_for_summarization(
-                full_conversation,
-            )
+            chat_state::compaction_utils::prepare_conversation_for_summarization(full_conversation)
         };
         let pre_compaction_ms = assembly_start.elapsed().as_millis() as u64;
         if conv_len == 0 {
@@ -1090,8 +1085,7 @@ impl SessionActor {
         };
         let use_short_prompt = false;
         let started_at = chrono::Utc::now().to_rfc3339();
-        let estimated_input_tokens =
-            chat_state::estimate_conversation_tokens(&simplified_messages);
+        let estimated_input_tokens = chat_state::estimate_conversation_tokens(&simplified_messages);
         let auto_trigger = matches!(trigger, telemetry::events::CompactionTrigger::Auto);
         let wall_clock_budget_secs = self
             .agent
@@ -1374,9 +1368,7 @@ impl SessionActor {
                                 tools::computer::types::TaskKind::Monitor => {
                                     monitor_tool_name.clone()
                                 }
-                                tools::computer::types::TaskKind::Bash => {
-                                    execute_tool_name.clone()
-                                }
+                                tools::computer::types::TaskKind::Bash => execute_tool_name.clone(),
                             };
                             CompactionStateContext::task_summary(
                                 t.task_id, t.command, "running", tool_name,
@@ -1598,14 +1590,14 @@ impl SessionActor {
                 })
         };
         let memory_opt_out = false;
-        let memory_ref: Option<&dyn tools::types::memory_backend::MemoryBackend> =
-            if memory_opt_out {
-                None
-            } else {
-                memory_backend_impl
-                    .as_ref()
-                    .map(|b| b as &dyn tools::types::memory_backend::MemoryBackend)
-            };
+        let memory_ref: Option<&dyn tools::types::memory_backend::MemoryBackend> = if memory_opt_out
+        {
+            None
+        } else {
+            memory_backend_impl
+                .as_ref()
+                .map(|b| b as &dyn tools::types::memory_backend::MemoryBackend)
+        };
         let suppress_state_reminder = false;
         let workflow_listing = self.workflow_listing_for_prompt();
         let system_reminder = if suppress_state_reminder {
@@ -1951,10 +1943,7 @@ impl SessionActor {
     /// Inspects only the model-metadata portion of the [`SamplingErrorInfo`] (the `context_window` field) against the tracked token estimate.
     ///
     /// Called from `handle_sampling_failure` with the `SamplingErrorInfo` the sampler hands back.
-    pub(crate) async fn should_compact_on_error(
-        &self,
-        err: &sampler::SamplingErrorInfo,
-    ) -> bool {
+    pub(crate) async fn should_compact_on_error(&self, err: &sampler::SamplingErrorInfo) -> bool {
         if self.compaction.is_suppressed() {
             return false;
         }

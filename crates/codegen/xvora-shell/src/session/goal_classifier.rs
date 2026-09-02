@@ -17,11 +17,11 @@ use crate::session::goal_planner::{
 };
 use crate::session::goal_role_tools::RoleToolNames;
 use crate::session::goal_tracker::GoalClassifierVerdict;
+use session_events::EventWriter;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use session_events::EventWriter;
 use tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,

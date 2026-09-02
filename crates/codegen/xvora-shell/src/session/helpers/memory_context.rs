@@ -5,8 +5,8 @@
 //! - Post-compaction: recover relevant memory after context is lost
 
 use chat_state::{MEMORY_CONTEXT_CLOSE_TAG, MEMORY_CONTEXT_OPEN_TAG};
-use xvora_sampling_types::ConversationItem;
 use tools::types::memory_backend::{MemorySearchResult, format_staleness_note};
+use xvora_sampling_types::ConversationItem;
 
 const SNIPPET_MAX_CHARS: usize = 500;
 

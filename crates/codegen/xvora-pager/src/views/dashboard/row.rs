@@ -158,10 +158,7 @@ pub fn build_rows_with_workspace(
         })
         .collect()
 }
-fn workspace_member_row(
-    member: &dashboard_store::Member,
-    home: Option<&str>,
-) -> DashboardRow {
+fn workspace_member_row(member: &dashboard_store::Member, home: Option<&str>) -> DashboardRow {
     let session_id = member.session_id.as_ref();
     let cwd = member
         .cwd

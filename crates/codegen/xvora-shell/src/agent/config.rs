@@ -5,22 +5,22 @@ use crate::agent::model_providers::{
 use crate::auth::{AuthManager, GrokComConfig, OidcAuthConfig};
 use crate::remote::DEFAULT_CONTEXT_WINDOW;
 use crate::{config::StorageMode, sampling::ApiBackend, tools::config::ShellToolsetConfig};
+use agent::prompt::skills::SkillsConfig;
 use agent_client_protocol as acp;
 use indexmap::IndexMap;
+use sampler::{AuthScheme, SamplerConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::num::NonZeroU64;
 use std::path::PathBuf;
 use std::sync::Arc;
-use agent::prompt::skills::SkillsConfig;
-use sampler::{AuthScheme, SamplerConfig};
+use tools::types::compat::{
+    COMPAT_CELLS, CompatConfig, CompatConfigToml, CompatRemoteKey, CompatSurface, CompatVendor,
+};
 use xvora_sampling_types::{
     CompactionAtTokens, CompactionsRemaining, REASONING_EFFORT_META_KEY,
     REASONING_EFFORTS_META_KEY, ReasoningEffort, ReasoningEffortOption,
     reasoning_effort_meta_value, reasoning_efforts_meta_value,
-};
-use tools::types::compat::{
-    COMPAT_CELLS, CompatConfig, CompatConfigToml, CompatRemoteKey, CompatSurface, CompatVendor,
 };
 /// Determines behavior like relay sync enablement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1564,10 +1564,7 @@ impl CliAgentOverrides {
     /// Subagent variant of [`Self::apply_to_definition`].
     /// Records the flags as session-clamp state instead of overwriting the agent author's own fields.
     /// See [`AgentDefinition::session_tools_allowlist`].
-    pub(crate) fn apply_to_subagent_definition(
-        &self,
-        def: &mut agent::config::AgentDefinition,
-    ) {
+    pub(crate) fn apply_to_subagent_definition(&self, def: &mut agent::config::AgentDefinition) {
         def.session_tools_allowlist = self.tools.clone();
         def.session_tools_denylist = self.disallowed_tools.clone();
         if let Some(ref parent_mode) = self.permission_mode
@@ -3248,9 +3245,7 @@ fn telemetry_otel_ms(t: &toml::Value, key: &str) -> Option<String> {
             .or_else(|| v.as_str().map(str::to_owned))
     })
 }
-fn telemetry_otel_file_config(
-    t: &toml::Value,
-) -> telemetry::external::ExternalOtelFileConfig {
+fn telemetry_otel_file_config(t: &toml::Value) -> telemetry::external::ExternalOtelFileConfig {
     telemetry::external::ExternalOtelFileConfig {
         enabled: t.get("otel_enabled").and_then(toml::Value::as_bool),
         metrics_exporter: telemetry_otel_str(t, "otel_metrics_exporter"),
@@ -3329,10 +3324,8 @@ pub(crate) fn resolve_external_otel_config_with(
             telemetry_otel_file_config(&telemetry)
         });
     let getenv_pinned = crate::agent::external_otel_pin::getenv_with_pins(&pins, getenv);
-    let mut resolved = telemetry::external::ExternalOtelConfig::resolve_with(
-        getenv_pinned,
-        file_cfg.as_ref(),
-    )?;
+    let mut resolved =
+        telemetry::external::ExternalOtelConfig::resolve_with(getenv_pinned, file_cfg.as_ref())?;
     resolved.client = client;
     resolved.internal_pipeline_consumed_otel_vars = internal_pipeline_consumed_otel_vars;
     Some(resolved)
@@ -4756,11 +4749,7 @@ pub(crate) fn resolve_credentials(
                  requests will have no API key",
             );
         }
-        (
-            None,
-            info.base_url.clone(),
-            chat_state::AuthType::ApiKey,
-        )
+        (None, info.base_url.clone(), chat_state::AuthType::ApiKey)
     };
     let auth_scheme = info.auth_scheme;
     tracing::debug!(

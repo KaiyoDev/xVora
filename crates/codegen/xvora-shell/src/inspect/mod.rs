@@ -353,12 +353,8 @@ async fn build_report(cwd: &Path) -> InspectReport {
     let mut plugin_config = plugins_cfg.to_discovery_config();
     // Project plugins gate on the same folder-trust verdict as hooks and the live session/doctor sites
     // The listing's `enabled` flags therefore match runtime gating
-    let discovered_plugins = agent::plugins::discover_plugins(
-        Some(cwd),
-        &plugin_config,
-        &trust_store,
-        project_trusted,
-    );
+    let discovered_plugins =
+        agent::plugins::discover_plugins(Some(cwd), &plugin_config, &trust_store, project_trusted);
     plugin_config.populate_plugin_lists(&discovered_plugins);
 
     let plugin_registry = agent::plugins::PluginRegistry::from_discovered(
@@ -853,10 +849,7 @@ fn slash_name_counts(skills: &[agent::prompt::skills::SkillInfo]) -> HashMap<Str
     for skill in skills.iter().filter(|s| s.user_invocable && s.enabled) {
         *counts.entry(skill.name.to_lowercase()).or_default() += 1;
         *counts
-            .entry(
-                tools::implementations::skills::skill::format_skill_name(skill)
-                    .to_lowercase(),
-            )
+            .entry(tools::implementations::skills::skill::format_skill_name(skill).to_lowercase())
             .or_default() += 1;
     }
     counts
@@ -875,8 +868,7 @@ fn slash_collision(
     if !contested {
         return (None, None);
     }
-    let qualified =
-        tools::implementations::skills::skill::format_skill_name(skill).to_lowercase();
+    let qualified = tools::implementations::skills::skill::format_skill_name(skill).to_lowercase();
     let invocable_as = name_counts
         .get(&qualified)
         .is_some_and(|n| *n == 1)
@@ -904,15 +896,9 @@ fn skill_entry_source(s: &agent::prompt::skills::SkillInfo) -> ConfigSource {
     }
 }
 
-fn list_agents(
-    cwd: &Path,
-    plugin_registry: &agent::plugins::PluginRegistry,
-) -> Vec<AgentEntry> {
-    let agents = agent::discovery::all_subagents_with_plugins(
-        cwd,
-        &HashMap::new(),
-        Some(plugin_registry),
-    );
+fn list_agents(cwd: &Path, plugin_registry: &agent::plugins::PluginRegistry) -> Vec<AgentEntry> {
+    let agents =
+        agent::discovery::all_subagents_with_plugins(cwd, &HashMap::new(), Some(plugin_registry));
 
     agents
         .into_iter()
@@ -2095,8 +2081,7 @@ mod tests {
     fn requirements_lock_reports_always_approve_enforced() {
         let lock = workspace::permission::resolution::YoloPolicyLock {
             source_label: "/etc/grok/requirements.toml".to_string(),
-            reason:
-                workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
+            reason: workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
         };
         let PermissionPolicyReport {
             enforced,
@@ -2124,8 +2109,7 @@ mod tests {
     fn mdm_pin_attributes_enforced_row_to_mdm_layer() {
         let lock = workspace::permission::resolution::YoloPolicyLock {
             source_label: crate::config::MDM_REQUIREMENTS_SOURCE.to_string(),
-            reason:
-                workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
+            reason: workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
         };
 
         let PermissionPolicyReport {

@@ -1597,19 +1597,15 @@ impl tools::computer::types::TerminalBackend for OneTaskTerminal {
     async fn run(
         &self,
         _: tools::computer::types::TerminalRunRequest,
-    ) -> Result<
-        tools::computer::types::TerminalRunResult,
-        tools::computer::types::ComputerError,
-    > {
+    ) -> Result<tools::computer::types::TerminalRunResult, tools::computer::types::ComputerError>
+    {
         unimplemented!()
     }
     async fn run_background(
         &self,
         _: tools::computer::types::TerminalRunRequest,
-    ) -> Result<
-        tools::computer::types::BackgroundHandle,
-        tools::computer::types::ComputerError,
-    > {
+    ) -> Result<tools::computer::types::BackgroundHandle, tools::computer::types::ComputerError>
+    {
         unimplemented!()
     }
     async fn get_task(&self, _: &str) -> Option<tools::computer::types::TaskSnapshot> {

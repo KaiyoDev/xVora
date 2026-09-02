@@ -202,8 +202,8 @@ use crate::telemetry::dc_log;
 use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
-use file_utils::queue::EnqueueOutcome;
 use diag_server::DiagHandle;
+use file_utils::queue::EnqueueOutcome;
 use session_events::types::CancellationCategory;
 use session_events::{Event, SessionRelationship, TurnOutcomeLabel};
 use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
@@ -595,25 +595,21 @@ impl WorkspaceHandle {
             (registry, errors)
         };
         let lsp: Option<Arc<dyn tools::implementations::lsp::LspBackend>> = {
-            let sourced =
-                tools::implementations::lsp::config::load_servers_with_plugins_sourced(
-                    &config.root_cwd,
-                    &[],
-                    &[],
-                    &[],
-                    &[],
-                );
-            let servers =
-                tools::implementations::lsp::config::filter_project_lsp_when_untrusted(
-                    sourced,
-                    config.project_lsp_trusted,
-                );
+            let sourced = tools::implementations::lsp::config::load_servers_with_plugins_sourced(
+                &config.root_cwd,
+                &[],
+                &[],
+                &[],
+                &[],
+            );
+            let servers = tools::implementations::lsp::config::filter_project_lsp_when_untrusted(
+                sourced,
+                config.project_lsp_trusted,
+            );
             if servers.is_empty() {
                 None
             } else {
-                use tools::implementations::lsp::{
-                    LspBackend, LspBackendAdapter, LspManager,
-                };
+                use tools::implementations::lsp::{LspBackend, LspBackendAdapter, LspManager};
                 let mgr = Arc::new(tokio::sync::Mutex::new(LspManager::new(
                     servers,
                     config.root_cwd.clone(),
@@ -625,9 +621,8 @@ impl WorkspaceHandle {
                 Some(adapter)
             }
         };
-        let session_event_writers: Arc<
-            dashmap::DashMap<String, session_events::EventWriter>,
-        > = Arc::new(dashmap::DashMap::new());
+        let session_event_writers: Arc<dashmap::DashMap<String, session_events::EventWriter>> =
+            Arc::new(dashmap::DashMap::new());
         let activity_tracker =
             Arc::new(
                 crate::activity::ActivityTracker::with_prune_window(
@@ -3877,10 +3872,8 @@ impl WorkspaceHandle {
                         let payload =
                             serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
                         let frame = tool_protocol::ToolNotificationFrame::custom(
-                            tool_protocol::ToolId::new(
-                                crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID,
-                            )
-                            .expect("constant tool id"),
+                            tool_protocol::ToolId::new(crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID)
+                                .expect("constant tool id"),
                             "workspace_event",
                             payload,
                         );
@@ -4127,8 +4120,9 @@ fn build_session_routed_handlers(
             Some(def.function.parameters.clone()),
             ws.clone(),
         ) {
-            Ok(handler) => handlers
-                .push(Arc::new(handler) as Arc<dyn computer_hub_sdk::ToolServerHandler>),
+            Ok(handler) => {
+                handlers.push(Arc::new(handler) as Arc<dyn computer_hub_sdk::ToolServerHandler>)
+            }
             Err(e) => {
                 tracing::warn!(
                     tool = %def.function.name,
@@ -4161,9 +4155,7 @@ pub(crate) fn apply_background_task_notification(
 /// The hibernation decrement therefore isn't delayed by send backoff, and notifications aren't misattributed across sessions.
 pub(crate) async fn run_activity_feed(
     tracker: Arc<crate::activity::ActivityTracker>,
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<
-        tools::notification::types::ToolNotification,
-    >,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<tools::notification::types::ToolNotification>,
 ) {
     while let Some(notification) = rx.recv().await {
         apply_background_task_notification(&tracker, &notification);
@@ -4687,9 +4679,7 @@ async fn enqueue_workspace_tool_definitions(
 }
 /// Single source of truth for mapping a turn-hook outcome to the `events.jsonl` [`TurnOutcomeLabel`].
 /// Kept as one `match` so the two enums cannot drift and the mapping is never duplicated across call sites.
-fn turn_outcome_label(
-    outcome: tool_protocol::turn_hook::TurnHookOutcome,
-) -> TurnOutcomeLabel {
+fn turn_outcome_label(outcome: tool_protocol::turn_hook::TurnHookOutcome) -> TurnOutcomeLabel {
     use tool_protocol::turn_hook::TurnHookOutcome;
     match outcome {
         TurnHookOutcome::Completed => TurnOutcomeLabel::Completed,
@@ -4867,10 +4857,7 @@ impl tool_runtime::ToolDyn for SessionToolHandle {
     fn id(&self) -> tool_protocol::ToolId {
         self.tool_id.clone()
     }
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         self.desc.clone()
     }
     async fn execute(

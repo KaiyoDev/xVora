@@ -127,10 +127,7 @@ fn voice_dashboard_dispatch_submit_tears_down_voice() {
         "submit drops the target"
     );
     assert!(app.voice_interim().is_none());
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttRelease)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttRelease)));
     crate::voice::handle_voice_event(
         &mut app,
         voice::VoiceEvent::UtteranceFinal {
@@ -189,10 +186,7 @@ fn voice_dashboard_peek_reply_submit_tears_down_voice() {
         app.voice_recording_target().is_none(),
         "submit drops the target"
     );
-    assert!(matches!(
-        rx.try_recv(),
-        Ok(voice::VoiceCommand::PttRelease)
-    ));
+    assert!(matches!(rx.try_recv(), Ok(voice::VoiceCommand::PttRelease)));
 }
 #[test]
 fn voice_target_bound_at_start_dispatch_vs_peek() {
@@ -1521,8 +1515,7 @@ fn workspace_dashboard_open_loads_one_snapshot_and_skips_rosters() {
 #[test]
 fn workspace_snapshot_load_requests_live_adoption() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
@@ -1556,8 +1549,7 @@ fn workspace_dashboard_reopens_store_when_only_stale_snapshot_remains() {
 #[test]
 fn workspace_session_created_becomes_an_upsert_candidate() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app_with_agent();
     app.workspace_dashboard_enabled = true;
@@ -1583,8 +1575,7 @@ fn workspace_session_created_becomes_an_upsert_candidate() {
 #[test]
 fn workspace_busy_write_retries_only_once() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let snapshot = store.snapshot().unwrap();
     let mut app = test_app();
     app.workspace_dashboard_enabled = true;
@@ -1696,8 +1687,7 @@ fn workspace_busy_write_retries_only_once() {
 #[test]
 fn workspace_snapshot_failure_reopens_without_suppressing_attempted_member() {
     let temp = tempfile::tempdir().unwrap();
-    let store =
-        dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
+    let store = dashboard_store::WorkspaceStore::open(&temp.path().join("workspace.db")).unwrap();
     let mut app = test_app();
     app.workspace_dashboard_enabled = true;
     app.workspace_snapshot = Some(store.snapshot().unwrap());
@@ -2699,8 +2689,7 @@ fn dashboard_deferred_plan_mode_applied_on_session_created() {
     let id = AgentId(0);
     let session_id: acp::SessionId = "new-session".into();
     app.agents.get_mut(&id).unwrap().session.session_id = None;
-    app.agents.get_mut(&id).unwrap().deferred_session_mode =
-        Some(tools::types::SessionMode::Plan);
+    app.agents.get_mut(&id).unwrap().deferred_session_mode = Some(tools::types::SessionMode::Plan);
     let effects = dispatch(
         Action::TaskComplete(TaskResult::SessionCreated {
             agent_id: id,

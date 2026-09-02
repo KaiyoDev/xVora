@@ -1084,8 +1084,8 @@ allow = ["Bash(evil *)"]
     );
 
     // Global survival is checked only when this process's OnceLock points at our temp home
-    let global_live = config::user_grok_home()
-        .is_some_and(|g| g == home.path() || g.starts_with(home.path()));
+    let global_live =
+        config::user_grok_home().is_some_and(|g| g == home.path() || g.starts_with(home.path()));
     if global_live {
         let untrusted = untrusted.expect("global rules present when GROK_HOME is live");
         assert!(

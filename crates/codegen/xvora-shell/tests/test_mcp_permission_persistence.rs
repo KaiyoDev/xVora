@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
+use acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
 use agent_client_protocol as acp;
 use serial_test::serial;
 use tokio::sync::{mpsc, oneshot};
-use acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
-use xvora_paths::AbsPathBuf;
 use workspace::permission::types::{
     PatternMode, PermissionConfig, PermissionRule, RuleAction, ToolFilter,
 };
@@ -13,6 +12,7 @@ use workspace::permission::{
     AccessKind, ClientType, Decision, PermissionCommand, PermissionHandle, PermissionRequest,
     PermissionState, spawn_permission_manager, spawn_permission_manager_with_hub,
 };
+use xvora_paths::AbsPathBuf;
 
 fn test_home() -> &'static PathBuf {
     static HOME: OnceLock<PathBuf> = OnceLock::new();

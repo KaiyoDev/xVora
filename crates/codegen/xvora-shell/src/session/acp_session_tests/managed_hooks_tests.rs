@@ -80,8 +80,7 @@ async fn managed_policy_hook_disable_actions_are_refused() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.hook_registry.borrow_mut() = Some(Arc::new(managed_registry()));

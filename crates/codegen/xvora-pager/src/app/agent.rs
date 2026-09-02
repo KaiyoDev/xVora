@@ -7,13 +7,13 @@ use crate::acp::model_state::ModelState;
 use crate::acp::tracker::{AcpUpdateTracker, TurnActivity};
 use crate::scrollback::EntryId;
 use crate::scrollback::state::ScrollbackState;
+use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
+use shell::extensions::notification::GoalClassifierVerdict;
+use shell::sampling::types::ReasoningEffort;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime};
-use acp_lib::AcpAgentTx;
-use shell::extensions::notification::GoalClassifierVerdict;
-use shell::sampling::types::ReasoningEffort;
 /// Unique local identifier for an agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AgentId(pub usize);
@@ -258,13 +258,11 @@ impl BgTaskState {
         description: Option<String>,
         restored_from_replay: bool,
     ) -> Self {
-        let is_monitor = matches!(
-            snapshot.kind,
-            tools::computer::types::TaskKind::Monitor
-        ) || snapshot
-            .display_command
-            .as_deref()
-            .is_some_and(|d| d.starts_with(MONITOR_PREFIX));
+        let is_monitor = matches!(snapshot.kind, tools::computer::types::TaskKind::Monitor)
+            || snapshot
+                .display_command
+                .as_deref()
+                .is_some_and(|d| d.starts_with(MONITOR_PREFIX));
         let mut tombstone = Self {
             task_id: snapshot.task_id.clone(),
             tool_call_id: String::new(),

@@ -1223,8 +1223,7 @@ pub fn mcp_access_detail(name: &str, input: &serde_json::Value) -> String {
         return name.to_string();
     }
     let compact = serde_json::to_string(input).unwrap_or_default();
-    tools::util::truncate_line(&format!("{name} {compact}"), MCP_ACCESS_DETAIL_MAX_LEN)
-        .into_owned()
+    tools::util::truncate_line(&format!("{name} {compact}"), MCP_ACCESS_DETAIL_MAX_LEN).into_owned()
 }
 
 pub const CLASSIFIER_TURN_MAX_LEN: usize = 400;

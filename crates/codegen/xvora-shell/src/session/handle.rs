@@ -254,9 +254,7 @@ impl SessionHandle {
         rx.await.unwrap_or(None)
     }
     /// Get hooks list for the pager modal.
-    pub(crate) async fn get_hooks_list(
-        &self,
-    ) -> Option<hooks_plugins_types::HooksListResponse> {
+    pub(crate) async fn get_hooks_list(&self) -> Option<hooks_plugins_types::HooksListResponse> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx

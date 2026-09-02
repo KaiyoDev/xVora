@@ -6,10 +6,10 @@ use agent_client_protocol as acp;
 use agent_client_protocol::Client as _;
 use futures::stream::{FuturesUnordered, StreamExt as _};
 use serde_json::value::RawValue;
+use telemetry::events::{ClientHookGateOutcome, HookBlockCause};
 use xvora_hooks::event::{
     HookEventEnvelope, HookEventName, HookPayload, MAX_HOOK_FEEDBACK_CHARS, clip_text,
 };
-use telemetry::events::{ClientHookGateOutcome, HookBlockCause};
 
 use super::{SessionActor, ToolLoop};
 use crate::extensions::hooks::{
@@ -285,14 +285,12 @@ impl SessionActor {
                     let (response, gate_outcome) =
                         classify(self.send_hook_run(&dispatch, timeout).await);
                     let elapsed = started.elapsed();
-                    telemetry::session_ctx::log_event(
-                        telemetry::events::ClientHookGate {
-                            callback_id: callback_id.to_string(),
-                            tool_name: tool_name.map(str::to_string),
-                            outcome: gate_outcome,
-                            duration_ms: elapsed.as_millis() as u64,
-                        },
-                    );
+                    telemetry::session_ctx::log_event(telemetry::events::ClientHookGate {
+                        callback_id: callback_id.to_string(),
+                        tool_name: tool_name.map(str::to_string),
+                        outcome: gate_outcome,
+                        duration_ms: elapsed.as_millis() as u64,
+                    });
                     (callback_id, response, elapsed, gate_outcome)
                 }
             })

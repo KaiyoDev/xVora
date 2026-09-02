@@ -14,9 +14,9 @@ pub use memory::*;
 mod mcp;
 pub use mcp::*;
 mod permission;
+use announcements::RemoteAnnouncement;
 pub use permission::*;
 use serde::{Deserialize, Serialize};
-use announcements::RemoteAnnouncement;
 /// A remote `campaigns[]` entry: an `id` gate plus a flattened patch that can set any config key.
 /// It is the JSON sibling of a `[[campaigns]]` TOML override.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]

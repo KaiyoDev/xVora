@@ -8,9 +8,9 @@ use crate::sampling::Client as OaiCompatClient;
 use crate::session::helpers::session_summary::generate_session_summary;
 use crate::session::info::Info;
 use crate::session::persistence::PersistenceMsg;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 enum State {
     /// No summary generated yet. The next [`SummaryGenerator::update`] call will attempt one.
@@ -216,8 +216,7 @@ mod tests {
     #[test]
     fn reset_returns_generator_to_idle() {
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        let sampling_client =
-            OaiCompatClient::new(sampler::SamplerConfig::default()).unwrap();
+        let sampling_client = OaiCompatClient::new(sampler::SamplerConfig::default()).unwrap();
         let mut generator = SummaryGenerator::new(SummaryConfig {
             sampling_client,
             model: String::new(),

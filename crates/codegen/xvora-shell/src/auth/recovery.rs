@@ -371,11 +371,7 @@ impl UnauthorizedRecovery {
             Some(disk_auth)
         } else {
             tracing::debug!("auth recovery: disk token is same as rejected, skipping");
-            telemetry::unified_log::debug(
-                "auth recovery: disk token same as rejected",
-                None,
-                None,
-            );
+            telemetry::unified_log::debug("auth recovery: disk token same as rejected", None, None);
             None
         }
     }

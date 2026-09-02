@@ -10,11 +10,11 @@ use super::prompt_turn_receipt::{
 };
 use super::*;
 use crate::upload::trace::PromptMetadataParams;
-use xvora_sampling_types::ReasoningEffort;
 use telemetry::region::Parent;
 use telemetry::subagent_spawn::{SubagentSpawnPhase, phase_region};
 use telemetry::{instrument_task, region};
 use tools::implementations::{grok_build, opencode};
+use xvora_sampling_types::ReasoningEffort;
 static SUBAGENTS_ACTIVE: telemetry::activity::ActivityGauge =
     telemetry::activity::ActivityGauge::work(telemetry::activity::SUBAGENTS_ACTIVE_KEY);
 /// Bounds each parent-side await in the child completion path. The parent's
@@ -1035,8 +1035,7 @@ pub(crate) async fn run_shell_child(
                 .take(MAX_LINES)
                 .collect::<Vec<_>>()
                 .join("\n");
-            let truncated =
-                tools::util::truncate::truncate_str(&truncated, MAX_BYTES).to_string();
+            let truncated = tools::util::truncate::truncate_str(&truncated, MAX_BYTES).to_string();
             if !truncated.is_empty() {
                 let injection = format!(
                     "\n\n<agent-memory>\nMemory directory: {}\n\n{truncated}\n</agent-memory>",

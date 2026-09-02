@@ -11,14 +11,14 @@ use computer_hub_mcp_adapter::{
     McpBridge, McpBridgeConfig, McpBridgeHandle, McpCallResult, McpContent, McpServerInfo,
     McpToolDefinition, McpTransport,
 };
-use futures::stream::{FuturesUnordered, StreamExt};
-use serde_json::Value;
 use computer_hub_sdk::ToolServerHandler;
+use futures::stream::{FuturesUnordered, StreamExt};
 use mcp::rmcp;
 use mcp::servers::{
     MCP_TOOL_NAME_DELIMITER, McpClient, McpClientTimeoutOverrides, McpSpawnCtx, OauthInteractivity,
     parse_mcp_qualified_name,
 };
+use serde_json::Value;
 use tool_protocol::{SessionId, ToolId};
 use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
 use tool_types::ToolDescription;
@@ -1286,9 +1286,7 @@ mod tests {
                 "server-{:03}",
                 crate::config::BindMcpConfig::MAX_SERVERS - 1
             ),
-            mcp::servers::mcp_server_name(
-                &servers[crate::config::BindMcpConfig::MAX_SERVERS - 1]
-            ),
+            mcp::servers::mcp_server_name(&servers[crate::config::BindMcpConfig::MAX_SERVERS - 1]),
         );
     }
 
@@ -1316,10 +1314,7 @@ mod tests {
                 let agent_client_protocol::McpServer::Http(http) = server else {
                     panic!("fixture builds http servers only");
                 };
-                (
-                    mcp::servers::mcp_server_name(server),
-                    http.url.as_str(),
-                )
+                (mcp::servers::mcp_server_name(server), http.url.as_str())
             })
             .collect();
         assert_eq!(

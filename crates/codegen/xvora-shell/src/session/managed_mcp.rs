@@ -228,10 +228,7 @@ pub(crate) fn merge_managed_mcp_servers_sourced(
     cwd: &std::path::Path,
     plugin_registry: Option<&agent::plugins::PluginRegistry>,
     compat: &tools::types::compat::CompatConfig,
-) -> Vec<(
-    acp::McpServer,
-    tools::types::config_source::ConfigSource,
-)> {
+) -> Vec<(acp::McpServer, tools::types::config_source::ConfigSource)> {
     let _mcp_merge_timer = crate::instrumentation::timer("mcp_merge_managed");
     use tools::types::config_source::ConfigSource;
 
@@ -274,10 +271,7 @@ fn non_toml_mcp_servers_with_source(
     plugin_registry: Option<&agent::plugins::PluginRegistry>,
     compat: &tools::types::compat::CompatConfig,
     toml_claimed_names: &std::collections::HashSet<String>,
-) -> Vec<(
-    acp::McpServer,
-    tools::types::config_source::ConfigSource,
-)> {
+) -> Vec<(acp::McpServer, tools::types::config_source::ConfigSource)> {
     use tools::types::config_source::ConfigSource;
 
     let mut out = Vec::new();

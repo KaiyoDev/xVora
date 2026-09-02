@@ -26,6 +26,10 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use computer_hub_core::{
+    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
+    tool_error_from_wire,
+};
 use dashmap::DashMap;
 use futures::FutureExt;
 use futures::Stream;
@@ -34,11 +38,6 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
-use url::Url;
-use computer_hub_core::{
-    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
-    tool_error_from_wire,
-};
 use tool_protocol::notification_wire::{WireCustomNotification, WireToolNotification};
 use tool_protocol::session_event::{SessionEvent, ToolCallOutcome};
 use tool_protocol::{
@@ -52,6 +51,7 @@ use tool_runtime::{
     ToolStreamItem, TypedToolOutput, terminal_only,
 };
 use tool_types::ToolDescription;
+use url::Url;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::connection::{HubConnection, ReconnectCallback, ReconnectEvent};
@@ -511,9 +511,7 @@ impl ToolHarnessBuilder {
                 jsonrpc: tool_protocol::JsonRpcVersion,
                 id: tool_protocol::JsonRpcId::from_request_id(&request_id),
                 session_id: Some(session.clone()),
-                method: tool_protocol::Method::SessionOpen
-                    .as_wire_str()
-                    .to_owned(),
+                method: tool_protocol::Method::SessionOpen.as_wire_str().to_owned(),
                 params: tool_protocol::SessionOpenParams {
                     resume: self.resume,
                     last_seq: self.last_seq,
@@ -720,9 +718,7 @@ impl ToolHarnessInner {
         }
     }
 
-    async fn refresh_remote_tools(
-        &self,
-    ) -> Result<tool_protocol::ToolsListResult, ClientError> {
+    async fn refresh_remote_tools(&self) -> Result<tool_protocol::ToolsListResult, ClientError> {
         let borrow = self.borrow.as_ref().ok_or_else(|| {
             ClientError::InvalidConfig("local-only harness has no server connection".to_owned())
         })?;
@@ -1037,9 +1033,7 @@ impl ToolHarness {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(self.inner.session.clone()),
-            method: tool_protocol::Method::ServersList
-                .as_wire_str()
-                .to_owned(),
+            method: tool_protocol::Method::ServersList.as_wire_str().to_owned(),
             params: tool_protocol::ServersListParams {},
         };
         let resp = connection.call_request(request_id, &req).await?;
@@ -1478,10 +1472,7 @@ impl ToolHarness {
     /// outbound message is queued, without waiting for a server ack.
     /// Server-side errors (e.g. unknown tool, invalid session) are not
     /// surfaced to the caller.
-    pub async fn send_hook(
-        &self,
-        mut hook: tool_protocol::HookFrame,
-    ) -> Result<(), ClientError> {
+    pub async fn send_hook(&self, mut hook: tool_protocol::HookFrame) -> Result<(), ClientError> {
         if hook.trace_context.is_none()
             && let Some(provider) = &self.inner.trace_context_provider
         {
@@ -1757,9 +1748,7 @@ impl ToolHarness {
     /// and merge them into the in-memory cache. After a successful bind,
     /// a strictly smaller list does not drop tools the bind ack advertised.
     /// Returns the full list payload, including workspace-boundness.
-    pub async fn query_remote_tools(
-        &self,
-    ) -> Result<tool_protocol::ToolsListResult, ClientError> {
+    pub async fn query_remote_tools(&self) -> Result<tool_protocol::ToolsListResult, ClientError> {
         self.inner.refresh_remote_tools().await
     }
 
@@ -1892,8 +1881,7 @@ fn parse_permission_request_hook(value: &Value) -> Option<tool_protocol::HookFra
         return None;
     }
     let hook =
-        <tool_protocol::HookFrame as serde::Deserialize>::deserialize(value.get("params")?)
-            .ok()?;
+        <tool_protocol::HookFrame as serde::Deserialize>::deserialize(value.get("params")?).ok()?;
     // Only request/response hooks (those with a reply leg) qualify.
     hook.hook_id.as_ref()?;
     match &hook.event {

@@ -1,8 +1,8 @@
 //! The deployment-config fetch/response contract: the credential source and its errors, response parsing, and envelope picking.
 //! Also holds fetched-envelope verification and the apply outcome the sync orchestration consumes.
 
-use serde::{Deserialize, Serialize};
 use config::signed_policy::now_unix;
+use serde::{Deserialize, Serialize};
 
 /// Which credential a config fetch used; serde: recorded in the staged refresh.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -96,8 +96,7 @@ pub(super) struct ManagedConfigResponse {
     pub(super) signatures: Option<Vec<config::signed_policy::SignatureEnvelope>>,
     /// The is-managed claim envelopes (additive; absent from old servers), same rotation shape as `signatures`, persisted as their own sidecar.
     #[serde(default)]
-    pub(super) managed_identity_signatures:
-        Option<Vec<config::signed_policy::SignatureEnvelope>>,
+    pub(super) managed_identity_signatures: Option<Vec<config::signed_policy::SignatureEnvelope>>,
 }
 
 impl ManagedConfigResponse {
@@ -108,9 +107,7 @@ impl ManagedConfigResponse {
     /// The signed envelope to verify, when the server included any.
     /// Picks the first `signatures` entry whose key_id is in the embedded trusted set, else the first entry.
     /// The outer key_id only picks; verification re-selects the key from the signed bytes.
-    pub(super) fn signature_sidecar(
-        &self,
-    ) -> Option<config::signed_policy::SignatureEnvelope> {
+    pub(super) fn signature_sidecar(&self) -> Option<config::signed_policy::SignatureEnvelope> {
         pick_trusted_envelope(
             self.signatures.as_deref(),
             config::signed_policy::embedded_key_id_trusted,

@@ -306,10 +306,7 @@ impl FeedbackManager {
         Self::new(session_id, None, FeedbackManagerConfig::default())
     }
 
-    pub(crate) fn set_upload_queue_stats(
-        &self,
-        stats: Arc<file_utils::queue::UploadQueueStats>,
-    ) {
+    pub(crate) fn set_upload_queue_stats(&self, stats: Arc<file_utils::queue::UploadQueueStats>) {
         let _ = self.upload_queue_stats.set(stats);
     }
 
@@ -1335,8 +1332,7 @@ mod tests {
     #[serial_test::serial]
     fn test_nonempty_drain_budget_env_raises_cap() {
         {
-            let _guard =
-                test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "7");
+            let _guard = test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "7");
             assert_eq!(
                 nonempty_drain_budget(Duration::from_secs(30)),
                 Duration::from_secs(7),
@@ -1344,8 +1340,7 @@ mod tests {
             );
         }
         {
-            let _guard =
-                test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "99");
+            let _guard = test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "99");
             assert_eq!(
                 nonempty_drain_budget(Duration::from_secs(30)),
                 SHUTDOWN_DRAIN_HARD_MAX,
@@ -1854,8 +1849,7 @@ mod author_identity_tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn env_var_identity_reaches_the_wire_end_to_end() {
-        let _email =
-            test_support::env::EnvGuard::set("GROK_TEST_WORK_EMAIL", "ada@corp.example");
+        let _email = test_support::env::EnvGuard::set("GROK_TEST_WORK_EMAIL", "ada@corp.example");
         let _name = test_support::env::EnvGuard::set("GROK_TEST_WORK_NAME", "Ada Lovelace");
 
         // The loader expands `$VAR` at load, exactly as a trusted config tier ships it.
@@ -1921,10 +1915,8 @@ email = ["$GROK_TEST_WORK_EMAIL"]
     #[tokio::test]
     #[serial_test::serial]
     async fn workflow_merges_user_metadata_into_submission() {
-        let _guard = test_support::env::EnvGuard::set(
-            "GROK_USER_METADATA",
-            r#"{"team": "platform-tools"}"#,
-        );
+        let _guard =
+            test_support::env::EnvGuard::set("GROK_USER_METADATA", r#"{"team": "platform-tools"}"#);
         let (addr, captured) = start_capture_server().await;
         let client = crate::agent::feedback_client::FeedbackClient::with_client(
             reqwest::Client::new(),

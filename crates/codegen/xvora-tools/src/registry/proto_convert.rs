@@ -30,11 +30,7 @@ pub fn tool_config_from_entry(
     } = entry;
     let params =
         tools_api::config_validation::parse_params_json(index, &id, params_json.as_deref())?;
-    tools_api::config_validation::validate_name_override(
-        index,
-        &id,
-        name_override.as_deref(),
-    )?;
+    tools_api::config_validation::validate_name_override(index, &id, name_override.as_deref())?;
     Ok(ToolConfig {
         id,
         params,

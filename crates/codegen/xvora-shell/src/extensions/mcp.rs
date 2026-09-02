@@ -1358,9 +1358,7 @@ impl tools::types::resources::McpResourceProvider for McpStateResourceProvider {
                 name: None,
                 description: None,
                 mime_type,
-                content: Some(tools::types::resources::McpResourceContent::Text(
-                    text,
-                )),
+                content: Some(tools::types::resources::McpResourceContent::Text(text)),
             }),
             rmcp::model::ResourceContents::BlobResourceContents {
                 uri: content_uri,

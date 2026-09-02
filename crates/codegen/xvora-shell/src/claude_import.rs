@@ -11,9 +11,7 @@ use toml::map::Map as TomlMap;
 use tracing::{debug, info, warn};
 
 use crate::util::config::McpServerConfig;
-use workspace::permission::claude_settings::{
-    find_claude_settings_paths, load_claude_settings,
-};
+use workspace::permission::claude_settings::{find_claude_settings_paths, load_claude_settings};
 use workspace::permission::rules::parse_permission_rule;
 use workspace::permission::types::{PatternMode, PermissionRule, RuleAction, ToolFilter};
 
@@ -1556,10 +1554,8 @@ mod tests {
         let _g = MarkerGuard;
         refresh_marker_cache(true);
         let dir = tempfile::tempdir().unwrap();
-        let env = workspace::permission::claude_settings::load_claude_env_with_project(
-            dir.path(),
-            true,
-        );
+        let env =
+            workspace::permission::claude_settings::load_claude_env_with_project(dir.path(), true);
         assert!(
             env.is_empty(),
             "load_claude_env_with_project should be empty when marker set"
@@ -2042,13 +2038,12 @@ extra_rule_dirs = ["/c/rules"]
         // Instead, assert on rule *provenance*: no rule should originate from
         // our tempdir's `.claude/settings.json`. The dev's real ~/.grok
         // config rules (if any) are out of scope for this test.
-        let resolved =
-            workspace::permission::resolution::resolve_permissions_with_provenance(
-                dir.path(),
-                true,
-            )
-            .await
-            .resolved;
+        let resolved = workspace::permission::resolution::resolve_permissions_with_provenance(
+            dir.path(),
+            true,
+        )
+        .await
+        .resolved;
         if let Some(r) = resolved {
             let tempdir_claude = claude_dir.join("settings.json");
             use workspace::permission::types::RequirementSource;

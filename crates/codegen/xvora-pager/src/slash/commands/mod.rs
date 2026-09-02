@@ -765,10 +765,8 @@ mod tests {
     /// Add new names there when adding a pager builtin.
     #[test]
     fn pager_builtin_triggers_are_reserved_in_shell() {
-        let reserved: std::collections::HashSet<&str> = shell::session::PAGER_COMMAND_KEYS
-            .iter()
-            .copied()
-            .collect();
+        let reserved: std::collections::HashSet<&str> =
+            shell::session::PAGER_COMMAND_KEYS.iter().copied().collect();
         let missing: Vec<String> = builtin_commands()
             .iter()
             .flat_map(|cmd| {
@@ -787,10 +785,8 @@ mod tests {
     }
     #[test]
     fn pager_blocked_acp_names_are_reserved_in_shell() {
-        let reserved: std::collections::HashSet<&str> = shell::session::PAGER_COMMAND_KEYS
-            .iter()
-            .copied()
-            .collect();
+        let reserved: std::collections::HashSet<&str> =
+            shell::session::PAGER_COMMAND_KEYS.iter().copied().collect();
         let missing: Vec<&str> = crate::slash::registry::BLOCKED_ACP_NAMES
             .iter()
             .copied()

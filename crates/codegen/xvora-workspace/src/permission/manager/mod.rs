@@ -4,10 +4,10 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use parking_lot::Mutex;
 
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use chrono::Utc;
 use tokio::sync::{mpsc, oneshot};
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::permission::auto_mode::{
     BashSecurityAssessment, ClassifierSecurityFinding, ClassifierVerdict, EnvRisk,
@@ -34,11 +34,11 @@ use crate::permission::types::{
     PermissionRequest, PermissionResolution, PromptPolicy,
 };
 use mcp::servers::parse_mcp_qualified_name;
-use xvora_paths::AbsPathBuf;
 use tools::implementations::grok_build::web_fetch::{
     DomainMatcher, config::DEFAULT_ALLOWED_DOMAINS, domain::normalize_domain,
 };
 use tools::types::resources::resolve_model_path;
+use xvora_paths::AbsPathBuf;
 
 mod bash_grants;
 pub mod reasons;

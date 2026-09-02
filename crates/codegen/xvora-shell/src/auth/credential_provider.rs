@@ -1,11 +1,9 @@
 use crate::auth::AuthManager;
 use crate::auth::backend::{ActiveAuthBackend, AuthBackend};
 use crate::util::grok_auth_credentials::GrokAuthCredentials;
+use auth::{AuthCredentialProvider, CredentialSnapshot, HttpAuth, StaticAuthCredentialProvider};
 use reqwest::RequestBuilder;
 use std::sync::Arc;
-use auth::{
-    AuthCredentialProvider, CredentialSnapshot, HttpAuth, StaticAuthCredentialProvider,
-};
 /// `api_key.id` for the active credential: hash the stable API key, never the OIDC bearer (which rotates).
 /// `None` for non-API-key auth.
 fn api_key_id_for(auth: Option<&crate::auth::GrokAuth>) -> Option<String> {
@@ -217,9 +215,7 @@ impl StorageClientAttributionBridge {
         }
     }
 }
-impl file_utils::storage_client::Auth401AttributionCallback
-    for StorageClientAttributionBridge
-{
+impl file_utils::storage_client::Auth401AttributionCallback for StorageClientAttributionBridge {
     fn record_401(&self, operation: &str, sent_bearer_prefix: Option<&str>) {
         crate::auth::attribution::record_consumer_401(
             self.auth_manager.as_ref(),
@@ -452,9 +448,9 @@ mod tests {
     use crate::auth::GrokAuth;
     use crate::auth::GrokComConfig;
     use crate::auth::manager::AuthManager;
+    use auth::AuthCredentialProvider;
     use chrono::{Duration as ChronoDuration, Utc};
     use std::sync::Mutex;
-    use auth::AuthCredentialProvider;
     /// Serializes tests that pin `GROK_AUTH_EARLY_INVALIDATION_SECS`, since env vars are process-global and parallel tests would race.
     static EARLY_INVALIDATION_LOCK: Mutex<()> = Mutex::new(());
     /// RAII guard: pins `GROK_AUTH_EARLY_INVALIDATION_SECS` to the production default (300s) while held, restoring the previous value on drop.

@@ -1224,11 +1224,9 @@ impl AgentView {
                     "images": images.len(),
                 })),
             );
-            telemetry::session_ctx::log_event(
-                telemetry::events::FeedbackTraceCardShown {
-                    reenables_sharing: qv.feedback_offer_reenables_sharing,
-                },
-            );
+            telemetry::session_ctx::log_event(telemetry::events::FeedbackTraceCardShown {
+                reenables_sharing: qv.feedback_offer_reenables_sharing,
+            });
             qv.begin_feedback_trace_stage(report, images);
             self.prompt.set_text_preserving("");
             self.question_view = Some(qv);

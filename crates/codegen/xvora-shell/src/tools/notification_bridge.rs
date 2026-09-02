@@ -3,13 +3,13 @@ use crate::session::commands::SessionCommand;
 use crate::session::commands::{NotificationPriority, NotificationSource};
 use crate::session::persistence::{DurableAppendError, PersistenceHandle, PersistenceMsg};
 use crate::tools::task_completed_frame;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol::{self as acp, Client as _};
 use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex as TokioMutex, mpsc};
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use tools::notification::types::{ToolNotification, ToolNotificationHandle};
 use tools::types::output::{BashOutput, ToolOutput};
 use workspace::session::file_state::FileStateTracker;
@@ -46,8 +46,7 @@ pub(crate) struct NotificationBridgeConfig {
     pub turn_prompt_mode: Arc<parking_lot::Mutex<crate::session::plan_mode::PromptMode>>,
     /// Session command channel for monitor events and task-completed injections.
     pub session_cmd_tx: mpsc::UnboundedSender<SessionCommand>,
-    pub task_completion_reservations:
-        tools::reminders::task_completion::TaskCompletionReservations,
+    pub task_completion_reservations: tools::reminders::task_completion::TaskCompletionReservations,
     pub task_wake_suppressed: tools::reminders::task_completion::TaskWakeSuppressed,
     /// Channel for requesting trace uploads for synthetic auto-wake turns.
     /// Wrapped in `Arc<Mutex<..>>` because the coordinator creates the channel after the notification bridge is spawned.

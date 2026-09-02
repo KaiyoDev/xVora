@@ -10,12 +10,12 @@ use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
 use xvora_pager::theme::Theme;
 use xvora_pager::views::prompt_widget::StashedPrompt;
 use xvora_pager::views::question_view::{
     QUESTION_VIEW_HPAD, QuestionViewState, question_view_height, render_question_view,
 };
-use tools::implementations::grok_build::ask_user_question::{Question, QuestionOption};
 
 /// Hardcoded example question sets for UI playground scenarios.
 fn example_scenarios() -> Vec<(&'static str, Vec<Question>)> {

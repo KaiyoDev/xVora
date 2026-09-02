@@ -67,8 +67,8 @@ fn external_stream_grpc_mtls_fails_without_client_identity() {
     telemetry::external::flush();
 
     std::thread::sleep(std::time::Duration::from_millis(800));
-    let health = telemetry::external::export_health()
-        .expect("active stream must expose export health");
+    let health =
+        telemetry::external::export_health().expect("active stream must expose export health");
     assert!(
         health.export_failures > 0,
         "mTLS rejection must record at least one export failure; health={health:?}"

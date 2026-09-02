@@ -644,10 +644,7 @@ impl ToolBridge {
         reply_rx
             .await
             .map_err(|_| {
-                tool_runtime::ToolError::custom(
-                    "process_manager",
-                    "Scheduler actor dropped reply",
-                )
+                tool_runtime::ToolError::custom("process_manager", "Scheduler actor dropped reply")
             })?
             .map_err(crate::implementations::grok_build::scheduler::types::scheduler_tool_error)
     }

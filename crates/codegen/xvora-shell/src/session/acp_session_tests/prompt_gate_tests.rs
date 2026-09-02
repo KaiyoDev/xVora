@@ -68,8 +68,7 @@ async fn blocked_user_prompt_cancels_turn_without_sampling() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -134,8 +133,7 @@ async fn hook_system_message_reaches_user_as_annotation() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -180,8 +178,7 @@ async fn hold_suppresses_idle_injection() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -205,8 +202,7 @@ async fn flushed_interjection_stays_parked_under_hold() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let actor =
@@ -240,8 +236,7 @@ async fn synthetic_prompt_ignores_hook_block() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -307,8 +302,7 @@ async fn subagent_session_ignores_hook_block() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -374,8 +368,7 @@ async fn noop_queue_mutations_report_unchanged() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -416,8 +409,7 @@ async fn hook_denied_completion_holds_queue_until_release() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let annotations = spawn_persistence_drain(persistence_rx);
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -518,8 +510,7 @@ async fn hook_denied_completion_does_not_rearm_cleared_hold() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let annotations = spawn_persistence_drain(persistence_rx);
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -582,8 +573,7 @@ async fn non_hook_cancel_does_not_hold_queue() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -637,8 +627,7 @@ async fn synthetic_prompt_commits_despite_blocking_hook() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -700,8 +689,7 @@ async fn blocked_prompt_never_enters_chat_state() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -815,8 +803,7 @@ async fn blocked_prompt_never_reaches_persistence() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let captured = spawn_persistence_capture(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -894,8 +881,7 @@ async fn blocked_prompt_resolves_persist_ack() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -937,8 +923,7 @@ async fn blocked_turn_preserves_prior_interrupt_marker() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -985,8 +970,7 @@ async fn blocked_turn_preserves_redirect_marker() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1035,8 +1019,7 @@ async fn blocked_prompt_consumes_no_prompt_index() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) =
-                mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
             let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let _annotations = spawn_persistence_drain(persistence_rx);
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;

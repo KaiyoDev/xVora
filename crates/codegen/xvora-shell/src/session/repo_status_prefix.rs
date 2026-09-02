@@ -95,9 +95,7 @@ impl RepoStatusSnapshot {
 }
 
 pub(crate) async fn gather_repo_status(inputs: &RepoStatusInputs) -> Option<RepoStatusSnapshot> {
-    use workspace::file_system::{
-        git_status_short_pinned, jj_status, probe_fsmonitor_override,
-    };
+    use workspace::file_system::{git_status_short_pinned, jj_status, probe_fsmonitor_override};
 
     let mut timer = crate::instrumentation_timer!("session.user_prefix.vcs_status");
     timer.with_field("timeout_ms", REPO_STATUS_GATHER_TIMEOUT.as_millis() as u64);

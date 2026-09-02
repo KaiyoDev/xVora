@@ -184,9 +184,7 @@ pub(super) fn is_file_backed_exit_plan_input(tool_input: &ToolInput) -> bool {
     }
     false
 }
-pub(super) fn is_file_backed_exit_plan_kind(
-    kind: Option<tools::types::tool::ToolKind>,
-) -> bool {
+pub(super) fn is_file_backed_exit_plan_kind(kind: Option<tools::types::tool::ToolKind>) -> bool {
     matches!(kind, Some(tools::types::tool::ToolKind::ExitPlan))
 }
 /// Split ExitPlan-kind calls into the tail so they run after the rest of the batch.
@@ -1189,8 +1187,7 @@ impl SessionActor {
                 tool_result_size_bytes,
                 file_path: ext_file_path,
                 parameters: ext_parameters,
-                tool_use_id: telemetry::external::is_active()
-                    .then(|| prepared.call_id.clone()),
+                tool_use_id: telemetry::external::is_active().then(|| prepared.call_id.clone()),
                 tool_output: ext_tool_output,
                 error_message: ext_error_message,
             });
@@ -1371,14 +1368,13 @@ impl SessionActor {
             let _span = tracing::info_span!("tool.register").entered();
             let early_raw_input =
                 serde_json::from_str::<serde_json::Value>(&call.function.arguments).ok();
-            let subagent_background =
-                tools::is_task_tool_id(&call.function.name).then(|| {
-                    early_raw_input
-                        .as_ref()
-                        .and_then(|v| v.get("run_in_background").or_else(|| v.get("background")))
-                        .and_then(serde_json::Value::as_bool)
-                        .unwrap_or(true)
-                });
+            let subagent_background = tools::is_task_tool_id(&call.function.name).then(|| {
+                early_raw_input
+                    .as_ref()
+                    .and_then(|v| v.get("run_in_background").or_else(|| v.get("background")))
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true)
+            });
             let mut meta = self.stamp_tool_meta(None, &call.function.name, None);
             if let Some(bg) = subagent_background {
                 meta.get_or_insert_with(serde_json::Map::new).insert(
@@ -1677,9 +1673,7 @@ impl SessionActor {
                     Decision::Reject(_) | Decision::PolicyDeny(_) => {
                         session_events::types::PermissionDecision::Deny
                     }
-                    Decision::Cancelled => {
-                        session_events::types::PermissionDecision::Cancelled
-                    }
+                    Decision::Cancelled => session_events::types::PermissionDecision::Cancelled,
                     Decision::FollowupMessage(_) => {
                         session_events::types::PermissionDecision::Followup
                     }

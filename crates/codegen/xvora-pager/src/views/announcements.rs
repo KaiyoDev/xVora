@@ -275,11 +275,7 @@ pub fn first_session_announcement_at<'a>(
 pub(crate) fn promo_cta<'a>(
     announcements: &'a [announcements::RemoteAnnouncement],
     hidden_ids: &BTreeSet<String>,
-) -> Option<(
-    &'a announcements::RemoteAnnouncement,
-    &'a str,
-    &'a str,
-)> {
+) -> Option<(&'a announcements::RemoteAnnouncement, &'a str, &'a str)> {
     let owner = first_session_announcement(announcements, hidden_ids).filter(|a| is_promo(a))?;
     let (label, url) = usable_cta(owner)?;
     Some((owner, label, url))
@@ -316,9 +312,7 @@ pub fn session_announcement_hide_keys_at(
 
 /// Slash-gate predicate: any live session-surfaced announcement (critical or promo) exists.
 /// Deliberately IGNORES the hidden set (unlike the banner selection above) so `/announcements show` stays reachable while everything is hidden.
-pub fn has_session_announcements(
-    announcements: &[announcements::RemoteAnnouncement],
-) -> bool {
+pub fn has_session_announcements(announcements: &[announcements::RemoteAnnouncement]) -> bool {
     let now = chrono::Utc::now();
     visible_announcements(announcements)
         .into_iter()

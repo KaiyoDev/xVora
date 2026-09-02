@@ -29,11 +29,11 @@ use criterion::{
 };
 use fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 use filetime::{FileTime, set_file_mtime};
-use tempfile::TempDir;
 use shell::session::info::Info;
 use shell::session::persistence::Summary;
 use shell::session::storage::{JsonlStorageAdapter, StorageAdapter};
 use shell::session::unified_list::{ListReq, UnifiedListResult, build_unified_list};
+use tempfile::TempDir;
 
 const WORKSPACE_COUNT: usize = 3_000;
 // Bump whenever the shape of the workload changes, even if aggregate counts do not
@@ -355,9 +355,7 @@ fn create_same_repo_cwds(home: &Path) -> SameRepoTopology {
             created_at: index as i64 + 1,
             last_accessed_at: None,
             status: WorktreeStatus::Alive,
-            metadata: Some(shell::session::worktree::build_label_metadata(
-                label, false,
-            )),
+            metadata: Some(shell::session::worktree::build_label_metadata(label, false)),
         })
         .expect("register linked worktree");
     }

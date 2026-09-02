@@ -23,13 +23,11 @@ pub use self::persistence::{
 };
 pub use self::result::{Empty, ExtMethodResult};
 pub use self::share::{ShareSessionRequest, ShareSessionResponse};
+pub use fsnotify::{FsConfig, FsEvent, FsEventKind, FsEventSource, FsNotifyError, GitMetaKind};
 pub use prod_mc_cli_chat_proxy_types::feedback_types::{
     ClientType, FeedbackImage, FeedbackTerminalInfo, MAX_FEEDBACK_IMAGE_BYTES,
     MAX_FEEDBACK_IMAGE_TOTAL_BYTES, MAX_FEEDBACK_IMAGES, RatingType, feedback_image_extension,
     validate_feedback_images,
-};
-pub use fsnotify::{
-    FsConfig, FsEvent, FsEventKind, FsEventSource, FsNotifyError, GitMetaKind,
 };
 /// `false` twin: this template is not compiled into this build, so no template matches.
 /// Keeps ungated call sites compiling in both configurations.

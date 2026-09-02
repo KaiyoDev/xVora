@@ -12,12 +12,12 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
+use acp_lib::AcpResult;
+use markdown::StreamingMarkdownRenderer;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use acp_lib::AcpResult;
-use markdown::StreamingMarkdownRenderer;
 pub use tools::implementations::grok_build::ask_user_question::{
     AskUserQuestionMode, Question, QuestionOption,
 };
@@ -970,8 +970,7 @@ impl QuestionViewState {
     /// - Notes included when freeform text is non-empty and selected.
     pub fn build_accepted_response(
         &self,
-    ) -> tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse
-    {
+    ) -> tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse {
         use indexmap::IndexMap;
         use std::collections::HashMap;
         use tools::implementations::grok_build::ask_user_question::{

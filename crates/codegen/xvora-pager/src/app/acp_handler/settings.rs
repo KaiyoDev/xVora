@@ -99,8 +99,8 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
         && app.permission_mode_from_soft_default
     {
         // One config read at the I/O boundary; the applier is deterministic.
-        let root = shell::config::load_effective_config()
-            .unwrap_or_else(|_| broken_config_ask_fallback());
+        let root =
+            shell::config::load_effective_config().unwrap_or_else(|_| broken_config_ask_fallback());
         apply_soft_default_permission_mode(app, root.get("ui"), remote_opt.as_deref());
     }
 
@@ -118,8 +118,7 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
     // Env overrides win over live updates too, mirroring the startup resolution in event_loop
     // Otherwise the proxy's explicit `false` (sent as a kill switch) clobbers a local test override moments after launch
     if let Some(v) = update.privacy_notice_rollout {
-        app.privacy_notice_rollout =
-            config::env_bool("GROK_PRIVACY_NOTICE_ROLLOUT").unwrap_or(v);
+        app.privacy_notice_rollout = config::env_bool("GROK_PRIVACY_NOTICE_ROLLOUT").unwrap_or(v);
     }
     if let Some(v) = update.privacy_banner_reshow_days {
         app.privacy_banner_reshow_days = Some(
@@ -356,8 +355,7 @@ pub(super) fn apply_soft_default_permission_mode(
     } else if app.default_yolo {
         "always-approve".to_string()
     } else {
-        shell::util::config::resolved_display_permission_mode(effective_ui, remote)
-            .to_string()
+        shell::util::config::resolved_display_permission_mode(effective_ui, remote).to_string()
     });
 }
 

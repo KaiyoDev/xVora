@@ -36,10 +36,7 @@ pub(super) fn remove_managed_config_files(home: &std::path::Path) {
     let atomic_write_tmp_prefixes = [
         format!("{}.", config::MANAGED_CONFIG_CACHE_FILE),
         format!("{}.", config::signed_policy::SIGNATURE_SIDECAR_FILE),
-        format!(
-            "{}.",
-            config::signed_policy::MANAGED_IDENTITY_SIDECAR_FILE
-        ),
+        format!("{}.", config::signed_policy::MANAGED_IDENTITY_SIDECAR_FILE),
     ];
     if let Ok(entries) = std::fs::read_dir(home) {
         for entry in entries.flatten() {
@@ -272,10 +269,7 @@ pub(super) fn apply_managed_config(
             config::MANAGED_CONFIG_FILENAME,
             body.managed_config.as_deref(),
         ),
-        (
-            config::REQUIREMENTS_FILENAME,
-            body.requirements.as_deref(),
-        ),
+        (config::REQUIREMENTS_FILENAME, body.requirements.as_deref()),
     ];
 
     let mut changed = false;
@@ -385,9 +379,7 @@ pub(super) fn apply_fetched(
         if let Some(claim_sidecar) =
             verified_claim_sidecar(body, served_principal_of(&verified.payload))
         {
-            clear_squatting_dir(
-                &home.join(config::signed_policy::MANAGED_IDENTITY_SIDECAR_FILE),
-            );
+            clear_squatting_dir(&home.join(config::signed_policy::MANAGED_IDENTITY_SIDECAR_FILE));
             config::signed_policy::write_managed_identity_sidecar(&home, &claim_sidecar)?;
         }
     }

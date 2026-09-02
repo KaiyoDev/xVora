@@ -379,13 +379,11 @@ impl AuthManager {
             Some(serde_json::json!({ "reason": format!("{reason:?}") })),
         );
         let replacer = lock::read_holder_at(&self.path);
-        telemetry::session_ctx::log_event(
-            telemetry::events::AuthLockReplacedOutFromUnder {
-                holder_pid: replacer.and_then(|h| h.pid),
-                holder_state: replacer.map(|h| h.state.label()),
-                holder_age_secs: replacer.and_then(|h| h.age_secs),
-            },
-        );
+        telemetry::session_ctx::log_event(telemetry::events::AuthLockReplacedOutFromUnder {
+            holder_pid: replacer.and_then(|h| h.pid),
+            holder_state: replacer.map(|h| h.state.label()),
+            holder_age_secs: replacer.and_then(|h| h.age_secs),
+        });
         drop(file_lock);
         let lock_started = std::time::Instant::now();
         let acquire = self

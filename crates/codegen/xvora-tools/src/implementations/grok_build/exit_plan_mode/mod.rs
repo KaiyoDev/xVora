@@ -91,10 +91,7 @@ impl tool_runtime::Tool for ExitPlanModeTool {
         tool_protocol::ToolId::new("exit_plan_mode").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &::tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new(
             "exit_plan_mode",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
@@ -208,10 +205,7 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = ExitPlanModeTool;
-        assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
-            "exit_plan_mode"
-        );
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "exit_plan_mode");
     }
 
     #[test]

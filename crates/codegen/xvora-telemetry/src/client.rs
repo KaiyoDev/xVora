@@ -9,8 +9,8 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use chrono::{Local, SecondsFormat};
-use serde_json::json;
 use mixpanel::Mixpanel;
+use serde_json::json;
 
 use crate::config::{TelemetryConfig, TelemetryMode, deployment_id_from_key};
 use crate::http::OriginClientInfo;

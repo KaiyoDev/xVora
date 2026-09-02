@@ -476,10 +476,7 @@ impl tool_runtime::Tool for McpErrorResultTool {
         tool_protocol::ToolId::new("mock_error_tool").expect("valid tool id")
     }
 
-    fn description(
-        &self,
-        _ctx: &tool_runtime::ListToolsContext,
-    ) -> tool_types::ToolDescription {
+    fn description(&self, _ctx: &tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
         tool_types::ToolDescription::new("mock_error_tool", "stub MCP error tool")
     }
 

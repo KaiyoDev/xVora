@@ -24,7 +24,7 @@ use telemetry::region::Parent;
 pub mod edit_highlight_worker;
 /// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
 pub mod mermaid_worker;
-pub use prompt_queue as prompt_queue;
+pub use prompt_queue;
 mod acp_handler;
 mod connect_timeout;
 mod csi_filter;
@@ -79,13 +79,13 @@ pub(crate) use foreign_sessions::{
     badge_for_picker_source, foreign_tool_display_label, is_foreign_picker_source,
 };
 use ratatui::backend::CrosstermBackend;
+use shell::util::config;
 pub use startup_failure::StartupFailure;
 use std::io::{self, IsTerminal, Write};
 use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio_util::sync::CancellationToken;
 pub(crate) use turn_completion::CANCELLATION_CATEGORY_KEY;
-use shell::util::config;
 /// Tracks the extra Kitty keyboard layer pushed while the `/gboom` game is open (see [`push_gboom_keyboard_flags`]).
 /// Kept separate from the base layer (`terminal::kitty_keyboard`) so teardown pops both, in LIFO order.
 static GBOOM_KEYBOARD_PUSHED: AtomicBool = AtomicBool::new(false);
@@ -503,9 +503,7 @@ const SANDBOX_NOTICE_LINGER: std::time::Duration = std::time::Duration::from_mil
 /// A fullscreen TUI still paints over it, leaving the line to be read on exit.
 /// `leader_disabled_by_sandbox` on the leader-mode decision log is the durable record.
 pub fn warn_leader_disabled_by_sandbox(profile: &str) {
-    shell::util::with_locked_stderr(|stderr| {
-        print_leader_disabled_by_sandbox(profile, stderr)
-    });
+    shell::util::with_locked_stderr(|stderr| print_leader_disabled_by_sandbox(profile, stderr));
 }
 /// Says only that the profile was *requested*.
 /// Enforcement can still fail (`apply_sandbox` warns and continues) while the leader is refused either way.
@@ -657,8 +655,7 @@ pub async fn run(
     let prefetch_wait_started = std::time::Instant::now();
     let remote_settings = if had_prefetch {
         let _wait_span = region!("startup.prefetch_join_wait", Parent::Inherit);
-        let settings =
-            shell::agent::models::startup_prefetch::wait_settings(EARLY_PREFETCH_WAIT);
+        let settings = shell::agent::models::startup_prefetch::wait_settings(EARLY_PREFETCH_WAIT);
         telemetry::startup::record_prefetch_wait(prefetch_wait_started.elapsed());
         settings
     } else {

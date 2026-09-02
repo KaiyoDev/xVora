@@ -8,12 +8,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
+use fsnotify::{FsEvent, FsEventKind};
 use hunk_tracker::HunkTrackerHandle;
 use tokio::sync::mpsc;
 use tokio::time::sleep_until;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
-use fsnotify::{FsEvent, FsEventKind};
 use workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 
 use crate::session::acp_session::SessionActor;
@@ -152,21 +152,14 @@ fn fs_event_to_delta(
 
 const GIT_DIFF_REBUILD_THRESHOLD: usize = 500;
 
-fn parse_diff_name_status_line(
-    line: &str,
-    repo_root: &Path,
-) -> Option<codebase_graph::FileEvent> {
+fn parse_diff_name_status_line(line: &str, repo_root: &Path) -> Option<codebase_graph::FileEvent> {
     let mut parts = line.splitn(3, '\t');
     let status = parts.next()?.trim();
     let path = parts.next()?;
 
     match status.chars().next()? {
-        'A' => Some(codebase_graph::FileEvent::created(
-            repo_root.join(path),
-        )),
-        'D' => Some(codebase_graph::FileEvent::removed(
-            repo_root.join(path),
-        )),
+        'A' => Some(codebase_graph::FileEvent::created(repo_root.join(path))),
+        'D' => Some(codebase_graph::FileEvent::removed(repo_root.join(path))),
         'R' | 'C' => {
             let new_path = parts.next()?;
             Some(codebase_graph::FileEvent::renamed(
@@ -174,9 +167,7 @@ fn parse_diff_name_status_line(
                 repo_root.join(new_path),
             ))
         }
-        _ => Some(codebase_graph::FileEvent::modified(
-            repo_root.join(path),
-        )),
+        _ => Some(codebase_graph::FileEvent::modified(repo_root.join(path))),
     }
 }
 
@@ -867,8 +858,7 @@ pub(crate) fn spawn(plan: FsWatchPlan) -> FsWatchHandle {
             timer.with_field("cwd", cwd.to_string_lossy().as_ref());
             let init_cwd = cwd.clone();
             let result =
-                tokio::task::spawn_blocking(move || fsnotify::shared(init_cwd, fs_config))
-                    .await;
+                tokio::task::spawn_blocking(move || fsnotify::shared(init_cwd, fs_config)).await;
             let ws = fsnotify::stats();
             timer.with_field("live_watchers", ws.live_watchers as u64);
             timer.with_field("watchers_created_total", ws.created_total);

@@ -51,9 +51,14 @@ use crate::session::user_message::construct_user_message_minimal;
 use crate::session::user_message::extract_user_query;
 use crate::terminal::TerminalRunRequest;
 use crate::tools::ToolContext;
+use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use agent::AgentDefinition;
+use agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
+use agent::prompt::skills::SkillsConfig;
 use agent_client_protocol as acp;
 use agent_client_protocol::ContentBlock;
 use parking_lot::Mutex;
+use sampler::SamplerConfig as SamplingConfig;
 use serde_json::json;
 use std::collections::{HashMap, VecDeque};
 use std::path::Path;
@@ -62,12 +67,6 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Mutex as TokioMutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
-use agent::AgentDefinition;
-use agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
-use agent::prompt::skills::SkillsConfig;
-use sampler::SamplerConfig as SamplingConfig;
-use xvora_sampling_types::truncate_bytes;
 use tools::computer::local::LocalTerminalBackend;
 use tools::implementations::BashToolInput;
 use tools::implementations::grok_build::web_fetch::WebFetchConfig;
@@ -81,6 +80,7 @@ use workspace::permission::{
     AccessKind, ClientType, Decision, HookAsk, PermissionEvent, PermissionHandle, PermissionRequest,
 };
 use workspace::session::file_state::{FileStateHandle, FileStateTracker};
+use xvora_sampling_types::truncate_bytes;
 const SESSION_LOG: &str = "xvora_session";
 #[path = "compaction.rs"]
 mod compaction;
@@ -138,9 +138,9 @@ mod queue_mutation;
 use queue_mutation::{InputOrigin, QueueMutationPolicy};
 #[path = "acp_session_impl/prompt_queue.rs"]
 mod prompt_queue;
+pub(super) use prompt_queue::QueueInputRequest;
 #[cfg(test)]
 use tool_calls::BridgeToolSuccess;
-pub(super) use prompt_queue::QueueInputRequest;
 #[path = "acp_session_impl/hooks_plugins.rs"]
 mod hooks_plugins;
 #[path = "acp_session_impl/mcp.rs"]
@@ -469,19 +469,15 @@ impl tools::types::resources::ManagedGatewayToolCaller for ShellManagedGatewayTo
         call_id: &str,
         arguments: serde_json::Value,
         caller: &str,
-    ) -> Result<
-        tools::types::resources::ManagedGatewayToolCallResponse,
-        tool_runtime::ToolError,
-    > {
+    ) -> Result<tools::types::resources::ManagedGatewayToolCallResponse, tool_runtime::ToolError>
+    {
         let auth_key = self
             .auth_manager
             .get_valid_token()
             .await
             .ok()
             .or_else(|| self.auth_manager.current_or_expired().map(|a| a.key))
-            .ok_or_else(|| {
-                tool_runtime::ToolError::unauthorized("no auth token available")
-            })?;
+            .ok_or_else(|| tool_runtime::ToolError::unauthorized("no auth token available"))?;
         let response = crate::session::managed_mcp::call_gateway_tool(
             &self.proxy_base_url,
             &auth_key,
@@ -490,12 +486,10 @@ impl tools::types::resources::ManagedGatewayToolCaller for ShellManagedGatewayTo
         )
         .await
         .map_err(|error| managed_gateway_error_to_tool_error(error, caller))?;
-        Ok(
-            tools::types::resources::ManagedGatewayToolCallResponse {
-                result: response.result,
-                connectors_needing_reauth: response.connectors_needing_reauth,
-            },
-        )
+        Ok(tools::types::resources::ManagedGatewayToolCallResponse {
+            result: response.result,
+            connectors_needing_reauth: response.connectors_needing_reauth,
+        })
     }
 }
 fn managed_gateway_error_to_tool_error(
@@ -510,9 +504,8 @@ fn managed_gateway_error_to_tool_error(
             } else if status == reqwest::StatusCode::FORBIDDEN {
                 tool_runtime::ToolError::permission_denied(detail)
             } else {
-                let tool_id = tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
-                    tool_protocol::ToolId::new("use_tool").expect("valid")
-                });
+                let tool_id = tool_protocol::ToolId::new(caller)
+                    .unwrap_or_else(|_| tool_protocol::ToolId::new("use_tool").expect("valid"));
                 tool_runtime::ToolError::execution(tool_id, detail)
             };
             match err.details.as_mut() {
@@ -565,10 +558,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn forbidden_status_maps_to_permission_denied_and_carries_status() {
         let err = managed_gateway_error_to_tool_error(status_error(403, "denied"), "use_tool");
-        assert_eq!(
-            err.kind,
-            tool_runtime::ToolErrorKind::PermissionDenied
-        );
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::PermissionDenied);
         let details = err.details.as_ref().unwrap();
         assert_eq!(
             details.get(HTTP_STATUS_DETAILS_KEY),
@@ -846,8 +836,7 @@ pub(crate) struct SessionActor {
     pub(crate) origin_client: Option<crate::http::OriginClientInfo>,
     /// Feedback manager for signal tracking and feedback request heuristics
     pub(crate) feedback_manager: Arc<FeedbackManager>,
-    pub(crate) upload_queue:
-        std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
+    pub(crate) upload_queue: std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
     /// Cancellation token for the feedback sync loop (None if no feedback client)
     pub(crate) sync_loop_cancel: Option<tokio_util::sync::CancellationToken>,
     /// The fully-built Agent: owns the ToolBridge, system prompt, policies, and the AgentDefinition.
@@ -1129,10 +1118,7 @@ pub(crate) struct SessionActor {
     /// A timeout changes it to `None` without invalidating FIFO events already queued for that request.
     /// Turn and cancellation boundaries revoke abandoned ownership after preserving bounded image-strip work.
     pub(crate) turn_stream_drained: parking_lot::Mutex<
-        std::collections::HashMap<
-            sampler::RequestId,
-            Option<tokio::sync::oneshot::Sender<()>>,
-        >,
+        std::collections::HashMap<sampler::RequestId, Option<tokio::sync::oneshot::Sender<()>>>,
     >,
     /// A server-confirmed image strip awaiting proof that the stripped retry helped.
     /// URLs are buffered by request id on `ImagesStripped`.
@@ -1238,10 +1224,7 @@ impl SessionActor {
     }
     /// Send a before-turn hook via the local workspace channel.
     /// Fire-and-forget; failures are logged but do not interrupt the turn.
-    async fn send_before_turn_event(
-        &self,
-        payload: tool_protocol::turn_hook::BeforeTurnPayload,
-    ) {
+    async fn send_before_turn_event(&self, payload: tool_protocol::turn_hook::BeforeTurnPayload) {
         self.workspace_ops
             .on_before_turn(&self.session_id_string(), &payload)
             .await;
@@ -1253,10 +1236,7 @@ impl SessionActor {
         skip_all,
         fields(session_id = %self.session_info.id.0, turn_number = payload.turn_number)
     )]
-    async fn send_after_turn_event(
-        &self,
-        payload: tool_protocol::turn_hook::AfterTurnPayload,
-    ) {
+    async fn send_after_turn_event(&self, payload: tool_protocol::turn_hook::AfterTurnPayload) {
         self.workspace_ops
             .on_after_turn(&self.session_id_string(), &payload)
             .await;
@@ -1328,9 +1308,9 @@ impl SessionActor {
             hooks: self.hook_registry.borrow().is_some(),
             plugins: self.plugin_registry.borrow().is_some(),
             goal,
-            workflows: tool_names.iter().any(|n| {
-                n == tools::implementations::grok_build::workflow::WORKFLOW_TOOL_NAME
-            }),
+            workflows: tool_names
+                .iter()
+                .any(|n| n == tools::implementations::grok_build::workflow::WORKFLOW_TOOL_NAME),
             workflow_management: false,
         }
     }
@@ -1511,15 +1491,11 @@ fn load_system_prompt_from_dir(session_dir: &std::path::Path) -> Option<String> 
 ///
 /// Returns `None` for sessions without a persisted context.
 #[expect(dead_code, reason = "API for future viewers/debug tools")]
-pub(crate) fn load_prompt_context(
-    session_info: &SessionInfo,
-) -> Option<agent::PromptContext> {
+pub(crate) fn load_prompt_context(session_info: &SessionInfo) -> Option<agent::PromptContext> {
     let dir = crate::session::persistence::session_dir(session_info);
     load_prompt_context_from_dir(&dir)
 }
-fn load_prompt_context_from_dir(
-    session_dir: &std::path::Path,
-) -> Option<agent::PromptContext> {
+fn load_prompt_context_from_dir(session_dir: &std::path::Path) -> Option<agent::PromptContext> {
     let json = std::fs::read_to_string(session_dir.join(PROMPT_CONTEXT_FILENAME)).ok()?;
     serde_json::from_str(&json)
         .map_err(|e| tracing::warn!(?e, "failed to deserialize prompt_context.json"))
@@ -1907,12 +1883,10 @@ mod tool_meta_stamp_tests {
                         } = cmd
                         {
                             *captured_in_task.lock().await = Some(tool_call_update);
-                            let _ = respond_to.send(
-                                workspace::permission::PermissionResolution {
-                                    decision: Decision::Allow,
-                                    event: None,
-                                },
-                            );
+                            let _ = respond_to.send(workspace::permission::PermissionResolution {
+                                decision: Decision::Allow,
+                                event: None,
+                            });
                         }
                     }
                 });

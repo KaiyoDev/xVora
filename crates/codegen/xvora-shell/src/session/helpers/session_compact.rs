@@ -91,8 +91,7 @@ pub(crate) const COMPACT_ERROR_DETAIL_MAX_BYTES: usize = 300;
 pub(crate) fn normalize_compact_detail(raw: &str) -> String {
     let single_line = raw.split_whitespace().collect::<Vec<_>>().join(" ");
     let scrubbed = crate::sampling::error::rewrite_service_names(&single_line);
-    tools::util::truncate_str_with_marker(&scrubbed, COMPACT_ERROR_DETAIL_MAX_BYTES)
-        .into_owned()
+    tools::util::truncate_str_with_marker(&scrubbed, COMPACT_ERROR_DETAIL_MAX_BYTES).into_owned()
 }
 
 /// Typed compact-error `data` payload.

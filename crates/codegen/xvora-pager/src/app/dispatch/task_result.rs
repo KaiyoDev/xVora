@@ -503,10 +503,8 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
             vec![]
         }
         TaskResult::WorkspaceSnapshotLoaded { store, snapshot } => {
-            app.workspace_writes_disabled = !matches!(
-                store.schema_state(),
-                dashboard_store::SchemaState::Current
-            );
+            app.workspace_writes_disabled =
+                !matches!(store.schema_state(), dashboard_store::SchemaState::Current);
             app.workspace_store = Some(store);
             app.workspace_snapshot = Some(snapshot);
             app.workspace_store_loading = false;
@@ -530,10 +528,8 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
             failures,
             attempted,
         } => {
-            app.workspace_writes_disabled = !matches!(
-                store.schema_state(),
-                dashboard_store::SchemaState::Current
-            );
+            app.workspace_writes_disabled =
+                !matches!(store.schema_state(), dashboard_store::SchemaState::Current);
             app.workspace_write_in_flight = false;
             let snapshot = match snapshot {
                 Ok(snapshot) => snapshot,

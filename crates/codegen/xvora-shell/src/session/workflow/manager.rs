@@ -20,9 +20,7 @@ pub(crate) const WORKFLOW_MAX_ACTIVE_RUNS_PER_SESSION: usize = 4;
 pub(crate) const WORKFLOW_DEFAULT_AGENT_BUDGET: u64 = xvora_workflow::DEFAULT_AGENT_BUDGET;
 
 static WORKFLOW_RUNS_ACTIVE: telemetry::activity::ActivityGauge =
-    telemetry::activity::ActivityGauge::work(
-        telemetry::activity::WORKFLOW_RUNS_ACTIVE_KEY,
-    );
+    telemetry::activity::ActivityGauge::work(telemetry::activity::WORKFLOW_RUNS_ACTIVE_KEY);
 
 struct ActiveRun {
     cancel: CancellationToken,
@@ -829,9 +827,8 @@ mod tests {
     use crate::session::persistence::PersistenceMsg;
     use crate::session::workflow::registry::resolve_inline;
 
-    type SubagentEventRx = mpsc::UnboundedReceiver<
-        tools::implementations::grok_build::task::types::SubagentEvent,
-    >;
+    type SubagentEventRx =
+        mpsc::UnboundedReceiver<tools::implementations::grok_build::task::types::SubagentEvent>;
     type CancelLog = Arc<
         parking_lot::Mutex<
             Vec<tools::implementations::grok_build::task::types::SubagentCancelTarget>,
@@ -940,9 +937,7 @@ mod tests {
         }
     }
 
-    fn complete_spawn(
-        req: tools::implementations::grok_build::task::types::SubagentSpawnRequest,
-    ) {
+    fn complete_spawn(req: tools::implementations::grok_build::task::types::SubagentSpawnRequest) {
         use tools::implementations::grok_build::task::types::SubagentResult;
         let id = req.id.clone();
         let _ = req.result_tx.send(SubagentResult {
@@ -1208,9 +1203,7 @@ mod tests {
 
     #[tokio::test]
     async fn resume_reconciles_agents_used_from_journal_no_double_charge() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1340,9 +1333,7 @@ mod tests {
 
     #[tokio::test]
     async fn completed_and_interrupted_runs_are_not_resumable() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1447,9 +1438,7 @@ mod tests {
 
     #[tokio::test]
     async fn workflow_spawns_await_to_completion() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1681,9 +1670,7 @@ mod tests {
 
     #[tokio::test]
     async fn output_schema_stays_host_side_with_one_corrective_retry() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1763,9 +1750,7 @@ mod tests {
 
     #[tokio::test]
     async fn explicit_max_output_tokens_is_ignored_and_run_charges_totals() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1810,9 +1795,7 @@ mod tests {
 
     #[tokio::test]
     async fn children_spawn_without_output_clamp() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));
@@ -1883,9 +1866,7 @@ mod tests {
 
     #[tokio::test]
     async fn backgrounded_stub_fails_loudly() {
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let dir = tempfile::tempdir().unwrap();
         let (mut manager, mut subagent_rx) = test_manager(Some(dir.path().to_path_buf()));

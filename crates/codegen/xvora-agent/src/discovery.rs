@@ -63,12 +63,7 @@ pub enum SubagentSource {
 /// User-level and bundled agents with built-in names are skipped, keeping `visible == callable`.
 pub fn all_subagents(cwd: &Path, toggle: &HashMap<String, bool>) -> Vec<SubagentEntry> {
     let grok = config::user_grok_home();
-    all_subagents_with_home(
-        cwd,
-        toggle,
-        dirs::home_dir().as_deref(),
-        grok.as_deref(),
-    )
+    all_subagents_with_home(cwd, toggle, dirs::home_dir().as_deref(), grok.as_deref())
 }
 
 fn all_subagents_with_home(
@@ -275,12 +270,7 @@ fn by_name_with_home(
 /// Project-level `.grok/agents/` has highest priority, then falls back to built-ins, user-level, and finally bundled definitions.
 pub fn by_name_in_cwd(name: &str, cwd: &Path) -> Option<AgentDefinition> {
     let grok = config::user_grok_home();
-    by_name_in_cwd_with_home(
-        name,
-        cwd,
-        dirs::home_dir().as_deref(),
-        grok.as_deref(),
-    )
+    by_name_in_cwd_with_home(name, cwd, dirs::home_dir().as_deref(), grok.as_deref())
 }
 
 fn by_name_in_cwd_with_home(

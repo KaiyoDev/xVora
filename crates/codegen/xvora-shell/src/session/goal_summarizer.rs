@@ -12,9 +12,9 @@ use crate::session::goal_planner::{
     RoleSpawnOverride, SpawnError, spawn_with_fail_open_retry,
 };
 use crate::session::goal_role_tools::RoleToolNames;
+use session_events::EventWriter;
 use std::path::Path;
 use std::sync::Arc;
-use session_events::EventWriter;
 use tool_types::SubagentCapabilityMode;
 use tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use tools::implementations::grok_build::task::types::{
@@ -605,9 +605,7 @@ mod tests {
     #[tokio::test]
     async fn channel_spawner_request_is_harness_internal_and_read_only() {
         use tool_types::SubagentCapabilityMode;
-        use tools::implementations::grok_build::task::types::{
-            SubagentEvent, SubagentResult,
-        };
+        use tools::implementations::grok_build::task::types::{SubagentEvent, SubagentResult};
 
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let spawner = ChannelSpawner {

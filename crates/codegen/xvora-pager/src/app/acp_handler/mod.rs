@@ -2,8 +2,8 @@ use std::collections::hash_map::Entry;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use agent_client_protocol as acp;
 use acp_lib::AcpClientMessage;
+use agent_client_protocol as acp;
 
 use super::actions::Effect;
 use shell::extensions::notification::{

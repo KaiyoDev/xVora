@@ -10,10 +10,7 @@ fn cancel_elicitation_request(
     }
 }
 
-pub(crate) fn handle_mcp_elicit(
-    ext: acp_lib::AcpArgs<acp::ExtRequest>,
-    app: &mut AppView,
-) -> bool {
+pub(crate) fn handle_mcp_elicit(ext: acp_lib::AcpArgs<acp::ExtRequest>, app: &mut AppView) -> bool {
     use crate::views::elicitation_view::ElicitationViewState;
     use tools::mcp_elicitation::McpElicitExtRequest;
 
