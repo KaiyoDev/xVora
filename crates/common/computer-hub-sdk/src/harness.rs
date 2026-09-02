@@ -617,7 +617,7 @@ fn spawn_pending_bind<F>(bind: F) -> PendingBind
 where
     F: std::future::Future<Output = Result<ToolHarness, Arc<str>>> + Send + 'static,
 {
-    let task = tracing::tokio::spawn_traced(bind);
+    let task = xvora_tracing::tokio::spawn_traced(bind);
     async move {
         match task.await {
             Ok(result) => result,

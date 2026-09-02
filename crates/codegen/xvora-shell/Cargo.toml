@@ -125,54 +125,54 @@ jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 sha2 = { workspace = true }
 rand = { workspace = true }
 strum = { workspace = true }
-xvora-fast-worktree = { path = "../fast-worktree", features = ["metadata"] }
+fast-worktree = { path = "../fast-worktree", package = "xvora-fast-worktree", features = ["metadata"] }
 
 tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
-xvora-paths = { path = "../xvora-paths" }
+paths = { path = "../xvora-paths", package = "xvora-paths" }
 shell-base = { workspace = true }
 shell-session-support = { workspace = true }
 shell-terminal = { workspace = true }
 shared = { workspace = true }
 status-line = { workspace = true }
-xvora-tracing-macros = { path = "../tracing-macros", package = "tracing-macros" }
-xvora-fsnotify = { path = "../xvora-fsnotify" }
-xvora-codebase-graph = { path = "../codebase-graph" }
-xvora-hunk-tracker = { path = "../hunk-tracker" }
+tracing-macros = { path = "../tracing-macros", package = "tracing-macros" }
+fsnotify = { path = "../xvora-fsnotify", package = "xvora-fsnotify" }
+codebase-graph = { path = "../codebase-graph", package = "xvora-codebase-graph" }
+hunk-tracker = { path = "../hunk-tracker", package = "xvora-hunk-tracker" }
 agent-lifecycle = { workspace = true }
 interjection-core = { workspace = true }
 message-delivery-core = { workspace = true }
-xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-xvora-chat-state = { path = "../chat-state" }
+sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
+chat-state = { path = "../chat-state", package = "xvora-chat-state" }
 # Segment markdown rendering + the `compaction/` store path convention.
 compaction-transcript = { workspace = true }
-xvora-compaction = { path = "../../common/xvora-compaction" }
+compaction = { path = "../../common/xvora-compaction", package = "xvora-compaction" }
 extra-ca = { workspace = true }
-xvora-sampler = { path = "../xvora-sampler" }
+sampler = { path = "../xvora-sampler", package = "xvora-sampler" }
 # Session FTS search; owns this crate's only rusqlite/bundled-SQLite use.
 session-search = { workspace = true }
 token-estimation = { workspace = true  }
-xvora-sampling-types = { path = "../xvora-sampling-types" }
-xvora-tools = { path = "../xvora-tools" }
+sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
+tools = { path = "../xvora-tools", package = "xvora-tools" }
 tty-utils = { workspace = true }
-xvora-workflow = { path = "../xvora-workflow" }
+workflow = { path = "../xvora-workflow", package = "xvora-workflow" }
 system-power = { workspace = true }
 workspace = { workspace = true }
 # Backs the compatibility-only `xvora_shell::foreign_sessions` re-export.
 foreign-sessions = { workspace = true }
-xvora-subagent-resolution = { path = "../xvora-subagent-resolution" }
-xvora-agent = { path = "../xvora-agent" }
+subagent-resolution = { path = "../xvora-subagent-resolution", package = "xvora-subagent-resolution" }
+agent = { path = "../xvora-agent", package = "xvora-agent" }
 bundle = { workspace = true }
 config = { workspace = true }
 config-types = { workspace = true }
 dirs = { workspace = true }
 memory = { workspace = true }
-xvora-hooks = { path = "../xvora-hooks" }
-xvora-hooks-plugins-types = { path = "../hooks-plugins-types" }
-xvora-plugin-marketplace = { path = "../xvora-plugin-marketplace" }
-xvora-file-utils = { path = "../file-utils" }
+hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+hooks-plugins-types = { path = "../hooks-plugins-types", package = "xvora-hooks-plugins-types" }
+plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
+file-utils = { path = "../file-utils", package = "xvora-file-utils" }
 session-events = { workspace = true }
-xvora-auth = { workspace = true, features = ["middleware"] }
+auth = { workspace = true, features = ["middleware"] }
 telemetry = { workspace = true }
 http = { workspace = true }
 models = { workspace = true }
@@ -205,7 +205,7 @@ windows = { workspace = true }
 
 [dev-dependencies]
 dirs = { workspace = true }
-xvora-status-line = { workspace = true, features = ["test-support"] }
+status-line = { workspace = true, features = ["test-support"] }
 criterion = { workspace = true }
 # Pre-main unified-log redirect (`test_support::redirect_unified_log_for_tests`).
 ctor = { workspace = true }
@@ -214,11 +214,11 @@ pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 # `extensions::bundle` tests build archives with `bundle::test_helpers`, which
 # is `#[cfg(test)]`-only inside xvora-bundle without this feature.
-xvora-bundle = { workspace = true, features = ["test-support"] }
-xvora-memory = { workspace = true, features = ["test-support"] }
+bundle = { workspace = true, features = ["test-support"] }
+memory = { workspace = true, features = ["test-support"] }
 # sandbox-enforce: keep tests running against the enforcing sandbox build.
-xvora-workspace = { workspace = true, features = ["test-support", "sandbox-enforce"] }
-xvora-config = { workspace = true, features = [] }
+workspace = { workspace = true, features = ["test-support", "sandbox-enforce"] }
+config = { workspace = true, features = [] }
 ring = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
@@ -227,8 +227,8 @@ semver = { workspace = true }
 serial_test = { workspace = true }
 # Test-only builds expose `env::EnvVarGuard` and the cpu_profile test seams to
 # this crate's test targets.
-xvora-shell-base = { workspace = true, features = ["test-support"] }
-xvora-test-support = { workspace = true, features = [] }
+shell-base = { workspace = true, features = ["test-support"] }
+test-support = { workspace = true, features = [] }
 test-utils = { workspace = true }
 # `test-util` enables `#[tokio::test(start_paused = true)]` (paused virtual
 # clock with auto-advance) so interval-driven loop tests in `auth::refresh`

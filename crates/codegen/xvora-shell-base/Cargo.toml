@@ -10,7 +10,7 @@ description = "Foundation modules for the grok shell crate family: environment p
 local-workspace = []
 # Exposes `#[cfg(test)]`-only helpers (`env::EnvVarGuard`,
 # `cpu_profile` test seams) to downstream crates' test targets. Enabled by
-test-support = ["xvora-env/test-support"]
+test-support = ["env/test-support"]
 default-bazel = ["test-support"]
 
 [dependencies]
@@ -45,7 +45,7 @@ windows = { workspace = true }
 tempfile = { workspace = true }
 # `cfg(test)` in this crate does not enable features on dependencies, so the
 # tests' `EnvVarGuard` re-export needs the feature turned on explicitly.
-xvora-env = { workspace = true, features = ["test-support"] }
+env = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true

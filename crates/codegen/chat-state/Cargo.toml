@@ -18,8 +18,8 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 # `CompactionDetail`, embedded in `CompactionMode::Segments`.
 compaction-transcript = { workspace = true }
-xvora-compaction = { path = "../../common/xvora-compaction" }
-xvora-sampling-types = { path = "../xvora-sampling-types" }
+compaction = { path = "../../common/xvora-compaction", package = "xvora-compaction" }
+sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
 token-estimation = { workspace = true  }
 
 [dev-dependencies]

@@ -34,16 +34,16 @@ tokio = { workspace = true, features = [
 ] }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v5", "v7"] }
-xvora-agent = { path = "../xvora-agent" }
-xvora-tools = { path = "../xvora-tools" }
-xvora-tools-api = { path = "../xvora-tools-api" }
+agent = { path = "../xvora-agent", package = "xvora-agent" }
+tools = { path = "../xvora-tools", package = "xvora-tools" }
+tools-api = { path = "../xvora-tools-api", package = "xvora-tools-api" }
 # `DiagHandle`, held by the hub config and threaded through `connect_hub`.
 diag-server = { workspace = true }
-xvora-workspace-client = { path = "../xvora-workspace-client" }
+workspace-client = { path = "../xvora-workspace-client", package = "xvora-workspace-client" }
 # Daemon/process-lifecycle machinery for `bin/workspace_server.rs` only; the
 # library never references it.
-xvora-workspace-daemon = { path = "../xvora-workspace-daemon" }
-xvora-workspace-types = { path = "../xvora-workspace-types" }
+workspace-daemon = { path = "../xvora-workspace-daemon", package = "xvora-workspace-daemon" }
+workspace-types = { path = "../xvora-workspace-types", package = "xvora-workspace-types" }
 config = { workspace = true }
 dirs = { workspace = true }
 # Leaf config value types (RemoteSettings, BoolFlag) for the folder-trust decision.
@@ -52,8 +52,8 @@ toml = { workspace = true, features = ["preserve_order"] }
 dashmap = { workspace = true }
 agent-client-protocol = { workspace = true }
 acp-lib = { workspace = true }
-xvora-codebase-graph = { path = "../codebase-graph" }
-xvora-paths = { path = "../xvora-paths" }
+codebase-graph = { path = "../codebase-graph", package = "xvora-codebase-graph" }
+paths = { path = "../xvora-paths", package = "xvora-paths" }
 base64 = { workspace = true }
 infer = { workspace = true }
 sha2 = { workspace = true, features = ["force-soft"] }
@@ -73,17 +73,17 @@ env = { workspace = true }
 humantime-serde = { workspace = true }
 prometheus = { workspace = true }
 glob = "0.3"
-xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-xvora-hooks = { path = "../xvora-hooks" }
-xvora-hunk-tracker = { path = "../hunk-tracker" }
+sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
+hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+hunk-tracker = { path = "../hunk-tracker", package = "xvora-hunk-tracker" }
 # `metrics` enables the SDK's metric-donation client (periodic Prometheus
 # registry gather → OTLP → hub donation pump); see metric_donation_reporter.
-xvora-computer-hub-sdk = { workspace = true, features = ["metrics"] }
-xvora-computer-hub-mcp-adapter = { path = "../../common/computer-hub-mcp-adapter" }
-xvora-mcp = { path = "../xvora-mcp" }
-xvora-file-utils = { path = "../file-utils" }
+computer-hub-sdk = { workspace = true, features = ["metrics"] }
+computer-hub-mcp-adapter = { path = "../../common/computer-hub-mcp-adapter", package = "xvora-computer-hub-mcp-adapter" }
+mcp = { path = "../xvora-mcp", package = "xvora-mcp" }
+file-utils = { path = "../file-utils", package = "xvora-file-utils" }
 session-events = { workspace = true }
-xvora-auth = { path = "../xvora-auth" }
+auth = { path = "../xvora-auth", package = "xvora-auth" }
 telemetry = { workspace = true }
 tty-utils = { workspace = true }
 reqwest = { workspace = true }
@@ -92,13 +92,13 @@ tool-runtime = { workspace = true }
 tool-types = { workspace = true }
 tokio-util = { workspace = true, features = ["rt"] }
 urlencoding = "2"
-xvora-fast-worktree = { path = "../fast-worktree", features = ["metadata"] }
+fast-worktree = { path = "../fast-worktree", package = "xvora-fast-worktree", features = ["metadata"] }
 # tonic: Status/Code mapping for deploy errors in workspace_ops.
 tonic = { workspace = true }
 sha1 = { workspace = true, optional = true }
 zip = { workspace = true, optional = true }
 
-xvora-fsnotify = { path = "../xvora-fsnotify" }
+fsnotify = { path = "../xvora-fsnotify", package = "xvora-fsnotify" }
 clap = { workspace = true }
 tracing-subscriber = { workspace = true }
 # "enable" required for the SDK's spans to record at all.
@@ -131,7 +131,7 @@ default = ["sandbox-enforce"]
 compression = []
 test-support = []
 test-util = []
-sandbox-enforce = ["xvora-sandbox/enforce"]
+sandbox-enforce = ["sandbox/enforce"]
 default-bazel = [
     "sandbox-enforce",
     ]
@@ -140,7 +140,7 @@ default-bazel = [
 tempfile = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
-xvora-test-utils = { path = "../../common/test-utils" }
+test-utils = { path = "../../common/test-utils", package = "xvora-test-utils" }
 # Decode tar.gz archives produced by workspace upload helpers in tests.
 flate2 = { workspace = true }
 tar = { workspace = true }

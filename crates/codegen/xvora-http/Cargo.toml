@@ -12,9 +12,9 @@ reqwest-middleware = { workspace = true }
 rustls = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-xvora-auth = { workspace = true, features = ["middleware"] }
+auth = { workspace = true, features = ["middleware"] }
 extra-ca = { workspace = true }
-xvora-sampler = { path = "../xvora-sampler" }
+sampler = { path = "../xvora-sampler", package = "xvora-sampler" }
 telemetry = { workspace = true }
 version = { workspace = true }
 workspace = { workspace = true }

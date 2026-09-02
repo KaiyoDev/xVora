@@ -19,7 +19,7 @@ ignored = ["xvora-ratatui-inline"]
 # NOT depend on this crate (that would be a cargo cycle). The pager invokes this
 # crate via the `xvora_pager::minimal_hook` fn-pointer seam, installed by the
 # composition-root binary; see `install()`.
-xvora-pager = { path = "../xvora-pager" }
+pager = { path = "../xvora-pager", package = "xvora-pager" }
 
 # Rendering primitives (must match the pager's versions).
 ratatui = { workspace = true, features = ["crossterm", "unstable-widget-ref"] }
@@ -37,7 +37,7 @@ ratatui-inline = { workspace = true }
 # dev) dependency because gazelle lists `src/commit_tests.rs` in the library
 # `srcs` and so attributes its imports to the library target; a
 # `[dev-dependencies]` entry here would fail `just gazelle --check`.
-xvora-pager-diff = { path = "../xvora-pager-diff" }
+pager-diff = { path = "../xvora-pager-diff", package = "xvora-pager-diff" }
 
 # Misc used by the commit/live/full-view paths.
 chrono = { workspace = true }
@@ -50,6 +50,6 @@ token-estimation = { workspace = true  }
 # The unit tests reuse the pager's test-only view-model constructors
 # (`test_agent_view`, yolo/auto setters), gated behind its test-only
 # helpers.
-xvora-pager = { path = "../xvora-pager", features = ["test-support"] }
+pager = { path = "../xvora-pager", features = ["test-support"], package = "xvora-pager"}
 
 [features]

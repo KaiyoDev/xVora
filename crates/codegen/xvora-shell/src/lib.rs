@@ -10,7 +10,7 @@
 #[global_allocator]
 static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
 pub(crate) use telemetry::unified_log;
-pub use xvora_tracing_macros::{teprintln, timed, tprintln};
+pub use tracing_macros::{teprintln, timed, tprintln};
 pub mod agent;
 pub mod auth;
 pub mod builtin;

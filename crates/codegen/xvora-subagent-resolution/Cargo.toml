@@ -11,10 +11,10 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-xvora-agent = { path = "../xvora-agent" }
-xvora-sampling-types = { path = "../xvora-sampling-types" }
-xvora-tools = { path = "../xvora-tools" }
-xvora-tool-types.workspace = true
+agent = { path = "../xvora-agent", package = "xvora-agent" }
+sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
+tools = { path = "../xvora-tools", package = "xvora-tools" }
+tool-types.workspace = true
 
 [features]
 default = []

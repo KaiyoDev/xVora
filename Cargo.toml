@@ -323,8 +323,8 @@ token-estimation = {  path = "crates/codegen/token-estimation", package = "xvora
 tool-protocol = {  path = "crates/common/tool-protocol", package = "xvora-tool-protocol" }
 tool-runtime = {  path = "crates/common/tool-runtime", package = "xvora-tool-runtime" }
 tool-types = {  path = "crates/common/tool-types", package = "xvora-tool-types" }
-xvora-tool-types = { path = "crates/common/tool-types" }
 tracing-util = {  path = "crates/common/xvora-tracing", package = "xvora-tracing" }
+xvora-tracing = { path = "crates/common/xvora-tracing", package = "xvora-tracing" }
 tty-utils = {  path = "crates/codegen/tty-utils", package = "xvora-tty-utils" }
 zbus = { version = "5" }
 zstd = "0.13"
@@ -335,10 +335,22 @@ chat-state = {  path = "crates/codegen/chat-state", package = "xvora-chat-state"
 codebase-graph = {  path = "crates/codegen/codebase-graph", package = "xvora-codebase-graph" }
   compaction-transcript = { path = "crates/codegen/xvora-compaction-transcript", package = "xvora-compaction-transcript" }
 computer-hub-mcp-adapter = {  path = "crates/common/computer-hub-mcp-adapter", package = "xvora-computer-hub-mcp-adapter" }
+sandbox = {  path = "crates/codegen/xvora-sandbox", package = "xvora-sandbox" }
+compaction = {  path = "crates/common/xvora-compaction", package = "xvora-compaction" }
 crash-handler = {  path = "crates/codegen/crash-handler", package = "xvora-crash-handler" }
 fast-worktree = {  path = "crates/codegen/fast-worktree", package = "xvora-fast-worktree" }
 file-utils = {  path = "crates/codegen/file-utils", package = "xvora-file-utils" }
 hunk-tracker = {  path = "crates/codegen/hunk-tracker", package = "xvora-hunk-tracker" }
+pager = { path = "crates/codegen/xvora-pager", package = "xvora-pager" }
+gboom = { path = "crates/codegen/xvora-gboom", package = "xvora-gboom" }
+pager-render = { path = "crates/codegen/xvora-pager-render", package = "xvora-pager-render" }
+pager-diff = { path = "crates/codegen/xvora-pager-diff", package = "xvora-pager-diff" }
+pager-minimal = { path = "crates/codegen/xvora-pager-minimal", package = "xvora-pager-minimal" }
+pager-pty-harness = { path = "crates/codegen/xvora-pager-pty-harness", package = "xvora-pager-pty-harness" }
+update = { path = "crates/codegen/xvora-update", package = "xvora-update" }
+voice = { path = "crates/codegen/xvora-voice", package = "xvora-voice" }
+plugin-marketplace = { path = "crates/codegen/xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
+tracing-macros = { path = "crates/codegen/tracing-macros", package = "tracing-macros" }
 axum-server = "0.8"
 ctor = "0.4"
 dhat = "0.3"
@@ -371,19 +383,6 @@ shell-terminal = { path = "crates/codegen/shell-terminal" }
 status-line = { path = "crates/codegen/status-line" }
 foreign-sessions = { path = "crates/codegen/foreign-sessions" }
 sampler = { path = "crates/codegen/xvora-sampler", package = "xvora-sampler" }
-xvora-auth = { path = "crates/codegen/xvora-auth" }
-xvora-bundle = { path = "crates/codegen/bundle" }
-xvora-computer-hub-sdk = { path = "crates/common/computer-hub-sdk" }
-xvora-config = { path = "crates/codegen/xvora-config" }
-xvora-env = { path = "crates/codegen/xvora-env" }
-xvora-memory = { path = "crates/codegen/xvora-memory" }
-xvora-shell = { path = "crates/codegen/xvora-shell" }
-xvora-shell-base = { path = "crates/codegen/xvora-shell-base" }
-xvora-sqlite-journal = { path = "crates/codegen/sqlite-journal" }
-xvora-status-line = { path = "crates/codegen/status-line" }
-xvora-test-support = { path = "crates/codegen/xvora-test-support" }
-xvora-workspace = { path = "crates/codegen/xvora-workspace" }
-xvora-ratatui-textarea = { path = "crates/codegen/ratatui-textarea" }
 [profile.release]
 incremental = true
 panic = "abort"

@@ -17,10 +17,10 @@ educe = { workspace = true, features = ["Debug"] }
 async-openai = { workspace = true }
 tty-utils = { workspace = true  }
 auth = { workspace = true }
-xvora-config = { path = "../xvora-config" }
+config = { path = "../xvora-config", package = "xvora-config" }
 extra-ca = { workspace = true }
-xvora-tools-api = { path = "../xvora-tools-api" }
-xvora-workspace-types = { path = "../xvora-workspace-types" }
+tools-api = { path = "../xvora-tools-api", package = "xvora-tools-api" }
+workspace-types = { path = "../xvora-workspace-types", package = "xvora-workspace-types" }
 version = { workspace = true }
 interjection-core = { workspace = true  }
 token-estimation = { workspace = true  }
@@ -88,8 +88,8 @@ which = { workspace = true }
 
 chrono = { workspace = true }
 futures-util = { workspace = true }
-xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
-file-utils = { path = "../file-utils"  }
+sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
+file-utils = { path = "../file-utils", package = "xvora-file-utils" }
 dhat = { workspace = true, optional = true }
 zstd = { workspace = true }
 

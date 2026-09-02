@@ -1109,7 +1109,7 @@ async fn open_socket(
         headers.insert(header_name, header_value);
     }
     let _ = alpha_test_key;
-    tracing::http_client::attach_trace_to_http_request(headers);
+    xvora_tracing::attach_trace_to_http_request(headers);
     let (ws, _resp) = connect_async(request)
         .await
         .map_err(ClientError::from_handshake_error)?;

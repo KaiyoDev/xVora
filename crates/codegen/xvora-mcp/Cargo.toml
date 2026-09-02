@@ -57,7 +57,7 @@ which = { workspace = true }
 tempfile = { workspace = true }
 # Child-network restriction on stdio server spawns; enforce is feature-unified
 # from the binary crate, matching the other consumers.
-xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
+sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
 tools = { workspace = true }
 telemetry = { workspace = true }
 workspace-types = { workspace = true }

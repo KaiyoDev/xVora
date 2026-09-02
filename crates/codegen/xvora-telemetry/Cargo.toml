@@ -56,7 +56,7 @@ session-events = { workspace = true }
 # `session_metrics::TraceUploadReason::from_upload_method` matches on the shared
 # `UploadMethod` enum (small, dependency-light types crate) so the reason->wire
 # mapping lives next to the trace-upload lifecycle events it labels.
-xvora-file-utils = { path = "../file-utils" }
+file-utils = { path = "../file-utils", package = "xvora-file-utils" }
 tty-utils = { workspace = true }
 version = { workspace = true }
 whoami = { workspace = true }

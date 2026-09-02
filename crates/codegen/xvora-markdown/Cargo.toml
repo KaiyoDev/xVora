@@ -31,7 +31,7 @@ workspace = true
 features = ["event-stream", "bracketed-paste"]
 optional = true
 
-[dependencies.xvora-ratatui-textarea]
+[dependencies.ratatui-textarea]
 workspace = true
 optional = true
 
@@ -51,7 +51,7 @@ required-features = ["playground"]
 
 [features]
 default = []
-playground = ["dep:crossterm", "dep:xvora-ratatui-textarea"]
+playground = ["dep:crossterm", "dep:ratatui-textarea"]
 
 [[bench]]
 name = "bench"

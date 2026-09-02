@@ -15,13 +15,13 @@ version = { workspace = true }
 prompt-queue = { workspace = true }
 
 # Presentation-primitives layer (extracted)
-xvora-pager-render = { path = "../xvora-pager-render" }
+pager-render = { path = "../xvora-pager-render", package = "xvora-pager-render" }
 
 # The /gboom easter-egg game (extracted)
-xvora-gboom = { path = "../xvora-gboom" }
+gboom = { path = "../xvora-gboom", package = "xvora-gboom" }
 
 # Diff hunk construction (extracted)
-xvora-pager-diff = { path = "../xvora-pager-diff" }
+pager-diff = { path = "../xvora-pager-diff", package = "xvora-pager-diff" }
 
 # Rendering
 ratatui = { workspace = true, features = ["crossterm", "unstable-widget-ref"] }
@@ -89,12 +89,12 @@ ratatui-textarea = { workspace = true }
 ratatui-inline = { workspace = true }
 
 # Update
-xvora-update = { path = "../xvora-update" }
+update = { path = "../xvora-update", package = "xvora-update" }
 
 # ACP
 agent-client-protocol = { workspace = true }
 acp-lib = { workspace = true }
-xvora-file-utils = { path = "../file-utils" }
+file-utils = { path = "../file-utils", package = "xvora-file-utils" }
 # Crash-recovery registry of open TUI sessions.
 active-sessions = { workspace = true }
 config = { workspace = true }
@@ -104,7 +104,7 @@ dashboard-store = { workspace = true }
 # macOS/Windows it links cpal; on Linux it compiles a subprocess-recorder
 # backend instead, so cpal -> alsa-sys never reaches the static musl binary
 # (cpal is target-gated to non-Linux inside xvora-voice).
-xvora-voice = { path = "../xvora-voice", default-features = false, features = ["audio"] }
+voice = { path = "../xvora-voice", package = "xvora-voice", default-features = false, features = ["audio"] }
 shell = { workspace = true }
 # The status-line contract: the config the user writes and the payload the
 # agent sends. A leaf crate rather than the agent's, so the client reads it
@@ -115,19 +115,19 @@ workspace = { workspace = true }
 foreign-sessions = { workspace = true }
 token-estimation = { workspace = true  }
 telemetry = { workspace = true }
-xvora-fast-worktree = { path = "../fast-worktree", features = ["metadata"] }
+fast-worktree = { path = "../fast-worktree", package = "xvora-fast-worktree", features = ["metadata"] }
 backon = { workspace = true }
 chrono = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
 tools = { workspace = true }
 agent = { workspace = true }
-xvora-plugin-marketplace = { path = "../xvora-plugin-marketplace" }
+plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
 # Blocked-card copy: `hook_display_name` lives next to the hook-name grammar.
-xvora-hooks = { path = "../xvora-hooks" }
-xvora-hooks-plugins-types = { path = "../hooks-plugins-types" }
+hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+hooks-plugins-types = { path = "../hooks-plugins-types", package = "xvora-hooks-plugins-types" }
 walkdir = { workspace = true }
-xvora-sandbox = { path = "../xvora-sandbox", default-features = false }
+sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
 
 # Base64 encoding for image data
 base64 = { workspace = true }
@@ -152,7 +152,7 @@ urlencoding = { workspace = true }
 url = { workspace = true }
 
 # Crash diagnostics
-xvora-crash-handler = { path = "../crash-handler" }
+crash-handler = { path = "../crash-handler", package = "xvora-crash-handler" }
 
 # Non-poisoning mutex for signal handler (active-sessions crash recovery).
 parking_lot.workspace = true
@@ -178,20 +178,20 @@ windows-sys = { version = "0.59", features = ["Win32_System_Console"] }
 
 [dev-dependencies]
 # The fixture that builds a `[ui.status_line]` section field by field.
-xvora-status-line = { workspace = true, features = ["test-support"] }
-xvora-pager-render = { path = "../xvora-pager-render", features = ["test-support"] }
-xvora-gboom = { path = "../xvora-gboom", features = ["test-support"] }
-xvora-shell = { workspace = true, features = ["test-support"] }
+status-line = { workspace = true, features = ["test-support"] }
+pager-render = { path = "../xvora-pager-render", package = "xvora-pager-render", features = ["test-support"] }
+gboom = { path = "../xvora-gboom", package = "xvora-gboom", features = ["test-support"] }
+shell = { workspace = true, features = ["test-support"] }
 pretty_assertions = { workspace = true }
 insta = { workspace = true }
 criterion = { workspace = true }
 tempfile = { workspace = true }
 serial_test = { workspace = true }
 agent = { workspace = true }
-xvora-pager-pty-harness = { path = "../xvora-pager-pty-harness" }
+pager-pty-harness = { path = "../xvora-pager-pty-harness", package = "xvora-pager-pty-harness" }
 # In-process leader-cluster harness (mock inference server; no cycle:
 # xvora-test-support depends on neither the pager nor the shell).
-xvora-test-support = { workspace = true, features = [] }
+test-support = { workspace = true, features = [] }
 # Provider install for the in-process leader-cluster tests.
 extra-ca = { workspace = true }
 
@@ -287,16 +287,16 @@ default-bazel = [
     "test-support",
     "local-workspace",
     ]
-local-workspace = ["xvora-shell/local-workspace"]
+local-workspace = ["shell/local-workspace"]
 # No-op on this crate: the actual `#[global_allocator]` (and the
 # `tikv-jemallocator` dep) live on the composition-root binary
 # `xvora-pager-bin`, which owns `main.rs`. Kept as an empty feature so the
 # workspace-uniform `[jemalloc, sandbox-enforce]` default set resolves
 # here too and the generated `crate_features` stay valid.
 jemalloc = []
-sandbox-enforce = ["xvora-sandbox/enforce"]
+sandbox-enforce = ["sandbox/enforce"]
 release-dist = []
 # Exposes test-only view-model constructors/setters (e.g. `test_agent_view`,
 # `AgentSession::set_yolo_mode_for_test`) to sibling crates' test builds — used
 # by `xvora-pager-minimal`'s unit tests. Never enabled in production builds.
-test-support = ["xvora-pager-render/test-support", "xvora-gboom/test-support"]
+test-support = ["pager-render/test-support", "gboom/test-support"]

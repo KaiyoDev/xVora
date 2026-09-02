@@ -7,9 +7,9 @@ description = "Agent builder, definition parsing, and system prompt assembly"
 
 [dependencies]
 dunce = { workspace = true }
-xvora-hooks = { path = "../xvora-hooks" }
-xvora-sampling-types = { path = "../xvora-sampling-types" }
-xvora-tools = { path = "../xvora-tools" }
+hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
+tools = { path = "../xvora-tools", package = "xvora-tools" }
 tty-utils = { workspace = true }
 token-estimation = { workspace = true  }
 minijinja = { version = "2", features = ["custom_syntax"] }
@@ -28,7 +28,7 @@ sha2 = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
 zeroize = "1"
-xvora-tool-types.workspace = true
+tool-types.workspace = true
 
 [features]
 default = []
