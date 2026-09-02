@@ -2,7 +2,7 @@ use crate::implementations::grok_build::send_subagent_message::SendSubagentMessa
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use strip_ansi_escapes::strip_str;
-use tool_types::SubagentCompletedOutput;
+use xvora_tool_types::SubagentCompletedOutput;
 /// `(added, removed)` line counts for the `edit.lines` telemetry counter.
 pub fn line_diff(old: &str, new: &str) -> (i64, i64) {
     let mut added = 0i64;
@@ -594,8 +594,8 @@ impl WebFetchOutput {
         }
     }
 }
-use tool_types::KillTaskOutput;
-use tool_types::TaskOutputOutput;
+use xvora_tool_types::KillTaskOutput;
+use xvora_tool_types::TaskOutputOutput;
 /// Output schema for the bash tool.
 ///
 /// The bash tool can either complete synchronously (`Bash`) or be started
@@ -1312,8 +1312,8 @@ mod tests {
     use super::*;
     use crate::implementations::grok_build::todo::{TodoPriority, TodoStatus};
     use serde_json::json;
-    use tool_types::KillTaskResult;
-    use tool_types::TaskOutputResult;
+    use xvora_tool_types::KillTaskResult;
+    use xvora_tool_types::TaskOutputResult;
     #[test]
     fn send_subagent_message_error_classification_is_closed() {
         use crate::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput::*;

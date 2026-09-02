@@ -9,7 +9,7 @@ use super::*;
 // Re-exported for `acp_session.rs`, which does `pub(crate) use interjection::*;`
 // Retained code and co-located tests keep resolving by `acp_session::` path
 #[allow(unused_imports)]
-pub(crate) use interjection_core::{
+pub(crate) use xvora_interjection_core::{
     INTERRUPT_NOTE, InterjectionBuffer, drain_formatted, format_interjection, frame_user_turn,
 };
 

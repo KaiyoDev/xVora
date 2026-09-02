@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui_textarea::{
+use xvora_ratatui_textarea::{
     EditBuffer, EditCommand, EditOutcome, SingleLineViewport, classify_key_event,
 };
 

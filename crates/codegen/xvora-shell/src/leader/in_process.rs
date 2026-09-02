@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use acp_lib::{
+use xvora_acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };

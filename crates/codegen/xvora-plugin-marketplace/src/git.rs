@@ -233,7 +233,7 @@ fn unique_reclone_suffix() -> u128 {
         .unwrap_or(0)
 }
 
-pub use tty_utils::{GIT_AUTH_SUPPRESSION_ENVS, git_command, git_command_locking};
+pub use xvora_tty_utils::{GIT_AUTH_SUPPRESSION_ENVS, git_command, git_command_locking};
 
 fn clone_cli_command(url: &str, branch: Option<&str>, dest: &Path) -> std::process::Command {
     let mut cmd = git_command();

@@ -21,7 +21,7 @@ use crate::types::requirements::{Expr, ToolParamsRequirement, ToolRequirement};
 use crate::types::resources::{SharedResources, Terminal, TruncationCfg};
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::{ToolKind, ToolNamespace};
-use tool_types::{MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput};
+use xvora_tool_types::{MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput};
 
 /// Default wait budget when a caller is already in wait mode but omitted
 /// `timeout_ms` (legacy `wait_tasks` / internal `capped_wait_timeout`). On
@@ -380,7 +380,7 @@ impl TaskOutputTool {
     }
 }
 
-pub(crate) use tool_types::MAX_MULTI_WAIT_IDS;
+pub(crate) use xvora_tool_types::MAX_MULTI_WAIT_IDS;
 
 /// Terminal task statuses as produced by `snapshot_to_result` /
 /// `format_subagent_snapshot`; multi-wait summaries count these as finished.

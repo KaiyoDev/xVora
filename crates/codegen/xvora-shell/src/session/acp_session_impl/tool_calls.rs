@@ -3368,7 +3368,7 @@ mod plan_mode_edit_gate_tests {
     }
     #[test]
     fn task_not_gated_in_plan_mode() {
-        use tool_types::TaskToolInput;
+        use xvora_tool_types::TaskToolInput;
         let t = active_tracker();
         assert_eq!(
             gate(
@@ -3499,7 +3499,7 @@ mod wait_interrupt_tests {
     #[tokio::test(start_paused = true)]
     async fn pending_interjection_aborts_in_flight_wait() {
         use super::InterjectionBuffer;
-        use interjection_core::PendingInterjection;
+        use xvora_interjection_core::PendingInterjection;
         let buf: InterjectionBuffer<agent_client_protocol::ImageContent> =
             InterjectionBuffer::default();
         let out = tokio::select! {

@@ -1,6 +1,6 @@
 use super::*;
 use crate::tools::tool_context::BlockingWaitState;
-use tool_types::TaskOutputOutput;
+use xvora_tool_types::TaskOutputOutput;
 use xvora_tools::types::output::ToolOutput;
 
 fn ids(xs: &[&str]) -> Vec<String> {

@@ -2,7 +2,7 @@ use super::{
     build_context_window, emit_loop, live_turn, split_normalized_remote, strip_trailing_separator,
 };
 use crate::extensions::notification::PromptUsageModel;
-use acp_lib::AcpClientMessage;
+use xvora_acp_lib::AcpClientMessage;
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;

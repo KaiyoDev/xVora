@@ -469,7 +469,7 @@ fn fetch_timeout_kills_process_group_with_grandchild() {
     use std::process::Stdio;
     use std::time::Instant;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let dir = TempDir::new().unwrap();
     let pidfile = dir.path().join("grandchild.pid");
@@ -533,7 +533,7 @@ fn pid_alive(pid: u32) -> bool {
 fn fetch_nonzero_exit_includes_stderr() {
     use std::process::Stdio;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let mut cmd = std::process::Command::new("sh");
     cmd.args(["-c", "echo 'fatal: unsavoury object' >&2; exit 128"])
@@ -558,7 +558,7 @@ fn fetch_nonzero_exit_includes_stderr() {
 fn fetch_stderr_is_truncated() {
     use std::process::Stdio;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let mut cmd = std::process::Command::new("sh");
     cmd.args(["-c", "dd if=/dev/zero bs=9000 count=1 >&2; exit 1"])
@@ -585,7 +585,7 @@ fn fetch_child_drop_tears_down_process() {
     use std::process::Stdio;
     use std::time::Instant;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let mut cmd = std::process::Command::new("sleep");
     cmd.arg("30")
@@ -610,7 +610,7 @@ fn fetch_timeout_sigkills_term_immune_grandchild() {
     use std::process::Stdio;
     use std::time::Instant;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let dir = TempDir::new().unwrap();
     let pidfile = dir.path().join("grandchild.pid");

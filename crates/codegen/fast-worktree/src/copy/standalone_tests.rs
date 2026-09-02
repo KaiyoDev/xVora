@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
-use test_utils::git::{git_commit_all, init_git_repo, run_git};
+use xvora_test_utils::git::{git_commit_all, init_git_repo, run_git};
 
 use super::{
     checkout_origin_name, narrow_origin_fetch_spec, origin_keep_names_for_git_ref,

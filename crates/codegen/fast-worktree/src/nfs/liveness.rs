@@ -564,7 +564,7 @@ pub fn identities_from_worktree_records(recs: &[crate::db::WorktreeRecord]) -> V
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use test_utils::git::{git_commit_all, init_git_repo};
+    use xvora_test_utils::git::{git_commit_all, init_git_repo};
     fn git_rev_parse(repo: &Path, rev: &str) -> String {
         let mut cmd = std::process::Command::new("git");
         xvora_tty_utils::detach_std_command(&mut cmd);

@@ -44,4 +44,4 @@ pub use truncate::{
     format_bytes, soft_wrap_line, soft_wrap_lines, truncate_line, truncate_str,
     truncate_str_with_marker,
 };
-pub use tty_utils::detach_std_command;
+pub use xvora_tty_utils::detach_std_command;

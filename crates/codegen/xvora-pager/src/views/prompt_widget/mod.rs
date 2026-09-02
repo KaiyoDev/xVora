@@ -23,7 +23,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::StatefulWidgetRef;
-use ratatui_textarea::{ElementId, ElementKind, TextArea, TextAreaState, TextElement};
+use xvora_ratatui_textarea::{ElementId, ElementKind, TextArea, TextAreaState, TextElement};
 
 use crate::clipboard::{SystemClipboard, system_clipboard_get};
 use crate::input::key::key;
@@ -2155,7 +2155,7 @@ impl PromptWidget {
     /// The caller should forward ALL mouse events, not just those in the prompt area.
     /// TextArea tracks drag state internally and handles drag-beyond-edge.
     pub fn handle_mouse(&mut self, mouse: &crossterm::event::MouseEvent) -> PromptEvent {
-        use ratatui_textarea::{MouseAction, TextElementEventKind};
+        use xvora_ratatui_textarea::{MouseAction, TextElementEventKind};
 
         self.post_insert_image_preview = None;
         let action = self

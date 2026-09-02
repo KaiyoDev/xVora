@@ -6,7 +6,7 @@ use tokio::process::Command;
 use tokio::time;
 
 use crate::runner::{AsyncTerminalRunner, TerminalError, TerminalRunRequest, TerminalRunResult};
-use tty_utils::KILL_REAP_TIMEOUT;
+use xvora_tty_utils::KILL_REAP_TIMEOUT;
 
 pub struct LocalTerminalRunner;
 

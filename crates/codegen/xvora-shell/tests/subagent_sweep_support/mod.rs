@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use agent_client_protocol::{self as acp, Agent as _};
 use serde_json::{Value, json};
 use tempfile::TempDir;
-use test_utils::env::env_usize;
+use xvora_test_utils::env::env_usize;
 use xvora_shell::waterfall;
 use xvora_test_support::{
     InferenceEndpoint, InferenceRequestMatcher, MockInferenceServer, ResourceSnapshot, RssSampler,

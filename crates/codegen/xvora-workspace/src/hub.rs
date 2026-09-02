@@ -24,19 +24,19 @@
 use crate::error::{WorkspaceError, WorkspaceResult};
 use crate::handle::WorkspaceHandle;
 use async_trait::async_trait;
-use computer_hub_sdk::{
+use xvora_computer_hub_sdk::{
     AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
     ToolServerBuilder, ToolServerHandler,
 };
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
-use tool_protocol::ToolId;
-use tool_runtime::{
+use xvora_tool_protocol::ToolId;
+use xvora_tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, ToolStreamItem, TypedToolOutput,
     terminal_only,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 use url::Url;
 use xvora_diag_server::DiagHandle;
 use xvora_tools::registry::types::ToolConfig;
@@ -716,7 +716,7 @@ mod tests {
         assert_eq!(result[0].id, "hub:tool_a");
     }
     use futures::StreamExt;
-    use tool_runtime::{SessionContext, ToolCallId};
+    use xvora_tool_runtime::{SessionContext, ToolCallId};
     fn make_handler(workspace: &WorkspaceHandle, tool_name: &str) -> SessionRoutedToolHandler {
         SessionRoutedToolHandler::new(
             tool_name.to_owned(),
@@ -957,7 +957,7 @@ mod tests {
             _ctx: xvora_tool_runtime::ToolCallContext,
             _input: serde_json::Value,
         ) -> xvora_tool_runtime::ToolStream<String> {
-            use tool_runtime::{ToolProgress, ToolStreamItem};
+            use xvora_tool_runtime::{ToolProgress, ToolStreamItem};
             Box::pin(futures::stream::iter(vec![
                 ToolStreamItem::Progress(ToolProgress::Text {
                     text: "stub-progress-1".into(),
@@ -1506,7 +1506,7 @@ mod tests {
             ctx: xvora_tool_runtime::ToolCallContext,
             input: serde_json::Value,
         ) -> xvora_tool_runtime::ToolStream<serde_json::Value> {
-            use tool_runtime::{ToolProgress, ToolStreamItem};
+            use xvora_tool_runtime::{ToolProgress, ToolStreamItem};
             let value = self.run(ctx, input).await;
             Box::pin(futures::stream::iter(vec![
                 ToolStreamItem::Progress(ToolProgress::Text {

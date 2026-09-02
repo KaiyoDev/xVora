@@ -5,7 +5,7 @@
 //! heavyweight `xvora-tools` dependency. This module re-exports the public
 //! API for backward compatibility.
 
-pub use tty_utils::{detach_from_tty, pager_env};
+pub use xvora_tty_utils::{detach_from_tty, pager_env};
 
 /// The positive-integer env contract shared by limits and timeouts: plain
 /// digits only; `None` for anything else, including zero.

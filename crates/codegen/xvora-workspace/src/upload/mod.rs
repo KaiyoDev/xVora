@@ -1,6 +1,6 @@
 pub(crate) mod environment;
 use crate::telemetry::dc_log;
-use computer_hub_sdk::auth::{AuthCredential, AuthProvider};
+use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
 use environment::WorkspaceIdentity;
 use file_utils::gcs::StorageConfig;
 use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue};
@@ -313,7 +313,7 @@ pub(crate) async fn upload_tool_state_queued(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use computer_hub_sdk::auth::AuthCredential;
+    use xvora_computer_hub_sdk::auth::AuthCredential;
     fn proxy_config() -> Arc<ProxyStorageConfig> {
         proxy_config_with_identity(WorkspaceIdentity::default())
     }

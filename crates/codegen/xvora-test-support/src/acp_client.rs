@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::scaled;
 
-use acp_lib::LineBufferedRead;
+use xvora_acp_lib::LineBufferedRead;
 use agent_client_protocol::{self as acp, Agent as _};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 

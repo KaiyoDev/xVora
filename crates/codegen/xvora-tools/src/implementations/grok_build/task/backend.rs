@@ -22,7 +22,7 @@ use super::types::{
     SubagentValidateTypeOutcome, SubagentValidateTypeRequest,
 };
 use crate::register_resource;
-use tool_runtime::ToolError;
+use xvora_tool_runtime::ToolError;
 
 /// Abstraction over the mechanism used to spawn, query, and cancel subagents.
 ///

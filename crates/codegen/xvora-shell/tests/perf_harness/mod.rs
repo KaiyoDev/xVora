@@ -10,7 +10,7 @@ use std::time::Instant;
 use agent_client_protocol::{self as acp};
 
 use crate::acp_harness;
-use acp_lib::{
+use xvora_acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };

@@ -14,11 +14,11 @@
 
 use base64::Engine;
 use clap::Parser;
-use computer_hub_sdk::pool::HubConnectionPool;
-use computer_hub_sdk::{AuthCredential, ToolHarnessBuilder};
+use xvora_computer_hub_sdk::pool::HubConnectionPool;
+use xvora_computer_hub_sdk::{AuthCredential, ToolHarnessBuilder};
 use serde_json::{Value, json};
-use tool_protocol::{SessionId, ToolId};
-use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
+use xvora_tool_protocol::{SessionId, ToolId};
+use xvora_tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 use url::Url;
 use uuid::Uuid;
 

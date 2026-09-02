@@ -3,7 +3,7 @@ use crate::session::commands::SessionCommand;
 use crate::session::commands::{NotificationPriority, NotificationSource};
 use crate::session::persistence::{DurableAppendError, PersistenceHandle, PersistenceMsg};
 use crate::tools::task_completed_frame;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol::{self as acp, Client as _};
 use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;

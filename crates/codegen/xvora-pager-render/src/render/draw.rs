@@ -40,7 +40,7 @@ use crossterm::terminal::{BeginSynchronizedUpdate, EndSynchronizedUpdate};
 use crossterm::{QueueableCommand, cursor};
 use ratatui::Frame;
 use ratatui::backend::CrosstermBackend;
-use ratatui_inline::LinkSpan;
+use xvora_ratatui_inline::LinkSpan;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, mpsc};

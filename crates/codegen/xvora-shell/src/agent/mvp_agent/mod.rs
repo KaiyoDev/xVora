@@ -45,7 +45,7 @@ use agent_client_protocol::Client as _;
 use agent_client_protocol::{self as acp, AuthenticateResponse};
 use indexmap::IndexMap;
 use tokio::sync::oneshot;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use crate::agent::auth_method;
 use crate::agent::config::{self, Config as AgentConfig, ModelEntry, resolve_credentials};
 use crate::agent::feedback_client::FeedbackClient;

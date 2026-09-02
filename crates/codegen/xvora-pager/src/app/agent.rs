@@ -7,7 +7,7 @@ use crate::acp::model_state::ModelState;
 use crate::acp::tracker::{AcpUpdateTracker, TurnActivity};
 use crate::scrollback::EntryId;
 use crate::scrollback::state::ScrollbackState;
-use acp_lib::AcpAgentTx;
+use xvora_acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
@@ -1003,7 +1003,7 @@ impl AgentSession {
     /// Pop the front entry, merging consecutive plain `Prompt` followers via [`xvora_prompt_queue::combine_prefix_len`].
     /// `editing_id` is held out of the merge (composer draft must not vanish). Front may keep images.
     pub fn dequeue_combined_prompt(&mut self, editing_id: Option<u64>) -> Option<QueuedPrompt> {
-        use prompt_queue::{CombineGate, TEXT_SEPARATOR, combine_prefix_len, join_texts};
+        use xvora_prompt_queue::{CombineGate, TEXT_SEPARATOR, combine_prefix_len, join_texts};
         if self.pending_prompts.is_empty() {
             return None;
         }

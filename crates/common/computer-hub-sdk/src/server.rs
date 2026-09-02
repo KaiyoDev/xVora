@@ -27,17 +27,17 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionKind, HookEvent, HookFrame, HookReplyFrame, JsonRpcError, JsonRpcId,
     JsonRpcNotification, JsonRpcResponse, JsonRpcVersion, Method, ResponseOutcome, SessionId,
     ToolCallId, ToolCallParams, ToolCallProgressFrame, ToolCallResult, ToolErrorWire, ToolId,
     ToolOutputWire, ToolServerEvictParams, error_codes,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     BehaviorVersion, Cancellation, Cwd, ToolCallContext, ToolError, ToolProgress, ToolStream,
     ToolStreamItem, TraceContext, TypedToolOutput,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 use tracing::{debug, warn};
 use url::Url;
 
@@ -1990,7 +1990,7 @@ async fn teardown_sessions(inner: &ToolServerInner) {
 /// Must be called before `unregister_session` (the server needs the
 /// session bindings to route the notification).
 async fn push_disconnect_status(connection: &HubConnection, sessions: &[SessionId]) {
-    use tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
+    use xvora_tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
 
     for sid in sessions {
         let mut payload =
@@ -2577,7 +2577,7 @@ async fn send_overloaded(connection: &Arc<HubConnection>, id: JsonRpcId, session
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tool_runtime::ContentBlock;
+    use xvora_tool_runtime::ContentBlock;
 
     fn call_id() -> ToolCallId {
         ToolCallId::new_v7()

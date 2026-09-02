@@ -28,7 +28,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::time::Duration;
 
-use acp_lib::{AcpClientRx, acp_send};
+use xvora_acp_lib::{AcpClientRx, acp_send};
 use agent_client_protocol as acp;
 use tempfile::TempDir;
 use tokio::task::JoinSet;

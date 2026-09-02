@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tool_protocol::ToolCallId;
+use xvora_tool_protocol::ToolCallId;
 
 /// Open typed-extension store keyed by `TypeId`.
 #[derive(Clone, Default)]

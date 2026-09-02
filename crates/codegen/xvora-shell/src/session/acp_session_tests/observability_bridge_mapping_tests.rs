@@ -1,7 +1,7 @@
 use super::*;
 use crate::session::events::ToolOutcome;
-use tool_protocol::session_event::ToolCallOutcome;
-use tool_protocol::turn_hook::TurnHookOutcome;
+use xvora_tool_protocol::session_event::ToolCallOutcome;
+use xvora_tool_protocol::turn_hook::TurnHookOutcome;
 #[test]
 fn map_tool_outcome_success() {
     assert_eq!(

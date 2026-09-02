@@ -2899,7 +2899,7 @@ mod tests {
 
     /// Create a source repo (one committed file) plus a worktree of it.
     fn repo_with_worktree(temp: &tempfile::TempDir) -> (std::path::PathBuf, std::path::PathBuf) {
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
         let repo = temp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
         init_git_repo(&repo);
@@ -2975,7 +2975,7 @@ mod tests {
     #[tokio::test]
     async fn snapshot_standalone_worktree_durable_after_removal_round_trips() {
         xvora_test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
@@ -3152,7 +3152,7 @@ mod tests {
     #[tokio::test]
     async fn cleanup_cancelled_worktree_removes_dir_and_deregisters() {
         xvora_test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
@@ -3196,7 +3196,7 @@ mod tests {
     #[tokio::test]
     async fn prepare_does_not_strand_in_progress_marker() {
         xvora_test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
@@ -3254,7 +3254,7 @@ mod tests {
     #[tokio::test]
     async fn create_worktree_async_holds_marker_during_creation_and_clears_after() {
         xvora_test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");
@@ -3361,7 +3361,7 @@ mod tests {
     #[tokio::test]
     async fn concurrent_create_worktree_async_dedups_to_single_creator() {
         xvora_test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let temp = tempfile::TempDir::new().unwrap();
         let repo = temp.path().join("repo");

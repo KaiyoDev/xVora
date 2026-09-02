@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
-use acp_lib::{AcpAgentTx, AcpClientMessageBox, AcpClientRx, acp_send};
+use xvora_acp_lib::{AcpAgentTx, AcpClientMessageBox, AcpClientRx, acp_send};
 use agent_client_protocol as acp;
 use xvora_shell::agent::auth_method::AuthMethodKind;
 use xvora_shell::agent::config::Config as AgentConfig;

@@ -31,8 +31,8 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, StatefulWidgetRef, Widget};
 
-use ratatui_textarea::wrapping::{RtOptions, word_wrap_line};
-use ratatui_textarea::{
+use xvora_ratatui_textarea::wrapping::{RtOptions, word_wrap_line};
+use xvora_ratatui_textarea::{
     ClipboardProvider, ElementId, ElementKind, MouseAction, TextArea, TextAreaState, TextElement,
     TextElementEventKind,
 };

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use circuit_breaker::RetryPolicy;
+use xvora_circuit_breaker::RetryPolicy;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

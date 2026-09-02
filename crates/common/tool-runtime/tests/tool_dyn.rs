@@ -12,12 +12,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use tool_protocol::{ToolCapabilities, ToolId};
-use tool_runtime::{
+use xvora_tool_protocol::{ToolCapabilities, ToolId};
+use xvora_tool_runtime::{
     ArcTool, ContentBlock, Tool, ToolCallContext, ToolDyn, ToolError, ToolErrorKind, ToolFamily,
     ToolOutput, ToolProgress, ToolStream, ToolStreamItem, ToolVariant, with_progress,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 fn tid(s: &str) -> ToolId {
     ToolId::new(s).expect("test tool ids are well-formed")

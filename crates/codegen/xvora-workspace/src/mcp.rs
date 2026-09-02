@@ -11,12 +11,12 @@ use computer_hub_mcp_adapter::{
     McpBridge, McpBridgeConfig, McpBridgeHandle, McpCallResult, McpContent, McpServerInfo,
     McpToolDefinition, McpTransport,
 };
-use computer_hub_sdk::ToolServerHandler;
+use xvora_computer_hub_sdk::ToolServerHandler;
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde_json::Value;
-use tool_protocol::{SessionId, ToolId};
-use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
-use tool_types::ToolDescription;
+use xvora_tool_protocol::{SessionId, ToolId};
+use xvora_tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
+use xvora_tool_types::ToolDescription;
 use xvora_mcp::rmcp;
 use xvora_mcp::servers::{
     MCP_TOOL_NAME_DELIMITER, McpClient, McpClientTimeoutOverrides, McpSpawnCtx, OauthInteractivity,

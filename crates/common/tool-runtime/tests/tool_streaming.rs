@@ -7,12 +7,12 @@ use futures::stream::{self, Stream, StreamExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use tool_protocol::{StreamingSpec, ToolCapabilities, ToolId};
-use tool_runtime::{
+use xvora_tool_protocol::{StreamingSpec, ToolCapabilities, ToolId};
+use xvora_tool_runtime::{
     ContentBlock, Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolProgress,
     ToolStream, ToolStreamItem, with_progress,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 struct EmptyArgs {}

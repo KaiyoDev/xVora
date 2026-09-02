@@ -2,7 +2,7 @@
 //! Apply never forgets the set (siblings in the same batch still see it).
 //! Complete drops only the finished ids.
 
-use tool_types::{TaskOutputOutput, TaskOutputResult};
+use xvora_tool_types::{TaskOutputOutput, TaskOutputResult};
 use xvora_tools::types::output::{ToolOutput as ToolsToolOutput, ToolRunResult};
 
 use crate::tools::tool_context::BlockingWaitState;

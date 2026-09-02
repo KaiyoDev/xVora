@@ -4,7 +4,7 @@
 
 mod trust;
 
-pub use ratatui_textarea::{ClipboardProvider, InternalClipboard};
+pub use xvora_ratatui_textarea::{ClipboardProvider, InternalClipboard};
 pub use trust::{
     ClipboardDelivery, ClipboardEnvironment, NativeClipboardPreflight, Osc52Capability,
     expected_delivery, native_clipboard_preflight,

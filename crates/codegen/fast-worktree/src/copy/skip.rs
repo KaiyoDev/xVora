@@ -70,7 +70,7 @@ pub(crate) fn collect_unignored_paths(
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use test_utils::git::{git_commit_all, init_git_repo};
+    use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
     #[test]
     fn collect_unignored_includes_tracked_file_matching_git_exclude() {

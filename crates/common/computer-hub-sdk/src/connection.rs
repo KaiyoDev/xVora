@@ -47,7 +47,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tokio_util::sync::CancellationToken;
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionId, ConnectionKind, JsonRpcId, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion,
     Method, PingFrame, PongFrame, ResponseOutcome, SessionId,
 };

@@ -2,7 +2,7 @@
 
 use super::{HttpUploadError, StorageClient, storage_breaker_config};
 use axum::{Router, response::IntoResponse, routing::post};
-use circuit_breaker::{BreakerState, Observer, Outcome};
+use xvora_circuit_breaker::{BreakerState, Observer, Outcome};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::Mutex;

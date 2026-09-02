@@ -30,7 +30,7 @@ use serde_json::Value;
 use tokio::sync::oneshot;
 use tracing::warn;
 
-use tool_protocol::{
+use xvora_tool_protocol::{
     JsonRpcId, JsonRpcResponse, RequestId, SessionId, ToolCallId, ToolCallProgressFrame,
 };
 

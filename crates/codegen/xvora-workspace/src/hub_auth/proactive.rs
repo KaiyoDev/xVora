@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
-use computer_hub_sdk::{
+use xvora_computer_hub_sdk::{
     AuthCredential, AuthIdentity, AuthProvider, OnRefreshCallback, PrincipalKey, RefreshEvent,
 };
 use prometheus::{

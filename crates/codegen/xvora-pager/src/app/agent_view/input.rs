@@ -2572,7 +2572,7 @@ mod rich_textarea_paste_routing_tests {
     use crate::app::inline_edit::InlineEditState;
     use crate::scrollback::entry::EntryId;
     use crossterm::event::Event;
-    use ratatui_textarea::{TextArea, TextAreaState};
+    use xvora_ratatui_textarea::{TextArea, TextAreaState};
     #[test]
     fn inline_edit_receives_raw_multiline_paste_without_touching_prompt() {
         let mut agent = make_agent();

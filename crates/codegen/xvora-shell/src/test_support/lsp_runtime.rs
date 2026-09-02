@@ -1,5 +1,5 @@
 use crate::agent::subagent::SubagentSpawnContext;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use std::collections::HashMap;
 use std::path::PathBuf;

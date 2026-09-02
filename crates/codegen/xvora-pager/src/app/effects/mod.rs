@@ -20,7 +20,7 @@ use helpers::*;
 use std::path::{Path, PathBuf};
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use acp_lib::{AcpAgentTx, acp_send};
+use xvora_acp_lib::{AcpAgentTx, acp_send};
 use xvora_telemetry::startup::{self, StartupPhase};
 use actions::{
     ClipboardPasteTarget, Effect, ProbedAttachment, SubagentKillOutcome,

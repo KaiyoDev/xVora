@@ -1,5 +1,5 @@
 mod display;
-use acp_lib::acp_send;
+use xvora_acp_lib::acp_send;
 use agent_client_protocol as acp;
 use anyhow::{Result, bail};
 use clap::Subcommand;

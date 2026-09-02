@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use super::MvpAgent;
 use crate::tools::task_completed_frame::FRAME_MAX_BYTES;
-use acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
+use xvora_acp_lib::{AcpAgentGatewaySender as GatewaySender, AcpClientMessage};
 
 /// The record is built from the real notification type.
 /// Renaming a field the refit looks up by name then fails this test rather than silently putting oversized lines back on the wire.

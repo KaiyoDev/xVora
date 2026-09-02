@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use dashmap::DashMap;
 use tokio::sync::OnceCell;
 use tokio::task::JoinHandle;
-use tool_protocol::ConnectionKind;
+use xvora_tool_protocol::ConnectionKind;
 use url::Url;
 
 use crate::auth::AuthProvider;

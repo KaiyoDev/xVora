@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use agent_client_protocol::Client as _;
 use xvora_mcp::elicitation::{

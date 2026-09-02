@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use computer_hub_sdk::{
+use xvora_computer_hub_sdk::{
     AuthCredential, AuthIdentity, AuthProvider, OidcAuthProviderBuilder, OnRefreshCallback,
     RefreshEvent,
 };

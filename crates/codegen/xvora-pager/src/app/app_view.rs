@@ -17,7 +17,7 @@ use crate::render::draw::CursorState;
 use crate::scrollback::render::ScratchBuffer;
 use crate::views::prompt_widget::PromptWidget;
 use crate::views::welcome::WelcomePromptFocus;
-use acp_lib::AcpAgentTx;
+use xvora_acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use crossterm::event::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind};
 use indexmap::IndexMap;

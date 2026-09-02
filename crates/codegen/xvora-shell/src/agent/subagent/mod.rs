@@ -25,7 +25,7 @@ use crate::upload::trace::{
     upload_metadata, upload_session_state, upload_subagent_metadata, upload_turn_result,
 };
 use crate::upload::turn::{PromptTraceContext, complete_prompt_trace};
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;

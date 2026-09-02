@@ -23,9 +23,9 @@ use crate::types::tool::{Reminder, ToolKind};
 use crate::util::truncate::{PREVIEW_SIZE, PartialOutput, truncate_with_preview};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use tool_types::KillTaskOutput;
-use tool_types::SubagentCompletedOutput;
-use tool_types::TaskOutputOutput;
+use xvora_tool_types::KillTaskOutput;
+use xvora_tool_types::SubagentCompletedOutput;
+use xvora_tool_types::TaskOutputOutput;
 /// Default tool name used in auto-wake completion messages.
 pub const DEFAULT_TASK_OUTPUT_TOOL: &str = "get_task_output";
 /// UI/Stop kill with no live waiter: tell the model not to relaunch the task.
@@ -1315,8 +1315,8 @@ mod tests {
     use crate::types::resources::Resources;
     use std::sync::Arc;
     use std::time::Duration;
-    use tool_types::KillTaskResult;
-    use tool_types::{MultiTaskOutputResult, TaskOutputResult};
+    use xvora_tool_types::KillTaskResult;
+    use xvora_tool_types::{MultiTaskOutputResult, TaskOutputResult};
     struct MockTerminal {
         tasks: Vec<TaskSnapshot>,
     }

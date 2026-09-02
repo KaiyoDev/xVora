@@ -51,7 +51,7 @@ use crate::session::user_message::construct_user_message_minimal;
 use crate::session::user_message::extract_user_query;
 use crate::terminal::TerminalRunRequest;
 use crate::tools::ToolContext;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use agent_client_protocol::ContentBlock;
 use parking_lot::Mutex;
@@ -138,7 +138,7 @@ mod queue_mutation;
 use queue_mutation::{InputOrigin, QueueMutationPolicy};
 #[path = "acp_session_impl/prompt_queue.rs"]
 mod prompt_queue;
-pub(super) use prompt_queue::QueueInputRequest;
+pub(super) use xvora_prompt_queue::QueueInputRequest;
 #[cfg(test)]
 use tool_calls::BridgeToolSuccess;
 #[path = "acp_session_impl/hooks_plugins.rs"]

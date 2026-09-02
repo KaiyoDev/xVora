@@ -15,7 +15,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use acp_lib::{
+use xvora_acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };

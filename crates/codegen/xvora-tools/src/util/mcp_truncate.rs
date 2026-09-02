@@ -22,7 +22,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use tool_runtime::ToolCallContext;
+use xvora_tool_runtime::ToolCallContext;
 
 use crate::types::output::{MCPOutputDetails, ToolOutput};
 use crate::types::tool::ToolKind;

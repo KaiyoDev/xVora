@@ -24,12 +24,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
 
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, UserId,
 };
-use tool_runtime::{SearchSnapshot, ServerSummary};
-use tool_types::ToolDescription;
+use xvora_tool_runtime::{SearchSnapshot, ServerSummary};
+use xvora_tool_types::ToolDescription;
 
 use crate::resolver::ResolvedTool;
 

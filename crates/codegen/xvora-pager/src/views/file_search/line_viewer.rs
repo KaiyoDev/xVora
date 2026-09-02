@@ -32,7 +32,7 @@ use crate::views::list_pane::{
     ListItem, ListPane, ListPaneConfig, ListPaneState, ListPaneStyle, WrapMode,
 };
 
-use ratatui_textarea::ElementId;
+use xvora_ratatui_textarea::ElementId;
 
 /// Stable ids for mermaid affordance rows (above source lines and comments).
 const MERMAID_AFFORDANCE_ID_BASE: u64 = 2_000_000;

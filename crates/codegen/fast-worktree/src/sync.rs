@@ -729,7 +729,7 @@ mod tests {
     use std::path::PathBuf;
     use std::process::Command;
     use tempfile::TempDir;
-    use test_utils::git::{git_commit_all, init_git_repo};
+    use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
     /// Helper: create a git worktree from a source repo
     fn create_linked_worktree(source: &Path, name: &str) -> PathBuf {

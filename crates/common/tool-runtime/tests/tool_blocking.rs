@@ -4,9 +4,9 @@ use futures::StreamExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use tool_protocol::ToolId;
-use tool_runtime::{Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolStreamItem};
-use tool_types::ToolDescription;
+use xvora_tool_protocol::ToolId;
+use xvora_tool_runtime::{Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolStreamItem};
+use xvora_tool_types::ToolDescription;
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 struct EchoArgs {

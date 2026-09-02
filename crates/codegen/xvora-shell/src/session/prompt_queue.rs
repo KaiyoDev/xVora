@@ -3,7 +3,7 @@
 //! Canonical definitions live in `xvora_prompt_queue`.
 //! This re-export keeps every existing `crate::session::prompt_queue::*` and `xvora_shell::session::prompt_queue::*` path resolving without edits.
 
-pub use prompt_queue::{
+pub use xvora_prompt_queue::{
     COMBINED_DISPLAY_TEXTS_META, CombineGate, QueueChanged, QueueEntryMeta, QueueEntryWire,
     TEXT_SEPARATOR, combine_prefix_len, is_combined, join_texts, stamp_combined_display_texts,
 };

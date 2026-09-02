@@ -1,7 +1,7 @@
 use super::*;
 use serde_json::json;
-use tool_protocol::ToolId;
-use tool_runtime::ContentBlock;
+use xvora_tool_protocol::ToolId;
+use xvora_tool_runtime::ContentBlock;
 
 fn mapping() -> PathVirtualization {
     PathVirtualization::try_from_session_root("/workspace/conv-abc").expect("valid session root")

@@ -14,7 +14,7 @@ use crate::storage_client::{Auth401AttributionCallback, HttpUploadError};
 use crate::{BlobCompression, TraceExportConfig, UploadMethod};
 use anyhow::Context;
 use async_compression::tokio::bufread::ZstdEncoder;
-use circuit_breaker::{Disposition, RetryPolicy};
+use xvora_circuit_breaker::{Disposition, RetryPolicy};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;

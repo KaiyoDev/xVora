@@ -2,7 +2,7 @@
 //! Also answers reverse `ext_method` requests with policy replies.
 //! This module owns the wire envelope shapes and the method-to-event mapping, kept out of `headless.rs`.
 
-use acp_lib::{AcpArgsBox, AcpResult};
+use xvora_acp_lib::{AcpArgsBox, AcpResult};
 use agent_client_protocol as acp;
 
 use crate::headless::reducer::{Lifecycle, StreamEvent};

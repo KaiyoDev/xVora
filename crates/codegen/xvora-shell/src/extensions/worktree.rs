@@ -1,6 +1,6 @@
 //! Handler for x.ai/git/worktree/* extension methods.
 
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 
 use crate::agent::mvp_agent::MvpAgent;

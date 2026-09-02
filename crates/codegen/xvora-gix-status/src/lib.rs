@@ -172,7 +172,7 @@ fn status_finds_suffix(
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use test_utils::git::run_git;
+    use xvora_test_utils::git::run_git;
 
     #[test]
     fn compute_from_table() {

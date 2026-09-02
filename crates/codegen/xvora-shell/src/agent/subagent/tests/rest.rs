@@ -624,7 +624,7 @@ fn inherited_child_toolset_cannot_reintroduce_workflow() {
 #[tokio::test]
 async fn kept_worktree_leaves_no_resume_pointer() {
     xvora_test_utils::require_git!();
-    use test_utils::git::{git_commit_all, seed_repo};
+    use xvora_test_utils::git::{git_commit_all, seed_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = seed_repo(temp.path());
     std::fs::write(repo.join(".gitignore"), ".env\n").unwrap();
@@ -679,7 +679,7 @@ async fn kept_worktree_leaves_no_resume_pointer() {
 #[tokio::test]
 async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_directory() {
     xvora_test_utils::require_git!();
-    use test_utils::git::seed_repo_with_remote;
+    use xvora_test_utils::git::seed_repo_with_remote;
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-1");
@@ -716,7 +716,7 @@ async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_director
 #[tokio::test]
 async fn disposal_names_a_reflog_only_commit_before_removing_the_worktree() {
     xvora_test_utils::require_git!();
-    use test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
+    use xvora_test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-2");

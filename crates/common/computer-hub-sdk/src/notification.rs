@@ -8,7 +8,7 @@
 //! lose data.
 
 use serde_json::Value;
-use tool_protocol::{
+use xvora_tool_protocol::{
     SessionId, ToolId, ToolNotificationFrame, ToolServerStatusPayload, ToolsChanged,
 };
 use tracing::warn;

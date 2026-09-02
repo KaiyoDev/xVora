@@ -11,7 +11,7 @@
 
 use std::time::Duration;
 
-use acp_lib::AcpAgentGatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender;
 use agent_client_protocol as acp;
 use xvora_mcp::acp_transport::AcpReverseInvoker;
 use xvora_mcp::servers::AcpServerEntry;

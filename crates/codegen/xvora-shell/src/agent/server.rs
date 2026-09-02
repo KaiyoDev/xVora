@@ -31,7 +31,7 @@ use tokio::time::Duration;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tracing::{info, warn};
 
-use acp_lib::{
+use xvora_acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     AcpClientMessage, LineBufferedRead,
 };

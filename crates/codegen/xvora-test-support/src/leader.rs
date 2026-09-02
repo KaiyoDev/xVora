@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
-use acp_lib::LineBufferedRead;
+use xvora_acp_lib::LineBufferedRead;
 use agent_client_protocol::{self as acp, Agent as _};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 

@@ -21,7 +21,7 @@ use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use prost::Message as _;
 use tokio::sync::mpsc;
-use tool_protocol::{MAX_DONATION_BYTES, MAX_LOG_RECORDS_PER_DONATION};
+use xvora_tool_protocol::{MAX_DONATION_BYTES, MAX_LOG_RECORDS_PER_DONATION};
 use tracing::Level;
 use tracing::field::{Field, Visit};
 use tracing_subscriber::Layer;

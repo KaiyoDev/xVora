@@ -620,7 +620,7 @@ fn db_record_removed_after_successful_removal() {
     // unregistered from the DB (catches a regression dropping the
     // unregister).
     xvora_test_utils::require_git!();
-    use test_utils::git::{git_commit_all, init_git_repo};
+    use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
     let fx = crate::db::GrokHomeFixture::new();
 

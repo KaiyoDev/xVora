@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use computer_hub_core::{
+use xvora_computer_hub_core::{
     ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
     tool_error_from_wire,
 };
@@ -38,19 +38,19 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
-use tool_protocol::notification_wire::{WireCustomNotification, WireToolNotification};
-use tool_protocol::session_event::{SessionEvent, ToolCallOutcome};
-use tool_protocol::{
+use xvora_tool_protocol::notification_wire::{WireCustomNotification, WireToolNotification};
+use xvora_tool_protocol::session_event::{SessionEvent, ToolCallOutcome};
+use xvora_tool_protocol::{
     ConnectionKind, JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     JsonRpcVersion, Method, RequestId, ResponseOutcome, SessionId, ToolCallId, ToolCallParams,
     ToolCallProgressFrame, ToolId, ToolNotificationFrame, ToolServerLifecycleStatus,
     WorkspaceGonePhase, WorkspaceGoneReason, workspace_unavailable_wire,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     BehaviorVersion, Cwd, ListToolsContext, Tool, ToolCallContext, ToolError, ToolStream,
     ToolStreamItem, TypedToolOutput, terminal_only,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 use url::Url;
 
 use crate::auth::{AuthCredential, AuthProvider};
@@ -2410,7 +2410,7 @@ mod tests {
     use super::*;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-    use tool_types::ToolDescription;
+    use xvora_tool_types::ToolDescription;
 
     #[derive(Debug)]
     struct EchoTool {
@@ -2448,7 +2448,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_turn_hook_errors_without_hub_connection() {
-        use tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
+        use xvora_tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
 
         let harness = ToolHarness::local_only_with(
             LocalRegistry::new(),

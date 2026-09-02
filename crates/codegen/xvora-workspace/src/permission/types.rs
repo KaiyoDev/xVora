@@ -760,7 +760,7 @@ mod tests {
     }
     #[test]
     fn write_scoped_and_dynamic_inputs_map_to_edit_not_read() {
-        use tool_types::TaskToolInput;
+        use xvora_tool_types::TaskToolInput;
         use xvora_tools::implementations::opencode::edit::EditInput;
         use xvora_tools::types::ToolInput;
         let edit = ToolInput::from(EditInput {

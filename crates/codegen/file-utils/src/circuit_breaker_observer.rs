@@ -1,6 +1,6 @@
 //! Tracing-based observer for the storage circuit breaker.
 
-use circuit_breaker::{BreakerState, Observer, Outcome};
+use xvora_circuit_breaker::{BreakerState, Observer, Outcome};
 use std::sync::Arc;
 
 /// `Observer` impl that emits `tracing` events matching the legacy

@@ -1,5 +1,5 @@
 use super::*;
-use agent_lifecycle::ShutdownPolicy;
+use xvora_agent_lifecycle::ShutdownPolicy;
 
 /// Outcome of a queue send-now request ([`SessionActor::handle_interject_queued_prompt`]).
 /// `mutated` reports whether the request changed anything (promoted, steered, or saved an edit).
@@ -1108,7 +1108,7 @@ impl SessionActor {
         pending: &mut std::collections::VecDeque<InputItem>,
         skip_ids: &[&str],
     ) {
-        use prompt_queue::{CombineGate, combine_prefix_len};
+        use xvora_prompt_queue::{CombineGate, combine_prefix_len};
 
         if pending.len() < 2 {
             return;
@@ -1197,7 +1197,7 @@ impl SessionActor {
     }
 
     fn joined_text_blocks(blocks: &[acp::ContentBlock]) -> String {
-        use prompt_queue::join_texts;
+        use xvora_prompt_queue::join_texts;
         join_texts(blocks.iter().filter_map(|block| match block {
             acp::ContentBlock::Text(t) if !t.text.is_empty() => Some(t.text.as_str()),
             _ => None,
@@ -1205,7 +1205,7 @@ impl SessionActor {
     }
 
     fn append_text_to_prompt(item: &mut InputItem, extra: &str) {
-        use prompt_queue::TEXT_SEPARATOR;
+        use xvora_prompt_queue::TEXT_SEPARATOR;
 
         if extra.is_empty() {
             return;
@@ -1237,7 +1237,7 @@ impl SessionActor {
     }
 
     fn stamp_combined_display_texts_meta(item: &mut InputItem) {
-        use prompt_queue::stamp_combined_display_texts;
+        use xvora_prompt_queue::stamp_combined_display_texts;
 
         let Some(segs) = item
             .queue_meta

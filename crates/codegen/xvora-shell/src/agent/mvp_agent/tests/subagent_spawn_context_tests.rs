@@ -1,6 +1,6 @@
 use super::{build_minimal_agent_for_tests, make_test_handle};
 use agent_client_protocol as acp;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 #[tokio::test]
 async fn subagent_spawn_context_inherits_parent_permission_handle() {
     use xvora_workspace::permission::types::{

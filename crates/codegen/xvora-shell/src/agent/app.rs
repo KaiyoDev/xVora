@@ -7,7 +7,7 @@ use crate::auth::AuthMode;
 use crate::auth::{AuthManager, GrokAuth, GrokComConfig, run_auth_flow};
 use crate::leader::protocol::InternalMethod;
 use crate::util::grok_home;
-use acp_lib::{
+use xvora_acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };

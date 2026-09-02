@@ -29,7 +29,7 @@ use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
 use crate::client_identity::{HEADLESS_CLIENT_TYPE, PAGER_CLIENT_TYPE, PAGER_CLIENT_VERSION};
-use acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
+use xvora_acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
 use agent_client_protocol as acp;
 use xvora_shell::agent::auth_method::AuthMethodKind;
 use xvora_shell::agent::config::Config as AgentConfig;

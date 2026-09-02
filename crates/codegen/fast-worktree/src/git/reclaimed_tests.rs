@@ -1,6 +1,6 @@
 use super::*;
 use std::path::{Path, PathBuf};
-use test_utils::git::{git_init_seed, reflog_only_commit, run_git};
+use xvora_test_utils::git::{git_init_seed, reflog_only_commit, run_git};
 
 const LONG_AGO: &str = "2020-01-01T00:00:00Z";
 

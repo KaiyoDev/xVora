@@ -2127,7 +2127,7 @@ async fn run_promote_cancel_with_worktree(
 #[tokio::test]
 async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
     xvora_test_utils::require_git!();
-    use test_utils::git::{git_commit_all, init_git_repo};
+    use xvora_test_utils::git::{git_commit_all, init_git_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = temp.path().join("repo");
     std::fs::create_dir(&repo).unwrap();

@@ -18,7 +18,7 @@ use crate::file_system::ContentSearchRequest;
 use crate::handle::WorkspaceHandle;
 use crate::worktree::{ApplyWorktreeRequest, CreateWorktreeRequest, RemoveWorktreeRequest};
 use async_trait::async_trait;
-use computer_hub_sdk::ToolHarness;
+use xvora_computer_hub_sdk::ToolHarness;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

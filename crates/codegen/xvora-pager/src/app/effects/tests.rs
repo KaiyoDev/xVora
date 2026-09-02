@@ -1335,7 +1335,7 @@ fn marketplace_outcome_succeeded_only_accepts_success_status() {
 async fn check_marketplace_updates_dispatches_update_and_skips_failed_notifications() {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     use hooks_plugins_types::{ActionOutcome, MarketplaceAction, OutcomeStatus};
     let action_calls = Arc::new(AtomicUsize::new(0));
     let saw_update = Arc::new(AtomicBool::new(false));
@@ -1558,7 +1558,7 @@ async fn foreign_resume_detection_runs_as_task_result() {
 #[tokio::test]
 async fn fetch_session_list_pushes_query_and_echoes_seq() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1704,7 +1704,7 @@ async fn fetch_session_list_pushes_query_and_echoes_seq() {
 #[tokio::test]
 async fn fetch_dashboard_sessions_explicitly_excludes_headless() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Option<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1743,7 +1743,7 @@ async fn fetch_dashboard_sessions_explicitly_excludes_headless() {
 #[tokio::test]
 async fn fetch_session_list_sends_kind_facet_filter() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1790,7 +1790,7 @@ async fn fetch_session_list_sends_kind_facet_filter() {
 #[tokio::test]
 async fn fetch_workflows_list_sends_session_id() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1877,7 +1877,7 @@ async fn debounce_session_search_echoes_query_and_seq() {
 async fn deep_search_sessions_echoes_routing_and_policy() {
     use std::sync::{Arc, Mutex};
     use crate::views::session_picker_surface::SessionPickerHost;
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<(String, serde_json::Value)>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();

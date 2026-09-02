@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
-use acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
+use xvora_acp_lib::{AcpAgentGatewaySender, AcpClientMessage};
 use agent_client_protocol as acp;
 use serial_test::serial;
 use tokio::sync::{mpsc, oneshot};

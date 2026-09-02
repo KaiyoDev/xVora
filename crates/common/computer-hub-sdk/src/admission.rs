@@ -18,7 +18,7 @@ use dashmap::DashMap;
 use serde_json::Value;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::time::Instant;
-use tool_protocol::{
+use xvora_tool_protocol::{
     JsonRpcError, JsonRpcId, JsonRpcResponse, JsonRpcVersion, ResponseOutcome, SessionId,
 };
 

@@ -14,7 +14,7 @@ use super::ShellCompletionData;
 use crate::agent::mvp_agent::{LocalRef, MvpAgent};
 use crate::extensions::notification::{SessionNotification, SessionUpdate};
 use crate::session::SessionCommand;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use tokio::sync::mpsc;
 pub(crate) use xvora_tools::implementations::grok_build::task::coordinator::{

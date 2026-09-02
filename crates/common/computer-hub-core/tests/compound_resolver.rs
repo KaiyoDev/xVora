@@ -7,20 +7,20 @@ use dashmap::DashMap;
 
 use async_trait::async_trait;
 
-use computer_hub_core::{
+use xvora_computer_hub_core::{
     CompoundResolver, ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport,
     ToolHandle, ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome,
 };
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind, UserId,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError, ToolStreamItem,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EmptyArgs {}
