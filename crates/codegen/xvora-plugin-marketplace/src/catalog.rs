@@ -9,8 +9,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use hooks_plugins_types::PluginComponents;
 use serde::Deserialize;
+use xvora_hooks_plugins_types::PluginComponents;
 
 /// Catalog format version this client understands.
 const SUPPORTED_VERSION: u64 = 1;

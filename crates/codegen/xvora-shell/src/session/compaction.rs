@@ -21,15 +21,37 @@ use crate::session::two_pass::{
     note_for_two_pass_pass2, split_conversation_for_two_pass,
 };
 use agent_client_protocol as acp;
-use chat_state::compaction_utils::{
+use std::sync::Arc;
+use xvora_chat_state::compaction_utils::{
     CompactedHistoryInput, CompactionAttempt, build_compacted_history, is_degenerate_summary,
     prepare_conversation_for_verbatim_summarization, sanitize_compacted_history,
     validate_compacted_history,
 };
-use std::sync::Arc;
 use xvora_sampling_types::{ApiBackend, ConversationItem};
 /// Prefix on the early-guard failure payloads below; the user-facing normalizer strips it (the renderer prepends its own headline).
 const COMPACTION_FAILED_GUARD_PREFIX: &str = "Compaction failed: ";
+/// Human-readable "next fire" for a scheduled loop in the compaction reminder.
+fn format_loop_next_fire(
+    next: chrono::DateTime<chrono::Utc>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> String {
+    let secs = next.signed_duration_since(now).num_seconds();
+    if secs <= 0 {
+        return "now".to_string();
+    }
+    if secs < 60 {
+        return format!("in {secs}s");
+    }
+    let mins = secs / 60;
+    if mins < 60 {
+        return format!("in {mins}m");
+    }
+    let hours = mins / 60;
+    if hours < 24 {
+        return format!("in {hours}h");
+    }
+    next.format("%d %b %H:%M UTC").to_string()
+}
 /// Default percentage points below the auto-compact threshold at which prefire (background pass-1) starts.
 /// The lead gives pass-1 runway to finish before the limit.
 /// Override with `GROK_PREFIRE_LEAD_PERCENT`.
@@ -133,7 +155,7 @@ impl SessionActor {
         };
         let tool_defs = self.prepare_tool_definitions().await;
         let tools = self.turn_base_tool_specs(&tool_defs);
-        let compaction_tool_tokens = chat_state::estimate_tool_specs_tokens(&tools);
+        let compaction_tool_tokens = xvora_chat_state::estimate_tool_specs_tokens(&tools);
         let wall_clock_budget_secs = self
             .agent
             .borrow()
@@ -175,7 +197,7 @@ impl SessionActor {
         let estimated_total = self.chat_state_handle.get_estimated_total_tokens().await;
         let threshold = self.compaction.threshold_percent.get() as u64;
         let start_pct = threshold.saturating_sub(prefire_lead_percent());
-        token_estimation::exceeds_threshold(estimated_total, cw, start_pct as u8)
+        xvora_token_estimation::exceeds_threshold(estimated_total, cw, start_pct as u8)
     }
     /// Background pass-1: summarize the ~95% prefix into NOTE₁ and cache it for a later pass-2 apply.
     /// Always releases the in-flight guard.
@@ -251,7 +273,7 @@ impl SessionActor {
             prepare_conversation_for_verbatim_summarization(split.prefix.to_vec(), strips);
         let prefix_est_tokens = prefix_prepared
             .iter()
-            .map(chat_state::estimate_item_tokens)
+            .map(xvora_chat_state::estimate_item_tokens)
             .sum::<u64>();
         let prompt = build_two_pass_compaction_prompt(None);
         let pass1_history = build_two_pass_pass1_history(&prefix_prepared, &prompt);
@@ -797,11 +819,11 @@ impl SessionActor {
         match preserve_inherited_prefix(&full_conv, compacted_history, prefix_len) {
             Ok(preserved) => {
                 let projected_preserved = project_preserved_reseed_tokens(
-                    chat_state::estimate_conversation_tokens(&preserved),
+                    xvora_chat_state::estimate_conversation_tokens(&preserved),
                     tokens_before,
-                    chat_state::estimate_conversation_tokens(&full_conv),
+                    xvora_chat_state::estimate_conversation_tokens(&full_conv),
                 );
-                if token_estimation::exceeds_threshold(
+                if xvora_token_estimation::exceeds_threshold(
                     projected_preserved,
                     context_window,
                     self.compaction.threshold_percent.get(),
@@ -916,13 +938,13 @@ impl SessionActor {
                 model_id: model_id.clone(),
                 user_context_provided: user_context.is_some(),
                 compaction_mode: match self.compaction.compaction_mode {
-                    chat_state::CompactionMode::Summary => {
+                    xvora_chat_state::CompactionMode::Summary => {
                         xvora_telemetry::events::CompactionModeLabel::Summary
                     }
-                    chat_state::CompactionMode::Transcript => {
+                    xvora_chat_state::CompactionMode::Transcript => {
                         xvora_telemetry::events::CompactionModeLabel::Transcript
                     }
-                    chat_state::CompactionMode::Segments(_) => {
+                    xvora_chat_state::CompactionMode::Segments(_) => {
                         xvora_telemetry::events::CompactionModeLabel::Segments
                     }
                 },
@@ -949,7 +971,7 @@ impl SessionActor {
         );
         let assembly_start = std::time::Instant::now();
         let segment_messages = if self.compaction.compaction_mode.writes_segments() {
-            chat_state::compaction_utils::prepare_conversation_for_segment(
+            xvora_chat_state::compaction_utils::prepare_conversation_for_segment(
                 full_conversation.clone(),
             )
         } else {
@@ -958,12 +980,14 @@ impl SessionActor {
         const SUMMARY_BUDGET_RESERVE_TOKENS: u64 = 32_768;
         let verbatim_input_enabled = self.compaction.verbatim_input && !lossy_input;
         let mut simplified_messages = if verbatim_input_enabled {
-            chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
+            xvora_chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
                 full_conversation,
                 summary_strips_reasoning,
             )
         } else {
-            chat_state::compaction_utils::prepare_conversation_for_summarization(full_conversation)
+            xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
+                full_conversation,
+            )
         };
         let pre_compaction_ms = assembly_start.elapsed().as_millis() as u64;
         if conv_len == 0 {
@@ -1022,7 +1046,7 @@ impl SessionActor {
             .filter(|td| !backend_search_active || td.function.name != "web_search")
             .collect();
         let compaction_tool_tokens =
-            chat_state::estimate_tool_definitions_tokens(&effective_tool_defs);
+            xvora_chat_state::estimate_tool_definitions_tokens(&effective_tool_defs);
         let compaction_tools: Vec<xvora_sampling_types::ToolSpec> = effective_tool_defs
             .into_iter()
             .map(xvora_sampling_types::ToolSpec::from)
@@ -1030,7 +1054,7 @@ impl SessionActor {
         let compaction_hosted_tools: Vec<xvora_sampling_types::HostedTool> =
             self.hosted_tools_for_turn();
         if lossy_input {
-            simplified_messages = chat_state::compaction_utils::fit_conversation_to_budget(
+            simplified_messages = xvora_chat_state::compaction_utils::fit_conversation_to_budget(
                 simplified_messages,
                 lossy_input_budget(context_window, compaction_tool_tokens),
             );
@@ -1066,7 +1090,8 @@ impl SessionActor {
         };
         let use_short_prompt = false;
         let started_at = chrono::Utc::now().to_rfc3339();
-        let estimated_input_tokens = chat_state::estimate_conversation_tokens(&simplified_messages);
+        let estimated_input_tokens =
+            xvora_chat_state::estimate_conversation_tokens(&simplified_messages);
         let auto_trigger = matches!(trigger, xvora_telemetry::events::CompactionTrigger::Auto);
         let wall_clock_budget_secs = self
             .agent
@@ -1187,18 +1212,18 @@ impl SessionActor {
                                     let budget = context_window
                                         .saturating_sub(SUMMARY_BUDGET_RESERVE_TOKENS)
                                         .saturating_sub(compaction_tool_tokens);
-                                    let verbatim = chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
+                                    let verbatim = xvora_chat_state::compaction_utils::prepare_conversation_for_verbatim_summarization(
                                         conv,
                                         summary_strips_reasoning,
                                     );
-                                    chat_state::compaction_utils::fit_conversation_to_budget(
+                                    xvora_chat_state::compaction_utils::fit_conversation_to_budget(
                                         verbatim,
                                         budget,
                                     )
                                 }
                                 InputStage::Lossy => {
-                                    chat_state::compaction_utils::fit_conversation_to_budget(
-                                        chat_state::compaction_utils::prepare_conversation_for_summarization(
+                                    xvora_chat_state::compaction_utils::fit_conversation_to_budget(
+                                        xvora_chat_state::compaction_utils::prepare_conversation_for_summarization(
                                             conv,
                                         ),
                                         lossy_input_budget(context_window, compaction_tool_tokens),
@@ -1429,6 +1454,65 @@ impl SessionActor {
                             })
                             .unwrap_or_default()
                     };
+                    let scheduled_loops = {
+                        use crate::session::helpers::compaction_context::ScheduledLoopSummary;
+                        let now = chrono::Utc::now();
+                        let bridge = self.agent.borrow().tool_bridge().clone();
+                        bridge
+                        .list_scheduled_tasks()
+                        .await
+                        .into_iter()
+                        .filter(|t| t.pending_fire_at(now).is_some())
+                        .map(|t| {
+                            let next_fire_at = format_loop_next_fire(
+                                t.next_fire_at(),
+                                now,
+                            );
+                            ScheduledLoopSummary {
+                                task_id: t.id,
+                                interval: xvora_tools::implementations::grok_build::scheduler::interval::interval_to_human(
+                                    t.interval_secs,
+                                ),
+                                next_fire_at,
+                                prompt: t.prompt,
+                                recurring: t.recurring,
+                                durable: t.durable,
+                                foreground: t.foreground,
+                            }
+                        })
+                        .collect()
+                    };
+                    let workflows = {
+                        use crate::session::helpers::compaction_context::WorkflowRunSummary;
+                        let tracker = self.workflow_tracker().await;
+                        let guard = tracker.lock();
+                        guard
+                            .list()
+                            .into_iter()
+                            .filter(|r| !r.status.is_terminal())
+                            .map(|r| WorkflowRunSummary {
+                                elapsed_ms: guard.elapsed_ms(&r.run_id),
+                                name: r.name,
+                                run_id: r.run_id,
+                                status: r.status.as_str().to_string(),
+                                objective: r.objective,
+                                current_phase: r.current_phase,
+                                agents_used: r.agents_used,
+                                agent_budget: r.agent_budget,
+                            })
+                            .collect::<Vec<_>>()
+                    };
+                    let workflow_tool_name = if workflows.is_empty() {
+                        None
+                    } else {
+                        use xvora_tools::types::tool::ToolKind;
+                        self.agent
+                            .borrow()
+                            .tool_bridge()
+                            .tool_for_kind(ToolKind::Workflow)
+                            .await
+                            .filter(|s| !s.is_empty())
+                    };
                     CompactionStateContext::build(
                         &conversation,
                         CompactionInputs {
@@ -1437,6 +1521,9 @@ impl SessionActor {
                             agent_edited_paths: edited_paths.clone(),
                             connected_mcp_servers,
                             todos,
+                            scheduled_loops,
+                            workflows,
+                            workflow_tool_name,
                             ..Default::default()
                         },
                     )
@@ -1580,6 +1667,18 @@ impl SessionActor {
                 system_reminder
             }
         };
+        let system_reminder = if let Some(goal_section) = self.compaction_goal_section().await {
+            use crate::session::acp_session::splice_goal_section;
+            match system_reminder {
+                Some(existing) => Some(splice_goal_section(&existing, &goal_section)),
+                None => {
+                    let tag = self.reminder_wrapper_tag();
+                    Some(format!("<{tag}>\n{goal_section}\n</{tag}>"))
+                }
+            }
+        } else {
+            system_reminder
+        };
         if let Some(ref recovery_backend) = memory_backend_impl {
             let n = recovery_backend
                 .search_counter
@@ -1707,7 +1806,7 @@ impl SessionActor {
             .replace_conversation_for_compaction(compacted_history);
         if self.startup_hints.inherited_prefix_len.is_some() {
             let post_replace_tokens = self.chat_state_handle.get_total_tokens().await;
-            if token_estimation::exceeds_threshold(
+            if xvora_token_estimation::exceeds_threshold(
                 post_replace_tokens,
                 context_window,
                 self.compaction.threshold_percent.get(),
@@ -1833,12 +1932,12 @@ impl SessionActor {
         context_window: std::num::NonZeroU64,
     ) -> Option<AutoCompactTriggerInfo> {
         let cw = context_window.get();
-        if token_estimation::exceeds_threshold(
+        if xvora_token_estimation::exceeds_threshold(
             total_tokens,
             cw,
             self.compaction.threshold_percent.get(),
         ) {
-            let percentage = token_estimation::usage_percentage_u8(total_tokens, cw);
+            let percentage = xvora_token_estimation::usage_percentage_u8(total_tokens, cw);
             Some(AutoCompactTriggerInfo {
                 tokens_used: total_tokens,
                 context_window: cw,
@@ -1915,7 +2014,7 @@ impl SessionActor {
             )
             .is_ok()
         {
-            let percentage = token_estimation::usage_percentage_u8(estimated_total, cw);
+            let percentage = xvora_token_estimation::usage_percentage_u8(estimated_total, cw);
             tracing::info!(
                 "Forced auto-compact trigger (debug): model={model}, \
                  {percentage}% full ({estimated_total}/{cw} tokens)",
@@ -1950,7 +2049,7 @@ impl SessionActor {
             return None;
         }
         let overflow = estimated_total.saturating_sub(cw);
-        let percentage = token_estimation::usage_percentage_u8(estimated_total, cw);
+        let percentage = xvora_token_estimation::usage_percentage_u8(estimated_total, cw);
         tracing::warn!(
             estimated_total,
             context_window = cw,

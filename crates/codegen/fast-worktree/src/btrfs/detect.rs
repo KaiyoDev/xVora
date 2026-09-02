@@ -55,7 +55,7 @@ pub fn get_bind_mount_info(path: &Path) -> Result<Option<BindMountInfo>> {
     // Use findmnt to get mount information
     // -n: no headers, -o: output fields, -T: target path
     let mut cmd = Command::new("findmnt");
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
     let output = cmd
         .args(["-n", "-o", "SOURCE,TARGET,FSTYPE,OPTIONS", "-T"])
@@ -424,7 +424,7 @@ pub fn is_btrfs_subvolume(path: &Path) -> Result<Option<BtrfsInfo>> {
 /// Run `btrfs subvolume show` to check if a path is a subvolume.
 fn check_is_subvolume_cmd(path: &Path) -> bool {
     let mut cmd = Command::new("btrfs");
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     cmd.stdin(Stdio::null());
     // OsStr arg: a non-UTF-8 path must not silently collapse to ".".
     cmd.arg("subvolume")

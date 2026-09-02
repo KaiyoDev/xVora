@@ -606,7 +606,7 @@ impl SessionActor {
         let system_message = self.chat_state_handle.get_system_message().await;
         let system_prompt_tokens = system_message
             .as_ref()
-            .map(chat_state::estimate_system_message_tokens)
+            .map(xvora_chat_state::estimate_system_message_tokens)
             .unwrap_or(0);
         let backend_search_active = self.backend_search_active();
         let tool_defs: Vec<_> = self
@@ -616,12 +616,13 @@ impl SessionActor {
             .filter(|td| !backend_search_active || td.function.name != "web_search")
             .collect();
         let tool_definitions_count = tool_defs.len();
-        let tool_definitions_tokens = chat_state::estimate_tool_definitions_tokens(&tool_defs);
+        let tool_definitions_tokens =
+            xvora_chat_state::estimate_tool_definitions_tokens(&tool_defs);
         let message_count = self.chat_state_handle.get_conversation_len().await;
         let message_tokens = self.chat_state_handle.get_estimated_messages_tokens().await;
         let usage_categories = self.usage_categories().await;
-        let free_tokens = token_estimation::free_tokens(context_window, total_tokens);
-        let usage_pct = token_estimation::usage_percentage_u8(total_tokens, context_window);
+        let free_tokens = xvora_token_estimation::free_tokens(context_window, total_tokens);
+        let usage_pct = xvora_token_estimation::usage_percentage_u8(total_tokens, context_window);
         let api_backend = config.as_ref().map(|c| format!("{:?}", c.api_backend));
         let agent_name = self.agent.borrow().definition().name.clone();
         let conversation_id = None;

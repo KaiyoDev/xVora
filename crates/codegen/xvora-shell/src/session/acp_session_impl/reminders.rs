@@ -1,6 +1,4 @@
 use super::*;
-use xvora_workflow as workflow;
-
 pub(super) fn escape_reminder_close_tag(content: &str, tag: &str) -> String {
     content.replace(&format!("</{tag}>"), &format!("<\\/{tag}>"))
 }
@@ -302,7 +300,7 @@ fn format_workflow_status_reminder(
             }
             let max_budget_exhausted = run.status
                 == crate::session::workflow::tracker::WorkflowRunStatus::BudgetLimited
-                && run.agents_used >= workflow::MAX_AGENT_BUDGET;
+                && run.agents_used >= xvora_workflow::MAX_AGENT_BUDGET;
             if max_budget_exhausted {
                 let _ = write!(buf, "\n  Not resumable: start a new workflow run.");
             } else {
@@ -439,7 +437,7 @@ fn format_workflow_completion_reminder(
             buf.push('\n');
         }
         if run.status == crate::session::workflow::tracker::WorkflowRunStatus::BudgetLimited {
-            if run.agents_used >= workflow::MAX_AGENT_BUDGET {
+            if run.agents_used >= xvora_workflow::MAX_AGENT_BUDGET {
                 let _ = writeln!(
                     buf,
                     "  Not resumable: this run reached the maximum agent budget; start a new \

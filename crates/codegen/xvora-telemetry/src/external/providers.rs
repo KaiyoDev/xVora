@@ -344,7 +344,7 @@ fn grpc_tls_candidates(
         ClientTlsConfig::new().trust_anchors(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     // Process-wide `GROK_EXTRA_CA_BUNDLE` roots (fail-open by that crate's contract), matching the HTTP transport's client policy
     // The same corporate CA must work on both transports
-    if let Some(extra_pem) = ders_to_pem_bundle(extra_ca::extra_root_ders()) {
+    if let Some(extra_pem) = ders_to_pem_bundle(xvora_extra_ca::extra_root_ders()) {
         base = base.ca_certificate(Certificate::from_pem(extra_pem));
     }
     let base = match ca_certificate_path {

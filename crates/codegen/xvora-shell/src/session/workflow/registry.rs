@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
-use xvora_workflow as workflow;
 use xvora_workflow::{WorkflowMeta, extract_meta};
 
 pub(crate) const MAX_WORKFLOW_SOURCE_BYTES: u64 = 1024 * 1024;
@@ -57,7 +56,7 @@ pub(crate) enum ResolveError {
     #[error("failed to read {path}: {error}")]
     Io { path: String, error: String },
     #[error("invalid workflow script: {0}")]
-    Meta(#[from] workflow::MetaError),
+    Meta(#[from] xvora_workflow::MetaError),
 }
 
 pub(crate) fn project_root(session_cwd: &Path) -> PathBuf {
@@ -687,7 +686,7 @@ mod tests {
 
         assert!(matches!(
             resolve_inline(script("../../escape")),
-            Err(ResolveError::Meta(workflow::MetaError::InvalidName))
+            Err(ResolveError::Meta(xvora_workflow::MetaError::InvalidName))
         ));
         assert!(matches!(
             resolve_inline("x".repeat(MAX_WORKFLOW_SOURCE_BYTES as usize + 1)),

@@ -21,7 +21,7 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use clap::Parser;
 
-use fast_worktree::{CreationMode, WorktreeBuilder, WorktreeSync, remove_worktree};
+use xvora_fast_worktree::{CreationMode, WorktreeBuilder, WorktreeSync, remove_worktree};
 
 // ============================================================================
 // CLI
@@ -504,7 +504,7 @@ fn run_single_iteration(
 // ============================================================================
 
 fn count_tracked_files(source: &Path) -> Result<usize> {
-    fast_worktree::count_tracked_files(source)
+    xvora_fast_worktree::count_tracked_files(source)
 }
 
 fn compute_summary(iterations: &[IterationResult]) -> BenchmarkSummary {

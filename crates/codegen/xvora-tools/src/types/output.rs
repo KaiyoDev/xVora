@@ -2,7 +2,7 @@ use crate::implementations::grok_build::send_subagent_message::SendSubagentMessa
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use strip_ansi_escapes::strip_str;
-use tool_types::SubagentCompletedOutput;
+use xvora_tool_types::SubagentCompletedOutput;
 /// `(added, removed)` line counts for the `edit.lines` telemetry counter.
 pub fn line_diff(old: &str, new: &str) -> (i64, i64) {
     let mut added = 0i64;
@@ -150,20 +150,20 @@ impl ToolRunResult {
     /// Like [`TypedToolOutput::from_value`], but reattaches `chat_completion_output` from `output`.
     pub fn into_typed_tool_output(
         self,
-        tool_id: tool_protocol::ToolId,
-    ) -> tool_runtime::TypedToolOutput {
+        tool_id: xvora_tool_protocol::ToolId,
+    ) -> xvora_tool_runtime::TypedToolOutput {
         typed_tool_output_preserving_cco(tool_id, &self, &self.output)
     }
 }
 /// Like [`TypedToolOutput::from_value`], but reattaches `chat_completion_output` from `source`.
 pub(crate) fn typed_tool_output_preserving_cco(
-    tool_id: tool_protocol::ToolId,
+    tool_id: xvora_tool_protocol::ToolId,
     payload: &impl Serialize,
-    source: &impl tool_runtime::ToolOutput,
-) -> tool_runtime::TypedToolOutput {
+    source: &impl xvora_tool_runtime::ToolOutput,
+) -> xvora_tool_runtime::TypedToolOutput {
     let cco = source.chat_completion_output();
     let value = serde_json::to_value(payload).unwrap_or(serde_json::Value::Null);
-    tool_runtime::TypedToolOutput::from_value(tool_id, value).with_chat_completion_output(cco)
+    xvora_tool_runtime::TypedToolOutput::from_value(tool_id, value).with_chat_completion_output(cco)
 }
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ListDirContent {
@@ -594,8 +594,8 @@ impl WebFetchOutput {
         }
     }
 }
-use tool_types::KillTaskOutput;
-use tool_types::TaskOutputOutput;
+use xvora_tool_types::KillTaskOutput;
+use xvora_tool_types::TaskOutputOutput;
 /// Output schema for the bash tool.
 ///
 /// The bash tool can either complete synchronously (`Bash`) or be started
@@ -607,10 +607,10 @@ pub enum BashToolOutput {
     Bash(BashOutput),
     BackgroundTaskStarted(BackgroundTaskStarted),
 }
-impl tool_runtime::ToolOutput for BashToolOutput {
-    fn chat_completion_output(&self) -> Option<tool_runtime::ToolChatCompletionResponse> {
+impl xvora_tool_runtime::ToolOutput for BashToolOutput {
+    fn chat_completion_output(&self) -> Option<xvora_tool_runtime::ToolChatCompletionResponse> {
         match self {
-            Self::Bash(bash) => tool_runtime::ToolOutput::chat_completion_output(bash),
+            Self::Bash(bash) => xvora_tool_runtime::ToolOutput::chat_completion_output(bash),
             Self::BackgroundTaskStarted(_) => None,
         }
     }
@@ -1244,16 +1244,16 @@ impl MCPOutput {
         &mut self.output
     }
 }
-impl tool_runtime::ToolOutput for ToolOutput {
-    fn chat_completion_output(&self) -> Option<tool_runtime::ToolChatCompletionResponse> {
+impl xvora_tool_runtime::ToolOutput for ToolOutput {
+    fn chat_completion_output(&self) -> Option<xvora_tool_runtime::ToolChatCompletionResponse> {
         match self {
-            Self::Bash(bash) => tool_runtime::ToolOutput::chat_completion_output(bash),
+            Self::Bash(bash) => xvora_tool_runtime::ToolOutput::chat_completion_output(bash),
             _ => None,
         }
     }
 }
-impl tool_runtime::ToolOutput for BashOutput {
-    fn chat_completion_output(&self) -> Option<tool_runtime::ToolChatCompletionResponse> {
+impl xvora_tool_runtime::ToolOutput for BashOutput {
+    fn chat_completion_output(&self) -> Option<xvora_tool_runtime::ToolChatCompletionResponse> {
         let mut stdout = String::from_utf8_lossy(&self.output).into_owned();
         let mut extra = serde_json::Map::new();
         if self.truncated {
@@ -1275,11 +1275,11 @@ impl tool_runtime::ToolOutput for BashOutput {
                 );
             }
         }
-        Some(tool_runtime::ToolChatCompletionResponse {
-            result: Some(tool_runtime::ToolChatCompletion {
+        Some(xvora_tool_runtime::ToolChatCompletionResponse {
+            result: Some(xvora_tool_runtime::ToolChatCompletion {
                 sender: "assistant".into(),
                 message_tag: Some("raw_function_result".into()),
-                code_execution_result: Some(tool_runtime::ToolCodeExecutionResult {
+                code_execution_result: Some(xvora_tool_runtime::ToolCodeExecutionResult {
                     stdout,
                     stderr: String::new(),
                     exit_code: self.exit_code,
@@ -1292,28 +1292,28 @@ impl tool_runtime::ToolOutput for BashOutput {
         })
     }
 }
-impl tool_runtime::ToolOutput for GrepSearchOutput {}
-impl tool_runtime::ToolOutput for ReadFileOutput {}
-impl tool_runtime::ToolOutput for ListDirOutput {}
-impl tool_runtime::ToolOutput for SearchReplaceOutput {}
-impl tool_runtime::ToolOutput for TodoWriteOutput {}
-impl tool_runtime::ToolOutput for WebSearchOutput {}
-impl tool_runtime::ToolOutput for WebFetchOutput {}
-impl tool_runtime::ToolOutput for SkillOutput {}
-impl tool_runtime::ToolOutput for ApplyPatchOutput {}
-impl tool_runtime::ToolOutput for CodexGrepFilesOutput {}
-impl tool_runtime::ToolOutput for SearchToolOutput {}
-impl tool_runtime::ToolOutput for EnterPlanModeOutput {}
-impl tool_runtime::ToolOutput for ExitPlanModeOutput {}
-impl tool_runtime::ToolOutput for AskUserQuestionOutput {}
-impl tool_runtime::ToolOutput for MCPOutput {}
+impl xvora_tool_runtime::ToolOutput for GrepSearchOutput {}
+impl xvora_tool_runtime::ToolOutput for ReadFileOutput {}
+impl xvora_tool_runtime::ToolOutput for ListDirOutput {}
+impl xvora_tool_runtime::ToolOutput for SearchReplaceOutput {}
+impl xvora_tool_runtime::ToolOutput for TodoWriteOutput {}
+impl xvora_tool_runtime::ToolOutput for WebSearchOutput {}
+impl xvora_tool_runtime::ToolOutput for WebFetchOutput {}
+impl xvora_tool_runtime::ToolOutput for SkillOutput {}
+impl xvora_tool_runtime::ToolOutput for ApplyPatchOutput {}
+impl xvora_tool_runtime::ToolOutput for CodexGrepFilesOutput {}
+impl xvora_tool_runtime::ToolOutput for SearchToolOutput {}
+impl xvora_tool_runtime::ToolOutput for EnterPlanModeOutput {}
+impl xvora_tool_runtime::ToolOutput for ExitPlanModeOutput {}
+impl xvora_tool_runtime::ToolOutput for AskUserQuestionOutput {}
+impl xvora_tool_runtime::ToolOutput for MCPOutput {}
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::implementations::grok_build::todo::{TodoPriority, TodoStatus};
     use serde_json::json;
-    use tool_types::KillTaskResult;
-    use tool_types::TaskOutputResult;
+    use xvora_tool_types::KillTaskResult;
+    use xvora_tool_types::TaskOutputResult;
     #[test]
     fn send_subagent_message_error_classification_is_closed() {
         use crate::implementations::grok_build::send_subagent_message::SendSubagentMessageOutput::*;
@@ -2589,7 +2589,7 @@ mod tests {
         }
     }
     fn assert_cer(
-        resp: &tool_runtime::ToolChatCompletionResponse,
+        resp: &xvora_tool_runtime::ToolChatCompletionResponse,
         stdout: &str,
         exit_code: i32,
         timed_out: bool,
@@ -2618,28 +2618,31 @@ mod tests {
     }
     #[test]
     fn bash_output_chat_completion_carries_exit_and_stdout() {
-        let resp =
-            tool_runtime::ToolOutput::chat_completion_output(&sample_bash(0, b"hello\n", false))
-                .unwrap();
+        let resp = xvora_tool_runtime::ToolOutput::chat_completion_output(&sample_bash(
+            0, b"hello\n", false,
+        ))
+        .unwrap();
         assert_cer(&resp, "hello\n", 0, false);
         assert!(resp.result.as_ref().unwrap().extra.is_empty());
     }
     #[test]
     fn bash_output_chat_completion_empty_stdout_still_emits() {
         let resp =
-            tool_runtime::ToolOutput::chat_completion_output(&sample_bash(0, b"", false)).unwrap();
+            xvora_tool_runtime::ToolOutput::chat_completion_output(&sample_bash(0, b"", false))
+                .unwrap();
         assert_cer(&resp, "", 0, false);
     }
     #[test]
     fn bash_output_chat_completion_timeout_and_nonzero_exit() {
-        let resp =
-            tool_runtime::ToolOutput::chat_completion_output(&sample_bash(124, b"partial", true))
-                .unwrap();
+        let resp = xvora_tool_runtime::ToolOutput::chat_completion_output(&sample_bash(
+            124, b"partial", true,
+        ))
+        .unwrap();
         assert_cer(&resp, "partial", 124, true);
     }
     #[test]
     fn bash_output_chat_completion_lossy_utf8() {
-        let resp = tool_runtime::ToolOutput::chat_completion_output(&sample_bash(
+        let resp = xvora_tool_runtime::ToolOutput::chat_completion_output(&sample_bash(
             1,
             &[0x66, 0x6f, 0x6f, 0xff, 0x62, 0x61, 0x72],
             false,
@@ -2663,7 +2666,7 @@ mod tests {
         bash.truncated = true;
         bash.total_bytes = 50_000;
         bash.output_file = "/tmp/out.log".into();
-        let resp = tool_runtime::ToolOutput::chat_completion_output(&bash).unwrap();
+        let resp = xvora_tool_runtime::ToolOutput::chat_completion_output(&bash).unwrap();
         let result = resp.result.as_ref().unwrap();
         let stdout = &result.code_execution_result.as_ref().unwrap().stdout;
         assert!(stdout.starts_with("head...tail"));
@@ -2692,13 +2695,13 @@ mod tests {
     }
     #[test]
     fn bash_tool_output_foreground_delegates_background_skips() {
-        let resp = tool_runtime::ToolOutput::chat_completion_output(&BashToolOutput::Bash(
+        let resp = xvora_tool_runtime::ToolOutput::chat_completion_output(&BashToolOutput::Bash(
             sample_bash(0, b"ok", false),
         ))
         .unwrap();
         assert_cer(&resp, "ok", 0, false);
         assert!(
-            tool_runtime::ToolOutput::chat_completion_output(
+            xvora_tool_runtime::ToolOutput::chat_completion_output(
                 &BashToolOutput::BackgroundTaskStarted(bg_started())
             )
             .is_none()
@@ -2706,21 +2709,21 @@ mod tests {
     }
     #[test]
     fn aggregate_tool_output_bash_delegates_background_skips() {
-        let resp = tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::Bash(
+        let resp = xvora_tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::Bash(
             sample_bash(0, b"agg", false),
         ))
         .unwrap();
         assert_cer(&resp, "agg", 0, false);
         assert!(
-            tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::BackgroundTaskStarted(
-                bg_started()
-            ))
+            xvora_tool_runtime::ToolOutput::chat_completion_output(
+                &ToolOutput::BackgroundTaskStarted(bg_started())
+            )
             .is_none()
         );
         assert!(
-            tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::Text(TextOutput::from(
-                "noop"
-            )))
+            xvora_tool_runtime::ToolOutput::chat_completion_output(&ToolOutput::Text(
+                TextOutput::from("noop")
+            ))
             .is_none()
         );
     }
@@ -2731,8 +2734,8 @@ mod tests {
             output,
         }
     }
-    fn bash_tool_id() -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("bash").unwrap()
+    fn bash_tool_id() -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("bash").unwrap()
     }
     #[test]
     fn into_typed_tool_output_preserves_bash_foreground_cco() {
@@ -2750,13 +2753,14 @@ mod tests {
             0,
             false,
         );
-        let dropped = tool_runtime::TypedToolOutput::from_value(typed.tool_id, expected_value);
+        let dropped =
+            xvora_tool_runtime::TypedToolOutput::from_value(typed.tool_id, expected_value);
         assert!(dropped.chat_completion_output.is_none());
     }
     #[test]
     fn into_typed_tool_output_non_bash_cco_is_none() {
         let run = sample_run_result(ToolOutput::Text(TextOutput::from("noop")));
-        let typed = run.into_typed_tool_output(tool_protocol::ToolId::new("text").unwrap());
+        let typed = run.into_typed_tool_output(xvora_tool_protocol::ToolId::new("text").unwrap());
         assert!(typed.chat_completion_output.is_none());
     }
     #[test]

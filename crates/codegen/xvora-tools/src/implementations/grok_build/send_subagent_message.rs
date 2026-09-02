@@ -2,7 +2,8 @@
 
 use crate::implementations::grok_build::task::backend::SubagentBackendResource;
 use crate::implementations::grok_build::task::types::{
-    ActiveAgentMessageOutcome, ActiveAgentMessageRequest, SubagentDepthCounter,
+    ActiveAgentMessageOperation, ActiveAgentMessageOutcome, ActiveAgentMessageRequest,
+    SubagentDepthCounter,
 };
 use crate::types::tool::{ToolKind, ToolNamespace};
 
@@ -14,6 +15,10 @@ pub struct SendSubagentMessageInput {
     pub subagent_id: String,
     /// Text to send to the subagent.
     pub text: String,
+    /// Queue for a later turn instead of steering the active turn.
+    #[serde(default)]
+    #[schemars(default)]
+    pub queue: bool,
 }
 
 #[derive(
@@ -129,7 +134,7 @@ impl std::fmt::Display for SendSubagentMessageOutput {
     }
 }
 
-impl tool_runtime::ToolOutput for SendSubagentMessageOutput {}
+impl xvora_tool_runtime::ToolOutput for SendSubagentMessageOutput {}
 
 #[derive(Debug, Default)]
 pub struct SendSubagentMessageTool;
@@ -144,29 +149,32 @@ impl crate::types::tool_metadata::ToolMetadata for SendSubagentMessageTool {
     }
 
     fn description_template(&self) -> &str {
-        "Send a follow-up message to an active subagent owned by this session. The subagent must still be active and accepting messages."
+        "Send a follow-up message to an active subagent owned by this session. By default it steers the current turn at its next safe point; set queue to true to wait for a later turn."
     }
 }
 
-impl tool_runtime::Tool for SendSubagentMessageTool {
+impl xvora_tool_runtime::Tool for SendSubagentMessageTool {
     type Args = SendSubagentMessageInput;
     type Output = SendSubagentMessageOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new(SEND_SUBAGENT_MESSAGE_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new(SEND_SUBAGENT_MESSAGE_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             SEND_SUBAGENT_MESSAGE_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -178,9 +186,9 @@ impl tool_runtime::Tool for SendSubagentMessageTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: SendSubagentMessageInput,
-    ) -> Result<SendSubagentMessageOutput, tool_runtime::ToolError> {
+    ) -> Result<SendSubagentMessageOutput, xvora_tool_runtime::ToolError> {
         let resources = crate::types::tool_metadata::shared_resources(&ctx)?;
         let (depth, backend) = {
             let res = resources.lock().await;
@@ -193,7 +201,16 @@ impl tool_runtime::Tool for SendSubagentMessageTool {
         let (Some(0), Some(backend)) = (depth, backend) else {
             return Ok(SendSubagentMessageOutput::Unsupported);
         };
-        let request = match ActiveAgentMessageRequest::try_new(input.subagent_id, input.text) {
+        let operation = if input.queue {
+            ActiveAgentMessageOperation::Queue
+        } else {
+            ActiveAgentMessageOperation::Steer
+        };
+        let request = match ActiveAgentMessageRequest::try_new_with_operation(
+            input.subagent_id,
+            input.text,
+            operation,
+        ) {
             Ok(request) => request,
             Err(outcome) => return Ok(outcome.into()),
         };

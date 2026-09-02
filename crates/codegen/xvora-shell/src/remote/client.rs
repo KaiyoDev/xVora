@@ -80,7 +80,7 @@ async fn add_bundle_fetch_headers(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),
         );
-    file_utils::trace_context::inject_trace_context_into_request(builder)
+    xvora_file_utils::trace_context::inject_trace_context_into_request(builder)
 }
 /// Fetch the bundled subagent cache payload from cli-chat-proxy `GET /v1/subagents/bundle`.
 ///
@@ -285,7 +285,7 @@ impl Default for BackendClient {
 }
 impl BackendClient {
     fn build_default_client() -> reqwest::Client {
-        extra_ca::build_reqwest_client(|builder| {
+        xvora_extra_ca::build_reqwest_client(|builder| {
                 builder.connect_timeout(Duration::from_secs(10)).timeout(DEFAULT_TIMEOUT)
             })
             .unwrap_or_else(|e| {
@@ -411,7 +411,7 @@ impl BackendClient {
         builder: reqwest::RequestBuilder,
     ) -> Result<reqwest::Response, BackendError> {
         let headers = self.auth_header_map().await?;
-        let builder = file_utils::trace_context::inject_trace_context_into_request(
+        let builder = xvora_file_utils::trace_context::inject_trace_context_into_request(
             builder.timeout(DEFAULT_TIMEOUT).headers(headers),
         );
         let request = builder.build()?;

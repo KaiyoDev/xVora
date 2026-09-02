@@ -1370,7 +1370,7 @@ async fn reasoning_only_doomloop_turn_captures_every_generation_as_segments() {
             // Take the capture exactly as the trace upload does: through the real `TakeStreamingCapture` command
             // The command finalizes the uncommitted generations for upload
             let (cmd_tx, cmd_rx) = mpsc::unbounded_channel::<SessionCommand>();
-            let (_chat_tx, chat_rx) = mpsc::unbounded_channel::<chat_state::ChatStateEvent>();
+            let (_chat_tx, chat_rx) = mpsc::unbounded_channel::<xvora_chat_state::ChatStateEvent>();
             let codebase_indexes = Arc::new(parking_lot::Mutex::new(
                 xvora_workspace::file_system::CodebaseIndexManager::new(),
             ));

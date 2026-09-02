@@ -226,17 +226,17 @@ pub fn ceil_char_boundary(s: &str, index: usize) -> usize {
 }
 
 /// Estimate the number of tokens in a string using the bytes/4 heuristic.
-/// Thin wrapper around [`token_estimation::estimate_tokens`] preserving
+/// Thin wrapper around [`xvora_token_estimation::estimate_tokens`] preserving
 /// the historical `usize` return type used by tool-side callers
 /// (`read_file`, `attach_file`, `inspect`, `compaction` file gates).
 pub fn estimate_tokens(s: &str) -> usize {
-    token_estimation::estimate_tokens(s) as usize
+    xvora_token_estimation::estimate_tokens(s) as usize
 }
 
 /// Estimate the number of chars per token using the bytes/4 heuristic.
-/// Thin wrapper around [`token_estimation::estimate_chars`].
+/// Thin wrapper around [`xvora_token_estimation::estimate_chars`].
 pub fn estimate_chars(s: u64) -> u64 {
-    token_estimation::estimate_chars(s)
+    xvora_token_estimation::estimate_chars(s)
 }
 
 /// Human-readable size in powers of 1024: integral bytes (`512 B`), one

@@ -279,7 +279,7 @@ async fn check_server_start(
     cwd: &Path,
 ) -> Result<(mcp_servers::McpClient, Check), Check> {
     let start = std::time::Instant::now();
-    let noop = session_events::EventWriter::noop();
+    let noop = xvora_session_events::EventWriter::noop();
     let ctx = mcp_servers::McpSpawnCtx::standalone(&noop)
         .with_oauth_discovery(mcp_servers::McpOauthDiscovery::Network);
     match mcp_servers::start_mcp_server(acp_server, Some(cwd), None, None, &ctx).await {

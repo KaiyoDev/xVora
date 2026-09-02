@@ -293,9 +293,9 @@ impl ShellState {
         let mut cmd = tokio::process::Command::new(shell.binary_path());
         cmd.args(&args)
             .current_dir(cwd)
-            .stdin(tty_utils::null_stdio())
+            .stdin(xvora_tty_utils::null_stdio())
             .stdout(Stdio::piped())
-            .stderr(tty_utils::null_stdio())
+            .stderr(xvora_tty_utils::null_stdio())
             .kill_on_drop(true);
         crate::util::detach_command(&mut cmd);
         xvora_sandbox::child_net::restrict_child_network(&mut cmd);

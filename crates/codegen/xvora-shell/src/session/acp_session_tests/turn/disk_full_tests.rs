@@ -3,10 +3,10 @@ use super::*;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::test_support::sse::{
+use xvora_test_support::sse::{
     responses_api_reasoning_then_tool_call_events, responses_api_script_exact,
 };
-use crate::test_support::{MockInferenceServer, ScriptedResponse};
+use xvora_test_support::{MockInferenceServer, ScriptedResponse};
 
 /// `SessionActor` turn futures overflow the default test thread stack.
 fn block_on_session(f: impl FnOnce() + Send + 'static) {
@@ -33,17 +33,17 @@ const TODO_ARGS: &str = r#"{"todos":[{"id":"t1","content":"poll","status":"compl
 
 /// Acks like [`drain_gateway`] but keeps the hook events for the one test that asserts on them.
 fn capture_hook_events(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
 ) -> std::rc::Rc<std::cell::RefCell<Vec<serde_json::Value>>> {
     let fired = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let sink = fired.clone();
     tokio::task::spawn_local(async move {
         while let Some(msg) = rx.recv().await {
             match msg {
-                acp_lib::AcpClientMessage::SessionNotification(args) => {
+                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                acp_lib::AcpClientMessage::ExtNotification(args)
+                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.method.as_ref() == "x.ai/hooks/event" =>
                 {
                     sink.borrow_mut()
@@ -69,7 +69,7 @@ fn drain_persistence_flush_enospc(mut rx: tokio::sync::mpsc::UnboundedReceiver<P
 async fn actor_with_mock_sampler(
     server: &MockInferenceServer,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
-    gateway_tx: tokio::sync::mpsc::UnboundedSender<acp_lib::AcpClientMessage>,
+    gateway_tx: tokio::sync::mpsc::UnboundedSender<xvora_acp_lib::AcpClientMessage>,
     max_turns: Option<usize>,
 ) -> Arc<SessionActor> {
     let sampling_cfg = xvora_sampler::SamplerConfig {
@@ -179,7 +179,7 @@ fn completed_turn_flush_enospc_returns_error_and_reports_stop_failure() {
             );
 
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let fired = capture_hook_events(gateway_rx);
             let (persistence_tx, persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
@@ -230,7 +230,7 @@ fn cancelled_turn_flush_enospc_still_reports_cancellation() {
             );
 
             let (gateway_tx, gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             drain_gateway(gateway_rx);
             let (persistence_tx, persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();

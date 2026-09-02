@@ -176,6 +176,8 @@ pub use prompt_stash::{PromptStashEntry, StashCause};
 mod queue;
 mod render;
 pub use render::AppRenderParams;
+#[cfg(test)]
+mod dock_input_tests;
 mod rewind;
 mod selection;
 mod session;
@@ -753,7 +755,7 @@ impl CtaPhase {
 pub struct PluginCtaState {
     /// Not-installed candidate plugins for CTA matching, from the CTA source
     /// (xAI Official, or the configured `plugin_cta_marketplace` override).
-    pub candidates: Vec<hooks_plugins_types::MarketplacePluginEntry>,
+    pub candidates: Vec<xvora_hooks_plugins_types::MarketplacePluginEntry>,
     /// URL/path of the CTA source the candidates came from: the install
     /// target (the shell resolves marketplace sources by URL/path identity).
     /// `None` means no CTA source (official by default, the
@@ -936,9 +938,9 @@ pub struct AgentView {
     /// Sticky: render enforces the queue overlay's visibility from this each
     /// frame, so the queue's auto-show can't re-open a manual collapse.
     pub dock_queued_expanded: bool,
-    /// Set each render: dock enabled, terminal tall enough, ≥1 non-empty
-    /// section. Key handling reads it so `Ctrl+G` only focuses the dock when it
-    /// exists (and short terminals fall back to the tasks pane).
+    /// Last frame: dock replaced Tasks/Queue, even if every section is empty.
+    pub dock_on: bool,
+    /// Last frame: dock painted (`dock_on` and ≥1 non-empty section).
     pub dock_shown: bool,
     /// Current mode of the prompt widget (normal vs editing a queued prompt).
     pub prompt_mode: PromptMode,
@@ -990,7 +992,7 @@ pub struct AgentView {
     pub(crate) modal_hovered_key: Option<char>,
     /// Cached server-reported context state.
     pub context_state: Option<xvora_shell::session::ContextInfo>,
-    pub status_context: Option<status_line::StatusLineContext>,
+    pub status_context: Option<xvora_status_line::StatusLineContext>,
     /// Held across a frame that clamps the row away, so a script keeps the size
     /// it last painted at.
     pub last_status_line_size: Option<crate::views::status_line::RowSize>,
@@ -1126,9 +1128,12 @@ pub struct AgentView {
     /// completion, double-click, or triple-click. Cleared on next click
     /// elsewhere, Escape, or navigation.
     pub persistent_text_selection: Option<PersistentTextSelection>,
-    /// Table geometry backing a table-shaped drag / persistent selection,
-    /// keyed to that selection; ignored when the key doesn't match.
+    /// Table geometry for the held highlight. Not shared with an in-progress drag.
     pub table_selection_geometry: Option<TableSelectionGeometry>,
+    /// Table geometry for the active drag. A `/btw` drag must not steal the held slot.
+    pub drag_table_geometry: Option<TableSelectionGeometry>,
+    /// Wrap width the `/btw` selection was armed against. A mismatch invalidates it.
+    pub btw_selection_wrap_width: Option<u16>,
     /// Timestamp when the current persistent selection was created.
     /// Used for auto-dismissal after a configurable timeout.
     pub selection_created_at: Option<Instant>,
@@ -1368,6 +1373,7 @@ pub struct AgentView {
     /// repeated-selection-attempt signal that fires the word-select tip;
     /// lone double-clicks (habitual folders) never tip.
     pub(crate) last_word_select_probe: Option<Instant>,
+    pub(crate) export_copy_detector: crate::tips::export_copy::ExportCopyDetector,
     /// Persistent status line (e.g. mouse reporting off). Survives transient
     /// toasts, keypress dismissal, and subagent open/close when propagated
     /// via [`Self::set_sticky_toast_recursive`].
@@ -1401,7 +1407,7 @@ pub struct AgentView {
     pub(crate) elicitation_view: Option<ElicitationViewState>,
     pub(crate) pending_elicitation: Option<(
         xvora_tools::mcp_elicitation::McpElicitExtRequest,
-        tokio::sync::oneshot::Sender<acp_lib::AcpResult<agent_client_protocol::ExtResponse>>,
+        tokio::sync::oneshot::Sender<xvora_acp_lib::AcpResult<agent_client_protocol::ExtResponse>>,
     )>,
     pub(crate) elicit_hits: Vec<(
         crate::views::elicitation_view::ElicitHit,
@@ -2395,7 +2401,7 @@ pub(crate) mod test_fixtures {
             ),
             vec![],
         );
-        let perm = acp_lib::AcpArgs {
+        let perm = xvora_acp_lib::AcpArgs {
             request,
             response_tx,
         };

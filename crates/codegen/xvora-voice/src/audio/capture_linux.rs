@@ -152,7 +152,7 @@ fn pw_record_supports_raw() -> bool {
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     #[allow(clippy::disallowed_methods)] // short-lived probe, bounded and reaped below
     let Ok(mut child) = cmd.spawn() else {
         return false;
@@ -245,7 +245,7 @@ fn try_spawn(recorder: Recorder, sample_rate: u32) -> Result<Child, String> {
         .stderr(Stdio::piped());
     // setsid detach via the sanctioned helper (workspace subprocess rule)
     // The recorder writes to a pipe and must not share the pager's controlling TTY
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     #[allow(clippy::disallowed_methods)] // recorder owned by the capture handle, killed on stop
     let mut child = cmd
         .spawn()

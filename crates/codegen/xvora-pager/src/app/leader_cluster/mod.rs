@@ -28,17 +28,17 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::time::Duration;
 
-use acp_lib::{AcpClientRx, acp_send};
 use agent_client_protocol as acp;
 use tempfile::TempDir;
-use test_support::MockInferenceServer;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
+use xvora_acp_lib::{AcpClientRx, acp_send};
 use xvora_shell::leader::{
     ClientCapabilities as LeaderClientCapabilities, ClientMode, ConnectionStatus,
     LEADER_SOCKET_ENV, LeaderClient, LeaderEnvUrls, LeaderLock, LeaderReconnector,
     LeaderServerControlState, LeaderServerMetadata, ReconnectPolicy, run_leader_server,
 };
+use xvora_test_support::MockInferenceServer;
 
 use super::actions::{Action, TaskResult};
 use super::agent::AgentState;
@@ -267,7 +267,7 @@ impl PagerLeaderCluster {
     /// Stand up the cluster.
     /// Callers MUST be `#[serial_test::serial(GROK_HOME)]` (env mutation) and run inside a current-thread `LocalSet`.
     async fn start() -> Self {
-        extra_ca::ensure_default_crypto_provider();
+        xvora_extra_ca::ensure_default_crypto_provider();
 
         let server = MockInferenceServer::start().await.expect("mock server");
         let grok_home = TempDir::new().unwrap();

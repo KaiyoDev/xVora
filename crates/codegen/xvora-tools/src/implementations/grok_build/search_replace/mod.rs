@@ -149,16 +149,16 @@ pub struct SearchReplaceTool;
 /// Concise prompt swapping is done by the caller after this returns.
 pub(crate) async fn run_search_replace(
     input: SearchReplaceInput,
-    ctx: &tool_runtime::ToolCallContext,
+    ctx: &xvora_tool_runtime::ToolCallContext,
     resources: SharedResources,
-) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
     let cwd_override = ctx
         .extensions
-        .get::<tool_runtime::Cwd>()
+        .get::<xvora_tool_runtime::Cwd>()
         .map(|c| c.0.clone());
     let contract_version = ctx
         .extensions
-        .get::<tool_runtime::BehaviorVersion>()
+        .get::<xvora_tool_runtime::BehaviorVersion>()
         .map(|v| v.0.clone());
     let tool_call_id = ctx.call_id.as_str().to_owned();
     let (cwd, display_cwd, fs, notification_handle, hints_enabled);
@@ -303,7 +303,7 @@ async fn handle_new_file_creation(
     display_cwd: Option<&std::path::Path>,
     hints_enabled: bool,
     empty_old_string_does_not_override: bool,
-) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
     let file_exists = match fs.read_file(path).await {
         Ok(bytes) => !bytes.is_empty(),
         Err(_) => false,
@@ -319,7 +319,7 @@ async fn handle_new_file_creation(
             let renderer = res.require::<TemplateRenderer>()?;
             old_string_name = renderer
                 .render("${{ params.edit.old_string }}")
-                .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
         }
         return Ok(SearchReplaceOutput::FileAlreadyExists(format!(
             "{} is empty, which is only allowed when creating a new file or when the file is empty.",
@@ -532,7 +532,7 @@ async fn handle_replacement(
     hints_enabled: bool,
     is_legacy: bool,
     include_user_edit_hint: bool,
-) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
     let bytes = match fs.read_file(path).await {
         Ok(bytes) => bytes,
         Err(e) => {
@@ -563,8 +563,8 @@ async fn handle_replacement(
                     format!("Error: permission denied reading {}.", input.file_path),
                 ),
                 _ => {
-                    return Err(tool_runtime::ToolError::execution(
-                        tool_protocol::ToolId::new("search_replace").expect("valid"),
+                    return Err(xvora_tool_runtime::ToolError::execution(
+                        xvora_tool_protocol::ToolId::new("search_replace").expect("valid"),
                         e.to_string(),
                     ));
                 }
@@ -631,13 +631,13 @@ async fn handle_replacement(
             let renderer = res.require::<TemplateRenderer>()?;
             let read_name = renderer
                 .render("${{ tools.by_kind.read }}")
-                .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
             let old_string_param = renderer
                 .render("${{ params.edit.old_string }}")
-                .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
             let execute_name = renderer
                 .render("${{ tools.by_kind.execute }}")
-                .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
             (read_name, old_string_param, execute_name)
         };
         let hint = if is_legacy {
@@ -849,22 +849,25 @@ impl crate::types::tool_metadata::ToolMetadata for SearchReplaceTool {
         ])
     }
 }
-impl tool_runtime::Tool for SearchReplaceTool {
+impl xvora_tool_runtime::Tool for SearchReplaceTool {
     type Args = SearchReplaceInput;
     type Output = SearchReplaceOutput;
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("search_replace").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("search_replace").expect("valid tool id")
     }
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "search_replace",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -875,9 +878,9 @@ impl tool_runtime::Tool for SearchReplaceTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: SearchReplaceInput,
-    ) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+    ) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
         let bv = crate::types::tool_metadata::behavior_version(&ctx);
@@ -1006,7 +1009,7 @@ mod tests {
         let tool = SearchReplaceTool;
         let resources = test_resources(tmp.path());
         let input = make_input("test.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1026,7 +1029,7 @@ mod tests {
         let tool = SearchReplaceTool;
         let resources = test_resources(tmp.path());
         let input = make_input("new_file.txt", "", "new content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1054,7 +1057,7 @@ mod tests {
         let tool = SearchReplaceTool;
         let resources = test_resources(tmp.path());
         let shared = resources.into_shared();
-        let result1 = tool_runtime::Tool::run(
+        let result1 = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(shared.clone()),
             make_input("test.txt", "hello", "hi"),
@@ -1066,7 +1069,7 @@ mod tests {
             "first edit unexpectedly returned {:?}",
             result1
         );
-        let result2 = tool_runtime::Tool::run(
+        let result2 = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(shared),
             make_input("test.txt", "world", "earth"),
@@ -1093,7 +1096,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("test.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1115,7 +1118,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("nonexistent.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1137,9 +1140,12 @@ mod tests {
         }));
         let input = make_input("nonexistent.txt", "hello", "goodbye");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             SearchReplaceOutput::InvalidInput(msg) => {
                 assert_eq!(
@@ -1157,7 +1163,7 @@ mod tests {
         let tool = SearchReplaceTool;
         let resources = test_resources(tmp.path());
         let input = make_input("subdir", "old", "new");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1179,7 +1185,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("exception/Foo.java", "", "public class Foo {}");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1200,7 +1206,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("nonexistent.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1216,7 +1222,7 @@ mod tests {
         let tool = SearchReplaceTool;
         let resources = test_resources(tmp.path());
         let input = make_input("test.txt", "same", "same");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1243,7 +1249,7 @@ mod tests {
             new_string: "ccc".to_string(),
             replace_all: true,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1271,7 +1277,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("test.txt", "aaa", "ccc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1298,9 +1304,12 @@ mod tests {
         }));
         let input = make_input("test.txt", "aaa", "ccc");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             SearchReplaceOutput::InvalidInput(msg) => {
                 assert_eq!(
@@ -1323,7 +1332,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("test.txt", "xyz", "abc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1351,9 +1360,12 @@ mod tests {
         }));
         let input = make_input("test.txt", "xyz", "abc");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             SearchReplaceOutput::InvalidInput(msg) => {
                 assert_eq!(
@@ -1376,7 +1388,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("existing.txt", "", "new content");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1397,7 +1409,7 @@ mod tests {
         let tool = SearchReplaceTool;
         let resources = test_resources(tmp.path());
         let input = make_input("existing.txt", "", "completely new content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1420,7 +1432,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("existing.txt", "", "completely new content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1444,7 +1456,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("existing.txt", "", "replacement content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1471,7 +1483,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("brand_new.txt", "", "fresh content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1495,7 +1507,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("empty.txt", "", "new content\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1524,7 +1536,7 @@ mod tests {
         param_map.insert(ToolKind::Edit, sr_params);
         resources.insert(TemplateRenderer::new(Default::default(), param_map));
         let input = make_input("test.txt", "aaa", "ccc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1566,7 +1578,7 @@ mod tests {
             )]),
         ));
         let input = make_input("test.txt", "aaa", "ccc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1597,7 +1609,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("test.txt", "hello", "goodbye");
-        tool_runtime::Tool::run(
+        xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "call-99"),
             input,
@@ -1625,7 +1637,7 @@ mod tests {
         resources.insert(FileSystem(Arc::new(LocalFs)));
         resources.insert(NotificationHandle(handle));
         let input = make_input("new.txt", "", "brand new\n");
-        tool_runtime::Tool::run(
+        xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "call-100"),
             input,
@@ -1672,7 +1684,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("build/output.js", "var x = 1;", "var x = 2;");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1703,9 +1715,12 @@ mod tests {
         }));
         let input = make_input("build/output.js", "var x = 1;", "var x = 2;");
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             SearchReplaceOutput::EditsApplied(_) => {
                 let content = std::fs::read_to_string(&file_path).unwrap();
@@ -1728,7 +1743,7 @@ mod tests {
         let tool = SearchReplaceTool;
         let resources = test_resources_with_gitignore(tmp.path());
         let input = make_input("dist/bundle.js", "", "console.log('hello');\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1762,7 +1777,7 @@ mod tests {
             "fn main() {}",
             "fn main() { println!(\"hi\"); }",
         );
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1787,7 +1802,7 @@ mod tests {
             ..Default::default()
         }));
         let input = make_input("build/output.js", "var x = 1;", "var x = 2;");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1808,7 +1823,7 @@ mod tests {
         let long_name = "a".repeat(256);
         let long_path = format!("dir/{long_name}.txt");
         let input = make_input(&long_path, "", "content");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1839,7 +1854,7 @@ mod tests {
         let resources = test_resources(tmp.path());
         let name_255 = "b".repeat(255);
         let input = make_input(&name_255, "", "content");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         if let SearchReplaceOutput::FilenameTooLong(msg) = &result {
@@ -1934,7 +1949,7 @@ neutTest_set);
         let tool = SearchReplaceTool;
         let resources = test_resources(tmp.path());
         let input = make_input("main.c", "			oCollMode_set,", "replaced");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2164,7 +2179,7 @@ neutTest_set);
             ..Default::default()
         }));
         let input = make_input("doc.md", "\"stream through\"", "replacement");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2196,7 +2211,7 @@ neutTest_set);
             ..Default::default()
         }));
         let input = make_input("test.txt", "xyz", "abc");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2225,7 +2240,7 @@ neutTest_set);
             ..Default::default()
         }));
         let input = make_input("doc.md", "totally_unrelated_string", "replacement");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2256,7 +2271,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2284,7 +2299,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "\"hello\"", "\"goodbye\"");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2305,7 +2320,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "foo--bar", "foo-bar");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2326,7 +2341,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "hello world", "hello_world");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2347,7 +2362,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "wait...", "done");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2372,7 +2387,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "\"a\"", "\"b\"");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2400,7 +2415,7 @@ neutTest_set);
         resources.insert(Params(fallback_params()));
         let mut input = make_input("f.txt", "\"a\"", "\"b\"");
         input.replace_all = true;
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2426,7 +2441,7 @@ neutTest_set);
             include_user_edit_hint: false,
         }));
         let input = make_input("f.txt", "\"hello\"", "replaced");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         assert!(
@@ -2448,7 +2463,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "\"hello\"", "\"goodbye\"");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2471,7 +2486,7 @@ neutTest_set);
         let mut resources = test_resources(tmp.path());
         resources.insert(Params(fallback_params()));
         let input = make_input("f.txt", "\"target\"", "\"replaced\"");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2512,7 +2527,7 @@ neutTest_set);
             ..Default::default()
         }));
         let input = make_input("test.txt", "hello\nworld\n", "goodbye\nearth\n");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2536,7 +2551,7 @@ neutTest_set);
             ..Default::default()
         }));
         let input = make_input("test.txt", "bbb", "BBB");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2560,7 +2575,7 @@ neutTest_set);
             ..Default::default()
         }));
         let input = make_input("test.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2589,7 +2604,7 @@ neutTest_set);
             new_string: "qux".to_string(),
             replace_all: true,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2617,7 +2632,7 @@ neutTest_set);
             ..Default::default()
         }));
         let input = make_input("test.txt", "line2\nline3", "REPLACED");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {

@@ -11,7 +11,7 @@ use crate::types::{FileContentStatus, Hunk, HunkAction, TrackingMode};
 
 /// Run a git command in the given directory with deterministic author/committer.
 fn git(dir: &Path, args: &[&str]) -> String {
-    test_utils::git::run_git(dir, args)
+    xvora_test_utils::git::run_git(dir, args)
 }
 
 /// Test helper that creates an actor with a temp directory and git repo
@@ -197,7 +197,7 @@ impl TestHarness {
     /// HEAD, advance the base branch by one commit (so a rebase has work), and
     /// leave `feature` checked out. Returns the base branch name.
     fn feature_branch(&self, picks: usize) -> String {
-        test_utils::git::make_feature_branch(&self.working_dir, picks)
+        xvora_test_utils::git::make_feature_branch(&self.working_dir, picks)
     }
 }
 

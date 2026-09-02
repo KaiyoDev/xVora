@@ -5,10 +5,8 @@ use std::sync::atomic::Ordering;
 
 use super::*;
 
-extern crate status_line as _sl;
-
 use crate::extensions::notification::{PromptUsage, PromptUsageModel, ticks_to_usd};
-use _sl::{
+use xvora_status_line::{
     STATUS_LINE_SCHEMA_VERSION, StatusLineContext, StatusLineContextWindow, StatusLineCost,
     StatusLineEffort, StatusLineModel, StatusLineRepo, StatusLineSessionUsage, StatusLineTurn,
     StatusLineWorkspace, StatusLineWorktree,
@@ -73,7 +71,7 @@ fn build_context_window(
     // The field is omitted rather than zero when the window is unknown, which is the only part the helper cannot express
     let used_percentage = used_tokens
         .filter(|_| size > 0)
-        .map(|used| token_estimation::usage_percentage_u8(used, size));
+        .map(|used| xvora_token_estimation::usage_percentage_u8(used, size));
     StatusLineContextWindow {
         context_window_size: (size > 0).then_some(size),
         context_tokens: used_tokens,

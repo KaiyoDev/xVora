@@ -1602,9 +1602,9 @@ mod tests {
         // The motivating leak: a user-controllable non-HEAD ref whose checkout
         // fails AFTER the delegate created the snapshot must reclaim it (call
         // delete_snapshot exactly once).
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         use std::sync::atomic::{AtomicUsize, Ordering};
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let tmp = TempDir::new().unwrap();
         // The delegate "exposes" a real git repo as the worktree so checkout_ref
@@ -1638,9 +1638,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn try_btrfs_delegate_no_reclaim_on_success() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         use std::sync::atomic::{AtomicUsize, Ordering};
-        use test_utils::git::{git_commit_all, init_git_repo};
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let tmp = TempDir::new().unwrap();
         let worktree = tmp.path().join("wt");
@@ -1812,11 +1812,11 @@ mod tests {
 
     #[test]
     fn test_marker_written_for_standalone_git_dir() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let tmp = TempDir::new().unwrap();
         let source = tmp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
-        test_utils::git::init_git_repo(&source);
+        xvora_test_utils::git::init_git_repo(&source);
 
         let dest = tmp.path().join("dest");
         std::fs::create_dir_all(dest.join(".git")).unwrap();
@@ -1847,11 +1847,11 @@ mod tests {
 
     #[test]
     fn test_marker_not_overwritten_when_present() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let tmp = TempDir::new().unwrap();
         let source = tmp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
-        test_utils::git::init_git_repo(&source);
+        xvora_test_utils::git::init_git_repo(&source);
 
         let dest = tmp.path().join("dest");
         std::fs::create_dir_all(dest.join(".git")).unwrap();

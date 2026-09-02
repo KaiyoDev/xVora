@@ -19,13 +19,13 @@
 //!
 //! let crash_dir = PathBuf::from("/home/user/.myapp/crash");
 //!
-//! if let Some(report) = crash_handler::check_previous_crash(&crash_dir) {
+//! if let Some(report) = xvora_crash_handler::check_previous_crash(&crash_dir) {
 //!     eprintln!("Application crashed during your last session.");
 //!     eprintln!("  Signal: {}", report.signal_name);
 //!     eprintln!("  Report: {}", report.report_path.display());
 //! }
 //!
-//! crash_handler::install(crash_handler::CrashHandlerConfig {
+//! xvora_crash_handler::install(xvora_crash_handler::CrashHandlerConfig {
 //!     app_version: "0.1.0".to_string(),
 //!     crash_dir: crash_dir.clone(),
 //! });

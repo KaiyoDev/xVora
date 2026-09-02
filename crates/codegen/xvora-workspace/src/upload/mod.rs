@@ -1,15 +1,15 @@
 pub(crate) mod environment;
 use crate::telemetry::dc_log;
-use computer_hub_sdk::auth::{AuthCredential, AuthProvider};
 use environment::WorkspaceIdentity;
-use file_utils::gcs::StorageConfig;
-use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue};
-use file_utils::storage_client::Auth401AttributionCallback;
-use file_utils::{TraceExportConfig, UploadMethod};
 use prometheus::{IntCounterVec, IntGauge, register_int_counter_vec, register_int_gauge};
 use std::sync::Arc;
 use std::sync::LazyLock;
 use xvora_auth::{AuthCredentialProvider, CredentialSnapshot};
+use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
+use xvora_file_utils::gcs::StorageConfig;
+use xvora_file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue};
+use xvora_file_utils::storage_client::Auth401AttributionCallback;
+use xvora_file_utils::{TraceExportConfig, UploadMethod};
 /// `…_pending_bytes` is the series the mandatory queue-memory alert fires on.
 static UPLOAD_QUEUE_PENDING_BYTES: LazyLock<IntGauge> = LazyLock::new(|| {
     register_int_gauge!(
@@ -313,7 +313,7 @@ pub(crate) async fn upload_tool_state_queued(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use computer_hub_sdk::auth::AuthCredential;
+    use xvora_computer_hub_sdk::auth::AuthCredential;
     fn proxy_config() -> Arc<ProxyStorageConfig> {
         proxy_config_with_identity(WorkspaceIdentity::default())
     }
@@ -430,14 +430,16 @@ mod tests {
         Arc::new(UploadQueue::spawn(
             home,
             source,
-            file_utils::queue::UploadRetryPolicy::default(),
+            xvora_file_utils::queue::UploadRetryPolicy::default(),
         ))
     }
     /// Pins the tool-state path contract: bytes enqueued at exactly `{session_id}/turn_{N}/tool_state.json`.
     /// The content-type is JSON and the artifact name is `tool_state` (asserted via queue stat and sidecar manifest).
     #[tokio::test]
     async fn tool_state_enqueues_at_session_turn_gcs_path() {
-        use file_utils::queue::{QueueItemSidecar, SIDECAR_SUFFIX, UploadQueue, UploadRetryPolicy};
+        use xvora_file_utils::queue::{
+            QueueItemSidecar, SIDECAR_SUFFIX, UploadQueue, UploadRetryPolicy,
+        };
         let home = tempfile::TempDir::new().unwrap();
         let source: Arc<dyn TraceExportSource> =
             Arc::new(WorkspaceTraceExportSource::new(proxy_config()));

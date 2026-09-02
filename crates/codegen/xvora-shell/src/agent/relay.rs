@@ -421,7 +421,7 @@ async fn connect_to_relay(
             } else {
                 // The default connector never sees the shared trust config.
                 let connector =
-                    tokio_tungstenite::Connector::Rustls(extra_ca::rustls_client_config());
+                    tokio_tungstenite::Connector::Rustls(xvora_extra_ca::rustls_client_config());
                 connect_async_tls_with_config(req, None, false, Some(connector))
                     .await
                     .map_err(|e| anyhow::Error::from(e).context("WebSocket connection failed"))

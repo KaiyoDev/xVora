@@ -1090,7 +1090,7 @@ fn try_btrfs_remove(
     // Case 2 (legacy bind mount): unmount first, then delete snapshot.
     if btrfs_info.bind_mount_source.is_some() {
         let mut umount_cmd = std::process::Command::new("umount");
-        tty_utils::detach_std_command(&mut umount_cmd);
+        xvora_tty_utils::detach_std_command(&mut umount_cmd);
         umount_cmd.stdin(std::process::Stdio::null());
         let output = umount_cmd
             .arg(worktree_path)
@@ -1217,7 +1217,7 @@ fn try_btrfs_remove_from_metadata_inner(
                 // snapshot subvolume can be deleted; a symlink needs no umount.
                 if !target_is_symlink {
                     let mut umount_cmd = std::process::Command::new("umount");
-                    tty_utils::detach_std_command(&mut umount_cmd);
+                    xvora_tty_utils::detach_std_command(&mut umount_cmd);
                     umount_cmd.stdin(std::process::Stdio::null());
                     if let Ok(output) = umount_cmd.arg(target).output() {
                         unmounted = output.status.success();
@@ -1420,7 +1420,7 @@ fn cleanup_orphaned_btrfs_snapshots_inner(
                     let _ = std::fs::remove_file(&meta.mount_target);
                 } else {
                     let mut umount_cmd = std::process::Command::new("umount");
-                    tty_utils::detach_std_command(&mut umount_cmd);
+                    xvora_tty_utils::detach_std_command(&mut umount_cmd);
                     umount_cmd.stdin(std::process::Stdio::null());
                     let _ = umount_cmd.arg(&meta.mount_target).output();
                     let _ = std::fs::remove_dir(&meta.mount_target);
@@ -1656,8 +1656,8 @@ mod tests {
 
     #[test]
     fn test_cleanup_worktrees_in_with_plain_worktrees() {
-        test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        xvora_test_utils::require_git!();
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let tmp = tempfile::TempDir::new().unwrap();
 
@@ -1688,8 +1688,8 @@ mod tests {
 
     #[test]
     fn test_cleanup_worktrees_in_with_nested_dirs() {
-        test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        xvora_test_utils::require_git!();
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
         let tmp = tempfile::TempDir::new().unwrap();
 
@@ -1795,8 +1795,8 @@ mod tests {
     /// be used only as a fallback, never invoked when the direct removal succeeds.
     #[test]
     fn remove_with_delegate_deregisters_plain_worktree_without_calling_delegate() {
-        test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        xvora_test_utils::require_git!();
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
         // Isolate GROK_HOME so the post-removal unregister writes to a private DB.
         #[cfg(feature = "metadata")]
         let _fx = crate::db::GrokHomeFixture::new();
@@ -1842,8 +1842,8 @@ mod tests {
 
     #[test]
     fn sibling_registration_not_removed() {
-        test_utils::require_git!();
-        use test_utils::git::{git_commit_all, init_git_repo};
+        xvora_test_utils::require_git!();
+        use xvora_test_utils::git::{git_commit_all, init_git_repo};
         #[cfg(feature = "metadata")]
         let _fx = crate::db::GrokHomeFixture::new();
 

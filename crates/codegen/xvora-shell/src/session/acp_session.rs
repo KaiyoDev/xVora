@@ -51,7 +51,6 @@ use crate::session::user_message::construct_user_message_minimal;
 use crate::session::user_message::extract_user_query;
 use crate::terminal::TerminalRunRequest;
 use crate::tools::ToolContext;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use agent_client_protocol::ContentBlock;
 use parking_lot::Mutex;
@@ -63,6 +62,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Mutex as TokioMutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_agent::AgentDefinition;
 use xvora_agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
 use xvora_agent::prompt::skills::SkillsConfig;
@@ -349,6 +349,7 @@ fn backdate_edit_hold(
 pub(crate) struct State {
     pub(crate) running_task: Option<AgentTask>,
     finalization_gate: FinalizationGate,
+    pub(crate) message_delivery: parent_message::MessageDeliveryState,
     pub(crate) pending_inputs: VecDeque<InputItem>,
     pub(crate) pending_notifications: Vec<PendingNotification>,
     /// Prompt ids under composer edit, stamped (and re-stamped) by `hold_edit`.
@@ -450,9 +451,6 @@ pub(crate) fn is_session_idle_for_injection(state: &State) -> bool {
         && !state.notifications_suppressed
         && !state.hook_block_held()
 }
-/// Predicate behind `SessionCommand::IsBusy`: the session has work in flight when a turn is running **or** inputs are queued.
-/// Consulted by the leader's idle-unload decision on client disconnect, and by `emit_session_idle_if_idle`.
-/// Kept as a free function so it can be unit-tested directly against a `State` without spawning a full actor and leader.
 pub(crate) fn state_is_busy(state: &State) -> bool {
     state.running_task.is_some()
         || state.finalization_gate.is_active()
@@ -473,7 +471,7 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
         caller: &str,
     ) -> Result<
         xvora_tools::types::resources::ManagedGatewayToolCallResponse,
-        tool_runtime::ToolError,
+        xvora_tool_runtime::ToolError,
     > {
         let auth_key = self
             .auth_manager
@@ -481,7 +479,9 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
             .await
             .ok()
             .or_else(|| self.auth_manager.current_or_expired().map(|a| a.key))
-            .ok_or_else(|| tool_runtime::ToolError::unauthorized("no auth token available"))?;
+            .ok_or_else(|| {
+                xvora_tool_runtime::ToolError::unauthorized("no auth token available")
+            })?;
         let response = crate::session::managed_mcp::call_gateway_tool(
             &self.proxy_base_url,
             &auth_key,
@@ -501,18 +501,19 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
 fn managed_gateway_error_to_tool_error(
     error: crate::session::managed_mcp::ManagedMcpFetchError,
     caller: &str,
-) -> tool_runtime::ToolError {
+) -> xvora_tool_runtime::ToolError {
     match error {
         crate::session::managed_mcp::ManagedMcpFetchError::Status { status, message } => {
             let detail = format!("Managed MCP gateway tool call failed: {message}");
             let mut err = if status == reqwest::StatusCode::UNAUTHORIZED {
-                tool_runtime::ToolError::unauthorized(detail)
+                xvora_tool_runtime::ToolError::unauthorized(detail)
             } else if status == reqwest::StatusCode::FORBIDDEN {
-                tool_runtime::ToolError::permission_denied(detail)
+                xvora_tool_runtime::ToolError::permission_denied(detail)
             } else {
-                let tool_id = tool_protocol::ToolId::new(caller)
-                    .unwrap_or_else(|_| tool_protocol::ToolId::new("use_tool").expect("valid"));
-                tool_runtime::ToolError::execution(tool_id, detail)
+                let tool_id = xvora_tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
+                    xvora_tool_protocol::ToolId::new("use_tool").expect("valid")
+                });
+                xvora_tool_runtime::ToolError::execution(tool_id, detail)
             };
             match err.details.as_mut() {
                 Some(serde_json::Value::Object(map)) => {
@@ -530,13 +531,13 @@ fn managed_gateway_error_to_tool_error(
             err
         }
         crate::session::managed_mcp::ManagedMcpFetchError::Transport(e) => {
-            tool_runtime::ToolError::network_error(format!(
+            xvora_tool_runtime::ToolError::network_error(format!(
                 "Managed MCP gateway tool call failed: {}",
                 e.without_url()
             ))
         }
         crate::session::managed_mcp::ManagedMcpFetchError::NoAuth => {
-            tool_runtime::ToolError::unauthorized("no auth token available")
+            xvora_tool_runtime::ToolError::unauthorized("no auth token available")
         }
     }
 }
@@ -553,7 +554,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn unauthorized_status_maps_to_unauthorized_and_carries_status() {
         let err = managed_gateway_error_to_tool_error(status_error(401, "expired"), "use_tool");
-        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Unauthorized);
+        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Unauthorized);
         assert!(err.detail.contains("expired"));
         let details = err.details.as_ref().unwrap();
         assert_eq!(
@@ -564,7 +565,10 @@ mod managed_gateway_error_tests {
     #[test]
     fn forbidden_status_maps_to_permission_denied_and_carries_status() {
         let err = managed_gateway_error_to_tool_error(status_error(403, "denied"), "use_tool");
-        assert_eq!(err.kind, tool_runtime::ToolErrorKind::PermissionDenied);
+        assert_eq!(
+            err.kind,
+            xvora_tool_runtime::ToolErrorKind::PermissionDenied
+        );
         let details = err.details.as_ref().unwrap();
         assert_eq!(
             details.get(HTTP_STATUS_DETAILS_KEY),
@@ -574,7 +578,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn general_status_maps_to_execution_with_caller_tool_id() {
         let err = managed_gateway_error_to_tool_error(status_error(500, "boom"), "CallMcpTool");
-        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Execution);
+        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Execution);
         let details = err.details.as_ref().unwrap();
         assert_eq!(
             details.get(HTTP_STATUS_DETAILS_KEY),
@@ -588,7 +592,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn general_status_falls_back_to_use_tool_for_unknown_caller() {
         let err = managed_gateway_error_to_tool_error(status_error(500, "boom"), "not a tool id");
-        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Execution);
+        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Execution);
         let details = err.details.as_ref().unwrap();
         assert_eq!(details.get("tool_id"), Some(&serde_json::json!("use_tool")));
     }
@@ -598,7 +602,7 @@ mod managed_gateway_error_tests {
             crate::session::managed_mcp::ManagedMcpFetchError::NoAuth,
             "use_tool",
         );
-        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Unauthorized);
+        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Unauthorized);
     }
     #[tokio::test]
     async fn transport_error_maps_to_network_error_without_url() {
@@ -611,7 +615,7 @@ mod managed_gateway_error_tests {
             crate::session::managed_mcp::ManagedMcpFetchError::Transport(transport),
             "use_tool",
         );
-        assert_eq!(err.kind, tool_runtime::ToolErrorKind::NetworkError);
+        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::NetworkError);
         assert!(err.detail.contains("Managed MCP gateway tool call failed"));
         assert!(
             !err.detail.contains("http://"),
@@ -753,9 +757,10 @@ pub(crate) struct SessionActor {
     pub(crate) mcp_strategy: std::cell::Cell<McpInitStrategy>,
     /// Actor-based chat state handle; manages conversation, tokens, timing, and persistence.
     /// Also stores credentials (api_key, optional extra access key, client_version) opaquely.
-    pub(crate) chat_state_handle: chat_state::ChatStateHandle,
+    pub(crate) chat_state_handle: xvora_chat_state::ChatStateHandle,
     /// Current running prompt/turn id, shared with SessionHandle.
     pub(crate) current_prompt_id: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    pub(crate) active_work: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     pub(crate) unattributed_background_usage: std::sync::atomic::AtomicBool,
     /// Open blocking reverse-requests (permission / question / plan-approval), keyed by `tool_call_id`.
     /// Shared with `SessionHandle` so the roster can read it synchronously to report `NeedsInput`.
@@ -767,7 +772,6 @@ pub(crate) struct SessionActor {
     pub(crate) supports_backend_search: std::cell::Cell<bool>,
     /// Per-turn override, set at promotion. Not persisted; a reload reverts to the definition seed.
     pub(crate) tool_overrides: std::cell::RefCell<Option<xvora_sampling_types::ToolOverrides>>,
-    /// Configured cutoff a subagent inherits, read off the `SessionHandle` without an actor round-trip.
     pub(crate) resolved_tool_overrides:
         std::sync::Arc<arc_swap::ArcSwapOption<xvora_sampling_types::ToolOverrides>>,
     pub(crate) compactions_remaining:
@@ -842,7 +846,8 @@ pub(crate) struct SessionActor {
     pub(crate) origin_client: Option<crate::http::OriginClientInfo>,
     /// Feedback manager for signal tracking and feedback request heuristics
     pub(crate) feedback_manager: Arc<FeedbackManager>,
-    pub(crate) upload_queue: std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
+    pub(crate) upload_queue:
+        std::sync::Arc<std::sync::OnceLock<xvora_file_utils::queue::UploadQueue>>,
     /// Cancellation token for the feedback sync loop (None if no feedback client)
     pub(crate) sync_loop_cancel: Option<tokio_util::sync::CancellationToken>,
     /// The fully-built Agent: owns the ToolBridge, system prompt, policies, and the AgentDefinition.
@@ -940,6 +945,9 @@ pub(crate) struct SessionActor {
     /// Master switch for the one-shot goal summarizer (the closing "what was accomplished" summary on a verified achievement).
     /// Cached at actor construction (mirrors `goal_classifier_enabled`); absent remote setting tracks goal mode, `Some(false)` is a kill-switch.
     pub(crate) goal_summary_enabled: bool,
+    /// Remote tier of the Length-salvage budget resolver, snapshot from
+    /// `RemoteSettings` at actor construction. `Some(0)` is explicit off.
+    pub(crate) length_salvage_remote_budget: Option<u32>,
     /// Resolved skeptic count for the verification stage.
     /// Cached at actor construction (mirrors `goal_classifier_enabled`) and threaded into [`Self::run_verification_stage_for_drain`].
     /// Default `GOAL_VERIFIER_SKEPTIC_COUNT`; clamped to `[GOAL_VERIFIER_SKEPTIC_MIN, GOAL_VERIFIER_SKEPTIC_MAX]` by the resolver.
@@ -1001,7 +1009,7 @@ pub(crate) struct SessionActor {
     /// Background-computed user-message prefix, injected before the first prompt.
     pub(crate) deferred_prefix: TaskSlot<String>,
     /// Extensions to notify at turn and session lifecycle edges. Built once by `session_extension_registry` at actor construction and frozen after.
-    pub(crate) extension_registry: agent_lifecycle::LocalExtensionRegistry,
+    pub(crate) extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry,
     /// Local date last shown to the model.
     /// Shown via the `<user_info>` prefix (session start, compaction, model switch) or a date-rollover `<system-reminder>`.
     /// Plain resume reuses the cached prefix.
@@ -1050,7 +1058,7 @@ pub(crate) struct SessionActor {
     /// Centralized event tracking: event log, turn-end guard, active tool, doom loop terminate flag.
     pub(crate) events: crate::session::events::EventTracker,
     /// Optional hub-side session event emitter (always constructed without a harness client in the agent; methods no-op with `None` transport).
-    pub(crate) observability_bridge: computer_hub_sdk::ObservabilityBridge,
+    pub(crate) observability_bridge: xvora_computer_hub_sdk::ObservabilityBridge,
     /// Turn number captured at the start of each turn (before prompt index increment).
     /// Used by `ToolCallStarted` bridge emissions so they report the same turn number as `TurnStarted` / `TurnEnded`.
     pub(crate) current_turn_number: std::cell::Cell<u64>,
@@ -1230,7 +1238,10 @@ impl SessionActor {
     }
     /// Send a before-turn hook via the local workspace channel.
     /// Fire-and-forget; failures are logged but do not interrupt the turn.
-    async fn send_before_turn_event(&self, payload: tool_protocol::turn_hook::BeforeTurnPayload) {
+    async fn send_before_turn_event(
+        &self,
+        payload: xvora_tool_protocol::turn_hook::BeforeTurnPayload,
+    ) {
         self.workspace_ops
             .on_before_turn(&self.session_id_string(), &payload)
             .await;
@@ -1242,7 +1253,10 @@ impl SessionActor {
         skip_all,
         fields(session_id = %self.session_info.id.0, turn_number = payload.turn_number)
     )]
-    async fn send_after_turn_event(&self, payload: tool_protocol::turn_hook::AfterTurnPayload) {
+    async fn send_after_turn_event(
+        &self,
+        payload: xvora_tool_protocol::turn_hook::AfterTurnPayload,
+    ) {
         self.workspace_ops
             .on_after_turn(&self.session_id_string(), &payload)
             .await;
@@ -1337,6 +1351,18 @@ impl SessionActor {
         &self,
     ) -> Arc<parking_lot::Mutex<crate::session::workflow::tracker::WorkflowTracker>> {
         self.workflow_manager.lock().await.tracker()
+    }
+    pub(crate) async fn is_busy(&self) -> bool {
+        if self.active_work.load(std::sync::atomic::Ordering::Acquire) > 0 {
+            return true;
+        }
+        {
+            let state = self.state.lock().await;
+            if state_is_busy(&state) {
+                return true;
+            }
+        }
+        crate::session::pending_interaction::has_parked_plan_approval(&self.pending_interactions)
     }
     pub(crate) fn goal_runs_on_workflow_engine(&self) -> bool {
         self.background_workflows_enabled
@@ -1532,23 +1558,23 @@ mod managed_gateway_descriptor_tests {
             "fixture"
         }
     }
-    impl tool_runtime::Tool for FixtureMcpTool {
+    impl xvora_tool_runtime::Tool for FixtureMcpTool {
         type Args = serde_json::Value;
         type Output = ToolOutput;
-        fn id(&self) -> tool_protocol::ToolId {
-            tool_protocol::ToolId::new("server__tool").expect("valid")
+        fn id(&self) -> xvora_tool_protocol::ToolId {
+            xvora_tool_protocol::ToolId::new("server__tool").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::tool_runtime::ListToolsContext,
-        ) -> tool_types::ToolDescription {
-            tool_types::ToolDescription::new("server__tool", "fixture")
+            _ctx: &::xvora_tool_runtime::ListToolsContext,
+        ) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new("server__tool", "fixture")
         }
         async fn run(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _args: serde_json::Value,
-        ) -> Result<ToolOutput, tool_runtime::ToolError> {
+        ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
             Ok(ToolOutput::MCP(MCPOutput::okay_output(
                 "server__tool".to_string(),
                 "server".to_string(),
@@ -2061,23 +2087,23 @@ mod managed_gateway_tool_tests {
             "fixture"
         }
     }
-    impl tool_runtime::Tool for FixtureMcpTool {
+    impl xvora_tool_runtime::Tool for FixtureMcpTool {
         type Args = serde_json::Value;
         type Output = ToolOutput;
-        fn id(&self) -> tool_protocol::ToolId {
-            tool_protocol::ToolId::new("server__tool").expect("valid")
+        fn id(&self) -> xvora_tool_protocol::ToolId {
+            xvora_tool_protocol::ToolId::new("server__tool").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::tool_runtime::ListToolsContext,
-        ) -> tool_types::ToolDescription {
-            tool_types::ToolDescription::new("server__tool", "fixture")
+            _ctx: &::xvora_tool_runtime::ListToolsContext,
+        ) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new("server__tool", "fixture")
         }
         async fn run(
             &self,
-            _ctx: tool_runtime::ToolCallContext,
+            _ctx: xvora_tool_runtime::ToolCallContext,
             _args: serde_json::Value,
-        ) -> Result<ToolOutput, tool_runtime::ToolError> {
+        ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
             Ok(ToolOutput::MCP(MCPOutput::okay_output(
                 "server__tool".to_string(),
                 "server".to_string(),

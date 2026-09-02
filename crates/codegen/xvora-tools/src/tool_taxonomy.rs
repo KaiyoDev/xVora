@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn writing_tool_kind_matches_definition_sites() {
         use crate::types::tool_metadata::ToolMetadata;
-        use tool_runtime::Tool;
+        use xvora_tool_runtime::Tool;
         fn covered<T: Tool + ToolMetadata>(tool: T) {
             assert_eq!(
                 writing_tool_kind(tool.id().as_str()),

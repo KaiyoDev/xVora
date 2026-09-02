@@ -138,13 +138,13 @@ enum FileChange {
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 /// Create parent directories for a file path if they don't exist.
-async fn ensure_parent_dirs(path: &std::path::Path) -> Result<(), tool_runtime::ToolError> {
+async fn ensure_parent_dirs(path: &std::path::Path) -> Result<(), xvora_tool_runtime::ToolError> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
     {
         tokio::fs::create_dir_all(parent).await.map_err(|e| {
-            tool_runtime::ToolError::execution(
-                tool_protocol::ToolId::new("apply_patch").expect("valid"),
+            xvora_tool_runtime::ToolError::execution(
+                xvora_tool_protocol::ToolId::new("apply_patch").expect("valid"),
                 e.to_string(),
             )
         })?;
@@ -266,25 +266,28 @@ impl crate::types::tool_metadata::ToolMetadata for ApplyPatchTool {
     }
 }
 
-impl tool_runtime::Tool for ApplyPatchTool {
+impl xvora_tool_runtime::Tool for ApplyPatchTool {
     type Args = ApplyPatchInput;
     type Output = ApplyPatchOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("apply_patch").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("apply_patch").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "apply_patch",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -292,9 +295,9 @@ impl tool_runtime::Tool for ApplyPatchTool {
     #[tracing::instrument(name = "tool.apply_patch", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: ApplyPatchInput,
-    ) -> Result<ApplyPatchOutput, tool_runtime::ToolError> {
+    ) -> Result<ApplyPatchOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -343,8 +346,8 @@ impl tool_runtime::Tool for ApplyPatchTool {
                     // Create parent directories if needed.
                     ensure_parent_dirs(path).await?;
                     fs.write_file(path, content.as_bytes()).await.map_err(|e| {
-                        tool_runtime::ToolError::execution(
-                            tool_protocol::ToolId::new("apply_patch").expect("valid"),
+                        xvora_tool_runtime::ToolError::execution(
+                            xvora_tool_protocol::ToolId::new("apply_patch").expect("valid"),
                             e.to_string(),
                         )
                     })?;
@@ -370,8 +373,8 @@ impl tool_runtime::Tool for ApplyPatchTool {
                     original_content,
                 } => {
                     fs.delete_file(path).await.map_err(|e| {
-                        tool_runtime::ToolError::execution(
-                            tool_protocol::ToolId::new("apply_patch").expect("valid"),
+                        xvora_tool_runtime::ToolError::execution(
+                            xvora_tool_protocol::ToolId::new("apply_patch").expect("valid"),
                             e.to_string(),
                         )
                     })?;
@@ -400,8 +403,8 @@ impl tool_runtime::Tool for ApplyPatchTool {
                     fs.write_file(path, new_content.as_bytes())
                         .await
                         .map_err(|e| {
-                            tool_runtime::ToolError::execution(
-                                tool_protocol::ToolId::new("apply_patch").expect("valid"),
+                            xvora_tool_runtime::ToolError::execution(
+                                xvora_tool_protocol::ToolId::new("apply_patch").expect("valid"),
                                 e.to_string(),
                             )
                         })?;
@@ -433,14 +436,14 @@ impl tool_runtime::Tool for ApplyPatchTool {
                     fs.write_file(dest_path, new_content.as_bytes())
                         .await
                         .map_err(|e| {
-                            tool_runtime::ToolError::execution(
-                                tool_protocol::ToolId::new("apply_patch").expect("valid"),
+                            xvora_tool_runtime::ToolError::execution(
+                                xvora_tool_protocol::ToolId::new("apply_patch").expect("valid"),
                                 e.to_string(),
                             )
                         })?;
                     fs.delete_file(source_path).await.map_err(|e| {
-                        tool_runtime::ToolError::execution(
-                            tool_protocol::ToolId::new("apply_patch").expect("valid"),
+                        xvora_tool_runtime::ToolError::execution(
+                            xvora_tool_protocol::ToolId::new("apply_patch").expect("valid"),
                             e.to_string(),
                         )
                     })?;
@@ -522,9 +525,10 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Add File: new.txt\n+hello\n+world");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-            .await
-            .unwrap();
+        let result =
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+                .await
+                .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -553,9 +557,10 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Delete File: del.txt");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-            .await
-            .unwrap();
+        let result =
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+                .await
+                .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -583,9 +588,10 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Update File: update.txt\n@@\n foo\n-bar\n+baz");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-            .await
-            .unwrap();
+        let result =
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+                .await
+                .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -614,9 +620,10 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Update File: src.txt\n*** Move to: dst.txt\n@@\n-line\n+line2");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-            .await
-            .unwrap();
+        let result =
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+                .await
+                .unwrap();
 
         match result {
             ApplyPatchOutput::Success { files, .. } => {
@@ -646,9 +653,10 @@ mod tests {
             "*** Add File: a.txt\n+aaa\n\
              *** Add File: b.txt\n+bbb",
         );
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-            .await
-            .unwrap();
+        let result =
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+                .await
+                .unwrap();
 
         match result {
             ApplyPatchOutput::Success {
@@ -679,7 +687,7 @@ mod tests {
         let resources = test_resources(tmp.path());
         let shared = resources.into_shared();
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(shared.clone()),
             make_input("not a valid patch"),
@@ -707,9 +715,10 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = wrap_patch("*** Update File: file.txt\n@@\n-nonexistent\n+replacement");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
-            .await
-            .unwrap();
+        let result =
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(&patch))
+                .await
+                .unwrap();
 
         match result {
             ApplyPatchOutput::ApplicationError(msg) => {
@@ -729,9 +738,10 @@ mod tests {
         let shared = resources.into_shared();
 
         let patch = "*** Begin Patch\n*** End Patch";
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(patch))
-            .await
-            .unwrap();
+        let result =
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), make_input(patch))
+                .await
+                .unwrap();
 
         match result {
             ApplyPatchOutput::EmptyPatch(msg) => {

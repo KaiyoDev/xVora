@@ -140,6 +140,7 @@ fn test_app() -> AppView {
         contextual_hints: Default::default(),
         remote_contextual_hints: None,
         tip_seen_counts: Default::default(),
+        export_copy_slash_used: false,
         last_known_terminal_rows: 0,
         small_screen_tip_evaluated: false,
         ssh_wrap_tip_evaluated: false,
@@ -438,8 +439,8 @@ fn make_test_subagent(child_sid: &str, sa_id: &str) -> crate::app::subagent::Sub
         transcript: Default::default(),
     }
 }
-fn cta_entry(name: &str, status: &str) -> hooks_plugins_types::MarketplacePluginEntry {
-    hooks_plugins_types::MarketplacePluginEntry {
+fn cta_entry(name: &str, status: &str) -> xvora_hooks_plugins_types::MarketplacePluginEntry {
+    xvora_hooks_plugins_types::MarketplacePluginEntry {
         name: name.into(),
         version: None,
         description: None,
@@ -464,10 +465,10 @@ fn cta_entry(name: &str, status: &str) -> hooks_plugins_types::MarketplacePlugin
     }
 }
 fn cta_outcome(
-    status: hooks_plugins_types::OutcomeStatus,
+    status: xvora_hooks_plugins_types::OutcomeStatus,
     message: &str,
-) -> hooks_plugins_types::ActionOutcome {
-    hooks_plugins_types::ActionOutcome {
+) -> xvora_hooks_plugins_types::ActionOutcome {
+    xvora_hooks_plugins_types::ActionOutcome {
         status,
         message: message.into(),
         requires_reload: false,
@@ -676,8 +677,8 @@ fn fork_test_app() -> AppView {
 fn make_ask_user_question_args(
     tool_call_id: &str,
 ) -> (
-    acp_lib::AcpArgs<acp::ExtRequest>,
-    tokio::sync::oneshot::Receiver<acp_lib::AcpResult<acp::ExtResponse>>,
+    xvora_acp_lib::AcpArgs<acp::ExtRequest>,
+    tokio::sync::oneshot::Receiver<xvora_acp_lib::AcpResult<acp::ExtResponse>>,
 ) {
     use xvora_tools::implementations::grok_build::ask_user_question::{
         AskUserQuestionExtRequest, Question, QuestionOption,
@@ -706,7 +707,7 @@ fn make_ask_user_question_args(
             .into(),
     );
     (
-        acp_lib::AcpArgs {
+        xvora_acp_lib::AcpArgs {
             request: ext,
             response_tx: tx,
         },
@@ -936,7 +937,7 @@ fn enqueue_permission_with_enable_always_approve(
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: acp_lib::AcpArgs {
+        request: xvora_acp_lib::AcpArgs {
             request,
             response_tx,
         },
@@ -959,7 +960,8 @@ fn enqueue_permission_with_enable_always_approve(
     });
     response_rx
 }
-const POLICY_WARNING: &str = xvora_workspace::permission::resolution::YOLO_PIN_REASON_REQUIREMENTS;
+const POLICY_WARNING: &str =
+    xvora_workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode.message();
 fn agent_toast(app: &AppView) -> Option<String> {
     app.agents[&AgentId(0)]
         .toast
@@ -1043,7 +1045,7 @@ fn push_synthetic_permission(
     use crate::views::permission_view::{PermissionFocus, PermissionViewState};
     let (tx, rx) =
         tokio::sync::oneshot::channel::<Result<acp::RequestPermissionResponse, acp::Error>>();
-    let request = acp_lib::AcpArgs {
+    let request = xvora_acp_lib::AcpArgs {
         request: acp::RequestPermissionRequest::new(
             acp::SessionId::new(std::sync::Arc::from("sess-1")),
             acp::ToolCallUpdate::new(

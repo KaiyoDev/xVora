@@ -15,7 +15,7 @@ pub(super) async fn dispatch_tool(
     workspace_ops: &xvora_workspace::WorkspaceOps,
     prepared: &PreparedToolCall,
     session_id: &str,
-) -> Result<ToolRunResult, tool_runtime::ToolError> {
+) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
     tracing::debug!(
         tool = %prepared.tool_name,
         call_id = %prepared.tool_call_id.0,
@@ -87,7 +87,7 @@ fn canonicalize_existing_ancestor(path: &Path) -> Option<PathBuf> {
 
 /// Pull the path a read/list tool targets and classify it against the store.
 /// Keys span harnesses: `read_file` uses `target_file`, grep uses `path`, `list_dir` uses `target_directory`.
-/// The path grammar lives in `compaction_transcript`.
+/// The path grammar lives in `xvora_compaction_transcript`.
 pub(super) fn compaction_artifact_read(
     args: &serde_json::Value,
 ) -> Option<xvora_compaction_transcript::CompactionArtifact> {
@@ -404,7 +404,7 @@ pub(crate) const MAX_ARGS_IN_ERROR: usize = 2_000;
 /// The JSON position (e.g. a missing `"` before a key name) lets the model fix a one-character typo rather than regenerating a thousand-line file.
 pub(super) fn build_tool_parse_error_message(
     function_name: &str,
-    err: &tool_runtime::ToolError,
+    err: &xvora_tool_runtime::ToolError,
     raw_arguments: &str,
 ) -> String {
     let mut msg = format!("Failed to parse arguments for tool `{function_name}`: {err}");

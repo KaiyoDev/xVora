@@ -185,7 +185,7 @@ pub enum SchedulerError {
     Timeout,
 }
 
-pub fn scheduler_tool_error(error: SchedulerError) -> tool_runtime::ToolError {
+pub fn scheduler_tool_error(error: SchedulerError) -> xvora_tool_runtime::ToolError {
     let code = match &error {
         SchedulerError::InvalidInterval(_)
         | SchedulerError::TaskLimitReached(_)
@@ -197,7 +197,7 @@ pub fn scheduler_tool_error(error: SchedulerError) -> tool_runtime::ToolError {
         SchedulerError::Cancelled => "scheduler_cancelled",
         SchedulerError::Timeout => "scheduler_timeout",
     };
-    tool_runtime::ToolError::custom(code, error.to_string())
+    xvora_tool_runtime::ToolError::custom(code, error.to_string())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

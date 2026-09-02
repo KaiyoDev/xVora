@@ -96,12 +96,12 @@ fn workspace_dashboard_renders_snapshot_member_without_delete_control() {
     });
     let mut agents = IndexMap::new();
     let registry = crate::actions::ActionRegistry::defaults();
-    let snapshot = dashboard_store::WorkspaceSnapshot {
-        grouping: dashboard_store::Grouping::State,
-        members: vec![dashboard_store::Member {
-            session_id: dashboard_store::SessionId::new("saved-session").unwrap(),
-            kind: dashboard_store::MemberKind::Build,
-            origin: dashboard_store::MemberOrigin::Local,
+    let snapshot = xvora_dashboard_store::WorkspaceSnapshot {
+        grouping: xvora_dashboard_store::Grouping::State,
+        members: vec![xvora_dashboard_store::Member {
+            session_id: xvora_dashboard_store::SessionId::new("saved-session").unwrap(),
+            kind: xvora_dashboard_store::MemberKind::Build,
+            origin: xvora_dashboard_store::MemberOrigin::Local,
             cwd: Some("/tmp/saved".to_owned()),
             title: Some("Saved workspace session".to_owned()),
             model: Some("grok-test".to_owned()),

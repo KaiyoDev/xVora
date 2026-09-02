@@ -1,6 +1,5 @@
 use super::*;
-extern crate prompt_queue as _pq;
-use agent_lifecycle::ShutdownPolicy;
+use xvora_agent_lifecycle::ShutdownPolicy;
 
 /// Outcome of a queue send-now request ([`SessionActor::handle_interject_queued_prompt`]).
 /// `mutated` reports whether the request changed anything (promoted, steered, or saved an edit).
@@ -695,6 +694,9 @@ impl SessionActor {
         let Some(running_id) = running_front_id.as_deref() else {
             return;
         };
+        if crate::session::PromptOrigin::from_prompt_id(running_id).is_auto_wake() {
+            return;
+        }
         let running_owner = state
             .pending_inputs
             .iter()
@@ -1099,14 +1101,14 @@ impl SessionActor {
             .any(|item| item.is_queue_protected() && item.has_queue_id(id))
     }
 
-    /// Merge consecutive plain prompts into `pending[0]` via [`prompt_queue::combine_prefix_len`].
+    /// Merge consecutive plain prompts into `pending[0]` via [`xvora_prompt_queue::combine_prefix_len`].
     /// `skip_ids` holds rows under composer edit.
     /// Merged-away items complete as [`PromptCompletionKind::RemovedFromQueue`].
     pub(super) fn combine_front_pending_inputs(
         pending: &mut std::collections::VecDeque<InputItem>,
         skip_ids: &[&str],
     ) {
-        use _pq::{CombineGate, combine_prefix_len};
+        use xvora_prompt_queue::{CombineGate, combine_prefix_len};
 
         if pending.len() < 2 {
             return;
@@ -1131,7 +1133,7 @@ impl SessionActor {
         }
     }
 
-    fn combine_gate(item: &InputItem) -> _pq::CombineGate<'_> {
+    fn combine_gate(item: &InputItem) -> xvora_prompt_queue::CombineGate<'_> {
         let is_bash = Self::extract_bash_command(&item.prompt_blocks).is_some();
         let is_plain_prompt = item.is_queue_editable()
             && item.queue_meta.as_ref().map(|m| m.kind.as_str()) == Some("prompt")
@@ -1160,7 +1162,7 @@ impl SessionActor {
             .as_ref()
             .map(|m| m.text.as_str())
             .unwrap_or("");
-        _pq::CombineGate {
+        xvora_prompt_queue::CombineGate {
             id: item.prompt_id.as_str(),
             // A row with its own override can't merge into another turn (the merge would drop its override)
             is_plain_prompt: is_plain_prompt
@@ -1195,7 +1197,7 @@ impl SessionActor {
     }
 
     fn joined_text_blocks(blocks: &[acp::ContentBlock]) -> String {
-        use _pq::join_texts;
+        use xvora_prompt_queue::join_texts;
         join_texts(blocks.iter().filter_map(|block| match block {
             acp::ContentBlock::Text(t) if !t.text.is_empty() => Some(t.text.as_str()),
             _ => None,
@@ -1203,7 +1205,7 @@ impl SessionActor {
     }
 
     fn append_text_to_prompt(item: &mut InputItem, extra: &str) {
-        use _pq::TEXT_SEPARATOR;
+        use xvora_prompt_queue::TEXT_SEPARATOR;
 
         if extra.is_empty() {
             return;
@@ -1235,7 +1237,7 @@ impl SessionActor {
     }
 
     fn stamp_combined_display_texts_meta(item: &mut InputItem) {
-        use _pq::stamp_combined_display_texts;
+        use xvora_prompt_queue::stamp_combined_display_texts;
 
         let Some(segs) = item
             .queue_meta

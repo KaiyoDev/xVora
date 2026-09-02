@@ -7,10 +7,10 @@ use crate::permission::{
     manager::web_fetch_deny_key_from_url,
     types::{AccessKind, ClientType, HOOK_ASK_META_KEY, HookAsk},
 };
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol::{self as acp, Client as _};
-use session_events::{Event, EventWriter, PermissionDecision};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_mcp::servers::parse_mcp_qualified_name;
+use xvora_session_events::{Event, EventWriter, PermissionDecision};
 use xvora_tools::implementations::grok_build::web_fetch::domain_from_url;
 
 const REJECT_ONCE_LABEL: &str = "No, and tell Grok what to do differently";
@@ -2090,7 +2090,7 @@ mod tests {
     /// That still exercises both emissions and the Error-to-Deny decision mapping.
     #[tokio::test]
     async fn request_emits_permission_requested_and_resolved() {
-        use session_events::EventWriter;
+        use xvora_session_events::EventWriter;
 
         let dir = tempfile::tempdir().unwrap();
         let writer = EventWriter::open(dir.path());

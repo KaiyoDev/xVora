@@ -77,31 +77,34 @@ Use this after you have finished writing your plan to the plan file in plan mode
                 &EnterPlanModeTool,
             )
             .to_string(),
-            id: tool_runtime::Tool::id(&EnterPlanModeTool).to_string(),
+            id: xvora_tool_runtime::Tool::id(&EnterPlanModeTool).to_string(),
             if_params: None,
         })
     }
 }
 
-impl tool_runtime::Tool for ExitPlanModeTool {
+impl xvora_tool_runtime::Tool for ExitPlanModeTool {
     type Args = ExitPlanModeInput;
     type Output = ExitPlanModeOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("exit_plan_mode").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("exit_plan_mode").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "exit_plan_mode",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -109,9 +112,9 @@ impl tool_runtime::Tool for ExitPlanModeTool {
     #[tracing::instrument(name = "tool.exit_plan_mode", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         _input: ExitPlanModeInput,
-    ) -> Result<ExitPlanModeOutput, tool_runtime::ToolError> {
+    ) -> Result<ExitPlanModeOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -205,12 +208,15 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = ExitPlanModeTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "exit_plan_mode");
+        assert_eq!(
+            xvora_tool_runtime::Tool::id(&tool).as_str(),
+            "exit_plan_mode"
+        );
     }
 
     #[test]
     fn tool_is_read_only() {
-        assert!(tool_runtime::Tool::capabilities(&ExitPlanModeTool).is_read_only);
+        assert!(xvora_tool_runtime::Tool::capabilities(&ExitPlanModeTool).is_read_only);
     }
 
     #[test]
@@ -236,7 +242,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = ExitPlanModeTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             ExitPlanModeInput {},
@@ -270,7 +276,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = ExitPlanModeTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             ExitPlanModeInput {},
@@ -289,7 +295,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = ExitPlanModeTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             ExitPlanModeInput {},
@@ -315,7 +321,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = ExitPlanModeTool;
 
-        tool_runtime::Tool::run(
+        xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "call-99"),
             ExitPlanModeInput {},
@@ -341,7 +347,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = ExitPlanModeTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             ExitPlanModeInput {},
@@ -362,7 +368,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = ExitPlanModeTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             ExitPlanModeInput {},
@@ -391,7 +397,7 @@ mod tests {
         resources.insert(PlanFilePath(plan_file.clone()));
         let shared = resources.into_shared();
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &ExitPlanModeTool,
             test_ctx_with_call_id(shared, "t1"),
             ExitPlanModeInput {},

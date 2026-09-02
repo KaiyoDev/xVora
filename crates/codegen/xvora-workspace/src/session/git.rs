@@ -66,7 +66,7 @@ pub async fn git_cli(cwd: &Path, args: &[&str]) -> Result<String> {
     tracing::debug!(cwd = %cwd.display(), args = ?args, "git_cli");
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).arg("--no-optional-locks");
-    for &(key, val) in tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
+    for &(key, val) in xvora_tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
         cmd.env(key, val);
     }
     cmd.stdin(std::process::Stdio::null());
@@ -2726,7 +2726,7 @@ async fn git_cli_raw(cwd: &Path, args: &[&str]) -> Result<(bool, String)> {
     tracing::debug!(cwd = %cwd.display(), args = ?args, "git_cli_raw");
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).arg("--no-optional-locks");
-    for &(key, val) in tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
+    for &(key, val) in xvora_tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
         cmd.env(key, val);
     }
     cmd.env("LC_ALL", "C");
@@ -2749,7 +2749,7 @@ async fn git_cli_status(cwd: &Path, args: &[&str]) -> Result<(i32, String)> {
     tracing::debug!(cwd = %cwd.display(), args = ?args, "git_cli_status");
     let mut cmd = Command::new("git");
     cmd.current_dir(cwd).arg("--no-optional-locks");
-    for &(key, val) in tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
+    for &(key, val) in xvora_tty_utils::GIT_AUTH_SUPPRESSION_ENVS.iter() {
         cmd.env(key, val);
     }
     cmd.env("LC_ALL", "C");

@@ -125,7 +125,7 @@ struct Inner {
     auth_manager: Arc<AuthManager>,
     cfg: RwLock<config::Config>,
     fetch_auth: RwLock<ModelFetchAuth>,
-    gateway: RwLock<Option<acp_lib::AcpAgentGatewaySender>>,
+    gateway: RwLock<Option<xvora_acp_lib::AcpAgentGatewaySender>>,
     cache: ModelsCacheManager,
     endpoint: Arc<dyn ModelsEndpoint>,
     /// Guard to prevent overlapping retry loops.
@@ -266,6 +266,7 @@ impl ModelsManagerBuilder {
             inner: Arc::new(Inner {
                 catalog: RwLock::new(CatalogState {
                     prefetched: self.prefetched,
+                    allowlist_excludes_all: allowlist_matches_nothing(&self.cfg, &self.models),
                     models: self.models,
                     ..Default::default()
                 }),
@@ -335,6 +336,10 @@ impl ModelsManager {
         let has_prefetched = prefetched_models.is_some();
         let catalog = resolve_model_catalog(cfg, prefetched_models.clone());
 
+        // Only against a real catalog. A fleet pin on built-ins-only (custom
+        // endpoint, cold cache) would reject a valid policy before the first
+        // fetch. The catalog still marks unselectable entries; this check
+        // runs after prefetch / cache.
         if has_prefetched {
             validate_selectable(cfg, &catalog)?;
         }
@@ -369,7 +374,7 @@ impl ModelsManager {
         Ok(mgr)
     }
 
-    pub(crate) fn set_gateway(&self, gateway: acp_lib::AcpAgentGatewaySender) {
+    pub(crate) fn set_gateway(&self, gateway: xvora_acp_lib::AcpAgentGatewaySender) {
         *self.inner.gateway.write() = Some(gateway);
     }
 

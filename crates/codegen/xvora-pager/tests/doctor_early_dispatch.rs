@@ -654,8 +654,8 @@ fn base_pager_command(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .envs(tty_utils::pager_env());
-    tty_utils::detach_std_command(&mut command);
+        .envs(xvora_tty_utils::pager_env());
+    xvora_tty_utils::detach_std_command(&mut command);
     command
 }
 

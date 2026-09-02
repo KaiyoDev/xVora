@@ -27,19 +27,19 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tool_protocol::{
+use tracing::{debug, warn};
+use url::Url;
+use xvora_tool_protocol::{
     ConnectionKind, HookEvent, HookFrame, HookReplyFrame, JsonRpcError, JsonRpcId,
     JsonRpcNotification, JsonRpcResponse, JsonRpcVersion, Method, ResponseOutcome, SessionId,
     ToolCallId, ToolCallParams, ToolCallProgressFrame, ToolCallResult, ToolErrorWire, ToolId,
     ToolOutputWire, ToolServerEvictParams, error_codes,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     BehaviorVersion, Cancellation, Cwd, ToolCallContext, ToolError, ToolProgress, ToolStream,
     ToolStreamItem, TraceContext, TypedToolOutput,
 };
-use tool_types::ToolDescription;
-use tracing::{debug, warn};
-use url::Url;
+use xvora_tool_types::ToolDescription;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::cancel::CancelRegistry;
@@ -89,7 +89,8 @@ fn system_notify_ack_from_outcome(
         // require `data` absent so a richer error still flows through the normal taxonomy.
         ResponseOutcome::Error(err)
             if err.data.is_none()
-                && tool_protocol::error_codes::string_for(err.code) == Some("method_not_found") =>
+                && xvora_tool_protocol::error_codes::string_for(err.code)
+                    == Some("method_not_found") =>
         {
             Ok(SystemNotifyAck::ForwardingUnsupported)
         }
@@ -113,10 +114,10 @@ type SessionHandlerMap =
 pub struct ResolvedSessionHandlers {
     pub handlers: Vec<Arc<dyn ToolServerHandler>>,
     /// Tool ids the resolver declined to serve; forwarded as
-    /// [`tool_protocol::SessionBindResult::unserved_tool_ids`].
+    /// [`xvora_tool_protocol::SessionBindResult::unserved_tool_ids`].
     pub unserved_tool_ids: Vec<String>,
     /// Human-readable reason the resolver failed the toolset closed;
-    /// forwarded as [`tool_protocol::SessionBindResult::resolve_error`].
+    /// forwarded as [`xvora_tool_protocol::SessionBindResult::resolve_error`].
     pub resolve_error: Option<String>,
 }
 
@@ -153,7 +154,7 @@ pub type SessionHandlerResolver = Arc<
 ///
 /// The server speaks JSON, so handlers receive `serde_json::Value`
 /// arguments and return a `ToolStream<Value>`. Implementations that
-/// already use [`tool_runtime::Tool`] can adapt by calling the
+/// already use [`xvora_tool_runtime::Tool`] can adapt by calling the
 /// underlying tool's `execute` and serialising the typed output.
 #[async_trait]
 pub trait ToolServerHandler: Send + Sync + 'static {
@@ -223,7 +224,7 @@ pub struct ToolServerBuilder {
     on_terminal_close: Option<Arc<TerminalCloseCallback>>,
     on_connect: Option<Arc<ConnectCallback>>,
     metadata: Option<serde_json::Value>,
-    server_id: Option<tool_protocol::ServerId>,
+    server_id: Option<xvora_tool_protocol::ServerId>,
     server_description: Option<String>,
     alpha_test_key: Option<String>,
     allow_insecure_ws: bool,
@@ -237,8 +238,20 @@ pub struct ToolServerBuilder {
     reconnect_after_terminal_close_codes: Vec<u16>,
     initial_connect_attempt_timeout: Option<std::time::Duration>,
     session_handler_resolver: Option<SessionHandlerResolver>,
+    on_session_unbound: Option<Arc<SessionUnboundCallback>>,
     binary_version: Option<String>,
     image_capabilities: Vec<String>,
+}
+
+/// Embedder callback for hub-initiated session unbinds (see
+/// [`ToolServerBuilder::on_session_unbound`]).
+pub type SessionUnboundCallback = dyn Fn(&SessionId) + Send + Sync;
+
+/// One dynamic tool registration: the handler plus the embedder "life"
+/// generation that made it (see [`ToolServer::register_tool_dynamic`]).
+struct DynamicRegistration {
+    generation: u64,
+    handler: Arc<dyn ToolServerHandler>,
 }
 
 impl ToolServerBuilder {
@@ -466,7 +479,7 @@ impl ToolServerBuilder {
 
     /// Stable server identity for `servers.list` discovery and
     /// `session.open` addressing. Sent in the hello frame.
-    pub fn server_id(mut self, id: tool_protocol::ServerId) -> Self {
+    pub fn server_id(mut self, id: xvora_tool_protocol::ServerId) -> Self {
         self.server_id = Some(id);
         self
     }
@@ -490,15 +503,32 @@ impl ToolServerBuilder {
         self
     }
 
+    /// Notify the embedder after the HUB unbinds a session (`session.unbind`
+    /// frame): the hub sends it on `session.close`, on the agent's explicit
+    /// `session_unbind_server`, and when the last harness connection is
+    /// cleaned up after a disconnect. The SDK has already removed the
+    /// session's handlers when this fires; the embedder uses it to tear down
+    /// whatever it runs per session (e.g. MCP server child processes), which
+    /// would otherwise outlive the session. Called from an async task —
+    /// spawn, don't block. Embedder-initiated
+    /// [`ToolServer::unbind_session`] calls do NOT fire it.
+    pub fn on_session_unbound<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(&SessionId) + Send + Sync + 'static,
+    {
+        self.on_session_unbound = Some(Arc::new(cb));
+        self
+    }
+
     /// Version of the embedding binary, echoed as
-    /// [`tool_protocol::SessionBindResult::binary_version`].
+    /// [`xvora_tool_protocol::SessionBindResult::binary_version`].
     pub fn binary_version(mut self, version: impl Into<String>) -> Self {
         self.binary_version = Some(version.into());
         self
     }
 
     /// Image capability tokens echoed on every bind as
-    /// [`tool_protocol::SessionBindResult::image_capabilities`]. The
+    /// [`xvora_tool_protocol::SessionBindResult::image_capabilities`]. The
     /// caller validates and sorts them; the SDK forwards them verbatim.
     pub fn image_capabilities(mut self, tokens: Vec<String>) -> Self {
         self.image_capabilities = tokens;
@@ -609,7 +639,9 @@ impl ToolServerBuilder {
             initial_handlers: self.handlers,
             initial_sessions: self.sessions,
             session_handler_resolver: self.session_handler_resolver,
+            on_session_unbound: self.on_session_unbound,
             session_handlers: Arc::new(parking_lot::RwLock::new(HashMap::new())),
+            dynamic_handlers: parking_lot::RwLock::new(HashMap::new()),
             session_unserved: parking_lot::RwLock::new(HashMap::new()),
             session_resolve_errors: parking_lot::RwLock::new(HashMap::new()),
             binary_version: self.binary_version,
@@ -640,6 +672,25 @@ pub struct ToolServer {
     inner: Option<Arc<ToolServerInner>>,
 }
 
+/// The handler set a resolver install actually publishes: the resolver's
+/// handlers plus the session's surviving dynamic registrations, with the
+/// resolver winning tool-id collisions. Pure so the soft-rebind survival
+/// contract is unit-testable without a live hub connection.
+fn merge_resolved_with_dynamic(
+    resolved: Vec<Arc<dyn ToolServerHandler>>,
+    dynamic: Vec<Arc<dyn ToolServerHandler>>,
+) -> Vec<Arc<dyn ToolServerHandler>> {
+    let resolved_ids: std::collections::HashSet<ToolId> =
+        resolved.iter().map(|h| h.tool_id()).collect();
+    let mut merged = resolved;
+    merged.extend(
+        dynamic
+            .into_iter()
+            .filter(|handler| !resolved_ids.contains(&handler.tool_id())),
+    );
+    merged
+}
+
 /// Non-owning handle to a [`ToolServer`]; [`Self::upgrade`] per use.
 #[derive(Clone, Default)]
 pub struct WeakToolServer {
@@ -663,8 +714,23 @@ struct ToolServerInner {
     /// created before the dispatch loop starts.
     initial_sessions: Vec<SessionId>,
     session_handler_resolver: Option<SessionHandlerResolver>,
+    /// Fired after a HUB-initiated `session.unbind` finishes unbinding;
+    /// see [`ToolServerBuilder::on_session_unbound`].
+    on_session_unbound: Option<Arc<SessionUnboundCallback>>,
     /// Per-session handler maps. Each session owns its own handler vec.
     session_handlers: SessionHandlerMap,
+    /// Per-session handlers added via [`ToolServer::register_tool_dynamic`],
+    /// tracked separately so a resolver re-run (soft rebind) can preserve
+    /// them: dynamic registrations survive a rebind, with the resolver's
+    /// handlers winning tool-id collisions. Removed by
+    /// `unregister_tool_dynamic` (matching generation only) and
+    /// `unbind_session`. A dynamic handler shadowed by a resolver tool
+    /// STAYS registered here — only its publication is suppressed — so it
+    /// re-appears if a later install no longer claims the id (see
+    /// `merge_resolved_with_dynamic`'s tests). Each entry carries the
+    /// embedder "life" generation that made it, so a stale unregister can
+    /// never hit a newer life's registration.
+    dynamic_handlers: parking_lot::RwLock<HashMap<SessionId, Vec<DynamicRegistration>>>,
     /// Per-session unserved tool ids from the last resolver run; same
     /// lifetime as the `session_handlers` entry.
     session_unserved: parking_lot::RwLock<HashMap<SessionId, Vec<String>>>,
@@ -879,10 +945,26 @@ impl ToolServer {
 
         match resolved {
             Some(resolved) => {
+                // Dynamic registrations survive a soft rebind: the resolver
+                // describes the session's base tool set, while dynamically
+                // registered tools (e.g. MCP tools published after the
+                // session came up) are owned by `register_tool_dynamic` /
+                // `unregister_tool_dynamic` and must not be wiped by a
+                // resolver re-run. The resolver's handlers win id collisions.
+                let installed = {
+                    let dynamic: Vec<Arc<dyn ToolServerHandler>> = self
+                        .inner()
+                        .dynamic_handlers
+                        .read()
+                        .get(&sid)
+                        .map(|regs| regs.iter().map(|reg| reg.handler.clone()).collect())
+                        .unwrap_or_default();
+                    merge_resolved_with_dynamic(resolved.handlers, dynamic)
+                };
                 self.inner()
                     .session_handlers
                     .write()
-                    .insert(sid.clone(), resolved.handlers);
+                    .insert(sid.clone(), installed);
                 self.inner()
                     .session_unserved
                     .write()
@@ -992,13 +1074,13 @@ impl ToolServer {
     pub async fn serve(&self, session_id: SessionId) -> Result<(), ClientError> {
         // Build tool descriptions while holding the read lock so the
         // handler list cannot mutate between read and serialization.
-        let tools: Vec<tool_protocol::ToolDescriptionWithSchema> = {
+        let tools: Vec<xvora_tool_protocol::ToolDescriptionWithSchema> = {
             let map = self.inner().session_handlers.read();
             let handlers = map.get(&session_id);
             handlers
                 .map(|h| {
                     h.iter()
-                        .map(|h| tool_protocol::ToolDescriptionWithSchema {
+                        .map(|h| xvora_tool_protocol::ToolDescriptionWithSchema {
                             description: h.description(),
                             input_schema: h.input_schema(),
                             capabilities: None,
@@ -1009,14 +1091,23 @@ impl ToolServer {
                 .unwrap_or_default()
         };
 
-        let params = tool_protocol::ServeParams { tools };
+        let params = xvora_tool_protocol::ServeParams { tools };
 
         let connection = self.inner().borrow.connection();
         connection.serve(session_id, params).await?;
         Ok(())
     }
 
-    /// Register a tool handler at runtime for the given sessions.
+    /// Register a tool handler at runtime for the given sessions, owned by
+    /// `generation` (an embedder-defined monotonic "life" counter — the
+    /// workspace passes its per-session MCP life epoch).
+    ///
+    /// Registrations are life-scoped: a registration whose ledger entry
+    /// carries an OLDER generation is superseded by this one (a revived
+    /// life re-registering an id a stale, still-in-flight teardown never
+    /// unregistered), while a same-or-newer generation entry — or a
+    /// non-dynamic handler such as a resolver-installed native — refuses
+    /// the duplicate exactly as before.
     ///
     /// Adds the handler to the local session handler map and replays
     /// `serve` for each affected session so the server sees the updated
@@ -1025,67 +1116,128 @@ impl ToolServer {
         &self,
         handler: Arc<dyn ToolServerHandler>,
         sessions: Vec<SessionId>,
+        generation: u64,
     ) -> Result<(), ClientError> {
         let _guard = self.inner().dynamic_tool_mu.lock().await;
 
         let tool_id = handler.tool_id();
 
-        // Reject duplicates within the target sessions.
+        // Per session, the ledger decides: a SAME-generation entry makes
+        // this call an idempotent no-op (reconcile passes within one life
+        // re-offer the same claims); an OLDER-generation entry is
+        // superseded; a NEWER-generation entry, or a same-id handler that is
+        // not a dynamic registration at all (a resolver-installed native),
+        // refuses the duplicate.
+        let mut to_serve: Vec<SessionId> = Vec::new();
         {
             let map = self.inner().session_handlers.read();
+            let dynamic = self.inner().dynamic_handlers.read();
             for sid in &sessions {
-                if let Some(handlers) = map.get(sid)
-                    && handlers.iter().any(|h| h.tool_id() == tool_id)
-                {
-                    return Err(ClientError::InvalidConfig(format!(
-                        "tool_id {tool_id} is already registered for session {sid}"
-                    )));
+                let ledger = dynamic.get(sid).and_then(|regs| {
+                    regs.iter()
+                        .find(|reg| reg.handler.tool_id() == tool_id)
+                        .map(|reg| reg.generation)
+                });
+                match ledger {
+                    Some(existing) if existing == generation => continue, // idempotent
+                    Some(existing) if existing < generation => to_serve.push(sid.clone()),
+                    Some(_) => {
+                        return Err(ClientError::InvalidConfig(format!(
+                            "tool_id {tool_id} is registered for session {sid} by a newer life"
+                        )));
+                    }
+                    None => {
+                        if map
+                            .get(sid)
+                            .is_some_and(|handlers| handlers.iter().any(|h| h.tool_id() == tool_id))
+                        {
+                            return Err(ClientError::InvalidConfig(format!(
+                                "tool_id {tool_id} is already registered for session {sid}"
+                            )));
+                        }
+                        to_serve.push(sid.clone());
+                    }
                 }
             }
         }
 
-        // Insert into each target session's handler list.
+        // Insert into each target session's handler list, and record the
+        // handler as dynamic so a resolver re-run (soft rebind) preserves
+        // it. A superseded older-generation registration is removed by ARC
+        // IDENTITY, so a resolver-installed handler sharing the id is never
+        // touched.
         {
             let mut map = self.inner().session_handlers.write();
-            for sid in &sessions {
+            let mut dynamic = self.inner().dynamic_handlers.write();
+            for sid in &to_serve {
+                if let Some(regs) = dynamic.get_mut(sid) {
+                    let stale: Vec<Arc<dyn ToolServerHandler>> = regs
+                        .iter()
+                        .filter(|reg| {
+                            reg.handler.tool_id() == tool_id && reg.generation < generation
+                        })
+                        .map(|reg| reg.handler.clone())
+                        .collect();
+                    regs.retain(|reg| {
+                        !(reg.handler.tool_id() == tool_id && reg.generation < generation)
+                    });
+                    if let Some(handlers) = map.get_mut(sid) {
+                        handlers.retain(|h| !stale.iter().any(|stale_h| Arc::ptr_eq(h, stale_h)));
+                    }
+                }
                 map.entry(sid.clone()).or_default().push(handler.clone());
+                dynamic
+                    .entry(sid.clone())
+                    .or_default()
+                    .push(DynamicRegistration {
+                        generation,
+                        handler: handler.clone(),
+                    });
             }
         }
 
         // Replay `serve` for each affected session so the server sees
         // the updated tool set.
-        for sid in sessions {
+        for sid in to_serve {
             self.serve(sid).await?;
         }
 
         Ok(())
     }
 
-    /// Remove a dynamically registered tool from a specific session.
-    /// Returns `Ok(false)` if not found.
+    /// Remove a dynamically registered tool from a specific session, but
+    /// only when its ledger entry carries exactly `generation`: a stale
+    /// unregister (an in-flight teardown of a life a revive has since
+    /// superseded) is a no-op, and a handler that is not a dynamic
+    /// registration at all — a resolver-installed native sharing the id —
+    /// is never touched (removal is by ARC identity, not id).
+    /// Returns `Ok(false)` if no matching registration exists.
     pub async fn unregister_tool_dynamic(
         &self,
         tool_id: &ToolId,
         session_id: &SessionId,
+        generation: u64,
     ) -> Result<bool, ClientError> {
         let _guard = self.inner().dynamic_tool_mu.lock().await;
 
-        // Check existence in the target session.
-        {
-            let map = self.inner().session_handlers.read();
-            let found = map
-                .get(session_id)
-                .is_some_and(|h| h.iter().any(|h| h.tool_id() == *tool_id));
-            if !found {
+        // Find (and remove) the exact life's registration.
+        let removed: Option<Arc<dyn ToolServerHandler>> = {
+            let mut dynamic = self.inner().dynamic_handlers.write();
+            let Some(regs) = dynamic.get_mut(session_id) else {
                 return Ok(false);
-            }
-        }
-
-        // Remove from the session's handler list.
-        {
+            };
+            let Some(index) = regs
+                .iter()
+                .position(|reg| reg.handler.tool_id() == *tool_id && reg.generation == generation)
+            else {
+                return Ok(false);
+            };
+            Some(regs.remove(index).handler)
+        };
+        if let Some(removed) = removed {
             let mut map = self.inner().session_handlers.write();
             if let Some(handlers) = map.get_mut(session_id) {
-                handlers.retain(|h| h.tool_id() != *tool_id);
+                handlers.retain(|h| !Arc::ptr_eq(h, &removed));
             }
         }
 
@@ -1110,6 +1262,7 @@ impl ToolServer {
             .retain(|s| s != session_id);
 
         self.inner().session_handlers.write().remove(session_id);
+        self.inner().dynamic_handlers.write().remove(session_id);
         self.inner().session_unserved.write().remove(session_id);
         self.inner()
             .session_resolve_errors
@@ -1157,7 +1310,7 @@ impl ToolServer {
     /// outbound message is queued, without waiting for a server ack.
     pub async fn send_notification(
         &self,
-        notification: tool_protocol::ToolNotificationFrame,
+        notification: xvora_tool_protocol::ToolNotificationFrame,
     ) -> Result<(), ClientError> {
         let session = self
             .inner()
@@ -1172,7 +1325,7 @@ impl ToolServer {
             })?;
         let connection = self.inner().borrow.connection();
         let request_id = connection.try_alloc_request_id()?;
-        let req = tool_protocol::JsonRpcRequest {
+        let req = xvora_tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session),
@@ -1188,19 +1341,19 @@ impl ToolServer {
     pub async fn send_system_notification(
         &self,
         session_id: SessionId,
-        params: tool_protocol::SystemNotifyParams,
+        params: xvora_tool_protocol::SystemNotifyParams,
     ) -> Result<SystemNotifyAck, ClientError> {
         // Fail fast on an oversized payload instead of round-tripping to the server.
         let payload_len = json_serialized_len(&params.payload)?;
-        if payload_len > tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES {
+        if payload_len > xvora_tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES {
             return Err(ClientError::ProtocolError(format!(
                 "system.notify payload {payload_len} bytes exceeds {} byte cap",
-                tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES
+                xvora_tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES
             )));
         }
         let connection = self.inner().borrow.connection();
         let request_id = connection.try_alloc_request_id()?;
-        let req = tool_protocol::JsonRpcRequest {
+        let req = xvora_tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session_id),
@@ -1257,7 +1410,7 @@ impl ToolServer {
         let hook_id = ToolCallId::new_v7().to_string();
         let hook = HookFrame::custom_request(session_id.clone(), hook_id, kind, payload);
         let request_id = connection.try_alloc_request_id()?;
-        let req = tool_protocol::JsonRpcRequest {
+        let req = xvora_tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session_id),
@@ -1294,7 +1447,7 @@ impl ToolServer {
                 )
             })?;
         let connection = self.inner().borrow.connection();
-        let notification = tool_protocol::JsonRpcNotification {
+        let notification = xvora_tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: Some(session),
             seq: None,
@@ -1329,7 +1482,7 @@ impl ToolServer {
                 )
             })?;
         let connection = self.inner().borrow.connection();
-        let notification = tool_protocol::JsonRpcNotification {
+        let notification = xvora_tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: Some(session),
             seq: None,
@@ -1354,7 +1507,7 @@ impl ToolServer {
             otlp_request: &'a str,
         }
         let connection = self.inner().borrow.connection();
-        let notification = tool_protocol::JsonRpcNotification {
+        let notification = xvora_tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: None,
             seq: None,
@@ -1452,7 +1605,7 @@ impl ToolServer {
                         else {
                             continue;
                         };
-                        let Ok(sid) = tool_protocol::SessionId::new(sid_str) else {
+                        let Ok(sid) = xvora_tool_protocol::SessionId::new(sid_str) else {
                             continue;
                         };
                         tracing::info!(%sid, "session.bind: binding new session");
@@ -1471,12 +1624,12 @@ impl ToolServer {
                             if let Some(id) = request_id {
                                 let response = match result {
                                     Ok(()) => {
-                                        let tools: Vec<tool_types::ToolDescription> = server
+                                        let tools: Vec<xvora_tool_types::ToolDescription> = server
                                             .handlers_for_session(&sid)
                                             .iter()
                                             .map(|h| h.description())
                                             .collect();
-                                        let result = tool_protocol::SessionBindResult {
+                                        let result = xvora_tool_protocol::SessionBindResult {
                                             tools,
                                             binary_version: server.inner().binary_version.clone(),
                                             unserved_tool_ids: server.unserved_for_session(&sid),
@@ -1538,7 +1691,7 @@ impl ToolServer {
                         else {
                             continue;
                         };
-                        let Ok(sid) = tool_protocol::SessionId::new(sid_str) else {
+                        let Ok(sid) = xvora_tool_protocol::SessionId::new(sid_str) else {
                             continue;
                         };
                         tracing::info!(%sid, "session.unbind: unbinding session");
@@ -1549,6 +1702,13 @@ impl ToolServer {
                             // Unbind precedes hibernate: flush while up.
                             server.flush_donations().await;
                             let _ = server.unbind_session(&sid).await;
+                            // The hub says this session is gone — let the
+                            // embedder tear down whatever it runs for it
+                            // (MCP children, terminals, ...), which nothing
+                            // else would ever clean up.
+                            if let Some(cb) = server.inner().on_session_unbound.clone() {
+                                cb(&sid);
+                            }
 
                             // Respond so session.close returns synchronously.
                             if let Some(id) = request_id {
@@ -1830,7 +1990,7 @@ async fn teardown_sessions(inner: &ToolServerInner) {
 /// Must be called before `unregister_session` (the server needs the
 /// session bindings to route the notification).
 async fn push_disconnect_status(connection: &HubConnection, sessions: &[SessionId]) {
-    use tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
+    use xvora_tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
 
     for sid in sessions {
         let mut payload =
@@ -2185,8 +2345,9 @@ async fn execute_call(
         .unwrap_or_else(fastrace::Span::noop);
 
     let mut ctx = ToolCallContext::new(params.tool_call_id.clone());
-    ctx.extensions
-        .insert(tool_runtime::SessionContext(session_id.as_str().to_owned()));
+    ctx.extensions.insert(xvora_tool_runtime::SessionContext(
+        session_id.as_str().to_owned(),
+    ));
     if let Some(cwd) = params.cwd {
         ctx.extensions.insert(Cwd(std::path::PathBuf::from(cwd)));
     }
@@ -2416,7 +2577,7 @@ async fn send_overloaded(connection: &Arc<HubConnection>, id: JsonRpcId, session
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tool_runtime::ContentBlock;
+    use xvora_tool_runtime::ContentBlock;
 
     fn call_id() -> ToolCallId {
         ToolCallId::new_v7()
@@ -2691,5 +2852,76 @@ mod tests {
             data: None,
         });
         assert!(system_notify_ack_from_outcome(outcome).is_err());
+    }
+
+    struct MergeTestHandler(ToolId);
+
+    #[async_trait::async_trait]
+    impl ToolServerHandler for MergeTestHandler {
+        fn tool_id(&self) -> ToolId {
+            self.0.clone()
+        }
+        fn description(&self) -> xvora_tool_types::ToolDescription {
+            xvora_tool_types::ToolDescription::new(self.0.as_str().to_owned(), "test")
+        }
+        fn input_schema(&self) -> Option<Value> {
+            None
+        }
+        async fn handle_call(
+            &self,
+            _ctx: xvora_tool_runtime::ToolCallContext,
+            _args: Value,
+        ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
+            unreachable!("merge test never calls tools")
+        }
+    }
+
+    fn merge_handler(id: &str) -> Arc<dyn ToolServerHandler> {
+        Arc::new(MergeTestHandler(ToolId::new(id).unwrap()))
+    }
+
+    /// Dynamic registrations survive a resolver install (soft rebind), and
+    /// the resolver's handlers win tool-id collisions.
+    #[test]
+    fn resolver_install_preserves_dynamic_handlers() {
+        let merged = merge_resolved_with_dynamic(
+            vec![merge_handler("native"), merge_handler("shared")],
+            vec![merge_handler("mcp_tool"), merge_handler("shared")],
+        );
+        let ids: Vec<String> = merged
+            .iter()
+            .map(|h| h.tool_id().as_str().to_owned())
+            .collect();
+        assert_eq!(ids, ["native", "shared", "mcp_tool"]);
+    }
+
+    /// A dynamic handler shadowed by a resolver tool is suppressed, not
+    /// dropped: it stays in `dynamic_handlers`, so a later install that no
+    /// longer claims the id publishes it again.
+    #[test]
+    fn shadowed_dynamic_handler_reappears_when_the_shadow_lifts() {
+        // The stored dynamic set is unchanged by installs; only the merged
+        // publication varies with what the resolver claims.
+        let dynamic = || vec![merge_handler("shared")];
+
+        let shadowed = merge_resolved_with_dynamic(vec![merge_handler("shared")], dynamic());
+        assert_eq!(
+            shadowed
+                .iter()
+                .map(|h| h.tool_id().as_str().to_owned())
+                .collect::<Vec<_>>(),
+            ["shared"],
+            "while shadowed, the resolver's handler is the only publication"
+        );
+
+        let lifted = merge_resolved_with_dynamic(vec![merge_handler("native")], dynamic());
+        assert_eq!(
+            lifted
+                .iter()
+                .map(|h| h.tool_id().as_str().to_owned())
+                .collect::<Vec<_>>(),
+            ["native", "shared"],
+            "once the resolver stops claiming the id, the dynamic handler re-appears"
+        );
     }
 }

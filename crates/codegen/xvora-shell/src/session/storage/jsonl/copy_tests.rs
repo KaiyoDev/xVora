@@ -1,4 +1,3 @@
-use crate::test_support;
 use crate::sampling::ConversationItem;
 use crate::session::info::Info;
 use crate::session::persistence::{CHAT_FORMAT_VERSION, default_model_id};
@@ -347,7 +346,7 @@ async fn copy_session_data_copies_compaction_segments_when_enabled() {
     let seg = |s: &str| CompactionSegmentFile {
         items: vec![ConversationItem::user("a"), ConversationItem::user("b")],
         summary: s.to_string(),
-        detail: chat_state::CompactionDetail::Verbose,
+        detail: xvora_chat_state::CompactionDetail::Verbose,
         timestamp: "2026-01-01T00:00:00Z".to_string(),
     };
     adapter
@@ -1164,7 +1163,7 @@ fn worktree_target_cwd(home: &std::path::Path) -> String {
 #[serial_test::serial]
 async fn fork_with_default_kind_into_worktree_cwd_stamps_worktree_identity() {
     let home = TempDir::new().unwrap();
-    let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
+    let _env = xvora_test_support::EnvGuard::set("GROK_HOME", home.path());
     let adapter = JsonlStorageAdapter::with_root(home.path().join("sessions-root"));
     let source_info = Info {
         id: acp::SessionId::new("src-plain-fork"),
@@ -1193,7 +1192,7 @@ async fn fork_with_default_kind_into_worktree_cwd_stamps_worktree_identity() {
 #[serial_test::serial]
 async fn explicit_subagent_fork_kind_wins_over_worktree_target_cwd() {
     let home = TempDir::new().unwrap();
-    let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
+    let _env = xvora_test_support::EnvGuard::set("GROK_HOME", home.path());
     let adapter = JsonlStorageAdapter::with_root(home.path().join("sessions-root"));
     let source_info = Info {
         id: acp::SessionId::new("src-subagent-fork"),
@@ -1289,7 +1288,7 @@ async fn assert_copy_clears_pending_relocation(fork_filter: bool) {
                 )
                 .await
                 .unwrap(),
-            chat_state::StrictAppendAck::AlreadyPresent(item)
+            xvora_chat_state::StrictAppendAck::AlreadyPresent(item)
                 if item.text_content() == "switch"
         ));
         let retried = adapter.read_summary_sync(&target).unwrap();

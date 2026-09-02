@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde::de::DeserializeOwned;
-use tool_types::{SubagentCapabilityMode, SubagentIsolationMode};
+use xvora_tool_types::{SubagentCapabilityMode, SubagentIsolationMode};
 use xvora_tools::implementations::grok_build::task::types::SubagentRuntimeOverrides;
 
 use crate::config::{SubagentPersona, SubagentRole};

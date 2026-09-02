@@ -45,7 +45,7 @@ fn run_tmux_bounded(
     let mut child = command
         .spawn()
         .map_err(|error| format!("failed to run tmux: {error}"))?;
-    let group = tty_utils::ProcessGroup::new()
+    let group = xvora_tty_utils::ProcessGroup::new()
         .and_then(|mut group| {
             group.attach_std(&child)?;
             Ok(group)
@@ -124,14 +124,14 @@ fn recv_pipe_drain(
         .map_err(|_| format!("tmux {label} did not close before the query deadline"))?
 }
 
-fn terminate_tmux_tree(group: &tty_utils::ProcessGroup, child: &mut std::process::Child) {
+fn terminate_tmux_tree(group: &xvora_tty_utils::ProcessGroup, child: &mut std::process::Child) {
     terminate_owned_group(group);
     let _ = child.wait();
 }
 
 /// SIGTERM the group, then escalate to SIGKILL only if it outlives the grace.
 /// Callers reach this with the leader already reaped, so the group is usually empty on the first check.
-fn terminate_owned_group(group: &tty_utils::ProcessGroup) {
+fn terminate_owned_group(group: &xvora_tty_utils::ProcessGroup) {
     let _ = group.terminate();
     let deadline = std::time::Instant::now() + GROUP_EXIT_GRACE;
     loop {
@@ -253,8 +253,8 @@ fn build_tmux_command(command: TmuxCommand<'_>) -> Command {
                 .stderr(Stdio::piped());
         }
     }
-    cmd.stdin(Stdio::null()).envs(tty_utils::pager_env());
-    tty_utils::detach_std_command(&mut cmd);
+    cmd.stdin(Stdio::null()).envs(xvora_tty_utils::pager_env());
+    xvora_tty_utils::detach_std_command(&mut cmd);
     cmd
 }
 
@@ -349,7 +349,7 @@ mod tests {
                 .get_envs()
                 .map(|(key, value)| (key.to_owned(), value.map(OsStr::to_owned)))
                 .collect();
-            let expected: HashMap<OsString, Option<OsString>> = tty_utils::pager_env()
+            let expected: HashMap<OsString, Option<OsString>> = xvora_tty_utils::pager_env()
                 .into_iter()
                 .map(|(key, value)| (key.into(), Some(value.into())))
                 .collect();

@@ -45,7 +45,7 @@ fn capture_logs(f: impl FnOnce()) -> String {
 fn make_ext_notif(
     method: &str,
     update: serde_json::Value,
-) -> acp_lib::AcpArgsBox<acp::ExtNotification> {
+) -> xvora_acp_lib::AcpArgsBox<acp::ExtNotification> {
     make_raw_ext_notif(
         method,
         serde_json::json!({
@@ -58,10 +58,10 @@ fn make_ext_notif(
 fn make_raw_ext_notif(
     method: &str,
     params: serde_json::Value,
-) -> acp_lib::AcpArgsBox<acp::ExtNotification> {
+) -> xvora_acp_lib::AcpArgsBox<acp::ExtNotification> {
     let raw = serde_json::value::to_raw_value(&params).unwrap();
     let (tx, _rx) = tokio::sync::oneshot::channel();
-    acp_lib::AcpArgs {
+    xvora_acp_lib::AcpArgs {
         request: acp::ExtNotification::new(method, raw.into()),
         response_tx: tx,
     }
@@ -365,7 +365,7 @@ fn headless_session_update_unknown_method_is_none() {
     });
     let raw = serde_json::value::to_raw_value(&payload).unwrap();
     let (tx, _rx) = tokio::sync::oneshot::channel();
-    let notif = acp_lib::AcpArgs {
+    let notif = xvora_acp_lib::AcpArgs {
         request: acp::ExtNotification::new("x.ai/other", raw.into()),
         response_tx: tx,
     }
@@ -517,11 +517,11 @@ fn headless_session_notification_unknown_tag_is_clean_ignore() {
 fn ext_method_reply(
     method: &str,
     params: serde_json::Value,
-) -> acp_lib::AcpResult<acp::ExtResponse> {
+) -> xvora_acp_lib::AcpResult<acp::ExtResponse> {
     let raw = serde_json::value::to_raw_value(&params).unwrap();
     let (tx, mut rx) = tokio::sync::oneshot::channel();
     reply_headless_ext_method(
-        acp_lib::AcpArgs {
+        xvora_acp_lib::AcpArgs {
             request: acp::ExtRequest::new(method, raw.into()),
             response_tx: tx,
         }
@@ -601,7 +601,7 @@ fn dropped_receiver_does_not_panic() {
     let (tx, rx) = tokio::sync::oneshot::channel();
     drop(rx);
     reply_headless_ext_method(
-        acp_lib::AcpArgs {
+        xvora_acp_lib::AcpArgs {
             request: acp::ExtRequest::new("x.ai/ask_user_question", raw.into()),
             response_tx: tx,
         }

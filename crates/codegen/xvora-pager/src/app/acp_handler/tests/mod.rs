@@ -353,8 +353,8 @@ pub(super) fn subagent_ext_replay(
 pub(super) fn make_exit_plan_ext(
     plan_content: Option<&str>,
 ) -> (
-    acp_lib::AcpArgs<acp::ExtRequest>,
-    tokio::sync::oneshot::Receiver<acp_lib::AcpResult<acp::ExtResponse>>,
+    xvora_acp_lib::AcpArgs<acp::ExtRequest>,
+    tokio::sync::oneshot::Receiver<xvora_acp_lib::AcpResult<acp::ExtResponse>>,
 ) {
     make_exit_plan_ext_with_tool_call_id("call-plan", plan_content)
 }
@@ -362,8 +362,8 @@ pub(super) fn make_exit_plan_ext_with_tool_call_id(
     tool_call_id: &str,
     plan_content: Option<&str>,
 ) -> (
-    acp_lib::AcpArgs<acp::ExtRequest>,
-    tokio::sync::oneshot::Receiver<acp_lib::AcpResult<acp::ExtResponse>>,
+    xvora_acp_lib::AcpArgs<acp::ExtRequest>,
+    tokio::sync::oneshot::Receiver<xvora_acp_lib::AcpResult<acp::ExtResponse>>,
 ) {
     let raw = serde_json::value::to_raw_value(
             &serde_json::json!({
@@ -376,7 +376,7 @@ pub(super) fn make_exit_plan_ext_with_tool_call_id(
     let request = acp::ExtRequest::new("x.ai/exit_plan_mode", raw.into());
     let (tx, rx) = tokio::sync::oneshot::channel();
     (
-        acp_lib::AcpArgs {
+        xvora_acp_lib::AcpArgs {
             request,
             response_tx: tx,
         },
@@ -503,7 +503,7 @@ pub(super) fn send_tool_call_update(
     }
     let (tx, _rx) = tokio::sync::oneshot::channel();
     handle(
-        AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+        AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
             request: acp::SessionNotification::new(
                     acp::SessionId::new("sess-1"),
                     acp::SessionUpdate::ToolCall(
@@ -712,7 +712,7 @@ pub(super) fn make_token_notification_message(
         .meta(serde_json::json!({
                 "totalTokens": total_tokens,
             }).as_object().cloned());
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -730,7 +730,7 @@ pub(super) fn make_agent_chunk_message(
             acp::ContentChunk::new(acp::ContentBlock::Text(acp::TextContent::new(text))),
         ),
     );
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -759,7 +759,7 @@ pub(super) fn make_agent_chunk_meta(
             ),
         )
         .meta(serde_json::Value::Object(meta).as_object().cloned());
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -819,7 +819,7 @@ pub(super) fn plan_update_msg(
         meta.insert("eventId".to_string(), serde_json::json!(eid));
     }
     let (tx, _rx) = tokio::sync::oneshot::channel();
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request: acp::SessionNotification::new(
                 acp::SessionId::new(session_id),
                 acp::SessionUpdate::Plan(acp::Plan::new(entries)),
@@ -886,7 +886,7 @@ pub(super) fn make_token_notification_with_event(
                 .as_object()
                 .cloned(),
         );
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -996,7 +996,7 @@ pub(super) fn make_viewer_chunk_with_turn_start(
                 .as_object()
                 .cloned(),
         );
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -1026,7 +1026,7 @@ pub(super) fn make_replay_chunk_with_turn_start(
                 .as_object()
                 .cloned(),
         );
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -1039,7 +1039,7 @@ pub(super) fn send_replay_suppressed_tool_call(
 ) {
     let (tx, _rx) = tokio::sync::oneshot::channel();
     handle(
-        AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+        AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
             request: acp::SessionNotification::new(
                     acp::SessionId::new(session_id),
                     acp::SessionUpdate::ToolCall(
@@ -1069,7 +1069,7 @@ pub(super) fn send_replay_bash_tool_call(
 ) {
     let (tx, _rx) = tokio::sync::oneshot::channel();
     handle(
-        AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+        AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
             request: acp::SessionNotification::new(
                     acp::SessionId::new(session_id),
                     acp::SessionUpdate::ToolCall(
@@ -1401,7 +1401,7 @@ pub(super) fn make_plan_message(session_id: &str, entries: &[&str]) -> AcpClient
         acp::SessionId::new(session_id),
         acp::SessionUpdate::Plan(acp::Plan::new(plan_entries)),
     );
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -1422,7 +1422,7 @@ pub(super) fn make_commands_update_message(
             acp::AvailableCommandsUpdate::new(commands),
         ),
     );
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -1452,7 +1452,7 @@ pub(super) fn make_bash_stdout_message(
             ),
         ),
     );
-    AcpClientMessage::SessionNotification(acp_lib::AcpArgs {
+    AcpClientMessage::SessionNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -1482,7 +1482,7 @@ pub(super) fn make_ext_session_notification_with_method(
     };
     let raw = serde_json::value::to_raw_value(&payload).unwrap();
     let request = acp::ExtNotification::new(method, raw.into());
-    AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
+    AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     })
@@ -1821,7 +1821,7 @@ pub(super) fn dispatch_goal_update(
     let raw = serde_json::value::to_raw_value(&raw_payload).unwrap();
     let (tx, _rx) = tokio::sync::oneshot::channel();
     handle(
-        AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
+        AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
             request: acp::ExtNotification::new("x.ai/session_notification", raw.into()),
             response_tx: tx,
         }),
@@ -1858,7 +1858,7 @@ pub(super) fn make_permission_message(
                 acp::PermissionOptionKind::AllowOnce,
             )],
     );
-    let msg = AcpClientMessage::RequestPermission(acp_lib::AcpArgs {
+    let msg = AcpClientMessage::RequestPermission(xvora_acp_lib::AcpArgs {
         request,
         response_tx: tx,
     });

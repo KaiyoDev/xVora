@@ -19,7 +19,7 @@ pub enum TransportKind {
 /// from `description.{namespace, name}` via [`Self::derive_tool_id`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolDescriptionWithSchema {
-    pub description: tool_types::ToolDescription,
+    pub description: xvora_tool_types::ToolDescription,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_schema: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -77,7 +77,7 @@ pub struct ToolRegistration {
     /// `None` → computer hub synthesises `auto:tool:{tool_id}`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server_id: Option<ServerId>,
-    pub description: tool_types::ToolDescription,
+    pub description: xvora_tool_types::ToolDescription,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_schema: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

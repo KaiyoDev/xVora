@@ -319,7 +319,7 @@ fn classify_push_failure(failure: ExportGithubFailure) -> ExportGithubFailure {
 }
 
 async fn git(dir: &Path, args: &[&str]) -> Result<String, ExportGithubFailure> {
-    let mut cmd = tty_utils::git_command();
+    let mut cmd = xvora_tty_utils::git_command();
     cmd.current_dir(dir)
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GIT_AUTHOR_NAME", AUTHOR_NAME)
@@ -367,7 +367,7 @@ mod tests {
     fn bare_remote(base: &Path, full_name: &str) -> String {
         let repo_path = base.join(format!("{full_name}.git"));
         std::fs::create_dir_all(&repo_path).unwrap();
-        let mut cmd = tty_utils::git_command();
+        let mut cmd = xvora_tty_utils::git_command();
         let out = cmd
             .args(["init", "--bare"])
             .current_dir(&repo_path)
@@ -393,7 +393,7 @@ mod tests {
     }
 
     fn remote_head(base: &Path, full_name: &str) -> String {
-        let mut cmd = tty_utils::git_command();
+        let mut cmd = xvora_tty_utils::git_command();
         let out = cmd
             .args(["rev-parse", "refs/heads/main"])
             .current_dir(base.join(format!("{full_name}.git")))
@@ -659,7 +659,7 @@ mod tests {
         let res = run_export(second).await.unwrap();
 
         assert_eq!(res.branch, "feature");
-        let mut cmd = tty_utils::git_command();
+        let mut cmd = xvora_tty_utils::git_command();
         let out = cmd
             .args(["rev-parse", "refs/heads/feature"])
             .current_dir(remote_base.join("user/app.git"))

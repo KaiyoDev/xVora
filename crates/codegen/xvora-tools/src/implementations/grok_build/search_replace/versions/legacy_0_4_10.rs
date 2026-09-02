@@ -50,18 +50,18 @@ fn render_error(kind: ErrorKind, ctx: &RenderContext) -> String {
 async fn build_render_context(
     resources: &SharedResources,
     file_path: &str,
-) -> Result<RenderContext, tool_runtime::ToolError> {
+) -> Result<RenderContext, xvora_tool_runtime::ToolError> {
     let res = resources.lock().await;
     let renderer = res.require::<TemplateRenderer>()?;
     let read_tool_name = renderer
         .render("${{ tools.by_kind.read }}")
-        .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+        .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
     let replace_all_param_name = renderer
         .render("${{ params.edit.replace_all }}")
-        .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+        .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
     let old_string_param_name = renderer
         .render("${{ params.edit.old_string }}")
-        .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+        .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
     Ok(RenderContext {
         file_path: file_path.to_string(),
         read_tool_name,
@@ -76,7 +76,7 @@ pub(crate) async fn downgrade_structured_errors(
     output: SearchReplaceOutput,
     resources: &SharedResources,
     file_path: &str,
-) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
     use SearchReplaceOutput::*;
     let ctx = build_render_context(resources, file_path).await?;
     Ok(match output {

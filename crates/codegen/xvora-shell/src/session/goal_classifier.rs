@@ -17,11 +17,11 @@ use crate::session::goal_planner::{
 };
 use crate::session::goal_role_tools::RoleToolNames;
 use crate::session::goal_tracker::GoalClassifierVerdict;
-use session_events::EventWriter;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+use xvora_session_events::EventWriter;
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
@@ -369,7 +369,7 @@ pub(crate) async fn capture_git_baseline(workspace_root: &Path) -> Option<String
 
 /// Build the synthetic `task` tool_call and tool_result pair for a harness-spawned subagent, shaped like a model-issued `task` spawn.
 ///
-/// The tool_result MUST carry the real task tool's `<subagent_result>` footer (via [`tool_types::format_resume_footer`]).
+/// The tool_result MUST carry the real task tool's `<subagent_result>` footer (via [`xvora_tool_types::format_resume_footer`]).
 /// Trace tooling discovers subagents by scanning tool_result bodies for that `subagent_id:` block;
 /// without it the harness subagent never shows in the session tree.
 /// The footer id equals the child session id, so the viewer can fetch its uploaded trace.
@@ -393,18 +393,18 @@ pub(crate) fn build_subagent_trace_items(
         name: task_tool_name.to_string(),
         arguments: std::sync::Arc::from(arguments),
     }]);
-    let footer = tool_types::format_resume_footer(subagent_id, subagent_type, None);
+    let footer = xvora_tool_types::format_resume_footer(subagent_id, subagent_type, None);
     let result = ConversationItem::tool_result(subagent_id, format!("{output}\n\n{footer}"));
     vec![call, result]
 }
 
 /// Record a harness-spawned subagent into the in-progress harness trace phase as a synthetic `task` call (see [`build_subagent_trace_items`]).
 /// The items accumulate in a side buffer, never the live model context.
-/// The caller seals the phase via [`chat_state::ChatStateHandle::flush_harness_trace_turn`] so it uploads as its own sibling `turn_{N}` artifact.
+/// The caller seals the phase via [`xvora_chat_state::ChatStateHandle::flush_harness_trace_turn`] so it uploads as its own sibling `turn_{N}` artifact.
 /// No-op when tracing is off (`sink` absent) or no prompt was captured.
 /// `sink` carries the chat-state handle and the resolved `task` tool name.
 pub(crate) fn record_subagent_trace(
-    sink: Option<&(chat_state::ChatStateHandle, String)>,
+    sink: Option<&(xvora_chat_state::ChatStateHandle, String)>,
     subagent_id: &str,
     subagent_type: &str,
     description: &str,
@@ -440,7 +440,7 @@ pub(crate) struct ChannelSpawner {
     pub(crate) cwd: Option<String>,
     /// Trace-artifact sink and the resolved `task` tool name.
     /// `None` disables trace recording (tests, or sessions without trace capture).
-    pub(crate) trace_sink: Option<(chat_state::ChatStateHandle, String)>,
+    pub(crate) trace_sink: Option<(xvora_chat_state::ChatStateHandle, String)>,
     /// Resolved model-and-toolset override per skeptic, indexed by `skeptic_idx`.
     /// An out-of-range index (or `Default`) inherits the current model.
     /// Round-robin expansion and the auth/capability fail-open are resolved parent-side before the spawner is built.

@@ -8,10 +8,10 @@
 //! lose data.
 
 use serde_json::Value;
-use tool_protocol::{
+use tracing::warn;
+use xvora_tool_protocol::{
     SessionId, ToolId, ToolNotificationFrame, ToolServerStatusPayload, ToolsChanged,
 };
-use tracing::warn;
 
 /// A typed server notification event parsed from a raw JSON-RPC notification frame.
 #[derive(Debug, Clone, PartialEq)]
@@ -80,9 +80,7 @@ impl HubNotification {
                             .tool_id
                             .as_ref()
                             .is_some_and(|id| id.as_str() == "__tool_server_status")
-                            && let tool_protocol::notification_wire::WireToolNotification::Custom(
-                                ref c,
-                            ) = frame.notification
+                            && let xvora_tool_protocol::notification_wire::WireToolNotification::Custom(ref c) = frame.notification
                             && c.kind == "status_changed"
                         {
                             match serde_json::from_value::<ToolServerStatusPayload>(
@@ -312,7 +310,7 @@ mod tests {
                 assert_eq!(session_id.as_str(), "s1");
                 assert_eq!(
                     status.status,
-                    tool_protocol::ToolServerLifecycleStatus::Busy
+                    xvora_tool_protocol::ToolServerLifecycleStatus::Busy
                 );
                 assert_eq!(status.active_tool_calls, 2);
             }

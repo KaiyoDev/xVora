@@ -7,7 +7,7 @@
 //! Dirty deaths get repaired and clean exits stay byte-for-byte transparent.
 //! Kitty pops are exactly as deep as the child's net pushes (a blind pop could corrupt an enclosing context's keyboard stack).
 //!
-//! The tracked set mirrors the canonical teardown table in [`crash_handler::terminal`] (`RESTORE_SEQ`), pinned by a unit test below.
+//! The tracked set mirrors the canonical teardown table in [`xvora_crash_handler::terminal`] (`RESTORE_SEQ`), pinned by a unit test below.
 //! It adds the remaining mouse encodings (`?1005`, `?1016`) and the legacy alternate screens (`?47`, `?1047`) that a wrapped TUI may use.
 //!
 //! Known limitation: the kitty protocol keeps an independent stack per screen buffer, while this tracker keeps one net-depth counter.
@@ -46,7 +46,7 @@ const ALT_1049: u32 = 1 << 12;
 /// DECTCEM's set side (`?25h`) shows the cursor, so the latched (needs-repair) state is having seen `?25l` without a later `?25h`.
 const CURSOR_HIDDEN: u32 = 1 << 13;
 
-/// Mouse/paste/focus disables in the relative order pinned by `crash_handler::terminal::RESTORE_SEQ`'s ordering tests.
+/// Mouse/paste/focus disables in the relative order pinned by `xvora_crash_handler::terminal::RESTORE_SEQ`'s ordering tests.
 const DISABLE_ORDER: &[(u32, &[u8])] = &[
     (MOUSE_1000, b"\x1b[?1000l"),
     (MOUSE_1002, b"\x1b[?1002l"),
@@ -200,7 +200,7 @@ impl ModeTracker {
 /// Disable sequences for exactly the latched state in `snapshot`.
 ///
 /// Nothing latched yields an empty vec: clean exits must stay byte-transparent.
-/// The emission order matches `crash_handler::terminal::RESTORE_SEQ` for every element the two share (pinned by a unit test below).
+/// The emission order matches `xvora_crash_handler::terminal::RESTORE_SEQ` for every element the two share (pinned by a unit test below).
 /// Synchronized-update end goes first: multiplexers must stop buffering before the other resets arrive.
 /// Cursor show and the mouse/paste/focus disables follow.
 /// Kitty pops come before the alt-screen exits (the kitty stack is per-screen), and the alt-screen exits go last.
@@ -423,7 +423,7 @@ mod tests {
     /// If a mode is added to `RESTORE_SEQ` without extending the tracker, this fails.
     #[test]
     fn covers_and_orders_every_crash_handler_restore_seq_element() {
-        let elements: Vec<Vec<u8>> = crash_handler::terminal::RESTORE_SEQ
+        let elements: Vec<Vec<u8>> = xvora_crash_handler::terminal::RESTORE_SEQ
             .split(|&b| b == 0x1b)
             .filter(|chunk| !chunk.is_empty())
             .map(|chunk| {

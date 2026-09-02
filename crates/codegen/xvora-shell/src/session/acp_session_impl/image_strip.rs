@@ -7,7 +7,7 @@
 //! - Scope: `chat_history.jsonl` only.
 //!   A rebuild replaying `updates.jsonl` (e.g. a remote pull) restores the image and pays one more strip cycle.
 
-use chat_state::StripOutcome;
+use xvora_chat_state::StripOutcome;
 use xvora_sampler::{RequestId, StripReason};
 
 use crate::extensions::notification::SessionUpdate as XaiSessionUpdate;

@@ -51,7 +51,7 @@ fn install(
             "bundled {versioned_name} failed to decompress: {e}"
         ))
     })?;
-    if file_utils::sha256_hex(&decoded) != expected_sha256 {
+    if xvora_file_utils::sha256_hex(&decoded) != expected_sha256 {
         return Err(InstallError::Integrity(format!(
             "bundled {versioned_name} does not match its pinned SHA-256"
         )));
@@ -76,7 +76,7 @@ fn install(
 fn is_verified(path: &Path, expected_sha256: &str) -> bool {
     // Reject a planted symlink instead of following it during verification.
     std::fs::symlink_metadata(path).is_ok_and(|meta| meta.is_file())
-        && file_utils::sha256_hex_from_file(path, None)
+        && xvora_file_utils::sha256_hex_from_file(path, None)
             .is_ok_and(|actual| actual == expected_sha256)
 }
 
@@ -92,7 +92,7 @@ mod tests {
     fn installs_then_reuses_verified_binary() {
         let dir = tempfile::tempdir().unwrap();
         let body = b"#!/bin/sh\necho hi\n";
-        let sha = file_utils::sha256_hex(body);
+        let sha = xvora_file_utils::sha256_hex(body);
 
         let path = install(dir.path(), "tool-1", &zst(body), &sha).expect("install");
         assert_eq!(std::fs::read(&path).unwrap(), body);
@@ -134,7 +134,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("tool-4"), b"stale or tampered").unwrap();
         let body = b"trusted";
-        let sha = file_utils::sha256_hex(body);
+        let sha = xvora_file_utils::sha256_hex(body);
 
         let path = install(dir.path(), "tool-4", &zst(body), &sha).expect("self-heal");
         assert_eq!(std::fs::read(path).unwrap(), body);

@@ -2,7 +2,7 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// Mirrors `interjection_core::format::{INTERRUPT_NOTE, UNFINISHED_TASKS_REMINDER}`.
+/// Mirrors `xvora_interjection_core::format::{INTERRUPT_NOTE, UNFINISHED_TASKS_REMINDER}`.
 const INTERRUPT_NOTE: &str = "The user interrupted the previous turn:";
 const UNFINISHED_TASKS_REMINDER: &str =
     "Make sure to complete any unfinished tasks from previous turns.";

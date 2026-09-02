@@ -1,6 +1,6 @@
 use super::*;
 use serial_test::serial;
-use crate::test_support::EnvGuard;
+use xvora_test_support::EnvGuard;
 #[test]
 fn main_cli_tools_override_preserves_profile_injection_policy() {
     let overrides = CliAgentOverrides {
@@ -874,7 +874,7 @@ async fn static_key_shadows_defined_provider_through_pipeline() {
     let _ = provider.ensure_fresh_token(None).await;
     let creds = resolve_credentials(model, Some("session-jwt"));
     assert_eq!(creds.api_key.as_deref(), Some("sk-house-key"));
-    assert_eq!(creds.auth_type, chat_state::AuthType::ApiKey);
+    assert_eq!(creds.auth_type, xvora_chat_state::AuthType::ApiKey);
     assert_eq!(creds.base_url, "https://switchboard.example/v1");
 }
 #[test]
@@ -904,7 +904,7 @@ fn undefined_auth_provider_fails_closed() {
 }
 #[tokio::test]
 async fn resolve_credentials_serves_cached_provider_token() {
-    use chat_state::AuthType;
+    use xvora_chat_state::AuthType;
     let mut model = test_model_entry("m", "https://litellm.example/v1", None, None, None);
     let provider = crate::auth::AuthProviderRef::new(
         "resolve-creds-test".into(),
@@ -928,7 +928,7 @@ async fn resolve_credentials_serves_cached_provider_token() {
 /// A set `env_key` shadows even a warm provider cache at resolve time, so the static credential wins on the wire and the provider never governs.
 #[tokio::test]
 async fn set_env_key_shadows_warm_provider_at_resolve_time() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let var = "GROK_TEST_ENVKEY_SHADOW";
     let _guard = EnvGuard::set(var, "env-token");
     let mut model = test_model_entry("m", "https://litellm.example/v1", None, Some(var), None);
@@ -1122,7 +1122,7 @@ fn sampling_config_uses_fallback_when_no_model_api_key() {
         ResolvedCredentials {
             api_key: Some("fallback-key".to_string()),
             base_url: model.info().base_url.clone(),
-            auth_type: chat_state::AuthType::ApiKey,
+            auth_type: xvora_chat_state::AuthType::ApiKey,
             auth_scheme: AuthScheme::Bearer,
         },
         None,
@@ -1200,7 +1200,7 @@ fn default_models_dual_endpoint_routing() {
                 .api_base_url
                 .clone()
                 .unwrap_or(entry.info().base_url.clone()),
-            auth_type: chat_state::AuthType::ApiKey,
+            auth_type: xvora_chat_state::AuthType::ApiKey,
             auth_scheme: AuthScheme::Bearer,
         };
         assert_eq!(
@@ -1285,7 +1285,7 @@ fn env_keys_resolve_skips_whitespace_only_value() {
 #[test]
 #[serial]
 fn first_own_credential_empty_api_key_falls_through_to_env_key() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let var = "GROK_TEST_FIRST_OWN_CRED_ENV";
     let _guard = EnvGuard::set(var, "env-token");
     let env_key = EnvKeys::single(var);
@@ -1301,7 +1301,7 @@ fn first_own_credential_empty_api_key_falls_through_to_env_key() {
 #[test]
 #[serial]
 fn resolve_credentials_multi_env_key_uses_lc_alias() {
-    use chat_state::AuthType;
+    use xvora_chat_state::AuthType;
     let primary = "GROK_TEST_MULTI_ENV_PRIMARY";
     let alias = "GROK_TEST_MULTI_ENV_LC_ALIAS";
     unsafe {
@@ -1336,8 +1336,8 @@ fn resolve_credentials_multi_env_key_uses_lc_alias() {
 #[test]
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_session() {
-    use chat_state::AuthType;
-    use crate::test_support::EnvGuard;
+    use xvora_chat_state::AuthType;
+    use xvora_test_support::EnvGuard;
     let primary = "GROK_TEST_EMPTY_ENV_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_LC_ALIAS";
     let _primary = EnvGuard::set(primary, "");
@@ -1353,8 +1353,8 @@ fn resolve_credentials_empty_env_key_falls_through_to_session() {
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_global_key() {
     use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
-    use chat_state::AuthType;
-    use crate::test_support::EnvGuard;
+    use xvora_chat_state::AuthType;
+    use xvora_test_support::EnvGuard;
     let sentinel = "xvora-global-sentinel-key";
     let primary = "GROK_TEST_EMPTY_ENV_GLOBAL_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_GLOBAL_ALIAS";
@@ -1371,7 +1371,7 @@ fn resolve_credentials_empty_env_key_falls_through_to_global_key() {
 }
 #[test]
 fn resolve_credentials_empty_api_key_falls_through_to_session() {
-    use chat_state::AuthType;
+    use xvora_chat_state::AuthType;
     let model = test_model_entry("m", "https://api.x.ai/v1", Some(""), None, None);
     assert!(!model.has_own_credentials());
     let creds = resolve_credentials(&model, Some("session-jwt"));
@@ -1401,7 +1401,7 @@ fn config_toml_env_key_array_parses() {
 }
 #[test]
 fn resolve_credentials_sets_auth_type() {
-    use chat_state::AuthType;
+    use xvora_chat_state::AuthType;
     let model = test_model_entry("m", "https://api.x.ai/v1", None, None, None);
     let creds = resolve_credentials(&model, Some("tok"));
     assert_eq!(creds.auth_type, AuthType::SessionToken);
@@ -1413,7 +1413,7 @@ fn resolve_credentials_sets_auth_type() {
 #[test]
 #[serial_test::serial]
 fn resolve_credentials_env_key_byok_keeps_api_key_auth_with_session() {
-    use chat_state::AuthType;
+    use xvora_chat_state::AuthType;
     let env_var = "REGRESSION_BYOK_TOKEN_FOR_AUTH_TYPE_TEST";
     unsafe {
         std::env::set_var(env_var, "sk-byok-test-value");
@@ -1477,20 +1477,20 @@ fn proxy_messages_models_use_bearer_auth_scheme() {
 fn resolve_credentials_no_session_key_returns_api_key() {
     let model = test_model_entry("m", "https://example.com/v1", None, None, None);
     let creds = resolve_credentials(&model, None);
-    assert_eq!(creds.auth_type, chat_state::AuthType::ApiKey);
+    assert_eq!(creds.auth_type, xvora_chat_state::AuthType::ApiKey);
 }
 fn api_key_creds(base_url: &str) -> ResolvedCredentials {
     ResolvedCredentials {
         api_key: Some("xvora-secret".to_string()),
         base_url: base_url.to_string(),
-        auth_type: chat_state::AuthType::ApiKey,
+        auth_type: xvora_chat_state::AuthType::ApiKey,
         auth_scheme: Default::default(),
     }
 }
 /// `disable_api_key_auth` kill switch (Claude `forceLoginMethod` parity).
 #[test]
 fn enforce_disable_api_key_auth_blocks_first_party_only() {
-    use chat_state::AuthType;
+    use xvora_chat_state::AuthType;
     let mut creds = api_key_creds("https://api.x.ai/v1");
     enforce_disable_api_key_auth(&mut creds, false, Some("session-jwt"));
     assert_eq!(creds.auth_type, AuthType::ApiKey);
@@ -1521,7 +1521,7 @@ fn enforce_disable_api_key_auth_blocks_first_party_only() {
 /// (`try_resolve_model_credentials` loads global config, so this exercises its resolve and enforce core.)
 #[test]
 fn try_resolve_model_credentials_swaps_first_party_own_key_under_kill_switch() {
-    use chat_state::AuthType;
+    use xvora_chat_state::AuthType;
     let entry = test_model_entry(
         "m",
         "https://api.x.ai/v1",
@@ -1568,7 +1568,7 @@ fn x_api_key_auth_scheme_flows_from_config_to_sampler() {
     model.info.auth_scheme = AuthScheme::XApiKey;
     let creds = resolve_credentials(&model, None);
     assert_eq!(creds.auth_scheme, AuthScheme::XApiKey);
-    assert_eq!(creds.auth_type, chat_state::AuthType::ApiKey);
+    assert_eq!(creds.auth_type, xvora_chat_state::AuthType::ApiKey);
     assert_eq!(creds.api_key, Some("sk-ant-test-key".to_string()));
     let config = sampling_config_for_model(&model, creds, None, None, None, None);
     assert_eq!(config.auth_scheme, AuthScheme::XApiKey);
@@ -1810,33 +1810,33 @@ fn parses_auto_compact_threshold_percent() {
 }
 #[test]
 fn compaction_mode_precedence_env_over_config_over_remote_over_default() {
-    use chat_state::CompactionMode;
+    use xvora_chat_state::CompactionMode;
     assert_eq!(
         resolve_compaction_mode_from(Some("transcript"), Some("segments"), Some("summary")),
         CompactionMode::Transcript
     );
     assert_eq!(
         resolve_compaction_mode_from(None, Some("segments"), Some("summary")),
-        CompactionMode::Segments(chat_state::CompactionDetail::default())
+        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
     );
     assert_eq!(
         resolve_compaction_mode_from(None, None, Some("segments")),
-        CompactionMode::Segments(chat_state::CompactionDetail::default())
+        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
     );
     assert_eq!(
         resolve_compaction_mode_from(Some("garbage"), None, Some("segments")),
-        CompactionMode::Segments(chat_state::CompactionDetail::default())
+        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
     );
     assert_eq!(
         resolve_compaction_mode_from(None, None, None),
-        CompactionMode::Segments(chat_state::CompactionDetail::default())
+        CompactionMode::Segments(xvora_chat_state::CompactionDetail::default())
     );
 }
 /// Detail shares the env>config>remote>default combinator that the mode test exercises.
 /// The detail-specific facts are remote settings routing and the `Verbose` default (with unrecognized values falling through).
 #[test]
 fn compaction_detail_resolves_remote_settings_and_verbose_default() {
-    use chat_state::CompactionDetail;
+    use xvora_chat_state::CompactionDetail;
     assert_eq!(
         resolve_compaction_detail_from(None, None, Some("minimal")),
         CompactionDetail::Minimal
@@ -2623,7 +2623,7 @@ fn allowed_models_empty_is_unrestricted() {
 #[test]
 fn invalid_glob_is_rejected_by_validation() {
     use crate::agent::models::ModelGlobSet;
-    assert!(ModelGlobSet::compile(Some(&vec!["grok[".to_string()])).is_err());
+    assert!(ModelGlobSet::compile(Some(["grok[".to_string()].as_slice())).is_err());
     let raw: toml::Value = toml::from_str(
         r#"
             [models]
@@ -2771,6 +2771,37 @@ fn telemetry_config_parses_custom_values_from_toml() {
         Some("custom-token")
     );
     assert!(!cfg.telemetry.mixpanel_enabled);
+}
+#[test]
+fn telemetry_otel_timeout_accepts_toml_integer_and_string() {
+    let as_int: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_timeout = 10000
+            otel_metric_export_interval = 60000
+            "#,
+    )
+    .unwrap();
+    let cfg = Config::new_from_toml_cfg(&as_int).expect("integer otel_timeout must parse");
+    assert_eq!(cfg.telemetry.otel_timeout.as_deref(), Some("10000"));
+    assert_eq!(
+        cfg.telemetry.otel_metric_export_interval.as_deref(),
+        Some("60000")
+    );
+    let as_str: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_timeout = "10000"
+            otel_metric_export_interval = "60000"
+            "#,
+    )
+    .unwrap();
+    let cfg = Config::new_from_toml_cfg(&as_str).expect("string otel_timeout must parse");
+    assert_eq!(cfg.telemetry.otel_timeout.as_deref(), Some("10000"));
+    assert_eq!(
+        cfg.telemetry.otel_metric_export_interval.as_deref(),
+        Some("60000")
+    );
 }
 /// Empty/whitespace values must become `None`, not reach the HTTP client as empty strings.
 #[test]
@@ -3944,7 +3975,7 @@ fn doom_loop_recovery_section_parses_from_toml() {
 #[test]
 #[serial]
 fn worktree_auto_gc_section_parses_from_toml() {
-    unsafe { fast_worktree::clear_auto_gc_env_for_test() };
+    unsafe { xvora_fast_worktree::clear_auto_gc_env_for_test() };
     let raw: toml::Value = toml::from_str(
         r#"
             [worktree.auto_gc]
@@ -3968,11 +3999,12 @@ fn worktree_auto_gc_section_parses_from_toml() {
     assert!(p.dry_run);
     assert_eq!(
         p.max_age_by_kind
-            .get(&fast_worktree::WorktreeKind::Subagent),
+            .get(&xvora_fast_worktree::WorktreeKind::Subagent),
         Some(&Some(3600))
     );
     assert_eq!(
-        p.max_age_by_kind.get(&fast_worktree::WorktreeKind::Manual),
+        p.max_age_by_kind
+            .get(&xvora_fast_worktree::WorktreeKind::Manual),
         Some(&None)
     );
 }
@@ -5858,6 +5890,7 @@ fn external_otel_requirements_pin_wins_over_env() {
             [telemetry]
             otel_log_user_prompts = false
             otel_log_tool_details = false
+            otel_log_tool_content = false
             "#,
     )
     .unwrap();
@@ -5869,6 +5902,7 @@ fn external_otel_requirements_pin_wins_over_env() {
             ("OTEL_LOGS_EXPORTER", "otlp"),
             ("OTEL_LOG_USER_PROMPTS", "1"),
             ("OTEL_LOG_TOOL_DETAILS", "1"),
+            ("OTEL_LOG_TOOL_CONTENT", "1"),
         ]),
         ext_client(),
         false,
@@ -5876,12 +5910,429 @@ fn external_otel_requirements_pin_wins_over_env() {
     .expect("stream still active; only gates pinned");
     assert!(!cfg.gates.log_user_prompts, "requirement pin must win");
     assert!(!cfg.gates.log_tool_details, "requirement pin must win");
+    assert!(!cfg.gates.log_tool_content, "requirement pin must win");
 }
-/// Regression: an org enable via `[telemetry].otel_enabled` must flip the master switch the *internal* pipeline keys off.
-/// That path is managed config / requirements, with no `GROK_EXTERNAL_OTEL` env var set.
-/// Legacy `OTEL_EXPORTER_OTLP_*` repointing then shuts off in lockstep with the external stream activating.
-/// A desync would point the internally-authenticated stream at the customer collector.
-/// Meanwhile `internal_pipeline_consumed_otel_vars` would block the external stream.
+#[test]
+fn external_otel_requirements_pin_endpoint_beats_env() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:9")]),
+        ext_client(),
+        false,
+    )
+    .expect("pin must keep the stream active");
+    assert!(
+        cfg.logs_endpoint.starts_with("http://corp:4318"),
+        "listed endpoint must beat env: {}",
+        cfg.logs_endpoint
+    );
+}
+#[test]
+fn external_otel_unset_endpoint_still_env_overridable() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")]),
+        ext_client(),
+        false,
+    )
+    .expect("unset endpoint stays developer-settable");
+    assert!(
+        cfg.logs_endpoint.contains("127.0.0.1:4318"),
+        "{}",
+        cfg.logs_endpoint
+    );
+}
+#[test]
+fn external_otel_pin_endpoint_strips_per_signal_env() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[(
+            "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT",
+            "http://127.0.0.1:9/v1/logs",
+        )]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert!(
+        !cfg.logs_endpoint.contains("127.0.0.1:9"),
+        "unlisted per-signal endpoint env must not win: {}",
+        cfg.logs_endpoint
+    );
+    assert!(cfg.logs_endpoint.contains("corp:4318"));
+}
+#[test]
+fn external_otel_pin_endpoint_hides_unlisted_file_siblings() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            "#,
+    )
+    .unwrap();
+    let effective: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_logs_endpoint = "http://127.0.0.1:9/v1/logs"
+            otel_metrics_endpoint = "http://127.0.0.1:9/v1/metrics"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        Some(&effective),
+        Some(&req),
+        ext_env(&[]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert!(
+        !cfg.logs_endpoint.contains("127.0.0.1:9"),
+        "unlisted file sibling must not retarget: {}",
+        cfg.logs_endpoint
+    );
+    assert!(
+        cfg.logs_endpoint.contains("corp:4318"),
+        "{}",
+        cfg.logs_endpoint
+    );
+}
+#[test]
+fn external_otel_pin_protocol_hides_unlisted_file_siblings() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            otel_protocol = "http/protobuf"
+            "#,
+    )
+    .unwrap();
+    let effective: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_logs_protocol = "grpc"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        Some(&effective),
+        Some(&req),
+        ext_env(&[]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert_eq!(
+        cfg.logs_transport,
+        xvora_telemetry::external::config::OtlpTransport::HttpProtobuf,
+        "unlisted file protocol sibling must not win"
+    );
+}
+#[test]
+fn external_otel_pin_ca_keeps_file_endpoint() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_certificate = "/etc/ssl/corp-ca.pem"
+            "#,
+    )
+    .unwrap();
+    let effective: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_logs_endpoint = "http://logs:4318/v1/logs"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        Some(&effective),
+        Some(&req),
+        ext_env(&[]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert_eq!(
+        cfg.logs_endpoint, "http://logs:4318/v1/logs",
+        "CA pin must not lock destination"
+    );
+}
+#[test]
+fn external_otel_pin_client_cert_hides_file_endpoints() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_client_certificate = "/etc/ssl/client.crt"
+            otel_client_key = "/etc/ssl/client.key"
+            "#,
+    )
+    .unwrap();
+    let effective: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_logs_endpoint = "http://127.0.0.1:9/v1/logs"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        Some(&effective),
+        Some(&req),
+        ext_env(&[]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert!(
+        !cfg.logs_endpoint.contains("127.0.0.1:9"),
+        "client-identity pin must hide unlisted file endpoints: {}",
+        cfg.logs_endpoint
+    );
+}
+#[test]
+fn external_otel_pin_logs_endpoint_keeps_that_signal() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            otel_logs_endpoint = "http://logs:4318/v1/logs"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[(
+            "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT",
+            "http://127.0.0.1:9/v1/logs",
+        )]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert_eq!(cfg.logs_endpoint, "http://logs:4318/v1/logs");
+}
+#[test]
+fn external_otel_pin_exporter_beats_none() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[("OTEL_LOGS_EXPORTER", "none")]),
+        ext_client(),
+        false,
+    )
+    .expect("pinned exporter must beat OTEL_LOGS_EXPORTER=none");
+    assert_eq!(
+        cfg.logs_exporter,
+        xvora_telemetry::external::config::ExporterSelection::Otlp
+    );
+}
+#[test]
+fn external_otel_omit_exporter_still_allows_none() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_endpoint = "http://corp:4318"
+            "#,
+    )
+    .unwrap();
+    assert!(
+        resolve_external_otel_config_with(
+            None,
+            Some(&req),
+            ext_env(&[
+                ("OTEL_LOGS_EXPORTER", "none"),
+                ("OTEL_METRICS_EXPORTER", "none")
+            ]),
+            ext_client(),
+            false,
+        )
+        .is_none(),
+        "omitted exporter stays env-overridable to none"
+    );
+}
+#[test]
+fn external_otel_pin_client_cert_strips_developer_endpoints() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            otel_client_certificate = "/etc/ssl/client.crt"
+            otel_client_key = "/etc/ssl/client.key"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:9")]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert!(
+        cfg.logs_endpoint.starts_with("http://corp:4318"),
+        "{}",
+        cfg.logs_endpoint
+    );
+}
+#[test]
+fn external_otel_pin_ca_does_not_strip_endpoints() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_certificate = "/etc/ssl/corp-ca.pem"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:4318")]),
+        ext_client(),
+        false,
+    )
+    .expect("CA-only pin must not lock destination");
+    assert!(
+        cfg.logs_endpoint.contains("127.0.0.1:4318"),
+        "{}",
+        cfg.logs_endpoint
+    );
+}
+#[test]
+fn external_otel_pin_ca_hides_unlisted_per_signal_cert_env() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_endpoint = "http://corp:4318"
+            otel_certificate = "/etc/ssl/corp-ca.pem"
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[(
+            "OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE",
+            "/tmp/decoy-logs-ca.pem",
+        )]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert_eq!(
+        cfg.logs_ca_certificate.as_deref(),
+        Some("/etc/ssl/corp-ca.pem"),
+        "generic CA pin must hide OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE"
+    );
+}
+#[test]
+fn external_otel_pin_assistant_beats_env() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_log_assistant_responses = false
+            "#,
+    )
+    .unwrap();
+    let cfg = resolve_external_otel_config_with(
+        None,
+        Some(&req),
+        ext_env(&[("OTEL_LOG_ASSISTANT_RESPONSES", "1")]),
+        ext_client(),
+        false,
+    )
+    .expect("stream active");
+    assert!(!cfg.gates.log_assistant_responses);
+}
+#[test]
+fn external_otel_pin_prompts_true_omitted_assistant_stays_off() {
+    let req: toml::Value = toml::from_str(
+        r#"
+            [telemetry]
+            otel_enabled = true
+            otel_logs_exporter = "otlp"
+            otel_log_user_prompts = true
+            "#,
+    )
+    .unwrap();
+    let cfg =
+        resolve_external_otel_config_with(None, Some(&req), ext_env(&[]), ext_client(), false)
+            .expect("stream active");
+    assert!(cfg.gates.log_user_prompts);
+    assert!(
+        !cfg.gates.log_assistant_responses,
+        "omitted sibling gate must default off across the requirements boundary"
+    );
+    assert!(!cfg.gates.log_tool_details);
+    assert!(
+        !cfg.gates.log_tool_content,
+        "omitted CONTENT sibling must default off across the requirements boundary"
+    );
+}
+/// Regression: an org enable via `[telemetry].otel_enabled`
+/// (managed config / requirements — no `GROK_EXTERNAL_OTEL` env var) must
+/// flip the master switch the *internal* pipeline keys off, so legacy
+/// `OTEL_EXPORTER_OTLP_*` repointing shuts off in lockstep with the
+/// external stream activating. A desync would point the internally-authed
+/// firehose at the customer collector while
+/// `internal_pipeline_consumed_otel_vars` blocks the external stream.
 #[test]
 fn external_otel_master_switch_resolves_from_all_layers() {
     let enabled_table: toml::Value = toml::from_str("[telemetry]\notel_enabled = true").unwrap();

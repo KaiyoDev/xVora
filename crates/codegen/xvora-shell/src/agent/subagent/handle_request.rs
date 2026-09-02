@@ -15,6 +15,8 @@ use xvora_telemetry::region::Parent;
 use xvora_telemetry::subagent_spawn::{SubagentSpawnPhase, phase_region};
 use xvora_telemetry::{instrument_task, region};
 use xvora_tools::implementations::{grok_build, opencode};
+static SUBAGENTS_ACTIVE: xvora_telemetry::activity::ActivityGauge =
+    xvora_telemetry::activity::ActivityGauge::work(xvora_telemetry::activity::SUBAGENTS_ACTIVE_KEY);
 /// Bounds each parent-side await in the child completion path. The parent's
 /// biased select polls its event channels ahead of `cmd_rx`, so a busy turn
 /// can starve `cmd_rx` and park a completed child (leaking its session
@@ -434,7 +436,7 @@ pub(crate) async fn run_shell_child(
         return child_run_output(failure_result(&request, &error), completion_data, None);
     }
     let worktree_path = if let Some(ref source) = resume_source {
-        if effective_runtime.isolation != tool_types::SubagentIsolationMode::None
+        if effective_runtime.isolation != xvora_tool_types::SubagentIsolationMode::None
             && source.worktree_path.is_none()
         {
             tracing::info!(
@@ -488,7 +490,7 @@ pub(crate) async fn run_shell_child(
                 }
             }
         }
-    } else if effective_runtime.isolation != tool_types::SubagentIsolationMode::None {
+    } else if effective_runtime.isolation != xvora_tool_types::SubagentIsolationMode::None {
         let source_cwd = parent_source_cwd(&ctx);
         let dest = match crate::session::worktree::worktree_base_dir_for_source(&source_cwd) {
             Ok(base) => base.join(format!("subagent-{}", request.id)),
@@ -505,17 +507,17 @@ pub(crate) async fn run_shell_child(
         };
         let source_clone = source_cwd;
         let subagent_id = request.id.clone();
-        let creation_mode: fast_worktree::CreationMode = ctx.worktree_type.into();
+        let creation_mode: xvora_fast_worktree::CreationMode = ctx.worktree_type.into();
         let btrfs_delegate = crate::session::worktree::btrfs_delegate_from_env();
         let worktree_create_span = region!(
             "subagent_spawn.worktree_create",
             Parent::Explicit(spawn_prepare_span.span())
         );
         let created = match tokio::task::spawn_blocking(move || {
-            let mut builder = fast_worktree::WorktreeBuilder::new(&source_clone, &dest)
-                .working_tree_mode(fast_worktree::WorkingTreeMode::PreserveWorkingTree)
+            let mut builder = xvora_fast_worktree::WorktreeBuilder::new(&source_clone, &dest)
+                .working_tree_mode(xvora_fast_worktree::WorkingTreeMode::PreserveWorkingTree)
                 .creation_mode(creation_mode)
-                .worktree_kind(fast_worktree::WorktreeKind::Subagent)
+                .worktree_kind(xvora_fast_worktree::WorktreeKind::Subagent)
                 .session_id(subagent_id);
             if let Some(delegate) = btrfs_delegate {
                 builder = builder.btrfs_delegate(delegate);
@@ -950,17 +952,17 @@ pub(crate) async fn run_shell_child(
     tool_ctx.subagent_depth = child_depth;
     tool_ctx.lsp = ctx.lsp.clone();
     tool_ctx.process_scope = ctx.process_scope.clone();
-    let parent_traceparent = file_utils::trace_context::current_traceparent();
+    let parent_traceparent = xvora_file_utils::trace_context::current_traceparent();
     let tracker_child_cwd = child_session_info.cwd.clone();
     let tracker_model_id = effective_model_id.0.to_string();
-    let initial_child_tokens = chat_state::estimate_conversation_tokens(&forked_conversation);
+    let initial_child_tokens = xvora_chat_state::estimate_conversation_tokens(&forked_conversation);
     let model_entry = crate::agent::config::find_model_by_id(
         &ctx.available_models,
         effective_model_id.0.as_ref(),
     );
     let model_has_own_creds = model_entry.is_some_and(|entry| entry.has_own_credentials());
     let inherited_auth_type = subagent_auth_type(model_entry, &ctx.auth_method_id);
-    let credentials = chat_state::Credentials {
+    let credentials = xvora_chat_state::Credentials {
         api_key: effective_sampling_config.api_key.clone(),
         auth_type: inherited_auth_type,
         alpha_test_key: ctx.alpha_test_key.clone(),
@@ -1205,9 +1207,9 @@ pub(crate) async fn run_shell_child(
         );
     }
     let mcp_owned_count = agent_mcp_servers.len() as u32;
-    let _active = xvora_telemetry::activity::SUBAGENTS_ACTIVE.enter();
+    let _active = SUBAGENTS_ACTIVE.enter();
     debug_assert!(
-        xvora_telemetry::activity::SUBAGENTS_ACTIVE.get() >= 1,
+        SUBAGENTS_ACTIVE.get() >= 1,
         "SubagentLaunched must stamp a self-inclusive count"
     );
     xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::SubagentLaunched {
@@ -1623,7 +1625,7 @@ pub(crate) async fn run_shell_child(
     .map(|usage| usage.totals);
     result.tokens_used = trace_token_totals
         .as_ref()
-        .map(chat_state::UsageTotals::total_tokens)
+        .map(xvora_chat_state::UsageTotals::total_tokens)
         .unwrap_or(0);
     let (tool_calls, turns) = signals_snapshot_counts(&child_handle)
         .await
@@ -1752,7 +1754,7 @@ pub(crate) async fn run_shell_child(
             stop_reason: child_stop_reason.map(|sr| format!("{sr:?}")),
             total_tokens: trace_token_totals
                 .as_ref()
-                .map(chat_state::UsageTotals::total_tokens),
+                .map(xvora_chat_state::UsageTotals::total_tokens),
             input_tokens: final_turn_tokens.map(|tokens| tokens.0),
             cached_input_tokens: final_turn_tokens.map(|tokens| tokens.1),
             output_tokens: final_turn_tokens.map(|tokens| tokens.2),
@@ -2036,7 +2038,7 @@ pub(crate) async fn dispose_worktree_after_completion(
     let checked_snapshot = snapshot_ref.clone();
     let reclaim_span = region!("worktree.reclaim_check", Parent::Inherit);
     let reclaim = tokio::task::spawn_blocking(move || {
-        fast_worktree::reclaimable_after_snapshot(
+        xvora_fast_worktree::reclaimable_after_snapshot(
             &checked_path,
             Some(&checked_source_repo),
             &checked_snapshot,
@@ -2045,8 +2047,8 @@ pub(crate) async fn dispose_worktree_after_completion(
     .await;
     reclaim_span.close();
     match reclaim {
-        Ok(fast_worktree::Reclaim::Now { .. }) => {}
-        Ok(fast_worktree::Reclaim::Keep(reason)) => {
+        Ok(xvora_fast_worktree::Reclaim::Now { .. }) => {}
+        Ok(xvora_fast_worktree::Reclaim::Keep(reason)) => {
             tracing::info!(
                 subagent_id = %subagent_id,
                 worktree_path = %worktree.display(),
@@ -2055,7 +2057,7 @@ pub(crate) async fn dispose_worktree_after_completion(
             );
             return Disposal::Kept;
         }
-        Ok(fast_worktree::Reclaim::Unnamed(error)) => {
+        Ok(xvora_fast_worktree::Reclaim::Unnamed(error)) => {
             tracing::warn!(
                 subagent_id = %subagent_id,
                 worktree_path = %worktree.display(),

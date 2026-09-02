@@ -145,25 +145,28 @@ impl crate::types::tool_metadata::ToolMetadata for CodexReadFileTool {
     }
 }
 
-impl tool_runtime::Tool for CodexReadFileTool {
+impl xvora_tool_runtime::Tool for CodexReadFileTool {
     type Args = CodexReadFileInput;
     type Output = ReadFileOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("read_file").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("read_file").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "read_file",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -171,9 +174,9 @@ impl tool_runtime::Tool for CodexReadFileTool {
     #[tracing::instrument(name = "tool.codex_read_file", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: CodexReadFileInput,
-    ) -> Result<ReadFileOutput, tool_runtime::ToolError> {
+    ) -> Result<ReadFileOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -307,7 +310,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -337,7 +340,7 @@ mod tests {
 
         // Out-of-range reads are surfaced as a structured `FileReadError` (a
         // model-facing error), not a hard `Err`.
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -368,7 +371,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -396,7 +399,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -424,7 +427,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -464,7 +467,7 @@ mod tests {
             }),
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -506,7 +509,7 @@ mod tests {
             }),
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -537,7 +540,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -568,7 +571,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -596,7 +599,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -628,7 +631,7 @@ mod tests {
             indentation: None,
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {

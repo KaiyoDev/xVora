@@ -532,7 +532,7 @@ mod tests {
         )));
     }
 
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
 
     // ── Helpers ─────────────────────────────────────────────────────────
 

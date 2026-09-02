@@ -19,8 +19,12 @@ struct FixedActiveMessageBackend {
 
 #[async_trait::async_trait]
 impl SubagentBackend for FixedActiveMessageBackend {
-    async fn spawn(&self, _: SubagentRequest) -> Result<SubagentResult, tool_runtime::ToolError> {
-        Err(tool_runtime::ToolError::custom(
+    async fn spawn(
+        &self,
+        _: SubagentRequest,
+        _: Option<tokio::sync::oneshot::Sender<()>>,
+    ) -> Result<SubagentResult, xvora_tool_runtime::ToolError> {
+        Err(xvora_tool_runtime::ToolError::custom(
             "unsupported",
             "spawn unsupported",
         ))
@@ -53,12 +57,24 @@ impl SubagentBackend for FixedActiveMessageBackend {
 }
 
 fn active_message_call(id: &str, text: &str) -> crate::sampling::types::ToolCallResponse {
+    active_message_call_with_queue(id, text, None)
+}
+
+fn active_message_call_with_queue(
+    id: &str,
+    text: &str,
+    queue: Option<bool>,
+) -> crate::sampling::types::ToolCallResponse {
+    let mut arguments = serde_json::json!({ "subagent_id": "child", "text": text });
+    if let Some(queue) = queue {
+        arguments["queue"] = queue.into();
+    }
     crate::sampling::types::ToolCallResponse {
         id: id.to_owned(),
         kind: "function".to_owned(),
         function: crate::sampling::types::ToolCallFunction::new(
             "send_subagent_message",
-            serde_json::json!({ "subagent_id": "child", "text": text }).to_string(),
+            arguments.to_string(),
         ),
     }
 }
@@ -130,7 +146,7 @@ fn active_message_outputs_distinguish_uncertain_from_proved_rejection() {
         ),
     ] {
         let output = ToolOutput::SendSubagentMessage(output);
-        let result: Result<ToolRunResult, tool_runtime::ToolError> = Ok(ToolRunResult {
+        let result: Result<ToolRunResult, xvora_tool_runtime::ToolError> = Ok(ToolRunResult {
             prompt_text: output.to_prompt_format(),
             output,
             effective_tool_name: None,
@@ -154,7 +170,7 @@ async fn generic_tool_completion_chokepoint_has_exact_active_message_cardinality
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
@@ -235,6 +251,24 @@ async fn generic_tool_completion_chokepoint_has_exact_active_message_cardinality
                 .await;
                 assert_eq!(active_message_event_names(&events), expected);
             }
+
+            let events = execute_with_captured_active_message_events(
+                &actor,
+                active_message_call_with_queue("queued", "follow up", Some(true)),
+            )
+            .await;
+            assert!(matches!(
+                events.as_slice(),
+                [
+                    crate::session::telemetry::ActiveAgentMessageEvent::Completed(
+                        xvora_telemetry::events::ActiveAgentMessageCompleted {
+                            requested_operation:
+                                xvora_telemetry::events::ActiveAgentMessageOperation::Queue,
+                            ..
+                        }
+                    )
+                ]
+            ));
 
             let events = execute_with_captured_active_message_events(
                 &actor,

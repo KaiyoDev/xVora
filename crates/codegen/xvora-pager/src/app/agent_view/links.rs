@@ -81,7 +81,7 @@ impl AgentView {
     /// Split from `draw`'s emit-gated block so the guards are unit-testable; the caller owns the `hyperlink_route().emit_osc8` check.
     pub(super) fn push_promo_cta_link_span(
         &self,
-        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
         banner_announcements: &[xvora_announcements::RemoteAnnouncement],
         hidden_announcement_ids: &std::collections::BTreeSet<String>,
     ) {
@@ -96,7 +96,7 @@ impl AgentView {
     /// It shares the banner CTA's url resolution and occluder rule.
     pub(super) fn push_upgrade_cta_link_span(
         &self,
-        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
         banner_announcements: &[xvora_announcements::RemoteAnnouncement],
         hidden_announcement_ids: &std::collections::BTreeSet<String>,
     ) {
@@ -110,8 +110,8 @@ impl AgentView {
     /// Append the OSC 8 spans a `command` status row opened, in the screen columns the row was painted at, under the same occluder rule as the CTAs.
     pub(super) fn push_status_line_link_spans(
         &self,
-        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
-        status_line_spans: Vec<ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
+        status_line_spans: Vec<xvora_ratatui_inline::LinkSpan>,
     ) {
         for span in status_line_spans {
             let width = span.col_end.saturating_sub(span.col_start);
@@ -125,14 +125,14 @@ impl AgentView {
     /// Draw already suppressed the rect under prompt dropdowns; the goal-detail overlay can reach the top/bottom rows on short terminals.
     fn push_cta_link_span(
         &self,
-        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
         rect: Option<ratatui::layout::Rect>,
         url: &str,
     ) {
         if let Some(rect) = rect
             && !self.rect_occluded(rect)
         {
-            link_spans_out.push(ratatui_inline::LinkSpan {
+            link_spans_out.push(xvora_ratatui_inline::LinkSpan {
                 row: rect.y,
                 col_start: rect.x,
                 col_end: rect.x.saturating_add(rect.width),

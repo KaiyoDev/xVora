@@ -1,4 +1,3 @@
-use crate::test_support;
 //! Filesystem completion for the shell token under the cursor.
 //! Any command's file arguments complete, plus path-like first tokens and redirection targets.
 //! Matching is fuzzy, and completions respect shell quoting, `~`, and `$VAR`.
@@ -1042,7 +1041,7 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         std::fs::write(tmp.path().join("notes.md"), "").unwrap();
 
-        let _env = test_support::EnvGuard::set("GROK_SUGGEST_TEST_DIR", tmp.path());
+        let _env = xvora_test_support::EnvGuard::set("GROK_SUGGEST_TEST_DIR", tmp.path());
         let ctx = SuggestContext::new(
             "cat $GROK_SUGGEST_TEST_DIR/no".into(),
             "cat $GROK_SUGGEST_TEST_DIR/no".len(),

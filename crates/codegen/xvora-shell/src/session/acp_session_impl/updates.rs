@@ -84,7 +84,7 @@ mod inbound_summary_persist_scrub_tests {
         local
             .run_until(async {
                 let (gateway_tx, _gateway_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                    tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
                 let (persistence_tx, mut prx) =
                     tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
                 let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -145,7 +145,7 @@ impl SessionActor {
     /// Apply subagent usage. `Ok` once the chat-state handle acks; `Err` if the apply failed.
     pub(super) async fn record_subagent_usage(
         &self,
-        by_model: &[(String, chat_state::UsageTotals)],
+        by_model: &[(String, xvora_chat_state::UsageTotals)],
         parent_prompt_id: Option<&str>,
         incomplete: bool,
     ) -> Result<SubagentUsageApply, ()> {
@@ -178,7 +178,7 @@ impl SessionActor {
     /// A failed apply drops the ack so the child's true-miss fallback runs.
     pub(super) async fn handle_record_subagent_usage_command(
         &self,
-        by_model: &[(String, chat_state::UsageTotals)],
+        by_model: &[(String, xvora_chat_state::UsageTotals)],
         parent_prompt_id: Option<&str>,
         incomplete: bool,
         respond_to: tokio::sync::oneshot::Sender<()>,
@@ -1065,7 +1065,7 @@ mod xvora_event_id_stamping_tests {
         local
             .run_until(async {
                 let (gateway_tx, _gateway_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                    tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
                 let (persistence_tx, mut prx) =
                     tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
                 let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1105,7 +1105,7 @@ mod xvora_event_id_stamping_tests {
         local
             .run_until(async {
                 let (gateway_tx, _gateway_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                    tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
                 let (persistence_tx, mut prx) =
                     tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
                 let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1148,7 +1148,7 @@ mod xvora_event_id_stamping_tests {
         local
             .run_until(async {
                 let (gateway_tx, _gateway_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                    tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
                 let (persistence_tx, mut prx) =
                     tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
                 let (actor, mut event_rx) = super::support::create_test_actor_ex(

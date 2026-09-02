@@ -1,4 +1,3 @@
-use crate::test_support;
 //! This manager coordinates:
 //! - Signal tracking via SessionSignalsHandle
 //! - Heuristics evaluation to determine when to request feedback
@@ -268,7 +267,7 @@ pub struct FeedbackManager {
     /// GCS upload queue stats for periodic snapshots into signals.
     /// Set once after the first upload queue is created via `set_upload_queue_stats()`.
     /// `OnceLock` because `FeedbackManager` is behind `Arc` and this is set after construction.
-    upload_queue_stats: std::sync::OnceLock<Arc<file_utils::queue::UploadQueueStats>>,
+    upload_queue_stats: std::sync::OnceLock<Arc<xvora_file_utils::queue::UploadQueueStats>>,
 }
 
 impl FeedbackManager {
@@ -307,7 +306,10 @@ impl FeedbackManager {
         Self::new(session_id, None, FeedbackManagerConfig::default())
     }
 
-    pub(crate) fn set_upload_queue_stats(&self, stats: Arc<file_utils::queue::UploadQueueStats>) {
+    pub(crate) fn set_upload_queue_stats(
+        &self,
+        stats: Arc<xvora_file_utils::queue::UploadQueueStats>,
+    ) {
         let _ = self.upload_queue_stats.set(stats);
     }
 
@@ -864,7 +866,7 @@ impl FeedbackManager {
     /// For an empty session (no turns or tool calls), `sync_signals_inner(force)` skips the analytics POST; drain is skipped when pending is also 0.
     /// Non-empty drains use `min(config.drain_timeout, cap)` (default cap 5s, `GROK_SESSION_EXIT_DRAIN_SECS` up to hard max 7s).
     /// Incomplete drains leave durable pairs on disk for next-session recovery.
-    pub async fn shutdown(&self, queue: Option<&file_utils::queue::UploadQueue>) {
+    pub async fn shutdown(&self, queue: Option<&xvora_file_utils::queue::UploadQueue>) {
         let pending = queue
             .map(|q| q.stats().pending.load(Ordering::Relaxed))
             .unwrap_or(0);
@@ -1263,8 +1265,8 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_with_upload_queue_drains() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
-        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
         use std::sync::Arc;
+        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1304,7 +1306,7 @@ mod tests {
     fn test_shutdown_budgets_fit_under_session_flush_grace() {
         use crate::agent::activity::SESSION_FLUSH_GRACE;
         // `nonempty_drain_budget` reads env; pin default regardless of CI presets.
-        let _unset = test_support::env::EnvGuard::unset("GROK_SESSION_EXIT_DRAIN_SECS");
+        let _unset = xvora_test_support::env::EnvGuard::unset("GROK_SESSION_EXIT_DRAIN_SECS");
         assert!(
             SHUTDOWN_SIGNAL_SYNC_TIMEOUT + SHUTDOWN_DRAIN_HARD_MAX <= SESSION_FLUSH_GRACE,
             "sync + hard-max drain must fit under flush grace"
@@ -1333,7 +1335,8 @@ mod tests {
     #[serial_test::serial]
     fn test_nonempty_drain_budget_env_raises_cap() {
         {
-            let _guard = test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "7");
+            let _guard =
+                xvora_test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "7");
             assert_eq!(
                 nonempty_drain_budget(Duration::from_secs(30)),
                 Duration::from_secs(7),
@@ -1341,7 +1344,8 @@ mod tests {
             );
         }
         {
-            let _guard = test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "99");
+            let _guard =
+                xvora_test_support::env::EnvGuard::set("GROK_SESSION_EXIT_DRAIN_SECS", "99");
             assert_eq!(
                 nonempty_drain_budget(Duration::from_secs(30)),
                 SHUTDOWN_DRAIN_HARD_MAX,
@@ -1511,9 +1515,9 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_empty_queue_uses_short_drain_budget() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
-        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
         use std::sync::Arc;
         use std::time::Instant;
+        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1555,9 +1559,9 @@ mod tests {
     async fn test_shutdown_nonempty_queue_clamps_drain_and_leaves_durable_pair() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
         use axum::{Router, body::Body, http::StatusCode, response::IntoResponse, routing::post};
-        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
         use std::sync::Arc;
         use std::time::Instant;
+        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         async fn slow_handler(_body: Body) -> impl IntoResponse {
             tokio::time::sleep(Duration::from_secs(60)).await;
@@ -1850,8 +1854,9 @@ mod author_identity_tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn env_var_identity_reaches_the_wire_end_to_end() {
-        let _email = test_support::env::EnvGuard::set("GROK_TEST_WORK_EMAIL", "ada@corp.example");
-        let _name = test_support::env::EnvGuard::set("GROK_TEST_WORK_NAME", "Ada Lovelace");
+        let _email =
+            xvora_test_support::env::EnvGuard::set("GROK_TEST_WORK_EMAIL", "ada@corp.example");
+        let _name = xvora_test_support::env::EnvGuard::set("GROK_TEST_WORK_NAME", "Ada Lovelace");
 
         // The loader expands `$VAR` at load, exactly as a trusted config tier ships it.
         let mut value = toml::from_str::<toml::Value>(
@@ -1916,8 +1921,10 @@ email = ["$GROK_TEST_WORK_EMAIL"]
     #[tokio::test]
     #[serial_test::serial]
     async fn workflow_merges_user_metadata_into_submission() {
-        let _guard =
-            test_support::env::EnvGuard::set("GROK_USER_METADATA", r#"{"team": "platform-tools"}"#);
+        let _guard = xvora_test_support::env::EnvGuard::set(
+            "GROK_USER_METADATA",
+            r#"{"team": "platform-tools"}"#,
+        );
         let (addr, captured) = start_capture_server().await;
         let client = crate::agent::feedback_client::FeedbackClient::with_client(
             reqwest::Client::new(),

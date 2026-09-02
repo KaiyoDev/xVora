@@ -7,14 +7,14 @@ use crate::rpc_envelope::{RpcEnvelope, envelope_err};
 use crate::workspace_ops::{RpcActivityClass, WorkspaceOp, WorkspaceRpc};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use computer_hub_sdk::ToolServerHandler;
 use prometheus::{HistogramVec, IntCounterVec, register_histogram_vec, register_int_counter_vec};
 use serde_json::Value;
-use tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
-use tool_runtime::{
+use xvora_computer_hub_sdk::ToolServerHandler;
+use xvora_tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
+use xvora_tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 use xvora_tools::computer::types::KillOutcome;
 use xvora_tools::computer::types::TaskKind;
 use xvora_tools::implementations::grok_build::scheduler::interval::interval_to_human;
@@ -597,7 +597,10 @@ impl WorkspaceRpcHandler {
                     .get("session_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| WorkspaceError::HubError("missing session_id".into()))?;
-                let result = self.workspace.drop_session(caller, target);
+                let result = self
+                    .workspace
+                    .drop_session_with_teardown(caller, target)
+                    .await;
                 record_mutation_rpc("drop_session", caller, target, &result);
                 result.map(|()| Value::Null)
             }
@@ -1096,7 +1099,7 @@ impl ToolServerHandler for WorkspaceRpcHandler {
             .get("params")
             .cloned()
             .unwrap_or(Value::Object(Default::default()));
-        let bound_session = ctx.extensions.get::<tool_runtime::SessionContext>();
+        let bound_session = ctx.extensions.get::<xvora_tool_runtime::SessionContext>();
         let session_id = bound_session.as_deref().map(|s| s.0.as_str());
         let start = std::time::Instant::now();
         let result = self.dispatch(method, params, session_id).await;
@@ -1140,13 +1143,19 @@ impl ToolServerHandler for WorkspaceRpcHandler {
             }
             HookEvent::SessionEnded => {
                 tracing::info!(%session_id, "session_ended hook received");
-                self.workspace
-                    .teardown_session_mcp(session_id.as_str())
-                    .await;
+                if let Some(session) = self.workspace.session(session_id.as_str()) {
+                    let arrival_generation = session
+                        .mcp_bind_generation
+                        .load(std::sync::atomic::Ordering::SeqCst);
+                    drop(session);
+                    self.workspace
+                        .teardown_session_mcp_for_event(session_id.as_str(), arrival_generation)
+                        .await;
+                }
                 self.workspace.on_session_ended(session_id.as_str());
             }
             HookEvent::Custom { kind, payload } => {
-                use tool_protocol::turn_hook::{
+                use xvora_tool_protocol::turn_hook::{
                     AFTER_TURN_KIND, AfterTurnPayload, BEFORE_TURN_KIND, BeforeTurnPayload,
                 };
                 match kind.as_str() {
@@ -1202,7 +1211,7 @@ impl ToolServerHandler for WorkspaceRpcHandler {
         }
     }
     async fn handle_hook_request(&self, session_id: SessionId, frame: HookFrame) -> Option<Value> {
-        use tool_protocol::turn_hook::{self, TurnHookRequest};
+        use xvora_tool_protocol::turn_hook::{self, TurnHookRequest};
         let HookEvent::Custom { kind, payload } = frame.event else {
             return None;
         };
@@ -1238,8 +1247,6 @@ impl ToolServerHandler for WorkspaceRpcHandler {
     /// For a multi-session workspace the evicted session is dropped immediately, with no per-session drain.
     async fn handle_evict(&self, params: ToolServerEvictParams) {
         let sid = params.session_id.as_str();
-        self.workspace.teardown_session_mcp(sid).await;
-        self.workspace.on_session_ended(sid);
         let (became_empty, start_drain, removed) = {
             let mut sessions = self.workspace.shared.sessions.write();
             let removed = sessions.remove(sid);
@@ -1257,6 +1264,10 @@ impl ToolServerHandler for WorkspaceRpcHandler {
             }
             (empty, start, removed)
         };
+        if let Some(session) = &removed {
+            self.workspace.teardown_session_mcp_arc(session, None).await;
+        }
+        self.workspace.on_session_ended(sid);
         if let Some(session) = removed {
             self.workspace.invoke_unbind_hook(&session);
         }

@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde_json::Value;
 
-use tool_protocol::ToolId;
+use xvora_tool_protocol::ToolId;
 
 use crate::context::ToolCallContext;
 use crate::error::ToolError;

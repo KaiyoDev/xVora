@@ -21,7 +21,9 @@ use crate::types::requirements::{Expr, ToolParamsRequirement, ToolRequirement};
 use crate::types::resources::{SharedResources, Terminal, TruncationCfg};
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::{ToolKind, ToolNamespace};
-use tool_types::{MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput};
+use xvora_tool_types::{
+    MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, TaskOutputToolInput,
+};
 
 /// Default wait budget when a caller is already in wait mode but omitted
 /// `timeout_ms` (legacy `wait_tasks` / internal `capped_wait_timeout`). On
@@ -29,12 +31,12 @@ use tool_types::{MultiTaskOutputResult, TaskOutputOutput, TaskOutputResult, Task
 /// constant is not applied unless a wait is active.
 pub(crate) const DEFAULT_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// The blocking-wait ceiling: `GROK_MAX_WAIT_BLOCK_MS`, else 10 min.
+/// The blocking-wait ceiling: `GROK_MAX_WAIT_BLOCK_MS`, else `MAX_WAIT_BLOCK_MS_DEFAULT`.
 ///
 /// The same value fills `{max_wait_ms}` in the descriptions, so a wait can
 /// never exceed what the model was told it may ask for.
 pub(crate) fn max_wait_block() -> Duration {
-    Duration::from_millis(tool_types::max_wait_block_ms())
+    Duration::from_millis(xvora_tool_types::max_wait_block_ms())
 }
 
 /// Resolve a model-supplied `timeout_ms` into the effective blocking-wait
@@ -79,27 +81,44 @@ impl WaitSubject {
     }
 }
 
-fn still_running_wait_hint(hint: WaitHint, subject: WaitSubject) -> String {
+fn still_running_do_not_cancel(subject: WaitSubject) -> String {
     let noun = subject.noun();
-    let lead = match hint {
+    // Bash tasks have no follow-up channel; only subagents can be told to stop.
+    let cancel_clause = match subject {
+        WaitSubject::Subagent => {
+            format!("Unless the user specified, do not kill this {noun} and do not tell it to stop")
+        }
+        WaitSubject::Task => format!("Unless the user specified, do not kill this {noun}"),
+    };
+    format!(
+        "{cancel_clause} just because this wait returned. \
+         It is still working. You will be notified automatically when it completes. \
+         Do other work, or wait again with a longer timeout_ms."
+    )
+}
+
+fn still_running_wait_hint(hint: WaitHint, subject: WaitSubject) -> String {
+    let tail = still_running_do_not_cancel(subject);
+    match hint {
         WaitHint::Elapsed { requested, waited } => {
             let waited_label = format_waited_duration(waited);
-            if requested > waited {
+            let lead = if requested > waited {
                 let requested_label = format_waited_duration(requested);
                 format!(
-                    "Waited {waited_label}, the per-call maximum, of the {requested_label} you requested; \
-                     the {noun} is still running. You do not need to call this again."
+                    "Waited {waited_label}, the per-call maximum, of the {requested_label} you requested."
                 )
             } else {
-                format!("Waited the requested {waited_label}; the {noun} is still running.")
-            }
+                format!("Waited the requested {waited_label}.")
+            };
+            format!("{lead} {tail}")
         }
         WaitHint::ReturnedEarly => {
-            format!("Wait returned early because another finished; this {noun} is still running.")
+            format!("Wait returned early because another finished. {tail}")
         }
-        WaitHint::NotRequested => "Use timeout_ms to wait for completion.".to_string(),
-    };
-    format!("{lead} You will be notified automatically when the {noun} completes.")
+        WaitHint::NotRequested => {
+            format!("Use timeout_ms to wait for completion. {tail}")
+        }
+    }
 }
 
 fn format_waited_duration(d: Duration) -> String {
@@ -131,7 +150,7 @@ pub(crate) fn background_bash_requires_exprs() -> Vec<Expr<ToolRequirement>> {
     use crate::types::tool_metadata::ToolMetadata;
     let grok_build_bash = Expr::Value(ToolRequirement::Tool {
         namespace: ToolMetadata::tool_namespace(&BashTool).to_string(),
-        id: tool_runtime::Tool::id(&BashTool).as_str().to_string(),
+        id: xvora_tool_runtime::Tool::id(&BashTool).as_str().to_string(),
         if_params: Some(Expr::Value(ToolParamsRequirement {
             key: "enabled_background".to_string(),
             value: Expr::Value(serde_json::Value::Bool(true)),
@@ -139,7 +158,7 @@ pub(crate) fn background_bash_requires_exprs() -> Vec<Expr<ToolRequirement>> {
     });
     let grok_build_concise_bash = Expr::Value(ToolRequirement::Tool {
         namespace: ToolMetadata::tool_namespace(&BashConciseTool).to_string(),
-        id: tool_runtime::Tool::id(&BashConciseTool)
+        id: xvora_tool_runtime::Tool::id(&BashConciseTool)
             .as_str()
             .to_string(),
         if_params: Some(Expr::Value(ToolParamsRequirement {
@@ -149,7 +168,7 @@ pub(crate) fn background_bash_requires_exprs() -> Vec<Expr<ToolRequirement>> {
     });
     let opencode_bash = Expr::Value(ToolRequirement::Tool {
         namespace: ToolMetadata::tool_namespace(&OpenCodeBashTool).to_string(),
-        id: tool_runtime::Tool::id(&OpenCodeBashTool)
+        id: xvora_tool_runtime::Tool::id(&OpenCodeBashTool)
             .as_str()
             .to_string(),
         if_params: None,
@@ -162,7 +181,7 @@ pub(crate) fn task_output_requires_expr() -> Expr<ToolRequirement> {
     use crate::types::tool_metadata::ToolMetadata;
     let task_tool = Expr::Value(ToolRequirement::Tool {
         namespace: ToolMetadata::tool_namespace(&TaskTool).to_string(),
-        id: tool_runtime::Tool::id(&TaskTool).as_str().to_string(),
+        id: xvora_tool_runtime::Tool::id(&TaskTool).as_str().to_string(),
         if_params: None,
     });
     let mut arms = background_bash_requires_exprs();
@@ -178,12 +197,12 @@ impl TaskOutputTool {
         &self,
         task_id: &str,
         timeout_ms: Option<u64>,
-        ctx: &tool_runtime::ToolCallContext,
+        ctx: &xvora_tool_runtime::ToolCallContext,
         resources: SharedResources,
-    ) -> Result<TaskOutputOutput, tool_runtime::ToolError> {
+    ) -> Result<TaskOutputOutput, xvora_tool_runtime::ToolError> {
         let contract_version = ctx
             .extensions
-            .get::<tool_runtime::BehaviorVersion>()
+            .get::<xvora_tool_runtime::BehaviorVersion>()
             .map(|v| v.0.clone());
         let is_legacy = crate::versions::is_legacy_contract(contract_version.as_deref());
         let terminal;
@@ -191,7 +210,7 @@ impl TaskOutputTool {
             terminal = resources.lock().await.require::<Terminal>()?.0.clone();
         }
 
-        let waits = tool_types::task_output_waits(timeout_ms);
+        let waits = xvora_tool_types::task_output_waits(timeout_ms);
         let wait_cap = max_wait_block();
         let wait_hint = if waits {
             WaitHint::Elapsed {
@@ -217,7 +236,7 @@ impl TaskOutputTool {
                 let renderer = res.require::<TemplateRenderer>()?;
                 read_file_name = renderer
                     .render("${{ tools.by_kind.read }}")
-                    .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                    .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
             }
             let max_output_bytes = resources
                 .lock()
@@ -287,8 +306,8 @@ impl TaskOutputTool {
         timeout_ms: Option<u64>,
         resources: SharedResources,
         tool_name_for_truncation: &str,
-    ) -> Result<TaskOutputOutput, tool_runtime::ToolError> {
-        let waits = tool_types::task_output_waits(timeout_ms);
+    ) -> Result<TaskOutputOutput, xvora_tool_runtime::ToolError> {
+        let waits = xvora_tool_types::task_output_waits(timeout_ms);
         let requested = requested_wait_timeout(timeout_ms);
         let timeout = capped_wait_timeout(timeout_ms, max_wait_block());
 
@@ -299,7 +318,7 @@ impl TaskOutputTool {
             let renderer = res.require::<TemplateRenderer>()?;
             let rfn = renderer
                 .render("${{ tools.by_kind.read }}")
-                .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
             let mob = res
                 .get::<TruncationCfg>()
                 .map(|cfg| {
@@ -363,7 +382,7 @@ impl TaskOutputTool {
     }
 }
 
-pub(crate) use tool_types::MAX_MULTI_WAIT_IDS;
+pub(crate) use xvora_tool_types::MAX_MULTI_WAIT_IDS;
 
 /// Terminal task statuses as produced by `snapshot_to_result` /
 /// `format_subagent_snapshot`; multi-wait summaries count these as finished.
@@ -711,7 +730,7 @@ fn format_subagent_snapshot(snap: &SubagentSnapshot, wait_hint: WaitHint) -> Tas
                 output.push_str(&format!("\n<worktree_path>{wt}</worktree_path>"));
             }
             output.push_str("\n\n");
-            output.push_str(&tool_types::format_resume_footer(
+            output.push_str(&xvora_tool_types::format_resume_footer(
                 &snap.subagent_id,
                 &snap.subagent_type,
                 snap.persona.as_deref(),
@@ -802,15 +821,17 @@ impl crate::types::tool_metadata::ToolMetadata for TaskOutputTool {
         // renders it context-aware from the finalized toolset. This static
         // fallback mirrors the default grok-build toolset.
         static DESC: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-            tool_types::build_task_output_description(&tool_types::TaskOutputToolNaming {
-                monitor_tool: Some("monitor"),
-                read_tool: Some("read_file"),
-                bash_background_param: Some("is_background"),
-                subagent_background_param: Some("run_in_background"),
-                task_ids_param: "task_ids",
-                timeout_ms_param: "timeout_ms",
-                task_id_param: "task_id",
-            })
+            xvora_tool_types::build_task_output_description(
+                &xvora_tool_types::TaskOutputToolNaming {
+                    monitor_tool: Some("monitor"),
+                    read_tool: Some("read_file"),
+                    bash_background_param: Some("is_background"),
+                    subagent_background_param: Some("run_in_background"),
+                    task_ids_param: "task_ids",
+                    timeout_ms_param: "timeout_ms",
+                    task_id_param: "task_id",
+                },
+            )
         });
         &DESC
     }
@@ -849,7 +870,7 @@ impl crate::types::tool_metadata::ToolMetadata for TaskOutputTool {
 
 /// Resolve the model-facing `get_task_output` description from the finalized
 /// toolset, honoring an explicit config override. Wording lives in the shared
-/// [`tool_types::build_task_output_description`] builder so the CLI and
+/// [`xvora_tool_types::build_task_output_description`] builder so the CLI and
 /// prod-chat can't drift; presence-gated clauses (monitor note, subagent
 /// source, read-file hint) follow the tools actually registered this turn.
 fn task_output_description(
@@ -862,7 +883,7 @@ fn task_output_description(
             ovr.to_string()
         });
     }
-    tool_types::build_task_output_description(&tool_types::TaskOutputToolNaming {
+    xvora_tool_types::build_task_output_description(&xvora_tool_types::TaskOutputToolNaming {
         monitor_tool: renderer.tool_for_kind(ToolKind::Monitor),
         read_tool: renderer.tool_for_kind(ToolKind::Read),
         bash_background_param: renderer.param_for_kind(ToolKind::Execute, "is_background"),
@@ -880,25 +901,28 @@ fn task_output_description(
     })
 }
 
-impl tool_runtime::Tool for TaskOutputTool {
+impl xvora_tool_runtime::Tool for TaskOutputTool {
     type Args = TaskOutputToolInput;
     type Output = TaskOutputOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("get_task_output").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("get_task_output").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "get_task_output",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -910,20 +934,20 @@ impl tool_runtime::Tool for TaskOutputTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: TaskOutputToolInput,
-    ) -> Result<TaskOutputOutput, tool_runtime::ToolError> {
+    ) -> Result<TaskOutputOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
         let ids = input.resolved_task_ids();
         if ids.is_empty() {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "Provide a non-empty task_ids list.".to_string(),
             ));
         }
         if ids.len() > MAX_MULTI_WAIT_IDS {
-            return Err(tool_runtime::ToolError::invalid_arguments(format!(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "task_ids exceeds maximum of {MAX_MULTI_WAIT_IDS} entries."
             )));
         }
@@ -1078,14 +1102,18 @@ mod tests {
     // unbounded blocking wait wedged the turn for hours).
     #[test]
     fn capped_wait_timeout_clamps_and_defaults() {
-        let cap = Duration::from_millis(tool_types::MAX_WAIT_BLOCK_MS_DEFAULT);
+        let cap = Duration::from_millis(xvora_tool_types::MAX_WAIT_BLOCK_MS_DEFAULT);
         assert_eq!(capped_wait_timeout(None, cap), DEFAULT_WAIT_TIMEOUT);
         assert_eq!(
             capped_wait_timeout(Some(5_000), cap),
             Duration::from_millis(5_000)
         );
-        assert_eq!(capped_wait_timeout(Some(36_000_000), cap), cap);
-        assert_eq!(capped_wait_timeout(Some(600_000), cap), cap);
+        assert_eq!(capped_wait_timeout(Some(3_600_000), cap), cap);
+        assert_eq!(capped_wait_timeout(Some(7_200_000), cap), cap);
+        assert_eq!(
+            capped_wait_timeout(Some(600_000), cap),
+            Duration::from_millis(600_000)
+        );
     }
 
     /// A client that shortens the cap at finalize must also shorten the wait —
@@ -1104,11 +1132,11 @@ mod tests {
     fn still_running_wait_hint_omitted_invites_timeout_ms() {
         assert_eq!(
             still_running_wait_hint(WaitHint::NotRequested, WaitSubject::Task),
-            "Use timeout_ms to wait for completion. You will be notified automatically when the task completes."
+            "Use timeout_ms to wait for completion. Unless the user specified, do not kill this task just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
         assert_eq!(
             still_running_wait_hint(WaitHint::NotRequested, WaitSubject::Subagent),
-            "Use timeout_ms to wait for completion. You will be notified automatically when the subagent completes."
+            "Use timeout_ms to wait for completion. Unless the user specified, do not kill this subagent and do not tell it to stop just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
     }
 
@@ -1120,13 +1148,11 @@ mod tests {
         };
         assert_eq!(
             still_running_wait_hint(hint, WaitSubject::Task),
-            "Waited the requested 30s; the task is still running. \
-             You will be notified automatically when the task completes."
+            "Waited the requested 30s. Unless the user specified, do not kill this task just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
         assert_eq!(
             still_running_wait_hint(hint, WaitSubject::Subagent),
-            "Waited the requested 30s; the subagent is still running. \
-             You will be notified automatically when the subagent completes."
+            "Waited the requested 30s. Unless the user specified, do not kill this subagent and do not tell it to stop just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
     }
 
@@ -1138,15 +1164,11 @@ mod tests {
         };
         assert_eq!(
             still_running_wait_hint(hint, WaitSubject::Task),
-            "Waited 600s, the per-call maximum, of the 2400s you requested; \
-             the task is still running. You do not need to call this again. \
-             You will be notified automatically when the task completes."
+            "Waited 600s, the per-call maximum, of the 2400s you requested. Unless the user specified, do not kill this task just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
         assert_eq!(
             still_running_wait_hint(hint, WaitSubject::Subagent),
-            "Waited 600s, the per-call maximum, of the 2400s you requested; \
-             the subagent is still running. You do not need to call this again. \
-             You will be notified automatically when the subagent completes."
+            "Waited 600s, the per-call maximum, of the 2400s you requested. Unless the user specified, do not kill this subagent and do not tell it to stop just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
     }
 
@@ -1154,20 +1176,21 @@ mod tests {
     fn still_running_wait_hint_returned_early_is_honest() {
         assert_eq!(
             still_running_wait_hint(WaitHint::ReturnedEarly, WaitSubject::Task),
-            "Wait returned early because another finished; this task is still running. \
-             You will be notified automatically when the task completes."
+            "Wait returned early because another finished. Unless the user specified, do not kill this task just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
         assert_eq!(
             still_running_wait_hint(WaitHint::ReturnedEarly, WaitSubject::Subagent),
-            "Wait returned early because another finished; this subagent is still running. \
-             You will be notified automatically when the subagent completes."
+            "Wait returned early because another finished. Unless the user specified, do not kill this subagent and do not tell it to stop just because this wait returned. It is still working. You will be notified automatically when it completes. Do other work, or wait again with a longer timeout_ms."
         );
     }
 
     #[test]
     fn tool_name_and_description() {
         let tool = TaskOutputTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "get_task_output");
+        assert_eq!(
+            xvora_tool_runtime::Tool::id(&tool).as_str(),
+            "get_task_output"
+        );
         // The static fallback is the shared builder's default grok-build
         // rendering (monitor + task + bash + read present): concrete names, no
         // leftover template markers.
@@ -1340,7 +1363,7 @@ mod tests {
         let resources = resources_with_terminal(Some(snapshot));
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1368,7 +1391,7 @@ mod tests {
         let resources = resources_with_terminal(Some(snapshot));
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1395,7 +1418,7 @@ mod tests {
         let resources = resources_with_terminal(Some(snapshot));
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1420,7 +1443,7 @@ mod tests {
         let resources = resources_with_terminal(None);
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1497,7 +1520,7 @@ mod tests {
         ));
 
         let tool = TaskOutputTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1570,7 +1593,7 @@ mod tests {
         ));
 
         let tool = TaskOutputTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1595,7 +1618,7 @@ mod tests {
         let resources = Resources::new();
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1628,7 +1651,7 @@ mod tests {
         ));
 
         let tool = TaskOutputTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1658,7 +1681,7 @@ mod tests {
         let resources = resources_with_terminal(Some(snapshot));
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1755,7 +1778,7 @@ mod tests {
         let snapshot = make_snapshot("task-done", true, Some(0));
         let (resources, waited, stamped) = resources_with_stamp_wait(snapshot);
         let started = std::time::Instant::now();
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1789,7 +1812,7 @@ mod tests {
         let snapshot = make_snapshot("task-run", false, None);
         let (resources, waited, stamped) = resources_with_stamp_wait(snapshot);
         let started = std::time::Instant::now();
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1947,7 +1970,7 @@ mod tests {
         resources.insert(TruncationCfg(trunc));
 
         let tool = TaskOutputTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -1986,10 +2009,11 @@ mod tests {
         let tool = TaskOutputTool;
 
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             ctx,
             TaskOutputToolInput {
@@ -2016,7 +2040,7 @@ mod tests {
         let resources = resources_with_terminal(None);
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -2247,7 +2271,7 @@ mod tests {
         let resources = resources_with_terminal(None);
         let tool = TaskOutputTool;
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -2271,7 +2295,7 @@ mod tests {
     async fn multi_task_ids_poll_returns_multi_result_mode_poll() {
         let resources = resources_with_terminal(None);
         let tool = TaskOutputTool;
-        let out = tool_runtime::Tool::run(
+        let out = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -2295,7 +2319,7 @@ mod tests {
     async fn one_element_task_ids_returns_single_result_not_multi() {
         let resources = resources_with_terminal(None);
         let tool = TaskOutputTool;
-        let out = tool_runtime::Tool::run(
+        let out = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -2373,7 +2397,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(shared),
             TaskOutputToolInput {
@@ -2424,7 +2448,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(shared),
             TaskOutputToolInput {
@@ -2457,7 +2481,7 @@ mod tests {
             req.respond_to.send(None).unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(shared),
             TaskOutputToolInput {
@@ -2512,7 +2536,7 @@ mod tests {
         });
 
         let started = std::time::Instant::now();
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(shared),
             TaskOutputToolInput {
@@ -2566,7 +2590,7 @@ mod tests {
         });
 
         let started = std::time::Instant::now();
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(shared),
             TaskOutputToolInput {
@@ -2593,7 +2617,7 @@ mod tests {
     async fn blocking_get_on_unknown_task_returns_immediately() {
         let resources = resources_with_terminal(None);
         let started = std::time::Instant::now();
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskOutputTool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -2656,7 +2680,7 @@ mod tests {
                 req.respond_to.send(Some(snapshot)).unwrap();
             });
             let started = std::time::Instant::now();
-            let result = tool_runtime::Tool::run(
+            let result = xvora_tool_runtime::Tool::run(
                 &TaskOutputTool,
                 test_ctx(shared),
                 TaskOutputToolInput {

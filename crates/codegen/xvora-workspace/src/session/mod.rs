@@ -11,15 +11,15 @@ use crate::config::{MemoryConfig, SessionContextFactory};
 use crate::file_system::{AsyncFsWrapper, LocalFs};
 use crate::hub::{HubConfig, HubHandle};
 use crate::session::file_state::FileStateTracker;
-use computer_hub_mcp_adapter::McpBridgeHandle;
-use hunk_tracker::HunkTrackerHandle;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use tool_protocol::ToolId;
-use tool_runtime::WorkspaceViewerContext;
+use xvora_computer_hub_mcp_adapter::McpBridgeHandle;
+use xvora_hunk_tracker::HunkTrackerHandle;
 use xvora_mcp::servers::McpState;
+use xvora_tool_protocol::ToolId;
+use xvora_tool_runtime::WorkspaceViewerContext;
 use xvora_tools::notification::AcknowledgedToolNotification;
 use xvora_tools::notification::types::ToolNotificationHandle;
 use xvora_tools::registry::types::{FinalizedToolset, ToolConfig, ToolServerConfig};
@@ -47,6 +47,60 @@ pub mod result {
         pub error: Option<serde_json::Value>,
     }
 }
+/// One MCP server running for a session.
+pub(crate) struct SessionMcpServer {
+    pub(crate) bridge: McpBridgeHandle,
+    /// The ids this server contributed to the session's advertised tool set,
+    /// i.e. what survived collision filtering. Dropping the server
+    /// unregisters exactly these, so a native tool that shadowed a same-named
+    /// MCP tool is never torn down along with it.
+    pub(crate) tool_ids: Vec<ToolId>,
+}
+/// The MCP servers a session is running.
+pub(crate) struct ActiveMcp {
+    /// Config server name → live server. Empty is meaningful: it marks a
+    /// session that is in the configured set but currently runs nothing, so
+    /// a later reload can add servers to it.
+    pub(crate) servers: HashMap<String, SessionMcpServer>,
+}
+/// Whether a session takes part in the workspace's configured MCP set.
+///
+/// `Uninitialized` is a session that never joined: unbound, an `rpc_only`
+/// bind, or a bind whose toolset failed to resolve. Reloads skip those.
+pub(crate) enum WorkspaceMcpBinding {
+    Uninitialized,
+    Active(ActiveMcp),
+    Closed,
+}
+impl WorkspaceMcpBinding {
+    /// The session's servers, or `None` if it has not joined the set.
+    pub(crate) fn active(&self) -> Option<&ActiveMcp> {
+        match self {
+            Self::Active(active) => Some(active),
+            Self::Uninitialized | Self::Closed => None,
+        }
+    }
+    /// Mutable [`Self::active`]. Does **not** enrol a session that has not
+    /// joined — pushing servers into an `rpc_only` bind would hand it tools
+    /// it opted out of.
+    pub(crate) fn active_mut(&mut self) -> Option<&mut ActiveMcp> {
+        match self {
+            Self::Active(active) => Some(active),
+            Self::Uninitialized | Self::Closed => None,
+        }
+    }
+    /// Enrol this session in the configured set, or return its existing
+    /// servers. The only accessor that promotes, and `None` only once torn
+    /// down — a reload must never resurrect a session the hub has ended.
+    pub(crate) fn join(&mut self) -> Option<&mut ActiveMcp> {
+        if matches!(self, Self::Uninitialized) {
+            *self = Self::Active(ActiveMcp {
+                servers: HashMap::new(),
+            });
+        }
+        self.active_mut()
+    }
+}
 /// Per-session state held in [`WorkspaceShared::sessions`].
 ///
 /// The `effective_tool_config` baseline and the resolved `toolset` are kept under a single `RwLock` so a hot reload swaps both atomically.
@@ -62,7 +116,7 @@ pub struct WorkspaceSession {
     /// [`Self::cancel_hunk_tracker`] fires it on session teardown.
     /// `None` when the tracker is externally owned (e.g. `create_session_with_tracker` / local shell mode).
     ///
-    /// [`HunkTrackerActor`]: hunk_tracker::HunkTrackerActor
+    /// [`HunkTrackerActor`]: xvora_hunk_tracker::HunkTrackerActor
     pub(crate) hunk_tracker_cancel: Option<tokio_util::sync::CancellationToken>,
     pub(crate) file_state_tracker: Arc<FileStateTracker>,
     /// Per-turn hunk deltas keyed by `prompt_index`, captured at finalize and replayed on rewind (only when `workspace_rewind_hunks` is on).
@@ -70,7 +124,7 @@ pub struct WorkspaceSession {
     ///
     /// [`checkpoint_store`]: WorkspaceSession::checkpoint_store
     pub(crate) hunk_checkpoints:
-        Arc<tokio::sync::Mutex<HashMap<usize, hunk_tracker::HunkTurnDelta>>>,
+        Arc<tokio::sync::Mutex<HashMap<usize, xvora_hunk_tracker::HunkTurnDelta>>>,
     /// Git domain of the per-prompt rewind checkpoints (HEAD and the staged set).
     pub(crate) git_checkpoints: crate::session::git::GitCheckpointStore,
     /// Disk-backed durability mirror for finalized checkpoints, fronted by an in-memory cache.
@@ -82,14 +136,49 @@ pub struct WorkspaceSession {
     inner: RwLock<WorkspaceSessionInner>,
     /// Per-session lock that serialises `update_tool_config` calls.
     pub(crate) update_lock: tokio::sync::Mutex<()>,
-    /// Per-session MCP state (owned clients, etc.).
+    /// Canonical MCP client/configuration runtime state.
     pub(crate) mcp_state: Arc<tokio::sync::Mutex<McpState>>,
-    /// MCP bridges kept alive for the session lifetime.
-    pub(crate) mcp_bridges: tokio::sync::Mutex<Vec<McpBridgeHandle>>,
-    /// Qualified tool IDs registered on the server for this session's MCP tools.
-    pub(crate) mcp_tool_ids: tokio::sync::Mutex<Vec<ToolId>>,
-    /// Per-user feature-flag bag resolved at session-bind time, frozen for the session lifetime.
-    /// `None` means tools use their safe defaults.
+    /// Workspace hub publication state for MCP bridges and registered aliases.
+    pub(crate) mcp_binding: tokio::sync::Mutex<WorkspaceMcpBinding>,
+    /// Cancels the session's in-flight MCP server starts. Teardown flips the
+    /// binding to `Closed` for everything that COMPLETES afterwards, but a
+    /// start still connecting holds its child process inside a pending
+    /// future — cancelling drops those futures, killing the children now
+    /// instead of at the discovery deadline. A revive bind (re-opening a
+    /// `Closed` binding) swaps in a fresh token.
+    pub(crate) mcp_cancel: parking_lot::Mutex<tokio_util::sync::CancellationToken>,
+    /// MCP life counter, only ever bumped under `mcp_binding`: an enrolment
+    /// that TRANSITIONS the binding to Active starts a life, teardown ends
+    /// one. A soft rebind of an already-Active binding continues the life —
+    /// its cancel token and its hub registrations' life tags are the
+    /// life's, and must stay coherent with this counter. Two fences read
+    /// it:
+    ///
+    /// - A bind snapshots it when its resolution starts, and enrolment
+    ///   refuses a stale snapshot — so a stale soft rebind landing just
+    ///   after a genuine session-end teardown cannot re-open the binding
+    ///   and start servers nothing will ever tear down.
+    /// - A hub `session.unbind` snapshots it when the frame arrives, and
+    ///   its spawned teardown runs only while that life is still current
+    ///   (`teardown_session_mcp_for_event`) — so a stale unbind task
+    ///   cannot tear down a newer life a reconnect bind enrolled meanwhile.
+    pub(crate) mcp_epoch: std::sync::atomic::AtomicU64,
+    /// Accepted-bind counter, bumped under `mcp_binding` by every bind the
+    /// resolver accepts (enrolments, soft rebinds, re-opens — anything that
+    /// returns bind success). A hub unbind's DEFERRED teardown snapshots it
+    /// beside the epoch and re-checks both: a soft rebind continues the
+    /// life (same epoch — wave 13), so the epoch alone cannot distinguish
+    /// "before the unbind" from "after the reconnect bind"; a bind accepted
+    /// after the unbind arrived must invalidate the pending teardown, or it
+    /// would close MCP under the accepted bind with nothing to re-open it.
+    pub(crate) mcp_bind_generation: std::sync::atomic::AtomicU64,
+    /// The native tool ids the session's last bind advertised (including the
+    /// RPC handler), recorded by the bind resolver. `claim_tools` refuses an
+    /// MCP tool whose id collides with one of these, and only the bind knows
+    /// them — the hub snapshot also holds already-advertised MCP tools.
+    pub(crate) mcp_native_tool_ids: parking_lot::Mutex<std::collections::HashSet<ToolId>>,
+    /// Per-user feature-flag bag resolved at session-bind time, frozen for
+    /// the session lifetime. `None` → tools use their safe defaults.
     pub(crate) viewer_ctx: Option<WorkspaceViewerContext>,
     /// Auto-approve (YOLO) state. Seeded from `session.bind` metadata, refreshed by each before-turn hook.
     pub(crate) yolo_mode: std::sync::atomic::AtomicBool,
@@ -248,8 +337,11 @@ impl WorkspaceSession {
             bind_tool_config_fingerprint: std::sync::Mutex::new(None),
             stale_resolve: std::sync::atomic::AtomicBool::new(false),
             mcp_state: Arc::new(tokio::sync::Mutex::new(McpState::new(vec![]))),
-            mcp_bridges: tokio::sync::Mutex::new(Vec::new()),
-            mcp_tool_ids: tokio::sync::Mutex::new(Vec::new()),
+            mcp_binding: tokio::sync::Mutex::new(WorkspaceMcpBinding::Uninitialized),
+            mcp_cancel: parking_lot::Mutex::new(tokio_util::sync::CancellationToken::new()),
+            mcp_epoch: std::sync::atomic::AtomicU64::new(0),
+            mcp_bind_generation: std::sync::atomic::AtomicU64::new(0),
+            mcp_native_tool_ids: parking_lot::Mutex::new(std::collections::HashSet::new()),
             viewer_ctx,
             yolo_mode: std::sync::atomic::AtomicBool::new(false),
             system_notifications,
@@ -541,6 +633,11 @@ pub struct WorkspaceShared {
     pub(crate) root_cwd: std::path::PathBuf,
     pub(crate) sessions: RwLock<HashMap<String, Arc<WorkspaceSession>>>,
     pub(crate) session_factory: Arc<dyn SessionContextFactory>,
+    /// `Some` iff every admitted session binds a configured set of MCP
+    /// servers. The contents are hot-swappable through
+    /// [`WorkspaceHandle::reload_bind_mcp`](crate::handle::WorkspaceHandle::reload_bind_mcp),
+    /// so a user can add or remove servers without restarting the process.
+    pub(crate) bind_mcp: Option<parking_lot::RwLock<crate::config::BindMcpConfig>>,
     pub(crate) mcp_tools_snapshot: arc_swap::ArcSwap<Vec<ToolConfig>>,
     pub(crate) events: tokio::sync::broadcast::Sender<xvora_workspace_types::WorkspaceEvent>,
     pub(crate) respect_gitignore: bool,
@@ -563,7 +660,7 @@ pub struct WorkspaceShared {
     /// Server config stashed at construction time for deferred connect.
     pub(crate) hub_config: Option<HubConfig>,
     /// Auth provider for xAI service calls.
-    pub(crate) auth_provider: Option<computer_hub_sdk::SharedAuthProvider>,
+    pub(crate) auth_provider: Option<xvora_computer_hub_sdk::SharedAuthProvider>,
     /// Connection-level sink feeding the `ActivityTracker` (drained by `run_activity_feed`); not a network egress.
     /// `None` until `connect_hub()` sets it.
     pub(crate) activity_notify_handle:
@@ -572,7 +669,7 @@ pub struct WorkspaceShared {
     /// Mode-agnostic: the shell wires it to the agent gateway in local mode, and to the server in proxy mode.
     /// `None` until set via [`WorkspaceHandle::set_client_ext_sink`](crate::handle::WorkspaceHandle::set_client_ext_sink).
     pub(crate) client_ext_sink: arc_swap::ArcSwap<Option<ClientExtSink>>,
-    pub(crate) local_registry: computer_hub_sdk::LocalRegistry,
+    pub(crate) local_registry: xvora_computer_hub_sdk::LocalRegistry,
     pub(crate) activity_tracker: std::sync::Arc<crate::activity::ActivityTracker>,
     /// True after the scheduler-liveness poll task started; reconnects must not start a second one.
     pub(crate) scheduler_poll_started: std::sync::atomic::AtomicBool,
@@ -597,7 +694,7 @@ pub struct WorkspaceShared {
     /// Resolved `$GROK_WORKSPACE_HOME`, the workspace-owned on-disk state root (`<grok_home>/workspace` by default).
     /// The upload queue spills here.
     pub(crate) workspace_home: std::path::PathBuf,
-    pub(crate) upload_queue: Option<std::sync::Arc<file_utils::queue::UploadQueue>>,
+    pub(crate) upload_queue: Option<std::sync::Arc<xvora_file_utils::queue::UploadQueue>>,
     /// Whether collection is disabled (opt-out, or the fail-closed default).
     pub(crate) data_collection_disabled: bool,
     /// Whether per-session `events.jsonl` recording is enabled (`GROK_WORKSPACE_EVENTS_ENABLED=true`).
@@ -612,12 +709,15 @@ pub struct WorkspaceShared {
     /// Held in an `Arc` shared with [`ActivityTracker`](crate::activity::ActivityTracker).
     /// That sharing lets `Tool*` events resolve the right writer without a back-reference to `WorkspaceShared`.
     /// Stays empty whenever `events_enabled` is `false`.
-    pub(crate) session_event_writers: Arc<dashmap::DashMap<String, session_events::EventWriter>>,
+    pub(crate) session_event_writers:
+        Arc<dashmap::DashMap<String, xvora_session_events::EventWriter>>,
     /// In-flight before-turn enqueue tasks, keyed by `(session_id, turn)`.
     /// Stored by `on_before_turn`; evicted on every turn-end path.
     /// The `After` turn-hook handler awaits the handle for its ack's `artifact_count`; the fire-and-forget path just drops it (detach, not abort).
-    pub(crate) inflight_enqueues:
-        dashmap::DashMap<(String, u64), tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>>,
+    pub(crate) inflight_enqueues: dashmap::DashMap<
+        (String, u64),
+        tokio::task::JoinHandle<xvora_file_utils::queue::EnqueueOutcome>,
+    >,
     /// Artifact-producer tasks, awaited by the drain and counted by the status publisher.
     /// See [`WorkspaceHandle::spawn_producer`](crate::handle::WorkspaceHandle).
     pub(crate) producer_tasks: tokio_util::task::TaskTracker,
@@ -642,15 +742,18 @@ impl WorkspaceShared {
     }
     /// The durable upload queue used for archives.
     /// `None` in tests and local mode; see [`WorkspaceShared::upload_queue`].
-    pub fn upload_queue(&self) -> Option<&std::sync::Arc<file_utils::queue::UploadQueue>> {
+    pub fn upload_queue(&self) -> Option<&std::sync::Arc<xvora_file_utils::queue::UploadQueue>> {
         self.upload_queue.as_ref()
     }
     /// Return the per-session `events.jsonl` writer for `session_id`, opened and cached on first use under `workspace_home/sessions/{session_id}/`.
     ///
-    /// When `events_enabled` is `false` this returns [`EventWriter::noop()`](session_events::EventWriter::noop).
+    /// When `events_enabled` is `false` this returns [`EventWriter::noop()`](xvora_session_events::EventWriter::noop).
     /// It touches neither the cache nor the filesystem, so the flag-off path stays byte-for-byte identical to the legacy behaviour.
     /// The returned handle is `Clone + Send + Sync`; callers emit through it directly.
-    pub(crate) fn session_event_writer(&self, session_id: &str) -> session_events::EventWriter {
+    pub(crate) fn session_event_writer(
+        &self,
+        session_id: &str,
+    ) -> xvora_session_events::EventWriter {
         get_or_open_session_writer(
             self.events_enabled,
             &self.session_event_writers,
@@ -664,7 +767,7 @@ impl WorkspaceShared {
     pub(crate) fn session_event_writer_cached(
         &self,
         session_id: &str,
-    ) -> Option<session_events::EventWriter> {
+    ) -> Option<xvora_session_events::EventWriter> {
         if !self.events_enabled {
             return None;
         }
@@ -681,7 +784,7 @@ impl WorkspaceShared {
         self.hub_config.as_ref().and_then(|c| c.server_id.clone())
     }
     /// Auth provider used for xAI service calls.
-    pub fn auth_provider(&self) -> Option<&computer_hub_sdk::SharedAuthProvider> {
+    pub fn auth_provider(&self) -> Option<&xvora_computer_hub_sdk::SharedAuthProvider> {
         self.auth_provider.as_ref()
     }
     /// Parse the opaque [`server_metadata`](Self::server_metadata) blob into the typed subset the workspace needs (currently `sandbox_id`).
@@ -707,10 +810,10 @@ impl WorkspaceShared {
     }
     /// The tool server, if a server connection is active.
     ///
-    /// Returns a clone of the [`ToolServer`](computer_hub_sdk::ToolServer) which is cheap (`Arc` bump).
+    /// Returns a clone of the [`ToolServer`](xvora_computer_hub_sdk::ToolServer) which is cheap (`Arc` bump).
     /// Uses `try_lock` to avoid blocking on the async mutex from synchronous contexts.
     /// Returns `None` if the lock is held (i.e. a `connect_hub` call is in progress).
-    pub fn hub_server(&self) -> Option<computer_hub_sdk::ToolServer> {
+    pub fn hub_server(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
         self.hub_handle
             .try_lock()
             .ok()
@@ -718,7 +821,7 @@ impl WorkspaceShared {
     }
     /// Like [`Self::hub_server`] but awaits the `hub_handle` lock instead of returning `None` on contention.
     /// Use from async contexts that must not confuse a transient `connect_hub` lock-hold with "no hub connected"; `None` means no hub is connected.
-    pub async fn hub_server_blocking(&self) -> Option<computer_hub_sdk::ToolServer> {
+    pub async fn hub_server_blocking(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
         self.hub_handle
             .lock()
             .await
@@ -915,11 +1018,11 @@ impl WorkspaceShared {
 ///   [`EventWriter::open`] uses `create(true).append(true)`, so a re-open after a workspace restart APPENDS to the existing `events.jsonl`.
 pub(crate) fn get_or_open_session_writer(
     enabled: bool,
-    writers: &dashmap::DashMap<String, session_events::EventWriter>,
+    writers: &dashmap::DashMap<String, xvora_session_events::EventWriter>,
     workspace_home: &Path,
     session_id: &str,
-) -> session_events::EventWriter {
-    use session_events::EventWriter;
+) -> xvora_session_events::EventWriter {
+    use xvora_session_events::EventWriter;
     if !enabled {
         return EventWriter::noop();
     }
@@ -949,7 +1052,7 @@ pub(crate) fn get_or_open_session_writer(
 mod tests {
     use super::get_or_open_session_writer;
     use dashmap::DashMap;
-    use session_events::{Event, EventWriter};
+    use xvora_session_events::{Event, EventWriter};
     fn count_lines(path: &std::path::Path) -> usize {
         std::fs::read_to_string(path)
             .unwrap()

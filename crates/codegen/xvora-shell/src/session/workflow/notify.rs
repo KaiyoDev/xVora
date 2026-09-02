@@ -6,12 +6,11 @@ use crate::session::persistence::PersistenceMsg;
 
 use super::store::WorkflowRunStore;
 use super::tracker::WorkflowRunState;
-use xvora_workflow as workflow;
 
 #[derive(Clone)]
 pub(crate) struct WorkflowNotifySender {
     session_id: agent_client_protocol::SessionId,
-    gateway: acp_lib::AcpAgentGatewaySender,
+    gateway: xvora_acp_lib::AcpAgentGatewaySender,
     persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
     store: WorkflowRunStore,
 }
@@ -19,7 +18,7 @@ pub(crate) struct WorkflowNotifySender {
 impl WorkflowNotifySender {
     pub(crate) fn new(
         session_id: agent_client_protocol::SessionId,
-        gateway: acp_lib::AcpAgentGatewaySender,
+        gateway: xvora_acp_lib::AcpAgentGatewaySender,
         persistence_tx: tokio::sync::mpsc::UnboundedSender<PersistenceMsg>,
         store: WorkflowRunStore,
     ) -> Self {
@@ -191,15 +190,15 @@ mod tests {
             "demo".into(),
             "obj".into(),
             vec![
-                workflow::PhaseMeta {
+                xvora_workflow::PhaseMeta {
                     title: "Plan".into(),
                     detail: None,
                 },
-                workflow::PhaseMeta {
+                xvora_workflow::PhaseMeta {
                     title: "Execute".into(),
                     detail: None,
                 },
-                workflow::PhaseMeta {
+                xvora_workflow::PhaseMeta {
                     title: "Verify".into(),
                     detail: None,
                 },
@@ -234,11 +233,11 @@ mod tests {
             "demo".into(),
             "obj".into(),
             vec![
-                workflow::PhaseMeta {
+                xvora_workflow::PhaseMeta {
                     title: "Plan".into(),
                     detail: None,
                 },
-                workflow::PhaseMeta {
+                xvora_workflow::PhaseMeta {
                     title: "Verify".into(),
                     detail: None,
                 },
@@ -249,7 +248,7 @@ mod tests {
         t.set_phase("wf_2", "Verify");
         t.apply_outcome(
             "wf_2",
-            &workflow::WorkflowOutcome::Completed {
+            &xvora_workflow::WorkflowOutcome::Completed {
                 result: serde_json::json!("done"),
             },
         );

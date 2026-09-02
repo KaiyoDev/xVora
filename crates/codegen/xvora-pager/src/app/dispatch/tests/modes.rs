@@ -1,6 +1,7 @@
 //! Tests for plan, yolo, auto, and permission mode transitions.
 
 use super::*;
+use crate::app::dispatch::present_export_copy_tip;
 
 /// `ShowPlanNudge` is a no-op when its per-tip gate is off: no tip shown, no count burned, even on a drawable agent.
 #[test]
@@ -715,7 +716,7 @@ fn set_yolo_mode_on_with_no_allow_once_option_sends_cancelled() {
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: acp_lib::AcpArgs {
+        request: xvora_acp_lib::AcpArgs {
             request,
             response_tx,
         },
@@ -796,7 +797,7 @@ fn set_yolo_mode_on_drains_multi_item_queue() {
         );
         let options = request.options.clone();
         agent.permission_queue.push_back(PermissionViewState {
-            request: acp_lib::AcpArgs {
+            request: xvora_acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -873,7 +874,7 @@ fn set_yolo_mode_on_duplicate_dispatch_still_drains_queue() {
         .unwrap()
         .permission_queue
         .push_back(PermissionViewState {
-            request: acp_lib::AcpArgs {
+            request: xvora_acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -1706,7 +1707,7 @@ fn dispatch_cycle_mode_plan_to_always_approve_drains_queue_via_inner() {
         .unwrap()
         .permission_queue
         .push_back(PermissionViewState {
-            request: acp_lib::AcpArgs {
+            request: xvora_acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -2163,4 +2164,35 @@ fn set_plan_mode_idempotency_uses_pending_over_active() {
         Some(false),
         "OFF transition must set optimistic pending to Some(false)"
     );
+}
+
+#[test]
+fn show_export_copy_tip_no_op_when_flag_off() {
+    let mut app = test_app_with_agent();
+    let id = AgentId(0);
+    app.agents.get_mut(&id).unwrap().last_terminal_size = (80, 30);
+    app.contextual_hints.export_copy = false;
+
+    let gate = app.contextual_hints.export_copy;
+    let agent = app.agents.get_mut(&id).unwrap();
+    let shown = present_export_copy_tip(agent, &mut app.tip_seen_counts, gate);
+    assert!(!shown);
+    assert!(app.tip_seen_counts.is_empty(), "no count burned");
+    assert!(!app.agents[&id].ephemeral_tip.is_active());
+}
+
+#[test]
+fn show_export_copy_tip_shows_and_counts_when_flag_on() {
+    use crate::tips::export_copy::EXPORT_COPY_TIP_SEEN_KEY;
+    let mut app = test_app_with_agent();
+    app.contextual_hints.export_copy = true;
+    let id = AgentId(0);
+    app.agents.get_mut(&id).unwrap().last_terminal_size = (80, 30);
+
+    let gate = app.contextual_hints.export_copy;
+    let agent = app.agents.get_mut(&id).unwrap();
+    let shown = present_export_copy_tip(agent, &mut app.tip_seen_counts, gate);
+    assert!(shown);
+    assert!(app.agents[&id].ephemeral_tip.is_active());
+    assert_eq!(app.tip_seen_counts.get(EXPORT_COPY_TIP_SEEN_KEY), Some(&1));
 }

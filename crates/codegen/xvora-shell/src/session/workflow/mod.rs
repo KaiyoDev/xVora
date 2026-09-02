@@ -7,14 +7,12 @@ pub(crate) mod schema_contract;
 pub(crate) mod store;
 pub(crate) mod tracker;
 
-use xvora_workflow as workflow;
-
 #[cfg(test)]
 mod builtin_tests {
     #[test]
     fn every_builtin_validates_and_matches_its_registered_name() {
         for builtin in super::registry::BUILTIN_WORKFLOWS {
-            let meta = workflow::extract_meta(builtin.script)
+            let meta = xvora_workflow::extract_meta(builtin.script)
                 .unwrap_or_else(|e| panic!("builtin '{}' must validate: {e}", builtin.name));
             assert_eq!(
                 meta.name, builtin.name,

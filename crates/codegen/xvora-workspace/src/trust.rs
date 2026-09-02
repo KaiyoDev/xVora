@@ -1420,7 +1420,7 @@ mod tests {
         source_repo: &Path,
         creation_mode: &str,
     ) -> (LockedTestEnv, PathBuf) {
-        use fast_worktree::{WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
+        use xvora_fast_worktree::{WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 
         // Canonicalize so macOS's `/var` (a symlink to `/private/var`) agrees between the stored record path and the canonicalized lookup query
         let root = dunce::canonicalize(temp.path()).unwrap();

@@ -24,7 +24,7 @@ pub struct SchedulerListOutput {
     pub tasks: Vec<ScheduledTaskSummary>,
 }
 
-impl tool_runtime::ToolOutput for SchedulerListOutput {}
+impl xvora_tool_runtime::ToolOutput for SchedulerListOutput {}
 
 #[derive(Debug, Default)]
 pub struct SchedulerListTool;
@@ -47,31 +47,34 @@ impl crate::types::tool_metadata::ToolMetadata for SchedulerListTool {
         use crate::types::tool_metadata::ToolMetadata as TM;
         Expr::Value(ToolRequirement::Tool {
             namespace: TM::tool_namespace(&SchedulerCreateTool).to_string(),
-            id: tool_runtime::Tool::id(&SchedulerCreateTool).to_string(),
+            id: xvora_tool_runtime::Tool::id(&SchedulerCreateTool).to_string(),
             if_params: None,
         })
     }
 }
 
-impl tool_runtime::Tool for SchedulerListTool {
+impl xvora_tool_runtime::Tool for SchedulerListTool {
     type Args = SchedulerListInput;
     type Output = SchedulerListOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("scheduler_list").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("scheduler_list").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "scheduler_list",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -79,9 +82,9 @@ impl tool_runtime::Tool for SchedulerListTool {
     #[tracing::instrument(name = "tool.scheduler_list", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         _input: SchedulerListInput,
-    ) -> Result<SchedulerListOutput, tool_runtime::ToolError> {
+    ) -> Result<SchedulerListOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -89,7 +92,7 @@ impl tool_runtime::Tool for SchedulerListTool {
             let res = resources.lock().await;
             res.get::<SchedulerHandle>()
                 .ok_or_else(|| {
-                    tool_runtime::ToolError::custom(
+                    xvora_tool_runtime::ToolError::custom(
                         "missing_dependency",
                         "missing dependency: SchedulerHandle",
                     )
@@ -102,15 +105,15 @@ impl tool_runtime::Tool for SchedulerListTool {
         sender
             .send(SchedulerCommand::List { reply: reply_tx })
             .map_err(|_| {
-                tool_runtime::ToolError::execution(
-                    tool_protocol::ToolId::new("scheduler_list").expect("valid"),
+                xvora_tool_runtime::ToolError::execution(
+                    xvora_tool_protocol::ToolId::new("scheduler_list").expect("valid"),
                     "Scheduler actor stopped",
                 )
             })?;
 
         let snapshot = reply_rx.await.map_err(|_| {
-            tool_runtime::ToolError::execution(
-                tool_protocol::ToolId::new("scheduler_list").expect("valid"),
+            xvora_tool_runtime::ToolError::execution(
+                xvora_tool_protocol::ToolId::new("scheduler_list").expect("valid"),
                 "Scheduler actor dropped reply",
             )
         })?;

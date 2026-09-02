@@ -70,7 +70,7 @@ fn tool_execution_span(
 /// Takes the span by value: these fields are recorded exactly once.
 fn record_tool_span_outcome(
     span: tracing::Span,
-    result: &Result<ToolRunResult, tool_runtime::ToolError>,
+    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
 ) -> bool {
     let (success, result_size) = match result {
         Ok(tool_result) => (
@@ -87,7 +87,7 @@ fn record_tool_span_outcome(
 /// Maps a typed tool result onto the fixed span/log outcome set (`success` / `error` / `unconfirmed`).
 /// A delivery the tool could not confirm still dispatched successfully, so it reports `unconfirmed`, never `error`.
 pub(super) fn tool_output_span_outcome(
-    result: &Result<ToolRunResult, tool_runtime::ToolError>,
+    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
 ) -> &'static str {
     use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageDisposition;
     match result {
@@ -109,7 +109,7 @@ fn is_interruptible_wait_tool(tool_name: &str, args: &serde_json::Value) -> bool
         "get_task_output"
         | "get_command_or_subagent_output"
         | "get_task_or_subagent_output"
-        | "get_terminal_command_output" => tool_types::task_output_waits_from_json(args),
+        | "get_terminal_command_output" => xvora_tool_types::task_output_waits_from_json(args),
         "wait_tasks" | "wait_commands_or_subagents" | "wait_tasks_or_subagents" => true,
         "Await" | "AwaitShell" => true,
         _ => false,
@@ -271,9 +271,44 @@ impl PlanApprovalOutcome {
 /// Any other error (including a non-`acp_send` error) defaults to `false` so the approval is kept pending and never auto-approved.
 fn ext_method_no_client(err: &acp::Error) -> bool {
     matches!(
-        acp_lib::acp_channel_failure(err),
-        Some(acp_lib::AcpChannelFailure::SendFailed)
+        xvora_acp_lib::acp_channel_failure(err),
+        Some(xvora_acp_lib::AcpChannelFailure::SendFailed)
     )
+}
+/// CONTENT-gated tool bodies for the external stream. Capture-time cap so
+/// multi-MB bodies are not retained; emit still drops them when CONTENT is off.
+fn external_tool_bodies(
+    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+) -> (Option<String>, Option<String>) {
+    match result {
+        Ok(tool_result) if tool_result.output.is_error() => {
+            let body = tool_result.output.to_prompt_format();
+            (
+                Some(xvora_telemetry::external::truncate::cap_bytes(
+                    &body,
+                    xvora_telemetry::external::truncate::MAX_CONTENT_BYTES,
+                )),
+                Some(xvora_telemetry::external::truncate::cap_bytes(
+                    &body,
+                    xvora_telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
+                )),
+            )
+        }
+        Ok(tool_result) => (
+            Some(xvora_telemetry::external::truncate::cap_bytes(
+                &tool_result.output.to_prompt_format(),
+                xvora_telemetry::external::truncate::MAX_CONTENT_BYTES,
+            )),
+            None,
+        ),
+        Err(e) => (
+            None,
+            Some(xvora_telemetry::external::truncate::cap_bytes(
+                &e.to_string(),
+                xvora_telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
+            )),
+        ),
+    }
 }
 /// Model-facing turn injected after a resumed plan is approved.
 const PLAN_APPROVED_IMPLEMENT_MESSAGE: &str =
@@ -535,7 +570,7 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    tool_protocol::session_event::SessionEvent::ToolCallStarted {
+                    xvora_tool_protocol::session_event::SessionEvent::ToolCallStarted {
                         tool_call_id: call.id.clone(),
                         tool_name: call.function.name.clone(),
                         turn_number: self.current_turn_number.get(),
@@ -559,7 +594,7 @@ impl SessionActor {
                             }
                             other => format!("{other:?}"),
                         };
-                        self.emit_event(session_events::Event::McpToolCallCompleted {
+                        self.emit_event(xvora_session_events::Event::McpToolCallCompleted {
                             server_name: server.to_string(),
                             tool_name: tool.to_string(),
                             call_id: format!(
@@ -905,7 +940,7 @@ impl SessionActor {
             approved.into_iter().map(Some).collect();
         let (dispatch_tx, mut dispatch_rx) = tokio::sync::mpsc::unbounded_channel::<(
             usize,
-            Result<ToolRunResult, tool_runtime::ToolError>,
+            Result<ToolRunResult, xvora_tool_runtime::ToolError>,
             u64,
         )>();
         let drainer = tokio::spawn(
@@ -949,13 +984,31 @@ impl SessionActor {
             };
             let tool_failed = match &result {
                 Ok(tool_result) => {
-                    crate::session::telemetry::record_completed_tool_output(
-                        &tool_result.output,
-                        duration_ms,
-                    );
+                    if let ToolsToolOutput::SendSubagentMessage(_) = &tool_result.output {
+                        let requested_operation = if prepared
+                            .parsed_args
+                            .get("queue")
+                            .and_then(serde_json::Value::as_bool)
+                            .unwrap_or(false)
+                        {
+                            xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Queue
+                        } else {
+                            xvora_tools::implementations::grok_build::task::types::ActiveAgentMessageOperation::Steer
+                        };
+                        crate::session::telemetry::record_completed_tool_output(
+                            &tool_result.output,
+                            requested_operation,
+                            duration_ms,
+                        );
+                    }
                     tool_result.output.is_error()
                 }
                 Err(_) => true,
+            };
+            let (ext_tool_output, ext_error_message) = if xvora_telemetry::external::is_active() {
+                external_tool_bodies(&result)
+            } else {
+                (None, None)
             };
             let tool_loop = match result {
                 Ok(tool_result) => {
@@ -1107,7 +1160,7 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    tool_protocol::session_event::SessionEvent::ToolCallCompleted {
+                    xvora_tool_protocol::session_event::SessionEvent::ToolCallCompleted {
                         tool_call_id: prepared.call_id.clone(),
                         tool_name: prepared.tool_name.clone(),
                         duration_ms,
@@ -1136,6 +1189,10 @@ impl SessionActor {
                 tool_result_size_bytes,
                 file_path: ext_file_path,
                 parameters: ext_parameters,
+                tool_use_id: xvora_telemetry::external::is_active()
+                    .then(|| prepared.call_id.clone()),
+                tool_output: ext_tool_output,
+                error_message: ext_error_message,
             });
             if let Some(artifact) = compaction_artifact_read(&prepared.parsed_args) {
                 tracing::info_span!(
@@ -1615,14 +1672,16 @@ impl SessionActor {
                 &call.function.name,
                 match &decision {
                     Decision::Allow | Decision::Ask => {
-                        session_events::types::PermissionDecision::Allow
+                        xvora_session_events::types::PermissionDecision::Allow
                     }
                     Decision::Reject(_) | Decision::PolicyDeny(_) => {
-                        session_events::types::PermissionDecision::Deny
+                        xvora_session_events::types::PermissionDecision::Deny
                     }
-                    Decision::Cancelled => session_events::types::PermissionDecision::Cancelled,
+                    Decision::Cancelled => {
+                        xvora_session_events::types::PermissionDecision::Cancelled
+                    }
                     Decision::FollowupMessage(_) => {
-                        session_events::types::PermissionDecision::Followup
+                        xvora_session_events::types::PermissionDecision::Followup
                     }
                 },
                 perm_start,
@@ -1645,16 +1704,28 @@ impl SessionActor {
                 wait_ms = resolved.wait_ms as i64,
             )
             .in_scope(|| {});
-            xvora_telemetry::session_ctx::log_event(
-                crate::session::telemetry::permission_decision_payload(
+            xvora_telemetry::session_ctx::log_event({
+                let payload = crate::session::telemetry::permission_decision_payload(
                     canonical_permission_tool_name,
                     telemetry_access_kind,
                     &decision,
                     subagent_session_id.clone(),
                     manager_event.as_ref(),
                     resolved,
-                ),
-            );
+                );
+                let tool_input = if xvora_telemetry::external::is_active() {
+                    xvora_telemetry::events::ExternalToolInput {
+                        parameters: Some(raw_input.clone()),
+                        tool_use_id: Some(call.id.clone()),
+                    }
+                } else {
+                    xvora_telemetry::events::ExternalToolInput::default()
+                };
+                xvora_telemetry::events::PermissionDecisionRecord {
+                    payload,
+                    tool_input,
+                }
+            });
             match decision {
                 Decision::PolicyDeny(ref reason) | Decision::Reject(ref reason) => {
                     let is_policy_deny = matches!(&decision, Decision::PolicyDeny(_));
@@ -2164,8 +2235,8 @@ impl SessionActor {
                     "Wait tasks: {} ids, mode={}",
                     wait.task_ids.len(),
                     match wait.mode {
-                        tool_types::WaitMode::WaitAny => "wait_any",
-                        tool_types::WaitMode::WaitAll => "wait_all",
+                        xvora_tool_types::WaitMode::WaitAny => "wait_any",
+                        xvora_tool_types::WaitMode::WaitAll => "wait_all",
                     }
                 ),
                 acp::ToolKind::Other,
@@ -2464,7 +2535,7 @@ impl SessionActor {
         tool_call_id: &acp::ToolCallId,
         call_id: &str,
         function_name: &str,
-        err: tool_runtime::ToolError,
+        err: xvora_tool_runtime::ToolError,
         raw_arguments: &str,
         model_id: &str,
     ) -> Result<(), acp::Error> {
@@ -2478,7 +2549,7 @@ impl SessionActor {
         );
         self.signals_handle().record_tool_failure(function_name);
         let message = build_tool_parse_error_message(function_name, &err, raw_arguments);
-        let title = (err.kind == tool_runtime::ToolErrorKind::NotFound)
+        let title = (err.kind == xvora_tool_runtime::ToolErrorKind::NotFound)
             .then(|| format!("Agent tried calling a tool that doesn't exist: {function_name}"));
         self.send_update(
             acp::SessionUpdate::ToolCallUpdate(acp::ToolCallUpdate::new(
@@ -3297,7 +3368,7 @@ mod plan_mode_edit_gate_tests {
     }
     #[test]
     fn task_not_gated_in_plan_mode() {
-        use tool_types::TaskToolInput;
+        use xvora_tool_types::TaskToolInput;
         let t = active_tracker();
         assert_eq!(
             gate(
@@ -3393,7 +3464,7 @@ mod plan_approval_helper_tests {
     }
     #[test]
     fn ext_method_no_client_defaults_false_for_untagged_error() {
-        assert!(!ext_method_no_client(&acp_lib::acp_internal_error(
+        assert!(!ext_method_no_client(&xvora_acp_lib::acp_internal_error(
             "unrelated internal error"
         )));
     }
@@ -3428,7 +3499,7 @@ mod wait_interrupt_tests {
     #[tokio::test(start_paused = true)]
     async fn pending_interjection_aborts_in_flight_wait() {
         use super::InterjectionBuffer;
-        use interjection_core::PendingInterjection;
+        use xvora_interjection_core::PendingInterjection;
         let buf: InterjectionBuffer<agent_client_protocol::ImageContent> =
             InterjectionBuffer::default();
         let out = tokio::select! {

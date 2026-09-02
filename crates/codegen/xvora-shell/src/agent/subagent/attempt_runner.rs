@@ -111,7 +111,7 @@ pub(super) async fn run_one_turn_attempt(
         client_identifier: None,
         screen_mode: None,
         verbatim: true,
-        traceparent: file_utils::trace_context::current_traceparent(),
+        traceparent: xvora_file_utils::trace_context::current_traceparent(),
         json_schema: input.request.runtime_overrides.output_schema.clone(),
         send_now: false,
         admission: None,
@@ -248,7 +248,7 @@ pub(super) async fn run_one_turn_attempt(
         cancellation_may_hide_usage,
     }
 }
-pub(super) fn canonical_total_tokens(totals: &chat_state::UsageTotals) -> u64 {
+pub(super) fn canonical_total_tokens(totals: &xvora_chat_state::UsageTotals) -> u64 {
     totals.total_tokens()
 }
 pub(super) fn usage_is_incomplete(
@@ -259,7 +259,7 @@ pub(super) fn usage_is_incomplete(
 }
 pub(super) async fn record_subagent_usage(
     parent_cmd_tx: Option<&mpsc::UnboundedSender<SessionCommand>>,
-    by_model: Option<Vec<(String, chat_state::UsageTotals)>>,
+    by_model: Option<Vec<(String, xvora_chat_state::UsageTotals)>>,
     parent_prompt_id: Option<String>,
     incomplete: bool,
 ) -> bool {

@@ -1208,15 +1208,16 @@ impl AgentBuilder {
         ))
     }
 }
-/// CLI naming for the shared [`tool_types::build_task_description`] builder.
-const TASK_TOOL_NAMING: tool_types::TaskToolNaming<'static> = tool_types::TaskToolNaming {
-    task_tool: "${{ tools.by_kind.task }}",
-    subagent_type_param: "${{ params.task.subagent_type }}",
-    run_in_background_param: "${{ params.task.run_in_background }}",
-    resume_from_param: "${{ params.task.resume_from }}",
-    background_retrieval_tool: "${{ tools.by_kind.background_task_action }}",
-    isolation_param: "${{ params.task.isolation }}",
-};
+/// CLI naming for the shared [`xvora_tool_types::build_task_description`] builder.
+const TASK_TOOL_NAMING: xvora_tool_types::TaskToolNaming<'static> =
+    xvora_tool_types::TaskToolNaming {
+        task_tool: "${{ tools.by_kind.task }}",
+        subagent_type_param: "${{ params.task.subagent_type }}",
+        run_in_background_param: "${{ params.task.run_in_background }}",
+        resume_from_param: "${{ params.task.resume_from }}",
+        background_retrieval_tool: "${{ tools.by_kind.background_task_action }}",
+        isolation_param: "${{ params.task.isolation }}",
+    };
 /// Concise task-tool description for child sessions.
 /// Delegation from a child is possible but discouraged; prefer doing the work directly.
 ///
@@ -1232,10 +1233,10 @@ Prefer doing the work yourself unless delegation is clearly necessary.\n\
 Usage: specify ${{ params.task.subagent_type }} (\"general-purpose\", \"explore\", or \"plan\"), \n\
 a short ${{ params.task.description }}, and a detailed ${{ params.task.prompt }}.\n\
 ${{ params.task.run_in_background }}: Returns immediately with a subagent_id. Use the task output tool to retrieve results. This is set to true by default.";
-/// CLI [`tool_types::SubagentToolNaming`]: each kind maps to its `${{ tools.by_kind.* }}` template placeholder.
+/// CLI [`xvora_tool_types::SubagentToolNaming`]: each kind maps to its `${{ tools.by_kind.* }}` template placeholder.
 /// Rendering a built-in's `tools_template` thus reproduces the placeholders for the CLI's `TemplateRenderer` to resolve at finalize time.
-const SUBAGENT_TOOL_NAMING: tool_types::SubagentToolNaming<'static> =
-    tool_types::SubagentToolNaming {
+const SUBAGENT_TOOL_NAMING: xvora_tool_types::SubagentToolNaming<'static> =
+    xvora_tool_types::SubagentToolNaming {
         execute: "${{ tools.by_kind.execute }}",
         read: "${{ tools.by_kind.read }}",
         edit: "${{ tools.by_kind.edit }}",
@@ -1244,13 +1245,13 @@ const SUBAGENT_TOOL_NAMING: tool_types::SubagentToolNaming<'static> =
         web_search: "${{ tools.by_kind.web_search }}",
         plan: "${{ tools.by_kind.plan }}",
     };
-/// Return the tool-access fragment for a built-in subagent type from the shared [`tool_types`] catalog.
+/// Return the tool-access fragment for a built-in subagent type from the shared [`xvora_tool_types`] catalog.
 /// Rendering with [`SUBAGENT_TOOL_NAMING`] re-emits the `${{ tools.by_kind.* }}` placeholders for the CLI's `TemplateRenderer`.
 fn builtin_tools_fragment(name: BuiltinAgentName) -> String {
     let subagent = match name {
-        BuiltinAgentName::GeneralPurpose => tool_types::GENERAL_PURPOSE_SUBAGENT,
-        BuiltinAgentName::Explore => tool_types::EXPLORE_SUBAGENT,
-        BuiltinAgentName::Plan => tool_types::PLAN_SUBAGENT,
+        BuiltinAgentName::GeneralPurpose => xvora_tool_types::GENERAL_PURPOSE_SUBAGENT,
+        BuiltinAgentName::Explore => xvora_tool_types::EXPLORE_SUBAGENT,
+        BuiltinAgentName::Plan => xvora_tool_types::PLAN_SUBAGENT,
         _ => return String::new(),
     };
     subagent.render_tools(&SUBAGENT_TOOL_NAMING)
@@ -1279,29 +1280,29 @@ fn task_model_guidance(model_slugs: &[String]) -> String {
 }
 /// Build the Task tool description with the effective subagent list.
 ///
-/// Maps each [`SubagentEntry`] to the shared [`tool_types::SubagentDescriptor`].
-/// Defers to [`tool_types::build_task_description`] so the CLI and the prod chat stack share one builder.
+/// Maps each [`SubagentEntry`] to the shared [`xvora_tool_types::SubagentDescriptor`].
+/// Defers to [`xvora_tool_types::build_task_description`] so the CLI and the prod chat stack share one builder.
 /// Built-in (unshadowed) entries carry the hardcoded tool-name fragment.
 /// User-defined entries carry `None` so their raw `description` is used verbatim (markdown is fine; it's model-facing text).
 pub(crate) fn build_task_description(
     subagents: &[SubagentEntry],
     model_slugs: &[String],
 ) -> String {
-    let descriptors: Vec<tool_types::SubagentDescriptor> = subagents
+    let descriptors: Vec<xvora_tool_types::SubagentDescriptor> = subagents
         .iter()
         .map(|entry| {
             let tools = match &entry.source {
                 SubagentSource::Builtin(b) => Some(builtin_tools_fragment(*b)),
                 SubagentSource::UserDefined { .. } => None,
             };
-            tool_types::SubagentDescriptor {
+            xvora_tool_types::SubagentDescriptor {
                 name: entry.name.clone(),
                 description: entry.description.clone(),
                 tools,
             }
         })
         .collect();
-    let mut description = tool_types::build_task_description(&descriptors, &TASK_TOOL_NAMING);
+    let mut description = xvora_tool_types::build_task_description(&descriptors, &TASK_TOOL_NAMING);
     description.push_str(&task_model_guidance(model_slugs));
     description
 }
@@ -1462,11 +1463,11 @@ mod tests {
         ];
         let desc = build_task_description(&subagents, &[]);
         assert!(
-            desc.contains(tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
+            desc.contains(xvora_tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
             "should include general-purpose tool names"
         );
         assert!(
-            desc.contains(tool_types::EXPLORE_SUBAGENT.tools_template),
+            desc.contains(xvora_tool_types::EXPLORE_SUBAGENT.tools_template),
             "should include explore tool names"
         );
         assert!(
@@ -1486,7 +1487,7 @@ mod tests {
         let desc = build_task_description(&subagents, &[]);
         assert!(desc.contains("- **code-reviewer**: Reviews code for bugs and style issues."));
         assert!(
-            !desc.contains(tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
+            !desc.contains(xvora_tool_types::GENERAL_PURPOSE_SUBAGENT.tools_template),
             "user-defined entries should not get built-in tool fragments"
         );
     }
@@ -1524,7 +1525,7 @@ mod tests {
             "shadowed built-in should use user description"
         );
         assert!(
-            !desc.contains(tool_types::EXPLORE_SUBAGENT.tools_template),
+            !desc.contains(xvora_tool_types::EXPLORE_SUBAGENT.tools_template),
             "shadowed built-in should NOT include built-in tool fragment"
         );
     }

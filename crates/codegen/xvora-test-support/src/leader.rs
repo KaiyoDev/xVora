@@ -9,9 +9,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
-use acp_lib::LineBufferedRead;
 use agent_client_protocol::{self as acp, Agent as _};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+use xvora_acp_lib::LineBufferedRead;
 
 use crate::env::grok_binary;
 use crate::mock_server::MockInferenceServer;
@@ -247,7 +247,7 @@ impl LeaderFixture {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null());
         sandbox.apply_to_std_command(&mut cmd);
-        cmd.envs(tty_utils::pager_env())
+        cmd.envs(xvora_tty_utils::pager_env())
             .env("GROK_CLI_CHAT_PROXY_BASE_URL", base_url)
             .env("GROK_XAI_API_BASE_URL", base_url)
             .env("GROK_MODELS_BASE_URL", base_url)
@@ -265,7 +265,7 @@ impl LeaderFixture {
                 cmd.stderr(std::process::Stdio::null());
             }
         }
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
         #[allow(clippy::disallowed_methods)]
         let mut child = cmd.spawn()?;
         let pid = child.id();
@@ -892,8 +892,8 @@ mod tests {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .envs(tty_utils::pager_env());
-        tty_utils::detach_std_command(&mut cmd);
+            .envs(xvora_tty_utils::pager_env());
+        xvora_tty_utils::detach_std_command(&mut cmd);
         #[allow(clippy::disallowed_methods)] // test fixture; the test reaps it
         let child = cmd.spawn().expect("spawn fake persistent leader");
         let pid = child.id();

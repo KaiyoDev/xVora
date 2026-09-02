@@ -10,7 +10,8 @@ use xvora_sampling_types::ConversationItem;
 /// Serializes `items` the way a main turn would, so auxiliary calls can be compared against the real wire shape.
 fn main_turn_input(items: Vec<ConversationItem>) -> Vec<serde_json::Value> {
     let request = xvora_sampling_types::ConversationRequest {
-        items: chat_state::compaction_utils::ModelRequestHistory::from_raw(items).into_items(),
+        items: xvora_chat_state::compaction_utils::ModelRequestHistory::from_raw(items)
+            .into_items(),
         model: Some("test-model".to_string()),
         ..Default::default()
     };
@@ -71,7 +72,8 @@ fn assert_messages_rides_parent_prefix(
     label: &str,
 ) {
     let request = xvora_sampling_types::ConversationRequest {
-        items: chat_state::compaction_utils::ModelRequestHistory::from_raw(parent).into_items(),
+        items: xvora_chat_state::compaction_utils::ModelRequestHistory::from_raw(parent)
+            .into_items(),
         model: Some("test".to_string()),
         reasoning_effort: Some(xvora_sampling_types::ReasoningEffort::High),
         ..Default::default()
@@ -132,13 +134,13 @@ fn assert_messages_reasoning_stripped(body: &serde_json::Value, label: &str) {
 /// Reasoning effort sits ahead of the conversation in the prompt, so an auxiliary call that drops it diverges from the main turn right away.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_projects_agent_messages_without_mutating_history() {
-    use crate::test_support::MockInferenceServer;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;
@@ -170,7 +172,7 @@ async fn side_question_projects_agent_messages_without_mutating_history() {
                 .and_then(|request| request.body.as_ref())
                 .expect("btw body must be JSON")
                 .to_string();
-            assert!(body.contains(chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL));
+            assert!(body.contains(xvora_chat_state::compaction_utils::AGENT_MESSAGE_MODEL_LABEL));
             assert_eq!(
                 serde_json::to_vec(&actor.chat_state_handle.get_conversation().await).unwrap(),
                 raw_bytes
@@ -181,13 +183,13 @@ async fn side_question_projects_agent_messages_without_mutating_history() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn auxiliary_calls_send_the_session_reasoning_effort() {
-    use crate::test_support::MockInferenceServer;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;
@@ -232,13 +234,13 @@ async fn auxiliary_calls_send_the_session_reasoning_effort() {
 /// When a backend drops `prompt_cache_key`, the conv id is all that ties the call to its conversation, so it must be the parent session id.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_routes_on_the_session_id_when_the_key_is_not_forwarded() {
-    use crate::test_support::MockInferenceServer;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;
@@ -286,7 +288,7 @@ async fn new_prompt_cancels_in_flight_recap_epoch() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -316,7 +318,7 @@ async fn queue_input_user_prompt_bumps_recap_epoch() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -340,7 +342,7 @@ async fn queue_input_synthetic_does_not_bump_recap_epoch() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -370,7 +372,7 @@ async fn skipped_auto_recap_leaves_in_flight_claim() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -391,7 +393,7 @@ async fn try_commit_recap_cancelled_clears_in_flight_without_watermark() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -424,7 +426,7 @@ async fn try_commit_recap_live_advances_watermark() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -446,7 +448,7 @@ async fn drop_recap_after_cancel_auto_silent_manual_unavailable() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -501,7 +503,7 @@ async fn auto_recap_below_min_turns_is_noop_and_display_only() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -542,7 +544,7 @@ async fn manual_recap_never_mutates_conversation() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
 
@@ -597,7 +599,7 @@ async fn manual_recap_with_no_turns_emits_unavailable() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -623,7 +625,7 @@ async fn manual_recap_generation_failure_emits_unavailable() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -653,7 +655,7 @@ async fn manual_recap_generation_failure_persists_request_artifact() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -706,7 +708,7 @@ async fn auto_recap_gated_does_not_emit_unavailable() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -734,7 +736,7 @@ async fn manual_recap_over_budget_trims_persisted_request_and_is_display_only() 
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             // A window of 8_000 gives prompt_budget = 8_000 * 85 / 100 - 4_000 = 2_800
@@ -762,7 +764,8 @@ async fn manual_recap_over_budget_trims_persisted_request_and_is_display_only() 
             let mut saw_recap_request = false;
             while let Ok(msg) = persistence_rx.try_recv() {
                 if let PersistenceMsg::RecapRequest(artifact) = msg {
-                    let est = chat_state::estimate_conversation_tokens(&artifact.chat_history);
+                    let est =
+                        xvora_chat_state::estimate_conversation_tokens(&artifact.chat_history);
                     assert!(
                         est <= PROMPT_BUDGET,
                         "persisted recap request must be within budget: {est} > {PROMPT_BUDGET}"
@@ -886,13 +889,13 @@ fn over_budget_recap_serializes_to_well_formed_messages_request() {
 /// The recap sends the main turn's tools and the session id as `prompt_cache_key`, so it rides the parent turn's prefix cache.
 #[tokio::test(flavor = "current_thread")]
 async fn recap_request_rides_parent_prompt_cache() {
-    use crate::test_support::MockInferenceServer;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             // Register a real tool so the "recap sends the main turn's tools" assertion is non-vacuous
@@ -955,14 +958,14 @@ async fn recap_request_rides_parent_prompt_cache() {
 /// A recap in a backend-search session must send the main turn's hosted tools or its prefix diverges and misses the cache.
 #[tokio::test(flavor = "current_thread")]
 async fn recap_request_sends_hosted_tools_under_backend_search() {
-    use crate::test_support::MockInferenceServer;
     use xvora_sampling_types::HostedTool;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;
@@ -1042,7 +1045,7 @@ async fn turn_summary_bails_when_newer_turn_already_running() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let disabled = std::sync::Arc::new(
                 create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await,
@@ -1054,7 +1057,7 @@ async fn turn_summary_bails_when_newer_turn_already_running() {
             );
 
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut prx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1087,7 +1090,7 @@ async fn new_prompt_aborts_in_flight_turn_summary() {
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.turn_summary_enabled = true;
@@ -1109,13 +1112,13 @@ async fn new_prompt_aborts_in_flight_turn_summary() {
 /// Happy path: a successful side-call persists the summary and broadcasts it transiently, then clears the task slot.
 #[tokio::test(flavor = "current_thread")]
 async fn turn_summary_generate_persists_and_broadcasts() {
-    use crate::test_support::MockInferenceServer;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, mut grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut prx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1168,7 +1171,7 @@ async fn turn_summary_generate_persists_and_broadcasts() {
 
             let mut found_broadcast = false;
             while let Ok(msg) = grx.try_recv() {
-                let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+                let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                     continue;
                 };
                 if args.request.method.as_ref() != "x.ai/session_notification" {
@@ -1204,14 +1207,14 @@ async fn turn_summary_generate_persists_and_broadcasts() {
 /// An active per-turn cutoff must reach the recap's `x_search` entry rather than an unbounded tool.
 #[tokio::test(flavor = "current_thread")]
 async fn recap_hosted_tools_reflect_the_active_per_turn_override() {
-    use crate::test_support::MockInferenceServer;
     use xvora_sampling_types::{HostedTool, SearchDateBound, ToolOverrides, XSearchOptions};
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;
@@ -1283,13 +1286,13 @@ async fn recap_hosted_tools_reflect_the_active_per_turn_override() {
 /// A `/btw` call sends the main turn's tools and the session id as `prompt_cache_key`, so it reuses the parent's cached prefix.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_request_rides_parent_prompt_cache() {
-    use crate::test_support::MockInferenceServer;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;
@@ -1387,13 +1390,13 @@ async fn side_question_request_rides_parent_prompt_cache() {
 /// Recap and `/btw` must replay the parent conversation verbatim and append one instruction. The cache key buys nothing if the prefix moved.
 #[tokio::test(flavor = "current_thread")]
 async fn auxiliary_calls_keep_the_main_turn_prefix() {
-    use crate::test_support::MockInferenceServer;
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;
@@ -1444,14 +1447,14 @@ async fn auxiliary_calls_keep_the_main_turn_prefix() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn messages_side_calls_preserve_completed_reasoning() {
-    use crate::test_support::MockInferenceServer;
     use xvora_sampling_types::{ReasoningEffort, rs};
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             actor.turn_summary_enabled = true;
@@ -1560,8 +1563,8 @@ async fn messages_side_calls_preserve_completed_reasoning() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn messages_side_calls_strip_reasoning_without_supported_thinking_effort() {
-    use crate::test_support::MockInferenceServer;
     use xvora_sampling_types::{ReasoningEffort, synthesized_reasoning_item};
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1572,7 +1575,7 @@ async fn messages_side_calls_strip_reasoning_without_supported_thinking_effort()
                 Some(ReasoningEffort::Minimal),
             ] {
                 let (gateway_tx, _grx) =
-                    tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                    tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
                 let (persistence_tx, _prx) =
                     tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
                 let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1672,14 +1675,14 @@ async fn messages_side_calls_strip_reasoning_without_supported_thinking_effort()
 /// A mid-turn `/btw` must not send a reasoning item whose assistant the trim removed, or the request goes out with an unpaired prefix.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_trims_reasoning_orphaned_by_mid_turn_truncation() {
-    use crate::test_support::MockInferenceServer;
     use xvora_sampling_types::conversation::{AssistantItem, ToolCall};
+    use xvora_test_support::MockInferenceServer;
 
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
             let (gateway_tx, _grx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _prx) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.agent.borrow_mut() = test_agent_with_goal_tool().await;

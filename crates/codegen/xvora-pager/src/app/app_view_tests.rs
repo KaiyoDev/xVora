@@ -62,7 +62,7 @@ fn app_draw_drains_deferred_release_after_flush() {
         crate::render::draw::TermWriter::new(frame_tx, crate::render::draw::WriterSync::new())
             .expect("single test writer");
     let backend = ratatui::backend::CrosstermBackend::new(writer);
-    let mut terminal = ratatui_inline::Terminal::with_options(
+    let mut terminal = xvora_ratatui_inline::Terminal::with_options(
         backend,
         TerminalOptions {
             viewport: Viewport::Fixed(ratatui::layout::Rect::new(0, 0, 80, 24)),
@@ -149,6 +149,7 @@ pub(crate) fn test_app() -> AppView {
         contextual_hints: Default::default(),
         remote_contextual_hints: None,
         tip_seen_counts: Default::default(),
+        export_copy_slash_used: false,
         last_known_terminal_rows: 0,
         small_screen_tip_evaluated: false,
         ssh_wrap_tip_evaluated: false,
@@ -1257,6 +1258,49 @@ fn needs_animation_gates_btw_loading_spinner() {
     assert!(!app.needs_animation());
 }
 #[test]
+fn needs_animation_gates_extensions_modal_loading_spinner() {
+    use crate::views::extensions_modal::{ExtensionsModalState, ExtensionsTab, TabDataState};
+    use crate::views::turn_status::SPINNER_DIVISOR;
+    let mut app = test_app_with_agent();
+    let id = super::super::agent::AgentId(0);
+    assert!(!app.needs_animation(), "idle agent must not request ticks");
+    app.agents.get_mut(&id).unwrap().extensions_modal =
+        Some(ExtensionsModalState::new(ExtensionsTab::McpServers));
+    assert!(
+        app.needs_animation(),
+        "/mcps Loading must keep ticks alive so the picker spinner can advance"
+    );
+    let saw_redraw = (0..SPINNER_DIVISOR).any(|_| app.tick());
+    assert!(
+        saw_redraw,
+        "Loading must redraw at spinner cadence while idle"
+    );
+    app.agents
+        .get_mut(&id)
+        .unwrap()
+        .extensions_modal
+        .as_mut()
+        .unwrap()
+        .mcps_data = TabDataState::Loaded(Vec::new());
+    assert!(
+        !app.needs_animation(),
+        "loaded /mcps list must not metronome"
+    );
+    let modal = app
+        .agents
+        .get_mut(&id)
+        .unwrap()
+        .extensions_modal
+        .as_mut()
+        .unwrap();
+    modal.pending_action = Some("Installing…".into());
+    modal.pending_entry_index = None;
+    assert!(
+        app.needs_animation(),
+        "tab-wide pending overlay spinner must keep ticks alive"
+    );
+}
+#[test]
 fn needs_animation_gates_pending_acp_command_sync() {
     let mut app = test_app_with_agent();
     let id = super::super::agent::AgentId(0);
@@ -1769,7 +1813,7 @@ fn welcome_ctrl_q_requires_confirmation() {
 #[test]
 fn welcome_ctrl_u_update_keeps_priority_over_foreign_resume() {
     let mut app = test_app();
-    app.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -1789,8 +1833,8 @@ fn welcome_ctrl_u_update_keeps_priority_over_foreign_resume() {
     app.apply_foreign_resume_detection(
         launch_token,
         &canonical_cwd,
-        Some(foreign_sessions::RecentForeignSession {
-            tool: foreign_sessions::ForeignSessionTool::Cursor,
+        Some(xvora_foreign_sessions::RecentForeignSession {
+            tool: xvora_foreign_sessions::ForeignSessionTool::Cursor,
             native_id: "cursor-session".into(),
             age: std::time::Duration::from_secs(30),
         }),

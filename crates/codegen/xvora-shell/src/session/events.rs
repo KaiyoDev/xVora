@@ -1,8 +1,8 @@
 //! Re-exports of the crate-internal event types that live in `xvora-session-events`.
 //! The orphan-rule items (`From<&permission::Decision>` and the doom-loop categorizer) stay here since they need shell-local types.
 
-pub(crate) use session_events::tracker::EventTracker;
-pub(crate) use session_events::types::{
+pub(crate) use xvora_session_events::tracker::EventTracker;
+pub(crate) use xvora_session_events::types::{
     CancellationCategory, EVENT_SCHEMA_VERSION, Event, GoalClassifierVerdictTelemetry,
     GoalPauseReasonTelemetry, InterjectionSource, Phase, RedirectKind, SessionRelationship,
     ToolCompletedSource, ToolOutcome, TurnOutcomeLabel,

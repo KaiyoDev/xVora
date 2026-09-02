@@ -22,7 +22,9 @@ async fn spawn_counting_gated_server() -> (String, Arc<AtomicUsize>, Arc<AtomicU
         .await
         .expect("bind fake server");
     let addr = listener.local_addr().expect("fake server addr");
-    let issuer = format!("http://{addr}");
+    // rmcp 3.x enforces RFC 8414 issuer validation: the advertised issuer must equal
+    // the issuer the client derived from the MCP base URL (including its path).
+    let issuer = format!("http://{addr}/mcp");
     let app = axum::Router::new().fallback(move |req: axum::extract::Request| {
         let requests = Arc::clone(&handler_requests);
         let token_grants = Arc::clone(&handler_token_grants);
@@ -43,7 +45,7 @@ async fn spawn_counting_gated_server() -> (String, Arc<AtomicUsize>, Arc<AtomicU
             if path.contains("oauth-protected-resource") {
                 return StatusCode::NOT_FOUND.into_response();
             }
-            if path == "/token" {
+            if path.ends_with("/token") {
                 token_grants.fetch_add(1, Ordering::SeqCst);
                 return axum::Json(json!({
                     "access_token": TOKEN,
@@ -105,7 +107,7 @@ fn make_http_server(name: &str, url: &str) -> acp::McpServer {
     acp::McpServer::Http(acp::McpServerHttp::new(name, url))
 }
 
-fn session_ctx(event_writer: &session_events::EventWriter) -> McpSpawnCtx<'_> {
+fn session_ctx(event_writer: &xvora_session_events::EventWriter) -> McpSpawnCtx<'_> {
     xvora_mcp::isolate_grok_home_for_tests();
     McpSpawnCtx::for_session(
         "sess",
@@ -165,7 +167,7 @@ async fn stored_token_lifecycle_across_spawns() {
     let (url, requests, token_grants) = spawn_counting_gated_server().await;
     seed_stored_token("seeded", &url::Url::parse(&url).unwrap());
 
-    let event_writer = session_events::EventWriter::noop();
+    let event_writer = xvora_session_events::EventWriter::noop();
 
     let requests_before = requests.load(Ordering::SeqCst);
     let client = start_mcp_server(
@@ -257,7 +259,7 @@ async fn stored_token_lifecycle_across_spawns() {
 async fn entry_without_token_fail_fasts_until_out_of_band_login() {
     let (url, requests, _token_grants) = spawn_counting_gated_server().await;
     let parsed_url = url::Url::parse(&url).unwrap();
-    let event_writer = session_events::EventWriter::noop();
+    let event_writer = xvora_session_events::EventWriter::noop();
 
     seed_login_without_token("gated", &parsed_url);
 

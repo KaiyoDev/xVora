@@ -356,11 +356,11 @@ pub enum Action {
     /// Refresh MCP server list from the modal.
     RefreshMcpList,
     /// Execute a hooks management action from the modal.
-    ExecuteHooksAction(hooks_plugins_types::HooksAction),
+    ExecuteHooksAction(xvora_hooks_plugins_types::HooksAction),
     /// Execute a plugins management action from the modal.
-    ExecutePluginsAction(hooks_plugins_types::PluginsAction),
+    ExecutePluginsAction(xvora_hooks_plugins_types::PluginsAction),
     /// Execute a marketplace management action from the modal.
-    ExecuteMarketplaceAction(hooks_plugins_types::MarketplaceAction),
+    ExecuteMarketplaceAction(xvora_hooks_plugins_types::MarketplaceAction),
     /// Add or update an MCP server via x.ai/mcp/upsert.
     UpsertMcpServer {
         name: String,
@@ -523,6 +523,7 @@ pub enum Action {
     SetContextualHintSendNow(bool),
     SetContextualHintSmallScreen(bool),
     SetContextualHintWordSelect(bool),
+    SetContextualHintExportCopy(bool),
     SetContextualHintSshWrap(bool),
     /// Commit the active theme (canonical name, e.g. `"groknight"`, `"auto"`).
     SetTheme(String),
@@ -1373,7 +1374,7 @@ pub enum Effect {
     /// Scan enabled foreign session stores without delaying the native list.
     ScanForeignSessions {
         cwd: std::path::PathBuf,
-        compat: foreign_sessions::EnabledForeignSessionSources,
+        compat: xvora_foreign_sessions::EnabledForeignSessionSources,
         grok_home: std::path::PathBuf,
         coordinator: crate::app::ForeignScanCoordinator,
         seq: u64,
@@ -1386,7 +1387,7 @@ pub enum Effect {
     /// Detect the newest resumable foreign session without delaying first paint.
     DetectForeignResumeHint {
         canonical_cwd: std::path::PathBuf,
-        compat: foreign_sessions::EnabledForeignSessionSources,
+        compat: xvora_foreign_sessions::EnabledForeignSessionSources,
         grok_home: std::path::PathBuf,
         launch_token: u64,
     },
@@ -1430,8 +1431,8 @@ pub enum Effect {
     LoadWorkspaceSnapshot { db_path: std::path::PathBuf },
     /// Apply one coalesced dashboard-v2 adoption/metadata batch through the process-owned store connection.
     UpsertWorkspaceMembers {
-        store: dashboard_store::WorkspaceStore,
-        members: Vec<dashboard_store::NewMember>,
+        store: xvora_dashboard_store::WorkspaceStore,
+        members: Vec<xvora_dashboard_store::NewMember>,
     },
     /// Load card detail for a specific session (lazy, reads chat history from disk).
     LoadCardDetail {
@@ -1709,13 +1710,13 @@ pub enum Effect {
     HooksAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: hooks_plugins_types::HooksAction,
+        action: xvora_hooks_plugins_types::HooksAction,
     },
     /// Execute a plugins management action via ACP.
     PluginsAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: hooks_plugins_types::PluginsAction,
+        action: xvora_hooks_plugins_types::PluginsAction,
     },
     /// Fetch marketplace plugin list from the shell.
     FetchMarketplaceList {
@@ -1752,7 +1753,7 @@ pub enum Effect {
     MarketplaceAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: hooks_plugins_types::MarketplaceAction,
+        action: xvora_hooks_plugins_types::MarketplaceAction,
     },
     /// Install a plugin from the inline CTA via `x.ai/marketplace/action`, reported back via `TaskResult::CtaPluginInstallDone`.
     InstallPluginFromCta {
@@ -2296,7 +2297,7 @@ pub enum TaskResult {
     ForeignResumeHintDetected {
         canonical_cwd: std::path::PathBuf,
         launch_token: u64,
-        hint: Option<foreign_sessions::RecentForeignSession>,
+        hint: Option<xvora_foreign_sessions::RecentForeignSession>,
     },
     /// Session list fetch failed.
     SessionListFailed {
@@ -2337,8 +2338,8 @@ pub enum TaskResult {
     },
     /// Dashboard v2's process-owned store and initial consistent view.
     WorkspaceSnapshotLoaded {
-        store: dashboard_store::WorkspaceStore,
-        snapshot: dashboard_store::WorkspaceSnapshot,
+        store: xvora_dashboard_store::WorkspaceStore,
+        snapshot: xvora_dashboard_store::WorkspaceSnapshot,
     },
     /// Dashboard v2 store open or initial snapshot failed.
     WorkspaceSnapshotFailed {
@@ -2346,10 +2347,10 @@ pub enum TaskResult {
     },
     /// A dashboard-v2 write batch finished and returned the sole store handle.
     WorkspaceMembersUpserted {
-        store: dashboard_store::WorkspaceStore,
-        snapshot: Result<dashboard_store::WorkspaceSnapshot, String>,
+        store: xvora_dashboard_store::WorkspaceStore,
+        snapshot: Result<xvora_dashboard_store::WorkspaceSnapshot, String>,
         failures: Vec<WorkspaceMemberUpsertFailure>,
-        attempted: Vec<dashboard_store::NewMember>,
+        attempted: Vec<xvora_dashboard_store::NewMember>,
     },
     /// The blocking workspace writer panicked or was cancelled, losing its moved handle; reopen the store before any further writes.
     WorkspaceMembersUpsertTaskFailed {
@@ -2520,32 +2521,32 @@ pub enum TaskResult {
     /// Hooks list fetched from shell.
     HooksListLoaded {
         agent_id: AgentId,
-        result: Result<hooks_plugins_types::HooksListResponse, String>,
+        result: Result<xvora_hooks_plugins_types::HooksListResponse, String>,
     },
     /// Plugins list fetched from shell.
     PluginsListLoaded {
         agent_id: AgentId,
-        result: Result<hooks_plugins_types::PluginsListResponse, String>,
+        result: Result<xvora_hooks_plugins_types::PluginsListResponse, String>,
     },
     /// Hooks action completed.
     HooksActionResult {
         agent_id: AgentId,
-        result: Result<hooks_plugins_types::ActionOutcome, String>,
+        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
     },
     /// Plugins action completed.
     PluginsActionResult {
         agent_id: AgentId,
-        result: Result<hooks_plugins_types::ActionOutcome, String>,
+        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
     },
     /// Marketplace list loaded.
     MarketplaceListLoaded {
         agent_id: AgentId,
-        result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
+        result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
     },
     /// Official-marketplace CTA catalog loaded into agent-level state.
     PluginCtaCatalogLoaded {
         agent_id: AgentId,
-        result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
+        result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
     },
     /// Skills list loaded.
     SkillsListLoaded {
@@ -2570,19 +2571,19 @@ pub enum TaskResult {
     /// Marketplace action completed.
     MarketplaceActionResult {
         agent_id: AgentId,
-        result: Result<hooks_plugins_types::ActionOutcome, String>,
+        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
     },
     /// Inline-CTA plugin install completed.
     CtaPluginInstallDone {
         agent_id: AgentId,
         plugin_name: String,
-        result: Result<hooks_plugins_types::ActionOutcome, String>,
+        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
     },
     /// Post-CTA-install plugins reload completed (modal-independent).
     CtaPluginReloadDone {
         agent_id: AgentId,
         plugin_name: String,
-        result: Result<hooks_plugins_types::ActionOutcome, String>,
+        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
     },
     /// Post-CTA-install MCP server list loaded (modal-independent).
     PluginCtaMcpsLoaded {

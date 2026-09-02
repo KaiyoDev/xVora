@@ -25,10 +25,18 @@ impl SessionActor {
                 let actual = self.permissions.is_yolo_mode();
                 if let Some(actual) = yolo_toggle_report(was, actual) {
                     self.emit_event(crate::session::events::Event::YoloToggled { enabled: actual });
+                    let from_mode = if self.plan_mode.lock().is_active() {
+                        "plan"
+                    } else if was {
+                        "bypass_permissions"
+                    } else {
+                        "default"
+                    };
                     xvora_telemetry::session_ctx::log_event(xvora_telemetry::events::YoloToggled {
                         enabled: actual,
                         previous_state: was,
                         trigger: xvora_telemetry::events::YoloTrigger::SlashCommand,
+                        from_mode: Some(from_mode.to_owned()),
                     });
                     tracing::info_span!(
                         "session.permission_mode_changed",
@@ -334,7 +342,7 @@ impl SessionActor {
                 };
 
                 let ctx = &info.context;
-                let context_pct = token_estimation::usage_percentage(ctx.used, ctx.total);
+                let context_pct = xvora_token_estimation::usage_percentage(ctx.used, ctx.total);
 
                 let summary_path = crate::session::persistence::session_dir(&self.session_info)
                     .join("summary.json");

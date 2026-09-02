@@ -729,7 +729,7 @@ mod tests {
     use std::path::PathBuf;
     use std::process::Command;
     use tempfile::TempDir;
-    use test_utils::git::{git_commit_all, init_git_repo};
+    use xvora_test_utils::git::{git_commit_all, init_git_repo};
 
     /// Helper: create a git worktree from a source repo
     fn create_linked_worktree(source: &Path, name: &str) -> PathBuf {
@@ -754,7 +754,7 @@ mod tests {
 
     #[test]
     fn test_sync_same_head_no_dirty() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -772,7 +772,7 @@ mod tests {
 
     #[test]
     fn test_sync_head_moved() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -799,7 +799,7 @@ mod tests {
 
     #[test]
     fn test_sync_dirty_files() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -830,7 +830,7 @@ mod tests {
 
     #[test]
     fn test_sync_deleted_file() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -854,7 +854,7 @@ mod tests {
 
     #[test]
     fn test_sync_head_moved_with_dirty() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -882,7 +882,7 @@ mod tests {
 
     #[test]
     fn test_sync_rename() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -913,7 +913,7 @@ mod tests {
 
     #[test]
     fn test_copy_git_index() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn test_sync_subdirectory_creation() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -976,7 +976,7 @@ mod tests {
 
     #[test]
     fn test_sync_copy_dirty_false_does_not_copy_index() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -1015,7 +1015,7 @@ mod tests {
 
     #[test]
     fn test_sync_file_with_spaces_and_unicode() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -1055,7 +1055,7 @@ mod tests {
 
     #[test]
     fn test_sync_staged_deletion_file_still_on_disk() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Regression test: `git rm --cached` stages a deletion but
         // leaves the file on disk. We should copy the file, not delete it.
         let temp = TempDir::new().unwrap();
@@ -1158,7 +1158,7 @@ mod tests {
 
     #[test]
     fn test_sync_branch_changed() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Source checks out a different branch after worktree was created.
         // The worktree (detached) should sync to the new branch's HEAD.
         let temp = TempDir::new().unwrap();
@@ -1200,7 +1200,7 @@ mod tests {
 
     #[test]
     fn test_sync_multiple_commits_ahead() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Source is many commits ahead of the worktree.
         // git reset --hard should jump directly regardless of distance.
         let temp = TempDir::new().unwrap();
@@ -1243,7 +1243,7 @@ mod tests {
 
     #[test]
     fn test_sync_staged_and_worktree_modifications_same_file() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // A file has BOTH staged changes (in the index) AND further worktree
         // modifications on top. The sync should replicate the on-disk state
         // (worktree version) and the index (staged version).
@@ -1322,7 +1322,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_commit_replication() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Pool scenario: worktree created, source gets new commits, sync
         // with skip_clean=true should still replicate them via reset --hard.
         let temp = TempDir::new().unwrap();
@@ -1364,7 +1364,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_dirty_and_untracked_replication() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Pool scenario: worktree is clean, source has dirty tracked files
         // and new untracked files. skip_clean=true + copy_dirty=true should
         // replicate both.
@@ -1407,7 +1407,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_commit_plus_dirty() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Full pool scenario: source advanced by commits AND has dirty state
         // on top. skip_clean=true + copy_dirty=true.
         let temp = TempDir::new().unwrap();
@@ -1452,7 +1452,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_staged_changes_replicated() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Pool scenario: source has staged (indexed) changes.
         // skip_clean=true + copy_dirty=true should replay staged entries
         // via git update-index.
@@ -1502,7 +1502,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_sequential_reuse() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Simulates pool worktree reuse: create → sync → (simulate use) →
         // source changes → sync again. Both syncs use skip_clean=true.
         let temp = TempDir::new().unwrap();
@@ -1560,7 +1560,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_does_not_remove_leftover_untracked() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Documents the skip_clean contract: if the worktree has leftover
         // untracked files from a previous use and skip_clean=true is passed,
         // those files PERSIST. This is correct for the pool because pool
@@ -1597,7 +1597,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_deleted_tracked_file_replicated() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Source deletes a tracked file. skip_clean=true + copy_dirty=true
         // should replicate the deletion in the worktree.
         let temp = TempDir::new().unwrap();
@@ -1628,7 +1628,7 @@ mod tests {
 
     #[test]
     fn test_skip_clean_branch_switch_with_dirty() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Source switches branches and has dirty state. skip_clean=true
         // should handle the branch jump + dirty overlay.
         let temp = TempDir::new().unwrap();
@@ -1671,7 +1671,7 @@ mod tests {
 
     #[test]
     fn test_sync_from_precomputed_none_skips_dirty() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -1699,7 +1699,7 @@ mod tests {
 
     #[test]
     fn test_sync_from_precomputed_empty_skips_dirty() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -1721,7 +1721,7 @@ mod tests {
 
     #[test]
     fn test_sync_from_precomputed_with_dirty_files() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
         std::fs::create_dir_all(&source).unwrap();
@@ -1756,7 +1756,7 @@ mod tests {
 
     #[test]
     fn test_sync_from_precomputed_shared_across_two_worktrees() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // The core use case: collect once, apply to two worktrees.
         let temp = TempDir::new().unwrap();
         let source = temp.path().join("source");
@@ -1795,7 +1795,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_sync_replicates_symlinks_not_regular_files() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Dirty symlinks (valid and dangling) must land in the worktree as
         // symlinks, never dereferenced to regular files and never skipped.
         let temp = TempDir::new().unwrap();
@@ -1873,7 +1873,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_sync_updates_modified_tracked_symlink_target() {
-        test_utils::require_git!();
+        xvora_test_utils::require_git!();
         // Re-pointing a tracked symlink in source must update the worktree dest
         // to the new target while keeping it a symlink.
         let temp = TempDir::new().unwrap();

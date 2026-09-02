@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 
 use super::{ExtResult, parse_params, to_ext_response};
 use crate::agent::MvpAgent;
-use hunk_tracker::{FileContentEntry, FileContentStatus, FileContentView, Hunk, HunkTrackerHandle};
+use xvora_hunk_tracker::{
+    FileContentEntry, FileContentStatus, FileContentView, Hunk, HunkTrackerHandle,
+};
 use xvora_workspace::workspace_ops::{
     FileContentEntryWire, FileContentStatusWire, FileContentViewWire, HunkActionKind,
     HunkActionReq, HunkAllActionReq, HunkFileActionReq, HunkGetAllFileContentsReq,
@@ -536,12 +538,12 @@ pub async fn handle(
 mod tests {
     use super::{GetAllFileContentsResponse, GetHunksResponse, compute_file_summaries};
     use chrono::Utc;
-    use hunk_tracker::{
-        FileContentStatus, FileContentView, Hunk, HunkId, HunkLineInfo, HunkSource,
-    };
     use std::collections::HashSet;
     use std::path::PathBuf;
     use std::sync::Arc;
+    use xvora_hunk_tracker::{
+        FileContentStatus, FileContentView, Hunk, HunkId, HunkLineInfo, HunkSource,
+    };
 
     fn make_hunk(
         id: &str,
@@ -876,7 +878,7 @@ mod tests {
     /// GetAllFileContentsResponse serializes with all fields using camelCase
     #[test]
     fn get_all_file_contents_response_serializes_correctly() {
-        use hunk_tracker::FileContentEntry;
+        use xvora_hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![FileContentEntry {
@@ -917,7 +919,7 @@ mod tests {
     /// GetAllFileContentsResponse handles missing baseline (new file)
     #[test]
     fn get_all_file_contents_response_missing_baseline() {
-        use hunk_tracker::FileContentEntry;
+        use xvora_hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![FileContentEntry {
@@ -943,7 +945,7 @@ mod tests {
     /// GetAllFileContentsResponse handles binary files
     #[test]
     fn get_all_file_contents_response_binary_file() {
-        use hunk_tracker::FileContentEntry;
+        use xvora_hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![FileContentEntry {
@@ -981,7 +983,7 @@ mod tests {
     /// GetAllFileContentsResponse with multiple files preserves all entries
     #[test]
     fn get_all_file_contents_response_multiple_files() {
-        use hunk_tracker::FileContentEntry;
+        use xvora_hunk_tracker::FileContentEntry;
 
         let response = GetAllFileContentsResponse {
             files: vec![

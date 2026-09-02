@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use message_delivery_core::{
+use tokio::sync::{mpsc, oneshot};
+use xvora_message_delivery_core::{
     AgentSource, DeliveryEnvelope, DeliveryIdentity, HumanSource, Operation, OperationSet,
     authorize_operation,
 };
-use tokio::sync::{mpsc, oneshot};
 use xvora_tools::implementations::grok_build::task::coordinator::ActiveMessageAdmission;
 use xvora_tools::implementations::grok_build::task::types::{
     ActiveAgentMessageDelivery, ActiveAgentMessageOperation,
@@ -168,7 +168,7 @@ impl MessageDeliveryHandle {
             return ActiveMessageAdmission::Rejected;
         }
         if operation != delivery_operation(delivery.operation())
-            || authorize_operation(OperationSet::QUEUE, operation).is_err()
+            || authorize_operation(OperationSet::QUEUE_AND_STEER, operation).is_err()
         {
             return ActiveMessageAdmission::Unsupported;
         }

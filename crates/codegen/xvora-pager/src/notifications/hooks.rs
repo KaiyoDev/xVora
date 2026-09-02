@@ -24,7 +24,7 @@ fn execute_hook(
         cmd.env("GROK_SESSION_ID", sid);
     }
 
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     xvora_sandbox::child_net::restrict_child_network_std(&mut cmd);
 
     #[allow(clippy::disallowed_methods)] // Enrolled below, once the child exists
@@ -36,16 +36,16 @@ fn execute_hook(
         }
     };
 
-    let group = match tty_utils::global_process_scope().enroll_std(&child) {
+    let group = match xvora_tty_utils::global_process_scope().enroll_std(&child) {
         Ok(group) => group,
         Err(error) => {
             tracing::debug!(error = %error, command, "hook process group enrollment failed");
             let _ = child.kill();
             if !matches!(
-                tty_utils::wait_child_bounded(&mut child, tty_utils::KILL_REAP_TIMEOUT,),
+                xvora_tty_utils::wait_child_bounded(&mut child, xvora_tty_utils::KILL_REAP_TIMEOUT,),
                 Ok(Some(_))
             ) && let Err((error, child, _)) =
-                tty_utils::spawn_child_reaper("notification-hook-reaper", child, None)
+                xvora_tty_utils::spawn_child_reaper("notification-hook-reaper", child, None)
             {
                 tracing::error!(error = %error, command, child_id = child.id(), "hook cleanup bounded abandonment after enrollment failure");
             }
@@ -53,13 +53,13 @@ fn execute_hook(
         }
     };
 
-    match tty_utils::wait_child_bounded(&mut child, timeout) {
+    match xvora_tty_utils::wait_child_bounded(&mut child, timeout) {
         Ok(Some(_)) => drop(group),
         Ok(None) => {
             tracing::warn!(command, "hook timed out");
             kill_tree_and_reap(child, group, command);
         }
-        Err(error) if tty_utils::is_child_wait_identity_uncertain(&error) => {
+        Err(error) if xvora_tty_utils::is_child_wait_identity_uncertain(&error) => {
             tracing::error!(error = %error, command, "hook wait lost child identity; numeric cleanup forbidden");
             // After ECHILD the child may already be reaped and its pid or group id reused, so killing by id now or later is unsafe
             drop(group);
@@ -72,13 +72,13 @@ fn execute_hook(
     }
 }
 
-fn kill_tree_and_reap(mut child: Child, group: Arc<tty_utils::ProcessGroup>, command: &str) {
+fn kill_tree_and_reap(mut child: Child, group: Arc<xvora_tty_utils::ProcessGroup>, command: &str) {
     if let Err(group_error) = group.kill()
         && let Err(child_error) = child.kill()
     {
         tracing::warn!(error = %group_error, fallback_error = %child_error, command, "hook group and direct-child kill failed");
     }
-    match tty_utils::wait_child_bounded(&mut child, tty_utils::KILL_REAP_TIMEOUT) {
+    match xvora_tty_utils::wait_child_bounded(&mut child, xvora_tty_utils::KILL_REAP_TIMEOUT) {
         Ok(Some(_)) => drop(group),
         Ok(None) => abandon_child(child, Some(group), command),
         Err(error) => {
@@ -88,9 +88,9 @@ fn kill_tree_and_reap(mut child: Child, group: Arc<tty_utils::ProcessGroup>, com
     }
 }
 
-fn abandon_child(child: Child, group: Option<Arc<tty_utils::ProcessGroup>>, command: &str) {
+fn abandon_child(child: Child, group: Option<Arc<xvora_tty_utils::ProcessGroup>>, command: &str) {
     if let Err((error, child, group)) =
-        tty_utils::spawn_child_reaper("notification-hook-reaper", child, group)
+        xvora_tty_utils::spawn_child_reaper("notification-hook-reaper", child, group)
     {
         tracing::error!(error = %error, command, child_id = child.id(), has_group = group.is_some(), "hook cleanup bounded abandonment: reaper thread spawn failed");
     }

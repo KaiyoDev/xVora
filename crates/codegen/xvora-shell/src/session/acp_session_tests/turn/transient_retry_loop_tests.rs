@@ -6,7 +6,7 @@ use super::rate_limit_backoff_tests::{
 };
 use super::*;
 use std::time::Duration;
-use crate::test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
+use xvora_test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
 
 /// The turn future needs a session-sized stack (spawn.rs: 8 MiB); default test stacks overflow.
 fn on_session_stack(test: impl FnOnce() + Send + 'static) {

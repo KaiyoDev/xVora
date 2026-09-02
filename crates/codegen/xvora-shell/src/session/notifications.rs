@@ -3,7 +3,7 @@ use std::sync::atomic::AtomicBool;
 
 use tokio::sync::{mpsc, watch};
 
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::session::persistence::PersistenceMsg;
 

@@ -121,7 +121,7 @@ pub(crate) fn build_blocking_client_with_identity(
                 None => None,
             };
             // The rustls pin keeps Identity::from_pem (rustls PEM) working.
-            extra_ca::build_blocking_reqwest_client(|builder| {
+            xvora_extra_ca::build_blocking_reqwest_client(|builder| {
                 let mut builder = builder.timeout(timeout);
                 for cert in &extra_roots {
                     builder = builder.add_root_certificate(cert.clone());

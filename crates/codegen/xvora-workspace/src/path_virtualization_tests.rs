@@ -1,7 +1,7 @@
 use super::*;
 use serde_json::json;
-use tool_protocol::ToolId;
-use tool_runtime::ContentBlock;
+use xvora_tool_protocol::ToolId;
+use xvora_tool_runtime::ContentBlock;
 
 fn mapping() -> PathVirtualization {
     PathVirtualization::try_from_session_root("/workspace/conv-abc").expect("valid session root")
@@ -307,7 +307,7 @@ fn typed_output_and_error_rewrite_model_facing_fields() {
     }
 
     let err = ToolError::new(
-        tool_runtime::ToolErrorKind::Execution,
+        xvora_tool_runtime::ToolErrorKind::Execution,
         "missing /workspace/conv-abc/gone.txt",
     )
     .with_details(json!({"path": "/workspace/conv-abc/gone.txt"}));
@@ -315,10 +315,10 @@ fn typed_output_and_error_rewrite_model_facing_fields() {
     assert_eq!(err.detail, "missing /workspace/gone.txt");
     assert_eq!(err.details.unwrap()["path"], "/workspace/gone.txt");
 
-    let cco = tool_runtime::ToolChatCompletionResponse {
-        result: Some(tool_runtime::ToolChatCompletion {
+    let cco = xvora_tool_runtime::ToolChatCompletionResponse {
+        result: Some(xvora_tool_runtime::ToolChatCompletion {
             message: "cwd /workspace/conv-abc".into(),
-            code_execution_result: Some(tool_runtime::ToolCodeExecutionResult {
+            code_execution_result: Some(xvora_tool_runtime::ToolCodeExecutionResult {
                 stdout: "/workspace/conv-abc/out.txt\n".into(),
                 stderr: "warn /workspace/conv-abc/e.txt".into(),
                 ..Default::default()
@@ -330,7 +330,7 @@ fn typed_output_and_error_rewrite_model_facing_fields() {
             )]),
             ..Default::default()
         }),
-        stream_error: Some(tool_runtime::ToolStreamError {
+        stream_error: Some(xvora_tool_runtime::ToolStreamError {
             message: "failed /workspace/conv-abc/x".into(),
             typed_error: Some(json!({"path": "/workspace/conv-abc/typed.txt"})),
         }),

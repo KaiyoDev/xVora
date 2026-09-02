@@ -7,7 +7,12 @@ use super::reasoning_effort::EffortTarget;
 use crate::auth::PreferredAuthMethod;
 use crate::upload::trace::PromptMetadataParams;
 use xvora_tools::implementations::grok_build::task::backend::SubagentBackend;
-use tty_utils::ProcessScope;
+use xvora_tty_utils::ProcessScope;
+struct SessionConfigInputs {
+    model_id: acp::ModelId,
+    effort_options: Vec<ReasoningEffortOption>,
+    current_effort: Option<xvora_sampling_types::ReasoningEffort>,
+}
 /// `preferred` model, else catalog `current`, else first with own credentials.
 fn byok_from_models(
     models: &indexmap::IndexMap<String, ModelEntry>,
@@ -1314,11 +1319,11 @@ impl MvpAgent {
     ///
     /// The session-based clause is load-bearing.
     /// Without it, chat_state can get locked into `auth_type = ApiKey` and skip token refresh on later prompts.
-    pub(crate) fn auth_type(&self) -> chat_state::AuthType {
+    pub(crate) fn auth_type(&self) -> xvora_chat_state::AuthType {
         if self.auth_manager.current().is_some() || self.is_session_based_auth() {
-            chat_state::AuthType::SessionToken
+            xvora_chat_state::AuthType::SessionToken
         } else {
-            chat_state::AuthType::ApiKey
+            xvora_chat_state::AuthType::ApiKey
         }
     }
     /// Fall through to `xvora.api_key` if the startup probe still allows it, else `grok.com`.
@@ -1973,17 +1978,17 @@ impl MvpAgent {
             session.as_ref().map(|a| a.key.as_str()),
         );
         if prefers_oidc && !model.has_own_credentials()
-            && credentials.auth_type == chat_state::AuthType::ApiKey
+            && credentials.auth_type == xvora_chat_state::AuthType::ApiKey
         {
             credentials.api_key = None;
-            credentials.auth_type = chat_state::AuthType::SessionToken;
+            credentials.auth_type = xvora_chat_state::AuthType::SessionToken;
         }
         crate::agent::config::enforce_disable_api_key_auth(
             &mut credentials,
             self.cfg.borrow().grok_com_config.api_key_auth_disabled(),
             session.as_ref().map(|a| a.key.as_str()),
         );
-        if !has_session_key && credentials.auth_type == chat_state::AuthType::ApiKey
+        if !has_session_key && credentials.auth_type == xvora_chat_state::AuthType::ApiKey
             && !model.has_own_credentials() && is_session_based_auth
         {
             tracing::info!(
@@ -1995,7 +2000,7 @@ impl MvpAgent {
                 None,
                 Some(serde_json::json!({ "model": model.info().model.as_str() })),
             );
-            credentials.auth_type = chat_state::AuthType::SessionToken;
+            credentials.auth_type = xvora_chat_state::AuthType::SessionToken;
         }
         if should_warn_missing_session(MissingSessionCtx {
             has_session_key,
@@ -2465,20 +2470,7 @@ impl MvpAgent {
         }
         instance
     }
-    /// Handle `x.ai/internal/evict_sessions`: the leader server tells us a client disconnected and these sessions lost their IPC owner.
-    ///
-    /// **This is the no-evict keystone.** A disconnect must NOT destroy a session.
-    /// The behavior is now *detach, keep resident, idle-unload*:
-    ///
-    /// - **Sessions with live work stay resident.** We do NOT send `Shutdown` and do NOT drop the `SessionHandle`.
-    ///   So the actor, its pending permission oneshots, and its `KillOnDrop` tool subprocesses all survive.
-    ///   The route/driver detach is groundwork for PR-3 (the driver/subscriber maps don't exist yet), so for now we only mark the live state.
-    /// - **Fully idle sessions are unloaded to disk** to bound memory (the `sessions`/`session_threads` maps are uncapped).
-    ///   This preserves the legacy unload path: `Shutdown` the actor, drop the `SessionHandle`, but KEEP the `SessionThread`.
-    ///   `drain_old_session_thread` can then drain it on reconnect.
-    ///   It does **not** finalize the cloud replica (the session remains resumable via `session/load`).
-    ///
-    /// The "live work" check is the coarse PR-2 stub (`session_has_live_work`); the full `SessionActivity` signal lands in PR-4.
+    /// Client disconnect: keep working sessions resident, idle-unload the rest (never destroy).
     pub(super) async fn handle_evict_sessions(
         &self,
         params: &serde_json::value::RawValue,
@@ -2515,7 +2507,7 @@ impl MvpAgent {
             .into_iter()
             .map(|id| async move {
                 let measured = self.resident_handle(&id).map(|h| h.cmd_tx);
-                let busy = self.session_has_live_work(&id).await;
+                let busy = self.session_is_busy(&id).await;
                 (id, busy, measured)
             });
         let resolved = futures::future::join_all(checks).await;
@@ -3011,7 +3003,7 @@ impl MvpAgent {
     pub(crate) async fn list_hooks(
         &self,
         session_id: &acp::SessionId,
-    ) -> Option<hooks_plugins_types::HooksListResponse> {
+    ) -> Option<xvora_hooks_plugins_types::HooksListResponse> {
         let handle = self.get_session_handle(session_id)?;
         handle.get_hooks_list().await
     }
@@ -3019,9 +3011,9 @@ impl MvpAgent {
     pub(crate) async fn execute_hooks_action(
         &self,
         session_id: &acp::SessionId,
-        action: hooks_plugins_types::HooksAction,
-    ) -> Option<hooks_plugins_types::ActionOutcome> {
-        if matches!(action, hooks_plugins_types::HooksAction::Untrust)
+        action: xvora_hooks_plugins_types::HooksAction,
+    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
+        if matches!(action, xvora_hooks_plugins_types::HooksAction::Untrust)
             && let Some(cwd) = self.get_session_cwd(session_id)
         {
             self.interactive_trust_prompted
@@ -3035,14 +3027,14 @@ impl MvpAgent {
     pub(crate) async fn execute_plugins_action(
         &self,
         session_id: &acp::SessionId,
-        action: hooks_plugins_types::PluginsAction,
-    ) -> Option<hooks_plugins_types::ActionOutcome> {
-        let is_reload = matches!(action, hooks_plugins_types::PluginsAction::Reload);
+        action: xvora_hooks_plugins_types::PluginsAction,
+    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
+        let is_reload = matches!(action, xvora_hooks_plugins_types::PluginsAction::Reload);
         let handle = self.get_session_handle(session_id)?;
         let outcome = handle.execute_plugins_action(action).await;
         let succeeded = matches!(
             outcome.as_ref().map(|o| &o.status),
-            Some(hooks_plugins_types::OutcomeStatus::Success)
+            Some(xvora_hooks_plugins_types::OutcomeStatus::Success)
         );
         if is_reload && succeeded {
             self.broadcast_plugin_registry_to_sessions(Some(session_id));
@@ -3262,11 +3254,74 @@ impl MvpAgent {
         }
         acp::SessionModelState::new(model_id, available_models)
     }
+    pub(crate) async fn session_model_state(
+        &self,
+        session_id: &acp::SessionId,
+    ) -> acp::SessionModelState {
+        self.model_state(Some(session_id))
+    }
+    pub(crate) async fn acp_config_options_for_session(
+        &self,
+        session_id: &acp::SessionId,
+    ) -> Vec<acp::SessionConfigOption> {
+        let state = self.session_model_state(session_id).await;
+        self.acp_config_options(Some(session_id), &state)
+    }
     pub(super) fn session_config_options(
         &self,
         session_id: Option<&acp::SessionId>,
         state: &acp::SessionModelState,
     ) -> Vec<session_config::SessionConfigOption> {
+        let inputs = self.session_config_inputs(session_id, state);
+        session_config::build_session_config_options(
+            &state.available_models,
+            &inputs.model_id,
+            &inputs.effort_options,
+            inputs.current_effort,
+        )
+    }
+    pub(crate) fn acp_config_options(
+        &self,
+        session_id: Option<&acp::SessionId>,
+        state: &acp::SessionModelState,
+    ) -> Vec<acp::SessionConfigOption> {
+        let inputs = self.session_config_inputs(session_id, state);
+        session_config::build_acp_config_options(
+            &state.available_models,
+            &inputs.model_id,
+            &inputs.effort_options,
+            inputs.current_effort,
+        )
+    }
+    /// Resolve an effort selector against `model_id`'s menu (not a fresh session lookup, which
+    /// falls back to the global model when the session isn't resident). `session_id` still gates
+    /// the gateway case, which offers no local menu.
+    pub(crate) fn resolve_reasoning_effort_value(
+        &self,
+        session_id: &acp::SessionId,
+        model_id: &acp::ModelId,
+        value_id: &str,
+    ) -> Option<xvora_sampling_types::ReasoningEffort> {
+        let state = acp::SessionModelState::new(model_id.clone(), Vec::new());
+        self.session_config_inputs(Some(session_id), &state)
+            .effort_options
+            .iter()
+            .find(|option| option.id.as_str() == value_id)
+            .map(|option| option.value)
+    }
+    fn session_config_inputs(
+        &self,
+        session_id: Option<&acp::SessionId>,
+        state: &acp::SessionModelState,
+    ) -> SessionConfigInputs {
+        let gateway_session = false;
+        if gateway_session {
+            return SessionConfigInputs {
+                model_id: state.current_model_id.clone(),
+                effort_options: Vec::new(),
+                current_effort: None,
+            };
+        }
         let model_id = resolve_catalog_key(
                 &self.models_manager.models(),
                 &state.current_model_id,
@@ -3300,12 +3355,11 @@ impl MvpAgent {
         } else {
             None
         };
-        session_config::build_session_config_options(
-            &state.available_models,
-            &model_id,
-            &effort_options,
+        SessionConfigInputs {
+            model_id,
+            effort_options,
             current_effort,
-        )
+        }
     }
     /// Insert the per-session `_meta` keys shared by `new_session` and `load_session`.
     /// The keys are `x.ai/sessionConfig`, `x.ai/sessionDetail`, and `x.ai/schedulerBackgroundLoops`.
@@ -3332,7 +3386,7 @@ impl MvpAgent {
         meta.insert("x.ai/sessionDetail".to_string(), serde_json::json!(detail));
         if let Some(background_loops) = self
             .resident_handle(session_id)
-            .map(|handle| handle.scheduler_background_loops)
+            .map(|handle| handle.spawn_snapshot.scheduler_background_loops)
         {
             meta.insert(
                 SCHEDULER_BACKGROUND_LOOPS_META_KEY.to_string(),
@@ -3592,7 +3646,7 @@ impl MvpAgent {
         model: &str,
         base: u64,
         turns: Vec<Vec<xvora_sampling_types::conversation::ConversationItem>>,
-    ) -> Vec<(PromptTraceContext, PromptMetadata, chat_state::TurnCapture)> {
+    ) -> Vec<(PromptTraceContext, PromptMetadata, xvora_chat_state::TurnCapture)> {
         let mut uploads = Vec::with_capacity(turns.len());
         for (offset, items) in turns.into_iter().enumerate() {
             let turn_number = base.saturating_add(offset as u64);
@@ -3627,7 +3681,7 @@ impl MvpAgent {
                 sandbox: local_sandbox_telemetry(),
                 ..Default::default()
             });
-            let capture = chat_state::TurnCapture {
+            let capture = xvora_chat_state::TurnCapture {
                 messages: items,
                 compaction_occurred: false,
             };
@@ -3892,13 +3946,13 @@ impl MvpAgent {
         meta: Option<&acp::Meta>,
         init: &acp::InitializeRequest,
     ) -> bool {
-        meta.and_then(|m| m.get(status_line::CLIENT_STATUS_LINE_META))
+        meta.and_then(|m| m.get(xvora_status_line::CLIENT_STATUS_LINE_META))
             .or_else(|| {
                 init
                     .client_capabilities
                     .meta
                     .as_ref()
-                    .and_then(|m| m.get(status_line::STATUS_LINE_CAPABILITY))
+                    .and_then(|m| m.get(xvora_status_line::STATUS_LINE_CAPABILITY))
             })
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
@@ -4098,7 +4152,7 @@ impl MvpAgent {
                 );
                 (handle, Some((hunk_event_rx, cancel)))
             }
-            None => (hunk_tracker::HunkTrackerHandle::noop(), None),
+            None => (xvora_hunk_tracker::HunkTrackerHandle::noop(), None),
         };
         let has_xai_auth = self.auth_manager.current().is_some_and(|a| a.is_xai_auth());
         let loc_tracking_enabled = hunk_tracking_enabled && has_xai_auth
@@ -4127,15 +4181,15 @@ impl MvpAgent {
                 let (loc_agg_tx, loc_agg_rx) = tokio::sync::mpsc::unbounded_channel();
                 let loc_path = crate::session::persistence::session_dir(&session_info)
                     .join("hunk_records.jsonl");
-                let loc_writer = hunk_tracker::JsonlHunkRecordWriter::new(loc_path);
-                let loc_ctx = hunk_tracker::LocSinkContext {
+                let loc_writer = xvora_hunk_tracker::JsonlHunkRecordWriter::new(loc_path);
+                let loc_ctx = xvora_hunk_tracker::LocSinkContext {
                     session_id: session_info.id.0.to_string(),
                     agent_id: agent_id(),
                     user_id: self.auth_manager.current().map(|a| a.user_id.clone()),
                     aggregate_tx: Some(loc_agg_tx),
                 };
                 tokio::spawn(
-                    hunk_tracker::run_loc_sink(
+                    xvora_hunk_tracker::run_loc_sink(
                         hunk_event_rx,
                         loc_writer,
                         loc_ctx,
@@ -4146,11 +4200,13 @@ impl MvpAgent {
             }
             _ => None,
         };
+        let session_env_timer = crate::instrumentation_timer!("session.spawn_and_register.session_env");
         let mut session_env = xvora_workspace::permission::claude_settings::load_claude_env_with_project(
             cwd.as_path(),
             project_env_trusted,
         );
         session_env.extend(envrc.join().await);
+        drop(session_env_timer);
         if no_color {
             session_env.extend(crate::terminal::no_color_env());
         } else {
@@ -4557,7 +4613,7 @@ impl MvpAgent {
         let (mut handle, permission_events_rx, agent_system_prompt, session_thread) = {
             let _timer = crate::instrumentation_timer!("session.spawn_actor_call");
             let session_key = self.auth_manager.current_or_expired().map(|a| a.key);
-            let credentials = chat_state::Credentials {
+            let credentials = xvora_chat_state::Credentials {
                 api_key: sampling_config.api_key.clone(),
                 auth_type: crate::agent::config::resolve_chat_state_auth_type(
                     sampling_config.model.as_str(),
@@ -4656,6 +4712,20 @@ impl MvpAgent {
             tool_ctx.live_orphan_heal_lock = self
                 .session_registry
                 .live_orphan_heal_lock(&session_info.id);
+            let plugin_registry_for_session = {
+                let _timer = crate::instrumentation_timer!("session.spawn_and_register.plugin_refresh");
+                let disk_cfg = crate::config::resolve_effective_plugins_config(
+                        session_cwd,
+                    )
+                    .to_discovery_config();
+                self.plugin_registry_handle
+                    .refresh_and_build_for_cwd(
+                        session_cwd,
+                        &disk_cfg,
+                        &parse_session_plugin_dirs(session_meta),
+                        folder_trust::project_scope_allowed(session_cwd),
+                    )
+            };
             let _spawn_on_thread_timer = crate::instrumentation_timer!("session.spawn_on_thread");
             spawn_session_on_thread(
                     session_info.clone(),
@@ -4749,19 +4819,7 @@ impl MvpAgent {
                     respect_gitignore,
                     path_not_found_hints,
                     tool_params_json,
-                    {
-                        let disk_cfg = crate::config::resolve_effective_plugins_config(
-                                session_cwd,
-                            )
-                            .to_discovery_config();
-                        self.plugin_registry_handle
-                            .refresh_and_build_for_cwd(
-                                session_cwd,
-                                &disk_cfg,
-                                &parse_session_plugin_dirs(session_meta),
-                                folder_trust::project_scope_allowed(session_cwd),
-                            )
-                    },
+                    plugin_registry_for_session,
                     Some(self.plugin_registry_handle.clone()),
                     self.models_manager.clone(),
                     None,
@@ -4823,14 +4881,14 @@ impl MvpAgent {
             tokio::spawn(async move {
                 while let Some(agg) = loc_rx.recv().await {
                     match agg {
-                        hunk_tracker::LocAggregate::LinesChanged {
+                        xvora_hunk_tracker::LocAggregate::LinesChanged {
                             author_type,
                             lines_added,
                             lines_removed,
                             file_path,
                         } => {
                             let is_agent = author_type
-                                == hunk_tracker::AuthorType::Agent;
+                                == xvora_hunk_tracker::AuthorType::Agent;
                             signals
                                 .record_loc_change(
                                     is_agent,
@@ -4839,7 +4897,7 @@ impl MvpAgent {
                                     file_path,
                                 );
                         }
-                        hunk_tracker::LocAggregate::LinesReverted {
+                        xvora_hunk_tracker::LocAggregate::LinesReverted {
                             lines_added_reverted,
                             lines_removed_reverted,
                         } => {

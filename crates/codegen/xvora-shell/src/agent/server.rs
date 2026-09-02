@@ -31,11 +31,11 @@ use tokio::time::Duration;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tracing::{info, warn};
 
-use acp_lib::{
+use agent_client_protocol as acp;
+use xvora_acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     AcpClientMessage, LineBufferedRead,
 };
-use agent_client_protocol as acp;
 
 use crate::agent::config::{Config as AgentConfig, ModelEntry};
 use crate::agent::models::{ModelFetchAuth, prefetch_models_blocking};
@@ -283,7 +283,7 @@ fn persistent_agent_thread(
     ready_tx: tokio::sync::oneshot::Sender<Result<(), std::io::ErrorKind>>,
 ) -> std::io::Result<()> {
     let mut builder = tokio::runtime::Builder::new_current_thread();
-    let rt = match tty_utils::runtime::build_with_blocking_pool(builder.enable_all()) {
+    let rt = match xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all()) {
         Ok(rt) => {
             if ready_tx.send(Ok(())).is_err() {
                 // The boot was cancelled; drop `rt` so its keep-alive pool does not overlap a respawn's 16-wide pre-warm (EAGAIN)
@@ -525,7 +525,7 @@ fn setup_acp_connection(
     });
     tokio::task::spawn_local(
         GatewayReceiver::new(conn_gw_rx, conn)
-            .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
+            .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
             .run(),
     );
 

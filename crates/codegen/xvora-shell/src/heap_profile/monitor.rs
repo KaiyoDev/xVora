@@ -546,7 +546,7 @@ fn log_upload_result(heap_object: &str, file_size: u64, ok: bool, err: Option<&s
         tracing::info!(
             object_path = %heap_object,
             bytes = file_size,
-            multipart = file_size > file_utils::gcs::MULTIPART_UPLOAD_THRESHOLD,
+            multipart = file_size > xvora_file_utils::gcs::MULTIPART_UPLOAD_THRESHOLD,
             "heap_profile: upload_ok"
         );
         true
@@ -603,10 +603,12 @@ async fn upload_pair(
     };
     let config = gcs_config.with_auth(Some(Arc::clone(&handles.auth_manager)));
 
-    if let Err(e) = file_utils::gcs::upload_file(&config, heap_object, heap_path, heap_ct).await {
+    if let Err(e) =
+        xvora_file_utils::gcs::upload_file(&config, heap_object, heap_path, heap_ct).await
+    {
         return log_upload_result(heap_object, file_size, false, Some(&e.to_string()));
     }
-    match file_utils::gcs::upload_file(&config, meta_object, meta_path, meta_ct).await {
+    match xvora_file_utils::gcs::upload_file(&config, meta_object, meta_path, meta_ct).await {
         Ok(_) => log_upload_result(heap_object, file_size, true, None),
         Err(e) => log_upload_result(heap_object, file_size, false, Some(&e.to_string())),
     }

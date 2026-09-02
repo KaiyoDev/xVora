@@ -42,7 +42,7 @@ static CPU_CORES: OnceLock<Option<u64>> = OnceLock::new();
 
 struct CpuSample {
     now: Instant,
-    cpu: tty_utils::ProcessCpu,
+    cpu: xvora_tty_utils::ProcessCpu,
     window: Option<CpuWindow>,
 }
 
@@ -54,7 +54,7 @@ pub fn snapshot() -> ProcessMetrics {
     let sample = {
         let mut baseline = CPU_BASELINE.lock();
         let now = Instant::now();
-        let cpu = tty_utils::sample_process_cpu();
+        let cpu = xvora_tty_utils::sample_process_cpu();
 
         let mut window = None;
         // Advance only when a window is derived: this series' emitted windows partition its time exactly
@@ -100,14 +100,14 @@ pub fn snapshot() -> ProcessMetrics {
 
     let first = FIRST_SNAPSHOT.get_or_init(|| FirstSnapshot {
         at: sample.now,
-        process_age_secs: tty_utils::process_start_time()
+        process_age_secs: xvora_tty_utils::process_start_time()
             .and_then(|start| std::time::SystemTime::now().duration_since(start).ok())
             .map_or(0, |age| age.as_secs()),
     });
     let uptime_secs =
         first.process_age_secs + sample.now.saturating_duration_since(first.at).as_secs();
 
-    let memory = tty_utils::sample_process_memory();
+    let memory = xvora_tty_utils::sample_process_memory();
     if memory.rss_bytes.is_none() {
         // macOS memory reads fail via mach codes; the errno may be stale.
         log_read_failure_once(&MEMORY_READ_FAILURE, "memory");
@@ -120,7 +120,7 @@ pub fn snapshot() -> ProcessMetrics {
         cpu_system_ms: sample.cpu.self_system_time.map(duration_ms),
         rss_bytes: memory.rss_bytes,
         footprint_bytes: memory.footprint_bytes,
-        memory_limit_bytes: tty_utils::process_memory_limit(),
+        memory_limit_bytes: xvora_tty_utils::process_memory_limit(),
         cpu_cores: *CPU_CORES.get_or_init(|| {
             std::thread::available_parallelism()
                 .ok()

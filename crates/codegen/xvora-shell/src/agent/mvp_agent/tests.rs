@@ -1,4 +1,3 @@
-use crate::test_support;
 use super::*;
 /// Build an unsigned JWT with a `tier` claim (header.payload.sig base64url).
 fn jwt_with_tier(tier: u64) -> String {
@@ -174,7 +173,7 @@ fn post_unblock_jwt_retry_in_flight_guard_clears_on_drop() {
 }
 mod hunk_tracking_mode {
     use super::super::{plan_hunk_tracking, resolve_hunk_tracking_mode};
-    use hunk_tracker::TrackingMode;
+    use xvora_hunk_tracker::TrackingMode;
     #[test]
     fn off_and_disabled_disable_tracking() {
         assert_eq!(resolve_hunk_tracking_mode(Some("off")), None);
@@ -1116,11 +1115,11 @@ fn make_test_handle(
     let (persistence_tx, _persistence_rx) = tokio::sync::mpsc::unbounded_channel();
     let (hunk_event_tx, _hunk_event_rx) = tokio::sync::mpsc::unbounded_channel();
     let hunk_cancel = tokio_util::sync::CancellationToken::new();
-    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
         "test".to_string(),
         std::path::PathBuf::from("/tmp"),
         hunk_event_tx,
-        hunk_tracker::TrackingMode::AllDirty,
+        xvora_hunk_tracker::TrackingMode::AllDirty,
         hunk_cancel,
     );
     crate::session::SessionHandle {
@@ -1130,14 +1129,19 @@ fn make_test_handle(
         pending_interactions: std::sync::Arc::new(std::sync::Mutex::new(
             std::collections::HashMap::new(),
         )),
+        active_work: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         info: crate::session::info::Info {
             id: acp::SessionId::new("test"),
             cwd: "/tmp".to_string(),
         },
         max_turns: None,
         resolved_tool_overrides: std::sync::Arc::new(arc_swap::ArcSwapOption::empty()),
+        spawn_snapshot: crate::session::SpawnSnapshot {
+            applied_tool_overrides: None,
+            scheduler_background_loops: true,
+        },
         hunk_tracker_handle,
-        chat_state_handle: chat_state::ChatStateHandle::noop(),
+        chat_state_handle: xvora_chat_state::ChatStateHandle::noop(),
         signals_handle: crate::session::signals::SessionSignalsHandle::new(),
         gateway_enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
         status_line_enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -1157,7 +1161,6 @@ fn make_test_handle(
             std::sync::Arc::new(crate::terminal::LocalTerminalRunner),
         ),
         model_id: acp::ModelId::new(model),
-        scheduler_background_loops: true,
         reasoning_effort: None,
         yolo_mode: yolo,
         origin_client: client_id.map(|s| crate::http::OriginClientInfo {
@@ -2140,7 +2143,7 @@ async fn session_meta_publishes_the_sessions_pinned_scheduler_background_loops()
     let sid = acp::SessionId::new("loop-mode-sess");
     let mut handle = make_test_handle("test-model", false, None);
     handle.info.id = sid.clone();
-    handle.scheduler_background_loops = false;
+    handle.spawn_snapshot.scheduler_background_loops = false;
     agent.insert_resident(&sid, handle);
     let model_state = agent.model_state(Some(&sid));
     let mut meta = serde_json::Map::new();
@@ -2180,7 +2183,7 @@ fn personal_xai_oauth_auth() -> crate::auth::GrokAuth {
 #[tokio::test]
 #[serial_test::serial]
 async fn feedback_trace_offer_asks_personal_oauth_accounts() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let _e1 = EnvGuard::unset("GROK_TELEMETRY_ENABLED");
     let _e2 = EnvGuard::unset("GROK_TELEMETRY_TRACE_UPLOAD");
     let _e3 = EnvGuard::unset("GROK_FEEDBACK_TRACE_CARD");
@@ -2198,7 +2201,7 @@ async fn feedback_trace_offer_asks_personal_oauth_accounts() {
 #[tokio::test]
 #[serial_test::serial]
 async fn feedback_trace_offer_suppressed_for_team_accounts_even_admins() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let _e1 = EnvGuard::unset("GROK_TELEMETRY_ENABLED");
     let _e2 = EnvGuard::unset("GROK_TELEMETRY_TRACE_UPLOAD");
     let _e3 = EnvGuard::unset("GROK_FEEDBACK_TRACE_CARD");
@@ -2225,7 +2228,7 @@ async fn feedback_trace_offer_suppressed_for_team_accounts_even_admins() {
 #[tokio::test]
 #[serial_test::serial]
 async fn feedback_trace_offer_suppressed_for_managed_deployments() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let _e1 = EnvGuard::unset("GROK_TELEMETRY_ENABLED");
     let _e2 = EnvGuard::unset("GROK_TELEMETRY_TRACE_UPLOAD");
     let _e3 = EnvGuard::unset("GROK_FEEDBACK_TRACE_CARD");
@@ -2253,7 +2256,7 @@ async fn feedback_trace_offer_suppressed_for_managed_deployments() {
 async fn ensure_plugin_registry_lazily_populates_snapshot() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let grok_home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", grok_home.path());
     let plugin_dir = tempfile::tempdir().unwrap();
@@ -2425,11 +2428,11 @@ async fn resident_activity_reports_needs_input_when_pending() {
 /// Drain the agent gateway, returning the first `x.ai/sessions/changed` payload that carries an upserted entry.
 /// Unrelated notifications parse into an empty `RosterChanged` and are ignored.
 fn drain_roster_changed(
-    rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
 ) -> Option<crate::agent::roster::RosterChanged> {
     let mut found = None;
     while let Ok(msg) = rx.try_recv() {
-        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg {
+        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg {
             if found.is_none()
                 && let Ok(changed) = serde_json::from_str::<crate::agent::roster::RosterChanged>(
                     args.request.params.get(),
@@ -2864,7 +2867,7 @@ async fn auth_type_session_based_no_current_returns_session_token() {
         );
         assert_eq!(
             agent.auth_type(),
-            chat_state::AuthType::SessionToken,
+            xvora_chat_state::AuthType::SessionToken,
             "{method_id}: session-based auth must report SessionToken even \
                  without a live token -- otherwise chat_state gets locked into \
                  auth_type = ApiKey and try_refresh_session_token will skip \
@@ -2884,7 +2887,7 @@ async fn auth_type_xai_api_key_no_current_returns_api_key() {
     assert!(agent.auth_manager.current().is_none());
     assert_eq!(
         agent.auth_type(),
-        chat_state::AuthType::ApiKey,
+        xvora_chat_state::AuthType::ApiKey,
         "xvora.api_key auth must report ApiKey -- BYOK has no session-token \
              behavior to fall back to."
     );
@@ -2900,7 +2903,7 @@ async fn auth_type_session_based_with_current_returns_session_token() {
     ));
     agent.auth_manager.hot_swap(GrokAuth::test_default());
     assert!(agent.auth_manager.current().is_some());
-    assert_eq!(agent.auth_type(), chat_state::AuthType::SessionToken,);
+    assert_eq!(agent.auth_type(), xvora_chat_state::AuthType::SessionToken,);
 }
 /// Defensive case: no `auth_method_id` selected yet (pre-`authenticate` state) and no live credential.
 /// We default to `ApiKey`.
@@ -2911,7 +2914,7 @@ async fn auth_type_no_method_id_no_current_returns_api_key() {
     let agent = build_minimal_agent_for_tests();
     assert!(agent.auth_method_id.load().is_none());
     assert!(agent.auth_manager.current().is_none());
-    assert_eq!(agent.auth_type(), chat_state::AuthType::ApiKey,);
+    assert_eq!(agent.auth_type(), xvora_chat_state::AuthType::ApiKey,);
 }
 /// Live credential present but `auth_method_id` is still `None`.
 /// The in-memory bearer takes precedence: this is the order observed during `initialize()` silent refresh.
@@ -2924,7 +2927,7 @@ async fn auth_type_no_method_id_with_current_returns_session_token() {
     agent.auth_manager.hot_swap(GrokAuth::test_default());
     assert!(agent.auth_method_id.load().is_none());
     assert!(agent.auth_manager.current().is_some());
-    assert_eq!(agent.auth_type(), chat_state::AuthType::SessionToken,);
+    assert_eq!(agent.auth_type(), xvora_chat_state::AuthType::SessionToken,);
 }
 /// Minimal agent whose `grok_com_config` engages the api-key kill switch (`disable_api_key_auth = true`), mirroring a forced-IdP deployment.
 fn build_agent_with_api_key_auth_disabled() -> MvpAgent {
@@ -2946,7 +2949,7 @@ fn build_agent_with_api_key_auth_disabled() -> MvpAgent {
 #[serial_test::serial]
 async fn cached_token_fallthrough_prefers_api_key_for_deployment_key() {
     use crate::agent::auth_method::{XAI_API_KEY_ENV_VAR, XAI_API_KEY_METHOD_ID};
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let _lockdown = EnvGuard::unset("GROK_DISABLE_API_KEY_AUTH");
     let _key = EnvGuard::set(XAI_API_KEY_ENV_VAR, "test-deployment-key");
     let agent = build_minimal_agent_for_tests();
@@ -2966,7 +2969,7 @@ async fn cached_token_fallthrough_prefers_api_key_for_deployment_key() {
 #[serial_test::serial]
 async fn cached_token_fallthrough_respects_kill_switch() {
     use crate::agent::auth_method::{GROK_COM_METHOD_ID, XAI_API_KEY_ENV_VAR};
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let _lockdown = EnvGuard::unset("GROK_DISABLE_API_KEY_AUTH");
     let _key = EnvGuard::set(XAI_API_KEY_ENV_VAR, "test-deployment-key");
     let agent = build_agent_with_api_key_auth_disabled();
@@ -2988,7 +2991,7 @@ async fn cached_token_fallthrough_falls_to_grok_com_without_credentials() {
     use crate::agent::auth_method::{
         GROK_COM_METHOD_ID, LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR,
     };
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let _lockdown = EnvGuard::unset("GROK_DISABLE_API_KEY_AUTH");
     let _new = EnvGuard::unset(XAI_API_KEY_ENV_VAR);
     let _legacy = EnvGuard::unset(LEGACY_XAI_API_KEY_ENV_VAR);
@@ -3384,8 +3387,8 @@ use crate::session::storage::search::IndexDecision;
 /// A grok home of its own, with the switch left at its registered default.
 /// `decide_search_index` stops short of a session store, but do not reach `bootstrap_once`.
 /// `bootstrap_once` takes the process-cached `grok_home()`, which these guards cannot redirect, so it could index the developer's own store.
-fn search_index_env() -> (tempfile::TempDir, [test_support::EnvGuard; 2]) {
-    use crate::test_support::EnvGuard;
+fn search_index_env() -> (tempfile::TempDir, [xvora_test_support::EnvGuard; 2]) {
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let guards = [
         EnvGuard::set("GROK_HOME", home.path()),
@@ -3398,7 +3401,7 @@ fn search_index_env() -> (tempfile::TempDir, [test_support::EnvGuard; 2]) {
 async fn search_index_honors_the_session_search_feature() {
     let (_home, _env) = search_index_env();
     {
-        let _off = test_support::EnvGuard::set("GROK_SESSION_SEARCH", "0");
+        let _off = xvora_test_support::EnvGuard::set("GROK_SESSION_SEARCH", "0");
         let agent = build_agent_with_auth(crate::auth::GrokAuth::test_default());
         agent.decide_search_index();
         assert!(
@@ -3505,7 +3508,7 @@ async fn read_before_the_remote_settings_land_does_not_decide() {
 async fn exhausted_fetch_decides_on_the_local_layers() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let (_home, _env) = search_index_env();
     let _no_inline_auth = EnvGuard::unset("GROK_AUTH");
     let _no_auth_path = EnvGuard::unset("GROK_AUTH_PATH");
@@ -4060,7 +4063,7 @@ async fn remove_session_releases_workspace_binding_and_side_maps() {
     ops.bind_local_session(
         sid.0.as_ref(),
         std::env::temp_dir(),
-        hunk_tracker::HunkTrackerHandle::noop(),
+        xvora_hunk_tracker::HunkTrackerHandle::noop(),
         toolset,
         None,
     )
@@ -4317,6 +4320,20 @@ fn spawn_fake_actor(
         }
     });
     observed_rx
+}
+/// Spawn a session actor that answers `IsBusy` from a live `active_work` counter —
+/// the same check `SessionActor::is_busy` performs — so a real `WorkGuard` drives it.
+fn spawn_active_work_actor(
+    mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<TestSessionCommand>,
+    active_work: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+) {
+    tokio::task::spawn_local(async move {
+        while let Some(cmd) = cmd_rx.recv().await {
+            if let TestSessionCommand::IsBusy { respond_to } = cmd {
+                let _ = respond_to.send(active_work.load(std::sync::atomic::Ordering::Acquire) > 0);
+            }
+        }
+    });
 }
 /// Drive `x.ai/internal/evict_sessions` through the real `ext_notification` handler path (not the internal helper).
 /// This matches how the leader server signals a client disconnect.
@@ -4832,10 +4849,6 @@ fn disconnect_keeps_resident_when_actor_reports_busy() {
         );
     });
 }
-/// Here a session's ONLY outstanding work is a parked `PlanApproval` reverse-request (the resume re-park).
-/// The between-turns session must be kept resident on disconnect.
-/// The actor answers `IsBusy = false`, so the keep-resident outcome can come ONLY from the parked-approval sync fast path in `session_has_live_work`.
-/// Deleting that check would let this session unload (mutation-killing).
 #[test]
 fn disconnect_keeps_resident_when_plan_approval_parked() {
     run_local_for_bridge_test(|| async {
@@ -4865,6 +4878,32 @@ fn disconnect_keeps_resident_when_plan_approval_parked() {
                 Err(tokio::sync::mpsc::error::TryRecvError::Empty)
             ),
             "a parked-approval session must not be sent Shutdown"
+        );
+    });
+}
+#[test]
+fn disconnect_keeps_the_workflow_session_and_evicts_the_idle_one() {
+    run_local_for_bridge_test(|| async {
+        let agent = build_minimal_agent_for_tests();
+        let workflow_sid = acp::SessionId::new("sess-workflow");
+        let (wf_handle, _wf_tx, wf_rx) = make_live_session_handle(&workflow_sid, None);
+        let active_work = wf_handle.active_work.clone();
+        agent.insert_resident(&workflow_sid, wf_handle);
+        spawn_active_work_actor(wf_rx, active_work.clone());
+        let _workflow = crate::session::handle::WorkGuard::new(active_work.clone());
+        let idle_sid = acp::SessionId::new("sess-idle");
+        let (idle_handle, _idle_tx, idle_rx) = make_live_session_handle(&idle_sid, None);
+        let idle_work = idle_handle.active_work.clone();
+        agent.insert_resident(&idle_sid, idle_handle);
+        spawn_active_work_actor(idle_rx, idle_work);
+        drive_disconnect_many(&agent, &[&workflow_sid, &idle_sid]).await;
+        assert!(
+            agent.is_resident(&workflow_sid),
+            "a session running a workflow must survive client disconnect (GBT-6282)"
+        );
+        assert!(
+            !agent.is_resident(&idle_sid),
+            "an idle session must be evicted on client disconnect"
         );
     });
 }
@@ -5354,7 +5393,7 @@ fn build_agent_with_auth_and_proxy(
     mode: crate::agent::config::AgentMode,
 ) -> (
     MvpAgent,
-    tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
 ) {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
@@ -5374,11 +5413,11 @@ fn build_agent_with_auth_and_proxy(
 }
 /// Drain the gateway, returning `true` if any `x.ai/settings/update` notification was emitted (and acking each so the sender doesn't warn).
 fn drained_settings_update(
-    rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
 ) -> bool {
     let mut found = false;
     while let Ok(msg) = rx.try_recv() {
-        if let acp_lib::AcpClientMessage::ExtNotification(args) = msg {
+        if let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg {
             if &*args.request.method == "x.ai/settings/update" {
                 found = true;
             }
@@ -5439,7 +5478,7 @@ async fn post_auth_settings_xai_upgrades_writeback_emits_and_opens_gate() {
     use crate::auth::{GrokAuth, XAI_OAUTH2_ISSUER};
     let _restore = RestoreOtelGate;
     let _storage_env = crate::env::EnvVarGuard::remove("GROK_STORAGE_MODE");
-    let server = test_support::MockInferenceServer::start()
+    let server = xvora_test_support::MockInferenceServer::start()
         .await
         .unwrap();
     server.set_settings(serde_json::json!({
@@ -5482,7 +5521,7 @@ async fn post_auth_settings_non_xai_keeps_local_but_still_emits() {
     use crate::agent::config::AgentMode;
     use crate::auth::{AuthMode, GrokAuth};
     let _restore = RestoreOtelGate;
-    let server = test_support::MockInferenceServer::start()
+    let server = xvora_test_support::MockInferenceServer::start()
         .await
         .unwrap();
     server.set_settings(serde_json::json!({
@@ -5521,7 +5560,7 @@ async fn post_auth_settings_failure_resolves_gate_onto_local_policy() {
     use crate::agent::config::AgentMode;
     use crate::auth::{GrokAuth, XAI_OAUTH2_ISSUER};
     let _restore = RestoreOtelGate;
-    let server = test_support::MockInferenceServer::start()
+    let server = xvora_test_support::MockInferenceServer::start()
         .await
         .unwrap();
     let xvora_auth = GrokAuth {
@@ -5550,7 +5589,7 @@ async fn same_credential_refresh_does_not_flap_resolved_gate() {
     use crate::agent::config::AgentMode;
     use crate::auth::{GrokAuth, XAI_OAUTH2_ISSUER};
     let _restore = RestoreOtelGate;
-    let server = test_support::MockInferenceServer::start()
+    let server = xvora_test_support::MockInferenceServer::start()
         .await
         .unwrap();
     let xvora_auth = GrokAuth {
@@ -5577,8 +5616,8 @@ async fn settings_self_heal_refetches_after_token_rotation() {
     use crate::auth::refresh::{RefreshOutcome, TokenRefresher};
     use crate::auth::{GrokAuth, XAI_OAUTH2_ISSUER};
     let _restore = RestoreOtelGate;
-    let server = test_support::MockInferenceServer::start_with_required_auth(
-        vec![test_support::MockModelEntry::new("grok-build")],
+    let server = xvora_test_support::MockInferenceServer::start_with_required_auth(
+        vec![xvora_test_support::MockModelEntry::new("grok-build")],
         "rotated-key",
     )
     .await
@@ -5627,7 +5666,7 @@ async fn settings_not_cached_when_identity_logs_out_during_fetch() {
     use crate::agent::config::AgentMode;
     use crate::auth::{GrokAuth, XAI_OAUTH2_ISSUER};
     let _restore = RestoreOtelGate;
-    let server = test_support::MockInferenceServer::start()
+    let server = xvora_test_support::MockInferenceServer::start()
         .await
         .unwrap();
     server.set_settings(serde_json::json!({ "allow_access": true }));
@@ -5694,7 +5733,7 @@ fn reload_after_terminal_removal_starts_clean() {
 /// A test can observe (and answer) agent-to-client reverse-requests like the dormant `x.ai/folder_trust/request` round-trip.
 fn build_agent_with_gateway_rx() -> (
     MvpAgent,
-    tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
 ) {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
@@ -5804,7 +5843,7 @@ fn subagent_spawn_context_reloads_project_definitions_after_trust_changes() {
 #[test]
 #[serial_test::serial]
 fn project_roles_personas_gated_via_resolve_and_record_chain() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -5864,14 +5903,14 @@ fn project_roles_personas_gated_via_resolve_and_record_chain() {
 /// Pull the next `x.ai/folder_trust/request` reverse-request off the gateway and answer it with `outcome`.
 /// Returns the request's decoded params.
 async fn answer_folder_trust_request(
-    gw_rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    gw_rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
     outcome: &str,
 ) -> serde_json::Value {
     let msg = tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv())
         .await
         .expect("trust request must be sent")
         .expect("gateway channel open");
-    let acp_lib::AcpClientMessage::ExtMethod(args) = msg else {
+    let xvora_acp_lib::AcpClientMessage::ExtMethod(args) = msg else {
         panic!("expected an ext_method reverse-request, got a different message");
     };
     assert_eq!(args.request.method.as_ref(), "x.ai/folder_trust/request");
@@ -5885,7 +5924,7 @@ async fn answer_folder_trust_request(
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_grant_reloads_project_mcp() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     use xvora_workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
@@ -5964,7 +6003,7 @@ fn interactive_trust_prompt_grant_reloads_project_mcp() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_reject_keeps_gated() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     use xvora_workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
@@ -6002,7 +6041,7 @@ fn interactive_trust_prompt_reject_keeps_gated() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_dormant_when_feature_off() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6032,7 +6071,7 @@ fn interactive_trust_prompt_dormant_when_feature_off() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_no_request_without_capability() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6059,7 +6098,7 @@ fn interactive_trust_prompt_no_request_without_capability() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_client_error_fails_closed() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     use xvora_workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
@@ -6081,7 +6120,7 @@ fn interactive_trust_prompt_client_error_fails_closed() {
             .await
             .expect("trust request must be sent")
             .expect("gateway channel open");
-        assert!(matches!(msg, acp_lib::AcpClientMessage::ExtMethod(_)));
+        assert!(matches!(msg, xvora_acp_lib::AcpClientMessage::ExtMethod(_)));
         drop(msg);
         assert!(
             tokio::time::timeout(std::time::Duration::from_millis(300), cmd_rx.recv())
@@ -6101,7 +6140,7 @@ fn interactive_trust_prompt_client_error_fails_closed() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_dedups_same_workspace() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6120,7 +6159,7 @@ fn interactive_trust_prompt_dedups_same_workspace() {
         agent.maybe_spawn_interactive_trust_prompt(&sid, &repo_path, Some(&remote));
         let first = tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv()).await;
         assert!(
-            matches!(first, Ok(Some(acp_lib::AcpClientMessage::ExtMethod(_)))),
+            matches!(first, Ok(Some(xvora_acp_lib::AcpClientMessage::ExtMethod(_)))),
             "first prompt for an untrusted workspace must emit a request"
         );
         agent.maybe_spawn_interactive_trust_prompt(&sid, &repo_path, Some(&remote));
@@ -6175,7 +6214,7 @@ async fn drain_reload_commands(
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_reloads_all_same_workspace_sessions() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6236,8 +6275,8 @@ fn interactive_trust_prompt_reloads_all_same_workspace_sessions() {
 #[test]
 #[serial_test::serial]
 fn interactive_trust_prompt_reprompts_after_untrust() {
-    use crate::test_support::EnvGuard;
-    use hooks_plugins_types::HooksAction;
+    use xvora_test_support::EnvGuard;
+    use xvora_hooks_plugins_types::HooksAction;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");
@@ -6257,7 +6296,7 @@ fn interactive_trust_prompt_reprompts_after_untrust() {
         assert!(
             matches!(
                 tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv()).await,
-                Ok(Some(acp_lib::AcpClientMessage::ExtMethod(_)))
+                Ok(Some(xvora_acp_lib::AcpClientMessage::ExtMethod(_)))
             ),
             "first prompt must emit a request"
         );
@@ -6277,7 +6316,7 @@ fn interactive_trust_prompt_reprompts_after_untrust() {
         assert!(
             matches!(
                 tokio::time::timeout(std::time::Duration::from_secs(2), gw_rx.recv()).await,
-                Ok(Some(acp_lib::AcpClientMessage::ExtMethod(_)))
+                Ok(Some(xvora_acp_lib::AcpClientMessage::ExtMethod(_)))
             ),
             "after untrust clears the dedup, the workspace must be promptable again"
         );
@@ -6553,9 +6592,9 @@ async fn emit_announcements_gate_emits_updates_baseline_and_bumps_gen() {
     let (agent, mut rx) = build_agent_with_gateway_rx();
     agent.cfg.borrow_mut().remote_settings = Some(settings_with(Some(vec![ann("a")])));
     let recv_gen =
-        |rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>| {
+        |rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>| {
             let msg = rx.try_recv().expect("expected an announcements push");
-            let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+            let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                 panic!("expected ExtNotification, got another message kind");
             };
             assert_eq!(args.request.method.as_ref(), "x.ai/announcements/update");
@@ -6610,7 +6649,7 @@ async fn emit_announcements_gate_keeps_baseline_on_failed_send_and_retries() {
     let msg = rx
         .try_recv()
         .expect("next gate call must re-push after a failed send");
-    let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+    let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
         panic!("expected ExtNotification, got another message kind");
     };
     assert_eq!(args.request.method.as_ref(), "x.ai/announcements/update");
@@ -6757,7 +6796,7 @@ mod soft_default_settings_emit {
                 agent.cfg.borrow_mut().remote_settings = cfg.remote_settings.clone();
                 agent.emit_settings_update_notification();
                 let msg = rx.try_recv().expect("settings/update must be emitted");
-                let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+                let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
                     panic!("expected ExtNotification, got {msg:?}");
                 };
                 assert_eq!(args.request.method.as_ref(), "x.ai/settings/update");
@@ -6924,7 +6963,7 @@ fn a_disconnect_switches_the_row_off_and_the_next_attach_switches_it_on() {
 fn status_line_meta(enabled: bool) -> acp::Meta {
     let mut meta = acp::Meta::new();
     meta.insert(
-        status_line::CLIENT_STATUS_LINE_META.to_string(),
+        xvora_status_line::CLIENT_STATUS_LINE_META.to_string(),
         serde_json::json!(enabled),
     );
     meta
@@ -6932,7 +6971,7 @@ fn status_line_meta(enabled: bool) -> acp::Meta {
 fn init_advertising_status_line(enabled: bool) -> acp::InitializeRequest {
     let mut meta = serde_json::Map::new();
     meta.insert(
-        status_line::STATUS_LINE_CAPABILITY.to_string(),
+        xvora_status_line::STATUS_LINE_CAPABILITY.to_string(),
         serde_json::json!(enabled),
     );
     acp::InitializeRequest::new(acp::ProtocolVersion::V1).client_capabilities(

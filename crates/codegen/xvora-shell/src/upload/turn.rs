@@ -51,7 +51,7 @@ pub(crate) enum UploadWait {
 /// Turn-message capture handed to [`complete_prompt_trace`].
 #[derive(Debug)]
 pub(crate) enum TurnMessages {
-    Captured(chat_state::TurnCapture),
+    Captured(xvora_chat_state::TurnCapture),
     Missing(MissingTurnMessages),
 }
 /// Why there is no capture to upload — answered-empty must not be conflated
@@ -67,8 +67,8 @@ pub(crate) enum MissingTurnMessages {
     /// without an answer — a real miss, recorded as a failure.
     ChannelDropped,
 }
-impl From<Option<chat_state::TurnCapture>> for TurnMessages {
-    fn from(capture: Option<chat_state::TurnCapture>) -> Self {
+impl From<Option<xvora_chat_state::TurnCapture>> for TurnMessages {
+    fn from(capture: Option<xvora_chat_state::TurnCapture>) -> Self {
         match capture {
             Some(capture) => Self::Captured(capture),
             None => Self::Missing(MissingTurnMessages::Empty),
@@ -84,7 +84,7 @@ pub(crate) struct PromptTraceContext {
     pub(crate) turn_number: u64,
     pub(crate) session_handle: crate::session::SessionHandle,
     pub(crate) session_registry_enabled: bool,
-    pub(crate) upload_queue: Option<file_utils::queue::UploadQueue>,
+    pub(crate) upload_queue: Option<xvora_file_utils::queue::UploadQueue>,
     pub(crate) artifact_tracker: super::manifest::ArtifactTracker,
     pub(crate) auth_manager: std::sync::Arc<crate::auth::AuthManager>,
 }
@@ -146,7 +146,7 @@ where
                 prompt_id = %prompt_id,
                 session_id = %session_id,
             );
-            file_utils::trace_context::link_span_to_current(&root);
+            xvora_file_utils::trace_context::link_span_to_current(&root);
             root
         }
     };

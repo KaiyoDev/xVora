@@ -1,6 +1,6 @@
 use super::*;
 use std::path::PathBuf;
-use tracing_macros::teprintln;
+use xvora_tracing_macros::teprintln;
 
 #[test]
 fn test_map_event_kind() {

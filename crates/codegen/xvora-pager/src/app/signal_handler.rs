@@ -229,7 +229,7 @@ fn shutdown_with_terminal_restore(exit_code: i32) -> ! {
     TERMINAL_OWNED.store(false, Ordering::Release);
     // Best-effort unregister (non-blocking flock to avoid hanging).
     if let Some(ref sid) = *CURRENT_SESSION_ID.lock() {
-        let _ = active_sessions::try_unregister(sid);
+        let _ = xvora_active_sessions::try_unregister(sid);
     }
     flush_telemetry_and_exit(exit_code);
 }
@@ -239,9 +239,9 @@ fn flush_telemetry_and_exit(exit_code: i32) -> ! {
     // Reap detached (setsid) background children before the hard exit
     // This tail runs on the force/second-signal and agent-mode paths that skip the graceful quit
     // The graceful path reaps them in `app::run`'s teardown
-    tty_utils::global_process_scope().kill_all();
+    xvora_tty_utils::global_process_scope().kill_all();
     // Restore fd 2 so Sentry/OTEL flushes reach the terminal.
-    tty_utils::restore_native_stderr();
+    xvora_tty_utils::restore_native_stderr();
     crate::app::status_line::metrics::global().report_health();
     xvora_telemetry::sentry::flush_on_shutdown();
     xvora_telemetry::otel_layer::shutdown_otel();

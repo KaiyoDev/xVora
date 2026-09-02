@@ -10,7 +10,6 @@ use xvora_tools::implementations::grok_build::task::types::{
     ModelOverrideProvenance, SubagentCancelRequest, SubagentCancelTarget, SubagentEvent,
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,
 };
-use xvora_workflow as workflow;
 use xvora_workflow::{AgentOpts, AgentResult, BudgetState, HostError, WorkflowHostRequest};
 
 use super::notify::WorkflowNotifySender;
@@ -20,7 +19,7 @@ use super::schema_contract::{
 use super::tracker::WorkflowTracker;
 
 pub(crate) const WORKFLOW_MAX_AGENT_RUNS: u32 =
-    (workflow::MAX_AGENT_BUDGET as u32) * (SCHEMA_CONTRACT_RETRIES + 1);
+    (xvora_workflow::MAX_AGENT_BUDGET as u32) * (SCHEMA_CONTRACT_RETRIES + 1);
 pub(crate) const DEFAULT_WORKFLOW_MAX_CONCURRENT_AGENTS: usize = 32;
 
 /// The configured cap clamped to the machine's parallelism, so small hosts run fewer agents at once.
@@ -498,7 +497,7 @@ impl HostService {
         };
         let isolation = opts
             .isolation_worktree
-            .then_some(tool_types::SubagentIsolationMode::Worktree);
+            .then_some(xvora_tool_types::SubagentIsolationMode::Worktree);
         let subagent_type = opts
             .agent_type
             .clone()
@@ -604,7 +603,7 @@ impl HostService {
             self.tick();
 
             let backend = ChannelBackend::new(self.params.subagent_event_tx.clone());
-            let result_fut = backend.spawn(request);
+            let result_fut = backend.spawn(request, None);
             tokio::pin!(result_fut);
             let result = tokio::select! {
                 result = &mut result_fut => result,
@@ -939,8 +938,8 @@ impl HostService {
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
-            .envs(tty_utils::pager_env());
-        tty_utils::detach_command(&mut cmd);
+            .envs(xvora_tty_utils::pager_env());
+        xvora_tty_utils::detach_command(&mut cmd);
 
         let output = tokio::time::timeout(DIFF_TIMEOUT, cmd.output())
             .await
@@ -990,7 +989,7 @@ mod tests {
         let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel();
         let notify = WorkflowNotifySender::new(
             agent_client_protocol::SessionId::new("test-session"),
-            acp_lib::AcpAgentGatewaySender::new(gateway_tx),
+            xvora_acp_lib::AcpAgentGatewaySender::new(gateway_tx),
             persist_tx,
             store.clone(),
         );

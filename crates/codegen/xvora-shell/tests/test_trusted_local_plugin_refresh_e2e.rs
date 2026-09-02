@@ -16,13 +16,13 @@ use std::path::{Path, PathBuf};
 
 use serial_test::serial;
 use tempfile::TempDir;
-use test_support::*;
 use xvora_agent::plugins::SharedPluginRegistryHandle;
 use xvora_agent::plugins::discovery::DiscoveryConfig;
 use xvora_agent::plugins::git_install::{InstallSource, install_from_source};
 use xvora_agent::plugins::install_registry::{
     InstallKind, InstallRegistry, InstalledRepo, RepoPlugin,
 };
+use xvora_test_support::*;
 
 fn write_minimal_plugin(dir: &Path, name: &str) {
     std::fs::create_dir_all(dir).unwrap();

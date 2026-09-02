@@ -1,4 +1,4 @@
-//! OS resource snapshots for soak tests, read through `tty_utils` so the soaks and production measure the same way.
+//! OS resource snapshots for soak tests, read through `xvora_tty_utils` so the soaks and production measure the same way.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,7 +26,7 @@ pub struct ResourceGrowth {
 
 impl ResourceSnapshot {
     pub fn capture() -> Self {
-        let usage = tty_utils::sample_process_resources();
+        let usage = xvora_tty_utils::sample_process_resources();
         let widen = |value: Option<u64>| value.map(|n| n as usize);
         Self {
             rss: widen(usage.rss_bytes),
@@ -38,7 +38,7 @@ impl ResourceSnapshot {
     /// RSS from the cheap sampler, skipping the Linux descriptor scan (the thread gauge comes with that sample either way and is dropped here).
     /// Use this in sampling loops that read just `rss`.
     pub fn capture_rss() -> Option<usize> {
-        tty_utils::sample_process_memory()
+        xvora_tty_utils::sample_process_memory()
             .rss_bytes
             .map(|n| n as usize)
     }

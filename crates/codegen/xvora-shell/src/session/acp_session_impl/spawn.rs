@@ -10,11 +10,12 @@ use crate::remote::DEFAULT_CONTEXT_WINDOW;
 use xvora_telemetry::region;
 use xvora_telemetry::region::Parent as SpanParent;
 use xvora_telemetry::subagent_spawn::phase_region_under;
-use xvora_workflow as workflow;
-/// Partition CLI `--allow` rules under the pin: a catch-all allow substitutes for the blocked `--yolo`, so drop it when `policy_block` is set.
-/// Catch-all means `Allow(Any)` `*` / `**` plus a bare or match-all Bash/MCP/WebFetch grant (`resolution::is_catchall_allow`).
-/// Every other rule is kept, and with no pin nothing is dropped.
-/// Pure (no I/O) so the wiring is unit-testable; the caller surfaces `dropped`.
+static SESSIONS_ACTIVE: xvora_telemetry::activity::ActivityGauge =
+    xvora_telemetry::activity::ActivityGauge::residency(
+        xvora_telemetry::activity::SESSIONS_ACTIVE_KEY,
+    );
+/// Drop catch-all `--allow` rules (the `--yolo` substitute, see `resolution::is_catchall_allow`)
+/// when `policy_block` is set; keep everything else. Pure, so it is unit-testable.
 fn drop_cli_catchall_allows(
     rules: Vec<xvora_workspace::permission::types::PermissionRule>,
     policy_block: Option<&'static str>,
@@ -39,10 +40,10 @@ fn drop_cli_catchall_allows(
 /// Build the per-session current-thread tokio runtime.
 ///
 /// Construction acquires fds (epoll/kqueue, waker) and fails with `EMFILE`/`EAGAIN` under resource pressure.
-/// This only caps the blocking pool; pre-warming is reserved for process-lifetime runtimes (`tty_utils::runtime`).
+/// This only caps the blocking pool; pre-warming is reserved for process-lifetime runtimes (`xvora_tty_utils::runtime`).
 pub(crate) fn build_session_runtime() -> std::io::Result<tokio::runtime::Runtime> {
     let mut builder = tokio::runtime::Builder::new_current_thread();
-    tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
+    xvora_tty_utils::runtime::apply_blocking_pool(builder.enable_all()).build()
 }
 fn configured_memory_retrieval_mode(
     config: Option<&crate::config::MemoryConfig>,
@@ -81,7 +82,8 @@ mod runtime_containment_tests;
 #[cfg(test)]
 mod cli_catchall_drop_tests {
     use super::{configured_memory_retrieval_mode, drop_cli_catchall_allows};
-    use xvora_workspace::permission::resolution::YOLO_PIN_REASON_REQUIREMENTS;
+    use xvora_workspace::permission::resolution::YoloPinReason;
+    const PIN: &str = YoloPinReason::DisableBypassPermissionsMode.message();
     use xvora_workspace::permission::rules::parse_permission_rule;
     use xvora_workspace::permission::types::{PermissionRule, RuleAction, ToolFilter};
     fn allow(rule: &str) -> PermissionRule {
@@ -98,7 +100,7 @@ mod cli_catchall_drop_tests {
     #[test]
     fn pin_drops_cli_catchalls_keeps_scoped() {
         let rules = vec![allow("*"), allow("Bash(touch *)"), allow("**")];
-        let (kept, dropped) = drop_cli_catchall_allows(rules, Some(YOLO_PIN_REASON_REQUIREMENTS));
+        let (kept, dropped) = drop_cli_catchall_allows(rules, Some(PIN));
         assert_eq!(kept.len(), 1, "only the scoped Bash rule survives");
         assert_eq!(kept[0].tool, ToolFilter::Bash);
         assert_eq!(dropped.len(), 2, "both catch-alls are dropped");
@@ -120,7 +122,7 @@ mod cli_catchall_drop_tests {
             allow("Bash(?*)"),    // prefix-regime catch-all
             allow("Bash(git *)"), // scoped — survives
         ];
-        let (kept, dropped) = drop_cli_catchall_allows(rules, Some(YOLO_PIN_REASON_REQUIREMENTS));
+        let (kept, dropped) = drop_cli_catchall_allows(rules, Some(PIN));
         assert_eq!(kept.len(), 1, "only the scoped Bash rule survives");
         assert_eq!(kept[0].pattern.as_deref(), Some("git *"));
         assert_eq!(dropped.len(), 2, "bare Bash and ?* are dropped");
@@ -182,7 +184,7 @@ pub(crate) async fn spawn_session_actor(
     session_info: SessionInfo,
     gateway: GatewaySender,
     sampling_config: SamplingConfig,
-    credentials: chat_state::Credentials,
+    credentials: xvora_chat_state::Credentials,
     auth_method_id: crate::agent::auth_method::SharedAuthMethodId,
     auth_manager: Option<Arc<AuthManager>>,
     attribution_callback: Option<xvora_sampler::SharedAttributionCallback>,
@@ -206,7 +208,7 @@ pub(crate) async fn spawn_session_actor(
     client_type: ClientType,
     auto_compact_threshold_percent: u8,
     system_prompt_label: String,
-    compaction_mode: chat_state::CompactionMode,
+    compaction_mode: xvora_chat_state::CompactionMode,
     compaction_verbatim_input: bool,
     compaction_tool_choice: crate::util::config::CompactionToolChoice,
     two_pass_enabled: bool,
@@ -318,6 +320,8 @@ pub(crate) async fn spawn_session_actor(
     );
     let _ = support_permission;
     let owns_permission_manager = inherited_permission_handle.is_none();
+    let permission_setup_timer =
+        crate::instrumentation_timer!("session.spawn_actor.permission_setup");
     let (permissions, permission_events_rx, deny_read_globs) = if let Some(handle) =
         inherited_permission_handle
     {
@@ -331,13 +335,14 @@ pub(crate) async fn spawn_session_actor(
         };
         let project_trusted =
             crate::agent::folder_trust::project_scope_allowed(tool_context.cwd.as_path());
-        let mut permission_config =
-            xvora_workspace::permission::resolution::resolve_permission_config_with_fallback(
+        let yolo_lock = xvora_workspace::permission::resolution::yolo_policy_lock();
+        let yolo_pin = yolo_lock.as_ref().map(|lock| lock.reason.message());
+        let mut permission_config = xvora_workspace::permission::resolution::resolve_permission_config_with_fallback_pinned(
                 tool_context.cwd.as_path(),
                 project_trusted,
+                yolo_lock.as_ref(),
             )
             .await;
-        let yolo_pin = xvora_workspace::permission::resolution::yolo_disabled_by_policy();
         let (cli_permission_rules, dropped_catchalls) =
             drop_cli_catchall_allows(cli_permission_rules, yolo_pin);
         if let Some(reason) = yolo_pin
@@ -403,7 +408,7 @@ pub(crate) async fn spawn_session_actor(
             None
         };
         let (permissions, permission_events_rx) =
-            xvora_workspace::permission::spawn_permission_manager_with_hub(
+            xvora_workspace::permission::spawn_permission_manager_with_pin(
                 session_info.id.clone(),
                 gateway.clone(),
                 tool_context.cwd.clone(),
@@ -414,6 +419,7 @@ pub(crate) async fn spawn_session_actor(
                 session_yolo_mode,
                 session_client_identifier.clone(),
                 crate::util::config::remember_tool_approvals_from_disk(),
+                yolo_pin,
                 hub_permission,
             );
         if crate::util::config::auto_mode_session_active(
@@ -426,6 +432,7 @@ pub(crate) async fn spawn_session_actor(
         }
         (permissions, permission_events_rx, deny_read_globs)
     };
+    drop(permission_setup_timer);
     let initial_prompt_index = conversation
         .iter()
         .filter(|item| matches!(item, ConversationItem::User(_)))
@@ -538,7 +545,7 @@ pub(crate) async fn spawn_session_actor(
         reasoning_effort: sampling_config.reasoning_effort,
         stream_tool_calls: Some(sampling_config.stream_tool_calls),
     };
-    let actor_pruning_config = chat_state::PruningConfig {
+    let actor_pruning_config = xvora_chat_state::PruningConfig {
         enabled: session_pruning_config.enabled,
         keep_last_n_turns: session_pruning_config.keep_last_n_turns,
         soft_trim_threshold: session_pruning_config.soft_trim_threshold,
@@ -547,7 +554,7 @@ pub(crate) async fn spawn_session_actor(
         hard_clear_age_turns: session_pruning_config.hard_clear_age_turns,
     };
     let (chat_state_event_tx, chat_state_event_rx) = mpsc::unbounded_channel();
-    let chat_state_handle = chat_state::ChatStateActor::spawn_with_pruning(
+    let chat_state_handle = xvora_chat_state::ChatStateActor::spawn_with_pruning(
         conversation.clone(),
         chat_state_sampling_config,
         actor_pruning_config,
@@ -574,6 +581,7 @@ pub(crate) async fn spawn_session_actor(
     let state = TokioMutex::new(State {
         running_task: None,
         finalization_gate: Default::default(),
+        message_delivery: Default::default(),
         pending_inputs: VecDeque::new(),
         edit_holds: HashMap::new(),
         pending_notifications: Vec::new(),
@@ -1011,6 +1019,7 @@ pub(crate) async fn spawn_session_actor(
     });
     use xvora_telemetry::subagent_spawn::SubagentSpawnPhase;
     let builder_started_at = std::time::Instant::now();
+    let agent_build_timer = crate::instrumentation_timer!("session.spawn_actor.agent_build");
     let agent_build_span = spawn_ctx
         .as_ref()
         .map(|ctx| phase_region_under(SubagentSpawnPhase::AgentBuild, &ctx.parent));
@@ -1032,6 +1041,7 @@ pub(crate) async fn spawn_session_actor(
             );
             e
         })?;
+    drop(agent_build_timer);
     drop(agent_build_span);
     let tool_setup_span = spawn_ctx
         .as_ref()
@@ -1340,6 +1350,7 @@ pub(crate) async fn spawn_session_actor(
     let workflow_tracker = Arc::new(parking_lot::Mutex::new(
         crate::session::workflow::tracker::WorkflowTracker::from_snapshot(workflow_snapshots),
     ));
+    let active_work = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let workflow_notify = crate::session::workflow::notify::WorkflowNotifySender::new(
         session_info.id.clone(),
         gateway.clone(),
@@ -1355,6 +1366,7 @@ pub(crate) async fn spawn_session_actor(
             Some(workflow_session_dir),
             std::path::PathBuf::from(session_info.cwd.as_str()),
             workflow_tracker.clone(),
+            active_work.clone(),
             workflow_store,
             workflow_notify,
             tool_context.subagent_event_tx.clone().unwrap_or_else(|| {
@@ -1438,10 +1450,12 @@ pub(crate) async fn spawn_session_actor(
                 if input.validate_only {
                     let script = resolved.script.clone();
                     let probe_args = input.args.clone();
-                    let agent_budget = input.agent_budget.unwrap_or(workflow::DEFAULT_AGENT_BUDGET);
+                    let agent_budget = input
+                        .agent_budget
+                        .unwrap_or(xvora_workflow::DEFAULT_AGENT_BUDGET);
                     tokio::spawn(async move {
                         let verdict = tokio::task::spawn_blocking(move || {
-                            workflow::validate_script_with_agent_budget(
+                            xvora_workflow::validate_script_with_agent_budget(
                                 &script,
                                 probe_args,
                                 agent_budget,
@@ -1533,9 +1547,9 @@ pub(crate) async fn spawn_session_actor(
         });
     }
     let obs_bridge = {
-        let sid = tool_protocol::SessionId::new(&*session_info.id.0)
-            .unwrap_or_else(|_| tool_protocol::SessionId::new("unknown").expect("valid"));
-        computer_hub_sdk::ObservabilityBridge::new(None, sid)
+        let sid = xvora_tool_protocol::SessionId::new(&*session_info.id.0)
+            .unwrap_or_else(|_| xvora_tool_protocol::SessionId::new("unknown").expect("valid"));
+        xvora_computer_hub_sdk::ObservabilityBridge::new(None, sid)
     };
     let mut effective_config = crate::config::load_effective_config()
         .ok()
@@ -1659,6 +1673,7 @@ pub(crate) async fn spawn_session_actor(
         chat_state_handle,
         unattributed_background_usage: std::sync::atomic::AtomicBool::new(false),
         current_prompt_id: current_prompt_id.clone(),
+        active_work: active_work.clone(),
         pending_interactions: pending_interactions.clone(),
         telemetry_enabled,
         supports_backend_search: std::cell::Cell::new(sampling_config.supports_backend_search),
@@ -1715,6 +1730,7 @@ pub(crate) async fn spawn_session_actor(
             injection_count: std::sync::atomic::AtomicU64::new(0),
             compaction_recovery_count: std::sync::atomic::AtomicU64::new(0),
             chunks_added: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            init_reindex_handle: std::cell::RefCell::new(None),
             dream_config: memory_config
                 .as_ref()
                 .map_or_else(Default::default, |mc| mc.dream),
@@ -1793,6 +1809,10 @@ pub(crate) async fn spawn_session_actor(
         goal_summary_enabled: effective_config
             .resolve_goal_summary_enabled(goal_enabled)
             .value,
+        length_salvage_remote_budget: effective_config
+            .remote_settings
+            .as_ref()
+            .and_then(|r| r.length_salvage_budget),
         goal_verifier_skeptic_count: effective_config.resolve_goal_verifier_count().value,
         goal_role_models,
         goal_use_current_model_only,
@@ -1984,7 +2004,7 @@ pub(crate) async fn spawn_session_actor(
         let sampling_api_key = embed_api_key.clone();
         let session_id_for_reindex = session_info.id.to_string();
         let chunks_added_counter = session.memory.chunks_added.clone();
-        tokio::task::spawn_local(async move {
+        let reindex_handle = tokio::task::spawn_local(async move {
             let db_path = storage.workspace_dir().join("index.sqlite");
             if let Ok(mut index) = crate::session::memory::MemoryIndex::open_or_create(
                 &db_path,
@@ -2039,6 +2059,7 @@ pub(crate) async fn spawn_session_actor(
                     .fetch_add(total_added as u64, std::sync::atomic::Ordering::Relaxed);
             }
         });
+        *session.memory.init_reindex_handle.borrow_mut() = Some(reindex_handle);
     }
     if let Some(cancel) = sync_loop_cancel {
         tracing::info!(
@@ -2142,6 +2163,10 @@ pub(crate) async fn spawn_session_actor(
         });
     }
     let (session_done_tx, session_done_rx) = tokio::sync::oneshot::channel::<()>();
+    let spawn_snapshot = crate::session::SpawnSnapshot {
+        applied_tool_overrides: session.effective_tool_overrides(),
+        scheduler_background_loops,
+    };
     let telemetry_ctx = xvora_telemetry::session_ctx::TelemetryCtx::new(
         session.session_info.id.0.to_string(),
         session.tool_context.prompt_index.clone(),
@@ -2164,7 +2189,7 @@ pub(crate) async fn spawn_session_actor(
             xvora_telemetry::session_ctx::log_event_dual(telemetry_enabled, ev);
         });
     }
-    let hosting = xvora_telemetry::activity::SESSIONS_ACTIVE.enter();
+    let hosting = SESSIONS_ACTIVE.enter();
     tokio::task::spawn_local(async move {
         let _hosting = hosting;
         xvora_telemetry::session_ctx::with_session_ctx(
@@ -2189,9 +2214,11 @@ pub(crate) async fn spawn_session_actor(
             persistence_tx: persistence.tx.clone(),
             current_prompt_id,
             pending_interactions,
+            active_work: active_work.clone(),
             info: session_info,
             max_turns,
             resolved_tool_overrides,
+            spawn_snapshot,
             hunk_tracker_handle,
             chat_state_handle: chat_state_handle_for_handle,
             signals_handle,
@@ -2205,7 +2232,6 @@ pub(crate) async fn spawn_session_actor(
             upload_failures_since_success: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             tool_context: tool_context_for_handle,
             model_id: session_model_id,
-            scheduler_background_loops,
             reasoning_effort: sampling_config.reasoning_effort,
             yolo_mode: session_yolo_mode,
             origin_client: origin_client.clone(),
@@ -2267,7 +2293,7 @@ pub(crate) async fn spawn_session_on_thread(
     session_info: SessionInfo,
     gateway: GatewaySender,
     sampling_config: SamplingConfig,
-    credentials: chat_state::Credentials,
+    credentials: xvora_chat_state::Credentials,
     auth_method_id: crate::agent::auth_method::SharedAuthMethodId,
     auth_manager: Option<Arc<AuthManager>>,
     attribution_callback: Option<xvora_sampler::SharedAttributionCallback>,
@@ -2289,7 +2315,7 @@ pub(crate) async fn spawn_session_on_thread(
     client_type: ClientType,
     auto_compact_threshold_percent: u8,
     system_prompt_label: String,
-    compaction_mode: chat_state::CompactionMode,
+    compaction_mode: xvora_chat_state::CompactionMode,
     compaction_verbatim_input: bool,
     compaction_tool_choice: crate::util::config::CompactionToolChoice,
     two_pass_enabled: bool,
@@ -2436,7 +2462,7 @@ pub(crate) async fn spawn_session_on_thread(
                         .as_object()
                         .cloned()
                         .unwrap_or_default();
-                    let span = file_utils::trace_context::span_from_meta_traceparent(&meta);
+                    let span = xvora_file_utils::trace_context::span_from_meta_traceparent(&meta);
                     span.entered()
                 });
                 let (handle, permission_events_rx, system_prompt, session_done_rx) =

@@ -40,17 +40,17 @@ pub(crate) fn is_cursor_user_template(
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct CompactionPins {
-    pub mode: chat_state::CompactionMode,
+    pub mode: xvora_chat_state::CompactionMode,
     pub two_pass: bool,
 }
 pub(crate) fn cursor_compaction_pins(
-    resolved_mode: chat_state::CompactionMode,
+    resolved_mode: xvora_chat_state::CompactionMode,
     resolved_two_pass: bool,
     is_cursor: bool,
 ) -> CompactionPins {
     if is_cursor {
         CompactionPins {
-            mode: chat_state::CompactionMode::Summary,
+            mode: xvora_chat_state::CompactionMode::Summary,
             two_pass: false,
         }
     } else {
@@ -78,7 +78,7 @@ pub(crate) fn image_blocks(
         })
         .collect()
 }
-pub use agent_lifecycle::{
+pub use xvora_agent_lifecycle::{
     AnalyticsClass, CompactionClass, InputAuthority, InputPolicy, QueuePolicy, ShutdownPolicy,
     TurnBoundary,
 };
@@ -197,6 +197,18 @@ impl PromptOrigin {
     pub fn is_synthetic(&self) -> bool {
         !matches!(self, Self::User)
     }
+    /// A queued user follow-up must wait for these to finish; Steer must not
+    /// promote into them.
+    pub fn is_auto_wake(&self) -> bool {
+        matches!(
+            self,
+            Self::TaskCompleted { .. }
+                | Self::SubagentCompleted { .. }
+                | Self::WorkflowCompleted { .. }
+                | Self::ParentAgentMessage { .. }
+                | Self::NotificationDrain
+        )
+    }
     /// Whether a `UserMessageChunk` echo for this origin must stay out of client scrollback (live and on resume).
     /// The hidden origins carry model-only, side-channel content the UI already shows elsewhere (task pane, monitor gutter, etc.).
     pub fn hide_user_echo_from_scrollback(&self) -> bool {
@@ -249,7 +261,9 @@ mod tests {
             }
         );
         assert!(origin.is_synthetic());
+        assert!(origin.is_auto_wake());
         assert_eq!(origin.completion_id(), Some("abc-123"));
+        assert!(!PromptOrigin::from_prompt_id("my-prompt").is_auto_wake());
     }
     #[test]
     fn from_prompt_id_parent_message() {

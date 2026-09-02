@@ -10,7 +10,7 @@ use reqwest::StatusCode;
 use xvora_sampler::SamplerConfig as SamplingConfig;
 
 // Re-export compaction utilities from xvora-chat-state so existing callers that import from this module continue to work
-pub use chat_state::compaction_utils::{
+pub use xvora_chat_state::compaction_utils::{
     AUTO_CONTINUE_PROMPT, extract_last_real_user_query, extract_last_user_query,
     extract_messages_since_last_user, extract_real_user_queries, is_synthetic_extracted_query,
 };

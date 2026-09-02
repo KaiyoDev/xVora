@@ -124,7 +124,7 @@ impl McpScopeState {
 }
 
 pub struct PermissionViewState {
-    pub request: acp_lib::AcpArgs<acp::RequestPermissionRequest>,
+    pub request: xvora_acp_lib::AcpArgs<acp::RequestPermissionRequest>,
 
     pub id: usize,
 
@@ -1599,7 +1599,7 @@ mod tests {
             })
             .collect();
         PermissionViewState {
-            request: acp_lib::AcpArgs {
+            request: xvora_acp_lib::AcpArgs {
                 request,
                 response_tx,
             },
@@ -1713,7 +1713,7 @@ mod tests {
             ),
             vec![],
         );
-        let perm = acp_lib::AcpArgs {
+        let perm = xvora_acp_lib::AcpArgs {
             request,
             response_tx,
         };

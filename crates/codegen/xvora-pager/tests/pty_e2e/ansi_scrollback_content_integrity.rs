@@ -3,7 +3,7 @@
 use super::common::*;
 
 /// Regression guard for the `xvora-ratatui-inline` rewrite (termwiz to anstyle-parse).
-/// Minimal mode commits finalized assistant blocks into the terminal's NATIVE scrollback through `ratatui_inline::Terminal::insert_before`.
+/// Minimal mode commits finalized assistant blocks into the terminal's NATIVE scrollback through `xvora_ratatui_inline::Terminal::insert_before`.
 /// That call is the rewritten crate's production entry point.
 /// A parsing or offset regression there shows up as truncated, duplicated, or corrupted committed content.
 ///

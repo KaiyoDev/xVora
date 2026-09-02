@@ -1,6 +1,6 @@
 use super::*;
 use crate::remote::DEFAULT_CONTEXT_WINDOW;
-use chat_state::conversation_util::replace_or_insert_system_head;
+use xvora_chat_state::conversation_util::replace_or_insert_system_head;
 impl SessionActor {
     pub(super) async fn handle_set_session_model(
         self: &std::sync::Arc<Self>,
@@ -67,7 +67,7 @@ impl SessionActor {
             .as_ref()
             .and_then(|am| am.current_or_expired().map(|a| a.key));
         self.chat_state_handle
-            .update_credentials(chat_state::Credentials {
+            .update_credentials(xvora_chat_state::Credentials {
                 api_key: sampling_config.api_key.clone(),
                 auth_type: crate::agent::config::resolve_chat_state_auth_type(
                     sampling_config.model.as_str(),
@@ -130,7 +130,7 @@ impl SessionActor {
             let trigger_info = compaction::AutoCompactTriggerInfo {
                 tokens_used: estimated_total_tokens,
                 context_window,
-                percentage: token_estimation::usage_percentage_u8(
+                percentage: xvora_token_estimation::usage_percentage_u8(
                     estimated_total_tokens,
                     context_window,
                 ),
@@ -140,6 +140,40 @@ impl SessionActor {
                 tracing::error!(error = %e, "Family-switch compaction failed; switching anyway");
             }
         }
+        Ok(model_id)
+    }
+    /// Set the reasoning effort on the live sampling config, applying the same
+    /// support check and per-effort model routing as `apply_supported_effort`.
+    pub(super) async fn handle_set_reasoning_effort(
+        self: &std::sync::Arc<Self>,
+        effort: xvora_sampling_types::ReasoningEffort,
+    ) -> Result<acp::ModelId, acp::Error> {
+        let Some(mut cfg) = self.chat_state_handle.get_sampling_config().await else {
+            return Err(acp::Error::internal_error().data("session has no sampling config"));
+        };
+        if !self
+            .models_manager
+            .model_supports_reasoning_effort(&cfg.model)
+        {
+            return Err(acp::Error::invalid_params()
+                .data("the session's current model does not support reasoning effort"));
+        }
+        if let Some(routed) = self.models_manager.model_for_effort(&cfg.model, effort) {
+            cfg.model = routed;
+        }
+        cfg.reasoning_effort = Some(effort);
+        let model_id = acp::ModelId::new(cfg.model.clone());
+        self.chat_state_handle.update_sampling_config(cfg);
+        let agent_name = self.agent.borrow().definition().name.clone();
+        let _ = self
+            .notifications
+            .persistence_tx
+            .send(PersistenceMsg::CurrentModel {
+                model_id: model_id.clone(),
+                agent_name: Some(agent_name),
+                reasoning_effort: Some(Some(effort)),
+            });
+        self.emit_status_snapshot_detached();
         Ok(model_id)
     }
     /// Handle [`SessionCommand::RebuildAgentForDefinition`].

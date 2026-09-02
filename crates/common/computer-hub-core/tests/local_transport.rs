@@ -10,20 +10,20 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
-use computer_hub_core::{
+use xvora_computer_hub_core::{
     CompoundResolver, ConnectionCleanupReport, ErasedTool, LocalTransport, ResolvedTool,
     SessionCleanupReport, ToolHandle, ToolRegistry, ToolSessionBindOutcome,
     ToolSessionUnbindOutcome, Transport, TransportKind,
 };
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind as WireTransportKind, UserId,
 };
-use tool_runtime::{
+use xvora_tool_runtime::{
     SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError, ToolProgress, ToolStream,
     ToolStreamItem, with_progress,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EchoArgs {
@@ -41,7 +41,7 @@ impl Tool for EchoTool {
         ToolId::new("echo").expect("tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("echo", "Echoes its input.")
     }
 
@@ -65,7 +65,7 @@ impl Tool for StreamerTool {
         ToolId::new("streamer").expect("tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("streamer", "Emits three progress chunks.")
     }
 
@@ -101,7 +101,7 @@ impl InMemRegistry {
             sessions: Some(vec![session.clone()]),
             user_id: UserId::new("alice").expect("user id"),
             server_id: None,
-            description: handle.description(&tool_runtime::ListToolsContext::default()),
+            description: handle.description(&xvora_tool_runtime::ListToolsContext::default()),
             input_schema: None,
             capabilities: Some(handle.capabilities()),
             notification_schemas: None,
@@ -192,15 +192,15 @@ impl ToolRegistry for InMemRegistry {
 
     fn list_servers_for_user(
         &self,
-        _user_id: &tool_protocol::UserId,
-    ) -> Vec<computer_hub_core::registry::ServerRecord> {
+        _user_id: &xvora_tool_protocol::UserId,
+    ) -> Vec<xvora_computer_hub_core::registry::ServerRecord> {
         Vec::new()
     }
 
     fn get_server_record(
         &self,
         _connection_id: &ConnectionId,
-    ) -> Option<computer_hub_core::registry::ServerRecord> {
+    ) -> Option<xvora_computer_hub_core::registry::ServerRecord> {
         None
     }
 }
@@ -218,8 +218,8 @@ fn uid(s: &str) -> UserId {
 }
 
 async fn collect(
-    stream: &mut ToolStream<tool_runtime::TypedToolOutput>,
-) -> Vec<ToolStreamItem<tool_runtime::TypedToolOutput>> {
+    stream: &mut ToolStream<xvora_tool_runtime::TypedToolOutput>,
+) -> Vec<ToolStreamItem<xvora_tool_runtime::TypedToolOutput>> {
     let mut items = Vec::new();
     while let Some(item) = stream.next().await {
         items.push(item);
@@ -303,7 +303,9 @@ async fn missing_tool_resolves_as_terminal_not_found() {
     let items = collect(&mut stream).await;
     assert_eq!(items.len(), 1);
     match &items[0] {
-        ToolStreamItem::Terminal(Err(e)) if e.kind == tool_runtime::ToolErrorKind::NotFound => {
+        ToolStreamItem::Terminal(Err(e))
+            if e.kind == xvora_tool_runtime::ToolErrorKind::NotFound =>
+        {
             assert!(
                 e.detail.contains("ghost"),
                 "detail should mention tool id: {}",
@@ -339,7 +341,7 @@ async fn invalid_arguments_surface_as_terminal_error() {
     assert_eq!(items.len(), 1);
     match &items[0] {
         ToolStreamItem::Terminal(Err(e))
-            if e.kind == tool_runtime::ToolErrorKind::InvalidArguments => {}
+            if e.kind == xvora_tool_runtime::ToolErrorKind::InvalidArguments => {}
         other => panic!("expected Terminal(Err(InvalidArguments)), got {other:?}"),
     }
 }
@@ -354,6 +356,6 @@ async fn authorize_returns_bound_principal_with_invoke_scope() {
     let principal = transport.authorize().await.expect("authorize");
     assert_eq!(principal.user_id, uid("alice"));
     assert!(principal.authorizes_session(&sid("sess-1")));
-    assert!(principal.has_scope(computer_hub_core::LOCAL_INVOKE_SCOPE));
+    assert!(principal.has_scope(xvora_computer_hub_core::LOCAL_INVOKE_SCOPE));
     assert_eq!(transport.kind(), TransportKind::Local);
 }

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
-use test_utils::git::{git_commit_all, init_git_repo, run_git};
+use xvora_test_utils::git::{git_commit_all, init_git_repo, run_git};
 
 use super::{
     checkout_origin_name, narrow_origin_fetch_spec, origin_keep_names_for_git_ref,
@@ -43,7 +43,7 @@ fn copy_source(source: &Path) -> (TempDir, PathBuf, PathBuf) {
 }
 
 fn setup_repo_with_wildcard_fetch() -> CopiedRepo {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -110,7 +110,7 @@ fn copy_rewrites_wildcard_heads_fetch_to_exact_current_branch_spec() {
 
 #[test]
 fn copy_rewrites_default_star_mapping_fetch_spec() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -134,7 +134,7 @@ fn copy_rewrites_default_star_mapping_fetch_spec() {
 
 #[test]
 fn copy_without_origin_does_not_invent_a_remote() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -154,7 +154,7 @@ fn copy_without_origin_does_not_invent_a_remote() {
 
 #[test]
 fn detached_head_uses_exact_non_wildcard_fetch_spec() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -179,7 +179,7 @@ fn detached_head_uses_exact_non_wildcard_fetch_spec() {
 
 #[test]
 fn detached_head_with_origin_head_uses_resolved_default_branch() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -207,7 +207,7 @@ fn detached_head_with_origin_head_uses_resolved_default_branch() {
 
 #[test]
 fn inconsistent_shallow_graft_is_not_copied() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -258,7 +258,7 @@ fn inconsistent_shallow_graft_is_not_copied() {
 
 #[test]
 fn consistent_shallow_is_kept() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let full = temp.path().join("full");
     std::fs::create_dir(&full).unwrap();
@@ -312,7 +312,7 @@ fn consistent_shallow_is_kept() {
 
 #[test]
 fn extra_origin_remote_refs_are_not_copied() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -385,7 +385,7 @@ fn extra_origin_remote_refs_are_not_copied() {
 
 #[test]
 fn copy_keeps_dest_branch_origin_ref_when_source_head_differs() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -440,7 +440,7 @@ fn copy_keeps_dest_branch_origin_ref_when_source_head_differs() {
 
 #[test]
 fn packed_origin_remote_refs_are_pruned() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -490,7 +490,7 @@ fn packed_origin_remote_refs_are_pruned() {
 
 #[test]
 fn copy_rewrites_case_insensitive_fetch_key() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -527,7 +527,7 @@ fn copy_rewrites_case_insensitive_fetch_key() {
 
 #[test]
 fn copy_rewrites_refs_star_wildcard_fetch_spec() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -585,7 +585,7 @@ fn rewrite_quotes_fetch_specs_that_contain_gitconfig_comment_chars() {
 
 #[test]
 fn copy_rewrites_hash_branch_fetch_spec_without_truncating() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -611,7 +611,7 @@ fn copy_rewrites_hash_branch_fetch_spec_without_truncating() {
 
 #[test]
 fn copy_rewrites_quoted_wildcard_fetch_spec() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     std::fs::create_dir(&source).unwrap();
@@ -644,7 +644,7 @@ fn copy_rewrites_quoted_wildcard_fetch_spec() {
 
 #[test]
 fn orphan_head_keeps_shallow_when_graft_parent_is_missing() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let temp = TempDir::new().unwrap();
     let full = temp.path().join("full");
     std::fs::create_dir(&full).unwrap();
@@ -713,7 +713,7 @@ fn orphan_head_keeps_shallow_when_graft_parent_is_missing() {
 
 #[test]
 fn sanitize_is_idempotent_on_already_narrow_fetch() {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let repo = setup_repo_with_wildcard_fetch();
     let expected = heads_fetch_spec(&repo.branch);
     sanitize_standalone_git_dir(&repo.dest_git).unwrap();

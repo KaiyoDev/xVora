@@ -250,25 +250,28 @@ impl crate::types::tool_metadata::ToolMetadata for HashlineEditTool {
     }
 }
 
-impl tool_runtime::Tool for HashlineEditTool {
+impl xvora_tool_runtime::Tool for HashlineEditTool {
     type Args = HashlineEditInput;
     type Output = crate::types::output::SearchReplaceOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("hashline_edit").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("hashline_edit").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "hashline_edit",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -280,9 +283,9 @@ impl tool_runtime::Tool for HashlineEditTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: HashlineEditInput,
-    ) -> Result<crate::types::output::SearchReplaceOutput, tool_runtime::ToolError> {
+    ) -> Result<crate::types::output::SearchReplaceOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -294,7 +297,7 @@ impl tool_runtime::Tool for HashlineEditTool {
 
         let (cwd, display_cwd, fs, scheme, hints_enabled) = {
             let res = resources.lock().await;
-            let cwd = match ctx.extensions.get::<tool_runtime::Cwd>() {
+            let cwd = match ctx.extensions.get::<xvora_tool_runtime::Cwd>() {
                 Some(dir) => dir.0.clone(),
                 None => res.require::<Cwd>()?.0.clone(),
             };
@@ -307,7 +310,7 @@ impl tool_runtime::Tool for HashlineEditTool {
             let scheme = params
                 .0
                 .build_scheme()
-                .map_err(tool_runtime::ToolError::invalid_arguments)?;
+                .map_err(xvora_tool_runtime::ToolError::invalid_arguments)?;
             let hints_enabled = res.get::<PathNotFoundHints>().is_some_and(|h| h.0);
             (cwd, display_cwd, fs, scheme, hints_enabled)
         };
@@ -513,7 +516,7 @@ mod tests {
             }],
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -551,7 +554,7 @@ mod tests {
             ],
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -590,7 +593,7 @@ mod tests {
             }],
         };
 
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -632,7 +635,7 @@ mod tests {
         };
 
         let result: crate::types::output::SearchReplaceOutput =
-            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap();
 

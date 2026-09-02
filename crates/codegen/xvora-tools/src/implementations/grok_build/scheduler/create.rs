@@ -89,7 +89,7 @@ pub struct SchedulerCreateOutput {
     pub updated: bool,
 }
 
-impl tool_runtime::ToolOutput for SchedulerCreateOutput {}
+impl xvora_tool_runtime::ToolOutput for SchedulerCreateOutput {}
 
 #[derive(Debug, Default)]
 pub struct SchedulerCreateTool;
@@ -139,25 +139,28 @@ Usage notes:
     }
 }
 
-impl tool_runtime::Tool for SchedulerCreateTool {
+impl xvora_tool_runtime::Tool for SchedulerCreateTool {
     type Args = SchedulerCreateInput;
     type Output = SchedulerCreateOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new(SCHEDULER_CREATE_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new(SCHEDULER_CREATE_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "scheduler_create",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -169,9 +172,9 @@ impl tool_runtime::Tool for SchedulerCreateTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: SchedulerCreateInput,
-    ) -> Result<SchedulerCreateOutput, tool_runtime::ToolError> {
+    ) -> Result<SchedulerCreateOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -180,13 +183,13 @@ impl tool_runtime::Tool for SchedulerCreateTool {
             .as_deref()
             .map(parse_interval)
             .transpose()
-            .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+            .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
 
         let sender = {
             let res = resources.lock().await;
             res.get::<SchedulerHandle>()
                 .ok_or_else(|| {
-                    tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
+                    xvora_tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
                 })?
                 .0
                 .clone()
@@ -197,12 +200,12 @@ impl tool_runtime::Tool for SchedulerCreateTool {
             Result<ScheduledTask, super::types::SchedulerError>,
         >| async move {
             sender.send(cmd).map_err(|_| {
-                tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
+                xvora_tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
             })?;
             reply_rx
                 .await
                 .map_err(|_| {
-                    tool_runtime::ToolError::custom(
+                    xvora_tool_runtime::ToolError::custom(
                         "process_manager",
                         "Scheduler actor dropped reply",
                     )
@@ -212,7 +215,7 @@ impl tool_runtime::Tool for SchedulerCreateTool {
 
         if let Some(task_id) = input.task_id {
             if input.prompt.is_none() && interval_secs.is_none() {
-                return Err(tool_runtime::ToolError::invalid_arguments(
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                     "nothing to update: provide interval and/or prompt alongside task_id",
                 ));
             }
@@ -236,17 +239,21 @@ impl tool_runtime::Tool for SchedulerCreateTool {
         }
 
         if !input.recurring {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "one-shot tasks are not supported; run a background terminal command instead \
                  (`sleep <secs> && <command>`, background: true) or do the work now",
             ));
         }
 
         let interval_secs = interval_secs.ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments("interval is required when creating a task")
+            xvora_tool_runtime::ToolError::invalid_arguments(
+                "interval is required when creating a task",
+            )
         })?;
         let prompt = input.prompt.ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments("prompt is required when creating a task")
+            xvora_tool_runtime::ToolError::invalid_arguments(
+                "prompt is required when creating a task",
+            )
         })?;
 
         let durable = input.durable.unwrap_or(false);
@@ -284,7 +291,7 @@ mod tests {
     use crate::notification::types::ToolNotificationHandle;
     use crate::types::resources::{Resources, SharedResources, State};
     use crate::types::tool_metadata::test_ctx;
-    use tool_runtime::Tool;
+    use xvora_tool_runtime::Tool;
 
     fn scheduler_resources() -> (SharedResources, tokio_util::sync::CancellationToken) {
         let mut resources = Resources::new();

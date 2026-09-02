@@ -30,7 +30,7 @@ use serde_json::Value;
 use tokio::sync::oneshot;
 use tracing::warn;
 
-use tool_protocol::{
+use xvora_tool_protocol::{
     JsonRpcId, JsonRpcResponse, RequestId, SessionId, ToolCallId, ToolCallProgressFrame,
 };
 
@@ -611,7 +611,7 @@ mod tests {
         let session = SessionId::new("s1").expect("valid");
         let (tx, mut rx) = mpsc::channel(4);
         demux.register_session_inbox(session.clone(), tx);
-        let hook = tool_protocol::HookFrame::custom_request(
+        let hook = xvora_tool_protocol::HookFrame::custom_request(
             session.clone(),
             "hook-7".to_owned(),
             crate::harness::PERMISSION_REQUEST_KIND.to_owned(),
@@ -621,7 +621,7 @@ mod tests {
             "jsonrpc": "2.0",
             "id": "h1",
             "session_id": "s1",
-            "method": tool_protocol::Method::Hook.as_wire_str(),
+            "method": xvora_tool_protocol::Method::Hook.as_wire_str(),
             "params": serde_json::to_value(&hook).expect("serialize hook"),
         });
         assert_eq!(demux.route(frame.clone()), RouteOutcome::Session);

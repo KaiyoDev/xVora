@@ -46,25 +46,28 @@ impl crate::types::tool_metadata::ToolMetadata for WebSearchTool {
     }
 }
 
-impl tool_runtime::Tool for WebSearchTool {
+impl xvora_tool_runtime::Tool for WebSearchTool {
     type Args = WebSearchInput;
     type Output = WebSearchOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("web_search").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("web_search").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "web_search",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -72,9 +75,9 @@ impl tool_runtime::Tool for WebSearchTool {
     #[tracing::instrument(name = "tool.web_search", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: WebSearchInput,
-    ) -> Result<WebSearchOutput, tool_runtime::ToolError> {
+    ) -> Result<WebSearchOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -88,8 +91,8 @@ impl tool_runtime::Tool for WebSearchTool {
             .search(&input.query, input.allowed_domains.clone())
             .await
             .map_err(|e| {
-                tool_runtime::ToolError::execution(
-                    tool_protocol::ToolId::new("web_search").expect("valid"),
+                xvora_tool_runtime::ToolError::execution(
+                    xvora_tool_protocol::ToolId::new("web_search").expect("valid"),
                     e.to_string(),
                 )
             })?;
@@ -113,14 +116,14 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = WebSearchTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "web_search");
+        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "web_search");
     }
 
     #[tokio::test]
     async fn errors_when_client_not_in_resources() {
         let resources = Resources::new();
         let tool = WebSearchTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             WebSearchInput {

@@ -2,7 +2,7 @@
 //!
 //! [`scan_lines_for_url_overlays`] detects plain-text URLs and absolute file paths across all block types and collects them into a [`LinkOverlay`].
 //! The collected links reach the terminal as `LinkSpan`s.
-//! The frame diff (`ratatui_inline::Terminal::flush_with_links`) emits them as OSC 8 hyperlinks.
+//! The frame diff (`xvora_ratatui_inline::Terminal::flush_with_links`) emits them as OSC 8 hyperlinks.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};

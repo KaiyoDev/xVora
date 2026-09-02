@@ -1,11 +1,11 @@
 use crate::agent::subagent::SubagentSpawnContext;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-pub(crate) type GatewayOut = <acp::AgentSide as acp_lib::AcpSide>::OutMessage;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+pub(crate) type GatewayOut = <acp::AgentSide as xvora_acp_lib::AcpSide>::OutMessage;
 pub(crate) fn test_gateway() -> GatewaySender {
     let (tx, _rx) = mpsc::unbounded_channel();
     GatewaySender::new(tx)
@@ -64,7 +64,7 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         inherited_tool_overrides: None,
         yolo_mode: false,
         subagent_event_tx: tx,
-        hunk_tracker_handle: hunk_tracker::HunkTrackerHandle::noop(),
+        hunk_tracker_handle: xvora_hunk_tracker::HunkTrackerHandle::noop(),
         hunk_tracking_enabled: false,
         fs: Arc::new(xvora_workspace::file_system::LocalFs::new(PathBuf::from(
             "/tmp",

@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn handle_permission_request(
-    perm: acp_lib::AcpArgs<acp::RequestPermissionRequest>,
+    perm: xvora_acp_lib::AcpArgs<acp::RequestPermissionRequest>,
     app: &mut AppView,
 ) -> bool {
     let matched = match find_session_match(app, &perm.request.session_id) {
@@ -58,7 +58,7 @@ pub(super) fn handle_permission_request(
 }
 
 fn enqueue_permission(
-    perm: acp_lib::AcpArgs<acp::RequestPermissionRequest>,
+    perm: xvora_acp_lib::AcpArgs<acp::RequestPermissionRequest>,
     agent: &mut AgentView,
 ) -> bool {
     let bash_highlights: Option<BashCommandHighlights> = perm
@@ -359,7 +359,7 @@ fn is_edit_permission(req: &acp::RequestPermissionRequest) -> bool {
     })
 }
 
-fn cancel_permission(perm: acp_lib::AcpArgs<acp::RequestPermissionRequest>) {
+fn cancel_permission(perm: xvora_acp_lib::AcpArgs<acp::RequestPermissionRequest>) {
     perm.response_tx
         .send(Ok(acp::RequestPermissionResponse::new(
             acp::RequestPermissionOutcome::Cancelled,

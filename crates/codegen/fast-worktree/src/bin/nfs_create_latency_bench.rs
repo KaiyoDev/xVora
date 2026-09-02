@@ -76,12 +76,6 @@ mod mac {
     use super::Cli;
     use anyhow::{Context, Result, bail};
     use clap::Parser;
-    use fast_worktree::create_latency_stamp::{
-        LIBRARY_CREATE_ENV, format_create_p50, format_create_stamp,
-    };
-    use fast_worktree::{
-        CreationMode, NfsWorktreeOpts, WorkingTreeMode, WorktreeBuilder, remove_worktree,
-    };
     use std::ffi::CString;
     use std::fs;
     use std::os::unix::ffi::OsStrExt;
@@ -89,6 +83,12 @@ mod mac {
     use std::process::{Command, Stdio};
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use std::time::Instant;
+    use xvora_fast_worktree::create_latency_stamp::{
+        LIBRARY_CREATE_ENV, format_create_p50, format_create_stamp,
+    };
+    use xvora_fast_worktree::{
+        CreationMode, NfsWorktreeOpts, WorkingTreeMode, WorktreeBuilder, remove_worktree,
+    };
 
     /// Signal-safe dest path. Handler only loads the pointer and calls
     /// `unmount`/`umount` + `_exit` (no Mutex, no spawn).
@@ -100,7 +100,7 @@ mod mac {
         cmd.stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
         let Ok(out) = cmd.output() else {
             return 0;
         };
@@ -267,7 +267,7 @@ mod mac {
     }
 
     fn assert_clean_shape(src: &Path, expect: Option<usize>) -> Result<usize> {
-        let tracked = fast_worktree::count_tracked_files(src)
+        let tracked = xvora_fast_worktree::count_tracked_files(src)
             .with_context(|| format!("count_tracked_files {}", src.display()))?;
         if let Some(n) = expect
             && tracked != n
@@ -340,7 +340,7 @@ mod mac {
     fn stamp_host() -> String {
         let mut cmd = Command::new("sw_vers");
         cmd.arg("-productVersion");
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
         if let Ok(out) = cmd.output() {
             let v = String::from_utf8_lossy(&out.stdout).trim().to_string();
             if !v.is_empty() {

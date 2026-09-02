@@ -633,7 +633,7 @@ pub struct WelcomeRenderParams<'a> {
     pub startup_warnings: &'a [StartupWarning],
     pub pending_update_version: Option<&'a str>,
     /// Recent foreign session offered on ctrl+u, suppressed by a pending update.
-    pub foreign_resume_hint: Option<&'a foreign_sessions::RecentForeignSession>,
+    pub foreign_resume_hint: Option<&'a xvora_foreign_sessions::RecentForeignSession>,
     pub is_api_key_auth: bool,
     pub session_picker_content_results:
         Option<&'a [xvora_shell::extensions::session_search::SearchSessionHit]>,
@@ -2643,7 +2643,7 @@ fn masked_auth_token_view(input: &str, cursor_byte: usize, width: usize) -> (Str
     }
     let masked = build_masked_auth_token(input, cursor_byte);
     let buffer =
-        ratatui_textarea::EditBuffer::from_parts(masked.display.as_str(), masked.cursor_byte);
+        xvora_ratatui_textarea::EditBuffer::from_parts(masked.display.as_str(), masked.cursor_byte);
     let viewport = buffer.single_line_viewport(width);
     (
         masked.display[viewport.visible_byte_range].to_owned(),
@@ -2886,7 +2886,7 @@ mod tests {
 
     #[test]
     fn foreign_resume_tip_names_each_tool_and_age() {
-        use foreign_sessions::ForeignSessionTool;
+        use xvora_foreign_sessions::ForeignSessionTool;
 
         let auth = AuthState::Done;
         let trust = TrustState::Done;
@@ -2895,7 +2895,7 @@ mod tests {
             (ForeignSessionTool::Codex, "Codex"),
             (ForeignSessionTool::Cursor, "Cursor"),
         ] {
-            let hint = foreign_sessions::RecentForeignSession {
+            let hint = xvora_foreign_sessions::RecentForeignSession {
                 tool,
                 native_id: "native-id".into(),
                 age: std::time::Duration::from_secs(125),
@@ -2913,8 +2913,8 @@ mod tests {
     fn pending_update_suppresses_foreign_resume_tip() {
         let auth = AuthState::Done;
         let trust = TrustState::Done;
-        let hint = foreign_sessions::RecentForeignSession {
-            tool: foreign_sessions::ForeignSessionTool::Cursor,
+        let hint = xvora_foreign_sessions::RecentForeignSession {
+            tool: xvora_foreign_sessions::ForeignSessionTool::Cursor,
             native_id: "native-id".into(),
             age: std::time::Duration::from_secs(30),
         };

@@ -199,7 +199,11 @@ impl SessionActor {
     ///
     /// Runs force_reauth (browser flow), then re-initializes the server and registers its tools.
     pub(super) async fn handle_mcp_auth_trigger(&self, server_name: &str) -> Result<(), String> {
-        let client = match self.mcp_state.lock().await.get_client(server_name).cloned() {
+        let existing_client = {
+            let state = self.mcp_state.lock().await;
+            state.get_client(server_name).cloned()
+        };
+        let client = match existing_client {
             Some(c) if c.has_auth() => c,
             _ => {
                 self.rebuild_http_client_with_oauth(server_name, McpOauthDiscovery::Network)
@@ -1171,9 +1175,10 @@ impl SessionActor {
                 mcp_state.finish_init();
             } else {
                 mcp_state.cancel_init();
-                self.events.emit(session_events::Event::McpInitCancelled {
-                    reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
-                });
+                self.events
+                    .emit(xvora_session_events::Event::McpInitCancelled {
+                        reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
+                    });
             }
             drop(mcp_state);
             self.register_shared_client_tools().await;
@@ -1242,9 +1247,10 @@ impl SessionActor {
                 mcp_state.finish_init();
             } else {
                 mcp_state.cancel_init();
-                self.events.emit(session_events::Event::McpInitCancelled {
-                    reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
-                });
+                self.events
+                    .emit(xvora_session_events::Event::McpInitCancelled {
+                        reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
+                    });
             }
             drop(mcp_state);
             self.register_shared_client_tools().await;
@@ -1314,15 +1320,16 @@ impl SessionActor {
                     let cfg = mcp_server_configs
                         .iter()
                         .find(|c| mcp_server_name(c) == sname.as_str());
-                    self.events.emit(session_events::Event::McpServerFailed {
-                        server_name: sname,
-                        transport: cfg.map(|c| mcp_transport_str(c).to_string()),
-                        target: cfg.map(mcp_target_str),
-                        error_type: e.error_category(),
-                        error_message: e.to_string(),
-                        duration_ms: None,
-                        timeout_sec: None,
-                    });
+                    self.events
+                        .emit(xvora_session_events::Event::McpServerFailed {
+                            server_name: sname,
+                            transport: cfg.map(|c| mcp_transport_str(c).to_string()),
+                            target: cfg.map(mcp_target_str),
+                            error_type: e.error_category(),
+                            error_message: e.to_string(),
+                            duration_ms: None,
+                            timeout_sec: None,
+                        });
                     None
                 }
             })
@@ -1335,9 +1342,10 @@ impl SessionActor {
             let mut mcp_state = self.mcp_state.lock().await;
             if mcp_state.generation() != generation {
                 mcp_state.cancel_init();
-                self.events.emit(session_events::Event::McpInitCancelled {
-                    reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
-                });
+                self.events
+                    .emit(xvora_session_events::Event::McpInitCancelled {
+                        reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
+                    });
                 return;
             }
             let failed_spawns: Vec<String> = mcp_state
@@ -1438,7 +1446,7 @@ impl SessionActor {
                         let server_name = client.server_name().to_string();
                         let server_start = std::time::Instant::now();
                         let timeout_sec = client.startup_timeout_sec();
-                        ew.emit(session_events::Event::McpServerStarting {
+                        ew.emit(xvora_session_events::Event::McpServerStarting {
                             server_name: server_name.clone(),
                             transport: transport.clone(),
                             target,
@@ -1530,7 +1538,7 @@ impl SessionActor {
                             generation,
                             mcp_state.generation()
                         );
-                        event_writer.emit(session_events::Event::McpInitCancelled {
+                        event_writer.emit(xvora_session_events::Event::McpInitCancelled {
                             reason: MCP_INIT_CANCELLED_CONFIG_CHANGED.to_string(),
                         });
                         return;
@@ -1635,12 +1643,12 @@ impl SessionActor {
                                                 e
                                             );
                                             event_writer.emit(
-                                                session_events::Event::McpToolRegistrationFailed {
-                                                    server_name: server_name.clone(),
-                                                    tool_name: qualified_name.clone(),
-                                                    error: e.to_string(),
-                                                },
-                                            );
+                                            xvora_session_events::Event::McpToolRegistrationFailed {
+                                                server_name: server_name.clone(),
+                                                tool_name: qualified_name.clone(),
+                                                error: e.to_string(),
+                                            },
+                                        );
                                         } else {
                                             tracing::debug!(
                                                 "Registered MCP tool '{}' from server '{}'",
@@ -1660,7 +1668,9 @@ impl SessionActor {
                                     _ => xvora_telemetry::events::McpTransport::Http,
                                 };
                                 debug_assert!(
-                                    xvora_telemetry::activity::MCP_SERVERS_CONNECTED.get() >= 1,
+                                    xvora_telemetry::activity::gauge_value(
+                                        xvora_telemetry::activity::MCP_SERVERS_CONNECTED_KEY
+                                    ) >= 1,
                                     "McpServerConnected must stamp a self-inclusive count"
                                 );
                                 xvora_telemetry::session_ctx::log_event(
@@ -1675,13 +1685,15 @@ impl SessionActor {
                                     .get(server_name.as_str())
                                     .copied()
                                     .unwrap_or("unknown");
-                                event_writer.emit(session_events::Event::McpServerConnected {
-                                    server_name: server_name.clone(),
-                                    transport: transport_str.to_string(),
-                                    tool_count,
-                                    duration_ms: elapsed.as_millis() as u64,
-                                    tools: registered_tool_names,
-                                });
+                                event_writer.emit(
+                                    xvora_session_events::Event::McpServerConnected {
+                                        server_name: server_name.clone(),
+                                        transport: transport_str.to_string(),
+                                        tool_count,
+                                        duration_ms: elapsed.as_millis() as u64,
+                                        tools: registered_tool_names,
+                                    },
+                                );
                                 crate::session::telemetry::emit_mcp_connection_span(
                                     "connected",
                                     server_name.as_str(),
@@ -1700,15 +1712,15 @@ impl SessionActor {
                             }
                             Err((server_name, ref e, needs_auth, elapsed, timeout_sec)) => {
                                 let error_cat = if needs_auth {
-                                    session_events::McpErrorCategory::AuthRequired
+                                    xvora_session_events::McpErrorCategory::AuthRequired
                                 } else {
                                     e.error_category()
                                 };
                                 let error_type_label = match error_cat {
-                                    session_events::McpErrorCategory::AuthRequired => {
+                                    xvora_session_events::McpErrorCategory::AuthRequired => {
                                         xvora_telemetry::events::McpErrorType::Auth
                                     }
-                                    session_events::McpErrorCategory::Timeout => {
+                                    xvora_session_events::McpErrorCategory::Timeout => {
                                         xvora_telemetry::events::McpErrorType::Timeout
                                     }
                                     _ => xvora_telemetry::events::McpErrorType::HandshakeFailed,
@@ -1719,6 +1731,7 @@ impl SessionActor {
                                         error_type: error_type_label,
                                         duration_ms: elapsed.as_millis() as u64,
                                         timeout_sec,
+                                        error_message: Some(e.to_string()),
                                     },
                                 );
                                 let transport_str = server_transport_map
@@ -1737,7 +1750,7 @@ impl SessionActor {
                                     None,
                                     Some(error_type_label.as_str()),
                                 );
-                                event_writer.emit(session_events::Event::McpServerFailed {
+                                event_writer.emit(xvora_session_events::Event::McpServerFailed {
                                     server_name: server_name.clone(),
                                     transport: Some(transport_str.to_string()),
                                     target: server_target_map.get(server_name.as_str()).cloned(),
@@ -1813,7 +1826,7 @@ impl SessionActor {
                             is_reinit,
                         },
                     );
-                    event_writer.emit(session_events::Event::McpInitCompleted {
+                    event_writer.emit(xvora_session_events::Event::McpInitCompleted {
                         total_servers: server_count,
                         succeeded: servers_succeeded,
                         failed: servers_failed,

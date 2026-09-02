@@ -24,7 +24,7 @@ fn make_image_content(width: u32, height: u32) -> ImageContent {
 }
 fn make_ico_content(width: u32, height: u32) -> ImageContent {
     let png = make_test_png(width, height);
-    let buf = test_utils::image::ico_with_png_frame(&png, width as u8, height as u8);
+    let buf = xvora_test_utils::image::ico_with_png_frame(&png, width as u8, height as u8);
     ImageContent::new(
         base64::engine::general_purpose::STANDARD.encode(&buf),
         "image/x-icon",
@@ -656,7 +656,7 @@ fn persisted_image_reject_reason_verdicts() {
     .write_to(&mut std::io::Cursor::new(&mut gif), image::ImageFormat::Gif)
     .unwrap();
     assert!(reason(&gif).is_some_and(|r| r.contains("format")));
-    let ico = test_utils::image::ico_with_png_frame(&make_test_png(16, 16), 16, 16);
+    let ico = xvora_test_utils::image::ico_with_png_frame(&make_test_png(16, 16), 16, 16);
     assert_eq!(reason(&ico), None);
     let mut cut_ico = ico.clone();
     cut_ico.truncate(cut_ico.len() - 8);

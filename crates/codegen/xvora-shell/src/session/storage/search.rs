@@ -11,9 +11,9 @@ use super::StorageAdapter;
 use super::jsonl::JsonlStorageAdapter;
 use crate::session::info::Info;
 use crate::session::persistence::Summary;
-use session_search::{IndexableSession, SessionSource};
+use xvora_session_search::{IndexableSession, SessionSource};
 
-pub use session_search::{
+pub use xvora_session_search::{
     SearchIndexManager, SearchIndexStatus, SessionSearchRequest, SessionSearchResponse,
 };
 
@@ -186,7 +186,7 @@ pub fn notify_session_updated(index: Option<&SearchIndexManager>, session_id: &s
 
 /// Remove one session from an index built earlier, whether or not this process still indexes.
 pub(crate) async fn evict_session(root_dir: &Path, session_id: &str) {
-    session_search::evict_session(root_dir, session_id).await;
+    xvora_session_search::evict_session(root_dir, session_id).await;
 }
 
 pub async fn execute_search(
@@ -199,7 +199,7 @@ pub async fn execute_search(
         IndexDecision::Off => None,
         IndexDecision::On(index) => Some(index),
     };
-    session_search::execute_search(index, root_dir, req).await
+    xvora_session_search::execute_search(index, root_dir, req).await
 }
 
 #[cfg(test)]

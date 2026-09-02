@@ -80,20 +80,21 @@ async fn managed_policy_hook_disable_actions_are_refused() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async {
-            let (gateway_tx, _gateway_rx) = mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+            let (gateway_tx, _gateway_rx) =
+                mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             *actor.hook_registry.borrow_mut() = Some(Arc::new(managed_registry()));
             let actor = Arc::new(actor);
 
             let outcome = actor
-                .handle_hooks_action(hooks_plugins_types::HooksAction::Disable {
+                .handle_hooks_action(xvora_hooks_plugins_types::HooksAction::Disable {
                     hook_name: MANAGED_HOOK.to_string(),
                 })
                 .await;
             assert_eq!(
                 outcome.status,
-                hooks_plugins_types::OutcomeStatus::ValidationError,
+                xvora_hooks_plugins_types::OutcomeStatus::ValidationError,
                 "disable of a managed-policy hook must be refused: {}",
                 outcome.message
             );
@@ -104,7 +105,7 @@ async fn managed_policy_hook_disable_actions_are_refused() {
             );
 
             let outcome = actor
-                .handle_hooks_action(hooks_plugins_types::HooksAction::ToggleSource {
+                .handle_hooks_action(xvora_hooks_plugins_types::HooksAction::ToggleSource {
                     hook_names: vec![MANAGED_HOOK.to_string()],
                     disable: true,
                 })

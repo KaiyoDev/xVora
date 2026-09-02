@@ -13,7 +13,7 @@ pub const BEFORE_TURN_KIND: &str = "before_turn";
 pub const AFTER_TURN_KIND: &str = "after_turn";
 
 /// Default `session_relationship` wire value (mirrors
-/// `session_events::SessionRelationship::Primary`).
+/// `xvora_session_events::SessionRelationship::Primary`).
 pub const DEFAULT_SESSION_RELATIONSHIP: &str = "primary";
 
 /// Default `schema_version` wire value. Bare literal (not the

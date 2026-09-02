@@ -7,7 +7,7 @@ pub mod leader {
     use std::pin::Pin;
 
     use futures::FutureExt as _;
-    use test_support::leader::{LeaderFixture, LeaderStdioClient};
+    use xvora_test_support::leader::{LeaderFixture, LeaderStdioClient};
 
     #[allow(dead_code)]
     pub type TestBody<'a> = Pin<Box<dyn Future<Output = ()> + 'a>>;
@@ -292,7 +292,7 @@ pub mod leader {
 pub fn isolated_home() -> tempfile::TempDir {
     let home = tempfile::TempDir::new().expect("grok home tempdir");
     // SAFETY: single-test binary; no other thread reads or writes the environment.
-    unsafe { test_support::isolate_grok_env(home.path()) };
+    unsafe { xvora_test_support::isolate_grok_env(home.path()) };
     home
 }
 
@@ -306,8 +306,8 @@ pub fn block_on<F: std::future::Future>(fut: F) -> F::Output {
 }
 
 #[allow(dead_code)]
-pub async fn start_seeded_mock(home: &std::path::Path) -> test_support::MockInferenceServer {
-    let server = test_support::MockInferenceServer::start()
+pub async fn start_seeded_mock(home: &std::path::Path) -> xvora_test_support::MockInferenceServer {
+    let server = xvora_test_support::MockInferenceServer::start()
         .await
         .expect("start mock server");
     std::fs::write(home.join("agent_id"), "test-agent-id").expect("seed agent_id");

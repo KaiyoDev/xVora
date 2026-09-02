@@ -30,7 +30,7 @@ pub fn should_flush(
             "MEMORY_FLUSH_CHECK: already flushed this cycle (cycle={current_compaction_count})");
         return false;
     }
-    let should = token_estimation::exceeds_threshold_with_headroom(
+    let should = xvora_token_estimation::exceeds_threshold_with_headroom(
         total_tokens,
         context_window,
         compact_threshold_percent,

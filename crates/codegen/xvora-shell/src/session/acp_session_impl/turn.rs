@@ -8,8 +8,10 @@ use xvora_tools::implementations::grok_build::task::types::{
     SubagentEvent, SubagentMarkUsageNotAppliedRequest, SubagentWaitPromptDrainedRequest,
 };
 use xvora_tools::types::tool::ToolKind;
-/// Synthetic tool the model calls to return its schema-constrained final answer on backends that can't constrain output natively (Messages API).
-/// The loop intercepts it; it never executes as a real tool.
+static TURNS_ACTIVE: xvora_telemetry::activity::ActivityGauge =
+    xvora_telemetry::activity::ActivityGauge::work(xvora_telemetry::activity::TURNS_ACTIVE_KEY);
+/// Synthetic tool for schema-constrained final answers on backends without native
+/// output constraints (Messages API); intercepted in the loop, never really executed.
 const STRUCTURED_OUTPUT_TOOL: &str = "StructuredOutput";
 /// Max times the model may re-call `StructuredOutput` with non-conforming args before the turn ends with the last validation error.
 const STRUCTURED_OUTPUT_MAX_RETRIES: u32 = 3;
@@ -189,12 +191,12 @@ impl SessionActor {
     pub(super) async fn notify_turn_abort(
         &self,
         epoch: TurnEpoch,
-        reason: agent_lifecycle::TurnAbortReason,
+        reason: xvora_agent_lifecycle::TurnAbortReason,
     ) {
         if !self.turn_abort.try_mark_announced(epoch) {
             return;
         }
-        let input = agent_lifecycle::TurnAbortInput::new(reason);
+        let input = xvora_agent_lifecycle::TurnAbortInput::new(reason);
         for contributor in self.extension_registry.turn_lifecycle_contributors() {
             contributor.on_turn_abort(&input).await;
         }
@@ -331,7 +333,7 @@ impl SessionActor {
             command_source = tracing::field::Empty,
         );
         if let Some(ref tp) = request.traceparent {
-            file_utils::trace_context::link_span_to_meta(
+            xvora_file_utils::trace_context::link_span_to_meta(
                 &span,
                 &serde_json::json!({ "traceparent": tp }),
             );
@@ -342,7 +344,8 @@ impl SessionActor {
         self: &Arc<Self>,
         request: TurnInputRequest,
     ) -> PromptTurnResult {
-        let _active = xvora_telemetry::activity::TURNS_ACTIVE.enter();
+        let _active = TURNS_ACTIVE.enter();
+        let _work = crate::session::handle::WorkGuard::new(self.active_work.clone());
         let TurnInputRequest {
             prompt_id,
             input_origin,
@@ -397,7 +400,8 @@ impl SessionActor {
         let _turn_active_guard =
             TurnActiveGuard::activate(self.tool_context.is_turn_active.as_ref());
         let _session_turn_active_guard = TurnActiveGuard::activate(Some(&self.session_turn_active));
-        let turn_start_input = agent_lifecycle::TurnStartInput::new(input_origin.is_synthetic());
+        let turn_start_input =
+            xvora_agent_lifecycle::TurnStartInput::new(input_origin.is_synthetic());
         for contributor in self.extension_registry.turn_lifecycle_contributors() {
             contributor
                 .on_turn_start_with_policy(&turn_start_input, policy)
@@ -437,6 +441,7 @@ impl SessionActor {
         } else {
             LoopFireMode::InSession
         };
+        let mut otel_command_name: Option<String> = None;
         let (resolved, slash_skills, workflow_registry) = match policy.authority {
             InputAuthority::HumanIntent => {
                 let slash_skills = self.slash_skills_for_resolve().await;
@@ -529,6 +534,7 @@ impl SessionActor {
                     span.record("command_name", action.command_name());
                     span.record("command_source", "builtin");
                 }
+                otel_command_name = Some(action.command_name().to_string());
                 match action {
                     BuiltinAction::GoalSet {
                         objective,
@@ -579,6 +585,7 @@ impl SessionActor {
             }) => {
                 if let Some(first) = parsed_skills.first() {
                     *self.active_skill.lock() = Some(first.name.clone());
+                    otel_command_name = Some(first.name.clone());
                     let span = tracing::Span::current();
                     span.record("command_name", first.name.as_str());
                     span.record(
@@ -673,18 +680,20 @@ impl SessionActor {
             redirect_kind,
         });
         self.observability_bridge
-            .emit(tool_protocol::session_event::SessionEvent::TurnStarted {
-                turn_number,
-                model_id: model_id.clone(),
-                yolo_mode,
-            })
+            .emit(
+                xvora_tool_protocol::session_event::SessionEvent::TurnStarted {
+                    turn_number,
+                    model_id: model_id.clone(),
+                    yolo_mode,
+                },
+            )
             .await;
-        self.send_before_turn_event(tool_protocol::turn_hook::BeforeTurnPayload {
+        self.send_before_turn_event(xvora_tool_protocol::turn_hook::BeforeTurnPayload {
             turn_number: self.chat_state_handle.get_prompt_index().await as u64,
             model_id: model_id.clone(),
             yolo_mode: self.permissions.is_yolo_mode(),
             conversation_message_count: msg_count,
-            session_relationship: tool_protocol::turn_hook::DEFAULT_SESSION_RELATIONSHIP
+            session_relationship: xvora_tool_protocol::turn_hook::DEFAULT_SESSION_RELATIONSHIP
                 .to_string(),
             schema_version: crate::session::events::EVENT_SCHEMA_VERSION.to_string(),
         })
@@ -827,7 +836,10 @@ impl SessionActor {
             let query =
                 crate::session::placeholder_images::strip_paths_from_image_placeholders(query);
             let query = if send_now && !verbatim {
-                interjection_core::frame_user_turn(interjection_core::INTERJECTION_NOTE, &query)
+                xvora_interjection_core::frame_user_turn(
+                    xvora_interjection_core::INTERJECTION_NOTE,
+                    &query,
+                )
             } else {
                 query
             };
@@ -920,7 +932,9 @@ impl SessionActor {
                     model_id,
                     client_identifier: effective_client_identifier,
                     screen_mode: prompt_screen_mode,
-                    prompt_text: None,
+                    prompt_text: xvora_telemetry::external::is_active()
+                        .then(|| user_message.to_owned()),
+                    command_name: otel_command_name,
                 };
                 xvora_telemetry::session_ctx::log_event_dual(self.telemetry_enabled, ev);
             }
@@ -1230,14 +1244,37 @@ impl SessionActor {
         let turn_tool_count = self.events.tool_count_this_turn();
         let bridge_outcome = turn_result_to_hook_outcome(&result);
         self.observability_bridge
-            .emit(tool_protocol::session_event::SessionEvent::TurnEnded {
-                turn_number: current_prompt_index as u64,
-                outcome: bridge_outcome,
-                duration_ms: turn_duration_ms,
-                tool_call_count: turn_tool_count,
-                model_id: turn_model_id.clone(),
-            })
+            .emit(
+                xvora_tool_protocol::session_event::SessionEvent::TurnEnded {
+                    turn_number: current_prompt_index as u64,
+                    outcome: bridge_outcome,
+                    duration_ms: turn_duration_ms,
+                    tool_call_count: turn_tool_count,
+                    model_id: turn_model_id.clone(),
+                },
+            )
             .await;
+        if xvora_telemetry::external::is_active() {
+            let committed = self
+                .chat_state_handle
+                .get_assistant_text_in_turn()
+                .await
+                .unwrap_or_default();
+            let captured = self.streaming_turn_capture.lock().assembled_response_text();
+            let trust_committed = matches!(
+                &result,
+                Ok(TurnOutcome::Completed { .. }) | Ok(TurnOutcome::StationarityEnded { .. })
+            );
+            let response_text = crate::session::streaming_capture::StreamingTurnCapture::merge_assistant_response_for_otel(
+                committed,
+                &captured,
+                trust_committed,
+            );
+            xvora_telemetry::external::emit(&xvora_telemetry::events::AssistantResponse {
+                response_length: response_text.len(),
+                response_text: (!response_text.is_empty()).then_some(response_text),
+            });
+        }
         match &result {
             Ok(TurnOutcome::Completed { stop, .. }) => {
                 self.emit_turn_ended(
@@ -1256,9 +1293,9 @@ impl SessionActor {
                         },
                     );
                 }
-                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Completed,
+                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Completed,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1282,9 +1319,9 @@ impl SessionActor {
                     None,
                     None,
                 );
-                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Completed,
+                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Completed,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1319,9 +1356,9 @@ impl SessionActor {
                 {
                     self.events.set_prior_interrupt_category(*cause);
                 }
-                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
+                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1350,9 +1387,9 @@ impl SessionActor {
                         "limit": limit,
                     })),
                 );
-                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
+                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1377,9 +1414,9 @@ impl SessionActor {
             }
             Err(err) => {
                 self.emit_turn_ended(crate::session::events::TurnOutcomeLabel::Error, None, None);
-                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Error,
+                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Error,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1455,20 +1492,20 @@ impl SessionActor {
             Ok(TurnOutcome::Completed { .. }) | Ok(TurnOutcome::StationarityEnded { .. }) => {
                 for contributor in self.extension_registry.turn_lifecycle_contributors() {
                     contributor
-                        .on_turn_done(&agent_lifecycle::TurnDoneInput)
+                        .on_turn_done(&xvora_agent_lifecycle::TurnDoneInput)
                         .await;
                 }
             }
             Ok(TurnOutcome::Cancelled { .. }) | Ok(TurnOutcome::MaxTurnsReached { .. }) => {
                 self.notify_turn_abort(
                     self.turn_report.epoch(),
-                    agent_lifecycle::TurnAbortReason::Interrupted,
+                    xvora_agent_lifecycle::TurnAbortReason::Interrupted,
                 )
                 .await;
             }
             Err(err) => {
                 let message = err.to_string();
-                let input = agent_lifecycle::TurnErrorInput { message: &message };
+                let input = xvora_agent_lifecycle::TurnErrorInput { message: &message };
                 for contributor in self.extension_registry.turn_lifecycle_contributors() {
                     contributor.on_turn_error(&input).await;
                 }
@@ -2585,9 +2622,11 @@ impl SessionActor {
                 phase: crate::session::events::Phase::WaitingForModel,
             });
             self.observability_bridge
-                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
-                    phase: tool_protocol::session_event::SessionPhase::Sampling,
-                })
+                .emit(
+                    xvora_tool_protocol::session_event::SessionEvent::PhaseChanged {
+                        phase: xvora_tool_protocol::session_event::SessionPhase::Sampling,
+                    },
+                )
                 .await;
             xvora_telemetry::unified_log::info(
                 "shell.turn.inference_start",
@@ -3225,10 +3264,10 @@ impl SessionActor {
                         model_fingerprint.clone(),
                     )
                     .await;
-                if self.drain_pending_interjections().await {
+                if self.drain_admitted_messages_at_safe_point().await {
                     salvage.round_boundary();
                     tracing::info!(
-                        "Drained late interjection(s) during turn-end bookkeeping; continuing"
+                        "Drained late interjection(s) or parent Steer(s) during turn-end bookkeeping; continuing"
                     );
                     continue;
                 }
@@ -3348,9 +3387,11 @@ impl SessionActor {
                 phase: crate::session::events::Phase::ToolExecution,
             });
             self.observability_bridge
-                .emit(tool_protocol::session_event::SessionEvent::PhaseChanged {
-                    phase: tool_protocol::session_event::SessionPhase::ToolExecution,
-                })
+                .emit(
+                    xvora_tool_protocol::session_event::SessionEvent::PhaseChanged {
+                        phase: xvora_tool_protocol::session_event::SessionPhase::ToolExecution,
+                    },
+                )
                 .await;
             let execute_tool_calls_result = self.execute_tool_calls(tool_call_responses).await;
             match execute_tool_calls_result {

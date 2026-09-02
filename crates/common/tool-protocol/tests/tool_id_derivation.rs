@@ -2,8 +2,8 @@
 //! render as `"{ns}:{name}"`; bare names pass through; descriptions whose
 //! derived id fails [`ToolId`] validation return `Err`.
 
-use tool_protocol::{IdError, ToolDescriptionWithSchema, ToolId};
-use tool_types::ToolDescription;
+use xvora_tool_protocol::{IdError, ToolDescriptionWithSchema, ToolId};
+use xvora_tool_types::ToolDescription;
 
 fn entry(name: &str, namespace: Option<&str>) -> ToolDescriptionWithSchema {
     let mut description = ToolDescription::new(name, "test description");

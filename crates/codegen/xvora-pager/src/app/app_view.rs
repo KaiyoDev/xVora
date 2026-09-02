@@ -17,13 +17,13 @@ use crate::render::draw::CursorState;
 use crate::scrollback::render::ScratchBuffer;
 use crate::views::prompt_widget::PromptWidget;
 use crate::views::welcome::WelcomePromptFocus;
-use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use crossterm::event::{Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind};
 use indexmap::IndexMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use xvora_acp_lib::AcpAgentTx;
 /// State for the "New Worktree" popup dialog on the welcome screen.
 #[derive(Debug, Default)]
 pub struct NewWorktreeDialogState {
@@ -40,7 +40,7 @@ impl NewWorktreeDialogState {
     pub fn label(&self) -> &str {
         self.label.text()
     }
-    pub(crate) fn viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
+    pub(crate) fn viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
         self.label.viewport(width)
     }
     #[cfg(test)]
@@ -718,9 +718,9 @@ pub struct AppView {
     pub dashboard_sessions_loading: bool,
     /// The single SQLite workspace connection owned by this pager process.
     /// Opened lazily, only after dashboard v2 is entered.
-    pub workspace_store: Option<dashboard_store::WorkspaceStore>,
+    pub workspace_store: Option<xvora_dashboard_store::WorkspaceStore>,
     /// Initial workspace view read from [`Self::workspace_store`].
-    pub workspace_snapshot: Option<dashboard_store::WorkspaceSnapshot>,
+    pub workspace_snapshot: Option<xvora_dashboard_store::WorkspaceSnapshot>,
     /// Prevents duplicate open/snapshot effects while the first read is pending.
     pub workspace_store_loading: bool,
     /// Agent metadata changed after workspace initialization and needs a scan.
@@ -730,12 +730,16 @@ pub struct AppView {
     /// A newer read-only schema was opened; suppress writes but keep reads.
     pub workspace_writes_disabled: bool,
     /// Exact metadata payloads that have consumed their one automatic retry.
-    pub workspace_retry_metadata:
-        std::collections::HashMap<dashboard_store::SessionId, dashboard_store::MemberMetadata>,
+    pub workspace_retry_metadata: std::collections::HashMap<
+        xvora_dashboard_store::SessionId,
+        xvora_dashboard_store::MemberMetadata,
+    >,
     /// Last metadata payloads that exhausted or cannot use their retry.
     /// An identical payload stays suppressed until its agent metadata changes.
-    pub workspace_failed_metadata:
-        std::collections::HashMap<dashboard_store::SessionId, dashboard_store::MemberMetadata>,
+    pub workspace_failed_metadata: std::collections::HashMap<
+        xvora_dashboard_store::SessionId,
+        xvora_dashboard_store::MemberMetadata,
+    >,
     /// Server-authoritative shared prompt queues, keyed by `sessionId`.
     /// Reconciled from `x.ai/queue/changed` broadcasts so every client renders the same ordered queue (including prompts queued by other clients).
     /// Empty in non-leader mode.
@@ -901,7 +905,7 @@ pub struct AppView {
     /// Per-incarnation generation additionally prevents responses from crossing close/reopen or host boundaries.
     pub session_picker_list_seq: u64,
     /// Resolved compat-session cells used before checking resume-skill paths.
-    pub(crate) foreign_session_compat: foreign_sessions::EnabledForeignSessionSources,
+    pub(crate) foreign_session_compat: xvora_foreign_sessions::EnabledForeignSessionSources,
     /// Monotonic picker scan sequence, bumped on every open and close.
     pub(crate) foreign_session_scan_seq: u64,
     /// Coalesces obsolete foreign scans across welcome and modal pickers.
@@ -1002,6 +1006,8 @@ pub struct AppView {
     /// Passed to `show_ephemeral_tip`, which increments the matching key in place.
     /// In-memory only and per-session: never persisted to disk, so each pager run starts fresh (count 0).
     pub tip_seen_counts: std::collections::HashMap<&'static str, u32>,
+    /// Session-wide: /copy or /export ran. Suppresses the export-copy tip on every view.
+    pub export_copy_slash_used: bool,
     /// Terminal height (rows) from startup / the last `Event::Resize`.
     /// Feeds the auto-compact derivation (`views::agent::effective_compact`).
     /// The render-value compact flag is forced on while the terminal is `AUTO_COMPACT_MAX_ROWS` or shorter.
@@ -1551,6 +1557,7 @@ impl AppView {
             contextual_hints: Default::default(),
             remote_contextual_hints: None,
             tip_seen_counts: Default::default(),
+            export_copy_slash_used: false,
             last_known_terminal_rows: 0,
             small_screen_tip_evaluated: false,
             ssh_wrap_tip_evaluated: false,
@@ -5433,6 +5440,11 @@ impl AppView {
                     lanes,
                 )
             ) && spinner_frame_tick;
+            needs_redraw |= agent
+                .extensions_modal
+                .as_ref()
+                .is_some_and(|m| m.needs_spinner_tick())
+                && spinner_frame_tick;
             needs_redraw |= agent.drain_blocked();
             agent.prompt.slash_controller.set_workflows_available(
                 agent
@@ -5467,6 +5479,24 @@ impl AppView {
             needs_redraw |= agent.prompt.history_search.poll();
             needs_redraw |= agent.poll_scrollback_search();
             needs_redraw |= agent.tick_toast();
+            if !self.export_copy_slash_used
+                && let Some(child_sid) = agent.active_subagent.clone()
+                && let Some(child_view) = agent.subagent_views.get_mut(&child_sid)
+            {
+                if child_view.tick_export_copy_detector() {
+                    needs_redraw |= super::dispatch::present_export_copy_tip(
+                        child_view,
+                        &mut self.tip_seen_counts,
+                        self.contextual_hints.export_copy,
+                    );
+                }
+            } else if !self.export_copy_slash_used && agent.tick_export_copy_detector() {
+                needs_redraw |= super::dispatch::present_export_copy_tip(
+                    agent,
+                    &mut self.tip_seen_counts,
+                    self.contextual_hints.export_copy,
+                );
+            }
             needs_redraw |= agent.tick_extensions_result_notice();
             needs_redraw |= agent.tick_ephemeral_tip();
             needs_redraw |= agent.tick_mode_banner();
@@ -5746,7 +5776,7 @@ impl AppView {
                     || agent
                         .extensions_modal
                         .as_ref()
-                        .is_some_and(|m| m.result_notice.is_some())
+                        .is_some_and(|m| m.result_notice.is_some() || m.needs_spinner_tick())
                     || agent.ephemeral_tip_needs_tick()
                     || agent.mode_switch_banner.is_some()
                     || agent.has_drag_autoscroll()

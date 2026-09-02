@@ -2,7 +2,7 @@
 use std::path::Path;
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use acp_lib::{AcpAgentTx, acp_send};
+use xvora_acp_lib::{AcpAgentTx, acp_send};
 use super::actions::{PermissionModePersist, SubagentKillOutcome, TaskResult};
 use super::agent::AgentId;
 use crate::unified_log as ulog;
@@ -31,8 +31,8 @@ pub(super) async fn acp_send_bounded<R, T>(
     action: &str,
 ) -> Result<T::Response, acp::Error>
 where
-    T: acp_lib::AcpRequest,
-    R: From<acp_lib::AcpArgs<T>> + std::fmt::Debug,
+    T: xvora_acp_lib::AcpRequest,
+    R: From<xvora_acp_lib::AcpArgs<T>> + std::fmt::Debug,
 {
     let timeout = session_rpc_timeout();
     match tokio::time::timeout(timeout, acp_send(request, tx)).await {
@@ -262,8 +262,8 @@ pub(crate) fn parse_session_scheduler_background_loops(
 }
 /// Whether `raw` is (or wraps) a disk-full / ENOSPC failure.
 pub(crate) fn is_disk_full_error(raw: &str) -> bool {
-    raw.contains(fast_worktree::OUT_OF_DISK_CONTEXT)
-        || raw.contains(fast_worktree::ENOSPC_OS_MESSAGE)
+    raw.contains(xvora_fast_worktree::OUT_OF_DISK_CONTEXT)
+        || raw.contains(xvora_fast_worktree::ENOSPC_OS_MESSAGE)
         || raw.contains("Disk quota exceeded") || raw.contains("Out of disk space")
 }
 /// Sanitize an error string before showing it to the user.
@@ -271,7 +271,7 @@ pub(crate) fn is_disk_full_error(raw: &str) -> bool {
 /// Strips protocol jargon (ACP, JSON-RPC) and other technical noise that would be meaningless in a toast, and collapses known disk-full markers.
 pub(crate) fn sanitize_user_error(raw: &str) -> String {
     if is_disk_full_error(raw) {
-        return fast_worktree::ENOSPC_OS_MESSAGE.to_string();
+        return xvora_fast_worktree::ENOSPC_OS_MESSAGE.to_string();
     }
     static REPLACEMENTS: &[(&str, &str)] = &[
         ("ACP error:", "error:"),
@@ -1173,6 +1173,16 @@ pub(crate) async fn persist_setting(
                 .await
                 .map_err(|e| e.to_string())
         }
+        "contextual_hints.export_copy" => {
+            let SettingValue::Bool(b) = value else {
+                return Err(
+                    kind_mismatch("contextual_hints.export_copy", "Bool", &value),
+                );
+            };
+            xvora_shell::util::config::set_contextual_hint_export_copy(b)
+                .await
+                .map_err(|e| e.to_string())
+        }
         "contextual_hints.ssh_wrap" => {
             let SettingValue::Bool(b) = value else {
                 return Err(kind_mismatch("contextual_hints.ssh_wrap", "Bool", &value));
@@ -1490,9 +1500,9 @@ pub(super) fn should_send_yolo_acp_notification(
     }
 }
 pub(super) fn marketplace_outcome_succeeded(
-    outcome: &hooks_plugins_types::ActionOutcome,
+    outcome: &xvora_hooks_plugins_types::ActionOutcome,
 ) -> bool {
-    outcome.status == hooks_plugins_types::OutcomeStatus::Success
+    outcome.status == xvora_hooks_plugins_types::OutcomeStatus::Success
 }
 /// Extract the typed kill outcome from an `x.ai/task/kill` ext response.
 ///
@@ -1674,7 +1684,7 @@ pub(super) fn has_prepaid_credits(
 /// Fetch the user's auto top-up rule via the `x.ai/auto-topup-rule` extension.
 /// A transport failure yields [`AutoTopupFetch::Unchanged`] so the caller keeps any cached rule rather than treating the blip as "no auto top-up".
 pub(super) async fn fetch_auto_topup_info(
-    tx: &acp_lib::AcpAgentTx,
+    tx: &xvora_acp_lib::AcpAgentTx,
 ) -> crate::views::credit_bar::AutoTopupFetch {
     use crate::views::credit_bar::AutoTopupFetch;
     let req = acp::ExtRequest::new(
@@ -1730,7 +1740,7 @@ pub(super) fn unregister_active_session_best_effort_in(
     root: &Path,
     session_id: &acp::SessionId,
 ) {
-    match active_sessions::try_unregister_in(root, session_id) {
+    match xvora_active_sessions::try_unregister_in(root, session_id) {
         Ok(true) => {}
         Ok(false) => {
             tracing::debug!(

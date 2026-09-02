@@ -54,7 +54,7 @@ pub use jj_status::jj_status;
 mod attach_file;
 pub use attach_file::{FileReference, render_embedded_resource, render_file_reference};
 
-pub use fuzzy_file_search::{
+pub use xvora_fuzzy_file_search::{
     FuzzyFileMatcher, FuzzyFileMatcherDaemon, FuzzyMatchResult, FuzzyMatcherDaemonResults,
     FuzzyMatcherStatus,
 };

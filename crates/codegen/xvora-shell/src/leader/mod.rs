@@ -1726,7 +1726,7 @@ fn spawn_leader_subprocess(env_urls: &LeaderEnvUrls) -> Result<u32, ConnectionEr
     }
     let leader_log = std::env::var("GROK_LEADER_LOG")
         .or_else(|_| std::env::var("RUST_LOG"))
-        .unwrap_or_else(|_| "xvora_shell=info,acp_lib=warn,xvora_mcp=warn".into());
+        .unwrap_or_else(|_| "xvora_shell=info,xvora_acp_lib=warn,xvora_mcp=warn".into());
     cmd.env("RUST_LOG", leader_log);
     #[cfg(unix)]
     {
@@ -2016,7 +2016,7 @@ mod tests {
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null());
-            tty_utils::detach_std_command(&mut cmd);
+            xvora_tty_utils::detach_std_command(&mut cmd);
             SpawnedChild(cmd.spawn().expect("spawn test child"))
         };
         let marked = spawn(&["-c", "sleep 30; true", "sh", RELAY_ON_DEMAND_FLAG]);

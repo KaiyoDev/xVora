@@ -23,8 +23,8 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, StatefulWidgetRef, Wrap};
 
-use ratatui_textarea::{TextArea, TextAreaState};
 use xvora_markdown::{MarkdownBuffers, MarkdownStyle, render_markdown_ratatui_with_buffers_width};
+use xvora_ratatui_textarea::{TextArea, TextAreaState};
 
 #[path = "playground_common.rs"]
 mod playground_common;

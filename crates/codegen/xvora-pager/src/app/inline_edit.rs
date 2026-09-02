@@ -9,8 +9,8 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::StatefulWidgetRef;
-use ratatui_textarea::{TextArea, TextAreaState};
 use unicode_width::UnicodeWidthStr;
+use xvora_ratatui_textarea::{TextArea, TextAreaState};
 
 use crate::key;
 use crate::scrollback::block::RenderBlock;

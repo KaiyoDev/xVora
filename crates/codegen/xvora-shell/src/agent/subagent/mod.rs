@@ -25,17 +25,17 @@ use crate::upload::trace::{
     upload_metadata, upload_session_state, upload_subagent_metadata, upload_turn_result,
 };
 use crate::upload::turn::{PromptTraceContext, complete_prompt_trace};
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
-use hunk_tracker::HunkTrackerHandle;
-use session_events::types::CancellationCategory;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_agent::config::{McpInheritance, ModelOverride, PermissionMode};
+use xvora_hunk_tracker::HunkTrackerHandle;
 use xvora_sampling_types::conversation::ConversationItem;
+use xvora_session_events::types::CancellationCategory;
 use xvora_subagent_resolution::ResumeSourceData;
 use xvora_tools::implementations::grok_build::monitor::types::MonitorEventBuffer;
 use xvora_tools::implementations::grok_build::task::types::*;
@@ -115,7 +115,7 @@ pub(crate) struct SubagentSpawnContext {
     /// It is the root's, not an intermediate parent's.
     /// The Spawn arm of `handle_command` in xvora-tools task/coordinator.rs re-parents nested Spawn requests to the root parent.
     /// Every subagent therefore resolves back to the root session.
-    pub process_scope: Option<tty_utils::ProcessScope>,
+    pub process_scope: Option<xvora_tty_utils::ProcessScope>,
     /// Parent's client-registered hooks, inherited so the subagent's tool calls hit the same PreToolUse gate.
     /// Its events fire the same observe hooks over the parent's connection.
     /// Empty when the parent has none.
@@ -203,7 +203,7 @@ pub(crate) struct SubagentSpawnContext {
         std::collections::HashMap<String, xvora_subagent_resolution::config::SubagentPersona>,
     /// Parent session's ChatStateHandle, used to read the actual live sampling config and credentials from the parent session actor (async).
     /// Cheap Clone (mpsc sender). `None` when the parent SessionHandle is not found.
-    pub parent_chat_state: Option<chat_state::ChatStateHandle>,
+    pub parent_chat_state: Option<xvora_chat_state::ChatStateHandle>,
     /// Parent session's resolved turn limit, for subagent inheritance.
     pub parent_max_turns: Option<usize>,
     /// All available models for resolving model IDs from overrides.
@@ -394,7 +394,7 @@ impl SubagentSpawnContext {
         )
     }
     pub(crate) fn snapshot_parent_compaction_pins(
-        resolved_mode: chat_state::CompactionMode,
+        resolved_mode: xvora_chat_state::CompactionMode,
         resolved_two_pass: bool,
         parent_agent_name: Option<&str>,
         parent_model_agent_type: Option<&str>,
@@ -427,7 +427,7 @@ impl SubagentSpawnContext {
         )
     }
     /// Env > parent config features > this context's remote settings > default.
-    pub(crate) fn resolve_compaction_mode(&self) -> chat_state::CompactionMode {
+    pub(crate) fn resolve_compaction_mode(&self) -> xvora_chat_state::CompactionMode {
         crate::agent::config::resolve_compaction_mode_from(
             crate::agent::config::env_string("GROK_COMPACTION_MODE").as_deref(),
             self.agent_config
@@ -791,13 +791,13 @@ async fn read_parent_sampling_config(
 fn subagent_auth_type(
     model: Option<&crate::agent::config::ModelEntry>,
     auth_method_id: &acp::AuthMethodId,
-) -> chat_state::AuthType {
+) -> xvora_chat_state::AuthType {
     if model.is_some_and(|m| m.has_own_credentials()) {
-        chat_state::AuthType::ApiKey
+        xvora_chat_state::AuthType::ApiKey
     } else if crate::agent::auth_method::is_session_based_method(auth_method_id) {
-        chat_state::AuthType::SessionToken
+        xvora_chat_state::AuthType::SessionToken
     } else {
-        chat_state::AuthType::ApiKey
+        xvora_chat_state::AuthType::ApiKey
     }
 }
 /// Resolve a model override string (config key or model ID) to a `(SamplerConfig, ModelId)` pair.
@@ -806,6 +806,15 @@ fn resolve_model_override_to_config(
     ctx: &SubagentSpawnContext,
 ) -> Option<(xvora_sampler::SamplerConfig, acp::ModelId)> {
     let entry = crate::agent::config::find_model_by_id(&ctx.available_models, model_id).cloned()?;
+    if !entry.info.user_selectable {
+        let user_picker_only = ctx
+            .agent_config
+            .as_ref()
+            .is_some_and(|c| !c.requirements.allowed_models.is_pinned());
+        if !user_picker_only {
+            return None;
+        }
+    }
     let canonical_model_id = if ctx.available_models.contains_key(model_id) {
         acp::ModelId::new(model_id)
     } else {
@@ -825,7 +834,7 @@ fn resolve_model_override_to_config(
         ctx.sampling_config.user_id.clone(),
     );
     config.bearer_resolver = if !ctx.would_strip_fallback_key(config.api_key.as_deref())
-        && resolved_auth_type == chat_state::AuthType::SessionToken
+        && resolved_auth_type == xvora_chat_state::AuthType::SessionToken
     {
         session_bearer_resolver(
             ctx,
@@ -960,7 +969,7 @@ fn verbatim_or_normalize_fork(
             verbatim_fork: false,
         };
     }
-    let estimated_tokens = chat_state::estimate_conversation_tokens(&items);
+    let estimated_tokens = xvora_chat_state::estimate_conversation_tokens(&items);
     const SAFE_FORK_PERCENT: u64 = 80;
     let threshold = child_context_window * SAFE_FORK_PERCENT / 100;
     if estimated_tokens <= threshold && conversation_tail_is_complete(&items) {
@@ -1114,7 +1123,8 @@ async fn bootstrap_initial_context(
                         ));
                     }
                 };
-                let estimated_tokens = chat_state::estimate_conversation_tokens(&conversation);
+                let estimated_tokens =
+                    xvora_chat_state::estimate_conversation_tokens(&conversation);
                 let context_window = window.context_window;
                 if !window.fits(estimated_tokens) {
                     let limit = window.token_limit();
@@ -1712,7 +1722,7 @@ async fn signals_snapshot_counts(child_handle: &SessionHandle) -> Option<(u32, u
     .map(|snapshot| (snapshot.tool_call_count, snapshot.turn_count))
 }
 fn cancellation_error_message(
-    category: Option<session_events::types::CancellationCategory>,
+    category: Option<xvora_session_events::types::CancellationCategory>,
     context: Option<&crate::session::commands::CancellationContext>,
 ) -> String {
     let detail = context.and_then(|ctx| {

@@ -20,7 +20,7 @@ use helpers::*;
 use std::path::{Path, PathBuf};
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
-use acp_lib::{AcpAgentTx, acp_send};
+use xvora_acp_lib::{AcpAgentTx, acp_send};
 use xvora_telemetry::startup::{self, StartupPhase};
 use actions::{
     ClipboardPasteTarget, Effect, ProbedAttachment, SubagentKillOutcome,
@@ -59,7 +59,7 @@ pub(crate) fn execute(
     match effect {
         Effect::RegisterActiveSession { session_id, cwd } => {
             crate::app::signal_handler::set_current_session_id(Some(session_id.clone()));
-            if let Err(e) = active_sessions::register(active_sessions::ActiveSession {
+            if let Err(e) = xvora_active_sessions::register(xvora_active_sessions::ActiveSession {
                 session_id,
                 pid: std::process::id(),
                 cwd,
@@ -673,7 +673,7 @@ pub(crate) fn execute(
                     }
                     let summaries = tokio::task::spawn_blocking(move || {
                             let _permit = permit;
-                            foreign_sessions::scan_foreign_sessions(
+                            xvora_foreign_sessions::scan_foreign_sessions(
                                 &cwd,
                                 enabled,
                             )
@@ -726,7 +726,7 @@ pub(crate) fn execute(
                             compat,
                             &grok_home,
                             |enabled| async move {
-                                tokio::task::spawn_blocking(move || foreign_sessions::most_recent_foreign_session(
+                                tokio::task::spawn_blocking(move || xvora_foreign_sessions::most_recent_foreign_session(
                                         &cwd_for_scan,
                                         enabled,
                                         crate::app::foreign_sessions::RESUME_HINT_WINDOW,
@@ -933,13 +933,13 @@ pub(crate) fn execute(
             tasks
                 .spawn(async move {
                     match tokio::task::spawn_blocking(move || {
-                            let store = dashboard_store::WorkspaceStore::open(
+                            let store = xvora_dashboard_store::WorkspaceStore::open(
                                 &db_path,
                             )?;
                             let snapshot = store.snapshot()?;
                             Ok::<
                                 _,
-                                dashboard_store::StoreError,
+                                xvora_dashboard_store::StoreError,
                             >((store, snapshot))
                         })
                         .await
@@ -975,7 +975,7 @@ pub(crate) fn execute(
                                 if let Err(error) = store.insert_member(member) {
                                     let retryable = matches!(
                                 &error,
-                                dashboard_store::StoreError::Busy { .. }
+                                xvora_dashboard_store::StoreError::Busy { .. }
                             );
                                     failures
                                         .push(WorkspaceMemberUpsertFailure {
@@ -2502,7 +2502,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::HooksListResponse,
+                                xvora_hooks_plugins_types::HooksListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load hooks".to_string())
                         }
@@ -2539,7 +2539,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::PluginsListResponse,
+                                xvora_hooks_plugins_types::PluginsListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load plugins".to_string())
                         }
@@ -2559,7 +2559,7 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::HooksActionRequest {
+                    let req_body = xvora_hooks_plugins_types::HooksActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -2577,7 +2577,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|_| "couldn't complete hooks action".to_string())
                         }
@@ -2601,7 +2601,7 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::PluginsActionRequest {
+                    let req_body = xvora_hooks_plugins_types::PluginsActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -2619,7 +2619,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|_| "couldn't complete plugins action".to_string())
                         }
@@ -2660,7 +2660,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::MarketplaceListResponse,
+                                xvora_hooks_plugins_types::MarketplaceListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load marketplace".to_string())
                         }
@@ -2701,7 +2701,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::MarketplaceListResponse,
+                                xvora_hooks_plugins_types::MarketplaceListResponse,
                             >(inner.clone())
                                 .map_err(|_| "couldn't load marketplace".to_string())
                         }
@@ -2874,7 +2874,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::MarketplaceListResponse,
+                                xvora_hooks_plugins_types::MarketplaceListResponse,
                             >(inner.clone())
                                 .ok()
                                 .map(|r| {
@@ -2913,11 +2913,11 @@ pub(crate) fn execute(
                     }
                     let mut succeeded = Vec::new();
                     for (name, old, new, source_url, rel_path) in outdated {
-                        let action = hooks_plugins_types::MarketplaceAction::Update {
+                        let action = xvora_hooks_plugins_types::MarketplaceAction::Update {
                             source_url_or_path: source_url.clone(),
                             plugin_relative_path: rel_path.clone(),
                         };
-                        let req_body = hooks_plugins_types::MarketplaceActionRequest {
+                        let req_body = xvora_hooks_plugins_types::MarketplaceActionRequest {
                             session_id: session_id.0.to_string(),
                             action,
                         };
@@ -2935,7 +2935,7 @@ pub(crate) fn execute(
                                     .unwrap_or_default();
                                 let inner = wrapper.get("result").unwrap_or(&wrapper);
                                 serde_json::from_value::<
-                                    hooks_plugins_types::ActionOutcome,
+                                    xvora_hooks_plugins_types::ActionOutcome,
                                 >(inner.clone())
                                     .is_ok_and(|outcome| marketplace_outcome_succeeded(
                                         &outcome,
@@ -2970,7 +2970,7 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::MarketplaceActionRequest {
+                    let req_body = xvora_hooks_plugins_types::MarketplaceActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -2988,7 +2988,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|e| {
                                     tracing::debug!("failed to parse marketplace action response: {e}");
@@ -3025,11 +3025,11 @@ pub(crate) fn execute(
                         .next()
                         .unwrap_or(plugin_relative_path.as_str())
                         .to_string();
-                    let action = hooks_plugins_types::MarketplaceAction::Install {
+                    let action = xvora_hooks_plugins_types::MarketplaceAction::Install {
                         source_url_or_path,
                         plugin_relative_path,
                     };
-                    let req_body = hooks_plugins_types::MarketplaceActionRequest {
+                    let req_body = xvora_hooks_plugins_types::MarketplaceActionRequest {
                         session_id: session_id.0.to_string(),
                         action,
                     };
@@ -3047,7 +3047,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|e| {
                                     tracing::debug!("failed to parse marketplace action response: {e}");
@@ -3075,9 +3075,9 @@ pub(crate) fn execute(
             let tx = acp_tx.clone();
             tasks
                 .spawn(async move {
-                    let req_body = hooks_plugins_types::PluginsActionRequest {
+                    let req_body = xvora_hooks_plugins_types::PluginsActionRequest {
                         session_id: session_id.0.to_string(),
-                        action: hooks_plugins_types::PluginsAction::Reload,
+                        action: xvora_hooks_plugins_types::PluginsAction::Reload,
                     };
                     let req = acp::ExtRequest::new(
                         "x.ai/plugins/action",
@@ -3093,7 +3093,7 @@ pub(crate) fn execute(
                                 .unwrap_or_default();
                             let inner = wrapper.get("result").unwrap_or(&wrapper);
                             serde_json::from_value::<
-                                hooks_plugins_types::ActionOutcome,
+                                xvora_hooks_plugins_types::ActionOutcome,
                             >(inner.clone())
                                 .map_err(|_| "couldn't complete plugins action".to_string())
                         }

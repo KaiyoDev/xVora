@@ -75,8 +75,8 @@ impl S3AccessCredentials {
         !self.access_key_id.trim().is_empty() && !self.secret_access_key.trim().is_empty()
     }
 
-    fn to_static(&self) -> file_utils::s3::S3StaticCredentials {
-        file_utils::s3::S3StaticCredentials {
+    fn to_static(&self) -> xvora_file_utils::s3::S3StaticCredentials {
+        xvora_file_utils::s3::S3StaticCredentials {
             access_key_id: self.access_key_id.clone(),
             secret_access_key: self.secret_access_key.clone(),
         }
@@ -167,7 +167,7 @@ impl VideoGenClient {
     pub fn new(
         config: &VideoGenConfig,
         api_key_provider: Option<SharedApiKeyProvider>,
-    ) -> Result<Self, tool_runtime::ToolError> {
+    ) -> Result<Self, xvora_tool_runtime::ToolError> {
         let VideoGenConfig::Enabled {
             api_key,
             base_url,
@@ -177,7 +177,7 @@ impl VideoGenClient {
             zdr_restricted,
         } = config
         else {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "Cannot create VideoGenClient from disabled config",
             ));
         };
@@ -189,7 +189,7 @@ impl VideoGenClient {
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {api_key}")).map_err(|e| {
-                tool_runtime::ToolError::invalid_arguments(format!(
+                xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "Invalid API key for header: {e}"
                 ))
             })?,
@@ -198,17 +198,17 @@ impl VideoGenClient {
         extra_headers.into_iter().try_for_each(|(key, value)| {
             let header_name =
                 reqwest::header::HeaderName::from_bytes(key.as_bytes()).map_err(|e| {
-                    tool_runtime::ToolError::invalid_arguments(format!(
+                    xvora_tool_runtime::ToolError::invalid_arguments(format!(
                         "Invalid header name '{key}': {e}"
                     ))
                 })?;
             let header_value = HeaderValue::from_str(value).map_err(|e| {
-                tool_runtime::ToolError::invalid_arguments(format!(
+                xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "Invalid header value for '{key}': {e}"
                 ))
             })?;
             headers.insert(header_name, header_value);
-            Ok::<(), tool_runtime::ToolError>(())
+            Ok::<(), xvora_tool_runtime::ToolError>(())
         })?;
 
         // Process-cached; the session id is attached per request, not here.
@@ -216,10 +216,12 @@ impl VideoGenClient {
             headers.contains_key(super::image_gen::SESSION_ID_HEADER);
         let key = crate::util::shared_http::cache_key("video_gen", &headers);
         let http = crate::util::shared_http::cached_client(key, || {
-            extra_ca::build_reqwest_client(|builder| builder.default_headers(headers.clone()))
+            xvora_extra_ca::build_reqwest_client(|builder| builder.default_headers(headers.clone()))
         })
         .map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!("Failed to build HTTP client: {e}"))
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
+                "Failed to build HTTP client: {e}"
+            ))
         })?;
 
         // Distinct client (download timeout, no default headers); an empty
@@ -229,12 +231,12 @@ impl VideoGenClient {
             &reqwest::header::HeaderMap::new(),
         );
         let download_http = crate::util::shared_http::cached_client(download_key, || {
-            extra_ca::build_reqwest_client(|builder| {
+            xvora_extra_ca::build_reqwest_client(|builder| {
                 builder.timeout(std::time::Duration::from_secs(VIDEO_DOWNLOAD_TIMEOUT_SECS))
             })
         })
         .map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Failed to build download client: {e}"
             ))
         })?;
@@ -327,7 +329,7 @@ impl VideoGenClient {
         image: Option<String>,
         reference_images: Vec<String>,
         reference_voices: Vec<String>,
-    ) -> Result<VideoOutcome, tool_runtime::ToolError> {
+    ) -> Result<VideoOutcome, xvora_tool_runtime::ToolError> {
         let start_url = format!("{}/videos/generations", self.base_url.trim_end_matches('/'));
 
         let presigned = match &self.zdr_video_output_s3 {
@@ -362,7 +364,7 @@ impl VideoGenClient {
             .json(&payload);
 
         let response = req.send().await.map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Video generation API request failed: {e}"
             ))
         })?;
@@ -380,7 +382,7 @@ impl VideoGenClient {
         }
 
         let body = response.text().await.map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Failed to read video generation start response body: {e}"
             ))
         })?;
@@ -388,14 +390,14 @@ impl VideoGenClient {
         let start_resp: VideoGenStartResponse = serde_json::from_str(&body).map_err(|e| {
             let preview: String = body.chars().take(500).collect();
             tracing::warn!("Video generation API returned unparseable body: {preview}");
-            tool_runtime::ToolError::invalid_arguments(format!(
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Failed to parse video generation start response: {e} — body preview: {preview}"
             ))
         })?;
 
         let request_id = start_resp.request_id;
         if request_id.is_empty() {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "No request_id received from the video generation API.",
             ));
         }
@@ -416,7 +418,7 @@ impl VideoGenClient {
             tokio::time::sleep(poll_interval).await;
 
             if started.elapsed() >= deadline {
-                return Err(tool_runtime::ToolError::invalid_arguments(format!(
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "Video generation did not complete within {}s (request_id={request_id})",
                     VIDEO_GEN_TIMEOUT_SECS
                 )));
@@ -428,7 +430,7 @@ impl VideoGenClient {
                 .timeout(poll_timeout);
 
             let poll_response = poll_req.send().await.map_err(|e| {
-                tool_runtime::ToolError::invalid_arguments(format!(
+                xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "Video poll request failed: {e}"
                 ))
             })?;
@@ -446,8 +448,8 @@ impl VideoGenClient {
                     return Err(zdr_restricted_error());
                 }
                 let truncated: String = body.chars().take(200).collect();
-                return Err(tool_runtime::ToolError::new(
-                    tool_runtime::ToolErrorKind::Custom,
+                return Err(xvora_tool_runtime::ToolError::new(
+                    xvora_tool_runtime::ToolErrorKind::Custom,
                     format!("Video poll failed with HTTP {poll_status}: {truncated}"),
                 )
                 .with_details(
@@ -456,7 +458,7 @@ impl VideoGenClient {
             }
 
             let poll_body = poll_response.text().await.map_err(|e| {
-                tool_runtime::ToolError::invalid_arguments(format!(
+                xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "Failed to read video poll response body: {e}"
                 ))
             })?;
@@ -465,7 +467,7 @@ impl VideoGenClient {
                 serde_json::from_str(&poll_body).map_err(|e| {
                     let preview: String = poll_body.chars().take(500).collect();
                     tracing::warn!("Video poll API returned unparseable body: {preview}");
-                    tool_runtime::ToolError::invalid_arguments(format!(
+                    xvora_tool_runtime::ToolError::invalid_arguments(format!(
                         "Failed to parse video poll response: {e} — body preview: {preview}"
                     ))
                 })?;
@@ -481,7 +483,7 @@ impl VideoGenClient {
                     return match presigned {
                         Some(urls) => self.finish_zdr_video(&request_id, urls).await,
                         None if video_url.is_empty() => {
-                            Err(tool_runtime::ToolError::invalid_arguments(
+                            Err(xvora_tool_runtime::ToolError::invalid_arguments(
                                 "Video generation completed but no download URL was returned.",
                             ))
                         }
@@ -493,12 +495,12 @@ impl VideoGenClient {
                 }
                 "failed" => {
                     let preview: String = poll_body.chars().take(300).collect();
-                    return Err(tool_runtime::ToolError::invalid_arguments(format!(
+                    return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                         "Video generation failed on the server (request_id={request_id}): {preview}"
                     )));
                 }
                 "expired" => {
-                    return Err(tool_runtime::ToolError::invalid_arguments(format!(
+                    return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                         "Video generation request expired (request_id={request_id})."
                     )));
                 }
@@ -514,22 +516,26 @@ impl VideoGenClient {
     }
 
     /// Download video bytes from a pre-signed temporary URL (no auth headers).
-    async fn download_video(&self, url: &str) -> Result<Vec<u8>, tool_runtime::ToolError> {
+    async fn download_video(&self, url: &str) -> Result<Vec<u8>, xvora_tool_runtime::ToolError> {
         let response = self.download_http.get(url).send().await.map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!("Failed to download video: {e}"))
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
+                "Failed to download video: {e}"
+            ))
         })?;
 
         if !response.status().is_success() {
             let status = response.status();
-            return Err(tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            return Err(xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 format!("Video download failed (HTTP {status})"),
             )
             .with_details(serde_json::json!({"code": "http_failure", "status": status.as_u16()})));
         }
 
         response.bytes().await.map(|b| b.to_vec()).map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!("Failed to read video bytes: {e}"))
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
+                "Failed to read video bytes: {e}"
+            ))
         })
     }
 
@@ -537,9 +543,9 @@ impl VideoGenClient {
         &self,
         request_id: &str,
         urls: ZdrPresignedUrls,
-    ) -> Result<VideoOutcome, tool_runtime::ToolError> {
+    ) -> Result<VideoOutcome, xvora_tool_runtime::ToolError> {
         let config = self.zdr_video_output_s3.as_ref().ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments(
+            xvora_tool_runtime::ToolError::invalid_arguments(
                 "Presigned video output config missing after presign",
             )
         })?;
@@ -576,13 +582,13 @@ impl VideoGenClient {
     async fn presign_zdr_output_urls(
         &self,
         config: &ZdrVideoOutputS3Config,
-    ) -> Result<ZdrPresignedUrls, tool_runtime::ToolError> {
+    ) -> Result<ZdrPresignedUrls, xvora_tool_runtime::ToolError> {
         let object_key = zdr_video_object_key(&config.key_prefix);
         let expires_in =
             std::time::Duration::from_secs(zdr_presign_expires_secs(config.expires_secs));
         let endpoint = Some(config.endpoint.as_str());
 
-        let upload_url = file_utils::s3::presign_put_url(
+        let upload_url = xvora_file_utils::s3::presign_put_url(
             &config.region,
             endpoint,
             &config.read_write.to_static(),
@@ -593,13 +599,13 @@ impl VideoGenClient {
         )
         .await
         .map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Failed to presign video upload URL: {e}"
             ))
         })?;
 
         if !is_http_url(&upload_url) {
-            return Err(tool_runtime::ToolError::invalid_arguments(format!(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Presigned upload URL is not http(s): {upload_url}"
             )));
         }
@@ -631,7 +637,7 @@ impl VideoGenClient {
         config: &ZdrVideoOutputS3Config,
         urls: &ZdrPresignedUrls,
         request_id: &str,
-    ) -> Result<Vec<u8>, tool_runtime::ToolError> {
+    ) -> Result<Vec<u8>, xvora_tool_runtime::ToolError> {
         let get_url = self
             .presign_zdr_get_url(config, &urls.object_key, urls.expires_in)
             .await?;
@@ -646,7 +652,7 @@ impl VideoGenClient {
         &self,
         config: &ZdrVideoOutputS3Config,
         urls: &ZdrPresignedUrls,
-    ) -> Result<String, tool_runtime::ToolError> {
+    ) -> Result<String, xvora_tool_runtime::ToolError> {
         if let Some(get_url) = urls.get_url.as_deref().filter(|u| is_http_url(u)) {
             return Ok(get_url.to_owned());
         }
@@ -659,10 +665,10 @@ impl VideoGenClient {
         config: &ZdrVideoOutputS3Config,
         object_key: &str,
         expires_in: std::time::Duration,
-    ) -> Result<String, tool_runtime::ToolError> {
+    ) -> Result<String, xvora_tool_runtime::ToolError> {
         let endpoint = Some(config.endpoint.as_str());
         let (creds, creds_source) = zdr_get_credentials(config);
-        let url = file_utils::s3::presign_get_url(
+        let url = xvora_file_utils::s3::presign_get_url(
             &config.region,
             endpoint,
             &creds.to_static(),
@@ -672,13 +678,13 @@ impl VideoGenClient {
         )
         .await
         .map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!(
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Failed to presign video GET URL ({creds_source}): {e}"
             ))
         })?;
 
         if !is_http_url(&url) {
-            return Err(tool_runtime::ToolError::invalid_arguments(format!(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Presigned GET URL is not http(s): {url}"
             )));
         }
@@ -765,9 +771,12 @@ pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is a SuperGrok
 /// paraphrasing a privacy-adjacent message risks distortion.
 pub(crate) const ZDR_RESTRICTED_MESSAGE: &str = "Video generation tools are unavailable under zero data retention (ZDR). To enable, either turn off /privacy mode to disable ZDR or supply a user-hosted storage bucket (see https://docs.x.ai/build/settings/zdr-video-storage).";
 
-fn zdr_restricted_error() -> tool_runtime::ToolError {
-    tool_runtime::ToolError::new(tool_runtime::ToolErrorKind::Custom, ZDR_RESTRICTED_MESSAGE)
-        .with_details(serde_json::json!({"code": "zdr_output_storage_required"}))
+fn zdr_restricted_error() -> xvora_tool_runtime::ToolError {
+    xvora_tool_runtime::ToolError::new(
+        xvora_tool_runtime::ToolErrorKind::Custom,
+        ZDR_RESTRICTED_MESSAGE,
+    )
+    .with_details(serde_json::json!({"code": "zdr_output_storage_required"}))
 }
 
 fn is_zdr_upload_url_error(body: &str) -> bool {
@@ -775,13 +784,13 @@ fn is_zdr_upload_url_error(body: &str) -> bool {
         .contains("must provide output.upload_url")
 }
 
-fn video_http_error(status: reqwest::StatusCode, body: &str) -> tool_runtime::ToolError {
+fn video_http_error(status: reqwest::StatusCode, body: &str) -> xvora_tool_runtime::ToolError {
     if is_zdr_upload_url_error(body) {
         return zdr_restricted_error();
     }
     let truncated: String = body.chars().take(500).collect();
-    tool_runtime::ToolError::new(
-        tool_runtime::ToolErrorKind::Custom,
+    xvora_tool_runtime::ToolError::new(
+        xvora_tool_runtime::ToolErrorKind::Custom,
         format!("Video generation failed with HTTP {status}: {truncated}"),
     )
     .with_details(serde_json::json!({"code": "http_failure", "status": status.as_u16()}))
@@ -856,20 +865,22 @@ struct VideoGenVideoInfo {
     url: Option<String>,
 }
 
-async fn resolve_image_reference(value: &str) -> Result<String, tool_runtime::ToolError> {
+async fn resolve_image_reference(value: &str) -> Result<String, xvora_tool_runtime::ToolError> {
     let value = value.trim();
     if value.is_empty() {
-        return Err(tool_runtime::ToolError::invalid_arguments(
+        return Err(xvora_tool_runtime::ToolError::invalid_arguments(
             "image reference must not be empty",
         ));
     }
 
     if value.starts_with("data:image/") {
         let comma = value.find(',').ok_or_else(|| {
-            tool_runtime::ToolError::invalid_arguments("malformed data URL in image reference")
+            xvora_tool_runtime::ToolError::invalid_arguments(
+                "malformed data URL in image reference",
+            )
         })?;
         if !value[..comma].contains(";base64") {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "image references only support base64 data URLs",
             ));
         }
@@ -881,19 +892,21 @@ async fn resolve_image_reference(value: &str) -> Result<String, tool_runtime::To
     }
 
     let raw_bytes = tokio::fs::read(value).await.map_err(|e| {
-        tool_runtime::ToolError::invalid_arguments(format!(
+        xvora_tool_runtime::ToolError::invalid_arguments(format!(
             "image reference not readable: {value} ({e})"
         ))
     })?;
     if raw_bytes.is_empty() {
-        return Err(tool_runtime::ToolError::invalid_arguments(
+        return Err(xvora_tool_runtime::ToolError::invalid_arguments(
             "image reference contained no data",
         ));
     }
 
     let (_w, _h, mime) =
         crate::util::image_validate::validate_image_bytes(&raw_bytes).map_err(|e| {
-            tool_runtime::ToolError::invalid_arguments(format!("invalid image reference: {e}"))
+            xvora_tool_runtime::ToolError::invalid_arguments(format!(
+                "invalid image reference: {e}"
+            ))
         })?;
     let b64 = base64::engine::general_purpose::STANDARD.encode(&raw_bytes);
     Ok(format!("data:{mime};base64,{b64}"))
@@ -903,32 +916,32 @@ fn validate_one_of(
     field: &str,
     value: &str,
     allowed: &[&str],
-) -> Result<(), tool_runtime::ToolError> {
+) -> Result<(), xvora_tool_runtime::ToolError> {
     if allowed.contains(&value) {
         return Ok(());
     }
-    Err(tool_runtime::ToolError::invalid_arguments(format!(
+    Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
         "`{field}` must be one of: {}. Got {value}.",
         allowed.join(", ")
     )))
 }
 
-fn validate_imagine_duration(duration: Option<u32>) -> Result<(), tool_runtime::ToolError> {
+fn validate_imagine_duration(duration: Option<u32>) -> Result<(), xvora_tool_runtime::ToolError> {
     if let Some(secs) = duration
         && !IMAGINE_VIDEO_DURATIONS_SECS.contains(&secs)
     {
-        return Err(tool_runtime::ToolError::invalid_arguments(format!(
+        return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
             "`duration` must be either 6 or 10 seconds. Got {secs}."
         )));
     }
     Ok(())
 }
 
-fn validate_r2v_duration(duration: Option<u32>) -> Result<(), tool_runtime::ToolError> {
+fn validate_r2v_duration(duration: Option<u32>) -> Result<(), xvora_tool_runtime::ToolError> {
     if let Some(secs) = duration
         && !(MIN_R2V_DURATION_SECS..=MAX_R2V_DURATION_SECS).contains(&secs)
     {
-        return Err(tool_runtime::ToolError::invalid_arguments(format!(
+        return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
             "`duration` must be between {MIN_R2V_DURATION_SECS} and {MAX_R2V_DURATION_SECS} seconds. Got {secs}."
         )));
     }
@@ -1030,8 +1043,8 @@ pub struct ReferenceToVideoInput {
 /// resources. Shared by all video-generation tools so the acquisition logic
 /// lives in one place.
 async fn acquire_video_client(
-    ctx: &tool_runtime::ToolCallContext,
-) -> Result<(VideoGenClient, std::path::PathBuf), tool_runtime::ToolError> {
+    ctx: &xvora_tool_runtime::ToolCallContext,
+) -> Result<(VideoGenClient, std::path::PathBuf), xvora_tool_runtime::ToolError> {
     use crate::types::tool_metadata::shared_resources;
     let resources = shared_resources(ctx)?;
     let res = resources.lock().await;
@@ -1047,12 +1060,12 @@ async fn save_video_bytes(
     client: &VideoGenClient,
     session_folder: &std::path::Path,
     video_bytes: &[u8],
-) -> Result<std::path::PathBuf, tool_runtime::ToolError> {
+) -> Result<std::path::PathBuf, xvora_tool_runtime::ToolError> {
     let absolute_path = client
         .writer
         .save(session_folder, video_bytes, None)
         .await
-        .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+        .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
 
     tracing::info!(
         path = %absolute_path.display(),
@@ -1067,7 +1080,7 @@ async fn media_output_from_outcome(
     client: &VideoGenClient,
     session_folder: &std::path::Path,
     outcome: VideoOutcome,
-) -> Result<MediaGenOutput, tool_runtime::ToolError> {
+) -> Result<MediaGenOutput, xvora_tool_runtime::ToolError> {
     match outcome {
         VideoOutcome::Bytes(bytes) => {
             let path = save_video_bytes(client, session_folder, &bytes).await?;
@@ -1098,25 +1111,28 @@ impl crate::types::tool_metadata::ToolMetadata for ImageToVideoTool {
     }
 }
 
-impl tool_runtime::Tool for ImageToVideoTool {
+impl xvora_tool_runtime::Tool for ImageToVideoTool {
     type Args = ImageToVideoInput;
     type Output = ToolOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new(IMAGE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new(IMAGE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             IMAGE_TO_VIDEO_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -1128,9 +1144,9 @@ impl tool_runtime::Tool for ImageToVideoTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: ImageToVideoInput,
-    ) -> Result<ToolOutput, tool_runtime::ToolError> {
+    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
         validate_imagine_duration(input.duration)?;
         validate_one_of(
             "resolution_name",
@@ -1195,25 +1211,28 @@ impl crate::types::tool_metadata::ToolMetadata for ReferenceToVideoTool {
     }
 }
 
-impl tool_runtime::Tool for ReferenceToVideoTool {
+impl xvora_tool_runtime::Tool for ReferenceToVideoTool {
     type Args = ReferenceToVideoInput;
     type Output = ToolOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new(REFERENCE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new(REFERENCE_TO_VIDEO_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             REFERENCE_TO_VIDEO_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -1225,31 +1244,31 @@ impl tool_runtime::Tool for ReferenceToVideoTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: ReferenceToVideoInput,
-    ) -> Result<ToolOutput, tool_runtime::ToolError> {
+    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
         if input.prompt.trim().is_empty() {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "`prompt` must not be empty.",
             ));
         }
         if input.images.is_empty() && input.voices.is_empty() {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "Provide at least one reference: `images` (up to 7) and/or `voices` (up to 3).",
             ));
         }
         if input.images.len() > MAX_R2V_REFERENCE_IMAGES {
-            return Err(tool_runtime::ToolError::invalid_arguments(format!(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "`images` must contain at most {MAX_R2V_REFERENCE_IMAGES} image references."
             )));
         }
         if input.voices.len() > MAX_R2V_REFERENCE_VOICES {
-            return Err(tool_runtime::ToolError::invalid_arguments(format!(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "`voices` must contain at most {MAX_R2V_REFERENCE_VOICES} preset voices."
             )));
         }
         if input.voices.iter().any(|v| v.trim().is_empty()) {
-            return Err(tool_runtime::ToolError::invalid_arguments(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 "`voices` entries must be non-empty voice identifiers (e.g. \"ara\").",
             ));
         }
@@ -1350,7 +1369,7 @@ mod tests {
     fn image_to_video_name_and_description() {
         let tool = ImageToVideoTool;
         assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
+            xvora_tool_runtime::Tool::id(&tool).as_str(),
             IMAGE_TO_VIDEO_TOOL_NAME
         );
         let desc = crate::types::tool_metadata::ToolMetadata::description_template(&tool);
@@ -1361,7 +1380,7 @@ mod tests {
     fn reference_to_video_name_and_description() {
         let tool = ReferenceToVideoTool;
         assert_eq!(
-            tool_runtime::Tool::id(&tool).as_str(),
+            xvora_tool_runtime::Tool::id(&tool).as_str(),
             REFERENCE_TO_VIDEO_TOOL_NAME
         );
         let desc = crate::types::tool_metadata::ToolMetadata::description_template(&tool);
@@ -1609,7 +1628,7 @@ mod tests {
     async fn image_to_video_rejects_bad_duration() {
         let tool = ImageToVideoTool;
         let resources = crate::types::resources::Resources::new();
-        let err = tool_runtime::Tool::run(
+        let err = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             ImageToVideoInput {
@@ -1628,7 +1647,7 @@ mod tests {
     async fn reference_to_video_rejects_bad_aspect_ratio() {
         let tool = ReferenceToVideoTool;
         let resources = crate::types::resources::Resources::new();
-        let err = tool_runtime::Tool::run(
+        let err = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             ReferenceToVideoInput {
@@ -1649,7 +1668,7 @@ mod tests {
     async fn image_to_video_rejects_bad_resolution() {
         let tool = ImageToVideoTool;
         let resources = crate::types::resources::Resources::new();
-        let err = tool_runtime::Tool::run(
+        let err = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             ImageToVideoInput {
@@ -1668,7 +1687,7 @@ mod tests {
     async fn reference_to_video_rejects_no_references() {
         let tool = ReferenceToVideoTool;
         let resources = crate::types::resources::Resources::new();
-        let err = tool_runtime::Tool::run(
+        let err = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             ReferenceToVideoInput {
@@ -1689,7 +1708,7 @@ mod tests {
     async fn reference_to_video_rejects_too_many_voices() {
         let tool = ReferenceToVideoTool;
         let resources = crate::types::resources::Resources::new();
-        let err = tool_runtime::Tool::run(
+        let err = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             ReferenceToVideoInput {
@@ -1710,7 +1729,7 @@ mod tests {
     async fn reference_to_video_rejects_out_of_range_duration() {
         let tool = ReferenceToVideoTool;
         let resources = crate::types::resources::Resources::new();
-        let err = tool_runtime::Tool::run(
+        let err = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             ReferenceToVideoInput {

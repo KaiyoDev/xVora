@@ -23,11 +23,11 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
                 "test-persist-ack".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                hunk_tracker::TrackingMode::AgentOnly,
+                xvora_hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =
@@ -82,10 +82,10 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
             .await
             .expect("persistence actor should start");
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel::<SessionEvent>();
             let (chat_event_tx, _chat_event_rx) = tokio::sync::mpsc::unbounded_channel();
-            let chat_state_handle = chat_state::ChatStateActor::spawn(
+            let chat_state_handle = xvora_chat_state::ChatStateActor::spawn(
                 vec![],
                 xvora_sampling_types::SamplingConfig {
                     base_url: "http://localhost".to_string(),
@@ -125,6 +125,7 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
                 state: TokioMutex::new(State {
                     running_task: None,
                     finalization_gate: Default::default(),
+                    message_delivery: Default::default(),
                     pending_inputs: VecDeque::new(),
                     edit_holds: HashMap::new(),
                     pending_notifications: Vec::new(),
@@ -150,6 +151,7 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
                 chat_state_handle,
                 unattributed_background_usage: std::sync::atomic::AtomicBool::new(false),
                 current_prompt_id: std::sync::Arc::new(std::sync::Mutex::new(None)),
+                active_work: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
                 pending_interactions: std::sync::Arc::new(std::sync::Mutex::new(
                     std::collections::HashMap::new(),
                 )),
@@ -175,7 +177,7 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
                     count: std::sync::atomic::AtomicU64::new(0),
                     auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
                     previous_model: std::cell::Cell::new(None),
-                    compaction_mode: chat_state::CompactionMode::Transcript,
+                    compaction_mode: xvora_chat_state::CompactionMode::Transcript,
                     verbatim_input: true,
                     tool_choice: crate::util::config::CompactionToolChoice::Auto,
                     prefire: crate::session::compaction_config::PrefireState::default(),
@@ -199,6 +201,7 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
                     injection_count: std::sync::atomic::AtomicU64::new(0),
                     compaction_recovery_count: std::sync::atomic::AtomicU64::new(0),
                     chunks_added: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                    init_reindex_handle: std::cell::RefCell::new(None),
                     dream_config: Default::default(),
                     dream_count: std::sync::atomic::AtomicU64::new(0),
                     dream_success_count: std::sync::atomic::AtomicU64::new(0),
@@ -257,6 +260,7 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
                 goal_classifier_enabled: false,
                 goal_planner_enabled: false,
                 goal_summary_enabled: false,
+                length_salvage_remote_budget: None,
                 goal_verifier_skeptic_count: 1,
                 goal_role_models: Default::default(),
                 goal_use_current_model_only: false,
@@ -281,7 +285,7 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
                 laziness_debug_log: None,
                 last_live_orphan_reconcile: std::cell::Cell::new(None),
                 deferred_prefix: TaskSlot::new(),
-                extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
+                extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
                 last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
                 prefix_carries_fallback_date: std::cell::Cell::new(false),
                 last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),
@@ -373,7 +377,7 @@ async fn plain_user_prompt_without_persist_ack_still_sends_flush_barrier_behind_
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, mut persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let observed = std::rc::Rc::new(std::cell::RefCell::new(Vec::<&'static str>::new()));
@@ -502,7 +506,7 @@ async fn first_turn_memory_injection_persists_to_chat_history() {
                 SessionEvent,
             >();
             let (chat_event_tx, _chat_event_rx) = tokio::sync::mpsc::unbounded_channel();
-            let chat_state_handle = chat_state::ChatStateActor::spawn(
+            let chat_state_handle = xvora_chat_state::ChatStateActor::spawn(
                 vec![
                         ConversationItem::system("sys"),
                         ConversationItem::user("<user_info>OS Version: macos</user_info>"),
@@ -577,11 +581,11 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
                 "test-memory-disabled".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                hunk_tracker::TrackingMode::AgentOnly,
+                xvora_hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =
@@ -632,7 +636,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
             .await
             .expect("persistence actor should start");
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (chat_event_tx, _chat_event_rx) = tokio::sync::mpsc::unbounded_channel();
             let initial_conversation = vec![
                 ConversationItem::system("sys"),
@@ -640,7 +644,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                     "<user_info>OS Version: macos</user_info>\n\n<user_query>hello</user_query>",
                 ),
             ];
-            let chat_state_handle = chat_state::ChatStateActor::spawn(
+            let chat_state_handle = xvora_chat_state::ChatStateActor::spawn(
                 initial_conversation.clone(),
                 xvora_sampling_types::SamplingConfig {
                     base_url: "http://localhost".to_string(),
@@ -697,6 +701,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                 state: TokioMutex::new(State {
                     running_task: None,
                     finalization_gate: Default::default(),
+                    message_delivery: Default::default(),
                     pending_inputs: VecDeque::new(),
                     edit_holds: HashMap::new(),
                     pending_notifications: Vec::new(),
@@ -722,6 +727,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                 chat_state_handle,
                 unattributed_background_usage: std::sync::atomic::AtomicBool::new(false),
                 current_prompt_id: std::sync::Arc::new(std::sync::Mutex::new(None)),
+                active_work: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
                 pending_interactions: std::sync::Arc::new(std::sync::Mutex::new(
                     std::collections::HashMap::new(),
                 )),
@@ -747,7 +753,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                     count: std::sync::atomic::AtomicU64::new(0),
                     auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
                     previous_model: std::cell::Cell::new(None),
-                    compaction_mode: chat_state::CompactionMode::Transcript,
+                    compaction_mode: xvora_chat_state::CompactionMode::Transcript,
                     verbatim_input: true,
                     tool_choice: crate::util::config::CompactionToolChoice::Auto,
                     prefire: crate::session::compaction_config::PrefireState::default(),
@@ -774,6 +780,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                     injection_count: std::sync::atomic::AtomicU64::new(0),
                     compaction_recovery_count: std::sync::atomic::AtomicU64::new(0),
                     chunks_added: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                    init_reindex_handle: std::cell::RefCell::new(None),
                     dream_config: Default::default(),
                     dream_count: std::sync::atomic::AtomicU64::new(0),
                     dream_success_count: std::sync::atomic::AtomicU64::new(0),
@@ -832,6 +839,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                 goal_classifier_enabled: false,
                 goal_planner_enabled: false,
                 goal_summary_enabled: false,
+                length_salvage_remote_budget: None,
                 goal_verifier_skeptic_count: 1,
                 goal_role_models: Default::default(),
                 goal_use_current_model_only: false,
@@ -856,7 +864,7 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
                 laziness_debug_log: None,
                 last_live_orphan_reconcile: std::cell::Cell::new(None),
                 deferred_prefix: TaskSlot::new(),
-                extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
+                extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
                 last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
                 prefix_carries_fallback_date: std::cell::Cell::new(false),
                 last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),
@@ -947,18 +955,18 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let cwd = AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap();
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
                 "test-cancel".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                hunk_tracker::TrackingMode::AgentOnly,
+                xvora_hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =
@@ -966,6 +974,7 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
             let state = TokioMutex::new(State {
                 running_task: None,
                 finalization_gate: Default::default(),
+                message_delivery: Default::default(),
                 pending_inputs: VecDeque::new(),
                 edit_holds: HashMap::new(),
                 pending_notifications: Vec::new(),
@@ -1015,11 +1024,12 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
                 mcp_strategy: std::cell::Cell::new(McpInitStrategy::Blocking),
                 delivery_tools: std::cell::RefCell::new(Vec::new()),
                 attach_non_interactive: std::rc::Rc::new(std::cell::Cell::new(false)),
-                chat_state_handle: chat_state::ChatStateHandle::noop(),
+                chat_state_handle: xvora_chat_state::ChatStateHandle::noop(),
                 unattributed_background_usage: std::sync::atomic::AtomicBool::new(false),
                 current_prompt_id: std::sync::Arc::new(std::sync::Mutex::new(Some(
                     "running".to_string(),
                 ))),
+                active_work: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
                 pending_interactions: std::sync::Arc::new(std::sync::Mutex::new(
                     std::collections::HashMap::new(),
                 )),
@@ -1045,7 +1055,7 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
                     count: std::sync::atomic::AtomicU64::new(0),
                     auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
                     previous_model: std::cell::Cell::new(None),
-                    compaction_mode: chat_state::CompactionMode::Transcript,
+                    compaction_mode: xvora_chat_state::CompactionMode::Transcript,
                     verbatim_input: true,
                     tool_choice: crate::util::config::CompactionToolChoice::Auto,
                     prefire: crate::session::compaction_config::PrefireState::default(),
@@ -1069,6 +1079,7 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
                     injection_count: std::sync::atomic::AtomicU64::new(0),
                     compaction_recovery_count: std::sync::atomic::AtomicU64::new(0),
                     chunks_added: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                    init_reindex_handle: std::cell::RefCell::new(None),
                     dream_config: Default::default(),
                     dream_count: std::sync::atomic::AtomicU64::new(0),
                     dream_success_count: std::sync::atomic::AtomicU64::new(0),
@@ -1127,6 +1138,7 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
                 goal_classifier_enabled: false,
                 goal_planner_enabled: false,
                 goal_summary_enabled: false,
+                length_salvage_remote_budget: None,
                 goal_verifier_skeptic_count: 1,
                 goal_role_models: Default::default(),
                 goal_use_current_model_only: false,
@@ -1151,7 +1163,7 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
                 laziness_debug_log: None,
                 last_live_orphan_reconcile: std::cell::Cell::new(None),
                 deferred_prefix: TaskSlot::new(),
-                extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
+                extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
                 last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
                 prefix_carries_fallback_date: std::cell::Cell::new(false),
                 last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),
@@ -1286,7 +1298,7 @@ async fn cancel_records_mid_turn_abort_interrupt_marker() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1372,7 +1384,7 @@ async fn cancel_without_assistant_text_skips_interrupt_reminder() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1417,7 +1429,7 @@ async fn send_now_cancel_arms_no_interrupt_signals_and_resets_wait_depth() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1473,7 +1485,7 @@ async fn cancel_with_dangling_tool_call_skips_interrupt_reminder() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1696,7 +1708,10 @@ async fn handle_prompt_send_now_frames_interjection_envelope() {
             let expected_assembled = format!("<user_query>\n{query}\n</user_query>");
             assert_eq!(
                 user.text_content(),
-                frame_user_turn(interjection_core::INTERJECTION_NOTE, &expected_assembled)
+                frame_user_turn(
+                    xvora_interjection_core::INTERJECTION_NOTE,
+                    &expected_assembled
+                )
             );
             prompt_task.abort();
         })
@@ -1795,7 +1810,7 @@ async fn cancel_running_task_interactive_preserves_queued_work() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1883,7 +1898,7 @@ async fn cancel_after_own_completion_sweep_preserves_queued_user_prompt() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -1954,7 +1969,7 @@ async fn interactive_cancel_drops_queued_task_wakes_and_promotes_user() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -2077,7 +2092,7 @@ async fn ctrl_c_clears_turn_active_before_background_completion_routes() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -2109,7 +2124,7 @@ async fn assert_stop_trigger_arms_wake_barrier(trigger: &str) {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -2243,7 +2258,7 @@ async fn non_stop_cancels_preserve_queued_task_wakes_and_do_not_arm_barrier() {
                 None,
             ] {
                 let (gateway_tx, _gateway_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                    tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
                 let (persistence_tx, _persistence_rx) =
                     tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
                 let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -2350,7 +2365,7 @@ async fn cancel_resolves_front_when_running_task_is_none() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -2481,18 +2496,18 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
                 sampler_event_tx,
             );
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let cwd = AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap();
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
                 "test-cancel-sampler".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                hunk_tracker::TrackingMode::AgentOnly,
+                xvora_hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =
@@ -2500,6 +2515,7 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
             let state = TokioMutex::new(State {
                 running_task: None,
                 finalization_gate: Default::default(),
+                message_delivery: Default::default(),
                 pending_inputs: VecDeque::new(),
                 edit_holds: HashMap::new(),
                 pending_notifications: Vec::new(),
@@ -2549,11 +2565,12 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
                 mcp_strategy: std::cell::Cell::new(McpInitStrategy::Blocking),
                 delivery_tools: std::cell::RefCell::new(Vec::new()),
                 attach_non_interactive: std::rc::Rc::new(std::cell::Cell::new(false)),
-                chat_state_handle: chat_state::ChatStateHandle::noop(),
+                chat_state_handle: xvora_chat_state::ChatStateHandle::noop(),
                 unattributed_background_usage: std::sync::atomic::AtomicBool::new(false),
                 current_prompt_id: std::sync::Arc::new(std::sync::Mutex::new(Some(
                     "running".to_string(),
                 ))),
+                active_work: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
                 pending_interactions: std::sync::Arc::new(std::sync::Mutex::new(
                     std::collections::HashMap::new(),
                 )),
@@ -2579,7 +2596,7 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
                     count: std::sync::atomic::AtomicU64::new(0),
                     auto_compact_suppressed: std::sync::atomic::AtomicU8::new(0),
                     previous_model: std::cell::Cell::new(None),
-                    compaction_mode: chat_state::CompactionMode::Transcript,
+                    compaction_mode: xvora_chat_state::CompactionMode::Transcript,
                     verbatim_input: true,
                     tool_choice: crate::util::config::CompactionToolChoice::Auto,
                     prefire: crate::session::compaction_config::PrefireState::default(),
@@ -2603,6 +2620,7 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
                     injection_count: std::sync::atomic::AtomicU64::new(0),
                     compaction_recovery_count: std::sync::atomic::AtomicU64::new(0),
                     chunks_added: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                    init_reindex_handle: std::cell::RefCell::new(None),
                     dream_config: Default::default(),
                     dream_count: std::sync::atomic::AtomicU64::new(0),
                     dream_success_count: std::sync::atomic::AtomicU64::new(0),
@@ -2661,6 +2679,7 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
                 goal_classifier_enabled: false,
                 goal_planner_enabled: false,
                 goal_summary_enabled: false,
+                length_salvage_remote_budget: None,
                 goal_verifier_skeptic_count: 1,
                 goal_role_models: Default::default(),
                 goal_use_current_model_only: false,
@@ -2685,7 +2704,7 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
                 laziness_debug_log: None,
                 last_live_orphan_reconcile: std::cell::Cell::new(None),
                 deferred_prefix: TaskSlot::new(),
-                extension_registry: agent_lifecycle::LocalExtensionRegistry::default(),
+                extension_registry: xvora_agent_lifecycle::LocalExtensionRegistry::default(),
                 last_announced_local_date: std::cell::Cell::new(chrono::Local::now().date_naive()),
                 prefix_carries_fallback_date: std::cell::Cell::new(false),
                 last_search_prompt_index: std::sync::atomic::AtomicI64::new(-1),
@@ -2894,7 +2913,7 @@ async fn cancel_keeps_remaining_queued_prompts_visible_to_clients() {
     local
         .run_until(async {
             let (gateway_tx, _gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _persistence_rx) =
                 tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;

@@ -3,11 +3,11 @@ use super::turn::{PromptTraceContext, UploadWait};
 use crate::sampling::types::ToolDefinition;
 use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
 use base64::Engine as _;
-use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use url::Url;
+use xvora_file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue, UploadRetryPolicy};
 use xvora_workspace::permission::PermissionEvent;
 /// Upload the canonical tool definitions trace and wait for completion.
 ///
@@ -37,7 +37,7 @@ pub(crate) async fn upload_tool_definitions(
         format!("{prefix}/tool_definitions.json")
     };
     use crate::upload::gcs::WithAuth as _;
-    let ok = file_utils::gcs::upload_bytes(
+    let ok = xvora_file_utils::gcs::upload_bytes(
         &gcs_config.with_auth(auth_manager),
         &object_path,
         &bytes,
@@ -258,7 +258,7 @@ fn classify_workspace(cwd: &str) -> String {
     let path = std::path::Path::new(cwd);
     if path.ancestors().any(|p| p.join(".git").exists()) {
         "git".to_owned()
-    } else if file_utils::workspace_classifier::is_project_dir(path) {
+    } else if xvora_file_utils::workspace_classifier::is_project_dir(path) {
         "project".to_owned()
     } else {
         "non_project".to_owned()
@@ -401,7 +401,7 @@ pub(crate) async fn upload_subagent_metadata(
     let config = base_config.with_auth(Some(auth_manager));
     match tokio::time::timeout(
         SUBAGENT_METADATA_UPLOAD_BOUND,
-        file_utils::gcs::upload_bytes(&config, &gcs_path, &json, "application/json"),
+        xvora_file_utils::gcs::upload_bytes(&config, &gcs_path, &json, "application/json"),
     )
     .await
     {
@@ -573,7 +573,7 @@ pub(crate) async fn upload_plugin_state(
     .await;
 }
 use super::gcs::WithAuth as _;
-use file_utils::gcs::upload_bytes;
+use xvora_file_utils::gcs::upload_bytes;
 pub(crate) async fn upload_artifact_to_gcs(
     ctx: &PromptTraceContext,
     gcs_path: &str,
@@ -598,7 +598,7 @@ pub(crate) async fn upload_artifact_to_gcs(
         }
         Err(e) => {
             let status_code = e
-                .downcast_ref::<file_utils::storage_client::HttpUploadError>()
+                .downcast_ref::<xvora_file_utils::storage_client::HttpUploadError>()
                 .map(|e| e.status_code);
             record_upload_failure(
                 ctx,
@@ -933,7 +933,7 @@ pub(crate) async fn upload_permission_events(
 }
 pub(crate) async fn upload_turn_messages(
     ctx: &PromptTraceContext,
-    _capture: chat_state::TurnCapture,
+    _capture: xvora_chat_state::TurnCapture,
     _wait: UploadWait,
 ) -> bool {
     super::manifest::skip_artifact(
@@ -1016,10 +1016,10 @@ pub(crate) async fn build_chat_history_session_state(
     }
 }
 pub(crate) async fn build_chat_history_then_move_capture(
-    capture: chat_state::TurnCapture,
+    capture: xvora_chat_state::TurnCapture,
 ) -> (
     Result<Vec<u8>, SessionStateBuildError>,
-    chat_state::TurnCapture,
+    xvora_chat_state::TurnCapture,
 ) {
     let session_state = build_chat_history_session_state(&capture.messages).await;
     (session_state, capture)
@@ -1070,14 +1070,14 @@ impl TraceExportSource for DynamicResolver {
     }
     fn proxy_attribution(
         &self,
-    ) -> Option<Arc<dyn file_utils::storage_client::Auth401AttributionCallback>> {
-        file_utils::gcs::StorageConfig::proxy_attribution(&self.with_auth())
+    ) -> Option<Arc<dyn xvora_file_utils::storage_client::Auth401AttributionCallback>> {
+        xvora_file_utils::gcs::StorageConfig::proxy_attribution(&self.with_auth())
     }
     fn proxy_credentials(&self) -> Option<Arc<dyn xvora_auth::AuthCredentialProvider>> {
-        file_utils::gcs::StorageConfig::proxy_credentials(&self.with_auth())
+        xvora_file_utils::gcs::StorageConfig::proxy_credentials(&self.with_auth())
     }
     fn proxy_http_client(&self) -> Option<reqwest::Client> {
-        file_utils::gcs::StorageConfig::proxy_http_client(&self.with_auth())
+        xvora_file_utils::gcs::StorageConfig::proxy_http_client(&self.with_auth())
     }
     fn has_usable_credential(&self) -> bool {
         if let crate::session::repo_changes::UploadMethod::Proxy {
@@ -1180,7 +1180,7 @@ pub(crate) fn spawn_startup_spill_reconcile(
                 let report =
                     xvora_workspace::recovery::run_startup_recovery(&grok_home, &queue).await;
                 tracing::info!(?report, "startup spill recovery complete");
-                queue.cleanup_orphans(file_utils::queue::DEFAULT_MAX_AGE);
+                queue.cleanup_orphans(xvora_file_utils::queue::DEFAULT_MAX_AGE);
             }
             None => {
                 let purged = tokio::task::spawn_blocking(move || {
@@ -2116,7 +2116,7 @@ pub(crate) mod tests {
     #[test]
     fn dynamic_resolver_supplies_proxy_credentials_and_attribution() {
         use crate::session::repo_changes::UploadMethod;
-        use file_utils::queue::TraceExportSource;
+        use xvora_file_utils::queue::TraceExportSource;
         let dir = tempfile::tempdir().unwrap();
         let auth_manager = Arc::new(crate::auth::AuthManager::new(
             dir.path(),
@@ -2157,7 +2157,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn dynamic_resolver_auth_recovery_wakes_on_already_rotated_token() {
         use crate::session::repo_changes::UploadMethod;
-        use file_utils::queue::TraceExportSource;
+        use xvora_file_utils::queue::TraceExportSource;
         let dir = tempfile::tempdir().unwrap();
         let auth_manager = Arc::new(crate::auth::AuthManager::new(
             dir.path(),
@@ -2199,7 +2199,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn dynamic_resolver_auth_recovery_ignores_session_token_for_deployment_key() {
         use crate::session::repo_changes::UploadMethod;
-        use file_utils::queue::TraceExportSource;
+        use xvora_file_utils::queue::TraceExportSource;
         let dir = tempfile::tempdir().unwrap();
         let auth_manager = Arc::new(crate::auth::AuthManager::new(
             dir.path(),
@@ -2533,7 +2533,7 @@ pub(crate) mod tests {
         if home.ancestors().any(|p| p.join(".git").exists()) {
             return None;
         }
-        if !file_utils::workspace_classifier::is_project_dir(&home.join("probe")) {
+        if !xvora_file_utils::workspace_classifier::is_project_dir(&home.join("probe")) {
             return None;
         }
         tempfile::tempdir_in(home).ok()

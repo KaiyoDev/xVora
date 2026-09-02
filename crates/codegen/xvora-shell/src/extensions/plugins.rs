@@ -1,10 +1,10 @@
 //! `x.ai/plugins/*` extension handlers, backing the pager's hooks/plugins modal.
 
 use agent_client_protocol as acp;
-use hooks_plugins_types::{
+use serde::Deserialize;
+use xvora_hooks_plugins_types::{
     HookStatus, McpStatus, PluginInfo, PluginOrigin, PluginScope, PluginsListResponse,
 };
-use serde::Deserialize;
 
 use crate::agent::MvpAgent;
 
@@ -152,7 +152,7 @@ pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
             super::to_ext_response(Ok::<_, anyhow::Error>(response))
         }
         "x.ai/plugins/action" => {
-            let req: hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
+            let req: xvora_hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
             let sid = acp::SessionId::new(req.session_id);
 
             let result = agent

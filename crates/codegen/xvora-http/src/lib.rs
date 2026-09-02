@@ -14,7 +14,7 @@
 //! The sampler reads `GROK_POOL_*` and `GROK_CONNECT_TIMEOUT_SECS` once, when its shared client is first built.
 //! `GROK_SAMPLER_SHARED_CLIENT=0` falls back to a fresh client per `SamplingClient`.
 //!
-//! TLS policy (backend pin, roots, provider) lives in `extra_ca`.
+//! TLS policy (backend pin, roots, provider) lives in `xvora_extra_ca`.
 
 use std::sync::OnceLock;
 
@@ -287,7 +287,7 @@ pub fn shared_client() -> reqwest::Client {
     CLIENT
         .get_or_init(|| {
             let _timer = startup_timer!("startup.http_client_build");
-            extra_ca::build_reqwest_client(|builder| {
+            xvora_extra_ca::build_reqwest_client(|builder| {
                 builder
                     .connect_timeout(std::time::Duration::from_secs(30))
                     .user_agent(process_user_agent_string())
@@ -327,7 +327,7 @@ pub fn shared_upload_client() -> reqwest::Client {
     static UPLOAD_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     UPLOAD_CLIENT
         .get_or_init(|| {
-            extra_ca::build_reqwest_client(|builder| {
+            xvora_extra_ca::build_reqwest_client(|builder| {
                 builder
                     .http1_only()
                     .pool_max_idle_per_host(2)
@@ -344,7 +344,7 @@ pub fn shared_upload_client() -> reqwest::Client {
 /// The retry policy that uses this client to escape a poisoned pool lives on `send_with_retry_escaping_pool`.
 /// The build can fail under file-descriptor or TLS pressure; the caller must not panic on error (the fallback lives at the call site).
 pub(crate) fn fresh_http1_client() -> reqwest::Result<reqwest::Client> {
-    extra_ca::build_reqwest_client(|builder| {
+    xvora_extra_ca::build_reqwest_client(|builder| {
         builder
             .http1_only()
             .pool_max_idle_per_host(0)
@@ -568,7 +568,7 @@ pub fn shared_startup_blocking_client() -> reqwest::blocking::Client {
     BLOCKING_CLIENT
         .get_or_init(|| {
             let _timer = startup_timer!("startup.http_blocking_client_build");
-            extra_ca::build_blocking_reqwest_client(|builder| {
+            xvora_extra_ca::build_blocking_reqwest_client(|builder| {
                 builder
                     .connect_timeout(STARTUP_FETCH_TIMEOUT)
                     .timeout(STARTUP_FETCH_TIMEOUT)

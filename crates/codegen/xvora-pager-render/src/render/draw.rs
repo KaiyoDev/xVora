@@ -29,7 +29,7 @@
 //! - **Visibility transition**: `Show`/`Hide` (only on actual transition)
 //! - **Idle (no draw calls)**: nothing sent, so blink runs undisturbed
 //!
-//! The "no cell changes" case is detectable because [`ratatui_inline::Terminal`]'s `flush()` returns whether any cells were written.
+//! The "no cell changes" case is detectable because [`xvora_ratatui_inline::Terminal`]'s `flush()` returns whether any cells were written.
 //! When animated entries are off-screen, the buffer diff is empty and we skip all cursor commands.
 //!
 //! # Synchronized output
@@ -40,14 +40,14 @@ use crossterm::terminal::{BeginSynchronizedUpdate, EndSynchronizedUpdate};
 use crossterm::{QueueableCommand, cursor};
 use ratatui::Frame;
 use ratatui::backend::CrosstermBackend;
-use ratatui_inline::LinkSpan;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
+use xvora_ratatui_inline::LinkSpan;
 /// Defined here (beside [`TermWriter`]) so the `render` module does not depend on `app`.
 /// Re-exported from `app` as `crate::app::PagerTerminal` for existing call sites.
-pub type PagerTerminal = ratatui_inline::Terminal<CrosstermBackend<TermWriter>>;
+pub type PagerTerminal = xvora_ratatui_inline::Terminal<CrosstermBackend<TermWriter>>;
 #[derive(Debug)]
 pub enum WriterEvent {
     Written(u64),
@@ -288,7 +288,7 @@ pub fn spawn_writer_thread() -> (
         .spawn(move || -> std::io::Result<()> {
             #[cfg(not(windows))]
             let mut writer: Box<dyn std::io::Write> = {
-                let tui_out = tty_utils::dup_tui_stderr().unwrap_or_else(|_| {
+                let tui_out = xvora_tty_utils::dup_tui_stderr().unwrap_or_else(|_| {
                     use std::os::unix::io::{AsRawFd, FromRawFd};
                     let fd = unsafe { libc::dup(std::io::stderr().as_raw_fd()) };
                     unsafe { std::fs::File::from_raw_fd(fd) }
@@ -466,7 +466,7 @@ mod tests {
         let backend = CrosstermBackend::new(
             TermWriter::new(tx, WriterSync::new()).expect("single test writer"),
         );
-        let mut terminal = ratatui_inline::Terminal::with_options(
+        let mut terminal = xvora_ratatui_inline::Terminal::with_options(
             backend,
             TerminalOptions {
                 viewport: Viewport::Fixed(Rect::new(0, 0, 80, 24)),

@@ -273,7 +273,7 @@ captured_reader!(TestProcessStderr, tokio::process::ChildStderr);
 pub struct TestProcessTree {
     pid: u32,
     label: String,
-    group: Option<tty_utils::ProcessGroup>,
+    group: Option<xvora_tty_utils::ProcessGroup>,
     attachment_error: Option<String>,
 }
 
@@ -281,14 +281,14 @@ impl TestProcessTree {
     /// Attach to a child already spawned as its own session/process group.
     pub fn try_attach(pid: u32, label: impl Into<String>) -> io::Result<Self> {
         let label = label.into();
-        let mut group = tty_utils::ProcessGroup::new()?;
+        let mut group = xvora_tty_utils::ProcessGroup::new()?;
         group.attach_pid(pid)?;
         Ok(Self::from_group(pid, label, group))
     }
 
     pub fn attach(pid: u32, label: impl Into<String>) -> Self {
         let label = label.into();
-        let (group, attachment_error) = match tty_utils::ProcessGroup::new() {
+        let (group, attachment_error) = match xvora_tty_utils::ProcessGroup::new() {
             Ok(mut group) => match group.attach_pid(pid) {
                 Ok(()) => (Some(group), None),
                 Err(error) => (None, Some(error.to_string())),
@@ -303,7 +303,7 @@ impl TestProcessTree {
         }
     }
 
-    fn from_group(pid: u32, label: String, group: tty_utils::ProcessGroup) -> Self {
+    fn from_group(pid: u32, label: String, group: xvora_tty_utils::ProcessGroup) -> Self {
         Self {
             pid,
             label,
@@ -441,7 +441,7 @@ impl TestProcess {
         });
 
         sandbox.apply_to_tokio_command(&mut cmd);
-        cmd.envs(tty_utils::pager_env())
+        cmd.envs(xvora_tty_utils::pager_env())
             .envs(config.env)
             .stdin(match config.stdin {
                 TestStdin::Null => Stdio::null(),
@@ -450,9 +450,9 @@ impl TestProcess {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
-        tty_utils::detach_command(&mut cmd);
+        xvora_tty_utils::detach_command(&mut cmd);
 
-        let mut group = tty_utils::ProcessGroup::new()?;
+        let mut group = xvora_tty_utils::ProcessGroup::new()?;
         #[allow(clippy::disallowed_methods)]
         let mut child = cmd.spawn().map_err(|error| {
             io::Error::new(
@@ -993,7 +993,7 @@ mod tests {
     fn non_reaping_exit_observation_preserves_wait_status() {
         let mut command = std::process::Command::new("/bin/sh");
         command.args(["-c", "exit 23"]);
-        tty_utils::detach_std_command(&mut command);
+        xvora_tty_utils::detach_std_command(&mut command);
         #[allow(clippy::disallowed_methods)] // test fixture; the test reaps it
         let mut child = command.spawn().expect("spawn observation fixture");
         let deadline = std::time::Instant::now() + Duration::from_secs(2);

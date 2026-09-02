@@ -61,9 +61,13 @@ fn combine_queued_prompts_enabled() -> bool {
 /// **Leader / follow-up Steer gate:** the shared queue exists to hold every attached client to one order.
 /// `[ui].follow_up_behavior = "steer"` also takes this path.
 /// The shell can then promote the row to a mid-turn interjection at the next tool batch or model step.
+/// A non-adopted auto-wake is also server-busy: the pane is Idle, but the shell is in a turn.
+/// Route that send onto the server queue instead of locally starting a fake turn.
 pub(super) fn immediate_server_send_eligible(agent: &AgentView, leader_mode: bool) -> bool {
-    let server_busy = agent.session.state.is_turn_running() || !agent.shared_queue.is_empty();
-    (leader_mode || crate::appearance::cache::load_follow_up_steer())
+    let wake_running = agent.running_wake_turn.is_some();
+    let server_busy =
+        agent.session.state.is_turn_running() || wake_running || !agent.shared_queue.is_empty();
+    (leader_mode || crate::appearance::cache::load_follow_up_steer() || wake_running)
         && server_busy
         && agent.session.session_id.is_some()
         && agent.session.pending_prompts.is_empty()
@@ -278,6 +282,12 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
         log_blocked("turn_running", sid);
         return QueueDrain::blocked();
     }
+    // The pane stays Idle around a non-adopted wake; draining here would
+    // `start_turn` a fake local turn that the shell will only queue.
+    if agent.running_wake_turn.is_some() {
+        log_blocked("wake_turn_running", sid);
+        return QueueDrain::blocked();
+    }
     // Hold the drain during an in-flight model switch
     // See the `model_switch_pending` field doc for why a reconnect must clear it
     if agent.session.model_switch_pending {
@@ -399,7 +409,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
             // Scrollback shows display text (never raw skill XML)
             // Combined drains paint one bubble per original follow-up
             let is_skill = queued.display_as_skill;
-            let multi = prompt_queue::is_combined(&queued.combined_texts);
+            let multi = xvora_prompt_queue::is_combined(&queued.combined_texts);
             let (prompt_idx, prompt_entry_id, combined_entries) = if multi {
                 let (first_idx, _, last_id, all_ids) =
                     paint_or_reuse_combined_user_bubbles(agent, &queued.combined_texts);
@@ -456,7 +466,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                             serde_json::Value::Bool(true),
                         );
                     }
-                    prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                    xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 } else {
                     tracing::debug!(
                         "wire_blocks[0] is not TextContent — displayText annotation skipped"
@@ -480,7 +490,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                 );
                 if let Some(acp::ContentBlock::Text(tb)) = blocks.first_mut() {
                     let map = tb.meta.get_or_insert_with(acp::Meta::new);
-                    prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                    xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 }
                 vec![Effect::SendPromptBlocks {
                     agent_id,
@@ -493,7 +503,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                 // No skillTokenRanges: dequeue_combined_prompt clears them on every combined drain (multi paints plain per-segment bubbles)
                 let mut tb = acp::TextContent::new(queued.text);
                 let map = tb.meta.get_or_insert_with(acp::Meta::new);
-                prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 vec![Effect::SendPromptBlocks {
                     agent_id,
                     session_id,
@@ -697,7 +707,7 @@ fn paint_or_reuse_combined_user_bubbles(
         return (first_idx, first_id, last_id, ids);
     }
 
-    let joined = prompt_queue::join_texts(segments.iter().map(String::as_str));
+    let joined = xvora_prompt_queue::join_texts(segments.iter().map(String::as_str));
     if let Some((_, id)) = trailing_user_prompt_matching(agent, &joined, false) {
         agent.scrollback.remove_entry(id);
     }
@@ -907,9 +917,9 @@ pub(crate) fn apply_turn_start_shim(
         let (prompt_idx, first_id, last_id, all_ids) =
             paint_or_reuse_combined_user_bubbles(agent, &segments);
         if rewindable {
-            let restore = text
-                .clone()
-                .unwrap_or_else(|| prompt_queue::join_texts(segments.iter().map(String::as_str)));
+            let restore = text.clone().unwrap_or_else(|| {
+                xvora_prompt_queue::join_texts(segments.iter().map(String::as_str))
+            });
             let earlier = all_ids.into_iter().filter(|id| *id != last_id).collect();
             // An adopted turn arrives with text only, never the original attachments, so a Ctrl+C rewind restores just the joined text
             // The local drain path, which owns the data, restores images/chips.

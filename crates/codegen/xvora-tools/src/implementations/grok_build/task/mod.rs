@@ -32,7 +32,7 @@ use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::resources::{SessionFolder, SharedResources};
 use crate::types::tool::{ToolKind, ToolNamespace};
 use regex::Regex;
-use tool_types::{SubagentCompletedOutput, SubagentIsolationMode, TaskToolInput};
+use xvora_tool_types::{SubagentCompletedOutput, SubagentIsolationMode, TaskToolInput};
 
 pub const TASK_TOOL_NAME: &str = "task";
 
@@ -139,14 +139,14 @@ async fn detect_continue_parent_work(
     prompt: &str,
 ) -> bool {
     let asks = recent_user_asks(resources).await;
-    tool_types::should_continue_parent_work(&asks, description, prompt)
+    xvora_tool_types::should_continue_parent_work(&asks, description, prompt)
 }
 
 /// Resolve the model-facing get-output tool and param names for the
 /// background notices. Kind-wide resolution is correct here: these name the
 /// retrieval tool's schema (which the host may rename), not task's own.
 async fn resolve_background_notice_names(resources: &SharedResources) -> (String, String, String) {
-    let canonical = tool_types::BackgroundNoticeNaming::CANONICAL;
+    let canonical = xvora_tool_types::BackgroundNoticeNaming::CANONICAL;
     let res = resources.lock().await;
     let Some(renderer) = res.get::<crate::types::template_renderer::TemplateRenderer>() else {
         return (
@@ -186,6 +186,68 @@ pub struct TaskTool;
 /// definition sites.
 pub fn is_task_tool_id(name: &str) -> bool {
     matches!(name, TASK_TOOL_NAME | "Task" | "spawn_subagent")
+}
+
+fn flatten_spawn_join(
+    joined: Result<Result<SubagentResult, xvora_tool_runtime::ToolError>, tokio::task::JoinError>,
+) -> Result<SubagentResult, xvora_tool_runtime::ToolError> {
+    match joined {
+        Ok(result) => result,
+        Err(_) => Err(xvora_tool_runtime::ToolError::custom(
+            "channel_closed",
+            "background spawn task failed before registration",
+        )),
+    }
+}
+
+fn background_spawn_reject_error(
+    id: &str,
+    subagent_type: &str,
+    result: Result<SubagentResult, xvora_tool_runtime::ToolError>,
+) -> xvora_tool_runtime::ToolError {
+    match result {
+        Err(e) => {
+            tracing::error!(
+                subagent_id = %id,
+                subagent_type = %subagent_type,
+                "background spawn transport error: {e:#}",
+            );
+            e
+        }
+        Ok(r) => {
+            tracing::error!(
+                subagent_id = %id,
+                subagent_type = %subagent_type,
+                error = ?r.error,
+                "background spawn rejected by coordinator",
+            );
+            xvora_tool_runtime::ToolError::custom(
+                "spawn_rejected",
+                r.error.unwrap_or_else(|| {
+                    "background spawn was rejected by the coordinator".to_owned()
+                }),
+            )
+        }
+    }
+}
+
+fn log_background_spawn_after_start(
+    id: &str,
+    subagent_type: &str,
+    joined: Result<Result<SubagentResult, xvora_tool_runtime::ToolError>, tokio::task::JoinError>,
+) {
+    match flatten_spawn_join(joined) {
+        // Child-result failures are logged once by the coordinator. This
+        // waiter only owns join/transport errors the coordinator never sees.
+        Ok(_) => {}
+        Err(e) => {
+            tracing::error!(
+                subagent_id = %id,
+                subagent_type = %subagent_type,
+                "background spawn transport error after start: {e:#}",
+            );
+        }
+    }
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -233,17 +295,18 @@ impl crate::types::tool_metadata::ToolMetadata for TaskTool {
         }
 
         static DESC: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-            let subagents: Vec<tool_types::SubagentDescriptor> = tool_types::BUILTIN_SUBAGENTS
-                .iter()
-                .map(|b| tool_types::SubagentDescriptor {
-                    name: b.name.to_owned(),
-                    description: b.description.to_owned(),
-                    tools: Some(guard_kind_tokens(b.tools_template)),
-                })
-                .collect();
-            tool_types::build_task_description(
+            let subagents: Vec<xvora_tool_types::SubagentDescriptor> =
+                xvora_tool_types::BUILTIN_SUBAGENTS
+                    .iter()
+                    .map(|b| xvora_tool_types::SubagentDescriptor {
+                        name: b.name.to_owned(),
+                        description: b.description.to_owned(),
+                        tools: Some(guard_kind_tokens(b.tools_template)),
+                    })
+                    .collect();
+            xvora_tool_types::build_task_description(
                 &subagents,
-                &tool_types::TaskToolNaming {
+                &xvora_tool_types::TaskToolNaming {
                     task_tool: "${{ tools.by_kind.task }}",
                     subagent_type_param: "${{ params.task.subagent_type }}",
                     run_in_background_param: "${{ params.task.run_in_background }}",
@@ -271,25 +334,28 @@ impl crate::types::tool_metadata::ToolMetadata for TaskTool {
     }
 }
 
-impl tool_runtime::Tool for TaskTool {
+impl xvora_tool_runtime::Tool for TaskTool {
     type Args = TaskToolInput;
     type Output = ToolOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new(TASK_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new(TASK_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "task",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -303,13 +369,13 @@ impl tool_runtime::Tool for TaskTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: TaskToolInput,
-    ) -> Result<ToolOutput, tool_runtime::ToolError> {
+    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
         let tool_cancellation = ctx
-            .get::<tool_runtime::Cancellation>()
+            .get::<xvora_tool_runtime::Cancellation>()
             .map(|cancellation| cancellation.0.clone());
 
         // 1. Depth check
@@ -330,7 +396,7 @@ impl tool_runtime::Tool for TaskTool {
             let backend = res
                 .get::<SubagentBackendResource>()
                 .ok_or_else(|| {
-                    tool_runtime::ToolError::custom(
+                    xvora_tool_runtime::ToolError::custom(
                         "missing_resource",
                         "SubagentBackendResource (subagent support not initialized)",
                     )
@@ -362,7 +428,7 @@ impl tool_runtime::Tool for TaskTool {
         };
 
         if depth >= max_depth {
-            return Err(tool_runtime::ToolError::invalid_arguments(format!(
+            return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                 "Subagent depth limit exceeded (current depth: {depth}, max: {max_depth}). \
                  Cannot spawn further nested subagents."
             )));
@@ -375,7 +441,7 @@ impl tool_runtime::Tool for TaskTool {
         });
 
         // Model overrides are soft-ignored on resume (source model is always pinned).
-        let model = tool_types::sanitize_optional_arg(input.model);
+        let model = xvora_tool_types::sanitize_optional_arg(input.model);
         let model = if resume_from.is_some() {
             if let Some(ref ignored) = model {
                 tracing::debug!(
@@ -401,7 +467,7 @@ impl tool_runtime::Tool for TaskTool {
                 .as_deref()
                 .is_some_and(|p| std::path::Path::new(p).is_dir())
             {
-                return Err(tool_runtime::ToolError::invalid_arguments(
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(
                     "cwd and isolation=\"worktree\" are mutually exclusive. \
                      Use cwd to point the subagent at an existing directory, \
                      or isolation=\"worktree\" to create a new isolated worktree, \
@@ -429,7 +495,7 @@ impl tool_runtime::Tool for TaskTool {
                 } else {
                     format!("cwd \"{cwd_path}\" does not exist")
                 };
-                return Err(tool_runtime::ToolError::invalid_arguments(detail));
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(detail));
             }
         }
 
@@ -451,19 +517,19 @@ impl tool_runtime::Tool for TaskTool {
                 } else {
                     format!(". Available types: {}", available.join(", "))
                 };
-                return Err(tool_runtime::ToolError::invalid_arguments(format!(
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "Unknown subagent type: {}{suffix}",
                     input.subagent_type
                 )));
             }
             SubagentValidateTypeOutcome::Disabled => {
-                return Err(tool_runtime::ToolError::invalid_arguments(format!(
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "Subagent '{}' is disabled via [subagents.toggle] in config.toml",
                     input.subagent_type
                 )));
             }
             SubagentValidateTypeOutcome::NotAllowed { allowed } => {
-                return Err(tool_runtime::ToolError::invalid_arguments(format!(
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
                     "agent can only spawn: {}; '{}' not allowed",
                     allowed.join(", "),
                     input.subagent_type
@@ -472,7 +538,7 @@ impl tool_runtime::Tool for TaskTool {
             // `custom` (not `invalid_arguments`) so the model doesn't
             // retry with a different name on transport faults.
             SubagentValidateTypeOutcome::CoordinatorGone => {
-                return Err(tool_runtime::ToolError::custom(
+                return Err(xvora_tool_runtime::ToolError::custom(
                     "validation_unavailable",
                     format!(
                         "Cannot validate subagent type '{}': the subagent coordinator \
@@ -482,7 +548,7 @@ impl tool_runtime::Tool for TaskTool {
                 ));
             }
             SubagentValidateTypeOutcome::ValidationUnavailable => {
-                return Err(tool_runtime::ToolError::custom(
+                return Err(xvora_tool_runtime::ToolError::custom(
                     "validation_unavailable",
                     format!(
                         "Cannot validate subagent type '{}': the subagent coordinator did \
@@ -495,13 +561,13 @@ impl tool_runtime::Tool for TaskTool {
 
         if let Some(ref requested) = model {
             let validator = model_validator.ok_or_else(|| {
-                tool_runtime::ToolError::custom(
+                xvora_tool_runtime::ToolError::custom(
                     "validation_unavailable",
                     "Cannot validate Task.model: model catalog validator is unavailable.",
                 )
             })?;
             if let Some(error) = validator.error_for(requested) {
-                return Err(tool_runtime::ToolError::invalid_arguments(error));
+                return Err(xvora_tool_runtime::ToolError::invalid_arguments(error));
             }
         }
 
@@ -560,39 +626,57 @@ impl tool_runtime::Tool for TaskTool {
             cancel_token: child_cancellation,
         };
 
-        // 4. Background mode: fire-and-forget via backend.spawn().
-        // Coordinator stores the result for TaskOutputTool polling.
-        // Both transport errors and coordinator rejections are logged so
-        // late failures (worktree creation, etc.) remain visible.
+        // 4. Background mode: await registration (pending/queued), not the
+        // child session. `spawn()` stays the terminal result; late failures
+        // are logged from a detached waiter.
         if input.run_in_background {
             drop(foreground_wait);
-            let bg_backend = backend.clone();
-            let bg_id = id.clone();
-            let bg_type = input.subagent_type.clone();
-            tokio::spawn(async move {
-                match bg_backend.backend().spawn(request).await {
-                    Err(e) => {
-                        tracing::error!(
-                            subagent_id = %bg_id,
-                            subagent_type = %bg_type,
-                            "background spawn transport error: {e:#}",
-                        );
-                    }
-                    Ok(r) if !r.success => {
-                        tracing::error!(
-                            subagent_id = %bg_id,
-                            subagent_type = %bg_type,
-                            error = ?r.error,
-                            "background spawn rejected by coordinator",
-                        );
-                    }
-                    Ok(_) => {}
-                }
+            let (registered_tx, mut registered_rx) = tokio::sync::oneshot::channel();
+            let spawn_backend = backend.clone();
+            let mut spawn_task = tokio::spawn(async move {
+                spawn_backend
+                    .backend()
+                    .spawn(request, Some(registered_tx))
+                    .await
             });
+
+            let mut terminal_already_logged = false;
+            let registered = tokio::select! {
+                biased;
+                reg = &mut registered_rx => matches!(reg, Ok(())),
+                joined = &mut spawn_task => {
+                    if registered_rx.try_recv().is_ok() {
+                        log_background_spawn_after_start(&id, &input.subagent_type, joined);
+                        terminal_already_logged = true;
+                        true
+                    } else {
+                        return Err(background_spawn_reject_error(
+                            &id,
+                            &input.subagent_type,
+                            flatten_spawn_join(joined),
+                        ));
+                    }
+                }
+            };
+            if !registered {
+                return Err(background_spawn_reject_error(
+                    &id,
+                    &input.subagent_type,
+                    flatten_spawn_join(spawn_task.await),
+                ));
+            }
+            if !terminal_already_logged {
+                let log_id = id.clone();
+                let log_type = input.subagent_type.clone();
+                // Detached: started text is the model reply; `spawn()` is terminal.
+                tokio::spawn(async move {
+                    log_background_spawn_after_start(&log_id, &log_type, spawn_task.await);
+                });
+            }
 
             let (task_output_tool, task_ids_param, timeout_ms_param) =
                 resolve_background_notice_names(&resources).await;
-            let naming = tool_types::BackgroundNoticeNaming {
+            let naming = xvora_tool_types::BackgroundNoticeNaming {
                 task_output_tool: &task_output_tool,
                 task_ids_param: &task_ids_param,
                 timeout_ms_param: &timeout_ms_param,
@@ -601,7 +685,7 @@ impl tool_runtime::Tool for TaskTool {
             let continue_parent =
                 detect_continue_parent_work(&resources, &input.description, &input.prompt).await;
             return Ok(ToolOutput::Text(
-                tool_types::format_subagent_started_background(
+                xvora_tool_types::format_subagent_started_background(
                     &id,
                     &input.subagent_type,
                     &input.description,
@@ -613,7 +697,7 @@ impl tool_runtime::Tool for TaskTool {
         }
 
         // 5. Blocking mode (default): spawn via backend and await result
-        let result = backend.backend().spawn(request).await;
+        let result = backend.backend().spawn(request, None).await;
         if let Some(forwarder) = cancellation_forwarder {
             forwarder.abort();
         }
@@ -625,7 +709,7 @@ impl tool_runtime::Tool for TaskTool {
         if result.backgrounded {
             let (task_output_tool, task_ids_param, timeout_ms_param) =
                 resolve_background_notice_names(&resources).await;
-            let naming = tool_types::BackgroundNoticeNaming {
+            let naming = xvora_tool_types::BackgroundNoticeNaming {
                 task_output_tool: &task_output_tool,
                 task_ids_param: &task_ids_param,
                 timeout_ms_param: &timeout_ms_param,
@@ -640,7 +724,7 @@ impl tool_runtime::Tool for TaskTool {
             let continue_parent =
                 detect_continue_parent_work(&resources, &input.description, &input.prompt).await;
 
-            let text = tool_types::format_subagent_auto_backgrounded(
+            let text = xvora_tool_types::format_subagent_auto_backgrounded(
                 &id,
                 &input.subagent_type,
                 &input.description,
@@ -671,7 +755,7 @@ impl tool_runtime::Tool for TaskTool {
                 persona_hint,
             }))
         } else {
-            Err(tool_runtime::ToolError::invalid_arguments(
+            Err(xvora_tool_runtime::ToolError::invalid_arguments(
                 result
                     .error
                     .unwrap_or_else(|| "Unknown subagent error".to_string()),
@@ -690,7 +774,7 @@ mod tests {
     use crate::types::tool_metadata::test_ctx;
     use std::sync::Arc;
     use tokio::sync::mpsc;
-    use tool_types::SubagentCapabilityMode;
+    use xvora_tool_types::SubagentCapabilityMode;
 
     /// Backend whose `ValidateType` events are auto-acked with `Ok`.
     fn make_backend() -> (
@@ -759,7 +843,7 @@ mod tests {
         resources.insert(CurrentPromptIdResource("prompt-123".to_string()));
 
         let tool = TaskTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskToolInput {
@@ -792,7 +876,13 @@ mod tests {
         resources.insert(SessionIdResource("child-session".to_string()));
         resources.insert(CurrentPromptIdResource("prompt-nested".to_string()));
 
-        let result = tool_runtime::Tool::run(
+        let drain = tokio::spawn(async move {
+            if let Some(SubagentEvent::Spawn(mut req)) = rx.recv().await {
+                req.notify_registered();
+            }
+        });
+
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             TaskToolInput {
@@ -814,7 +904,7 @@ mod tests {
             result.is_ok(),
             "expected Ok at depth 1 with max 2: {result:?}"
         );
-        let _ = rx.try_recv();
+        let _ = tokio::time::timeout(std::time::Duration::from_millis(500), drain).await;
     }
 
     #[tokio::test]
@@ -826,7 +916,7 @@ mod tests {
         resources.insert(SessionIdResource("child-session".to_string()));
         resources.insert(CurrentPromptIdResource("prompt-456".to_string()));
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             TaskToolInput {
@@ -857,7 +947,7 @@ mod tests {
         let resources = Resources::new();
 
         let tool = TaskTool;
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             TaskToolInput {
@@ -915,7 +1005,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(shared),
             TaskToolInput {
@@ -971,7 +1061,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(shared),
             TaskToolInput {
@@ -1014,7 +1104,7 @@ mod tests {
             drop(request.result_tx);
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(shared),
             TaskToolInput {
@@ -1071,7 +1161,7 @@ mod tests {
             }
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("general-purpose", false), // blocking mode
@@ -1102,7 +1192,7 @@ mod tests {
                 );
                 assert!(
                     text.text
-                        .contains(tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
+                        .contains(xvora_tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
                     "auto-bg result must keep in-flight parent work: {}",
                     text.text
                 );
@@ -1190,7 +1280,7 @@ mod tests {
             });
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("invented-agent", true),
@@ -1212,7 +1302,7 @@ mod tests {
         let (backend, mut rx) = make_backend_with_validation(SubagentValidateTypeOutcome::Disabled);
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("explore", true),
@@ -1232,7 +1322,7 @@ mod tests {
             });
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("general-purpose", true),
@@ -1250,7 +1340,7 @@ mod tests {
         });
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("invented", false),
@@ -1267,7 +1357,7 @@ mod tests {
         let (backend, mut rx) = make_backend_with_validation(SubagentValidateTypeOutcome::Disabled);
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("explore", false),
@@ -1297,7 +1387,8 @@ mod tests {
         input.model = Some("invented-model".to_string());
 
         let result =
-            tool_runtime::Tool::run(&TaskTool, test_ctx(resources.into_shared()), input).await;
+            xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(resources.into_shared()), input)
+                .await;
 
         let msg = result
             .expect_err("invalid model must reject before spawn")
@@ -1317,18 +1408,12 @@ mod tests {
             resources_with_parent_exec(backend, "CI still fails, fix and gt submit /pr-babysit");
 
         let drain = tokio::spawn(async move {
-            if let Some(SubagentEvent::Spawn(boxed)) = rx.recv().await {
-                let _ = boxed.respond_with(|boxed| SubagentResult {
-                    success: true,
-                    output: std::sync::Arc::from(""),
-                    subagent_id: boxed.id.clone(),
-                    child_session_id: boxed.id.clone(),
-                    ..Default::default()
-                });
+            if let Some(SubagentEvent::Spawn(mut boxed)) = rx.recv().await {
+                boxed.notify_registered();
             }
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("general-purpose", true),
@@ -1341,7 +1426,7 @@ mod tests {
                 assert!(text.text.contains("Subagent started in background"));
                 assert!(
                     text.text
-                        .contains(tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
+                        .contains(xvora_tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
                     "background spawn must keep in-flight parent work: {}",
                     text.text
                 );
@@ -1359,18 +1444,12 @@ mod tests {
             resources_with_parent_exec(backend, "review this PR https://github.com/x/y/pull/1");
 
         let drain = tokio::spawn(async move {
-            if let Some(SubagentEvent::Spawn(boxed)) = rx.recv().await {
-                let _ = boxed.respond_with(|boxed| SubagentResult {
-                    success: true,
-                    output: std::sync::Arc::from(""),
-                    subagent_id: boxed.id.clone(),
-                    child_session_id: boxed.id.clone(),
-                    ..Default::default()
-                });
+            if let Some(SubagentEvent::Spawn(mut boxed)) = rx.recv().await {
+                boxed.notify_registered();
             }
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("general-purpose", true),
@@ -1384,7 +1463,7 @@ mod tests {
                 assert!(
                     !text
                         .text
-                        .contains(tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
+                        .contains(xvora_tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
                     "review-only ask must not get continue-parent CTA: {}",
                     text.text
                 );
@@ -1419,18 +1498,12 @@ mod tests {
         );
 
         let drain = tokio::spawn(async move {
-            if let Some(SubagentEvent::Spawn(boxed)) = rx.recv().await {
-                let _ = boxed.respond_with(|boxed| SubagentResult {
-                    success: true,
-                    output: std::sync::Arc::from(""),
-                    subagent_id: boxed.id.clone(),
-                    child_session_id: boxed.id.clone(),
-                    ..Default::default()
-                });
+            if let Some(SubagentEvent::Spawn(mut boxed)) = rx.recv().await {
+                boxed.notify_registered();
             }
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("general-purpose", true),
@@ -1442,7 +1515,7 @@ mod tests {
             ToolOutput::Text(text) => {
                 assert!(
                     text.text
-                        .contains(tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
+                        .contains(xvora_tool_types::BACKGROUND_SUBAGENT_CONTINUE_PARENT_WORK),
                     "synthetic rows must not hide leftover exec: {}",
                     text.text
                 );
@@ -1476,24 +1549,19 @@ mod tests {
             let _ = done_tx.send(());
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("general-purpose", true),
         )
-        .await
-        .expect("background tool call returns Ok regardless of coordinator outcome");
-        let text = match result {
-            ToolOutput::Text(t) => t.text,
-            other => panic!("expected text output, got {other:?}"),
-        };
-        assert!(text.contains("Subagent started in background"));
+        .await;
+        let err = result.expect_err("definite coordinator reject is a tool error");
+        assert!(
+            err.to_string().contains("worktree creation failed"),
+            "{err}"
+        );
 
-        // Let the fire-and-forget bg task advance past `.await` on spawn.
         let _ = tokio::time::timeout(std::time::Duration::from_millis(500), done_rx).await;
-        for _ in 0..20 {
-            tokio::task::yield_now().await;
-        }
 
         let mut events_rx = captured.events_rx;
         let mut saw_error = false;
@@ -1524,23 +1592,20 @@ mod tests {
         drop(rx);
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("general-purpose", true),
         )
-        .await
-        .expect("transport error must not break the fire-and-forget contract");
-        match result {
-            ToolOutput::Text(t) => {
-                assert!(
-                    t.text.contains("Subagent started in background"),
-                    "{}",
-                    t.text,
-                );
-            }
-            other => panic!("expected text output, got {other:?}"),
-        }
+        .await;
+        let err = result.expect_err("closed coordinator channel is a tool error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("channel closed")
+                || msg.contains("cannot spawn")
+                || msg.contains("result channel dropped"),
+            "{err}"
+        );
     }
 
     #[tokio::test]
@@ -1549,7 +1614,7 @@ mod tests {
             make_backend_with_validation(SubagentValidateTypeOutcome::ValidationUnavailable);
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("explore", true),
@@ -1557,7 +1622,7 @@ mod tests {
         .await;
         let err = result.expect_err("must error");
         assert!(
-            matches!(err.kind, tool_runtime::ToolErrorKind::Custom),
+            matches!(err.kind, xvora_tool_runtime::ToolErrorKind::Custom),
             "transport faults must not be invalid_arguments (the model would \
              retry with a mutated name): {err:?}"
         );
@@ -1605,17 +1670,19 @@ mod tests {
             }));
 
             let drain = tokio::spawn(async move {
-                if let Some(SubagentEvent::Spawn(boxed)) = rx.recv().await {
-                    let _ = boxed.respond_with(|boxed| SubagentResult {
+                if let Some(SubagentEvent::Spawn(mut boxed)) = rx.recv().await {
+                    boxed.notify_registered();
+                    // Foreground mode still awaits the terminal `spawn()` result.
+                    let _ = boxed.respond_with(|req| SubagentResult {
                         success: true,
-                        subagent_id: boxed.id.clone(),
-                        child_session_id: boxed.id.clone(),
+                        subagent_id: req.id.clone(),
+                        child_session_id: req.id.clone(),
                         ..Default::default()
                     });
                 }
             });
 
-            let result = tool_runtime::Tool::run(
+            let result = xvora_tool_runtime::Tool::run(
                 &TaskTool,
                 test_ctx(resources.into_shared()),
                 task_input("explore", run_in_background),
@@ -1645,7 +1712,7 @@ mod tests {
         let backend = SubagentBackendResource(Arc::new(ChannelBackend::new(tx)));
         let resources = resources_for_task(backend);
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("explore", true),
@@ -1662,7 +1729,7 @@ mod tests {
     #[tokio::test]
     async fn validate_request_threads_session_id_to_coordinator() {
         let (capture_tx, mut capture_rx) = mpsc::unbounded_channel::<String>();
-        let (backend, _rx) = make_backend_with_validation_fn(move |_t, parent_session_id| {
+        let (backend, mut rx) = make_backend_with_validation_fn(move |_t, parent_session_id| {
             let _ = capture_tx.send(parent_session_id.to_string());
             SubagentValidateTypeOutcome::Ok
         });
@@ -1672,12 +1739,19 @@ mod tests {
         resources.insert(SessionIdResource("special-session-id".to_string()));
         resources.insert(CurrentPromptIdResource("prompt-x".to_string()));
 
-        let _ = tool_runtime::Tool::run(
+        let drain = tokio::spawn(async move {
+            if let Some(SubagentEvent::Spawn(mut req)) = rx.recv().await {
+                req.notify_registered();
+            }
+        });
+
+        let _ = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             task_input("explore", true),
         )
         .await;
+        let _ = tokio::time::timeout(std::time::Duration::from_millis(500), drain).await;
 
         let seen = capture_rx.try_recv().expect("must fire at least once");
         assert_eq!(seen, "special-session-id");
@@ -1686,7 +1760,9 @@ mod tests {
 
     #[test]
     fn task_tool_id_predicate_accepts_all_wire_spellings() {
-        assert!(is_task_tool_id(tool_runtime::Tool::id(&TaskTool).as_str()));
+        assert!(is_task_tool_id(
+            xvora_tool_runtime::Tool::id(&TaskTool).as_str()
+        ));
         for name in ["task", "Task", "spawn_subagent"] {
             assert!(is_task_tool_id(name), "must accept {name:?}");
         }
@@ -2083,7 +2159,7 @@ mod tests {
                 .unwrap();
         });
 
-        let _ = tool_runtime::Tool::run(
+        let _ = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2165,7 +2241,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2231,7 +2307,7 @@ mod tests {
                     .unwrap();
             });
 
-            let result = tool_runtime::Tool::run(
+            let result = xvora_tool_runtime::Tool::run(
                 &TaskTool,
                 test_ctx(shared),
                 TaskToolInput {
@@ -2305,7 +2381,7 @@ mod tests {
         resources.insert(SessionIdResource("parent".to_string()));
         resources.insert(CurrentPromptIdResource("prompt-1".to_string()));
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             TaskToolInput {
@@ -2359,7 +2435,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2409,7 +2485,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2459,7 +2535,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2512,7 +2588,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2546,7 +2622,7 @@ mod tests {
         resources.insert(SessionIdResource("parent".to_string()));
         resources.insert(CurrentPromptIdResource("prompt-1".to_string()));
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(resources.into_shared()),
             TaskToolInput {
@@ -2601,7 +2677,7 @@ mod tests {
                     .unwrap();
             });
 
-            let result = tool_runtime::Tool::run(
+            let result = xvora_tool_runtime::Tool::run(
                 &TaskTool,
                 test_ctx(shared.clone()),
                 TaskToolInput {
@@ -2654,7 +2730,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2711,7 +2787,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2763,7 +2839,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2811,7 +2887,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             TaskToolInput {
@@ -2875,7 +2951,7 @@ mod tests {
 
         let mut input = task_input("general-purpose", false);
         input.model = Some("test-model".into());
-        let result = tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
+        let result = xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
             .await
             .unwrap();
         handle.await.unwrap();
@@ -2911,7 +2987,7 @@ mod tests {
                 .unwrap();
         });
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &TaskTool,
             test_ctx(shared),
             task_input("general-purpose", false),
@@ -2963,7 +3039,7 @@ mod tests {
 
             let mut input = task_input("general-purpose", false);
             input.model = Some(sentinel.into());
-            let result = tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
+            let result = xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
                 .await
                 .unwrap_or_else(|e| panic!("sentinel {sentinel:?} should not fail: {e}"));
             handle.await.unwrap();
@@ -3004,7 +3080,7 @@ mod tests {
 
         let mut input = task_input("general-purpose", false);
         input.model = Some("  test-model  ".into());
-        let _ = tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
+        let _ = xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
             .await
             .unwrap();
         handle.await.unwrap();
@@ -3046,7 +3122,7 @@ mod tests {
         let mut input = task_input("general-purpose", false);
         input.resume_from = Some("prev-id".into());
         input.model = Some("test-model".into());
-        let result = tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
+        let result = xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
             .await
             .unwrap();
         handle.await.unwrap();
@@ -3081,7 +3157,7 @@ mod tests {
 
         let mut input = task_input("general-purpose", false);
         input.resume_from = Some("prev-id".into());
-        let result = tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
+        let result = xvora_tool_runtime::Tool::run(&TaskTool, test_ctx(shared), input)
             .await
             .unwrap();
         handle.await.unwrap();

@@ -101,17 +101,11 @@ async fn manual_auth_posts_to_events_endpoint_as_grok_shell_manual_auth() {
         ("is_interactive", serde_json::json!(false)),
         ("release_channel", serde_json::json!("alpha")),
         ("dev_build", serde_json::json!(xvora_version::IS_DEV_BUILD)),
-        ("sessions_active", serde_json::json!(0)),
-        ("subagents_active", serde_json::json!(0)),
-        ("compaction_active", serde_json::json!(false)),
-        ("mcp_servers_connected", serde_json::json!(0)),
-        ("turns_active", serde_json::json!(0)),
-        ("workflow_runs_active", serde_json::json!(0)),
     ] {
         assert_eq!(
             meta.get(key),
             Some(&expected),
-            "identity and idle gauge values are wire contract: {key}",
+            "identity values are wire contract: {key}",
         );
     }
     assert!(
@@ -186,6 +180,13 @@ async fn manual_auth_posts_to_events_endpoint_as_grok_shell_manual_auth() {
         "memory_limit_bytes",
         "session_id",
         "turn_number",
+        // Activity gauges register on first use, so a fresh process emits none.
+        xvora_telemetry::activity::SESSIONS_ACTIVE_KEY,
+        xvora_telemetry::activity::SUBAGENTS_ACTIVE_KEY,
+        xvora_telemetry::activity::COMPACTIONS_ACTIVE_KEY,
+        xvora_telemetry::activity::MCP_SERVERS_CONNECTED_KEY,
+        xvora_telemetry::activity::TURNS_ACTIVE_KEY,
+        xvora_telemetry::activity::WORKFLOW_RUNS_ACTIVE_KEY,
         #[cfg(not(unix))]
         "cpu_time_ms",
         #[cfg(not(unix))]

@@ -623,14 +623,14 @@ fn inherited_child_toolset_cannot_reintroduce_workflow() {
 /// A pointer sends resume down the rehydrate path, which deletes the directory and rebuilds it from a snapshot that lacks whatever kept it.
 #[tokio::test]
 async fn kept_worktree_leaves_no_resume_pointer() {
-    test_utils::require_git!();
-    use test_utils::git::{git_commit_all, seed_repo};
+    xvora_test_utils::require_git!();
+    use xvora_test_utils::git::{git_commit_all, seed_repo};
     let temp = tempfile::TempDir::new().unwrap();
     let repo = seed_repo(temp.path());
     std::fs::write(repo.join(".gitignore"), ".env\n").unwrap();
     git_commit_all(&repo, "ignore env");
     let wt = temp.path().join("subagent-keeps");
-    fast_worktree::WorktreeBuilder::new(&repo, &wt)
+    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt)
         .standalone(true)
         .create()
         .unwrap();
@@ -678,12 +678,12 @@ async fn kept_worktree_leaves_no_resume_pointer() {
 /// Linked on purpose: only there is the registration's reflog the last name for a commit, which the second half of this test is about.
 #[tokio::test]
 async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_directory() {
-    test_utils::require_git!();
-    use test_utils::git::seed_repo_with_remote;
+    xvora_test_utils::require_git!();
+    use xvora_test_utils::git::seed_repo_with_remote;
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-1");
-    fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
+    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
     let meta_dir = temp.path().join("meta");
     write_subagent_meta(&meta_dir, &snapshot_test_meta("reclaim-1"));
     let disposal = crate::agent::subagent::handle_request::dispose_worktree_after_completion(
@@ -715,12 +715,12 @@ async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_director
 /// The disposal gives it a lasting second name in the repository before removing the directory, so the commit stays readable.
 #[tokio::test]
 async fn disposal_names_a_reflog_only_commit_before_removing_the_worktree() {
-    test_utils::require_git!();
-    use test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
+    xvora_test_utils::require_git!();
+    use xvora_test_utils::git::{reflog_only_commit, run_git, seed_repo_with_remote};
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-2");
-    fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
+    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
     let discarded = reflog_only_commit(&wt, None);
     let meta_dir = temp.path().join("meta");
     write_subagent_meta(&meta_dir, &snapshot_test_meta("reclaim-2"));
@@ -1182,13 +1182,13 @@ fn token_estimation_for_window_safety() {
             ConversationItem::user("Hello, how are you?"),
             ConversationItem::assistant("I'm doing well, thank you!"),
         ];
-    let estimated = chat_state::estimate_conversation_tokens(&conversation);
+    let estimated = xvora_chat_state::estimate_conversation_tokens(&conversation);
     assert!(estimated > 0, "should produce non-zero estimate");
     assert!(
             estimated < 100,
             "short conversation should have small token estimate"
         );
-    assert_eq!(chat_state::estimate_conversation_tokens(&[]), 0);
+    assert_eq!(xvora_chat_state::estimate_conversation_tokens(&[]), 0);
 }
 #[test]
 fn token_estimation_accounts_for_images() {
@@ -1200,7 +1200,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let text_tokens = chat_state::estimate_conversation_tokens(&text_only);
+    let text_tokens = xvora_chat_state::estimate_conversation_tokens(&text_only);
     let with_image = vec![ConversationItem::User(UserItem {
             content: vec![
                 ContentPart::Text {
@@ -1213,7 +1213,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let image_tokens = chat_state::estimate_conversation_tokens(&with_image);
+    let image_tokens = xvora_chat_state::estimate_conversation_tokens(&with_image);
     assert_eq!(
             image_tokens,
             text_tokens + 765,
@@ -1228,7 +1228,7 @@ fn token_estimation_accounts_for_images() {
             synthetic_reason: None,
             ..Default::default()
         })];
-    let multi_tokens = chat_state::estimate_conversation_tokens(&multi_image);
+    let multi_tokens = xvora_chat_state::estimate_conversation_tokens(&multi_image);
     assert_eq!(multi_tokens, 765 * 3, "three images = 3 * 765 tokens");
 }
 #[test]
@@ -1327,7 +1327,7 @@ fn drain_cancelled_finish_broadcasts(
 ) -> usize {
     let mut count = 0;
     while let Ok(msg) = gateway_rx.try_recv() {
-        let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+        let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
             continue;
         };
         assert_eq!(args.request.method.as_ref(), "x.ai/session_notification");
@@ -1803,7 +1803,7 @@ async fn live_reconcile_overlapping_ticks_emit_once() {
     assert_eq!(cmd_finishes, 1);
     let mut gateway_finishes = 0;
     while let Ok(msg) = gateway_rx.try_recv() {
-        let acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
+        let xvora_acp_lib::AcpClientMessage::ExtNotification(args) = msg else {
             continue;
         };
         let notification: SessionNotification = serde_json::from_str(
@@ -2261,9 +2261,9 @@ async fn read_parent_sampling_config_live_never_strips_a_fallback_key() {
     );
     ctx.auth = None;
     let chat = spawn_test_parent_chat_state("grok-4.5");
-    chat.update_credentials(chat_state::Credentials {
+    chat.update_credentials(xvora_chat_state::Credentials {
         api_key: Some("xvora-env-fallback".to_string()),
-        auth_type: chat_state::AuthType::SessionToken,
+        auth_type: xvora_chat_state::AuthType::SessionToken,
         alpha_test_key: None,
         client_version: None,
     });
@@ -2648,6 +2648,86 @@ async fn resolve_subagent_config_override_wins_over_agent_definition() {
     assert_eq!(config.model, "config-pin");
     assert_eq!(model_id.0.as_ref(), "config-pin");
 }
+/// A named subagent model that is in the catalog but not user-selectable
+/// (fleet `allowed_models` pin) must not run inference. Same fall-through
+/// as an unknown id — inherit the parent.
+#[tokio::test]
+async fn resolve_subagent_config_override_unselectable_model_falls_through_to_inherit() {
+    use xvora_agent::config::ModelOverride;
+    let mut ctx = ctx_with_toggle(HashMap::new());
+    ctx.sampling_config.model = "grok-4.5".to_string();
+    ctx.model_id = acp::ModelId::new("grok-4.5");
+    let mut blocked = test_model_entry("blocked-model");
+    blocked.info.user_selectable = false;
+    ctx.available_models.insert("blocked-model".to_string(), blocked);
+    ctx.subagent_model_overrides
+        .insert("explore".to_string(), "blocked-model".to_string());
+    let raw = toml::Value::Table(toml::map::Map::new());
+    let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
+    cfg.requirements
+        .allowed_models
+        .pin(
+            crate::agent::config::AllowlistPin::List(vec!["grok-4*".into()]),
+            crate::config::RequirementSource::Unknown,
+        );
+    ctx.agent_config = Some(cfg);
+    let (config, model_id) = resolve_subagent_sampling_config(
+            "explore",
+            &ModelOverride::Inherit,
+            &ctx,
+        )
+        .await;
+    assert_eq!(config.model, "grok-4.5");
+    assert_eq!(model_id.0.as_ref(), "grok-4.5");
+}
+/// A user's own `allowed_models` picker filter does not block named
+/// subagent overrides. Only a fleet pin does.
+#[tokio::test]
+async fn resolve_subagent_config_override_user_allowlist_still_applies() {
+    use xvora_agent::config::ModelOverride;
+    let mut ctx = ctx_with_toggle(HashMap::new());
+    ctx.sampling_config.model = "grok-4.5".to_string();
+    ctx.model_id = acp::ModelId::new("grok-4.5");
+    let mut picker_hidden = test_model_entry("subagent-only");
+    picker_hidden.info.user_selectable = false;
+    ctx.available_models.insert("subagent-only".to_string(), picker_hidden);
+    ctx.subagent_model_overrides
+        .insert("explore".to_string(), "subagent-only".to_string());
+    let raw = toml::Value::Table(toml::map::Map::new());
+    ctx.agent_config = Some(
+        crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap(),
+    );
+    let (config, model_id) = resolve_subagent_sampling_config(
+            "explore",
+            &ModelOverride::Inherit,
+            &ctx,
+        )
+        .await;
+    assert_eq!(config.model, "subagent-only");
+    assert_eq!(model_id.0.as_ref(), "subagent-only");
+}
+/// Missing `agent_config` cannot be told from a fleet pin — fail closed.
+#[tokio::test]
+async fn resolve_subagent_config_override_none_agent_config_blocks_unselectable() {
+    use xvora_agent::config::ModelOverride;
+    let mut ctx = ctx_with_toggle(HashMap::new());
+    ctx.sampling_config.model = "grok-4.5".to_string();
+    ctx.model_id = acp::ModelId::new("grok-4.5");
+    let mut blocked = test_model_entry("blocked-model");
+    blocked.info.user_selectable = false;
+    ctx.available_models.insert("blocked-model".to_string(), blocked);
+    ctx.subagent_model_overrides
+        .insert("explore".to_string(), "blocked-model".to_string());
+    assert!(ctx.agent_config.is_none());
+    let (config, model_id) = resolve_subagent_sampling_config(
+            "explore",
+            &ModelOverride::Inherit,
+            &ctx,
+        )
+        .await;
+    assert_eq!(config.model, "grok-4.5");
+    assert_eq!(model_id.0.as_ref(), "grok-4.5");
+}
 /// An unresolvable `[subagents.models]` pin (model absent from `available_models`) falls through to inherit the parent model.
 #[tokio::test]
 async fn resolve_subagent_config_override_unknown_model_falls_through_to_inherit() {
@@ -2836,7 +2916,7 @@ fn persona_injection_into_empty_conversation() {
 mod cancellation_error_message_tests {
     use super::super::cancellation_error_message;
     use crate::session::commands::CancellationContext;
-    use session_events::types::CancellationCategory;
+    use xvora_session_events::types::CancellationCategory;
     #[test]
     fn permission_rejected_with_context() {
         let ctx = CancellationContext {

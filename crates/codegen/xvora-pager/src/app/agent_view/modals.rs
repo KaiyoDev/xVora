@@ -1382,7 +1382,7 @@ impl AgentView {
             ButtonAction::HooksAction(hooks_action) => {
                 if let Some(ref mut state) = self.extensions_modal {
                     state.modal_message = None;
-                    if matches!(hooks_action, hooks_plugins_types::HooksAction::Reload) {
+                    if matches!(hooks_action, xvora_hooks_plugins_types::HooksAction::Reload) {
                         // Reload rebuilds the entire plugin registry; show tab-level "Loading..." instead of a single-entry badge
                         state.pending_action = Some("Reloading...".into());
                         state.pending_entry_index = None;
@@ -1400,7 +1400,10 @@ impl AgentView {
                 if let Some(ref mut state) = self.extensions_modal {
                     state.modal_message = None;
                     state.last_plugins_action = Some(plugins_action.clone());
-                    if matches!(plugins_action, hooks_plugins_types::PluginsAction::Reload) {
+                    if matches!(
+                        plugins_action,
+                        xvora_hooks_plugins_types::PluginsAction::Reload
+                    ) {
                         // Reload rebuilds the entire plugin registry; show tab-level "Loading..." instead of a single-entry badge
                         state.pending_action = Some("Reloading...".into());
                         state.pending_entry_index = None;
@@ -1412,7 +1415,7 @@ impl AgentView {
                         // Update gets its own verb (matching the Marketplace tab) so the user sees the fetch is underway, not a generic spinner
                         let label = if matches!(
                             plugins_action,
-                            hooks_plugins_types::PluginsAction::Update { .. }
+                            xvora_hooks_plugins_types::PluginsAction::Update { .. }
                         ) {
                             "Updating..."
                         } else {
@@ -1558,16 +1561,16 @@ impl AgentView {
                     match &marketplace_action {
                         // Refresh re-syncs every source and reloads the whole list
                         // Show a tab-level loading state instead of decorating the single row under the cursor
-                        hooks_plugins_types::MarketplaceAction::Refresh { .. } => {
+                        xvora_hooks_plugins_types::MarketplaceAction::Refresh { .. } => {
                             state.pending_action = None;
                             state.pending_entry_index = None;
                             state.marketplace_data = TabDataState::Loading;
                         }
                         // No pending_entry_index: the new source doesn't exist yet, so any index would decorate an unrelated row
-                        hooks_plugins_types::MarketplaceAction::AddSource { .. } => {
+                        xvora_hooks_plugins_types::MarketplaceAction::AddSource { .. } => {
                             state.pending_action = Some("Adding source...".into());
                         }
-                        hooks_plugins_types::MarketplaceAction::Uninstall { .. } => {
+                        xvora_hooks_plugins_types::MarketplaceAction::Uninstall { .. } => {
                             state.pending_action = Some("Uninstalling...".into());
                             state.pending_entry_index = Some(state.picker_state.selected);
                         }
@@ -1630,7 +1633,7 @@ impl AgentView {
                     self.prompt_extensions_confirm(
                         format!("Remove hook source \"{label}\"?"),
                         crate::views::extensions_modal::ConfirmationAction::Hooks(
-                            hooks_plugins_types::HooksAction::Remove { path },
+                            xvora_hooks_plugins_types::HooksAction::Remove { path },
                         ),
                     )
                 }
@@ -1647,7 +1650,7 @@ impl AgentView {
 
                     if is_collapsed {
                         // Group toggle: collect all hooks in this source group.
-                        let group_hooks: Vec<&hooks_plugins_types::HookInfo> = data
+                        let group_hooks: Vec<&xvora_hooks_plugins_types::HookInfo> = data
                             .hooks
                             .iter()
                             .filter(|h| h.source_dir == *source)
@@ -1659,7 +1662,7 @@ impl AgentView {
                         );
                         let hook_names: Vec<String> =
                             group_hooks.iter().map(|h| h.name.clone()).collect();
-                        let action = hooks_plugins_types::HooksAction::ToggleSource {
+                        let action = xvora_hooks_plugins_types::HooksAction::ToggleSource {
                             hook_names,
                             disable: any_enabled,
                         };
@@ -1667,11 +1670,11 @@ impl AgentView {
                     } else {
                         // Single hook toggle.
                         let action = if hook.disabled {
-                            hooks_plugins_types::HooksAction::Enable {
+                            xvora_hooks_plugins_types::HooksAction::Enable {
                                 hook_name: hook.name.clone(),
                             }
                         } else {
-                            hooks_plugins_types::HooksAction::Disable {
+                            xvora_hooks_plugins_types::HooksAction::Disable {
                                 hook_name: hook.name.clone(),
                             }
                         };
@@ -1688,11 +1691,11 @@ impl AgentView {
                     && let Some(plugin) = data.plugins.get(idx)
                 {
                     let action = if plugin.enabled {
-                        hooks_plugins_types::PluginsAction::Disable {
+                        xvora_hooks_plugins_types::PluginsAction::Disable {
                             plugin_id: plugin.id.clone(),
                         }
                     } else {
-                        hooks_plugins_types::PluginsAction::Enable {
+                        xvora_hooks_plugins_types::PluginsAction::Enable {
                             plugin_id: plugin.id.clone(),
                         }
                     };
@@ -1729,7 +1732,7 @@ impl AgentView {
                     return self.prompt_extensions_confirm(
                         format!("Uninstall plugin \"{name}\"?"),
                         crate::views::extensions_modal::ConfirmationAction::Plugins(
-                            hooks_plugins_types::PluginsAction::Uninstall {
+                            xvora_hooks_plugins_types::PluginsAction::Uninstall {
                                 plugin_id,
                                 // Server owns multi-plugin cascade text when count > 1.
                                 confirmed: false,
@@ -1748,7 +1751,7 @@ impl AgentView {
                     && let Some(idx) = state.selected_data_index()
                     && let Some(plugin) = data.plugins.get(idx)
                 {
-                    let action = hooks_plugins_types::PluginsAction::Update {
+                    let action = xvora_hooks_plugins_types::PluginsAction::Update {
                         plugin_id: Some(plugin.id.clone()),
                     };
                     return self.execute_modal_button_action(ButtonAction::PluginsAction(action));
@@ -1911,7 +1914,7 @@ impl AgentView {
                 .execute_selected_marketplace_plugin_action(
                     "Installing...",
                     |source_url_or_path, plugin_relative_path| {
-                        hooks_plugins_types::MarketplaceAction::Install {
+                        xvora_hooks_plugins_types::MarketplaceAction::Install {
                             source_url_or_path,
                             plugin_relative_path,
                         }
@@ -1921,7 +1924,7 @@ impl AgentView {
                 .execute_selected_marketplace_plugin_action(
                     "Updating...",
                     |source_url_or_path, plugin_relative_path| {
-                        hooks_plugins_types::MarketplaceAction::Update {
+                        xvora_hooks_plugins_types::MarketplaceAction::Update {
                             source_url_or_path,
                             plugin_relative_path,
                         }
@@ -1949,7 +1952,7 @@ impl AgentView {
                         return self.prompt_extensions_confirm(
                             format!("Uninstall marketplace plugin \"{}\"?", plugin.name),
                             crate::views::extensions_modal::ConfirmationAction::Marketplace(
-                                hooks_plugins_types::MarketplaceAction::Uninstall {
+                                xvora_hooks_plugins_types::MarketplaceAction::Uninstall {
                                     source_url_or_path: source.source_url_or_path.clone(),
                                     plugin_relative_path: plugin.relative_path.clone(),
                                 },
@@ -1973,7 +1976,7 @@ impl AgentView {
                                     source.source_name
                                 ),
                                 crate::views::extensions_modal::ConfirmationAction::Marketplace(
-                                    hooks_plugins_types::MarketplaceAction::RemoveSource {
+                                    xvora_hooks_plugins_types::MarketplaceAction::RemoveSource {
                                         source_url_or_path: source.source_url_or_path.clone(),
                                     },
                                 ),
@@ -2040,7 +2043,7 @@ impl AgentView {
     fn execute_selected_marketplace_plugin_action(
         &mut self,
         pending_label: &'static str,
-        make_action: impl FnOnce(String, String) -> hooks_plugins_types::MarketplaceAction,
+        make_action: impl FnOnce(String, String) -> xvora_hooks_plugins_types::MarketplaceAction,
     ) -> InputOutcome {
         if let Some(ref mut state) = self.extensions_modal {
             use crate::views::extensions_modal::TabDataState;
@@ -2073,8 +2076,8 @@ mod marketplace_modal_action_tests {
     pub(super) fn marketplace_plugin(
         name: &str,
         relative_path: &str,
-    ) -> hooks_plugins_types::MarketplacePluginEntry {
-        hooks_plugins_types::MarketplacePluginEntry {
+    ) -> xvora_hooks_plugins_types::MarketplacePluginEntry {
+        xvora_hooks_plugins_types::MarketplacePluginEntry {
             name: name.into(),
             version: Some("2.0.0".into()),
             description: None,
@@ -2104,8 +2107,8 @@ mod marketplace_modal_action_tests {
         let mut agent = super::test_fixtures::make_agent();
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Marketplace);
         modal.marketplace_data =
-            TabDataState::Loaded(hooks_plugins_types::MarketplaceListResponse {
-                sources: vec![hooks_plugins_types::MarketplaceScanResult {
+            TabDataState::Loaded(xvora_hooks_plugins_types::MarketplaceListResponse {
+                sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
                     source_name: "test-source".into(),
                     source_kind: "git".into(),
                     source_url_or_path: "https://example.com/plugins.git".into(),
@@ -2124,7 +2127,7 @@ mod marketplace_modal_action_tests {
 
         match outcome {
             InputOutcome::Action(Action::ExecuteMarketplaceAction(
-                hooks_plugins_types::MarketplaceAction::Update {
+                xvora_hooks_plugins_types::MarketplaceAction::Update {
                     source_url_or_path,
                     plugin_relative_path,
                 },
@@ -2147,8 +2150,8 @@ mod marketplace_modal_action_tests {
         let mut agent = super::test_fixtures::make_agent();
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Marketplace);
         modal.marketplace_data =
-            TabDataState::Loaded(hooks_plugins_types::MarketplaceListResponse {
-                sources: vec![hooks_plugins_types::MarketplaceScanResult {
+            TabDataState::Loaded(xvora_hooks_plugins_types::MarketplaceListResponse {
+                sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
                     source_name: "test-source".into(),
                     source_kind: "git".into(),
                     source_url_or_path: "https://example.com/plugins.git".into(),
@@ -2163,7 +2166,7 @@ mod marketplace_modal_action_tests {
         agent.extensions_modal = Some(modal);
 
         let outcome = agent.execute_modal_button_action(ButtonAction::MarketplaceAction(
-            hooks_plugins_types::MarketplaceAction::Refresh {
+            xvora_hooks_plugins_types::MarketplaceAction::Refresh {
                 source_url_or_path: None,
             },
         ));
@@ -2171,7 +2174,7 @@ mod marketplace_modal_action_tests {
         assert!(matches!(
             outcome,
             InputOutcome::Action(Action::ExecuteMarketplaceAction(
-                hooks_plugins_types::MarketplaceAction::Refresh {
+                xvora_hooks_plugins_types::MarketplaceAction::Refresh {
                     source_url_or_path: None
                 }
             ))
@@ -2192,12 +2195,12 @@ mod extensions_action_target_tests {
         ButtonAction, ExtensionsModalState, ExtensionsTab, TabDataState,
     };
 
-    fn plugin_info(name: &str, enabled: bool) -> hooks_plugins_types::PluginInfo {
-        hooks_plugins_types::PluginInfo {
+    fn plugin_info(name: &str, enabled: bool) -> xvora_hooks_plugins_types::PluginInfo {
+        xvora_hooks_plugins_types::PluginInfo {
             name: name.into(),
             id: format!("user/abcd1234/{name}"),
             root: "/tmp/p".into(),
-            scope: hooks_plugins_types::PluginScope::User,
+            scope: xvora_hooks_plugins_types::PluginScope::User,
             trusted: true,
             enabled,
             version: None,
@@ -2206,10 +2209,10 @@ mod extensions_action_target_tests {
             skill_names: Vec::new(),
             agent_count: 0,
             agent_names: Vec::new(),
-            hook_status: hooks_plugins_types::HookStatus::None,
+            hook_status: xvora_hooks_plugins_types::HookStatus::None,
             hook_count: 0,
             mcp_server_count: 0,
-            mcp_status: hooks_plugins_types::McpStatus::None,
+            mcp_status: xvora_hooks_plugins_types::McpStatus::None,
             marketplace_source: None,
             origin: None,
             conflict: None,
@@ -2238,7 +2241,7 @@ mod extensions_action_target_tests {
     #[test]
     fn plugins_toggle_and_uninstall_resolve_name_and_state() {
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        modal.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
+        modal.plugins_data = TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
             plugins: vec![plugin_info("my-plugin", true)],
         });
         modal.entry_data_indices = vec![Some(0)];
@@ -2260,7 +2263,7 @@ mod extensions_action_target_tests {
     fn update_selected_plugin_dispatches_update_with_selected_id_and_pending_state() {
         let mut agent = super::test_fixtures::make_agent();
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        modal.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
+        modal.plugins_data = TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
             plugins: vec![plugin_info("my-plugin", true)],
         });
         modal.entry_data_indices = vec![Some(0)];
@@ -2278,7 +2281,7 @@ mod extensions_action_target_tests {
         match outcome {
             crate::app::app_view::InputOutcome::Action(
                 crate::app::actions::Action::ExecutePluginsAction(
-                    hooks_plugins_types::PluginsAction::Update { plugin_id },
+                    xvora_hooks_plugins_types::PluginsAction::Update { plugin_id },
                 ),
             ) => assert_eq!(plugin_id.as_deref(), Some("user/abcd1234/my-plugin")),
             other => panic!("expected plugins update action, got {other:?}"),
@@ -2292,7 +2295,7 @@ mod extensions_action_target_tests {
     fn plugins_cycle_filter_resets_selection_to_top() {
         let mut agent = super::test_fixtures::make_agent();
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        modal.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
+        modal.plugins_data = TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
             plugins: vec![plugin_info("my-plugin", true)],
         });
         modal.picker_state.selected = 5;
@@ -2311,7 +2314,7 @@ mod extensions_action_target_tests {
     fn plugins_toggle_expand_folds_group_header_and_expands_row_details() {
         let mut agent = super::test_fixtures::make_agent();
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        modal.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
+        modal.plugins_data = TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
             plugins: vec![plugin_info("my-plugin", true)],
         });
         modal.entry_data_indices = vec![None, Some(0)];
@@ -2403,8 +2406,8 @@ mod extensions_action_target_tests {
     fn marketplace_actions_resolve_plugin_and_source_names() {
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Marketplace);
         modal.marketplace_data =
-            TabDataState::Loaded(hooks_plugins_types::MarketplaceListResponse {
-                sources: vec![hooks_plugins_types::MarketplaceScanResult {
+            TabDataState::Loaded(xvora_hooks_plugins_types::MarketplaceListResponse {
+                sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
                     source_name: "test-source".into(),
                     source_kind: "git".into(),
                     source_url_or_path: "https://example.com/plugins.git".into(),
@@ -2438,11 +2441,15 @@ mod extensions_action_target_tests {
         assert_eq!(enabled, None);
     }
 
-    fn hook_info(name: &str, source_dir: &str, disabled: bool) -> hooks_plugins_types::HookInfo {
-        hooks_plugins_types::HookInfo {
+    fn hook_info(
+        name: &str,
+        source_dir: &str,
+        disabled: bool,
+    ) -> xvora_hooks_plugins_types::HookInfo {
+        xvora_hooks_plugins_types::HookInfo {
             name: name.into(),
-            event: hooks_plugins_types::HookEvent::PreToolUse,
-            handler_type: hooks_plugins_types::HookHandlerType::Command,
+            event: xvora_hooks_plugins_types::HookEvent::PreToolUse,
+            handler_type: xvora_hooks_plugins_types::HookHandlerType::Command,
             matcher: None,
             command: None,
             url: None,
@@ -2454,9 +2461,9 @@ mod extensions_action_target_tests {
         }
     }
 
-    fn hooks_modal(hooks: Vec<hooks_plugins_types::HookInfo>) -> ExtensionsModalState {
+    fn hooks_modal(hooks: Vec<xvora_hooks_plugins_types::HookInfo>) -> ExtensionsModalState {
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Hooks);
-        modal.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
+        modal.hooks_data = TabDataState::Loaded(xvora_hooks_plugins_types::HooksListResponse {
             hooks,
             project_trusted: true,
             load_errors: Vec::new(),
@@ -2612,7 +2619,7 @@ mod extensions_action_target_tests {
             ButtonAction::ToggleSelectedSkill,
             ButtonAction::ToggleSelectedMcpServer,
             ButtonAction::InstallSelectedMarketplacePlugin,
-            ButtonAction::PluginsAction(hooks_plugins_types::PluginsAction::Reload),
+            ButtonAction::PluginsAction(xvora_hooks_plugins_types::PluginsAction::Reload),
         ] {
             let (target, enabled) = AgentView::extensions_action_target(&modal, &action);
             assert_eq!(target, None, "{action:?}");
@@ -3036,12 +3043,12 @@ mod extensions_modal_confirmation_tests {
         KeyEvent::new(code, KeyModifiers::NONE)
     }
 
-    fn plugin_info(name: &str) -> hooks_plugins_types::PluginInfo {
-        hooks_plugins_types::PluginInfo {
+    fn plugin_info(name: &str) -> xvora_hooks_plugins_types::PluginInfo {
+        xvora_hooks_plugins_types::PluginInfo {
             name: name.into(),
             id: format!("user/abcd1234/{name}"),
             root: "/tmp/p".into(),
-            scope: hooks_plugins_types::PluginScope::User,
+            scope: xvora_hooks_plugins_types::PluginScope::User,
             trusted: true,
             enabled: true,
             version: None,
@@ -3050,10 +3057,10 @@ mod extensions_modal_confirmation_tests {
             skill_names: Vec::new(),
             agent_count: 0,
             agent_names: Vec::new(),
-            hook_status: hooks_plugins_types::HookStatus::None,
+            hook_status: xvora_hooks_plugins_types::HookStatus::None,
             hook_count: 0,
             mcp_server_count: 0,
-            mcp_status: hooks_plugins_types::McpStatus::None,
+            mcp_status: xvora_hooks_plugins_types::McpStatus::None,
             marketplace_source: None,
             origin: None,
             conflict: None,
@@ -3082,11 +3089,11 @@ mod extensions_modal_confirmation_tests {
         }
     }
 
-    fn hook_info(name: &str, source_dir: &str) -> hooks_plugins_types::HookInfo {
-        hooks_plugins_types::HookInfo {
+    fn hook_info(name: &str, source_dir: &str) -> xvora_hooks_plugins_types::HookInfo {
+        xvora_hooks_plugins_types::HookInfo {
             name: name.into(),
-            event: hooks_plugins_types::HookEvent::PreToolUse,
-            handler_type: hooks_plugins_types::HookHandlerType::Command,
+            event: xvora_hooks_plugins_types::HookEvent::PreToolUse,
+            handler_type: xvora_hooks_plugins_types::HookHandlerType::Command,
             matcher: None,
             command: None,
             url: None,
@@ -3098,9 +3105,9 @@ mod extensions_modal_confirmation_tests {
         }
     }
 
-    fn marketplace_loaded() -> TabDataState<hooks_plugins_types::MarketplaceListResponse> {
-        TabDataState::Loaded(hooks_plugins_types::MarketplaceListResponse {
-            sources: vec![hooks_plugins_types::MarketplaceScanResult {
+    fn marketplace_loaded() -> TabDataState<xvora_hooks_plugins_types::MarketplaceListResponse> {
+        TabDataState::Loaded(xvora_hooks_plugins_types::MarketplaceListResponse {
+            sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
                 source_name: "test-source".into(),
                 source_kind: "git".into(),
                 source_url_or_path: "https://example.com/plugins.git".into(),
@@ -3170,9 +3177,10 @@ mod extensions_modal_confirmation_tests {
         mcp.picker_state.selected = 0;
 
         let mut plugins = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        plugins.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
-            plugins: vec![plugin_info("my-plugin")],
-        });
+        plugins.plugins_data =
+            TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
+                plugins: vec![plugin_info("my-plugin")],
+            });
         plugins.entry_data_indices = vec![Some(0)];
         plugins.entry_group_keys = vec![None];
         plugins.picker_state.selected = 0;
@@ -3194,7 +3202,7 @@ mod extensions_modal_confirmation_tests {
 
         let source = "/tmp/my-hooks-dir";
         let mut hooks = ExtensionsModalState::new(ExtensionsTab::Hooks);
-        hooks.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
+        hooks.hooks_data = TabDataState::Loaded(xvora_hooks_plugins_types::HooksListResponse {
             hooks: vec![{
                 // Only removable (user-registered) sources reach the confirm.
                 let mut h = hook_info("hook-a", source);
@@ -3224,7 +3232,7 @@ mod extensions_modal_confirmation_tests {
                 button: ButtonAction::UninstallSelectedPlugin,
                 message_sub: "Uninstall plugin \"my-plugin\"?".into(),
                 expected: ConfirmationAction::Plugins(
-                    hooks_plugins_types::PluginsAction::Uninstall {
+                    xvora_hooks_plugins_types::PluginsAction::Uninstall {
                         plugin_id: "user/abcd1234/my-plugin".into(),
                         confirmed: false,
                     },
@@ -3236,7 +3244,7 @@ mod extensions_modal_confirmation_tests {
                 button: ButtonAction::UninstallSelectedMarketplacePlugin,
                 message_sub: "Uninstall marketplace plugin \"plug-a\"?".into(),
                 expected: ConfirmationAction::Marketplace(
-                    hooks_plugins_types::MarketplaceAction::Uninstall {
+                    xvora_hooks_plugins_types::MarketplaceAction::Uninstall {
                         source_url_or_path: "https://example.com/plugins.git".into(),
                         plugin_relative_path: "plugins/plug-a".into(),
                     },
@@ -3248,7 +3256,7 @@ mod extensions_modal_confirmation_tests {
                 button: ButtonAction::RemoveSelectedMarketplaceSource,
                 message_sub: "Remove source \"test-source\" and uninstall all its plugins?".into(),
                 expected: ConfirmationAction::Marketplace(
-                    hooks_plugins_types::MarketplaceAction::RemoveSource {
+                    xvora_hooks_plugins_types::MarketplaceAction::RemoveSource {
                         source_url_or_path: "https://example.com/plugins.git".into(),
                     },
                 ),
@@ -3258,9 +3266,11 @@ mod extensions_modal_confirmation_tests {
                 modal: hooks,
                 button: ButtonAction::RemoveSelectedHook,
                 message_sub: format!("Remove hook source \"{hook_label}\"?"),
-                expected: ConfirmationAction::Hooks(hooks_plugins_types::HooksAction::Remove {
-                    path: source.into(),
-                }),
+                expected: ConfirmationAction::Hooks(
+                    xvora_hooks_plugins_types::HooksAction::Remove {
+                        path: source.into(),
+                    },
+                ),
                 row: 0,
             },
         ]
@@ -3319,7 +3329,7 @@ mod extensions_modal_confirmation_tests {
     fn plugin_y_sends_confirmed_false_so_server_can_gate_multi() {
         let mut agent = super::test_fixtures::make_agent();
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
-        modal.plugins_data = TabDataState::Loaded(hooks_plugins_types::PluginsListResponse {
+        modal.plugins_data = TabDataState::Loaded(xvora_hooks_plugins_types::PluginsListResponse {
             plugins: vec![plugin_info("my-plugin")],
         });
         modal.entry_data_indices = vec![Some(0)];
@@ -3330,7 +3340,7 @@ mod extensions_modal_confirmation_tests {
         assert_no_action(agent.execute_modal_button_action(ButtonAction::UninstallSelectedPlugin));
         match agent.handle_extensions_modal_key(&key(KeyCode::Char('y'))) {
             InputOutcome::Action(Action::ExecutePluginsAction(
-                hooks_plugins_types::PluginsAction::Uninstall {
+                xvora_hooks_plugins_types::PluginsAction::Uninstall {
                     plugin_id,
                     confirmed: false,
                 },
@@ -3340,7 +3350,7 @@ mod extensions_modal_confirmation_tests {
         let state = agent.extensions_modal.as_ref().unwrap();
         assert_eq!(
             state.last_plugins_action,
-            Some(hooks_plugins_types::PluginsAction::Uninstall {
+            Some(xvora_hooks_plugins_types::PluginsAction::Uninstall {
                 plugin_id: "user/abcd1234/my-plugin".into(),
                 confirmed: false,
             })
@@ -3370,7 +3380,7 @@ mod extensions_modal_confirmation_tests {
             .selected = 2;
         match agent.handle_extensions_modal_key(&key(KeyCode::Char('y'))) {
             InputOutcome::Action(Action::ExecuteMarketplaceAction(
-                hooks_plugins_types::MarketplaceAction::Uninstall {
+                xvora_hooks_plugins_types::MarketplaceAction::Uninstall {
                     plugin_relative_path,
                     ..
                 },

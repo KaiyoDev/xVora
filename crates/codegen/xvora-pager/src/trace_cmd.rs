@@ -637,7 +637,7 @@ async fn upload_with_retries(
     (|| async {
         tokio::time::timeout(
             UPLOAD_TIMEOUT,
-            file_utils::gcs::upload_bytes(config, object_path, archive, "application/gzip"),
+            xvora_file_utils::gcs::upload_bytes(config, object_path, archive, "application/gzip"),
         )
         .await
         .map_err(|_| anyhow::anyhow!("Upload timed out after {}s", UPLOAD_TIMEOUT.as_secs()))?

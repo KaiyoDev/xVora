@@ -3,13 +3,13 @@ use crate::session::commands::SessionCommand;
 use crate::session::commands::{NotificationPriority, NotificationSource};
 use crate::session::persistence::{DurableAppendError, PersistenceHandle, PersistenceMsg};
 use crate::tools::task_completed_frame;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol::{self as acp, Client as _};
-use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex as TokioMutex, mpsc};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_hunk_tracker::HunkTrackerHandle;
 use xvora_tools::notification::types::{ToolNotification, ToolNotificationHandle};
 use xvora_tools::types::output::{BashOutput, ToolOutput};
 use xvora_workspace::session::file_state::FileStateTracker;
@@ -420,7 +420,7 @@ async fn handle_notification(
                         client_identifier: None,
                         screen_mode: None,
                         verbatim: true,
-                        traceparent: file_utils::trace_context::current_traceparent(),
+                        traceparent: xvora_file_utils::trace_context::current_traceparent(),
                         json_schema: None,
                         send_now: false,
                         tool_overrides_update: None,

@@ -488,7 +488,7 @@ impl FeedbackClient {
         request: RequestBuilder,
         context: &'static str,
     ) -> Result<T> {
-        let request = file_utils::trace_context::inject_trace_context_into_request(request);
+        let request = xvora_file_utils::trace_context::inject_trace_context_into_request(request);
         let req = request.build().context(context)?;
         let (response, stamp) = xvora_auth::execute_with_stamp(&self.client, req)
             .await
@@ -522,7 +522,7 @@ impl FeedbackClient {
     }
 
     async fn send_empty(&self, request: RequestBuilder, context: &'static str) -> Result<()> {
-        let request = file_utils::trace_context::inject_trace_context_into_request(request);
+        let request = xvora_file_utils::trace_context::inject_trace_context_into_request(request);
         let req = request.build().context(context)?;
         let (response, stamp) = xvora_auth::execute_with_stamp(&self.client, req)
             .await

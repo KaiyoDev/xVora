@@ -436,9 +436,9 @@ impl LspClient {
         for (k, v) in &config.env {
             cmd.env(k, v);
         }
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
         xvora_sandbox::child_net::restrict_child_network_std(&mut cmd);
-        cmd.envs(tty_utils::pager_env());
+        cmd.envs(xvora_tty_utils::pager_env());
         #[allow(clippy::disallowed_methods)] // enrolled by LspClient::enroll once started
         let mut child = cmd
             .spawn()

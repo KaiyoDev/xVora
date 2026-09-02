@@ -166,8 +166,8 @@ fn plugin_cta_catalog_reload_empty_candidates_resets_matched_phase() {
         cta.hit_connect.rect = Some(ratatui::layout::Rect::new(0, 0, 9, 1));
         cta.hit_dismiss.rect = Some(ratatui::layout::Rect::new(10, 0, 3, 1));
     }
-    let response = hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![hooks_plugins_types::MarketplaceScanResult {
+    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
             source_name: xvora_plugin_marketplace::OFFICIAL_SOURCE_NAME.into(),
             source_kind: "git".into(),
             source_url_or_path: xvora_plugin_marketplace::OFFICIAL_SOURCE_GIT_URL.into(),
@@ -1522,6 +1522,9 @@ fn move_setting_away_from_default(app: &mut AppView, key: crate::settings::Setti
         }
         "contextual_hints.word_select" => {
             let _ = dispatch(Action::SetContextualHintWordSelect(false), app);
+        }
+        "contextual_hints.export_copy" => {
+            let _ = dispatch(Action::SetContextualHintExportCopy(false), app);
         }
         "contextual_hints.ssh_wrap" => {
             let _ = dispatch(Action::SetContextualHintSshWrap(false), app);

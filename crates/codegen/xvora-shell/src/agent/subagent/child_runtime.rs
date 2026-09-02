@@ -1,5 +1,5 @@
-use message_delivery_core::DeliveryEnvelope;
 use tokio::sync::mpsc;
+use xvora_message_delivery_core::DeliveryEnvelope;
 use xvora_tools::implementations::grok_build::task::coordinator::{
     ActiveMessageAdmission, ChildControl, LocalBoxFuture, SendBoxFuture, SubagentProgress,
 };
@@ -57,7 +57,7 @@ impl ChildControl for ShellChildRuntime {
             {
                 #[cfg(test)]
                 if self.force_queue_envelope {
-                    message_delivery_core::Operation::Queue
+                    xvora_message_delivery_core::Operation::Queue
                 } else {
                     crate::session::message_delivery::delivery_operation(delivery.operation())
                 }

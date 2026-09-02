@@ -7,10 +7,6 @@ use crate::auth::AuthMode;
 use crate::auth::{AuthManager, GrokAuth, GrokComConfig, run_auth_flow};
 use crate::leader::protocol::InternalMethod;
 use crate::util::grok_home;
-use acp_lib::{
-    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
-    LineBufferedRead,
-};
 use agent_client_protocol as acp;
 use parking_lot::Mutex;
 use std::pin::Pin;
@@ -22,6 +18,10 @@ use tokio::sync::{Mutex as TokioMutex, mpsc};
 use tokio::time::Duration;
 use tokio_util::compat::{TokioAsyncReadCompatExt as _, TokioAsyncWriteCompatExt as _};
 use tracing::{debug, info, warn};
+use xvora_acp_lib::{
+    AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
+    LineBufferedRead,
+};
 const MAX_BUFFER_SIZE: usize = 8 * 1024 * 1024;
 use indexmap::IndexMap;
 /// Configuration for periodic auto-update checking in leader mode.
@@ -158,7 +158,7 @@ fn spawn_agent_local(
     });
     tokio::task::spawn_local(
         GatewayReceiver::new(gw_rx, conn)
-            .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
+            .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
             .run(),
     );
     handle_io
@@ -233,7 +233,7 @@ pub async fn run_stdio_agent(
     memory_config: Option<crate::config::MemoryConfig>,
 ) -> anyhow::Result<()> {
     register_fs_watch_runtime();
-    if let Err(error) = tty_utils::kill_current_process_on_parent_death() {
+    if let Err(error) = xvora_tty_utils::kill_current_process_on_parent_death() {
         tracing::warn!(
             %error,
             "failed to bind to parent death; agent will not die with its \
@@ -241,9 +241,9 @@ pub async fn run_stdio_agent(
         );
     }
     xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
-    file_utils::queue::cleanup_orphaned_uploads(
+    xvora_file_utils::queue::cleanup_orphaned_uploads(
         &grok_home::grok_home(),
-        file_utils::queue::DEFAULT_MAX_AGE,
+        xvora_file_utils::queue::DEFAULT_MAX_AGE,
     );
     if let Ok(version) = std::env::var("GROK_CLIENT_VERSION") {
         crate::unified_log::info(
@@ -260,7 +260,7 @@ pub async fn run_stdio_agent(
     let acp_incoming_tx = Arc::new(TokioMutex::new(acp_incoming_tx));
     let stdin_tx = acp_incoming_tx.clone();
     let (stdin_closed_tx, stdin_closed_rx) = tokio::sync::oneshot::channel();
-    let mut stdin_lines = acp_lib::spawn_stdin_line_reader();
+    let mut stdin_lines = xvora_acp_lib::spawn_stdin_line_reader();
     tokio::spawn(async move {
         while let Some(line) = stdin_lines.recv().await {
             let mut tx = stdin_tx.lock().await;
@@ -320,9 +320,9 @@ pub async fn run_headless(
     use tokio_util::sync::CancellationToken;
     const HEADLESS_NO_SESSION: &str = "Headless mode requires a grok.com session. \
         Run `grok login` to sign in, or use `grok agent stdio` for API-key access.";
-    file_utils::queue::cleanup_orphaned_uploads(
+    xvora_file_utils::queue::cleanup_orphaned_uploads(
         &grok_home::grok_home(),
-        file_utils::queue::DEFAULT_MAX_AGE,
+        xvora_file_utils::queue::DEFAULT_MAX_AGE,
     );
     let mut agent_config = agent_config.clone();
     agent_config.mode = crate::agent::config::AgentMode::Headless;
@@ -449,7 +449,7 @@ pub async fn run_headless(
                 tokio::task::spawn_local(
                     GatewayReceiver::new(gw_rx, conn)
                         .with_on_meta(
-                            file_utils::trace_context::span_from_meta_traceparent,
+                            xvora_file_utils::trace_context::span_from_meta_traceparent,
                         )
                         .run(),
                 );
@@ -717,9 +717,9 @@ pub async fn run_leader(
     register_fs_watch_runtime();
     xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
     tokio::task::spawn_blocking(|| {
-        file_utils::queue::cleanup_orphaned_uploads(
+        xvora_file_utils::queue::cleanup_orphaned_uploads(
             &grok_home::grok_home(),
-            file_utils::queue::DEFAULT_MAX_AGE,
+            xvora_file_utils::queue::DEFAULT_MAX_AGE,
         );
     });
     let mut agent_config = agent_config.clone();
@@ -936,7 +936,7 @@ pub async fn run_leader(
                 tokio::task::spawn_local(
                     GatewayReceiver::new(gw_rx, conn)
                         .with_on_meta(
-                            file_utils::trace_context::span_from_meta_traceparent,
+                            xvora_file_utils::trace_context::span_from_meta_traceparent,
                         )
                         .run(),
                 );

@@ -1,4 +1,3 @@
-use crate::test_support;
 mod cursor;
 mod envelope;
 mod facets;
@@ -886,8 +885,10 @@ mod tests {
                     .to_string(),
             )
             .await;
-        let _env =
-            test_support::EnvGuard::set("GROK_CONVERSATIONS_BASE_URL", format!("http://{addr}"));
+        let _env = xvora_test_support::EnvGuard::set(
+            "GROK_CONVERSATIONS_BASE_URL",
+            format!("http://{addr}"),
+        );
         let home = tempfile::tempdir().expect("tempdir");
         let client = ConversationsClient::new(xvora_auth_manager(home.path()));
         let mut req = ListReq {
@@ -949,15 +950,15 @@ mod tests {
     #[serial_test::serial]
     fn conversations_lane_env_gating_matrix() {
         {
-            let _off = test_support::EnvGuard::unset("GROK_SESSION_LIST_CONVERSATIONS");
+            let _off = xvora_test_support::EnvGuard::unset("GROK_SESSION_LIST_CONVERSATIONS");
             assert!(!conversations_lane_enabled());
         }
         {
-            let _on = test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "1");
+            let _on = xvora_test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "1");
             assert_eq!(conversations_lane_enabled(), false);
         }
         {
-            let _off = test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "0");
+            let _off = xvora_test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "0");
             assert!(!conversations_lane_enabled());
         }
     }
@@ -966,18 +967,19 @@ mod tests {
     #[serial_test::serial]
     fn conversations_lane_active_truth_table() {
         use crate::agent::chat_modes::GROK_CHAT_MODE_ENV;
-        let _chat_off = test_support::EnvGuard::unset(GROK_CHAT_MODE_ENV);
-        let _desktop_off = test_support::EnvGuard::unset("GROK_SESSION_LIST_CONVERSATIONS");
+        let _chat_off = xvora_test_support::EnvGuard::unset(GROK_CHAT_MODE_ENV);
+        let _desktop_off = xvora_test_support::EnvGuard::unset("GROK_SESSION_LIST_CONVERSATIONS");
         assert!(
             !conversations_lane_active(),
             "no env ⇒ lane off (Build-mode default)"
         );
         {
-            let _desktop = test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "1");
+            let _desktop =
+                xvora_test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "1");
             assert_eq!(conversations_lane_active(), false);
         }
         {
-            let _chat = test_support::EnvGuard::set(GROK_CHAT_MODE_ENV, "1");
+            let _chat = xvora_test_support::EnvGuard::set(GROK_CHAT_MODE_ENV, "1");
             assert_eq!(
                 conversations_lane_active(),
                 false,
@@ -995,7 +997,7 @@ mod tests {
         })
         .to_string();
         {
-            let _off = test_support::EnvGuard::unset(GROK_CHAT_MODE_ENV);
+            let _off = xvora_test_support::EnvGuard::unset(GROK_CHAT_MODE_ENV);
             let req = parse_list_req(&raw).expect("parse");
             let parsed = ParsedMeta::parse(req.meta.as_ref());
             assert_eq!(
@@ -1005,7 +1007,7 @@ mod tests {
             );
         }
         {
-            let _on = test_support::EnvGuard::set(GROK_CHAT_MODE_ENV, "1");
+            let _on = xvora_test_support::EnvGuard::set(GROK_CHAT_MODE_ENV, "1");
             let req = parse_list_req(&raw).expect("parse");
             let parsed = ParsedMeta::parse(req.meta.as_ref());
             let expected_build = if cfg!(feature = "local-workspace") {

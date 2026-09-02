@@ -1,13 +1,15 @@
 //! `is_workspace_unavailable` recognizer coverage, pinned against the real
 //! wire decode path (`error_from_envelope` / `tool_error_from_wire`).
 
-use computer_hub_core::{error_from_envelope, is_workspace_unavailable, tool_error_from_wire};
 use serde_json::json;
-use tool_protocol::{
+use xvora_computer_hub_core::{
+    error_from_envelope, is_workspace_unavailable, tool_error_from_wire,
+};
+use xvora_tool_protocol::{
     JsonRpcError, ToolErrorWire, WORKSPACE_UNAVAILABLE_SUBCODE, WorkspaceGonePhase,
     WorkspaceGoneReason, WorkspaceUnavailableDetails, workspace_unavailable_wire,
 };
-use tool_runtime::{ToolError, ToolErrorKind};
+use xvora_tool_runtime::{ToolError, ToolErrorKind};
 
 const REASONS: [WorkspaceGoneReason; 6] = [
     WorkspaceGoneReason::IdleTimeout,
@@ -197,7 +199,7 @@ fn non_custom_error_with_matching_code_is_not_recognized() {
 #[test]
 fn non_custom_decoded_error_is_not_recognized() {
     let wire = ToolErrorWire::ToolNotFound {
-        tool_id: tool_protocol::ToolId::new("ns:tool").unwrap(),
+        tool_id: xvora_tool_protocol::ToolId::new("ns:tool").unwrap(),
     };
     let err = error_from_envelope(envelope_for(&wire));
     assert_ne!(err.kind, ToolErrorKind::Custom);

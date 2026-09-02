@@ -191,7 +191,7 @@ pub fn context_bar_line_for_session(
     }
     let used = used_tokens?;
     let total = total_tokens.filter(|&t| t > 0)?;
-    let pct = token_estimation::usage_percentage(used, total);
+    let pct = xvora_token_estimation::usage_percentage(used, total);
 
     // Default form drives the line width: `used / total`, right-padded to the minimum hover width so both states render at the same width
     let mut token_str = format!("{} / {}", fmt_tokens(used), fmt_tokens(total));

@@ -140,6 +140,7 @@ impl AgentView {
             dock_tasks_expanded: true,
             dock_watchers_expanded: true,
             dock_queued_expanded: true,
+            dock_on: false,
             dock_shown: false,
             prompt_mode: PromptMode::Normal,
             prompt_input_mode: PromptInputMode::Normal,
@@ -201,6 +202,8 @@ impl AgentView {
             deferred_text_press: None,
             persistent_text_selection: None,
             table_selection_geometry: None,
+            drag_table_geometry: None,
+            btw_selection_wrap_width: None,
             selection_created_at: None,
             last_drag_mouse: None,
             drag_autoscroll: None,
@@ -292,6 +295,7 @@ impl AgentView {
             ephemeral_tip: Default::default(),
             word_select_tip_prompt_snapshot: None,
             last_word_select_probe: None,
+            export_copy_detector: Default::default(),
             sticky_toast: None,
             mode_switch_banner: None,
             session_banner_active: false,
@@ -1129,8 +1133,8 @@ impl AgentView {
                 if total > 0 {
                     snap.total = total;
                 }
-                snap.usage_pct = token_estimation::usage_percentage_u8(used, snap.total);
-                snap.free_tokens = token_estimation::free_tokens(snap.total, used);
+                snap.usage_pct = xvora_token_estimation::usage_percentage_u8(used, snap.total);
+                snap.free_tokens = xvora_token_estimation::free_tokens(snap.total, used);
             }
             None => {
                 self.context_state = Some(xvora_shell::session::ContextInfo::from_notification(

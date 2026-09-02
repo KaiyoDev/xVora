@@ -1,13 +1,13 @@
 #![allow(dead_code)] // Functions consumed by handle.rs event forwarder wiring
 //! FsNotify adapters that forward [`xvora_fsnotify`] events to workspace subsystems (hunk tracker, codebase graph, workspace event broadcast).
 //!
-//! [`fs_event_to_codebase_graph_event`] converts FsNotify file-change events for the [`IndexManagerHandle`](codebase_graph::IndexManagerHandle).
+//! [`fs_event_to_codebase_graph_event`] converts FsNotify file-change events for the [`IndexManagerHandle`](xvora_codebase_graph::IndexManagerHandle).
 //! The [`refresh_codebase_graph_after_head_change`] helper handles git HEAD changes by diffing `ORIG_HEAD..HEAD`.
 
 use std::path::{Path, PathBuf};
 
-use hunk_tracker::HunkTrackerHandle;
 use xvora_fsnotify::{FsEvent, FsEventKind};
+use xvora_hunk_tracker::HunkTrackerHandle;
 
 /// True if `path` lies under a hidden component below `cwd`.
 ///
@@ -77,8 +77,8 @@ pub(crate) fn forward_to_hunk_tracker_roots(
 pub(crate) fn fs_event_to_codebase_graph_event(
     paths: &[PathBuf],
     kind: FsEventKind,
-) -> codebase_graph::FileEvent {
-    use codebase_graph::{FileEvent, FileEventKind};
+) -> xvora_codebase_graph::FileEvent {
+    use xvora_codebase_graph::{FileEvent, FileEventKind};
     let graph_kind = match kind {
         FsEventKind::Created => FileEventKind::Created,
         FsEventKind::Modified => FileEventKind::Modified,
@@ -116,7 +116,7 @@ pub(crate) fn spawn_fs_event_forwarder(
     events_tx: tokio::sync::broadcast::Sender<xvora_workspace_types::WorkspaceEvent>,
     cwd: PathBuf,
     cancel: tokio_util::sync::CancellationToken,
-    codebase_index: Option<std::sync::Arc<codebase_graph::IndexManagerHandle>>,
+    codebase_index: Option<std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>>,
 ) {
     spawn_fs_event_forwarder_roots(
         rx,
@@ -134,7 +134,7 @@ pub(crate) fn spawn_fs_event_forwarder_roots(
     events_tx: tokio::sync::broadcast::Sender<xvora_workspace_types::WorkspaceEvent>,
     roots: Vec<PathBuf>,
     cancel: tokio_util::sync::CancellationToken,
-    codebase_index: Option<std::sync::Arc<codebase_graph::IndexManagerHandle>>,
+    codebase_index: Option<std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -186,22 +186,31 @@ pub(crate) fn spawn_fs_event_forwarder_roots(
 
 const GIT_DIFF_REBUILD_THRESHOLD: usize = 500;
 
-fn parse_diff_name_status_line(line: &str, repo_root: &Path) -> Option<codebase_graph::FileEvent> {
+fn parse_diff_name_status_line(
+    line: &str,
+    repo_root: &Path,
+) -> Option<xvora_codebase_graph::FileEvent> {
     let mut parts = line.splitn(3, '\t');
     let status = parts.next()?.trim();
     let path = parts.next()?;
 
     match status.chars().next()? {
-        'A' => Some(codebase_graph::FileEvent::created(repo_root.join(path))),
-        'D' => Some(codebase_graph::FileEvent::removed(repo_root.join(path))),
+        'A' => Some(xvora_codebase_graph::FileEvent::created(
+            repo_root.join(path),
+        )),
+        'D' => Some(xvora_codebase_graph::FileEvent::removed(
+            repo_root.join(path),
+        )),
         'R' | 'C' => {
             let new_path = parts.next()?;
-            Some(codebase_graph::FileEvent::renamed(
+            Some(xvora_codebase_graph::FileEvent::renamed(
                 repo_root.join(path),
                 repo_root.join(new_path),
             ))
         }
-        _ => Some(codebase_graph::FileEvent::modified(repo_root.join(path))),
+        _ => Some(xvora_codebase_graph::FileEvent::modified(
+            repo_root.join(path),
+        )),
     }
 }
 
@@ -211,7 +220,7 @@ fn parse_diff_name_status_line(line: &str, repo_root: &Path) -> Option<codebase_
 /// Emits [`WorkspaceEvent::CodebaseIndexUpdated`] on `events_tx` after the index has been updated (via targeted events or a full rebuild).
 /// Skips the event if the index actor channel is closed (i.e. the actor has been dropped).
 pub(crate) async fn refresh_codebase_graph_after_head_change(
-    idx: &codebase_graph::IndexManagerHandle,
+    idx: &xvora_codebase_graph::IndexManagerHandle,
     repo_root: &Path,
     events_tx: &tokio::sync::broadcast::Sender<xvora_workspace_types::WorkspaceEvent>,
 ) {
@@ -279,8 +288,8 @@ pub(crate) async fn refresh_codebase_graph_after_head_change(
 pub(crate) fn ws_event_to_codebase_graph_event(
     path: &std::path::Path,
     kind: xvora_workspace_types::FsEventKind,
-) -> codebase_graph::FileEvent {
-    use codebase_graph::{FileEvent, FileEventKind};
+) -> xvora_codebase_graph::FileEvent {
+    use xvora_codebase_graph::{FileEvent, FileEventKind};
     let graph_kind = match kind {
         xvora_workspace_types::FsEventKind::Created => FileEventKind::Created,
         xvora_workspace_types::FsEventKind::Modified => FileEventKind::Modified,
@@ -363,7 +372,7 @@ mod tests {
 
     #[test]
     fn codebase_graph_event_mapping() {
-        use codebase_graph::FileEventKind;
+        use xvora_codebase_graph::FileEventKind;
         let paths = vec![PathBuf::from("/workspace/src/main.rs")];
 
         let ev = fs_event_to_codebase_graph_event(&paths, FsEventKind::Created);
@@ -381,8 +390,8 @@ mod tests {
 
     #[test]
     fn parse_diff_name_status_all_variants() {
-        use codebase_graph::FileEventKind;
         use std::path::Path;
+        use xvora_codebase_graph::FileEventKind;
         let root = Path::new("/repo");
 
         let ev = parse_diff_name_status_line("M\tsrc/main.rs", root).unwrap();

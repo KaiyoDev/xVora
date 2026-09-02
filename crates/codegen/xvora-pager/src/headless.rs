@@ -10,8 +10,8 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 
-use acp_lib::{AcpAgentTx, AcpClientMessageBox, AcpClientRx, acp_send};
 use agent_client_protocol as acp;
+use xvora_acp_lib::{AcpAgentTx, AcpClientMessageBox, AcpClientRx, acp_send};
 use xvora_shell::agent::auth_method::AuthMethodKind;
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::extensions::task::{CancelSubagentRequest, KillTaskRequest};
@@ -1020,7 +1020,7 @@ pub async fn run_single_turn(
 
     let track_active = std::env::var("GROK_TRACK_HEADLESS").is_ok();
     if track_active {
-        let _ = active_sessions::register(active_sessions::ActiveSession {
+        let _ = xvora_active_sessions::register(xvora_active_sessions::ActiveSession {
             session_id: session_id.clone(),
             pid: std::process::id(),
             cwd: cwd.display().to_string(),
@@ -1265,7 +1265,7 @@ pub async fn run_single_turn(
 
     if track_active {
         // Non-blocking flock so a slow/network ~/.grok can't hang exit.
-        let _ = active_sessions::try_unregister(&session_id);
+        let _ = xvora_active_sessions::try_unregister(&session_id);
     }
     // A mid-turn ACP close already reaped above; return that error before the normal outcome.
     if connection_closed {

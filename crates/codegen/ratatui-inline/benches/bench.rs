@@ -8,7 +8,7 @@ use ratatui::style::Style;
 use ratatui::{TerminalOptions, Viewport};
 use serde_json::json;
 
-use ratatui_inline::{LinkSpan, Terminal, split_into_line_segments};
+use xvora_ratatui_inline::{LinkSpan, Terminal, split_into_line_segments};
 
 fn generate_colored_json_content() -> String {
     // Create a complex JSON structure with 50+ lines when pretty printed

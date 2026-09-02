@@ -227,7 +227,7 @@ pub struct AuthManager {
     power_listener_started: std::sync::atomic::AtomicBool,
     /// Keeps the OS power listener alive for this manager's lifetime; dropping it stops the listener.
     /// `None` until started (or if unavailable).
-    power_listener: parking_lot::Mutex<Option<system_power::SystemPowerListener>>,
+    power_listener: parking_lot::Mutex<Option<xvora_system_power::SystemPowerListener>>,
     /// Per-process `manual_auth` KPI debounce, shared by all recoveries on this manager.
     /// Repeated 401s on the most-recent dead credential emit once.
     manual_auth: crate::auth::recovery::ManualAuthTracker,
@@ -262,6 +262,19 @@ pub(crate) enum DiskAuthState {
     EntryMissing,
     /// auth.json exists but could not be read (corrupt JSON, permission or I/O error).
     Unreadable,
+}
+
+/// [`AuthManager::cached_token_state`]'s point-in-time classification of the cached credential.
+#[derive(Debug, Clone)]
+pub(crate) enum CachedTokenState {
+    /// Nothing cached, another authority's session, or a valid token the login policy hides.
+    Missing,
+    /// Serves on the wire right now. Carries what [`AuthManager::current`] would
+    /// return so callers never re-read; boxed because `GrokAuth` is large and
+    /// the other variants are unit-sized.
+    Valid(Box<GrokAuth>),
+    /// Cached but past the early-invalidation buffer (what [`AuthManager::is_expired`] reports).
+    Expired,
 }
 
 /// On-disk outcome of [`AuthManager::remove_scope_impl`].
@@ -773,6 +786,23 @@ impl AuthManager {
     pub(crate) fn is_expired(&self) -> bool {
         self.owned_inner()
             .is_some_and(|a| self.is_token_expired(&a))
+    }
+
+    /// [`Self::current`] and [`Self::is_expired`] classified from one inner
+    /// read, for callers that need both facts about the same credential: two
+    /// separate reads let a refresh landing in between answer "no current
+    /// token" and "not expired" at once.
+    pub(crate) fn cached_token_state(&self) -> CachedTokenState {
+        let Some(auth) = self.owned_inner() else {
+            return CachedTokenState::Missing;
+        };
+        if self.is_token_expired(&auth) {
+            return CachedTokenState::Expired;
+        }
+        match self.vet_cached(auth) {
+            Some(auth) => CachedTokenState::Valid(Box::new(auth)),
+            None => CachedTokenState::Missing,
+        }
     }
 
     /// In-memory bearer regardless of the early-invalidation buffer.

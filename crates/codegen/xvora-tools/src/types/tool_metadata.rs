@@ -1,7 +1,7 @@
 //! `ToolMetadata` — grok-tools-specific metadata for tools.
 //!
 //! Each tool implements two traits:
-//! 1. `tool_runtime::Tool` — typed Args/Output, `run()` with actual logic
+//! 1. `xvora_tool_runtime::Tool` — typed Args/Output, `run()` with actual logic
 //! 2. `ToolMetadata` — kind, namespace, description template, and optional
 //!    overrides for fingerprinting, reminders, etc.
 //!
@@ -11,7 +11,7 @@
 //!
 //! ## Context helpers
 //!
-//! Tools access session state through `tool_runtime::ToolCallContext`
+//! Tools access session state through `xvora_tool_runtime::ToolCallContext`
 //! extensions. This module provides helper functions to extract
 //! `SharedResources`, resolve the working directory, and read the
 //! behavior version.
@@ -26,7 +26,7 @@ use crate::types::tool::{ToolKind, ToolNamespace};
 
 /// Grok-tools-specific metadata trait.
 ///
-/// Each tool struct implements this alongside `tool_runtime::Tool`.
+/// Each tool struct implements this alongside `xvora_tool_runtime::Tool`.
 /// Only `kind()`, `namespace()`, and `description_template()` are required;
 /// all other methods have defaults.
 ///
@@ -72,7 +72,7 @@ pub trait ToolMetadata: Send + Sync {
         Expr::True
     }
 
-    /// Model-safe fallback description for `tool_runtime::Tool::description()`
+    /// Model-safe fallback description for `xvora_tool_runtime::Tool::description()`
     /// implementations: the raw template with all `${{ … }}` / `${% … %}`
     /// markers stripped.
     ///
@@ -117,13 +117,13 @@ pub trait ToolMetadata: Send + Sync {
 /// `ToolBridge` inserts `SharedResources` into `ctx.extensions` before
 /// dispatching through the `LocalRegistry`.
 pub fn shared_resources(
-    ctx: &tool_runtime::ToolCallContext,
-) -> Result<SharedResources, tool_runtime::ToolError> {
+    ctx: &xvora_tool_runtime::ToolCallContext,
+) -> Result<SharedResources, xvora_tool_runtime::ToolError> {
     ctx.extensions
         .get::<SharedResources>()
         .map(|arc| (*arc).clone())
         .ok_or_else(|| {
-            tool_runtime::ToolError::custom(
+            xvora_tool_runtime::ToolError::custom(
                 "missing_resources",
                 "SharedResources not available in ToolCallContext extensions",
             )
@@ -135,17 +135,17 @@ pub fn shared_resources(
 /// Checks `Cwd` extension first (set when the caller provides a per-call
 /// override), then falls back to `Cwd` in `SharedResources`.
 pub async fn resolve_cwd(
-    ctx: &tool_runtime::ToolCallContext,
+    ctx: &xvora_tool_runtime::ToolCallContext,
     resources: &SharedResources,
-) -> Result<PathBuf, tool_runtime::ToolError> {
-    if let Some(cwd) = ctx.extensions.get::<tool_runtime::Cwd>() {
+) -> Result<PathBuf, xvora_tool_runtime::ToolError> {
+    if let Some(cwd) = ctx.extensions.get::<xvora_tool_runtime::Cwd>() {
         return Ok(cwd.0.clone());
     }
     let res = resources.lock().await;
     res.get::<crate::types::resources::Cwd>()
         .map(|c| c.0.clone())
         .ok_or_else(|| {
-            tool_runtime::ToolError::custom("missing_cwd", "Cwd not available in Resources")
+            xvora_tool_runtime::ToolError::custom("missing_cwd", "Cwd not available in Resources")
         })
 }
 
@@ -155,13 +155,14 @@ pub async fn resolve_cwd(
 /// Convenience for tests — replaces the per-tool `make_ctx` / `runtime_ctx`
 /// helpers that were duplicated across ~50 tool implementations. Use
 /// [`test_ctx_with_call_id`] when the test needs a specific call id.
-pub fn test_ctx(resources: SharedResources) -> tool_runtime::ToolCallContext {
-    let mut ctx = tool_runtime::ToolCallContext::default();
+pub fn test_ctx(resources: SharedResources) -> xvora_tool_runtime::ToolCallContext {
+    let mut ctx = xvora_tool_runtime::ToolCallContext::default();
     ctx.extensions.insert(resources);
     // Default streaming gate ON so existing tests exercise the stream path.
-    ctx.extensions.insert(tool_runtime::WorkspaceViewerContext {
-        stream_tool_progress: true,
-    });
+    ctx.extensions
+        .insert(xvora_tool_runtime::WorkspaceViewerContext {
+            stream_tool_progress: true,
+        });
     ctx
 }
 
@@ -171,21 +172,22 @@ pub fn test_ctx(resources: SharedResources) -> tool_runtime::ToolCallContext {
 pub fn test_ctx_with_call_id(
     resources: SharedResources,
     call_id: &str,
-) -> tool_runtime::ToolCallContext {
-    let id = tool_protocol::ToolCallId::new(call_id)
-        .unwrap_or_else(|_| tool_protocol::ToolCallId::new_v7());
-    let mut ctx = tool_runtime::ToolCallContext::new(id);
+) -> xvora_tool_runtime::ToolCallContext {
+    let id = xvora_tool_protocol::ToolCallId::new(call_id)
+        .unwrap_or_else(|_| xvora_tool_protocol::ToolCallId::new_v7());
+    let mut ctx = xvora_tool_runtime::ToolCallContext::new(id);
     ctx.extensions.insert(resources);
-    ctx.extensions.insert(tool_runtime::WorkspaceViewerContext {
-        stream_tool_progress: true,
-    });
+    ctx.extensions
+        .insert(xvora_tool_runtime::WorkspaceViewerContext {
+            stream_tool_progress: true,
+        });
     ctx
 }
 
 /// Read the behavior version from the runtime context, if set.
-pub fn behavior_version(ctx: &tool_runtime::ToolCallContext) -> Option<String> {
+pub fn behavior_version(ctx: &xvora_tool_runtime::ToolCallContext) -> Option<String> {
     ctx.extensions
-        .get::<tool_runtime::BehaviorVersion>()
+        .get::<xvora_tool_runtime::BehaviorVersion>()
         .map(|v| v.0.clone())
 }
 
@@ -197,7 +199,7 @@ pub fn behavior_version(ctx: &tool_runtime::ToolCallContext) -> Option<String> {
 /// naming *this* tool's own params (a sibling tool sharing the `ToolKind`
 /// can rename the same field differently).
 pub fn invoking_param_names(
-    ctx: &tool_runtime::ToolCallContext,
+    ctx: &xvora_tool_runtime::ToolCallContext,
 ) -> crate::types::resources::InvokingToolParamNames {
     ctx.extensions
         .get::<crate::types::resources::InvokingToolParamNames>()

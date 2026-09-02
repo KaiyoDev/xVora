@@ -9,17 +9,17 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use dashmap::DashMap;
 
-use computer_hub_core::{
+use serde::{Deserialize, Serialize};
+use xvora_computer_hub_core::{
     ConnectionCleanupReport, ErasedTool, ResolvedTool, SessionCleanupReport, ToolHandle,
     ToolRegistry, ToolSessionBindOutcome, ToolSessionUnbindOutcome, resolver::CompoundResolver,
 };
-use serde::{Deserialize, Serialize};
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind, UserId,
 };
-use tool_runtime::{SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError};
-use tool_types::ToolDescription;
+use xvora_tool_runtime::{SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError};
+use xvora_tool_types::ToolDescription;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EmptyArgs {}
@@ -37,7 +37,7 @@ impl Tool for StubTool {
         self.id.clone()
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new(self.id.as_str(), format!("stub for {}", self.id))
     }
 
@@ -333,7 +333,7 @@ impl ToolRegistry for MockRegistry {
                 let entry = self.entries.get(&(owner, tool_id))?;
                 let reg = &entry.value().registration;
                 if reg.tool_id.as_str().contains(query) {
-                    Some(tool_runtime::ToolSearchResult {
+                    Some(xvora_tool_runtime::ToolSearchResult {
                         tool_name: reg.tool_id.as_str().to_string(),
                         server_name: reg
                             .server_id
@@ -391,15 +391,15 @@ impl ToolRegistry for MockRegistry {
 
     fn list_servers_for_user(
         &self,
-        _user_id: &tool_protocol::UserId,
-    ) -> Vec<computer_hub_core::registry::ServerRecord> {
+        _user_id: &xvora_tool_protocol::UserId,
+    ) -> Vec<xvora_computer_hub_core::registry::ServerRecord> {
         Vec::new()
     }
 
     fn get_server_record(
         &self,
         _connection_id: &ConnectionId,
-    ) -> Option<computer_hub_core::registry::ServerRecord> {
+    ) -> Option<xvora_computer_hub_core::registry::ServerRecord> {
         None
     }
 }

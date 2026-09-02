@@ -79,7 +79,7 @@ pub struct MonitorOutput {
     pub persistent: bool,
 }
 
-impl tool_runtime::ToolOutput for MonitorOutput {}
+impl xvora_tool_runtime::ToolOutput for MonitorOutput {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum MonitorError {
@@ -143,8 +143,8 @@ impl MonitorEventNotification {
 /// of [`MonitorEventNotification`]. Producers `push_capped`; the turn loop
 /// drains its session's events via [`drain_owned`].
 ///
-/// [`EventQueue`]: interjection_core::EventQueue
-pub type MonitorEventBuffer = interjection_core::EventQueue<MonitorEventNotification>;
+/// [`EventQueue`]: xvora_interjection_core::EventQueue
+pub type MonitorEventBuffer = xvora_interjection_core::EventQueue<MonitorEventNotification>;
 
 crate::register_resource!("grok_build", "MonitorEventBuffer", MonitorEventBuffer);
 

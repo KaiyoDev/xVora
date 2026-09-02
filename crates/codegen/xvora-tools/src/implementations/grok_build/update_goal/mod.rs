@@ -188,7 +188,7 @@ pub struct UpdateGoalOutput {
     pub summary: String,
 }
 
-impl tool_runtime::ToolOutput for UpdateGoalOutput {}
+impl xvora_tool_runtime::ToolOutput for UpdateGoalOutput {}
 
 // ---------------------------------------------------------------------------
 // Tool implementation
@@ -215,25 +215,28 @@ impl crate::types::tool_metadata::ToolMetadata for UpdateGoalTool {
     }
 }
 
-impl tool_runtime::Tool for UpdateGoalTool {
+impl xvora_tool_runtime::Tool for UpdateGoalTool {
     type Args = UpdateGoalInput;
     type Output = UpdateGoalOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new(UPDATE_GOAL_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new(UPDATE_GOAL_TOOL_NAME).expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             UPDATE_GOAL_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -241,9 +244,9 @@ impl tool_runtime::Tool for UpdateGoalTool {
     #[tracing::instrument(name = "new_tool.update_goal", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: UpdateGoalInput,
-    ) -> Result<UpdateGoalOutput, tool_runtime::ToolError> {
+    ) -> Result<UpdateGoalOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -259,7 +262,7 @@ impl tool_runtime::Tool for UpdateGoalTool {
             let res = resources.lock().await;
             res.get::<GoalUpdateHandle>()
                 .ok_or_else(|| {
-                    tool_runtime::ToolError::custom(
+                    xvora_tool_runtime::ToolError::custom(
                         "goal_not_active",
                         "No active goal to update (GoalUpdateHandle not registered)",
                     )
@@ -268,7 +271,7 @@ impl tool_runtime::Tool for UpdateGoalTool {
                 .clone()
         };
         sender.send((input, ack_tx)).map_err(|_| {
-            tool_runtime::ToolError::custom(
+            xvora_tool_runtime::ToolError::custom(
                 "goal_channel_closed",
                 "Goal update channel closed — the session may be shutting down",
             )
@@ -285,7 +288,7 @@ impl tool_runtime::Tool for UpdateGoalTool {
                     "update_goal: actor dropped ack oneshot without responding — surfacing as \
                      tool error"
                 );
-                return Err(tool_runtime::ToolError::custom(
+                return Err(xvora_tool_runtime::ToolError::custom(
                     "harness_no_ack",
                     format!(
                         "Goal-update harness dropped the response channel before producing an \
@@ -303,7 +306,7 @@ impl tool_runtime::Tool for UpdateGoalTool {
 /// so host session tests can assert the same model-facing strings.
 pub fn render_ack_into_output(
     ack: UpdateGoalAck,
-) -> Result<UpdateGoalOutput, tool_runtime::ToolError> {
+) -> Result<UpdateGoalOutput, xvora_tool_runtime::ToolError> {
     match ack {
         UpdateGoalAck::Accepted { summary } => Ok(UpdateGoalOutput {
             success: true,
@@ -330,7 +333,7 @@ pub fn render_ack_into_output(
             details_path,
             attempt,
             max_runs,
-        } => Err(tool_runtime::ToolError::custom(
+        } => Err(xvora_tool_runtime::ToolError::custom(
             "goal_classifier_not_achieved",
             format!(
                 "Goal classifier rejected this completion attempt ({attempt}/{max_runs}). \
@@ -348,7 +351,7 @@ pub fn render_ack_into_output(
             } else {
                 format!(" See {details_path}")
             };
-            Err(tool_runtime::ToolError::custom(
+            Err(xvora_tool_runtime::ToolError::custom(
                 "goal_classifier_cap_reached",
                 format!(
                     "Goal classifier rejected completion {attempt} times — goal auto-paused.{pointer}"
@@ -358,21 +361,23 @@ pub fn render_ack_into_output(
         UpdateGoalAck::ClassifierStalled {
             details_path,
             attempt,
-        } => Err(tool_runtime::ToolError::custom(
+        } => Err(xvora_tool_runtime::ToolError::custom(
             "goal_classifier_stalled",
             format!(
                 "Goal verification saw no change in the flagged gaps across {attempt} attempts \
                  — goal auto-paused. Review {details_path}; the user must resume."
             ),
         )),
-        UpdateGoalAck::ClassifierBlocked { details_path } => Err(tool_runtime::ToolError::custom(
-            "goal_classifier_blocked",
-            format!(
-                "Goal verification found no model-fixable path (objective/plan contradiction or \
+        UpdateGoalAck::ClassifierBlocked { details_path } => {
+            Err(xvora_tool_runtime::ToolError::custom(
+                "goal_classifier_blocked",
+                format!(
+                    "Goal verification found no model-fixable path (objective/plan contradiction or \
                  evidence that cannot be captured here) — goal paused for your decision. \
                  See {details_path}"
-            ),
-        )),
+                ),
+            ))
+        }
         UpdateGoalAck::ClassifierConcurrentInFlight {
             details_path,
             attempt,
@@ -385,7 +390,7 @@ pub fn render_ack_into_output(
             } else {
                 format!("; see {details_path}")
             };
-            Err(tool_runtime::ToolError::custom(
+            Err(xvora_tool_runtime::ToolError::custom(
                 "goal_classifier_in_flight",
                 format!(
                     "Goal classifier is still verifying a previous completion — do NOT call \
@@ -403,9 +408,10 @@ pub fn render_ack_into_output(
                  again until you see it."
             ),
         }),
-        UpdateGoalAck::Rejected { reason, detail } => {
-            Err(tool_runtime::ToolError::custom(reason.error_code(), detail))
-        }
+        UpdateGoalAck::Rejected { reason, detail } => Err(xvora_tool_runtime::ToolError::custom(
+            reason.error_code(),
+            detail,
+        )),
     }
 }
 

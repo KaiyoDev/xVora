@@ -3,10 +3,10 @@ use crate::session::helpers::compaction_context::{
     BackgroundTaskSummary, CompactionInputs, CompactionStateContext, RunningSubagentSummary,
     SubagentToolNames, to_system_reminder_sync,
 };
-use chat_state::compaction_utils::{
+use std::collections::BTreeSet;
+use xvora_chat_state::compaction_utils::{
     CompactedHistoryInput, build_compacted_history as build_compacted_history_shared,
 };
-use std::collections::BTreeSet;
 /// Thin wrapper around the shared `build_compacted_history` from `xvora-chat-state`.
 /// Renders the system-reminder synchronously (no memory backend) to match the old test-local helper signature.
 fn build_compacted_history(
@@ -140,7 +140,7 @@ async fn test_compacted_history_raw_strings() {
         "Summary message should NOT contain system-reminder (it is now separate)"
     );
     let formatted_summary =
-        chat_state::compaction_utils::format_compact_summary_content(compaction_summary);
+        xvora_chat_state::compaction_utils::format_compact_summary_content(compaction_summary);
     assert_eq!(
         msg_summary_text, formatted_summary,
         "Summary message should be the summary text without <user_query> wrapping"
@@ -268,7 +268,9 @@ fn test_auto_continue_prompt_has_no_user_query_tags() {
 /// This exercises the same code path as `run_compact_inner` in `acp_session.rs`: build, sanitize, validate, then fall back if needed.
 #[test]
 fn sanitize_then_validate_produces_valid_history() {
-    use chat_state::compaction_utils::{sanitize_compacted_history, validate_compacted_history};
+    use xvora_chat_state::compaction_utils::{
+        sanitize_compacted_history, validate_compacted_history,
+    };
     let raw = vec![
         ConversationItem::system("sys"),
         ConversationItem::user("<user_query>\ntask\n</user_query>"),
@@ -295,7 +297,7 @@ fn sanitize_then_validate_produces_valid_history() {
 /// An example is a result-before-call that the sanitizer strips but the caller re-introduces somehow.
 #[test]
 fn fallback_minimal_history_has_no_tool_results() {
-    use chat_state::compaction_utils::validate_compacted_history;
+    use xvora_chat_state::compaction_utils::validate_compacted_history;
     let state_context = CompactionStateContext {
         cwd_generation: 0,
         destination_project_instructions: None,
@@ -307,6 +309,9 @@ fn fallback_minimal_history_has_no_tool_results() {
         running_subagents: vec![],
         connected_mcp_servers: vec![],
         todos: vec![],
+        scheduled_loops: vec![],
+        workflows: vec![],
+        workflow_tool_name: None,
     };
     let fallback = build_compacted_history(
         "You are a helpful assistant.",
@@ -327,7 +332,7 @@ fn fallback_minimal_history_has_no_tool_results() {
         "fallback history must contain no ToolResult items"
     );
 }
-/// Compaction with running subagents: the `## Running Subagents` section must appear in the `<system-reminder>` with correct content and tool names.
+/// Compaction with running subagents: their ids must appear under `## Running Background Tasks`.
 #[tokio::test]
 async fn test_compacted_history_with_running_subagents() {
     let conversation = vec![
@@ -372,6 +377,10 @@ async fn test_compacted_history_with_running_subagents() {
     let system_reminder =
         to_system_reminder_sync(&state_context, &[], &[], Some(&tool_names), None, None);
     let reminder = system_reminder.expect("should produce a system-reminder");
+    assert!(
+        reminder.contains("## Running Background Tasks"),
+        "must contain Running Background Tasks heading"
+    );
     assert!(
         reminder.contains("## Running Subagents"),
         "must contain Running Subagents heading"
@@ -532,6 +541,9 @@ fn fallback_preserves_subagents() {
         ],
         connected_mcp_servers: vec![],
         todos: vec![],
+        scheduled_loops: vec![],
+        workflows: vec![],
+        workflow_tool_name: None,
     };
     let fallback = CompactionStateContext {
         cwd_generation: original.cwd_generation,
@@ -544,6 +556,9 @@ fn fallback_preserves_subagents() {
         running_subagents: original.running_subagents.clone(),
         connected_mcp_servers: original.connected_mcp_servers.clone(),
         todos: original.todos.clone(),
+        scheduled_loops: original.scheduled_loops.clone(),
+        workflows: original.workflows.clone(),
+        workflow_tool_name: original.workflow_tool_name.clone(),
     };
     assert_eq!(
         fallback.running_subagents.len(),

@@ -549,22 +549,45 @@ pub(crate) enum GoalRoleModelChoice {
     /// Use this explicit pair (subject to auth/fail-open at spawn time).
     Explicit(crate::util::config::GoalRoleModel),
 }
+/// Fleet `allowed_models` pin. A list replaces the user/project allowlist;
+/// [`Self::FailClosed`] is a present-but-unreadable value (nothing selectable).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AllowlistPin {
+    List(Vec<String>),
+    FailClosed,
+}
 /// A requirement pin from `requirements.toml`. Wins over all other sources.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Constrained<T> {
     pin: Option<T>,
     source: Option<crate::config::RequirementSource>,
 }
-impl<T: Clone> Constrained<T> {
+impl<T> Default for Constrained<T> {
+    fn default() -> Self {
+        Self {
+            pin: None,
+            source: None,
+        }
+    }
+}
+impl<T> Constrained<T> {
     pub fn pin(&mut self, value: T, source: crate::config::RequirementSource) {
         self.pin = Some(value);
         self.source = Some(source);
     }
-    pub fn pinned(&self) -> Option<T> {
-        self.pin.clone()
+    pub fn pin_ref(&self) -> Option<&T> {
+        self.pin.as_ref()
+    }
+    pub fn is_pinned(&self) -> bool {
+        self.pin.is_some()
     }
     pub fn source(&self) -> Option<&crate::config::RequirementSource> {
         self.source.as_ref()
+    }
+}
+impl<T: Clone> Constrained<T> {
+    pub fn pinned(&self) -> Option<T> {
+        self.pin.clone()
     }
 }
 /// Enforced requirements from `requirements.toml`. Pinned values win over all other sources.
@@ -580,6 +603,10 @@ pub struct Requirements {
     pub respect_gitignore: Constrained<bool>,
     pub remote_fetch: Constrained<bool>,
     pub title_refresh: Constrained<bool>,
+    /// Fleet-pinned `[models] allowed_models`. Replace, not union — a user
+    /// list cannot widen the set once this is set. [`AllowlistPin::FailClosed`]
+    /// is a present-but-unreadable pin (nothing selectable).
+    pub allowed_models: Constrained<AllowlistPin>,
     /// Pins from a requirements layer or an MDM policy, keyed by [`Feature`].
     features: BTreeMap<Feature, Constrained<bool>>,
 }
@@ -656,8 +683,8 @@ pub(crate) fn resolve_compaction_mode_from(
     env: Option<&str>,
     config: Option<&str>,
     remote: Option<&str>,
-) -> chat_state::CompactionMode {
-    use chat_state::CompactionMode;
+) -> xvora_chat_state::CompactionMode {
+    use xvora_chat_state::CompactionMode;
     env.and_then(CompactionMode::parse)
         .or_else(|| config.and_then(CompactionMode::parse))
         .or_else(|| remote.and_then(CompactionMode::parse))
@@ -669,8 +696,8 @@ pub(crate) fn resolve_compaction_detail_from(
     env: Option<&str>,
     config: Option<&str>,
     remote: Option<&str>,
-) -> chat_state::CompactionDetail {
-    use chat_state::CompactionDetail;
+) -> xvora_chat_state::CompactionDetail {
+    use xvora_chat_state::CompactionDetail;
     env.and_then(CompactionDetail::parse)
         .or_else(|| config.and_then(CompactionDetail::parse))
         .or_else(|| remote.and_then(CompactionDetail::parse))
@@ -1014,10 +1041,11 @@ pub struct ModelsConfig {
     pub prompt_suggestion: Option<String>,
     /// Restricts which models are user-selectable for normal chat (picker, `/model`, `-m`).
     /// Non-matching models stay in the catalog but are never shown, defaulted to, or selectable.
-    /// Special/internal models (web_search, image_description, subagents, fork secondary) are exempt.
-    ///
-    /// Glob patterns (`*`, `?`, `[...]`) match the model id or catalog key, case-sensitive.
-    /// Empty means no restriction; an excluded explicit `default`/`-m` is rejected at startup.
+    /// Special/internal models (web_search, image_description, subagents, fork secondary)
+    /// are exempt. User-config globs (`*`, `?`, `[...]`) match the catalog key or model id,
+    /// case-sensitive. Empty = no restriction; an excluded explicit `default`/`-m` is
+    /// rejected once the model catalog is fetched. Fleet pins live on
+    /// [`Requirements::allowed_models`] and replace this list.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_models: Option<Vec<String>>,
     /// Force `hidden = true` on these model IDs (still usable via `-m`).
@@ -1866,7 +1894,7 @@ impl Config {
             ("disabled_models", &self.models.disabled_models),
             ("hidden_models", &self.models.hidden_models),
         ] {
-            if let Err(bad) = crate::agent::models::ModelGlobSet::compile(list.as_ref()) {
+            if let Err(bad) = crate::agent::models::ModelGlobSet::compile(list.as_deref()) {
                 return Err(format!(
                     "{field} has an invalid pattern: {}. Patterns use * and ? wildcards.",
                     bad.join(", ")
@@ -2488,8 +2516,8 @@ impl Config {
     }
     /// Automatic worktree GC policy.
     /// Precedence: env kill/dry-run > `[worktree.auto_gc]` TOML > remote `worktree_auto_gc` > defaults.
-    /// Platform age-expiry (`process_cwd_scan_available`: linux+macos) is enforced inside `fast_worktree::maybe_auto_gc`, not here.
-    pub(crate) fn resolve_worktree_auto_gc(&self) -> fast_worktree::ResolvedWorktreeAutoGc {
+    /// Platform age-expiry (`process_cwd_scan_available`: linux+macos) is enforced inside `xvora_fast_worktree::maybe_auto_gc`, not here.
+    pub(crate) fn resolve_worktree_auto_gc(&self) -> xvora_fast_worktree::ResolvedWorktreeAutoGc {
         crate::util::config::resolve_worktree_auto_gc_from_settings(
             Some(&self.worktree.auto_gc),
             self.remote_settings
@@ -2873,7 +2901,7 @@ impl Config {
     }
     /// Resolve the mode: env `GROK_COMPACTION_MODE` > config > remote settings > default, with unrecognized values falling through.
     /// For `Segments`, attach the separately-resolved detail level.
-    pub(crate) fn resolve_compaction_mode(&self) -> chat_state::CompactionMode {
+    pub(crate) fn resolve_compaction_mode(&self) -> xvora_chat_state::CompactionMode {
         resolve_compaction_mode_from(
             env_string("GROK_COMPACTION_MODE").as_deref(),
             self.features.compaction_mode.as_deref(),
@@ -2896,7 +2924,7 @@ impl Config {
     }
     /// Precedence: env `GROK_COMPACTION_DETAIL` > config `features.compaction_detail` > remote `compaction_detail` > default (`verbose`).
     /// Drives the `segments` verbatim detail level.
-    fn resolve_compaction_detail(&self) -> chat_state::CompactionDetail {
+    fn resolve_compaction_detail(&self) -> xvora_chat_state::CompactionDetail {
         resolve_compaction_detail_from(
             env_string("GROK_COMPACTION_DETAIL").as_deref(),
             self.features.compaction_detail.as_deref(),
@@ -3210,6 +3238,58 @@ pub(crate) fn external_otel_master_switch_from(
     }
     table_enabled(effective_config).unwrap_or(false)
 }
+fn telemetry_otel_str(t: &toml::Value, key: &str) -> Option<String> {
+    t.get(key).and_then(toml::Value::as_str).map(str::to_owned)
+}
+fn telemetry_otel_ms(t: &toml::Value, key: &str) -> Option<String> {
+    t.get(key).and_then(|v| {
+        v.as_integer()
+            .map(|i| i.to_string())
+            .or_else(|| v.as_str().map(str::to_owned))
+    })
+}
+fn telemetry_otel_file_config(
+    t: &toml::Value,
+) -> xvora_telemetry::external::ExternalOtelFileConfig {
+    xvora_telemetry::external::ExternalOtelFileConfig {
+        enabled: t.get("otel_enabled").and_then(toml::Value::as_bool),
+        metrics_exporter: telemetry_otel_str(t, "otel_metrics_exporter"),
+        logs_exporter: telemetry_otel_str(t, "otel_logs_exporter"),
+        endpoint: telemetry_otel_str(t, "otel_endpoint"),
+        protocol: telemetry_otel_str(t, "otel_protocol")
+            .or_else(|| telemetry_otel_str(t, "otel_transport")),
+        certificate: telemetry_otel_str(t, "otel_certificate"),
+        client_certificate: telemetry_otel_str(t, "otel_client_certificate"),
+        client_key: telemetry_otel_str(t, "otel_client_key"),
+        log_user_prompts: t
+            .get("otel_log_user_prompts")
+            .and_then(toml::Value::as_bool),
+        log_tool_details: t
+            .get("otel_log_tool_details")
+            .and_then(toml::Value::as_bool),
+        log_assistant_responses: t
+            .get("otel_log_assistant_responses")
+            .and_then(toml::Value::as_bool),
+        log_tool_content: t
+            .get("otel_log_tool_content")
+            .and_then(toml::Value::as_bool),
+        timeout: telemetry_otel_ms(t, "otel_timeout"),
+        metric_export_interval: telemetry_otel_ms(t, "otel_metric_export_interval"),
+        logs_endpoint: telemetry_otel_str(t, "otel_logs_endpoint"),
+        metrics_endpoint: telemetry_otel_str(t, "otel_metrics_endpoint"),
+        logs_protocol: telemetry_otel_str(t, "otel_logs_protocol"),
+        metrics_protocol: telemetry_otel_str(t, "otel_metrics_protocol"),
+        logs_certificate: telemetry_otel_str(t, "otel_logs_certificate"),
+        metrics_certificate: telemetry_otel_str(t, "otel_metrics_certificate"),
+        logs_client_certificate: telemetry_otel_str(t, "otel_logs_client_certificate"),
+        logs_client_key: telemetry_otel_str(t, "otel_logs_client_key"),
+        metrics_client_certificate: telemetry_otel_str(t, "otel_metrics_client_certificate"),
+        metrics_client_key: telemetry_otel_str(t, "otel_metrics_client_key"),
+        include_session_id: t
+            .get("otel_metrics_include_session_id")
+            .and_then(toml::Value::as_bool),
+    }
+}
 /// Resolve the external OTEL stream configuration at process startup.
 /// Env and local config only: remote settings are not yet available when tracing init runs.
 ///
@@ -3220,9 +3300,10 @@ pub(crate) fn external_otel_master_switch_from(
 pub fn resolve_external_otel_config(
     client: xvora_telemetry::external::config::ExternalClientInfo,
 ) -> Option<xvora_telemetry::external::ExternalOtelConfig> {
+    let requirements = xvora_config::load_merged_requirements();
     resolve_external_otel_config_with(
         crate::config::load_effective_config().ok().as_ref(),
-        xvora_config::load_merged_requirements().as_ref(),
+        requirements.as_ref(),
         |name| std::env::var(name).ok(),
         client,
         EndpointsConfig::default().internal_otlp_consumed_standard_vars(),
@@ -3236,63 +3317,18 @@ pub(crate) fn resolve_external_otel_config_with(
     client: xvora_telemetry::external::config::ExternalClientInfo,
     internal_pipeline_consumed_otel_vars: bool,
 ) -> Option<xvora_telemetry::external::ExternalOtelConfig> {
+    let pins =
+        crate::agent::external_otel_pin::RequirementOtelPins::from_requirements(requirements);
     let file_cfg: Option<xvora_telemetry::external::ExternalOtelFileConfig> = effective_config
         .and_then(|cfg| cfg.get("telemetry"))
-        .map(|t| xvora_telemetry::external::ExternalOtelFileConfig {
-            enabled: t.get("otel_enabled").and_then(toml::Value::as_bool),
-            metrics_exporter: t
-                .get("otel_metrics_exporter")
-                .and_then(toml::Value::as_str)
-                .map(str::to_owned),
-            logs_exporter: t
-                .get("otel_logs_exporter")
-                .and_then(toml::Value::as_str)
-                .map(str::to_owned),
-            endpoint: t
-                .get("otel_endpoint")
-                .and_then(toml::Value::as_str)
-                .map(str::to_owned),
-            protocol: t
-                .get("otel_protocol")
-                .or_else(|| t.get("otel_transport"))
-                .and_then(toml::Value::as_str)
-                .map(str::to_owned),
-            certificate: t
-                .get("otel_certificate")
-                .and_then(toml::Value::as_str)
-                .map(str::to_owned),
-            client_certificate: t
-                .get("otel_client_certificate")
-                .and_then(toml::Value::as_str)
-                .map(str::to_owned),
-            client_key: t
-                .get("otel_client_key")
-                .and_then(toml::Value::as_str)
-                .map(str::to_owned),
-            log_user_prompts: t
-                .get("otel_log_user_prompts")
-                .and_then(toml::Value::as_bool),
-            log_tool_details: t
-                .get("otel_log_tool_details")
-                .and_then(toml::Value::as_bool),
+        .cloned()
+        .map(|mut telemetry| {
+            if let Some(table) = telemetry.as_table_mut() {
+                pins.hide_unlisted_file_siblings(table);
+            }
+            telemetry_otel_file_config(&telemetry)
         });
-    let req_get =
-        |key: &str| -> Option<bool> { requirements?.get("telemetry")?.get(key)?.as_bool() };
-    let req_enabled = req_get("otel_enabled");
-    let req_prompts = req_get("otel_log_user_prompts");
-    let req_details = req_get("otel_log_tool_details");
-    let getenv_pinned = |name: &str| -> Option<String> {
-        let pin = match name {
-            xvora_telemetry::external::config::ENV_MASTER_SWITCH => req_enabled,
-            "OTEL_LOG_USER_PROMPTS" => req_prompts,
-            "OTEL_LOG_TOOL_DETAILS" => req_details,
-            _ => None,
-        };
-        if let Some(v) = pin {
-            return Some(if v { "1" } else { "0" }.to_owned());
-        }
-        getenv(name)
-    };
+    let getenv_pinned = crate::agent::external_otel_pin::getenv_with_pins(&pins, getenv);
     let mut resolved = xvora_telemetry::external::ExternalOtelConfig::resolve_with(
         getenv_pinned,
         file_cfg.as_ref(),
@@ -4659,7 +4695,7 @@ impl<'de> Deserialize<'de> for FeatureEntries {
 pub(crate) struct ResolvedCredentials {
     pub api_key: Option<String>,
     pub base_url: String,
-    pub auth_type: chat_state::AuthType,
+    pub auth_type: xvora_chat_state::AuthType,
     pub auth_scheme: AuthScheme,
 }
 /// First usable BYOK credential: a non-empty (trimmed) api_key, else the first set, non-empty env_key value.
@@ -4683,14 +4719,14 @@ pub(crate) fn resolve_credentials(
         (
             Some(key),
             info.base_url.clone(),
-            chat_state::AuthType::ApiKey,
+            xvora_chat_state::AuthType::ApiKey,
         )
     } else if let Some(provider) = model.auth_provider.as_ref() {
         debug_assert!(model.effective_auth_provider().is_some());
         (
             provider.cached_token(),
             info.base_url.clone(),
-            chat_state::AuthType::ApiKey,
+            xvora_chat_state::AuthType::ApiKey,
         )
     } else if let Some(key) = session_key
         && crate::auth::backend::AuthBackend::may_receive_session(
@@ -4701,14 +4737,14 @@ pub(crate) fn resolve_credentials(
         (
             Some(key.to_owned()),
             info.base_url.clone(),
-            chat_state::AuthType::SessionToken,
+            xvora_chat_state::AuthType::SessionToken,
         )
     } else if let Ok(key) = crate::agent::auth_method::read_xai_api_key_env() {
         let url = model
             .api_base_url
             .clone()
             .unwrap_or_else(|| info.base_url.clone());
-        (Some(key), url, chat_state::AuthType::ApiKey)
+        (Some(key), url, xvora_chat_state::AuthType::ApiKey)
     } else {
         if let Some(ref env_keys) = model.env_key
             && !env_keys.is_empty()
@@ -4720,7 +4756,11 @@ pub(crate) fn resolve_credentials(
                  requests will have no API key",
             );
         }
-        (None, info.base_url.clone(), chat_state::AuthType::ApiKey)
+        (
+            None,
+            info.base_url.clone(),
+            xvora_chat_state::AuthType::ApiKey,
+        )
     };
     let auth_scheme = info.auth_scheme;
     tracing::debug!(
@@ -4744,10 +4784,10 @@ pub(crate) fn enforce_disable_api_key_auth(
     session_key: Option<&str>,
 ) {
     if disable_api_key_auth
-        && creds.auth_type == chat_state::AuthType::ApiKey
+        && creds.auth_type == xvora_chat_state::AuthType::ApiKey
         && crate::util::is_xai_api_url(&creds.base_url)
     {
-        creds.auth_type = chat_state::AuthType::SessionToken;
+        creds.auth_type = xvora_chat_state::AuthType::SessionToken;
         creds.api_key = session_key.map(str::to_owned);
         xvora_telemetry::unified_log::debug(
             "auth: kill switch blocked a first-party API key at the credential seam",
@@ -4902,7 +4942,7 @@ pub(crate) fn resolve_aux_model_sampling_config(
     if let Some(bearer) = xvora_bearer {
         let entry = ModelEntry {
             info: ModelInfo {
-                user_selectable: true,
+                user_selectable: false,
                 id: None,
                 model_family: None,
                 model: catalog_entry
@@ -5015,8 +5055,8 @@ pub(crate) fn finalize_image_describe_sampler_config(
 pub(crate) fn resolve_chat_state_auth_type(
     model_id: &str,
     session_key: Option<&str>,
-    fallback: chat_state::AuthType,
-) -> chat_state::AuthType {
+    fallback: xvora_chat_state::AuthType,
+) -> xvora_chat_state::AuthType {
     try_resolve_model_credentials(model_id, session_key)
         .map(|r| r.auth_type)
         .unwrap_or(fallback)
@@ -5157,7 +5197,7 @@ fn resolve_hidden_default_web_search_sampling_config(
             max_retries: None,
             subagent_rate_limit_max_attempts: None,
             hidden: true,
-            user_selectable: true,
+            user_selectable: false,
             supported_in_api: true,
             reasoning_effort: None,
             supports_reasoning_effort: false,

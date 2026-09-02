@@ -5,6 +5,8 @@ use crate::session::worktree_cleanup::cleanup_worktree_on_failure;
 use crate::util::config::WorktreeType as ShellWorktreeType;
 use anyhow::{Context, Result};
 use std::path::Path;
+use xvora_telemetry::region;
+use xvora_telemetry::region::Parent;
 use xvora_workspace::session::git::find_git_root_from_path;
 pub use xvora_workspace::worktree::*;
 const WORKTREE_LOG: &str = "xvora_worktree";
@@ -76,6 +78,7 @@ pub(crate) async fn checkout_persisted_head_in_worktree(
         Some(s) if !s.is_empty() => s,
         _ => return xvora_workspace::session::git::CheckoutSessionOutcome::default(),
     };
+    let _checkout = region!("worktree.checkout", Parent::Inherit);
     xvora_workspace::session::git::checkout_session_commit(
         Path::new(worktree_path),
         sha,
@@ -456,13 +459,16 @@ pub(crate) async fn rehydrate_session_in_worktree(
         let dest = worktree_path_str.to_string();
         let session_id = req.session_id.clone();
         let btrfs_delegate = btrfs_delegate_from_env();
+        let _recreate = region!("worktree.cwd_recreate", Parent::Inherit);
         tokio::task::spawn_blocking(move || {
-            use fast_worktree::{CreationMode, IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder};
+            use xvora_fast_worktree::{
+                CreationMode, IgnoredFilesMode, WorkingTreeMode, WorktreeBuilder,
+            };
             let mut builder = WorktreeBuilder::new(&source, &dest)
                 .working_tree_mode(WorkingTreeMode::CleanAll)
                 .ignored_files_mode(IgnoredFilesMode::Skip)
                 .creation_mode(CreationMode::Linked)
-                .worktree_kind(fast_worktree::WorktreeKind::Fork)
+                .worktree_kind(xvora_fast_worktree::WorktreeKind::Fork)
                 .session_id(session_id);
             if let Some(delegate) = btrfs_delegate {
                 builder = builder.btrfs_delegate(delegate);
@@ -806,13 +812,13 @@ mod tests {
         let result = resolve_worktree_by_id_or_path(path).unwrap();
         assert_eq!(result.unwrap(), tmp.path());
     }
-    fn make_wt_record(path: &str, source_repo: &str) -> fast_worktree::WorktreeRecord {
-        fast_worktree::WorktreeRecord {
+    fn make_wt_record(path: &str, source_repo: &str) -> xvora_fast_worktree::WorktreeRecord {
+        xvora_fast_worktree::WorktreeRecord {
             id: format!("wt-{}", path.replace('/', "-")),
             path: std::path::PathBuf::from(path),
             source_repo: std::path::PathBuf::from(source_repo),
             repo_name: "repo".into(),
-            kind: fast_worktree::WorktreeKind::Session,
+            kind: xvora_fast_worktree::WorktreeKind::Session,
             creation_mode: "linked".into(),
             git_ref: None,
             head_commit: None,
@@ -820,7 +826,7 @@ mod tests {
             creator_pid: None,
             created_at: 0,
             last_accessed_at: None,
-            status: fast_worktree::WorktreeStatus::Alive,
+            status: xvora_fast_worktree::WorktreeStatus::Alive,
             metadata: None,
         }
     }

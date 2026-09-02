@@ -160,7 +160,7 @@ impl LengthSalvageStreak {
 ///
 /// String fallbacks remain for tools that report auth failures without going through the structured `HttpFailure` path.
 /// Examples: JSON-only `invalid_token` payloads, BYOK key-validation messages.
-pub(super) fn is_auth_tool_error(err: &tool_runtime::ToolError) -> bool {
+pub(super) fn is_auth_tool_error(err: &xvora_tool_runtime::ToolError) -> bool {
     // When the error carries a structured HTTP status code in details, trust it as the authoritative signal
     // This replaces the legacy `HttpFailure { status, .. }` variant matching.
     if let Some(details) = &err.details
@@ -219,11 +219,14 @@ pub(super) async fn call_with_auth_retry<F, Fut>(
     shared_recovery: Option<&tokio::sync::OnceCell<bool>>,
     tool_name: &str,
     mut call: F,
-) -> Result<xvora_tools::types::output::ToolRunResult, tool_runtime::ToolError>
+) -> Result<xvora_tools::types::output::ToolRunResult, xvora_tool_runtime::ToolError>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<
-            Output = Result<xvora_tools::types::output::ToolRunResult, tool_runtime::ToolError>,
+            Output = Result<
+                xvora_tools::types::output::ToolRunResult,
+                xvora_tool_runtime::ToolError,
+            >,
         >,
 {
     let result = call().await;
@@ -607,7 +610,7 @@ impl SessionActor {
         struct TraceContextInjector;
         impl xvora_sampler::HeaderInjector for TraceContextInjector {
             fn inject(&self, headers: &mut reqwest::header::HeaderMap) {
-                if let Some(tp) = file_utils::trace_context::current_traceparent()
+                if let Some(tp) = xvora_file_utils::trace_context::current_traceparent()
                     && let Ok(v) = reqwest::header::HeaderValue::from_str(&tp)
                 {
                     headers.insert("traceparent", v);
@@ -836,7 +839,7 @@ impl SessionActor {
                             }
                         })
                         .collect::<Vec<_>>();
-                    let input_tokens = chat_state::estimate_conversation_tokens(&items);
+                    let input_tokens = xvora_chat_state::estimate_conversation_tokens(&items);
                     if !classifier_request_fits_context(input_tokens, context_window) {
                         return Err(
                             xvora_workspace::permission::ClassifierFailure::TransportError(
@@ -1194,7 +1197,7 @@ impl SessionActor {
                 .expect("should_compact_on_error guarantees context_window");
             {
                 let total_tokens = self.chat_state_handle.get_estimated_total_tokens().await;
-                let percentage = token_estimation::usage_percentage_u8(total_tokens, cw);
+                let percentage = xvora_token_estimation::usage_percentage_u8(total_tokens, cw);
 
                 // Update the in-memory sampling config's `context_window` if the model reported a different value (mirror the legacy path's bookkeeping)
                 if let Some(mut cfg) = self.chat_state_handle.get_sampling_config().await

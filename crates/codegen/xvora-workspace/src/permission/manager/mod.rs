@@ -4,10 +4,10 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use parking_lot::Mutex;
 
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use chrono::Utc;
 use tokio::sync::{mpsc, oneshot};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::permission::auto_mode::{
     BashSecurityAssessment, ClassifierSecurityFinding, ClassifierVerdict, EnvRisk,
@@ -1380,8 +1380,11 @@ pub fn spawn_permission_manager_with_hub(
     )
 }
 
+/// [`spawn_permission_manager_with_hub`] with the always-approve pin supplied by the caller.
+/// A session spawn that already read the pin for config resolution feeds the manager that same read, so the manager's yolo clamp cannot disagree with the resolver.
+/// The pin is cached on the actor and never re-read per tool-call.
 #[allow(clippy::too_many_arguments)]
-fn spawn_permission_manager_with_pin(
+pub fn spawn_permission_manager_with_pin(
     session_id: acp::SessionId,
     gateway: GatewaySender,
     cwd: AbsPathBuf,
@@ -2668,7 +2671,8 @@ mod tests {
 
     // ── Managed-policy pin: yolo clamp + persisted bash clamp ──
 
-    const PIN: &str = crate::permission::resolution::YOLO_PIN_REASON_REQUIREMENTS;
+    const PIN: &str =
+        crate::permission::resolution::YoloPinReason::DisableBypassPermissionsMode.message();
     const UNSAFE_GIT_STATUS: &str = concat!(
         "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor ",
         "GIT_CONFIG_VALUE_0=/tmp/pwn git status"
@@ -3721,7 +3725,7 @@ mod tests {
         client_type: ClientType,
         remember_tool_approvals: bool,
     ) -> (PermissionHandle, mpsc::UnboundedReceiver<PermissionEvent>) {
-        let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+        let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
         tokio::task::spawn_local(receiver.run());
         spawn_permission_manager_with_pin(
             acp::SessionId::new(Arc::from("test-session")),
@@ -4614,7 +4618,7 @@ mod tests {
             client: RecordingClient,
             web_fetch_allowed_domains: Vec<String>,
         ) -> (PermissionHandle, mpsc::UnboundedReceiver<PermissionEvent>) {
-            let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+            let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
             tokio::task::spawn_local(receiver.run());
             spawn_permission_manager_with_pin(
                 acp::SessionId::new(Arc::from("test-session")),
@@ -6455,7 +6459,7 @@ mod tests {
                 let client = HangingFirstPromptClient {
                     prompts: prompts.clone(),
                 };
-                let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+                let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
                 tokio::task::spawn_local(receiver.run());
                 let (mgr, _events) = spawn_permission_manager_with_pin(
                     acp::SessionId::new(Arc::from("test-session")),
@@ -6623,7 +6627,7 @@ mod tests {
                     seen: seen.clone(),
                     gate: gate.clone(),
                 };
-                let (gateway, receiver) = acp_lib::acp_gateway::<acp::AgentSide, _>(client);
+                let (gateway, receiver) = xvora_acp_lib::acp_gateway::<acp::AgentSide, _>(client);
                 tokio::task::spawn_local(receiver.run());
                 let (mgr, mut events) = spawn_permission_manager_with_pin(
                     acp::SessionId::new(Arc::from("test-session")),
@@ -6649,17 +6653,17 @@ mod tests {
                     )
                     .await
                 });
-                for _ in 0..1000 {
-                    if seen.load(Ordering::Relaxed) >= 1 {
-                        break;
-                    }
-                    tokio::task::yield_now().await;
+                // Wall-clock wait, not a bounded spin: A's path to the prompt
+                // does real filesystem work, and under a loaded test run a
+                // fixed yield budget flakes.
+                let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+                while seen.load(Ordering::Relaxed) < 1 {
+                    assert!(
+                        tokio::time::Instant::now() < deadline,
+                        "request A must reach its prompt before B is sent"
+                    );
+                    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
                 }
-                assert_eq!(
-                    seen.load(Ordering::Relaxed),
-                    1,
-                    "request A must reach its prompt before B is sent"
-                );
                 let mgr_b = mgr.clone();
                 let b = tokio::task::spawn_local(async move {
                     decide(

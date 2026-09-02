@@ -8,12 +8,12 @@ use std::time::{Duration, Instant};
 use agent_client_protocol::{self as acp, Agent as _};
 use serde_json::{Value, json};
 use tempfile::TempDir;
-use test_support::{
+use xvora_shell::waterfall;
+use xvora_test_support::{
     InferenceEndpoint, InferenceRequestMatcher, MockInferenceServer, ResourceSnapshot, RssSampler,
     ScriptedResponse, SseEvent,
 };
-use test_utils::env::env_usize;
-use xvora_shell::waterfall;
+use xvora_test_utils::env::env_usize;
 
 use crate::acp_harness;
 use crate::perf_harness::{PerfRecorder, spawn_agent_thread};
@@ -71,11 +71,11 @@ pub fn burst_tool_calls_sse(n: usize, isolation: &str) -> ScriptedResponse {
 pub fn build_repo(files: usize) -> TempDir {
     let dir = TempDir::new().expect("repo tempdir");
     let wd = dir.path();
-    let git = |args: &[&str]| test_utils::git::run_git(wd, args);
+    let git = |args: &[&str]| xvora_test_utils::git::run_git(wd, args);
     git(&["init"]);
     git(&["config", "user.name", "Sweep User"]);
     git(&["config", "user.email", "sweep@test.com"]);
-    test_utils::git::write_fanout_tree(wd, files, 100);
+    xvora_test_utils::git::write_fanout_tree(wd, files, 100);
     git(&["add", "."]);
     git(&["commit", "-m", "populate tree"]);
     dir

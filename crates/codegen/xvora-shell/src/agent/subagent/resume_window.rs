@@ -29,7 +29,7 @@ impl ResumeWindowPolicy {
     }
 
     fn over_auto_compact_threshold(&self, estimated_tokens: u64) -> bool {
-        token_estimation::exceeds_threshold(
+        xvora_token_estimation::exceeds_threshold(
             estimated_tokens,
             self.context_window,
             self.auto_compact_threshold_percent,

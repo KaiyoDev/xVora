@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use test_support::{MockInferenceServer, ScriptedResponse};
 use xvora_sampler::{SamplerConfig, SamplingClient};
 use xvora_sampling_types::{
     ContentPart, ConversationItem, ConversationRequest, SamplingError, UserItem,
     status_user_message, user_facing_api_error_message,
 };
+use xvora_test_support::{MockInferenceServer, ScriptedResponse};
 
 const CF_524_HTML: &str = r#"<!DOCTYPE html>
 <html lang="en-US">

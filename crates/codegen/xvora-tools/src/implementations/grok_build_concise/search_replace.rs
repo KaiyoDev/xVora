@@ -47,25 +47,28 @@ impl crate::types::tool_metadata::ToolMetadata for SearchReplaceConciseTool {
     }
 }
 
-impl tool_runtime::Tool for SearchReplaceConciseTool {
+impl xvora_tool_runtime::Tool for SearchReplaceConciseTool {
     type Args = SearchReplaceInput;
     type Output = SearchReplaceOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("search_replace").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("search_replace").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "search_replace",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(tool_protocol::ToolScope::Write),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -80,9 +83,9 @@ impl tool_runtime::Tool for SearchReplaceConciseTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: SearchReplaceInput,
-    ) -> Result<SearchReplaceOutput, tool_runtime::ToolError> {
+    ) -> Result<SearchReplaceOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -149,7 +152,7 @@ mod tests {
         let resources = test_resources(tmp.path());
 
         let input = make_input("test.txt", "hello", "goodbye");
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -180,7 +183,7 @@ mod tests {
             new_string: "ccc".to_string(),
             replace_all: true,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 

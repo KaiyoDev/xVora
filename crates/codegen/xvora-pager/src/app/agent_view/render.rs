@@ -878,7 +878,7 @@ impl AgentView {
         bundle_state: &crate::app::bundle::BundleState,
         in_dashboard_overlay: bool,
         overlay_can_cycle: bool,
-        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
         app_params: AppRenderParams<'_>,
     ) -> (
         Option<(u16, u16)>,
@@ -1314,6 +1314,7 @@ impl AgentView {
         let dock_on = crate::views::dock::enabled()
             && !viewer_open
             && area.height > agent::SHORT_TERMINAL_ROWS;
+        self.dock_on = dock_on;
         let tasks_height = if viewer_open || dock_on {
             0
         } else {
@@ -1431,6 +1432,9 @@ impl AgentView {
             .as_ref()
             .map_or(0, crate::views::dock::desired_height);
         self.dock_shown = dock_height > 0;
+        if !self.dock_shown && self.active_pane == ActivePane::Dock {
+            self.active_pane = ActivePane::Scrollback;
+        }
         let timeline_width = crate::views::timeline::rail_width(
             appearance.show_timeline,
             self.is_subagent_view,
@@ -1546,7 +1550,7 @@ impl AgentView {
             }
         }
         agent::fill_background(buf, area, layout_cfg, compact, &theme);
-        let mut status_line_link_spans: Vec<ratatui_inline::LinkSpan> = Vec::new();
+        let mut status_line_link_spans: Vec<xvora_ratatui_inline::LinkSpan> = Vec::new();
         if let Some(padding) = status_line.padding()
             && layout.status_line.height > 0
         {
@@ -1876,7 +1880,7 @@ impl AgentView {
                     search.is_composing(),
                     !search.is_composing(),
                     None,
-                    viewport.unwrap_or(ratatui_textarea::SingleLineViewport {
+                    viewport.unwrap_or(xvora_ratatui_textarea::SingleLineViewport {
                         visible_byte_range: 0..rendered_query.len(),
                         cursor_display_column: 0,
                     }),
@@ -1926,7 +1930,7 @@ impl AgentView {
                 render_active_selection_overlay(
                     &self.last_scrollback_selection_model,
                     drag,
-                    self.table_geometry_for_selection(drag.anchor.entry_idx, drag.anchor.range_id),
+                    self.drag_table_geometry_for(drag.anchor.entry_idx, drag.anchor.range_id),
                     buf,
                 );
             } else if let Some(ref block_drag) = self.block_drag_selection {
@@ -2220,14 +2224,33 @@ impl AgentView {
             let total_links = self.visible_link_map.len();
             self.paint_link_highlights(buf, link_active_style, sb_n..total_links);
             self.reclamp_drag_head_post_render(true);
+            if let Some(width) = self
+                .last_btw_selection_model
+                .visible_block_content_width(BTW_OVERLAY_ENTRY_IDX)
+                && self
+                    .btw_selection_wrap_width
+                    .is_some_and(|armed| armed != width)
+            {
+                self.clear_btw_owned_selection();
+            }
             if let Some(ref drag) = self.drag_selection
                 && drag.anchor.entry_idx == BTW_OVERLAY_ENTRY_IDX
             {
-                render_active_selection_overlay(&self.last_btw_selection_model, drag, None, buf);
+                render_active_selection_overlay(
+                    &self.last_btw_selection_model,
+                    drag,
+                    self.drag_table_geometry_for(drag.anchor.entry_idx, drag.anchor.range_id),
+                    buf,
+                );
             } else if let Some(ref sel) = self.persistent_text_selection
                 && sel.entry_idx == BTW_OVERLAY_ENTRY_IDX
             {
-                render_persistent_selection_overlay(&self.last_btw_selection_model, sel, None, buf);
+                render_persistent_selection_overlay(
+                    &self.last_btw_selection_model,
+                    sel,
+                    self.table_geometry_for_selection(sel.entry_idx, sel.range_id),
+                    buf,
+                );
             }
         } else {
             self.hit_btw_close.clear();
@@ -4544,7 +4567,7 @@ impl AgentView {
                             link.presentation,
                         )
                         .and_then(|resolved| resolved.osc8_url)
-                        .map(|url| ratatui_inline::LinkSpan {
+                        .map(|url| xvora_ratatui_inline::LinkSpan {
                             row: link.screen_row,
                             col_start: link.col_start,
                             col_end: link.col_end,

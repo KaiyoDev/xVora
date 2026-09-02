@@ -29,7 +29,7 @@ async fn still_running(child: &mut tokio::process::Child) -> bool {
 fn insert_session_with_scope(
     agent: &super::MvpAgent,
     sid: &acp::SessionId,
-    scope: tty_utils::ProcessScope,
+    scope: xvora_tty_utils::ProcessScope,
 ) {
     let mut handle = make_test_handle("test", false, None);
     handle.info.id = sid.clone();
@@ -42,7 +42,7 @@ fn close_reaps_enrolled_session_child() {
     run_local_for_bridge_test(|| async {
         let agent = build_minimal_agent_for_tests();
         let sid = acp::SessionId::new("sess-scope-reclaim");
-        let scope = tty_utils::ProcessScope::new();
+        let scope = xvora_tty_utils::ProcessScope::new();
         insert_session_with_scope(&agent, &sid, scope.clone());
         let (mut child, _owner) = scope.spawn(sleeper()).expect("spawn enrolled child");
 
@@ -62,8 +62,8 @@ fn close_is_isolated_across_sessions() {
         let agent = build_minimal_agent_for_tests();
         let sid_a = acp::SessionId::new("sess-A");
         let sid_b = acp::SessionId::new("sess-B");
-        let scope_a = tty_utils::ProcessScope::new();
-        let scope_b = tty_utils::ProcessScope::new();
+        let scope_a = xvora_tty_utils::ProcessScope::new();
+        let scope_b = xvora_tty_utils::ProcessScope::new();
         insert_session_with_scope(&agent, &sid_a, scope_a.clone());
         insert_session_with_scope(&agent, &sid_b, scope_b.clone());
         let (mut child_a, _owner_a) = scope_a.spawn(sleeper()).expect("spawn A child");

@@ -419,7 +419,7 @@
                 "_meta": { "eventId": format!("sess-parent-{event_seq}") },
             });
             let raw = serde_json::value::to_raw_value(&payload).unwrap();
-            AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
+            AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
                 request: acp::ExtNotification::new("x.ai/session_notification", raw.into()),
                 response_tx: tx,
             })
@@ -2129,7 +2129,7 @@
         let raw =
             serde_json::value::to_raw_value(&serde_json::json!({"unexpected": true})).unwrap();
         let request = acp::ExtNotification::new("x.ai/session/update", raw.into());
-        let msg = AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
+        let msg = AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
             request,
             response_tx: tx,
         });

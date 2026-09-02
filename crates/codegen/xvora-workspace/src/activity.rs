@@ -18,9 +18,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use dashmap::DashMap;
-use file_utils::queue::UploadQueueStats;
-use session_events::{Event, EventWriter, ToolCompletedSource, ToolOutcome};
-use tool_protocol::{IdleWithholdReason, ToolServerLifecycleStatus, ToolServerStatusPayload};
+use xvora_file_utils::queue::UploadQueueStats;
+use xvora_session_events::{Event, EventWriter, ToolCompletedSource, ToolOutcome};
+use xvora_tool_protocol::{IdleWithholdReason, ToolServerLifecycleStatus, ToolServerStatusPayload};
 
 const LIFECYCLE_NONE: u8 = 0;
 const LIFECYCLE_DRAINING: u8 = 1;
@@ -938,7 +938,7 @@ impl ActivityTracker {
 
         ToolServerStatusPayload {
             status,
-            session_id: tool_protocol::SessionId::new(session_id).ok(),
+            session_id: xvora_tool_protocol::SessionId::new(session_id).ok(),
             connection_id: None,
             active_tool_calls: active,
             active_tool_names,

@@ -1358,7 +1358,7 @@ async fn run_agent_command(
         let cancel = CancellationToken::new();
         match mode {
             ClientMode::Stdio => {
-                if let Err(error) = tty_utils::kill_current_process_on_parent_death() {
+                if let Err(error) = xvora_tty_utils::kill_current_process_on_parent_death() {
                     tracing::warn!(
                         %error,
                         "failed to bind to parent death; stdio bridge will not die \
@@ -1371,7 +1371,7 @@ async fn run_agent_command(
                 let replay_state_stdin = replay_state.clone();
                 let cancel_stdin = cancel.clone();
                 let stdin_task = tokio::spawn(async move {
-                    let mut stdin_lines = acp_lib::spawn_stdin_line_reader();
+                    let mut stdin_lines = xvora_acp_lib::spawn_stdin_line_reader();
                     loop {
                         tokio::select! {
                             biased;
@@ -1918,6 +1918,9 @@ fn main() {
     }
     #[cfg(all(feature = "jemalloc", unix))]
     install_heap_profile_hooks();
+    unsafe {
+        xvora_shell::agent::external_otel_pin::strip_conflicting_process_env();
+    }
     xvora_pager::memory_trace::start(xvora_pager::memory_trace::default_dir());
     raise_fd_limit();
     if let Err(e) = xvora_config::validate_requirements() {
@@ -1936,17 +1939,17 @@ fn main() {
         disabled: xvora_shell::agent::config::is_error_reporting_disabled_sync(),
     });
     xvora_pager::docs::extract_user_guide_docs(&xvora_shell::util::grok_home::grok_home());
-    crash_handler::install_terminal_restore_only();
+    xvora_crash_handler::install_terminal_restore_only();
     if xvora_shell::util::config::load_crash_handler_enabled_sync() {
         let crash_dir = xvora_shell::util::grok_home::grok_home().join("crash");
-        if let Some(report) = crash_handler::check_previous_crash(&crash_dir) {
+        if let Some(report) = xvora_crash_handler::check_previous_crash(&crash_dir) {
             eprintln!("Grok crashed during your last session.");
             eprintln!("  Signal:  {}", report.signal_name);
             eprintln!("  Version: {}", report.app_version);
             eprintln!("  Report:  {}", report.report_path.display());
             eprintln!();
         }
-        if !crash_handler::install(crash_handler::CrashHandlerConfig {
+        if !xvora_crash_handler::install(xvora_crash_handler::CrashHandlerConfig {
             app_version: env!("VERSION_WITH_COMMIT").to_string(),
             crash_dir: crash_dir.clone(),
         }) {
@@ -1956,7 +1959,7 @@ fn main() {
             );
         }
     }
-    let crashed = active_sessions::collect_crashed().unwrap_or_default();
+    let crashed = xvora_active_sessions::collect_crashed().unwrap_or_default();
     if !crashed.is_empty() {
         tracing::info!(
             count = crashed.len(),
@@ -1966,14 +1969,15 @@ fn main() {
     let workers = cli_worker_threads();
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.worker_threads(workers.get()).enable_all();
-    let runtime = tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
-        eprintln!("grok: failed to start tokio runtime: {e}");
-        shutdown_and_flush_telemetry(1);
-    });
+    let runtime =
+        xvora_tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
+            eprintln!("grok: failed to start tokio runtime: {e}");
+            shutdown_and_flush_telemetry(1);
+        });
     let result = run_and_shutdown(runtime, async_main(args), RUNTIME_SHUTDOWN_GRACE);
     xvora_telemetry::debug_log::flush();
     if let Err(e) = result {
-        tty_utils::restore_native_stderr();
+        xvora_tty_utils::restore_native_stderr();
         finalize_span_profile();
         match e.downcast_ref::<xvora_pager::app::StartupFailure>() {
             Some(startup) => eprintln!("{}", startup.user_report()),
@@ -1986,7 +1990,7 @@ fn main() {
 }
 #[tracing::instrument(level = "debug", skip_all)]
 async fn async_main(args: PagerArgs) -> Result<()> {
-    extra_ca::ensure_default_crypto_provider();
+    xvora_extra_ca::ensure_default_crypto_provider();
     let mut args = args.apply_cwd()?;
     if let Some(ref mode) = args.compaction_mode {
         unsafe { std::env::set_var("GROK_COMPACTION_MODE", mode) };

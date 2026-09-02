@@ -13,12 +13,12 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail, ensure};
 use clap::Parser;
-use fast_worktree::{
+use serde::Serialize;
+use tempfile::NamedTempFile;
+use xvora_fast_worktree::{
     CreationMode, IgnoredFilesMode, NfsWorktreeClient, NfsWorktreeOpts, WorkingTreeMode,
     WorktreeBuilder, dest_is_known_unmounted, is_grove_strategy, remove_worktree,
 };
-use serde::Serialize;
-use tempfile::NamedTempFile;
 
 #[path = "worktree_lifecycle_bench/runtime.rs"]
 mod runtime;
@@ -705,7 +705,7 @@ fn run_controller_inner(
         &fs::read(std::env::current_exe().context("resolve harness executable")?)
             .context("read harness executable")?,
     );
-    let tracked_files = fast_worktree::count_tracked_files(&source)?;
+    let tracked_files = xvora_fast_worktree::count_tracked_files(&source)?;
     ensure!(tracked_files > 0, "source has no tracked files");
 
     let scratch = tempfile::Builder::new()
@@ -1073,7 +1073,7 @@ fn run_create_worker(
 ) -> Result<WorkerResult> {
     let executable = std::env::current_exe().context("resolve lifecycle worker executable")?;
     let mut command = std::process::Command::new(executable);
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     command
         .arg("--worker")
         .arg("--source")
@@ -1139,7 +1139,7 @@ fn run_worker(cli: &Cli) -> Result<()> {
     }
     if let Some(hook) = cli.worker_hook.as_deref() {
         let mut command = std::process::Command::new("sh");
-        tty_utils::detach_std_command(&mut command);
+        xvora_tty_utils::detach_std_command(&mut command);
         command.args(["-c", hook]);
         #[allow(clippy::disallowed_methods)]
         // Test-only worker hook; controller owns this worker group.

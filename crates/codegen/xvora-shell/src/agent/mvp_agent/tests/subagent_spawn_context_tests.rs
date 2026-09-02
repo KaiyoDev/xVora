@@ -1,6 +1,6 @@
 use super::{build_minimal_agent_for_tests, make_test_handle};
 use agent_client_protocol as acp;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 #[tokio::test]
 async fn subagent_spawn_context_inherits_parent_permission_handle() {
     use xvora_workspace::permission::types::{
@@ -178,10 +178,10 @@ async fn subagent_spawn_context_inherits_parent_process_scope() {
     let agent = build_minimal_agent_for_tests();
     let sid = acp::SessionId::new("parent-process-scope");
     let mut handle = make_test_handle("test-model", false, None);
-    let parent_scope = tty_utils::ProcessScope::new();
+    let parent_scope = xvora_tty_utils::ProcessScope::new();
     handle.tool_context.process_scope = Some(parent_scope.clone());
     agent.insert_resident(&sid, handle);
-    let owner = std::sync::Arc::new(tty_utils::ProcessGroup::new().expect("process group"));
+    let owner = std::sync::Arc::new(xvora_tty_utils::ProcessGroup::new().expect("process group"));
     parent_scope.register(&owner);
     let ctx = agent.build_subagent_spawn_context(sid.0.as_ref());
     let inherited = ctx
@@ -238,8 +238,8 @@ async fn subagent_spawn_context_resolves_rate_limit_attempts_against_child_model
 #[serial_test::serial]
 fn subagent_spawn_context_resolves_compaction_mode_like_parent() {
     use crate::agent::config::Config;
-    use chat_state::{CompactionDetail, CompactionMode};
-    use crate::test_support::EnvGuard;
+    use xvora_chat_state::{CompactionDetail, CompactionMode};
+    use xvora_test_support::EnvGuard;
     let _mode = EnvGuard::unset("GROK_COMPACTION_MODE");
     let _detail = EnvGuard::unset("GROK_COMPACTION_DETAIL");
     let mut ctx = crate::test_support::lsp_runtime::ctx_with_toggle(Default::default());
@@ -287,7 +287,7 @@ fn subagent_spawn_context_resolves_compaction_mode_like_parent() {
 fn run_shell_child_passes_parent_compaction_pins_into_spawn() {
     use crate::agent::subagent::SubagentSpawnContext;
     use crate::session::CompactionPins;
-    use chat_state::CompactionMode;
+    use xvora_chat_state::CompactionMode;
     use xvora_agent::prompt::user_message::UserMessageTemplate;
     let default_child = UserMessageTemplate::Default;
     let mut ctx = crate::test_support::lsp_runtime::ctx_with_toggle(Default::default());

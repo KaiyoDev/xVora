@@ -1159,7 +1159,7 @@
         let raw = serde_json::value::to_raw_value(&payload).unwrap();
         let request = acp::ExtNotification::new("x.ai/session_notification", raw.into());
         let changed = handle(
-            AcpClientMessage::ExtNotification(acp_lib::AcpArgs {
+            AcpClientMessage::ExtNotification(xvora_acp_lib::AcpArgs {
                 request,
                 response_tx: tx,
             }),
@@ -1422,7 +1422,7 @@
 
     fn hooks_changed_ext(
         session_id: &str,
-        hooks: Vec<hooks_plugins_types::HookInfo>,
+        hooks: Vec<xvora_hooks_plugins_types::HookInfo>,
     ) -> acp::ExtNotification {
         let notif = SessionNotification {
             session_id: acp::SessionId::new(session_id),
@@ -1437,11 +1437,11 @@
         acp::ExtNotification::new("x.ai/session_notification", std::sync::Arc::from(raw))
     }
 
-    fn push_hook(name: &str, source_dir: &str) -> hooks_plugins_types::HookInfo {
-        hooks_plugins_types::HookInfo {
+    fn push_hook(name: &str, source_dir: &str) -> xvora_hooks_plugins_types::HookInfo {
+        xvora_hooks_plugins_types::HookInfo {
             name: name.to_string(),
-            event: hooks_plugins_types::HookEvent::PreToolUse,
-            handler_type: hooks_plugins_types::HookHandlerType::Command,
+            event: xvora_hooks_plugins_types::HookEvent::PreToolUse,
+            handler_type: xvora_hooks_plugins_types::HookHandlerType::Command,
             matcher: None,
             command: Some("/bin/true".to_string()),
             url: None,

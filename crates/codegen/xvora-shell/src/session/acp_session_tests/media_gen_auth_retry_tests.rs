@@ -63,7 +63,7 @@ fn failing_am() -> Arc<AuthManager> {
     am
 }
 
-fn ok_result(text: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
+fn ok_result(text: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
     Ok(ToolRunResult {
         output: ToolOutput::Text(text.to_owned().into()),
         prompt_text: text.to_owned(),
@@ -71,19 +71,20 @@ fn ok_result(text: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
     })
 }
 
-fn err(msg: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
-    Err(tool_runtime::ToolError::invalid_arguments(msg.to_owned()))
+fn err(msg: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+    Err(xvora_tool_runtime::ToolError::invalid_arguments(
+        msg.to_owned(),
+    ))
 }
 
 /// Build the HTTP failure shape that image_gen and video_gen emit on any non-success status.
 /// Use for retry tests that should exercise the structured status-code path rather than the string fallback.
-fn http_err(status: u16, msg: &str) -> Result<ToolRunResult, tool_runtime::ToolError> {
-    Err(
-        tool_runtime::ToolError::new(tool_runtime::ToolErrorKind::Custom, msg.to_owned())
-            .with_details(
-                serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: status}),
-            ),
+fn http_err(status: u16, msg: &str) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+    Err(xvora_tool_runtime::ToolError::new(
+        xvora_tool_runtime::ToolErrorKind::Custom,
+        msg.to_owned(),
     )
+    .with_details(serde_json::json!({"code": "http_failure", HTTP_STATUS_DETAILS_KEY: status})))
 }
 
 // ── is_auth_tool_error ────────────────────────────────────────
@@ -93,13 +94,13 @@ fn http_err(status: u16, msg: &str) -> Result<ToolRunResult, tool_runtime::ToolE
 #[test]
 fn is_auth_tool_error_classification() {
     // (expected, error) pairs: covers every branch and a sample of negatives a careless edit could plausibly break
-    let cases: Vec<(bool, tool_runtime::ToolError)> = vec![
+    let cases: Vec<(bool, xvora_tool_runtime::ToolError)> = vec![
         // Primary path: image_gen and video_gen surface 401s as structured custom errors with the status in details
         // The classifier matches the status code, not the rendered string
         (
             true,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "Image generation failed with HTTP 401 Unauthorized: missing token",
             )
             .with_details(
@@ -112,8 +113,8 @@ fn is_auth_tool_error_classification() {
         // Refreshing the token is a no-op that surfaces as a spurious auth_required teardown
         (
             false,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "Forbidden: ZDR-blocked operation",
             )
             .with_details(
@@ -124,8 +125,8 @@ fn is_auth_tool_error_classification() {
         // Without the structured-variant short-circuit in is_auth_tool_error, the keyword fallback would mis-fire here
         (
             false,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "Forbidden: unauthorized to perform this action",
             )
             .with_details(
@@ -135,8 +136,8 @@ fn is_auth_tool_error_classification() {
         // Negative: any other non-success HTTP status falls through.
         (
             false,
-            tool_runtime::ToolError::new(
-                tool_runtime::ToolErrorKind::Custom,
+            xvora_tool_runtime::ToolError::new(
+                xvora_tool_runtime::ToolErrorKind::Custom,
                 "internal server error",
             )
             .with_details(
@@ -147,28 +148,32 @@ fn is_auth_tool_error_classification() {
         // The classifier still catches it via the message-string fallback
         (
             true,
-            tool_runtime::ToolError::invalid_arguments("response: invalid api key for project"),
+            xvora_tool_runtime::ToolError::invalid_arguments(
+                "response: invalid api key for project",
+            ),
         ),
         // Fallback path: an OAuth 2.0 `invalid_token` payload (RFC 6749) surfaced as raw JSON without a structured status code
         (
             true,
-            tool_runtime::ToolError::invalid_arguments(r#"{"error":"invalid_token"}"#),
+            xvora_tool_runtime::ToolError::invalid_arguments(r#"{"error":"invalid_token"}"#),
         ),
         // Fallback path: case-insensitive "unauthorized" anywhere in the message body
         (
             true,
-            tool_runtime::ToolError::invalid_arguments("UNAUTHORIZED"),
+            xvora_tool_runtime::ToolError::invalid_arguments("UNAUTHORIZED"),
         ),
         // Negative: transport failure must not trigger a token refresh.
         (
             false,
-            tool_runtime::ToolError::invalid_arguments("Image generation timed out after 60s"),
+            xvora_tool_runtime::ToolError::invalid_arguments(
+                "Image generation timed out after 60s",
+            ),
         ),
         // Negative: structural not-found error; not a network response.
         (
             false,
-            tool_runtime::ToolError::not_found(
-                tool_protocol::ToolId::new("image_gen").expect("valid"),
+            xvora_tool_runtime::ToolError::not_found(
+                xvora_tool_protocol::ToolId::new("image_gen").expect("valid"),
                 "Tool not found: image_gen",
             ),
         ),
@@ -176,7 +181,7 @@ fn is_auth_tool_error_classification() {
         // Regression guard for a bare-`401` substring match accidentally re-introduced into the fallback path
         (
             false,
-            tool_runtime::ToolError::invalid_arguments("request id req_401abc failed"),
+            xvora_tool_runtime::ToolError::invalid_arguments("request id req_401abc failed"),
         ),
     ];
 

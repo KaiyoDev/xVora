@@ -288,7 +288,7 @@ impl PersonaDetailState {
     }
 
     #[cfg(test)]
-    fn editing_viewport(&self, width: usize) -> Option<ratatui_textarea::SingleLineViewport> {
+    fn editing_viewport(&self, width: usize) -> Option<xvora_ratatui_textarea::SingleLineViewport> {
         self.editing_editor().map(|editor| editor.viewport(width))
     }
 

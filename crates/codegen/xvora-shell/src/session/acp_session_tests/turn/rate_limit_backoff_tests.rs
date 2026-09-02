@@ -4,7 +4,7 @@ use super::support::*;
 use super::*;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
+use xvora_test_support::{MockInferenceServer, MockModelEntry, ScriptedResponse};
 
 #[derive(Clone, Copy)]
 pub(super) enum SessionKind {
@@ -24,7 +24,7 @@ pub(super) type CapturedRetries =
     Arc<std::sync::Mutex<Vec<crate::extensions::notification::RetryState>>>;
 
 pub(super) fn drain_gateway(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
 ) -> CapturedRetries {
     use crate::extensions::notification::{SessionNotification, SessionUpdate};
     let captured: CapturedRetries = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -32,10 +32,10 @@ pub(super) fn drain_gateway(
     tokio::task::spawn_local(async move {
         while let Some(msg) = rx.recv().await {
             match msg {
-                acp_lib::AcpClientMessage::SessionNotification(args) => {
+                xvora_acp_lib::AcpClientMessage::SessionNotification(args) => {
                     let _ = args.response_tx.send(Ok(()));
                 }
-                acp_lib::AcpClientMessage::ExtNotification(args)
+                xvora_acp_lib::AcpClientMessage::ExtNotification(args)
                     if args.request.method.as_ref() == "x.ai/session_notification" =>
                 {
                     if let Ok(SessionNotification {

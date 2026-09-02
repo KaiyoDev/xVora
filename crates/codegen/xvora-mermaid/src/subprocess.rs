@@ -5,7 +5,7 @@
 //! The timeout is a *real* process kill, not a soft signal.
 //! A panic under `panic = "abort"` or a runaway render in the child is contained because the parent kills and reaps it.
 //!
-//! The caller builds the [`Command`] (stdio, env, and the TTY/console detach via `tty_utils::detach_std_command`).
+//! The caller builds the [`Command`] (stdio, env, and the TTY/console detach via `xvora_tty_utils::detach_std_command`).
 //! This module owns spawn, feed stdin, wait, and reap, so neither call site re-implements process-group teardown.
 
 use std::process::{Child, Command};
@@ -141,9 +141,9 @@ fn reap(child: &mut Child) {
 
 /// SIGKILL the child's process group so grandchildren are reaped, not just the direct child.
 ///
-/// `tty_utils::detach_std_command` runs `setsid` (EPERM fallback `setpgid(0,0)`).
+/// `xvora_tty_utils::detach_std_command` runs `setsid` (EPERM fallback `setpgid(0,0)`).
 /// The child is therefore its own group leader and its pgid equals its pid.
-/// We send the signal directly because `tty_utils::ProcessGroup` only wraps tokio children.
+/// We send the signal directly because `xvora_tty_utils::ProcessGroup` only wraps tokio children.
 #[cfg(unix)]
 fn reap_process_group(child: &Child) {
     let pid = child.id() as libc::pid_t;
@@ -168,7 +168,7 @@ mod tests {
         cmd.stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
         cmd
     }
 
@@ -220,7 +220,7 @@ mod tests {
         cmd.stdin(Stdio::piped())
             .stdout(Stdio::from(sink_file))
             .stderr(Stdio::null());
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
 
         let start = Instant::now();
         let r = run_with_timeout(cmd, Some(&payload), Duration::from_secs(10));

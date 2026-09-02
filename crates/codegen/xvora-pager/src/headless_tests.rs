@@ -132,7 +132,7 @@ fn numeric_task_id_is_decoded_tracked_and_reaped() {
     });
     let raw = serde_json::value::to_raw_value(&payload).unwrap();
     let (tx, _rx) = tokio::sync::oneshot::channel();
-    let notif = acp_lib::AcpArgs {
+    let notif = xvora_acp_lib::AcpArgs {
         request: acp::ExtNotification::new("x.ai/task_backgrounded", raw.into()),
         response_tx: tx,
     }
@@ -168,15 +168,15 @@ fn reap_request_for_subagent_cancels_with_typed_id() {
 /// A `task_backgrounded` delivered right at prompt completion is still recorded by the drain.
 #[test]
 fn drain_records_task_backgrounded_delivered_at_exit() {
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
     let payload = serde_json::json!({
         "sessionId": "sess-1",
         "update": { "sessionUpdate": "task_backgrounded", "task_id": "late-1" },
     });
     let raw = serde_json::value::to_raw_value(&payload).unwrap();
     let (resp_tx, _resp_rx) = tokio::sync::oneshot::channel();
-    tx.send(acp_lib::AcpClientMessage::ExtNotification(
-        acp_lib::AcpArgs {
+    tx.send(xvora_acp_lib::AcpClientMessage::ExtNotification(
+        xvora_acp_lib::AcpArgs {
             request: acp::ExtNotification::new("x.ai/task_backgrounded", raw.into()),
             response_tx: resp_tx,
         },
@@ -509,7 +509,7 @@ fn handler_answers_ext_method_instead_of_dropping() {
     use xvora_tools::implementations::grok_build::ask_user_question::AskUserQuestionExtResponse;
     let raw = serde_json::value::to_raw_value(&serde_json::json!({})).unwrap();
     let (tx, mut rx) = tokio::sync::oneshot::channel();
-    let msg = acp_lib::AcpClientMessage::ExtMethod(acp_lib::AcpArgs {
+    let msg = xvora_acp_lib::AcpClientMessage::ExtMethod(xvora_acp_lib::AcpArgs {
         request: acp::ExtRequest::new("x.ai/ask_user_question", raw.into()),
         response_tx: tx,
     });

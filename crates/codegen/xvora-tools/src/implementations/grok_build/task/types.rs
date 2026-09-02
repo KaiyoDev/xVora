@@ -23,7 +23,7 @@ use std::sync::Arc;
 use educe::Educe;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
-use tool_types::{SubagentCapabilityMode, SubagentIsolationMode, WaitMode};
+use xvora_tool_types::{SubagentCapabilityMode, SubagentIsolationMode, WaitMode};
 
 use crate::register_resource;
 
@@ -125,6 +125,13 @@ pub struct SubagentSpawnRequest {
     pub request: Box<SubagentRequest>,
     #[educe(Debug(ignore))]
     pub result_tx: oneshot::Sender<SubagentResult>,
+    /// Fired once when the child is recorded pending or queued.
+    ///
+    /// Independent of [`Self::result_tx`], which stays the terminal
+    /// completion or a definite pre-start reject. Only Task background
+    /// mode attaches this; scheduler-loop fires leave it `None`.
+    #[educe(Debug(ignore))]
+    pub registered_tx: Option<oneshot::Sender<()>>,
 }
 
 impl std::ops::Deref for SubagentSpawnRequest {
@@ -146,6 +153,13 @@ impl SubagentSpawnRequest {
     ) -> Result<(), SubagentResult> {
         let result = build(&self.request);
         self.result_tx.send(result)
+    }
+
+    /// Signal that the child was recorded pending or queued.
+    pub fn notify_registered(&mut self) {
+        if let Some(tx) = self.registered_tx.take() {
+            let _ = tx.send(());
+        }
     }
 }
 
@@ -193,8 +207,8 @@ pub struct SubagentRuntimeOverrides {
     pub loop_task_id: Option<String>,
 }
 
-/// Re-export of [`tool_types::is_not_sentinel`] for existing call sites.
-pub use tool_types::is_not_sentinel;
+/// Re-export of [`xvora_tool_types::is_not_sentinel`] for existing call sites.
+pub use xvora_tool_types::is_not_sentinel;
 
 /// Sanitize a model-emitted `cwd` argument for the `task` tool.
 ///
@@ -415,10 +429,11 @@ pub struct SubagentResult {
     pub output_usage_incomplete: bool,
     /// Path to the isolated worktree if one was created.
     pub worktree_path: Option<String>,
-    /// Set when a blocking subagent exceeded its await budget and was
-    /// auto-backgrounded: the child is still running (result via auto-wake /
-    /// `get_command_or_subagent_output`), so the tool returns a `task_id` notice
-    /// instead of a completion. Never set for natively backgrounded subagents.
+    /// Set when a blocking caller was handed a still-running child after the
+    /// foreground await budget (queued or in-flight auto-background). Not a
+    /// completion — `success` stays false so `status()` is not `"completed"`;
+    /// branch on this before `success`. Task `run_in_background` start is a
+    /// separate registration signal, not this flag on `spawn()`.
     pub backgrounded: bool,
 }
 

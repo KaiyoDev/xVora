@@ -15,7 +15,7 @@ use crate::usage::UsageLedger;
 /// have without unwrapping.
 pub fn estimate_system_message_tokens(item: &ConversationItem) -> u64 {
     match item {
-        ConversationItem::System(s) => token_estimation::estimate_tokens(&s.content),
+        ConversationItem::System(s) => xvora_token_estimation::estimate_tokens(&s.content),
         _ => 0,
     }
 }
@@ -27,7 +27,7 @@ fn estimate_tool_tokens(
 ) -> u64 {
     let desc_len = description.map_or(0, str::len);
     let params_len = parameters.to_string().len();
-    ((name.len() + desc_len + params_len) as u64) / token_estimation::BYTES_PER_TOKEN
+    ((name.len() + desc_len + params_len) as u64) / xvora_token_estimation::BYTES_PER_TOKEN
 }
 
 /// Bytes/4 estimate of one tool definition (name + description + the
@@ -55,13 +55,13 @@ pub fn estimate_tool_specs_tokens(tools: &[ToolSpec]) -> u64 {
 
 /// Bytes/4 estimate for a single [`ConversationItem`].
 ///
-/// Images are counted at [`token_estimation::IMAGE_TOKEN_ESTIMATE`] each.
+/// Images are counted at [`xvora_token_estimation::IMAGE_TOKEN_ESTIMATE`] each.
 /// Shared by [`estimate_conversation_tokens`] and [`estimate_messages_tokens`]
 /// so the per-variant arithmetic stays in one place.
 pub fn estimate_item_tokens(item: &ConversationItem) -> u64 {
     use xvora_sampling_types::ContentPart;
     match item {
-        ConversationItem::System(s) => token_estimation::estimate_tokens(&s.content),
+        ConversationItem::System(s) => xvora_token_estimation::estimate_tokens(&s.content),
         ConversationItem::User(u) => {
             let mut bytes: usize = 0;
             let mut images: u64 = 0;
@@ -71,8 +71,8 @@ pub fn estimate_item_tokens(item: &ConversationItem) -> u64 {
                     ContentPart::Image { .. } => images += 1,
                 }
             }
-            (bytes as u64) / token_estimation::BYTES_PER_TOKEN
-                + token_estimation::estimate_image_tokens(images)
+            (bytes as u64) / xvora_token_estimation::BYTES_PER_TOKEN
+                + xvora_token_estimation::estimate_image_tokens(images)
         }
         ConversationItem::Assistant(a) => {
             let bytes = a.content.len()
@@ -80,24 +80,24 @@ pub fn estimate_item_tokens(item: &ConversationItem) -> u64 {
                     .iter()
                     .map(|tc| tc.arguments.len())
                     .sum::<usize>();
-            (bytes as u64) / token_estimation::BYTES_PER_TOKEN
+            (bytes as u64) / xvora_token_estimation::BYTES_PER_TOKEN
         }
-        ConversationItem::ToolResult(tr) => token_estimation::estimate_tokens(&tr.content),
+        ConversationItem::ToolResult(tr) => xvora_token_estimation::estimate_tokens(&tr.content),
         ConversationItem::BackendToolCall(b) => {
-            token_estimation::estimate_tokens(&b.text_summary())
+            xvora_token_estimation::estimate_tokens(&b.text_summary())
         }
         ConversationItem::Reasoning(r) => {
             // Text and encrypted blob are the same reasoning twice: take the
             // larger, not the sum. The ciphertext is base64, ~4/3 over raw bytes.
             let text_bytes = xvora_sampling_types::reasoning_item_text(r).len();
             let enc_bytes = r.encrypted_content.as_deref().map(str::len).unwrap_or(0);
-            (text_bytes.max(enc_bytes * 3 / 4) as u64) / token_estimation::BYTES_PER_TOKEN
+            (text_bytes.max(enc_bytes * 3 / 4) as u64) / xvora_token_estimation::BYTES_PER_TOKEN
         }
     }
 }
 
 /// Estimate token footprint: text bytes / 4, images at the per-image
-/// constant defined by [`token_estimation::IMAGE_TOKEN_ESTIMATE`].
+/// constant defined by [`xvora_token_estimation::IMAGE_TOKEN_ESTIMATE`].
 pub fn estimate_conversation_tokens(items: &[ConversationItem]) -> u64 {
     items.iter().map(estimate_item_tokens).sum()
 }

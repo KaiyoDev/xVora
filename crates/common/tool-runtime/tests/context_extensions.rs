@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use tool_protocol::ToolCallId;
-use tool_runtime::{BehaviorVersion, Cwd, ToolCallContext, TraceContext};
+use xvora_tool_protocol::ToolCallId;
+use xvora_tool_runtime::{BehaviorVersion, Cwd, ToolCallContext, TraceContext};
 
 #[derive(Debug, PartialEq)]
 struct Config {

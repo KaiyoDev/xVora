@@ -48,17 +48,16 @@ pub mod worktree;
 pub use capability::CapabilityMode;
 pub use channel::{TransportCallResult, TransportContext, TransportError, TransportNotification};
 pub use config::{
-    AgentSessionConfig, DEFAULT_EVENT_BUFFER_CAPACITY, HookSourceConfig, IsolationMode,
-    MemoryConfig, SessionContextFactory, SessionTerminalBackend, WorkspaceConfig,
+    AgentSessionConfig, BindMcpConfig, DEFAULT_EVENT_BUFFER_CAPACITY, HookSourceConfig,
+    IsolationMode, MemoryConfig, SessionContextFactory, SessionTerminalBackend, WorkspaceConfig,
 };
 pub use error::{WorkspaceError, WorkspaceResult};
 pub use file_system::*;
 pub use handle::{
-    DrainOutcome, DrainReason, WorkspaceHandle, connect_local_workspace, resolve_workspace_home,
-    termination_grace_from_env,
+    DrainOutcome, DrainReason, LocalWorkspaceConnectOptions, WorkspaceHandle,
+    connect_local_workspace, resolve_workspace_home, termination_grace_from_env,
 };
 pub use hub::HubConfig;
-pub use hunk_tracker::HunkTrackerHandle;
 pub use path_virtualization::{
     ARTIFACTS_ALIAS, BindLifecycleCtx, BindMountError, BindMountHook, PathVirtualization,
     VISIBLE_ROOT,
@@ -68,6 +67,7 @@ pub use session::{WorkspaceSession, WorkspaceShared};
 pub use session::{file_state, git, jj};
 pub use upload::environment::{WorkspaceEnvironment, WorkspaceIdentity};
 pub use workspace_ops::{WorkspaceOp, WorkspaceOps};
+pub use xvora_hunk_tracker::HunkTrackerHandle;
 pub use xvora_workspace_client::WorkspaceClient;
 pub use xvora_workspace_types::WorkspaceEvent;
 /// Zero-init every workspace metric family so idle panels render a `0` baseline instead of "No data".

@@ -12,7 +12,7 @@ use crate::types::tool::{ToolKind, ToolNamespace};
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct LspToolOutput(pub String);
 
-impl tool_runtime::ToolOutput for LspToolOutput {}
+impl xvora_tool_runtime::ToolOutput for LspToolOutput {}
 
 impl From<LspToolOutput> for ToolOutput {
     fn from(o: LspToolOutput) -> Self {
@@ -49,25 +49,28 @@ Requires file_path + line + character for position-based operations."#
     }
 }
 
-impl tool_runtime::Tool for LspTool {
+impl xvora_tool_runtime::Tool for LspTool {
     type Args = LspToolInput;
     type Output = LspToolOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("lsp").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("lsp").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "lsp",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -79,9 +82,9 @@ impl tool_runtime::Tool for LspTool {
     )]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: LspToolInput,
-    ) -> Result<LspToolOutput, tool_runtime::ToolError> {
+    ) -> Result<LspToolOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -91,7 +94,7 @@ impl tool_runtime::Tool for LspTool {
             handle = res
                 .get::<Arc<dyn LspBackend>>()
                 .ok_or_else(|| {
-                    tool_runtime::ToolError::custom(
+                    xvora_tool_runtime::ToolError::custom(
                         "process_manager",
                         "LSP tool is unavailable. Configure ~/.grok/lsp.json or <cwd>/.grok/lsp.json and ensure the language server can start.",
                     )
@@ -101,7 +104,7 @@ impl tool_runtime::Tool for LspTool {
 
         let result = handle.dispatch(&input).await;
         if result.is_error {
-            Err(tool_runtime::ToolError::custom(
+            Err(xvora_tool_runtime::ToolError::custom(
                 "process_manager",
                 result.text,
             ))

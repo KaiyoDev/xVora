@@ -4,12 +4,12 @@ use crate::handle::tests::{
     background_capable_cfg, make_confining_handle, make_handle, start_background_sleep,
 };
 use std::sync::Arc;
-use tool_protocol::turn_hook;
+use xvora_tool_protocol::turn_hook;
 use xvora_tools::implementations::grok_build::scheduler::types::{ScheduledTask, SchedulerState};
 use xvora_tools::types::resources::State;
 async fn next_item(
     stream: &mut ToolStream<TypedToolOutput>,
-) -> Option<tool_runtime::ToolStreamItem<TypedToolOutput>> {
+) -> Option<xvora_tool_runtime::ToolStreamItem<TypedToolOutput>> {
     use std::task::Context;
     std::future::poll_fn(|cx: &mut Context<'_>| stream.as_mut().poll_next(cx)).await
 }
@@ -156,7 +156,7 @@ async fn handle_evict_unbind_does_not_unmount() {
 }
 #[tokio::test]
 async fn handle_evict_triggers_two_phase_drain() {
-    use tool_protocol::ToolServerLifecycleStatus;
+    use xvora_tool_protocol::ToolServerLifecycleStatus;
     let handle = make_handle();
     let tracker = handle.activity_tracker().clone();
     let handler = WorkspaceRpcHandler::new(handle);
@@ -702,7 +702,7 @@ async fn bind_rejected_after_evict_drain() {
 }
 #[tokio::test]
 async fn repeat_evict_does_not_redrain() {
-    use tool_protocol::ToolServerLifecycleStatus;
+    use xvora_tool_protocol::ToolServerLifecycleStatus;
     let handle = make_handle();
     let tracker = handle.activity_tracker().clone();
     let handler = WorkspaceRpcHandler::new(handle);
@@ -1203,7 +1203,7 @@ async fn handle_call_wraps_in_envelope_with_value() {
     let handler = WorkspaceRpcHandler::new(handle);
     let mut ctx = ToolCallContext::default();
     ctx.extensions
-        .insert(tool_runtime::SessionContext("main".to_owned()));
+        .insert(xvora_tool_runtime::SessionContext("main".to_owned()));
     let args = serde_json::json!({
         "method": "workspace.get_session_summary",
         "params": {}
@@ -1211,7 +1211,7 @@ async fn handle_call_wraps_in_envelope_with_value() {
     let mut stream = handler.handle_call(ctx, args).await;
     let item = next_item(&mut stream).await.expect("should have terminal");
     match item {
-        tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+        xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
             let ok_val = typed
                 .value
                 .get("ok")
@@ -1236,7 +1236,7 @@ async fn handle_call_error_envelope() {
     let mut stream = handler.handle_call(ctx, args).await;
     let item = next_item(&mut stream).await.expect("should have terminal");
     match item {
-        tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+        xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
             assert!(
                 typed.value.get("err").is_some(),
                 "envelope should have 'err' key: {}",
@@ -1260,7 +1260,7 @@ async fn handle_call_records_rpc_metrics_and_collapses_unknown_method() {
         .get_sample_count();
     let mut ctx = ToolCallContext::default();
     ctx.extensions
-        .insert(tool_runtime::SessionContext("main".to_owned()));
+        .insert(xvora_tool_runtime::SessionContext("main".to_owned()));
     let mut stream = handler
         .handle_call(
             ctx,
@@ -1436,7 +1436,7 @@ async fn handle_hook_unrecognized_custom_kind_does_not_panic() {
 }
 #[tokio::test]
 async fn handle_hook_cancel_marks_call_completed() {
-    use tool_protocol::ToolCallId;
+    use xvora_tool_protocol::ToolCallId;
     let handle = make_handle();
     let handler = WorkspaceRpcHandler::new(handle.clone());
     let tracker = handle.activity_tracker();
@@ -2239,7 +2239,7 @@ async fn dispatch_knows_every_typed_method() {
 #[tokio::test]
 async fn dispatch_stamps_client_rpc_activity_for_mutations_only() {
     use crate::file_system::{FsListReq, FsWriteFileReq};
-    use tool_protocol::IdleWithholdReason;
+    use xvora_tool_protocol::IdleWithholdReason;
     use xvora_workspace_types::rpc::workspace::DropSessionReq;
     let handler = WorkspaceRpcHandler::new(make_handle());
     let tracker = handler.workspace.activity_tracker().clone();
@@ -2283,7 +2283,7 @@ async fn dispatch_stamps_client_rpc_activity_for_mutations_only() {
 }
 #[tokio::test]
 async fn presence_note_stamps_only_visible_notes_for_live_sessions() {
-    use tool_protocol::IdleWithholdReason;
+    use xvora_tool_protocol::IdleWithholdReason;
     use xvora_workspace_types::rpc::presence::PresenceNoteReq;
     let handle = crate::handle::tests::make_handle_with_status_config(crate::StatusConfig {
         presence_keepalive_enabled: true,

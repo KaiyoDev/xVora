@@ -3,10 +3,10 @@
 //! Reads OIDC credentials from `~/.grok/auth.json`, connects to a
 //! server, exposes workspace tools, and refreshes tokens automatically.
 use clap::Parser;
-use diag_server::{self as diag_server, DiagHandle, ErrorClass};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
+use xvora_diag_server::{self as diag_server, DiagHandle, ErrorClass};
 use xvora_workspace::config::merge_session_metadata;
 use xvora_workspace::error::WorkspaceError;
 use xvora_workspace_daemon::daemonize;
@@ -22,7 +22,7 @@ const WORKSPACE_HUB_AUTH_FAILED_MARKER: &str = "workspace hub auth failed";
 /// Post-failure dwell so the host can poll `/ready` before exit ([500ms, 2s]).
 const HUB_CONNECT_FAILED_DWELL: Duration = Duration::from_millis(750);
 fn server_id_startup_error(id: &str) -> Option<String> {
-    id.parse::<tool_protocol::ServerId>()
+    id.parse::<xvora_tool_protocol::ServerId>()
         .err()
         .map(|e| format!("{INVALID_SERVER_ID_MARKER} {id:?}: {e}"))
 }
@@ -243,7 +243,7 @@ fn main() -> anyhow::Result<()> {
         Some(ref p) => dunce::canonicalize(p)?,
         None => std::env::current_dir()?,
     };
-    let oom_protection = tty_utils::protect_from_oom_kill();
+    let oom_protection = xvora_tty_utils::protect_from_oom_kill();
     let _pidfile_guard = if args.daemonize {
         let anchor = |p: PathBuf| if p.is_absolute() { p } else { cwd.join(p) };
         args.log_file = anchor(std::mem::take(&mut args.log_file));
@@ -268,13 +268,13 @@ fn main() -> anyhow::Result<()> {
     };
     #[cfg(unix)]
     if should_set_reset_child_oom(oom_protection.is_ok(), args.oom_protect) {
-        unsafe { std::env::set_var(tty_utils::RESET_CHILD_OOM_ENV, "1") };
+        unsafe { std::env::set_var(xvora_tty_utils::RESET_CHILD_OOM_ENV, "1") };
     }
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder
-        .worker_threads(tty_utils::runtime::capped_worker_threads().get())
+        .worker_threads(xvora_tty_utils::runtime::capped_worker_threads().get())
         .enable_all();
-    let rt = tty_utils::runtime::build_with_blocking_pool(&mut builder)?;
+    let rt = xvora_tty_utils::runtime::build_with_blocking_pool(&mut builder)?;
     rt.block_on(run(args, cwd, oom_protection, oom_protect_applied))
 }
 /// Whether to set `GROK_TOOLS_RESET_CHILD_OOM` after the always-on protect attempt.
@@ -295,12 +295,12 @@ async fn run(
     oom_protection: std::io::Result<()>,
     oom_protect_applied: Option<bool>,
 ) -> anyhow::Result<()> {
-    extra_ca::ensure_default_crypto_provider();
+    xvora_extra_ca::ensure_default_crypto_provider();
     use tracing_subscriber::layer::SubscriberExt as _;
     use tracing_subscriber::util::SubscriberInitExt as _;
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let donating = computer_hub_sdk::DonatingLogLayer::new_inert();
+    let donating = xvora_computer_hub_sdk::DonatingLogLayer::new_inert();
     tracing_subscriber::registry()
         .with(env_filter)
         .with(tracing_subscriber::fmt::layer())
@@ -447,16 +447,19 @@ async fn run(
         cwd,
         url,
         auth_provider,
-        metadata,
-        server_id.clone(),
-        None,
-        args.allow_insecure_ws,
-        status_config,
-        args.upload_queue_enabled,
-        args.project_lsp_trusted,
-        Some(diag_handle.clone()),
-        args.require_explicit_toolset,
-        args.confine_fs_to_workspace_root,
+        xvora_workspace::LocalWorkspaceConnectOptions {
+            metadata,
+            server_id: server_id.clone(),
+            alpha_test_key: None,
+            allow_insecure_ws: args.allow_insecure_ws,
+            status_config,
+            upload_queue_enabled: args.upload_queue_enabled,
+            project_lsp_trusted: args.project_lsp_trusted,
+            diag: Some(diag_handle.clone()),
+            require_explicit_toolset: args.require_explicit_toolset,
+            confine_fs_to_workspace_root: args.confine_fs_to_workspace_root,
+            bind_mcp: None,
+        },
     )
     .await
     {
@@ -541,7 +544,7 @@ async fn run(
     if let Some(pump) = &donation_pump {
         pump.drain().await;
     }
-    computer_hub_sdk::flush_log_layer();
+    xvora_computer_hub_sdk::flush_log_layer();
     if let Some(pump) = &log_donation_pump {
         pump.drain().await;
     }
@@ -622,7 +625,7 @@ mod tests {
     #[test]
     fn classify_from_client_error_display_round_trip() {
         let handshake = WorkspaceError::HubError(
-            computer_hub_sdk::ClientError::HandshakeAuthFailed { status: 401 }.to_string(),
+            xvora_computer_hub_sdk::ClientError::HandshakeAuthFailed { status: 401 }.to_string(),
         );
         let handshake_msg = handshake.to_string();
         assert_eq!(
@@ -634,14 +637,15 @@ mod tests {
             WORKSPACE_HUB_AUTH_FAILED_MARKER
         );
         let auth = WorkspaceError::HubError(
-            computer_hub_sdk::ClientError::AuthError("token rejected".into()).to_string(),
+            xvora_computer_hub_sdk::ClientError::AuthError("token rejected".into()).to_string(),
         );
         assert_eq!(
             classify_hub_connect_failure(&auth.to_string()),
             ErrorClass::HubAuth
         );
         let network = WorkspaceError::HubError(
-            computer_hub_sdk::ClientError::NetworkError("connection refused".into()).to_string(),
+            xvora_computer_hub_sdk::ClientError::NetworkError("connection refused".into())
+                .to_string(),
         );
         assert_eq!(
             classify_hub_connect_failure(&network.to_string()),

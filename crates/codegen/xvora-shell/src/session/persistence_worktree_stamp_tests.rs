@@ -1,6 +1,6 @@
 use agent_client_protocol as acp;
 use serial_test::serial;
-use crate::test_support::EnvGuard;
+use xvora_test_support::EnvGuard;
 
 use super::{OaiCompatClient, Summary, default_model_id, new_with_explicit_dir};
 use crate::session::info::Info;

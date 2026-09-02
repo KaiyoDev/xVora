@@ -45,7 +45,7 @@ use agent_client_protocol::Client as _;
 use agent_client_protocol::{self as acp, AuthenticateResponse};
 use indexmap::IndexMap;
 use tokio::sync::oneshot;
-use acp_lib::AcpAgentGatewaySender as GatewaySender;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use crate::agent::auth_method;
 use crate::agent::config::{self, Config as AgentConfig, ModelEntry, resolve_credentials};
 use crate::agent::feedback_client::FeedbackClient;
@@ -97,7 +97,7 @@ use crate::upload::turn::{
 use tokio_util::sync::CancellationToken;
 use xvora_paths::AbsPathBuf;
 use xvora_workspace::session::git::GitDiscoveryResult;
-use hunk_tracker::HunkTrackerActor;
+use xvora_hunk_tracker::HunkTrackerActor;
 /// Hard-error message for legacy Direct hub-bind sessions (`x.ai/cloud_server_id`).
 pub(crate) const DIRECT_HUB_CLOUD_REMOVED_MSG: &str = "Direct hub cloud removed; use Gateway (envId or existing-workspace attach)";
 /// Reject session `_meta` that still requests Direct hub bind.
@@ -521,6 +521,10 @@ pub(crate) struct PromptResponseMeta {
     pub structured_output_error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_overrides: Option<xvora_sampling_types::ToolOverrides>,
+    /// Why this RPC resolved without becoming the running turn (`removedFromQueue`).
+    /// `None` for a turn that actually ran.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_kind: Option<String>,
 }
 /// A struct (not positional args) so call sites are self-documenting and adding a field can't silently reorder an existing one.
 pub(crate) struct PromptResponseMetaArgs<'a> {
@@ -535,6 +539,7 @@ pub(crate) struct PromptResponseMetaArgs<'a> {
     pub cancel_trigger: Option<String>,
     pub structured_output: Option<Result<serde_json::Value, String>>,
     pub tool_overrides: Option<xvora_sampling_types::ToolOverrides>,
+    pub completion_kind: Option<String>,
 }
 /// Includes baseline session/prompt/model identifiers plus optional per-turn token counts from the most recent `TokenUsage`.
 pub(crate) fn build_prompt_response_meta(
@@ -552,6 +557,7 @@ pub(crate) fn build_prompt_response_meta(
         cancel_trigger,
         structured_output,
         tool_overrides,
+        completion_kind,
     } = args;
     let (structured_output, structured_output_error) = match structured_output {
         Some(Ok(value)) => (Some(value), None),
@@ -575,6 +581,7 @@ pub(crate) fn build_prompt_response_meta(
         structured_output,
         structured_output_error,
         tool_overrides,
+        completion_kind,
     };
     serde_json::to_value(meta).expect("PromptResponseMeta is always serializable")
 }
@@ -610,6 +617,7 @@ struct SettingsUpdateNotification {
     group_tool_verbs: Option<bool>,
     collapsed_edit_blocks: Option<bool>,
     subscription_watch_interval_secs: Option<u64>,
+    dock_enabled: Option<bool>,
 }
 /// When the announcements push gate emits despite an unchanged visible list.
 #[derive(Clone, Copy, Debug)]
@@ -695,7 +703,7 @@ const IDLE_QUERY_TIMEOUT: std::time::Duration = std::time::Duration::from_millis
 #[derive(Default)]
 struct ResidentResources {
     /// Strong ref pinning the code-nav index; the manager holds only a `Weak`.
-    codebase_index: Option<std::sync::Arc<codebase_graph::IndexManagerHandle>>,
+    codebase_index: Option<std::sync::Arc<xvora_codebase_graph::IndexManagerHandle>>,
     is_headless: bool,
     require_gateway: bool,
 }
@@ -709,6 +717,10 @@ struct RetainedResources {
     /// Same `Arc` is cloned onto `ToolContext` at spawn.
     /// Released by `remove_session`.
     live_orphan_heal_lock: Option<std::sync::Arc<tokio::sync::Mutex<()>>>,
+    /// Serializes a session's model and reasoning-effort changes so overlapping
+    /// requests compose instead of racing the live sampling config.
+    /// See [`crate::agent::handlers::model_switch`]. Released by `remove_session`.
+    config_mutation_lock: Option<std::sync::Arc<tokio::sync::Mutex<()>>>,
     permission_event_receiver: Option<
         tokio::sync::mpsc::UnboundedReceiver<PermissionEvent>,
     >,
@@ -963,7 +975,7 @@ pub struct MvpAgent {
 /// Loading TLS root certs takes about 95ms; doing it here avoids a cold-start hit on the first request.
 /// Idempotent.
 pub fn warm_async_http_client() {
-    extra_ca::ensure_default_crypto_provider();
+    xvora_extra_ca::ensure_default_crypto_provider();
     std::thread::spawn(|| {
         let _timer = crate::instrumentation_timer!("startup.async_http_warmup");
         let _ = crate::http::shared_client();
@@ -1078,7 +1090,7 @@ fn explicit_startup_hints(
     meta.and_then(|m| m.get("startupHints"))
         .and_then(|v| serde_json::from_value(v.clone()).ok())
 }
-use chat_state::conversation_util::replace_or_insert_system_head;
+use xvora_chat_state::conversation_util::replace_or_insert_system_head;
 /// Non-empty `systemPromptOverride` from session meta (preferred) or init meta.
 /// A blank string (empty or whitespace-only) is treated as "no override" so a client cannot accidentally blank the system prompt.
 fn system_prompt_override_from_meta<'a>(
@@ -1319,7 +1331,7 @@ impl MvpAgent {
 /// Absent, blank, `off`, or `disabled` yields `None`; unknown yields `AllDirty`.
 fn resolve_hunk_tracking_mode(
     mode_str: Option<&str>,
-) -> Option<hunk_tracker::TrackingMode> {
+) -> Option<xvora_hunk_tracker::TrackingMode> {
     let mode = mode_str.map(str::trim)?;
     if mode.is_empty() || mode.eq_ignore_ascii_case("off")
         || mode.eq_ignore_ascii_case("disabled")
@@ -1328,7 +1340,7 @@ fn resolve_hunk_tracking_mode(
     }
     Some(
         serde_json::from_value(serde_json::Value::String(mode.to_ascii_lowercase()))
-            .unwrap_or(hunk_tracker::TrackingMode::AllDirty),
+            .unwrap_or(xvora_hunk_tracker::TrackingMode::AllDirty),
     )
 }
 /// Session wiring derived from the resolved tracking mode.
@@ -1337,7 +1349,7 @@ fn resolve_hunk_tracking_mode(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct HunkTrackingPlan {
     /// `Some` means spawn the actor in this mode; `None` means use `noop()`, no actor.
-    actor_mode: Option<hunk_tracker::TrackingMode>,
+    actor_mode: Option<xvora_hunk_tracker::TrackingMode>,
 }
 impl HunkTrackingPlan {
     /// Gate for the fs-notify forward sites (via `ToolContext.hunk_tracking_enabled`) and LOC-sink eligibility.
@@ -1376,6 +1388,7 @@ mod session_lifecycle;
 mod agent_ops;
 mod acp_agent;
 pub(crate) mod reasoning_effort;
+mod sampler_prewarm;
 mod session_setup;
 mod subagent_spawn;
 use session_registry::SessionRegistry;
@@ -1473,7 +1486,7 @@ impl MvpAgent {
         &self,
         session_id: &acp::SessionId,
         updates_file_path: &Option<PathBuf>,
-    ) -> Vec<tokio::sync::oneshot::Receiver<acp_lib::AcpResult<()>>> {
+    ) -> Vec<tokio::sync::oneshot::Receiver<xvora_acp_lib::AcpResult<()>>> {
         let orphaned = Self::find_orphaned_background_tasks(updates_file_path);
         if orphaned.is_empty() {
             return Vec::new();
@@ -1965,7 +1978,7 @@ impl MvpAgent {
         }
         #[cfg(test)] self.auto_gc_spawn_count.set(self.auto_gc_spawn_count.get() + 1);
         let auto_gc_policy = self.cfg.borrow().resolve_worktree_auto_gc();
-        let grok_home = fast_worktree::resolve_grok_home();
+        let grok_home = xvora_fast_worktree::resolve_grok_home();
         tokio::task::spawn_blocking(move || Self::reclaim_worktrees(
             grok_home,
             auto_gc_policy,
@@ -1975,11 +1988,11 @@ impl MvpAgent {
     /// This deletes worktrees under what it finds.
     pub(super) fn reclaim_worktrees(
         grok_home: anyhow::Result<std::path::PathBuf>,
-        policy: fast_worktree::ResolvedWorktreeAutoGc,
+        policy: xvora_fast_worktree::ResolvedWorktreeAutoGc,
     ) {
         if let Err(e) = grok_home
-            .and_then(|home| fast_worktree::WorktreeDb::open(&home))
-            .and_then(|db| fast_worktree::maybe_auto_gc(&db, &policy))
+            .and_then(|home| xvora_fast_worktree::WorktreeDb::open(&home))
+            .and_then(|db| xvora_fast_worktree::maybe_auto_gc(&db, &policy))
         {
             tracing::warn!(error = %e, "auto worktree gc failed");
         }
@@ -2018,6 +2031,7 @@ impl MvpAgent {
                 collapsed_edit_blocks: rs.and_then(|s| s.collapsed_edit_blocks),
                 subscription_watch_interval_secs: rs
                     .and_then(|s| s.subscription_watch_interval_secs),
+                dock_enabled: rs.and_then(|s| s.dock_enabled),
             }
         };
         if let Ok(params) = serde_json::value::to_raw_value(&payload) {
@@ -2371,7 +2385,7 @@ async fn handle_synthetic_turn_trace(
             upload_turn_result(&ctx, &turn_result_metadata, UploadWait::Confirm).await;
         }
     }
-    let turn_messages: Option<chat_state::TurnCapture> = {
+    let turn_messages: Option<xvora_chat_state::TurnCapture> = {
         let (tx, rx) = tokio::sync::oneshot::channel();
         if ctx
             .session_handle

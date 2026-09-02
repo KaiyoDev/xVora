@@ -12,7 +12,7 @@ use anyhow::Result;
 use tokio_util::sync::CancellationToken;
 use xvora_telemetry::startup::{self, StartupPhase};
 
-use acp_lib::{
+use xvora_acp_lib::{
     AcpAgentChannel, AcpClientChannel, AcpClientTx, AcpGatewayReceiver, AcpGatewaySender,
     acp_channels,
 };
@@ -211,6 +211,14 @@ pub async fn spawn_grok_shell(
     // re-login). No-op where the OS listener is unavailable.
     auth_manager.start_system_power_listener();
 
+    let agent_cancel = cancel.child_token();
+
+    auth_manager.prewarm_auth_refresh(agent_cancel.child_token());
+    // Dropping a token does not cancel it: a `?` exit below creates no
+    // SpawnedAgent and no AgentShutdownGuard, so this guard cancels the
+    // prewarm instead. Disarmed where ownership transfers to SpawnedAgent.
+    let cancel_prewarm_unless_spawned = agent_cancel.clone().drop_guard();
+
     xvora_shell::agent::app::apply_otel_config(&auth_manager, &agent_config.grok_com_config);
 
     xvora_shell::agent::models::startup_prefetch::begin_before_policy_gate(&agent_config);
@@ -224,7 +232,6 @@ pub async fn spawn_grok_shell(
             .map_err(anyhow::Error::new)?;
     models_manager.spawn_background_refresh();
 
-    let agent_cancel = cancel.child_token();
     let (acp_client, acp_agent) = acp_channels();
 
     // Clone before `auth_manager` is moved into the agent closure below, so the
@@ -251,6 +258,8 @@ pub async fn spawn_grok_shell(
     let handle =
         spawn_agent_thread_direct(spawn_fn, acp_agent, agent_cancel.clone(), skills_paths).await?;
 
+    // The spawn succeeded: the caller's AgentShutdownGuard owns cancellation now.
+    let agent_cancel = cancel_prewarm_unless_spawned.disarm();
     Ok(SpawnedAgent {
         thread_handle: handle,
         channel: acp_client,
@@ -272,7 +281,7 @@ async fn spawn_agent_thread_direct(
     // Off the UI worker: failure must fail spawn, not start ACP.
     let rt = tokio::task::spawn_blocking(|| {
         let mut builder = tokio::runtime::Builder::new_current_thread();
-        tty_utils::runtime::build_with_blocking_pool(builder.enable_all())
+        xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all())
     })
     .await
     .map_err(|e| anyhow::anyhow!("agent runtime worker join: {e}"))?
@@ -357,7 +366,7 @@ mod tests {
     #[test]
     fn worker_runtime_teardown_bounded_despite_inflight_blocking_task() {
         let mut builder = tokio::runtime::Builder::new_current_thread();
-        let rt = tty_utils::runtime::build_with_blocking_pool(builder.enable_all()).unwrap();
+        let rt = xvora_tty_utils::runtime::build_with_blocking_pool(builder.enable_all()).unwrap();
         let (started_tx, started_rx) = std::sync::mpsc::channel();
         rt.handle().spawn_blocking(move || {
             let _ = started_tx.send(());

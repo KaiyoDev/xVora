@@ -65,11 +65,11 @@ const STREAM_DELTA_TARGET_BYTES: usize = 4 * 1024;
 /// ReadFile's capabilities incl. its streaming spec (single source of
 /// truth). Streams the formatted projection (not raw bytes) as inert
 /// `PlainText` / `Append`.
-static READ_FILE_CAPABILITIES: LazyLock<tool_protocol::ToolCapabilities> =
-    LazyLock::new(|| tool_protocol::ToolCapabilities {
+static READ_FILE_CAPABILITIES: LazyLock<xvora_tool_protocol::ToolCapabilities> =
+    LazyLock::new(|| xvora_tool_protocol::ToolCapabilities {
         is_read_only: true,
-        tool_scope: Some(tool_protocol::ToolScope::Read),
-        streaming: Some(tool_protocol::StreamingSpec {
+        tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
+        streaming: Some(xvora_tool_protocol::StreamingSpec {
             subkind: "read_file_chunk".to_owned(),
             max_delta_bytes: None,
         }),
@@ -80,7 +80,7 @@ const PPTX_PROCESS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 async fn handle_pptx(
     file_bytes: Vec<u8>,
     path: &std::path::Path,
-) -> Result<ReadFileOutput, tool_runtime::ToolError> {
+) -> Result<ReadFileOutput, xvora_tool_runtime::ToolError> {
     run_document_extraction(
         file_bytes,
         path,
@@ -337,7 +337,7 @@ pub(crate) async fn run_read_file(
     resources: SharedResources,
     streamable_out: Option<&mut bool>,
     invoking_param_names: &crate::types::resources::InvokingToolParamNames,
-) -> Result<ReadFileOutput, tool_runtime::ToolError> {
+) -> Result<ReadFileOutput, xvora_tool_runtime::ToolError> {
     let (cwd, display_cwd, fs, hints_enabled);
     {
         let res = resources.lock().await;
@@ -520,10 +520,10 @@ pub(crate) async fn run_read_file(
             let renderer = res.require::<TemplateRenderer>()?;
             grep_name = renderer
                 .render("${{ tools.by_kind.search }}")
-                .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
             execute_name = renderer
                 .render("${{ tools.by_kind.execute }}")
-                .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+                .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
         }
         let offset_param = invoking_param_names.resolve("offset");
         let limit_param = invoking_param_names.resolve("limit");
@@ -613,19 +613,22 @@ impl crate::types::tool_metadata::ToolMetadata for ReadFileTool {
         Expr::True
     }
 }
-impl tool_runtime::Tool for ReadFileTool {
+impl xvora_tool_runtime::Tool for ReadFileTool {
     type Args = ReadFileInput;
     type Output = ReadFileOutput;
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("read_file").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("read_file").expect("valid tool id")
     }
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "read_file",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
         READ_FILE_CAPABILITIES.clone()
     }
     /// Streaming entry point. Only the line-oriented text path streams: the
@@ -634,18 +637,18 @@ impl tool_runtime::Tool for ReadFileTool {
     /// Gated by `WorkspaceViewerContext::stream_tool_progress`.
     async fn execute(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: ReadFileInput,
-    ) -> tool_runtime::ToolStream<ReadFileOutput> {
+    ) -> xvora_tool_runtime::ToolStream<ReadFileOutput> {
         let admitted_spec = ctx
-            .get::<tool_runtime::WorkspaceViewerContext>()
+            .get::<xvora_tool_runtime::WorkspaceViewerContext>()
             .zip(READ_FILE_CAPABILITIES.streaming.as_ref())
             .filter(|(vctx, _)| vctx.stream_tool_progress)
             .map(|(_, spec)| spec);
         let Some(spec) = admitted_spec else {
             let this = ReadFileTool;
             return Box::pin(async_stream::stream! {
-                yield tool_runtime::ToolStreamItem::Terminal(this.run(ctx, input).await);
+                yield xvora_tool_runtime::ToolStreamItem::Terminal(this.run(ctx, input).await);
             });
         };
         Box::pin(async_stream::stream! {
@@ -673,7 +676,7 @@ impl tool_runtime::Tool for ReadFileTool {
                             {
                                 window_end -= 1;
                             }
-                            if let Some(p) = tool_runtime::stream_chunk(
+                            if let Some(p) = xvora_tool_runtime::stream_chunk(
                                 spec,
                                 &content[..window_end],
                                 window_end as u64,
@@ -681,23 +684,23 @@ impl tool_runtime::Tool for ReadFileTool {
                                 // Full replay, no streaming loss ⇒ never truncated.
                                 false,
                             ) {
-                                yield tool_runtime::ToolStreamItem::Progress(p);
+                                yield xvora_tool_runtime::ToolStreamItem::Progress(p);
                             }
                             window_start = window_end;
                         }
                     }
-                    yield tool_runtime::ToolStreamItem::Terminal(Ok(output));
+                    yield xvora_tool_runtime::ToolStreamItem::Terminal(Ok(output));
                 }
-                Err(e) => yield tool_runtime::ToolStreamItem::Terminal(Err(e)),
+                Err(e) => yield xvora_tool_runtime::ToolStreamItem::Terminal(Err(e)),
             }
         })
     }
     #[tracing::instrument(name = "tool.read_file", skip_all, fields(path = %input.path))]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: ReadFileInput,
-    ) -> Result<ReadFileOutput, tool_runtime::ToolError> {
+    ) -> Result<ReadFileOutput, xvora_tool_runtime::ToolError> {
         Self::read_with_streamability(&ctx, input)
             .await
             .map(|(output, _streamable)| output)
@@ -708,13 +711,13 @@ impl ReadFileTool {
     /// apply read-lint tracking. `streamable` is a call-local flag, so
     /// concurrent reads cannot flip each other's value.
     async fn read_with_streamability(
-        ctx: &tool_runtime::ToolCallContext,
+        ctx: &xvora_tool_runtime::ToolCallContext,
         input: ReadFileInput,
-    ) -> Result<(ReadFileOutput, bool), tool_runtime::ToolError> {
+    ) -> Result<(ReadFileOutput, bool), xvora_tool_runtime::ToolError> {
         let resources = crate::types::tool_metadata::shared_resources(ctx)?;
         let cwd_override = ctx
             .extensions
-            .get::<tool_runtime::Cwd>()
+            .get::<xvora_tool_runtime::Cwd>()
             .map(|c| c.0.clone());
         let bv = crate::types::tool_metadata::behavior_version(ctx);
         let mut streamable_text = false;
@@ -766,7 +769,7 @@ mod tests {
             format: None,
         };
         let shared = resources.into_shared();
-        let result = tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(shared.clone()), input)
             .await
             .unwrap();
         match result {
@@ -793,9 +796,12 @@ mod tests {
             format: None,
         };
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         let expected = format!(
             "Failed to read file: {}",
             tmp.path().join("nonexistent.txt").display()
@@ -819,7 +825,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -843,7 +849,7 @@ mod tests {
             format: None,
         };
         let result =
-            tool_runtime::Tool::run(&ReadFileTool, test_ctx(resources.into_shared()), input)
+            xvora_tool_runtime::Tool::run(&ReadFileTool, test_ctx(resources.into_shared()), input)
                 .await
                 .unwrap();
         match result {
@@ -975,9 +981,12 @@ mod tests {
             format: None,
         };
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         let expected_path = dunce::canonicalize(tmp.path().join("subdir"))
             .unwrap_or_else(|_| tmp.path().join("subdir"));
         let expected = format!("Failed to read file: {}", expected_path.display());
@@ -1001,7 +1010,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1024,7 +1033,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1050,7 +1059,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1076,7 +1085,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1099,7 +1108,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1123,7 +1132,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1155,7 +1164,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1191,7 +1200,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1250,7 +1259,9 @@ mod tests {
                 ]
                 .into(),
             ));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ReadFileOutput::FileTooLarge(msg) => {
                 assert!(
@@ -1435,7 +1446,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1471,7 +1482,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1507,9 +1518,12 @@ mod tests {
             format: None,
         };
         let mut ctx = test_ctx(resources.into_shared());
-        ctx.extensions
-            .insert(tool_runtime::BehaviorVersion("legacy-0.4.10".to_string()));
-        let result = tool_runtime::Tool::run(&tool, ctx, input).await.unwrap();
+        ctx.extensions.insert(xvora_tool_runtime::BehaviorVersion(
+            "legacy-0.4.10".to_string(),
+        ));
+        let result = xvora_tool_runtime::Tool::run(&tool, ctx, input)
+            .await
+            .unwrap();
         match result {
             ReadFileOutput::FileContent(content) => {
                 assert!(content.raw_output.contains("build output data"));
@@ -1538,7 +1552,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1566,7 +1580,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1596,7 +1610,7 @@ mod tests {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1885,7 +1899,7 @@ pub fn verify(req: &HttpRequest) -> Result<Claims, Error> {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -1929,7 +1943,7 @@ pub fn verify(req: &HttpRequest) -> Result<Claims, Error> {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         assert!(
@@ -1957,7 +1971,7 @@ pub fn verify(req: &HttpRequest) -> Result<Claims, Error> {
             pages: None,
             format: None,
         };
-        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
         match result {
@@ -2073,7 +2087,7 @@ pub fn verify(req: &HttpRequest) -> Result<Claims, Error> {
             pages: None,
             format: None,
         };
-        tool_runtime::Tool::run(&ReadFileTool, test_ctx(resources.into_shared()), input)
+        xvora_tool_runtime::Tool::run(&ReadFileTool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap()
     }
@@ -2160,26 +2174,26 @@ pub fn verify(req: &HttpRequest) -> Result<Claims, Error> {
     /// Drive `execute` to completion; returns ordered deltas + terminal.
     /// Asserts `[Progress*, Terminal]` and the canonical envelope.
     async fn execute_collect(
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: ReadFileInput,
     ) -> (Vec<String>, ReadFileOutput) {
         use futures::StreamExt;
-        let mut stream = tool_runtime::Tool::execute(&ReadFileTool, ctx, input).await;
+        let mut stream = xvora_tool_runtime::Tool::execute(&ReadFileTool, ctx, input).await;
         let mut deltas = Vec::new();
         let mut terminal: Option<ReadFileOutput> = None;
         while let Some(item) = stream.next().await {
             match item {
-                tool_runtime::ToolStreamItem::Progress(p) => {
+                xvora_tool_runtime::ToolStreamItem::Progress(p) => {
                     assert!(terminal.is_none(), "Progress arrived after Terminal");
                     match p {
-                        tool_runtime::ToolProgress::Custom { subkind, payload } => {
+                        xvora_tool_runtime::ToolProgress::Custom { subkind, payload } => {
                             assert_eq!(subkind, "read_file_chunk", "unexpected subkind");
                             deltas.push(payload["delta"].as_str().unwrap().to_owned());
                         }
                         other => panic!("expected Custom progress, got {other:?}"),
                     }
                 }
-                tool_runtime::ToolStreamItem::Terminal(r) => {
+                xvora_tool_runtime::ToolStreamItem::Terminal(r) => {
                     assert!(terminal.is_none(), "more than one Terminal yielded");
                     terminal = Some(r.expect("read_file terminal should be Ok"));
                 }
@@ -2238,7 +2252,7 @@ pub fn verify(req: &HttpRequest) -> Result<Claims, Error> {
             pages: None,
             format: None,
         };
-        let mut ctx = tool_runtime::ToolCallContext::default();
+        let mut ctx = xvora_tool_runtime::ToolCallContext::default();
         ctx.extensions
             .insert(test_resources(tmp.path()).into_shared());
         let (deltas, terminal) = execute_collect(ctx, input).await;

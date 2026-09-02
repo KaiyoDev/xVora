@@ -66,7 +66,7 @@ impl HttpClient {
             .map(reqwest::Proxy::all)
             .transpose()
             .map_err(|e| WebFetchError::ProxyConfigError(e.to_string()))?;
-        extra_ca::build_reqwest_client(|builder| {
+        xvora_extra_ca::build_reqwest_client(|builder| {
             let mut builder = builder
                 .timeout(params.timeout_secs())
                 .connect_timeout(std::time::Duration::from_secs(10))

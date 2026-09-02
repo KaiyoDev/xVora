@@ -45,7 +45,7 @@ async fn make_laziness_actor(
 ) -> (Arc<SessionActor>, tempfile::TempDir) {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let (gateway_tx, _gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
     let (persistence_tx, _persistence_rx) =
         tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
@@ -488,7 +488,7 @@ async fn make_debug_actor(
 ) -> (Arc<SessionActor>, tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let (gateway_tx, _gateway_rx) =
-        tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+        tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
     let (persistence_tx, _persistence_rx) =
         tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
     let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;

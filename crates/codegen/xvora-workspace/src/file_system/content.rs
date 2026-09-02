@@ -40,7 +40,7 @@ fn build_ripgrep_command(root: &Path, params: &ContentSearchParams) -> anyhow::R
     cmd.current_dir(root);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::null());
-    tty_utils::detach_search_command(&mut cmd);
+    xvora_tty_utils::detach_search_command(&mut cmd);
 
     cmd.arg("--json");
     cmd.arg("--line-number");
@@ -285,7 +285,7 @@ mod tests {
         drop(child);
 
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while !tty_utils::process_not_running(pid) {
+        while !xvora_tty_utils::process_not_running(pid) {
             assert!(
                 std::time::Instant::now() < deadline,
                 "rg (pid {pid}) still running 5s after its Child was dropped — leaked"

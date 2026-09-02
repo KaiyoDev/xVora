@@ -1,7 +1,7 @@
 use super::RemoteSettings;
-use fast_worktree::CreationMode;
 use serde::{Deserialize, Serialize};
 use toml::Value as TomlValue;
+use xvora_fast_worktree::CreationMode;
 
 /// Mirrors the internal `CreationMode` enum from xvora-fast-worktree but uses config-friendly naming (lowercase strings in TOML).
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -212,11 +212,14 @@ pub(crate) fn resolve_restore_code(
 pub(crate) fn resolve_worktree_auto_gc_from_settings(
     local: Option<&super::WorktreeAutoGcSettings>,
     remote: Option<&super::WorktreeAutoGcSettings>,
-) -> fast_worktree::ResolvedWorktreeAutoGc {
+) -> xvora_fast_worktree::ResolvedWorktreeAutoGc {
     use xvora_workspace::worktree::worktree_auto_gc_layer_from_settings;
     let local_layer = local.map(worktree_auto_gc_layer_from_settings);
     let remote_layer = remote.map(worktree_auto_gc_layer_from_settings);
-    fast_worktree::resolve_worktree_auto_gc_from_layers(local_layer.as_ref(), remote_layer.as_ref())
+    xvora_fast_worktree::resolve_worktree_auto_gc_from_layers(
+        local_layer.as_ref(),
+        remote_layer.as_ref(),
+    )
 }
 
 #[cfg(test)]

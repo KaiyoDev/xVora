@@ -19,7 +19,7 @@ use anyhow::{Context, Result, bail};
 pub fn pbcopy(text: &str) -> Result<()> {
     let mut cmd = Command::new("pbcopy");
     cmd.stdin(Stdio::piped());
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     #[allow(clippy::disallowed_methods)] // short-lived clipboard helper, waited on below
     let mut child = cmd.spawn().context("spawn pbcopy")?;
     child
@@ -47,7 +47,7 @@ pub fn pbcopy(text: &str) -> Result<()> {
         "Set-Clipboard -Value ([Console]::In.ReadToEnd())",
     ])
     .stdin(Stdio::piped());
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     #[allow(clippy::disallowed_methods)] // short-lived clipboard helper, waited on below
     let mut child = cmd.spawn().context("spawn powershell Set-Clipboard")?;
     child
@@ -67,7 +67,7 @@ pub fn pbcopy(text: &str) -> Result<()> {
 #[cfg(not(target_os = "windows"))]
 pub fn pbpaste() -> Option<String> {
     let mut cmd = Command::new("pbpaste");
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     let out = cmd.output().ok()?;
     if !out.status.success() {
         return None;
@@ -86,7 +86,7 @@ pub fn pbpaste() -> Option<String> {
         "-Command",
         "$c = Get-Clipboard -Raw; if ($null -ne $c) { [Console]::Out.Write($c) }",
     ]);
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     let out = cmd.output().ok()?;
     if !out.status.success() {
         return None;
@@ -103,7 +103,7 @@ pub fn set_clipboard_png(path: &Path) -> Result<()> {
     );
     let mut cmd = Command::new("osascript");
     cmd.arg("-e").arg(&script);
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     let status = cmd.status().context("spawn osascript")?;
     if !status.success() {
         bail!("osascript set-clipboard-PNG exited with {status}");
@@ -138,7 +138,7 @@ pub fn set_clipboard_png(path: &Path) -> Result<()> {
         "-EncodedCommand",
         &encoded,
     ]);
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     let status = cmd.status().context("spawn powershell SetImage")?;
     if !status.success() {
         bail!("powershell SetImage exited with {status}");

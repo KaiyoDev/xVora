@@ -94,7 +94,7 @@ pub fn render_dashboard(
     roster: &[crate::app::roster::RosterEntry],
     // Dashboard v2 reads membership exclusively from `workspace_snapshot`.
     workspace_dashboard_enabled: bool,
-    workspace_snapshot: Option<&dashboard_store::WorkspaceSnapshot>,
+    workspace_snapshot: Option<&xvora_dashboard_store::WorkspaceSnapshot>,
     // Whether the local on-disk session roster is still being fetched (non-leader mode)
     // When true and there's nothing to show yet, the empty body reads "Loading sessions…" instead of the "no agents yet" hint
     // That way a fresh open doesn't flash an empty-looking screen
@@ -2765,7 +2765,7 @@ fn render_dispatch(
             }
             0
         } else {
-            let viewport = ratatui_textarea::EditBuffer::from_parts(
+            let viewport = xvora_ratatui_textarea::EditBuffer::from_parts(
                 state.dispatch.text(),
                 state.dispatch.cursor(),
             )

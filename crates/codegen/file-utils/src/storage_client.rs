@@ -14,7 +14,6 @@ use std::fs::File as StdFile;
 // Positional read traits live in different modules per platform; the
 // methods we use (read_at on Unix, seek_read on Windows) have the same
 // signature, so the call site cfg-branches on the method name only.
-use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 #[cfg(unix)]
 use std::os::unix::fs::FileExt;
 #[cfg(windows)]
@@ -28,6 +27,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
 use xvora_auth::AuthCredentialProvider;
+use xvora_circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 
 use crate::circuit_breaker_observer::TracingObserver;
 
@@ -35,7 +35,7 @@ use crate::circuit_breaker_observer::TracingObserver;
 // Storage Circuit Breaker policy
 // ============================================================================
 // `StorageClient`'s session-wide breaker uses the shared
-// `circuit_breaker::BreakerConfig::client()` preset
+// `xvora_circuit_breaker::BreakerConfig::client()` preset
 // (sliding-window-with-min-samples: 5 samples / 60s window / 60s open
 // duration / failure code = 401). The observer name "storage_breaker"
 // is surfaced as a structured field on every tracing event so existing
@@ -426,7 +426,7 @@ mod static_grok_auth_tests {
 /// `crate::http::shared_upload_client()`) to `with_provider`.
 fn default_upload_client() -> Client {
     #[expect(clippy::expect_used)]
-    extra_ca::build_reqwest_client(|builder| builder).expect("default reqwest client builds")
+    xvora_extra_ca::build_reqwest_client(|builder| builder).expect("default reqwest client builds")
 }
 
 /// Client for uploading files to GCS via cli-chat-proxy.
@@ -542,7 +542,7 @@ impl StorageClient {
     fn with_breaker_for_testing(
         mut self,
         open_duration: Duration,
-        observer: std::sync::Arc<dyn circuit_breaker::Observer>,
+        observer: std::sync::Arc<dyn xvora_circuit_breaker::Observer>,
     ) -> Self {
         let mut config = storage_breaker_config();
         config.open_duration = open_duration;

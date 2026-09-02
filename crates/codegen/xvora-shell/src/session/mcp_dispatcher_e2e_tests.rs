@@ -159,9 +159,9 @@ impl RestartActions for E2eActions {
 }
 
 /// The receiver is dropped: these tests assert on the drop / shutdown / restart observation points, not on the ACP pushes `flush_window` emits.
-fn discard_gateway() -> acp_lib::AcpAgentGatewaySender {
+fn discard_gateway() -> xvora_acp_lib::AcpAgentGatewaySender {
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-    acp_lib::AcpAgentGatewaySender::new(tx)
+    xvora_acp_lib::AcpAgentGatewaySender::new(tx)
 }
 
 /// Yield enough times for the dispatcher task and any spawned `auto_restart_stdio` task to make progress after a clock advance.

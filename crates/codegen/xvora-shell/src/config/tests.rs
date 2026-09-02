@@ -1,4 +1,3 @@
-use crate::test_support;
 #![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 fn with_env_var<T>(name: &str, value: &str, f: impl FnOnce() -> T) -> T {
@@ -3197,7 +3196,7 @@ email_domain = "example.com"
 #[test]
 #[serial_test::serial]
 fn project_config_never_sources_feedback_user() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3451,7 +3450,7 @@ fn a_repeated_pin_is_reported_against_the_layer_that_decided() {
 #[test]
 #[serial_test::serial]
 fn apply_requirements_pins_title_refresh_over_the_environment() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let _env = EnvGuard::set("GROK_TITLE_REFRESH", "1");
     let mut cfg = crate::agent::config::Config::default();
     let req: toml::Value = toml::from_str("[features]\ntitle_refresh = false\n")
@@ -3520,6 +3519,221 @@ fn apply_requirements_default_beats_campaign_default() {
                 .iter()
                 .any(|e| e.path == "models.default" && e.value == "enforced-model"),
             "the enforcement must be reported in the audit trail"
+        );
+}
+fn pin_allowed_models(cfg: &mut crate::agent::config::Config, req_toml: &str) {
+    let req: toml::Value = toml::from_str(req_toml).unwrap();
+    let source = RequirementSource::Requirements {
+        path: std::path::PathBuf::from("/test/requirements.toml"),
+    };
+    apply_requirements_inner(cfg, &req, &source);
+}
+#[test]
+fn apply_requirements_allowed_models_clamps_catalog_and_names_source() {
+    let raw: toml::Value = toml::from_str(
+            r#"
+            [models]
+            default = "grok-3"
+            allowed_models = ["*"]
+            [model.grok-3]
+            model = "grok-3"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            [model.grok-4]
+            model = "grok-4"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            "#,
+        )
+        .unwrap();
+    let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4\"]\n");
+    let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
+    assert!(
+            catalog["grok-4"].info.user_selectable,
+            "signed allowlist member must stay selectable"
+        );
+    assert!(
+            !catalog["grok-3"].info.user_selectable,
+            "models outside the signed set must not be selectable"
+        );
+    let err = crate::agent::models::validate_selectable(&cfg, &catalog).unwrap_err();
+    assert!(
+            err.contains("administrator"),
+            "fail-closed error must tell the user to contact their administrator: {err}"
+        );
+    assert!(
+            !err.contains("requirements.toml"),
+            "must not name an administrator file the user cannot edit: {err}"
+        );
+    assert!(err.contains("grok-3"), "error must name the excluded default: {err}");
+}
+#[test]
+fn apply_requirements_allowed_models_ignores_user_catalog_key() {
+    let raw: toml::Value = toml::from_str(
+            r#"
+            [models]
+            default = "grok-4"
+            allowed_models = ["*"]
+            [model.grok-4]
+            model = "grok-4"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            [model.grok-4-anything]
+            model = "other-model"
+            base_url = "https://evil.example/v1"
+            context_window = 256000
+            [model.my-alias]
+            model = "grok-4"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            "#,
+        )
+        .unwrap();
+    let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4*\"]\n");
+    let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
+    assert!(
+            catalog["grok-4"].info.user_selectable,
+            "routing slug grok-4 matches grok-4*"
+        );
+    assert!(
+            catalog["my-alias"].info.user_selectable,
+            "user alias whose model id is grok-4 stays selectable"
+        );
+    assert!(
+            !catalog["grok-4-anything"].info.user_selectable,
+            "catalog key grok-4-anything pointing at another model must not satisfy the pin"
+        );
+}
+#[test]
+fn apply_requirements_malformed_allowed_models_fail_closes() {
+    let raw: toml::Value = toml::from_str(
+            r#"
+            [models]
+            default = "grok-4"
+            allowed_models = ["*"]
+            [model.grok-4]
+            model = "grok-4"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            "#,
+        )
+        .unwrap();
+    let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = \"grok-4\"\n");
+    let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
+    assert!(
+            !catalog["grok-4"].info.user_selectable,
+            "malformed fleet pin must mark nothing selectable, not keep the user list"
+        );
+    assert!(
+            matches!(
+                cfg.requirements.allowed_models.pin_ref(),
+                Some(crate::agent::config::AllowlistPin::FailClosed)
+            ),
+            "unreadable pin must be FailClosed, not a reserved glob"
+        );
+    let err = crate::agent::models::validate_selectable(&cfg, &catalog).unwrap_err();
+    assert!(
+            err.contains("administrator"),
+            "malformed pin must tell the user to contact their administrator: {err}"
+        );
+    assert!(
+            !err.contains("allowed_models"),
+            "fleet invalid-policy message must not tell the user to edit allowed_models: {err}"
+        );
+}
+#[test]
+fn apply_requirements_allowed_models_empty_array_is_unrestricted() {
+    let raw: toml::Value = toml::from_str(
+            r#"
+            [models]
+            allowed_models = ["grok-4"]
+            [model.grok-3]
+            model = "grok-3"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            [model.grok-4]
+            model = "grok-4"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            "#,
+        )
+        .unwrap();
+    let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = []\n");
+    let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
+    assert!(
+            catalog["grok-3"].info.user_selectable && catalog["grok-4"].info.user_selectable,
+            "empty fleet array must not restrict"
+        );
+    assert!(
+            matches!(
+                cfg.requirements.allowed_models.pin_ref(),
+                Some(crate::agent::config::AllowlistPin::List(v)) if v.is_empty()
+            ),
+            "empty array is an explicit unrestricted pin"
+        );
+    assert_eq!(
+            cfg.models.allowed_models,
+            Some(vec!["grok-4".to_string()]),
+            "pin must not overwrite the user-field copy; EffectiveAllowlist reads the pin"
+        );
+}
+#[test]
+fn apply_requirements_allowed_models_replaces_user_list() {
+    let raw: toml::Value = toml::from_str(
+            r#"
+            [models]
+            allowed_models = ["*"]
+            [model.grok-3]
+            model = "grok-3"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            [model.grok-4]
+            model = "grok-4"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            "#,
+        )
+        .unwrap();
+    let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4\"]\n");
+    let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
+    assert!(catalog["grok-4"].info.user_selectable);
+    assert!(
+            !catalog["grok-3"].info.user_selectable,
+            "user * must not union with the fleet pin"
+        );
+}
+#[test]
+fn validate_selectable_rejects_dash_m_outside_fleet_pin() {
+    let raw: toml::Value = toml::from_str(
+            r#"
+            [models]
+            default = "grok-4"
+            [model.grok-3]
+            model = "grok-3"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            [model.grok-4]
+            model = "grok-4"
+            base_url = "https://api.x.ai/v1"
+            context_window = 256000
+            "#,
+        )
+        .unwrap();
+    let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4\"]\n");
+    cfg.default_model_override = Some("grok-3".into());
+    let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
+    let err = crate::agent::models::validate_selectable(&cfg, &catalog).unwrap_err();
+    assert!(err.contains("-m flag"), "must name the -m source: {err}");
+    assert!(err.contains("administrator"), "fleet -m deny must be admin language: {err}");
+    assert!(
+            !err.contains("Broaden"),
+            "must not tell the user to edit the fleet list: {err}"
         );
 }
 #[test]
@@ -3658,8 +3872,8 @@ fn managed_settings_does_not_override_user_yolo() {
 }
 /// Simulate a release-stamped build so the folder-trust gate engages (a local/dev build auto-trusts).
 /// Hold the returned guard for the test body.
-fn simulate_release_build() -> test_support::EnvGuard {
-    test_support::EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0.0-sim")
+fn simulate_release_build() -> xvora_test_support::EnvGuard {
+    xvora_test_support::EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0.0-sim")
 }
 #[test]
 fn project_overlay_tracks_authoritative_trust_transitions() {
@@ -3758,7 +3972,7 @@ fn explicit_grok_root_is_the_only_user_source() {
 #[test]
 #[serial_test::serial]
 fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3817,7 +4031,7 @@ fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
 #[serial_test::serial]
 fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
     use xvora_agent::plugins::{TrustStore, discover_plugins};
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
@@ -3889,7 +4103,7 @@ fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
 #[test]
 #[serial_test::serial]
 fn kill_switched_cold_cwd_stays_allowed_through_plugins_config_read() {
-    use crate::test_support::EnvGuard;
+    use xvora_test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");

@@ -355,9 +355,9 @@ fn stale_workflows_result_does_not_repaint_replaced_session_modal() {
 }
 
 fn foreign_resume_hint(
-    tool: foreign_sessions::ForeignSessionTool,
-) -> foreign_sessions::RecentForeignSession {
-    foreign_sessions::RecentForeignSession {
+    tool: xvora_foreign_sessions::ForeignSessionTool,
+) -> xvora_foreign_sessions::RecentForeignSession {
+    xvora_foreign_sessions::RecentForeignSession {
         tool,
         native_id: "native-session".into(),
         age: std::time::Duration::from_secs(30),
@@ -367,7 +367,7 @@ fn foreign_resume_hint(
 #[test]
 fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
     let mut launch = test_app();
-    launch.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
+    launch.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -404,14 +404,14 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
             canonical_cwd: canonical_cwd.clone(),
             launch_token,
             hint: Some(foreign_resume_hint(
-                foreign_sessions::ForeignSessionTool::Cursor,
+                xvora_foreign_sessions::ForeignSessionTool::Cursor,
             )),
         }),
         &mut launch,
     );
     assert_eq!(
         launch.foreign_resume_hint().map(|hint| hint.tool),
-        Some(foreign_sessions::ForeignSessionTool::Cursor)
+        Some(xvora_foreign_sessions::ForeignSessionTool::Cursor)
     );
 
     let mut stale = test_app();
@@ -429,7 +429,7 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
             canonical_cwd: canonical_cwd.clone(),
             launch_token: launch_token + 1,
             hint: Some(foreign_resume_hint(
-                foreign_sessions::ForeignSessionTool::Codex,
+                xvora_foreign_sessions::ForeignSessionTool::Codex,
             )),
         }),
         &mut stale,
@@ -451,7 +451,7 @@ fn foreign_resume_results_require_launch_token_and_canonical_cwd() {
 #[test]
 fn foreign_resume_result_rejects_startup_conflict_before_completion() {
     let mut app = test_app();
-    app.foreign_session_compat = foreign_sessions::EnabledForeignSessionSources {
+    app.foreign_session_compat = xvora_foreign_sessions::EnabledForeignSessionSources {
         cursor: true,
         ..Default::default()
     };
@@ -475,7 +475,7 @@ fn foreign_resume_result_rejects_startup_conflict_before_completion() {
             canonical_cwd,
             launch_token,
             hint: Some(foreign_resume_hint(
-                foreign_sessions::ForeignSessionTool::Cursor,
+                xvora_foreign_sessions::ForeignSessionTool::Cursor,
             )),
         }),
         &mut app,
@@ -683,15 +683,15 @@ fn marketplace_list_loaded_sanitizes_components_at_ingestion() {
         Some(ExtensionsModalState::new(ExtensionsTab::Marketplace));
 
     let mut entry = cta_entry("dirty", "not_installed");
-    entry.components = Some(hooks_plugins_types::PluginComponents {
-        skills: vec![hooks_plugins_types::ComponentItem {
+    entry.components = Some(xvora_hooks_plugins_types::PluginComponents {
+        skills: vec![xvora_hooks_plugins_types::ComponentItem {
             name: "evil\u{1b}[31mskill".into(),
             description: Some(format!("\u{7}{}", "d".repeat(300))),
         }],
         ..Default::default()
     });
-    let response = hooks_plugins_types::MarketplaceListResponse {
-        sources: vec![hooks_plugins_types::MarketplaceScanResult {
+    let response = xvora_hooks_plugins_types::MarketplaceListResponse {
+        sources: vec![xvora_hooks_plugins_types::MarketplaceScanResult {
             source_name: "s".into(),
             source_kind: "git".into(),
             source_url_or_path: "https://example.com/repo.git".into(),
@@ -736,8 +736,8 @@ fn plugins_action_success_sets_result_notice_and_autoreload_preserves_it() {
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "user/abcd1234/my-plugin: updated".into(),
                 requires_reload: true,
                 requires_restart: false,
@@ -759,8 +759,8 @@ fn plugins_action_success_sets_result_notice_and_autoreload_preserves_it() {
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "Plugin registry rebuilt: 5 plugin(s).".into(),
                 requires_reload: false,
                 requires_restart: false,
@@ -792,8 +792,8 @@ fn tab_wide_action_success_sets_tab_wide_result_notice() {
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "Plugin registry rebuilt: 7 plugin(s).".into(),
                 requires_reload: false,
                 requires_restart: false,
@@ -817,7 +817,7 @@ fn uninstall_result_notice_is_footer_only_not_row_anchored() {
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
         // A row action was in flight, but it's an uninstall, so the row goes away
         modal.pending_entry_index = Some(1);
-        modal.last_plugins_action = Some(hooks_plugins_types::PluginsAction::Uninstall {
+        modal.last_plugins_action = Some(xvora_hooks_plugins_types::PluginsAction::Uninstall {
             plugin_id: "user/ab12/gone".into(),
             confirmed: true,
         });
@@ -827,8 +827,8 @@ fn uninstall_result_notice_is_footer_only_not_row_anchored() {
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::Success,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::Success,
                 message: "Uninstalled repo \"user/ab12/gone\" (1 plugin(s): gone)".into(),
                 requires_reload: true,
                 requires_restart: false,
@@ -856,7 +856,7 @@ fn confirmation_required_builds_plugins_confirmation_with_confirmed_true() {
         let mut modal = ExtensionsModalState::new(ExtensionsTab::Plugins);
         modal.picker_state.selected = 2;
         modal.pending_entry_index = Some(3);
-        modal.last_plugins_action = Some(hooks_plugins_types::PluginsAction::Uninstall {
+        modal.last_plugins_action = Some(xvora_hooks_plugins_types::PluginsAction::Uninstall {
             plugin_id: "user/ab12/gone".into(),
             confirmed: false,
         });
@@ -866,8 +866,8 @@ fn confirmation_required_builds_plugins_confirmation_with_confirmed_true() {
     dispatch(
         Action::TaskComplete(TaskResult::PluginsActionResult {
             agent_id: id,
-            result: Ok(hooks_plugins_types::ActionOutcome {
-                status: hooks_plugins_types::OutcomeStatus::ConfirmationRequired,
+            result: Ok(xvora_hooks_plugins_types::ActionOutcome {
+                status: xvora_hooks_plugins_types::OutcomeStatus::ConfirmationRequired,
                 message: "Uninstalling removes 2 plugins from this repository.".into(),
                 requires_reload: false,
                 requires_restart: false,
@@ -891,7 +891,7 @@ fn confirmation_required_builds_plugins_confirmation_with_confirmed_true() {
             assert_eq!(*pending_entry_index, Some(3));
             assert_eq!(
                 action,
-                &ConfirmationAction::Plugins(hooks_plugins_types::PluginsAction::Uninstall {
+                &ConfirmationAction::Plugins(xvora_hooks_plugins_types::PluginsAction::Uninstall {
                     plugin_id: "user/ab12/gone".into(),
                     confirmed: true,
                 })

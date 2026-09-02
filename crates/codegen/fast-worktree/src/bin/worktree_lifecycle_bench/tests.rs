@@ -208,7 +208,7 @@ fn cleanup_is_armed_before_create() {
 #[test]
 fn contained_subprocess_times_out_and_kills_descendants() {
     let mut command = std::process::Command::new("sh");
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     command.args(["-c", "sleep 30 & wait"]);
     let started = Instant::now();
     let registry = runtime::CommandRegistry::new();
@@ -241,7 +241,7 @@ fn worker_background_hook_is_contained_after_worker_exit() {
     };
     let registry = runtime::CommandRegistry::new();
     let mut command = std::process::Command::new(worker_executable());
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     command.args([
         "--worker",
         "--worker-stop-before-work",
@@ -277,7 +277,7 @@ fn worker_detached_hook_is_killed_on_timeout() {
     let gate = temp.path().join("worker-gate");
     std::fs::write(&gate, b"hold").unwrap();
     let mut command = std::process::Command::new(worker_executable());
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     command
         .arg("--worker")
         .arg("--worker-stop-before-work")
@@ -319,7 +319,7 @@ fn cgroup_enrollment_failure_kills_child_before_detached_descendant_can_escape()
         escaped.to_string_lossy()
     );
     let mut command = std::process::Command::new("sh");
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     command.args(["-c", &script]);
     let error = runtime::run_contained_command_with_cgroup(
         &registry,
@@ -351,7 +351,7 @@ fn reader_spawn_failures_kill_and_reap_before_unregistering() {
             survivor_marker.to_string_lossy()
         );
         let mut command = std::process::Command::new("sh");
-        tty_utils::detach_std_command(&mut command);
+        xvora_tty_utils::detach_std_command(&mut command);
         command.args(["-c", &script]);
         let error = runtime::run_contained_command_with_reader_failure(
             &registry,
@@ -374,7 +374,7 @@ fn reader_spawn_failures_kill_and_reap_before_unregistering() {
 fn inherited_pipe_grandchild_is_killed_after_direct_child_exits() {
     let registry = runtime::CommandRegistry::new();
     let mut command = std::process::Command::new("sh");
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     command.args(["-c", "sleep 30 & exit 0"]);
     let started = Instant::now();
     let output =
@@ -449,7 +449,7 @@ fn signal_exit_emits_one_interrupted_artifact() {
         let output = temp.path().join("result.json");
         std::fs::write(&gate, b"hold").unwrap();
         let mut command = std::process::Command::new(worker_executable());
-        tty_utils::detach_std_command(&mut command);
+        xvora_tty_utils::detach_std_command(&mut command);
         command
             .arg("--controller-gate")
             .arg(&gate)
@@ -496,7 +496,7 @@ fn worker_detached_hook_is_killed_on_signal_cleanup() {
     let worker_gate = gate.clone();
     let worker = std::thread::spawn(move || {
         let mut command = std::process::Command::new(worker_executable());
-        tty_utils::detach_std_command(&mut command);
+        xvora_tty_utils::detach_std_command(&mut command);
         command
             .arg("--worker")
             .arg("--worker-stop-before-work")
@@ -530,7 +530,7 @@ fn signal_during_command_terminates_registered_group() {
     let worker_registry = registry.clone();
     let worker = std::thread::spawn(move || {
         let mut command = std::process::Command::new("sh");
-        tty_utils::detach_std_command(&mut command);
+        xvora_tty_utils::detach_std_command(&mut command);
         command.args(["-c", "sleep 30 & wait"]);
         runtime::run_contained_command(
             &worker_registry,
@@ -772,7 +772,7 @@ fn command_enrollment_signal_race_has_no_unowned_child() {
         let worker_registry = registry.clone();
         let worker = std::thread::spawn(move || {
             let mut command = std::process::Command::new("sh");
-            tty_utils::detach_std_command(&mut command);
+            xvora_tty_utils::detach_std_command(&mut command);
             command.args(["-c", "sleep 30"]);
             runtime::run_contained_command(
                 &worker_registry,

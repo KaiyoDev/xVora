@@ -469,7 +469,7 @@ fn fetch_timeout_kills_process_group_with_grandchild() {
     use std::process::Stdio;
     use std::time::Instant;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let dir = TempDir::new().unwrap();
     let pidfile = dir.path().join("grandchild.pid");
@@ -533,7 +533,7 @@ fn pid_alive(pid: u32) -> bool {
 fn fetch_nonzero_exit_includes_stderr() {
     use std::process::Stdio;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let mut cmd = std::process::Command::new("sh");
     cmd.args(["-c", "echo 'fatal: unsavoury object' >&2; exit 128"])
@@ -558,7 +558,7 @@ fn fetch_nonzero_exit_includes_stderr() {
 fn fetch_stderr_is_truncated() {
     use std::process::Stdio;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let mut cmd = std::process::Command::new("sh");
     cmd.args(["-c", "dd if=/dev/zero bs=9000 count=1 >&2; exit 1"])
@@ -585,7 +585,7 @@ fn fetch_child_drop_tears_down_process() {
     use std::process::Stdio;
     use std::time::Instant;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let mut cmd = std::process::Command::new("sleep");
     cmd.arg("30")
@@ -610,7 +610,7 @@ fn fetch_timeout_sigkills_term_immune_grandchild() {
     use std::process::Stdio;
     use std::time::Instant;
 
-    use tty_utils::detach_std_command;
+    use xvora_tty_utils::detach_std_command;
 
     let dir = TempDir::new().unwrap();
     let pidfile = dir.path().join("grandchild.pid");
@@ -651,17 +651,17 @@ fn fetch_timeout_sigkills_term_immune_grandchild() {
 }
 
 fn run_git(dir: &Path, args: &[&str]) -> String {
-    test_utils::require_git!();
-    test_utils::git::run_git(dir, args)
+    xvora_test_utils::require_git!();
+    xvora_test_utils::git::run_git(dir, args)
 }
 
 fn init_upstream_two_commits(dir: &Path) -> (String, String) {
-    test_utils::git::init_git_repo(dir);
+    xvora_test_utils::git::init_git_repo(dir);
     std::fs::write(dir.join("README.md"), "one\n").unwrap();
-    test_utils::git::git_commit_all(dir, "one");
+    xvora_test_utils::git::git_commit_all(dir, "one");
     let first = run_git(dir, &["rev-parse", "HEAD"]);
     std::fs::write(dir.join("README.md"), "two\n").unwrap();
-    test_utils::git::git_commit_all(dir, "two");
+    xvora_test_utils::git::git_commit_all(dir, "two");
     let second = run_git(dir, &["rev-parse", "HEAD"]);
     (first, second)
 }
@@ -684,8 +684,8 @@ fn hermetic_fetch_keeps_shallow_clone_shallow_and_makes_base_reachable() {
     let (base, head) = init_upstream_two_commits(upstream.path());
     let dest = TempDir::new().unwrap();
     let dest_repo = dest.path().join("repo");
-    test_utils::require_git!();
-    test_utils::git::run_git(
+    xvora_test_utils::require_git!();
+    xvora_test_utils::git::run_git(
         dest.path(),
         &[
             "clone",
@@ -707,15 +707,15 @@ fn hermetic_fetch_keeps_shallow_clone_shallow_and_makes_base_reachable() {
 #[test]
 fn hermetic_fetch_keeps_full_clone_unshallow() {
     let upstream = TempDir::new().unwrap();
-    test_utils::git::init_git_repo(upstream.path());
+    xvora_test_utils::git::init_git_repo(upstream.path());
     std::fs::write(upstream.path().join("README.md"), "one\n").unwrap();
-    test_utils::git::git_commit_all(upstream.path(), "one");
+    xvora_test_utils::git::git_commit_all(upstream.path(), "one");
     let base = run_git(upstream.path(), &["rev-parse", "HEAD"]);
 
     let dest = TempDir::new().unwrap();
     let dest_repo = dest.path().join("repo");
-    test_utils::require_git!();
-    test_utils::git::run_git(
+    xvora_test_utils::require_git!();
+    xvora_test_utils::git::run_git(
         dest.path(),
         &[
             "clone",
@@ -726,7 +726,7 @@ fn hermetic_fetch_keeps_full_clone_unshallow() {
     assert!(!is_shallow(&dest_repo));
 
     std::fs::write(upstream.path().join("README.md"), "two\n").unwrap();
-    test_utils::git::git_commit_all(upstream.path(), "two");
+    xvora_test_utils::git::git_commit_all(upstream.path(), "two");
     let head = run_git(upstream.path(), &["rev-parse", "HEAD"]);
 
     let outcome = ensure_commits_reachable(&dest_repo, &head, &base).expect("ensure");
@@ -739,7 +739,7 @@ fn hermetic_fetch_keeps_full_clone_unshallow() {
 }
 
 fn run_git_allow_fail(dir: &Path, args: &[&str]) -> Result<String, String> {
-    test_utils::require_git!();
+    xvora_test_utils::require_git!();
     let output = std::process::Command::new("git")
         .args(args)
         .current_dir(dir)

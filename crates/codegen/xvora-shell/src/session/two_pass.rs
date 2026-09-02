@@ -4,7 +4,7 @@
 //! Pass2 rewrites NOTE₁ and the ~5% tail into NOTE₂, the note the successor sees.
 //! Sampling lives in [`super::compaction`]; this module has no I/O.
 
-use chat_state::estimate_item_tokens;
+use xvora_chat_state::estimate_item_tokens;
 use xvora_sampling_types::ConversationItem;
 
 /// Default history fraction covered by pass1.

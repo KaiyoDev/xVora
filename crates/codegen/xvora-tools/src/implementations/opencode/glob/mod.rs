@@ -92,7 +92,7 @@ pub struct GlobOutput {
     pub cwd_for_display: String,
 }
 
-impl tool_runtime::ToolOutput for GlobOutput {}
+impl xvora_tool_runtime::ToolOutput for GlobOutput {}
 
 impl From<GlobOutput> for ToolOutput {
     fn from(output: GlobOutput) -> Self {
@@ -120,25 +120,28 @@ impl crate::types::tool_metadata::ToolMetadata for GlobTool {
     }
 }
 
-impl tool_runtime::Tool for GlobTool {
+impl xvora_tool_runtime::Tool for GlobTool {
     type Args = GlobInput;
     type Output = GlobOutput;
 
-    fn id(&self) -> tool_protocol::ToolId {
-        tool_protocol::ToolId::new("glob").expect("valid tool id")
+    fn id(&self) -> xvora_tool_protocol::ToolId {
+        xvora_tool_protocol::ToolId::new("glob").expect("valid tool id")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
-        tool_types::ToolDescription::new(
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
+        xvora_tool_types::ToolDescription::new(
             "glob",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
-        tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+        xvora_tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(tool_protocol::ToolScope::Read),
+            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -146,9 +149,9 @@ impl tool_runtime::Tool for GlobTool {
     #[tracing::instrument(name = "tool.glob", skip_all)]
     async fn run(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         input: GlobInput,
-    ) -> Result<GlobOutput, tool_runtime::ToolError> {
+    ) -> Result<GlobOutput, xvora_tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -180,7 +183,7 @@ impl tool_runtime::Tool for GlobTool {
             // stderr is never read; a pipe would block rg once warnings fill it.
             // Cached descriptor, not `Stdio::null()`: an unlinked `/dev/null`
             // must not fail the spawn.
-            .stderr(tty_utils::null_stdio());
+            .stderr(xvora_tty_utils::null_stdio());
         crate::util::detach_search_command(&mut cmd);
 
         #[allow(clippy::disallowed_methods)] // search helper, waited on below
@@ -368,7 +371,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -393,7 +396,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -428,7 +431,7 @@ mod tests {
 
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -459,7 +462,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -488,7 +491,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -522,7 +525,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -542,7 +545,7 @@ mod tests {
     fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = GlobTool;
-        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "glob");
+        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "glob");
         assert!(matches!(tool.kind(), ToolKind::List));
         assert!(matches!(tool.tool_namespace(), ToolNamespace::OpenCode));
     }
@@ -578,7 +581,7 @@ mod tests {
         // cwd is the tmp root, but we pass the absolute path to the sub dir
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -601,7 +604,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -625,7 +628,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -645,7 +648,7 @@ mod tests {
         let tool = GlobTool;
         let resources = Resources::new(); // No Cwd inserted
 
-        let result = tool_runtime::Tool::run(
+        let result = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -674,7 +677,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -703,7 +706,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -736,7 +739,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
 
         // Initialize a git repo so ripgrep respects .gitignore.
-        test_utils::git::ensure_hermetic_git_on_path();
+        xvora_test_utils::git::ensure_hermetic_git_on_path();
         let status = std::process::Command::new("git")
             .args(["init"])
             .current_dir(tmp.path())
@@ -763,7 +766,7 @@ mod tests {
         // Pattern **/*.txt would match both files if .gitignore were not in
         // effect. Because ripgrep processes the ignore stack *before* applying
         // the glob whitelist for directory ignores, ignored_dir/ is pruned.
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {
@@ -794,7 +797,7 @@ mod tests {
         let tool = GlobTool;
         let resources = test_resources(tmp.path());
 
-        let output = tool_runtime::Tool::run(
+        let output = xvora_tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             GlobInput {

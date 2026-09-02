@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
-use file_utils::workspace_classifier::is_project_dir;
+use xvora_file_utils::workspace_classifier::is_project_dir;
 use xvora_shell::session::persistence::list_recent_summaries;
 
 pub async fn collect_recent_dirs(limit: usize) -> Vec<(PathBuf, DateTime<Utc>)> {

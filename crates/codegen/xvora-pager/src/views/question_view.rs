@@ -12,11 +12,11 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use acp_lib::AcpResult;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
+use xvora_acp_lib::AcpResult;
 use xvora_markdown::StreamingMarkdownRenderer;
 pub use xvora_tools::implementations::grok_build::ask_user_question::{
     AskUserQuestionMode, Question, QuestionOption,

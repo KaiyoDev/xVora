@@ -12,12 +12,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use tool_protocol::{ToolCapabilities, ToolId};
-use tool_runtime::{
+use xvora_tool_protocol::{ToolCapabilities, ToolId};
+use xvora_tool_runtime::{
     ArcTool, ContentBlock, Tool, ToolCallContext, ToolDyn, ToolError, ToolErrorKind, ToolFamily,
     ToolOutput, ToolProgress, ToolStream, ToolStreamItem, ToolVariant, with_progress,
 };
-use tool_types::ToolDescription;
+use xvora_tool_types::ToolDescription;
 
 fn tid(s: &str) -> ToolId {
     ToolId::new(s).expect("test tool ids are well-formed")
@@ -46,7 +46,7 @@ impl Tool for BlockingEcho {
         tid("blocking_echo")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("blocking_echo", "echo the input text")
     }
 
@@ -77,7 +77,7 @@ impl Tool for StreamingEcho {
         tid("streaming_echo")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("streaming_echo", "stream then echo")
     }
 
@@ -117,7 +117,7 @@ impl Tool for UnencodableTool {
         tid("unencodable")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("unencodable", "always returns a non-serializable output")
     }
 
@@ -156,7 +156,7 @@ impl Tool for RichTool {
         tid("rich")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("rich", "returns custom model output")
     }
 
@@ -220,7 +220,7 @@ async fn tool_dyn_delegates_id_description_capabilities() {
     let tool: ArcTool = Arc::new(BlockingEcho);
     assert_eq!(tool.id(), tid("blocking_echo"));
     assert_eq!(
-        tool.description(&tool_runtime::ListToolsContext::default())
+        tool.description(&xvora_tool_runtime::ListToolsContext::default())
             .name,
         "blocking_echo"
     );
@@ -333,7 +333,7 @@ impl Tool for PrefixedEcho {
         tid("echo")
     }
 
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("echo", "prefixed echo")
     }
 

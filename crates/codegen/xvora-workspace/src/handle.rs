@@ -1,14 +1,16 @@
+//! [`WorkspaceHandle`] -- public handle to a workspace instance.
 use fastrace::future::FutureExt as _;
 use fastrace::local::LocalSpan;
-use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use prometheus::{
     Histogram, HistogramVec, IntCounter, IntCounterVec, register_histogram, register_histogram_vec,
     register_int_counter, register_int_counter_vec,
 };
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tool_protocol::ToolServerStatusPayload;
-use tool_protocol::turn_hook::TurnHookOutcome;
+use xvora_hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
+use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+use xvora_tool_protocol::{SessionId, ToolId, ToolServerStatusPayload};
 /// Default SIGTERM drain budget (ms); override via `GROK_WORKSPACE_TERMINATION_GRACE_MS`.
 /// 45s fits under the K8s grace period.
 const DEFAULT_TERMINATION_GRACE_MS: u64 = 45_000;
@@ -117,6 +119,19 @@ static WORKSPACE_BIND_ZERO_TOOLS_TOTAL: std::sync::LazyLock<IntCounterVec> =
     });
 /// `session.bind` resolutions that FAILED the bind (the server reports bind-unavailable and the harness re-provisions), by reason.
 /// Distinct from [`WORKSPACE_BIND_ZERO_TOOLS_TOTAL`], which counts binds that *completed* while advertising zero model-facing tools.
+/// Binds that SUCCEEDED but with MCP degraded (binding left `Closed` until
+/// the next bind). Deliberately not `WORKSPACE_BIND_FAILED_TOTAL`: the bind
+/// invariant is that no MCP condition fails a bind, so MCP race outcomes
+/// are degradations, not failures.
+static WORKSPACE_BIND_MCP_DEGRADED_TOTAL: std::sync::LazyLock<IntCounterVec> =
+    std::sync::LazyLock::new(|| {
+        register_int_counter_vec!(
+            "grok_workspace_bind_mcp_degraded_total",
+            "session.bind resolutions that succeeded with MCP degraded, by reason",
+            &["reason"]
+        )
+        .unwrap()
+    });
 static WORKSPACE_BIND_FAILED_TOTAL: std::sync::LazyLock<IntCounterVec> =
     std::sync::LazyLock::new(|| {
         register_int_counter_vec!(
@@ -182,16 +197,16 @@ use crate::session::swap_policy::{
     record_swap_decision, record_toolset_swap,
 };
 use crate::session::tool_config::resolve_session_toolset;
-use crate::session::{WorkspaceSession, WorkspaceShared};
+use crate::session::{WorkspaceMcpBinding, WorkspaceSession, WorkspaceShared};
 use crate::telemetry::dc_log;
 use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
-use diag_server::DiagHandle;
-use file_utils::queue::EnqueueOutcome;
-use session_events::types::CancellationCategory;
-use session_events::{Event, SessionRelationship, TurnOutcomeLabel};
-use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
+use xvora_diag_server::DiagHandle;
+use xvora_file_utils::queue::EnqueueOutcome;
+use xvora_session_events::types::CancellationCategory;
+use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
+use xvora_tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
 /// Per-domain checkpoint captures, by domain and turn outcome.
 pub(crate) static REWIND_CHECKPOINT_CAPTURE_TOTAL: std::sync::LazyLock<IntCounterVec> =
     std::sync::LazyLock::new(|| {
@@ -351,6 +366,9 @@ pub(crate) fn init_metrics() {
             .with_label_values(&[reason])
             .inc_by(0);
     }
+    WORKSPACE_BIND_MCP_DEGRADED_TOTAL
+        .with_label_values(&["raced_teardown"])
+        .inc_by(0);
     for reason in ["empty_after_filter", "missing_tool_config"] {
         WORKSPACE_BIND_ZERO_TOOLS_TOTAL
             .with_label_values(&[reason])
@@ -436,8 +454,8 @@ impl WorkspaceHandle {
         &self,
         service_name: &str,
     ) -> Option<(
-        computer_hub_sdk::HubDonatingReporter,
-        computer_hub_sdk::TraceDonationPump,
+        xvora_computer_hub_sdk::HubDonatingReporter,
+        xvora_computer_hub_sdk::TraceDonationPump,
     )> {
         self.shared
             .hub_handle
@@ -451,13 +469,13 @@ impl WorkspaceHandle {
     /// On `Some`, yields a [`LogDonationSender`] to swap into the already-installed inert `DonatingLogLayer` plus a drain handle.
     /// Never hands out an owned `ToolServer`: dropping a clone starts server teardown.
     ///
-    /// [`LogDonationSender`]: computer_hub_sdk::LogDonationSender
+    /// [`LogDonationSender`]: xvora_computer_hub_sdk::LogDonationSender
     pub async fn log_donation_layer(
         &self,
         service_name: &str,
     ) -> Option<(
-        computer_hub_sdk::LogDonationSender,
-        computer_hub_sdk::LogDonationPump,
+        xvora_computer_hub_sdk::LogDonationSender,
+        xvora_computer_hub_sdk::LogDonationPump,
     )> {
         self.shared
             .hub_handle
@@ -473,7 +491,7 @@ impl WorkspaceHandle {
     pub async fn metric_donation_reporter(
         &self,
         service_name: &str,
-    ) -> Option<computer_hub_sdk::MetricDonationPump> {
+    ) -> Option<xvora_computer_hub_sdk::MetricDonationPump> {
         self.shared
             .hub_handle
             .lock()
@@ -501,7 +519,7 @@ impl WorkspaceHandle {
             crate::upload::environment::WorkspaceIdentity::default(),
         )
     }
-    /// Construct a handle with an explicit `$GROK_WORKSPACE_HOME` and a pre-spawned [`UploadQueue`](file_utils::queue::UploadQueue).
+    /// Construct a handle with an explicit `$GROK_WORKSPACE_HOME` and a pre-spawned [`UploadQueue`](xvora_file_utils::queue::UploadQueue).
     ///
     /// [`connect_local_workspace`] calls this so the queue is backed by the proxy storage config.
     /// [`Self::new`] takes the queue-less path for tests and local mode.
@@ -511,7 +529,7 @@ impl WorkspaceHandle {
     pub(crate) fn new_with_data_collection(
         config: WorkspaceConfig,
         workspace_home: std::path::PathBuf,
-        upload_queue: Arc<file_utils::queue::UploadQueue>,
+        upload_queue: Arc<xvora_file_utils::queue::UploadQueue>,
         upload_queue_enabled: bool,
         data_collection_disabled: bool,
         identity: crate::upload::environment::WorkspaceIdentity,
@@ -531,7 +549,7 @@ impl WorkspaceHandle {
     fn build(
         config: WorkspaceConfig,
         workspace_home: std::path::PathBuf,
-        upload_queue: Option<Arc<file_utils::queue::UploadQueue>>,
+        upload_queue: Option<Arc<xvora_file_utils::queue::UploadQueue>>,
         _upload_queue_enabled: bool,
         data_collection_disabled: bool,
         events_enabled: bool,
@@ -540,7 +558,7 @@ impl WorkspaceHandle {
         identity: crate::upload::environment::WorkspaceIdentity,
     ) -> WorkspaceResult<Self> {
         let sessions = std::collections::HashMap::new();
-        let local_registry = computer_hub_sdk::LocalRegistry::new();
+        let local_registry = xvora_computer_hub_sdk::LocalRegistry::new();
         let capacity = if config.event_buffer_capacity == 0 {
             DEFAULT_EVENT_BUFFER_CAPACITY
         } else {
@@ -607,8 +625,9 @@ impl WorkspaceHandle {
                 Some(adapter)
             }
         };
-        let session_event_writers: Arc<dashmap::DashMap<String, session_events::EventWriter>> =
-            Arc::new(dashmap::DashMap::new());
+        let session_event_writers: Arc<
+            dashmap::DashMap<String, xvora_session_events::EventWriter>,
+        > = Arc::new(dashmap::DashMap::new());
         let activity_tracker =
             Arc::new(
                 crate::activity::ActivityTracker::with_prune_window(
@@ -647,6 +666,7 @@ impl WorkspaceHandle {
             root_cwd: config.root_cwd.clone(),
             sessions: parking_lot::RwLock::new(sessions),
             session_factory: config.session_factory,
+            bind_mcp: config.bind_mcp.map(parking_lot::RwLock::new),
             mcp_tools_snapshot: arc_swap::ArcSwap::new(Arc::new(vec![])),
             events,
             respect_gitignore: config.respect_gitignore,
@@ -702,17 +722,17 @@ impl WorkspaceHandle {
     pub fn activity_tracker(&self) -> &std::sync::Arc<crate::activity::ActivityTracker> {
         &self.shared.activity_tracker
     }
-    /// The [`ToolServer`](computer_hub_sdk::ToolServer) for this workspace, if a server connection is active.
+    /// The [`ToolServer`](xvora_computer_hub_sdk::ToolServer) for this workspace, if a server connection is active.
     ///
     /// Non-blocking: returns `None` both when no server is connected and when the handle is momentarily locked (e.g. a concurrent connect).
     /// Callers must treat `None` as "no server available right now" and degrade gracefully.
-    pub fn hub_server(&self) -> Option<computer_hub_sdk::ToolServer> {
+    pub fn hub_server(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
         self.shared.hub_server()
     }
     /// Like [`Self::hub_server`] but awaits the connection lock instead of returning `None` on contention.
     /// A transient `connect_hub` lock is not mistaken for "no server"; `None` means no server is connected.
     /// Use from async callers.
-    pub async fn hub_server_blocking(&self) -> Option<computer_hub_sdk::ToolServer> {
+    pub async fn hub_server_blocking(&self) -> Option<xvora_computer_hub_sdk::ToolServer> {
         self.shared.hub_server_blocking().await
     }
     pub(crate) fn root_cwd(&self) -> crate::error::WorkspaceResult<PathBuf> {
@@ -748,7 +768,7 @@ impl WorkspaceHandle {
         cwd: Option<std::path::PathBuf>,
         tool_config: Option<xvora_tools::registry::types::ToolServerConfig>,
         capability: CapabilityMode,
-        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
         system_notifications: bool,
     ) -> WorkspaceResult<Arc<WorkspaceSession>> {
         let session_id = session_id.into();
@@ -806,7 +826,7 @@ impl WorkspaceHandle {
         hunk_tracker: HunkTrackerHandle,
         tool_config: Option<xvora_tools::registry::types::ToolServerConfig>,
         capability: CapabilityMode,
-        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
         system_notifications: bool,
     ) -> WorkspaceResult<Arc<WorkspaceSession>> {
         self.create_session_with_tracker_inner(
@@ -832,7 +852,7 @@ impl WorkspaceHandle {
         hunk_tracker_cancel: Option<tokio_util::sync::CancellationToken>,
         tool_config: Option<xvora_tools::registry::types::ToolServerConfig>,
         capability: CapabilityMode,
-        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
         system_notifications: bool,
     ) -> WorkspaceResult<Arc<WorkspaceSession>> {
         let session_id = session_id.into();
@@ -1244,7 +1264,7 @@ impl WorkspaceHandle {
     pub async fn on_before_turn(
         &self,
         session_id: &str,
-        payload: &tool_protocol::turn_hook::BeforeTurnPayload,
+        payload: &xvora_tool_protocol::turn_hook::BeforeTurnPayload,
     ) {
         self.sync_session_yolo_mode(session_id, payload.yolo_mode);
         let before_handle = self
@@ -1282,14 +1302,14 @@ impl WorkspaceHandle {
     pub async fn on_after_turn(
         &self,
         session_id: &str,
-        payload: &tool_protocol::turn_hook::AfterTurnPayload,
+        payload: &xvora_tool_protocol::turn_hook::AfterTurnPayload,
     ) {
         let _ = self.process_after_turn(session_id, payload).await;
     }
     async fn process_after_turn(
         &self,
         session_id: &str,
-        payload: &tool_protocol::turn_hook::AfterTurnPayload,
+        payload: &xvora_tool_protocol::turn_hook::AfterTurnPayload,
     ) -> (
         Option<tokio::task::JoinHandle<EnqueueOutcome>>,
         Option<tokio::task::JoinHandle<EnqueueOutcome>>,
@@ -1340,9 +1360,9 @@ impl WorkspaceHandle {
     pub async fn compute_turn_injections(
         &self,
         session_id: &str,
-        request: &tool_protocol::turn_hook::TurnHookRequest,
-    ) -> tool_protocol::turn_hook::HookReply {
-        use tool_protocol::turn_hook::{HookReply, TurnHookRequest};
+        request: &xvora_tool_protocol::turn_hook::TurnHookRequest,
+    ) -> xvora_tool_protocol::turn_hook::HookReply {
+        use xvora_tool_protocol::turn_hook::{HookReply, TurnHookRequest};
         match request {
             TurnHookRequest::Before(payload) => {
                 self.on_before_turn(session_id, payload).await;
@@ -1668,7 +1688,7 @@ impl WorkspaceHandle {
         self.shared.activity_tracker.tool_call_completed(
             call_id,
             Some(session_id),
-            session_events::ToolOutcome::Cancelled,
+            xvora_session_events::ToolOutcome::Cancelled,
         );
         tracing::info!(%session_id, %call_id, "cancel_tool_call: marked as completed");
     }
@@ -2377,19 +2397,19 @@ impl WorkspaceHandle {
     pub fn get_or_create_codebase_index(
         &self,
         cwd: std::path::PathBuf,
-    ) -> (Arc<codebase_graph::IndexManagerHandle>, bool) {
+    ) -> (Arc<xvora_codebase_graph::IndexManagerHandle>, bool) {
         self.shared.codebase_indexes.lock().get_or_create(cwd)
     }
     pub fn get_codebase_index(
         &self,
         cwd: &std::path::Path,
-    ) -> Option<Arc<codebase_graph::IndexManagerHandle>> {
+    ) -> Option<Arc<xvora_codebase_graph::IndexManagerHandle>> {
         self.shared.codebase_indexes.lock().get(cwd)
     }
     pub fn get_covering_codebase_index(
         &self,
         path: &std::path::Path,
-    ) -> Option<Arc<codebase_graph::IndexManagerHandle>> {
+    ) -> Option<Arc<xvora_codebase_graph::IndexManagerHandle>> {
         self.shared.codebase_indexes.lock().get_covering(path)
     }
     pub fn ensure_codebase_indexes(&self, roots: &[std::path::PathBuf]) {
@@ -2519,7 +2539,7 @@ impl WorkspaceHandle {
         session_id: &str,
         cwd: &std::path::Path,
         trace_parent: Option<fastrace::collector::SpanContext>,
-    ) -> Option<file_utils::queue::EnqueueOutcome> {
+    ) -> Option<xvora_file_utils::queue::EnqueueOutcome> {
         let upload_queue = self.shared.upload_queue.clone()?;
         if !is_safe_object_segment(session_id) {
             tracing::warn!(%session_id, "environment: unsafe session id, skipping");
@@ -2598,7 +2618,7 @@ impl WorkspaceHandle {
             )
             .await;
         match &outcome {
-            file_utils::queue::EnqueueOutcome::Failed { reason: _ } => {
+            xvora_file_utils::queue::EnqueueOutcome::Failed { reason: _ } => {
                 dc_log!(
                     warn,
                     session_id = %session_id,
@@ -2620,20 +2640,23 @@ impl WorkspaceHandle {
         }
         Some(outcome)
     }
-    /// Start MCP servers for a session and bridge them to the server.
+    /// Replace a session's MCP servers with `configs` (`workspace.configure_mcp`).
+    ///
+    /// Client-driven, so it is refused on a workspace whose MCP servers come
+    /// from local configuration — there, the machine owns the set and
+    /// [`Self::reload_bind_mcp`] is how it changes.
     pub async fn start_session_mcp_servers(
         &self,
         session_id: &str,
-        configs: Vec<agent_client_protocol::McpServer>,
+        mut configs: Vec<agent_client_protocol::McpServer>,
     ) -> crate::error::WorkspaceResult<crate::mcp::McpStartResult> {
-        use crate::mcp::{
-            McpClientTransportAdapter, McpStartFailure, McpStartResult, QualifiedMcpToolHandler,
-            make_bridge_config, server_name_from_mcp_error,
-        };
-        use computer_hub_mcp_adapter::McpBridge;
-        use computer_hub_sdk::ToolServerHandler as _;
-        use tool_protocol::SessionId;
-        use xvora_mcp::servers::MCP_TOOL_NAME_DELIMITER;
+        crate::mcp::dedupe_servers_last_wins(&mut configs);
+        crate::mcp::cap_servers(&mut configs);
+        if self.shared.bind_mcp.is_some() {
+            return Err(WorkspaceError::HubError(
+                "bind-time MCP configuration is immutable".to_owned(),
+            ));
+        }
         let tool_server = {
             let hub_guard = self.shared.hub_handle.lock().await;
             let hub = hub_guard
@@ -2646,142 +2669,43 @@ impl WorkspaceHandle {
             .ok_or_else(|| WorkspaceError::SessionNotFound(session_id.to_owned()))?;
         let sid = SessionId::new(session_id)
             .map_err(|e| WorkspaceError::HubError(format!("invalid session_id: {e}")))?;
+        let _update_guard = session.update_lock.lock().await;
+        let live: Vec<String> = session
+            .mcp_binding
+            .lock()
+            .await
+            .active()
+            .map(|active| active.servers.keys().cloned().collect())
+            .unwrap_or_default();
+        crate::mcp::stop_servers(&session, &sid, &tool_server, &live).await;
         {
-            let mut tool_ids = session.mcp_tool_ids.lock().await;
-            for tid in tool_ids.drain(..) {
-                let _ = tool_server.unregister_tool_dynamic(&tid, &sid).await;
-            }
-            let mut existing_bridges = session.mcp_bridges.lock().await;
-            existing_bridges.clear();
+            let _binding = session.mcp_binding.lock().await;
             let mut state = session.mcp_state.lock().await;
+            state.update_configs(configs.clone());
             state.owned_clients.clear();
         }
-        let session_id_owned = session_id.to_owned();
-        let event_writer = self.shared.session_event_writer(session_id);
-        let rt_handle = tokio::runtime::Handle::current();
-        let mcp_results: Vec<Result<xvora_mcp::servers::McpClient, xvora_mcp::servers::McpError>> =
-            tokio::task::spawn_blocking(move || {
-                use std::collections::HashMap;
-                use xvora_mcp::oauth_config::McpOAuthConfigMap;
-                use xvora_mcp::servers::{McpClientTimeoutOverrides, McpMetaConfigMap};
-                let overrides_map: HashMap<String, McpClientTimeoutOverrides> = HashMap::new();
-                let meta_config_map = McpMetaConfigMap::new();
-                let oauth_config_map = McpOAuthConfigMap::new();
-                let ctx = xvora_mcp::servers::McpSpawnCtx::for_session(
-                    &session_id_owned,
-                    &event_writer,
-                    xvora_mcp::servers::OauthInteractivity::Interactive,
-                    None,
-                );
-                rt_handle.block_on(xvora_mcp::servers::start_mcp_servers(
-                    configs,
-                    &overrides_map,
-                    &meta_config_map,
-                    &oauth_config_map,
-                    &ctx,
-                ))
-            })
-            .await
-            .map_err(|e| WorkspaceError::JoinError(e.to_string()))?;
-        let mcp_state = session.mcp_state.clone();
-        let mut started = Vec::new();
-        let mut failed = Vec::new();
-        let mut bridges = Vec::new();
-        let mut registered_tool_ids = Vec::new();
-        for result in mcp_results {
-            match result {
-                Ok(client) => {
-                    let server_name = client.server_name().to_owned();
-                    let client = Arc::new(client);
-                    {
-                        let mut state = mcp_state.lock().await;
-                        state
-                            .owned_clients
-                            .insert(server_name.clone(), Arc::clone(&client));
-                    }
-                    let transport: Arc<dyn computer_hub_mcp_adapter::McpTransport> =
-                        Arc::new(McpClientTransportAdapter::new(Arc::clone(&client)));
-                    let bridge_config = make_bridge_config(sid.clone(), &server_name);
-                    match McpBridge::connect(transport, &bridge_config).await {
-                        Ok(handle) => {
-                            for handler in handle.bridge.handlers() {
-                                let qualified_name = format!(
-                                    "{}{}{}",
-                                    server_name,
-                                    MCP_TOOL_NAME_DELIMITER,
-                                    handler.tool_id()
-                                );
-                                let qualified = match QualifiedMcpToolHandler::try_new(
-                                    qualified_name.clone(),
-                                    handler.clone(),
-                                ) {
-                                    Some(h) => Arc::new(h),
-                                    None => continue,
-                                };
-                                if let Err(e) = tool_server
-                                    .register_tool_dynamic(qualified, vec![sid.clone()])
-                                    .await
-                                {
-                                    tracing::warn!(
-                                        server = %server_name,
-                                        tool = %qualified_name,
-                                        error = %e,
-                                        "failed to register MCP tool on hub"
-                                    );
-                                } else if let Ok(tid) = tool_protocol::ToolId::new(&qualified_name)
-                                {
-                                    registered_tool_ids.push(tid);
-                                }
-                            }
-                            bridges.push(handle);
-                            started.push(server_name);
-                        }
-                        Err(e) => {
-                            {
-                                let mut state = mcp_state.lock().await;
-                                state.owned_clients.remove(&server_name);
-                            }
-                            tracing::warn!(
-                                server = %server_name,
-                                error = %e,
-                                "McpBridge::connect failed"
-                            );
-                            failed.push(McpStartFailure {
-                                name: server_name,
-                                error: e.to_string(),
-                            });
-                        }
-                    }
-                }
-                Err(e) => {
-                    let name = server_name_from_mcp_error(&e).to_owned();
-                    tracing::warn!(
-                        server = %name,
-                        error = %e,
-                        "MCP server start failed"
-                    );
-                    failed.push(McpStartFailure {
-                        name,
-                        error: e.to_string(),
-                    });
-                }
-            }
-        }
-        {
-            let mut session_bridges = session.mcp_bridges.lock().await;
-            session_bridges.extend(bridges);
-        }
-        {
-            let mut ids = session.mcp_tool_ids.lock().await;
-            ids.extend(registered_tool_ids);
-        }
-        tracing::info!(
-            session_id = %session_id,
-            started = ?started,
-            failed_count = failed.len(),
-            "session MCP servers initialized"
-        );
-        if !started.is_empty() {
+        let (started, life) = crate::mcp::connect_servers(
+            &session,
+            session_id,
+            configs,
+            crate::config::BindMcpConfig::DEFAULT_DISCOVERY_TIMEOUT,
+            &std::collections::HashSet::new(),
+            self.shared.session_event_writer(session_id),
+        )
+        .await?;
+        let result = crate::mcp::McpStartResult {
+            started: started.servers.iter().map(|s| s.name.clone()).collect(),
+            failed: started.failed.clone(),
+        };
+        crate::mcp::install_and_advertise_qualified(
+            &session,
+            &sid,
+            &tool_server,
+            started.servers,
+            life,
+        )
+        .await?;
+        if !result.started.is_empty() {
             let _ = self
                 .shared
                 .events
@@ -2789,33 +2713,245 @@ impl WorkspaceHandle {
                     session_id: session_id.to_owned(),
                 });
         }
-        Ok(McpStartResult { started, failed })
+        Ok(result)
     }
-    /// Unregister all MCP tools for a session from the server.
-    pub async fn teardown_session_mcp(&self, session_id: &str) {
-        let tool_server = {
-            let hub_guard = self.shared.hub_handle.lock().await;
-            match hub_guard.as_ref() {
-                Some(hub) => hub.server.clone(),
-                None => return,
+    /// Publish a new locally-configured MCP set and converge every live
+    /// session onto it, without restarting the process.
+    ///
+    /// Only added, removed, and redefined servers are touched; the rest keep
+    /// their client, process, and in-flight calls. Tool changes reach the
+    /// model through the hub's own `tools_changed` fan-out, which the
+    /// harness already refreshes on. Sessions converge concurrently, each
+    /// serialized only by its own `update_lock`, and every convergence reads
+    /// the *published* config at execution time — so overlapping reloads
+    /// need no global ordering: the last publish wins. Returns the
+    /// per-session changes made; `Ok(vec![])` on a workspace with no local
+    /// MCP configuration (reloads do not apply there).
+    ///
+    /// # Errors
+    ///
+    /// [`WorkspaceError::HubError`] when no hub is connected. The config is
+    /// **published before that check** — new and revived binds start from it
+    /// — but no running session was converged, so the caller should retry
+    /// once the hub is back.
+    pub async fn reload_bind_mcp(
+        &self,
+        config: crate::config::BindMcpConfig,
+    ) -> WorkspaceResult<Vec<(String, crate::mcp::SessionMcpDelta)>> {
+        use futures::StreamExt;
+        let Some(bind_mcp) = self.shared.bind_mcp.as_ref() else {
+            tracing::debug!("ignoring MCP reload: this workspace has no local MCP configuration");
+            return Ok(Vec::new());
+        };
+        *bind_mcp.write() = config;
+        if self.shared.hub_server_blocking().await.is_none() {
+            return Err(WorkspaceError::HubError(
+                "no hub connection; the MCP config is staged and applies to new binds — \
+                 retry the reload once the hub reconnects"
+                    .to_owned(),
+            ));
+        }
+        let mut walks: futures::stream::FuturesUnordered<_> = self
+            .session_ids()
+            .into_iter()
+            .map(|session_id| async move {
+                let delta = self
+                    .converge_session_mcp(&session_id, crate::mcp::McpReclaim::IfChanged)
+                    .await;
+                (session_id, delta)
+            })
+            .collect();
+        let mut applied = Vec::new();
+        while let Some((session_id, delta)) = walks.next().await {
+            if let Some(delta) = delta
+                && !delta.is_empty()
+            {
+                applied.push((session_id, delta));
+            }
+        }
+        Ok(applied)
+    }
+    /// Converge one session's MCP servers onto the *currently published*
+    /// configuration, under that session's `update_lock`. The single entry
+    /// point for every convergence — bind-spawned, reload-driven — so tool
+    /// publication has exactly one channel (dynamic registration) and one
+    /// serialization point per session. Reads the config after taking the
+    /// lock, so a convergence queued behind another always applies the
+    /// latest publish. `None` when nothing was converged (no config, no hub,
+    /// or the session is gone); emits `ToolsChanged` when something changed.
+    pub(crate) async fn converge_session_mcp(
+        &self,
+        session_id: &str,
+        reclaim: crate::mcp::McpReclaim,
+    ) -> Option<crate::mcp::SessionMcpDelta> {
+        let bind_mcp = self.shared.bind_mcp.as_ref()?;
+        let session = self.session(session_id)?;
+        let tool_server = self.shared.hub_server_blocking().await;
+        let Some(tool_server) = tool_server else {
+            tracing::debug!(session_id, "skipping MCP convergence: no hub connection");
+            return None;
+        };
+        let _update_guard = session.update_lock.lock().await;
+        let config = bind_mcp.read().clone();
+        let delta = match crate::mcp::converge_session(
+            &session,
+            session_id,
+            &config,
+            &tool_server,
+            reclaim,
+            self.shared.session_event_writer(session_id),
+        )
+        .await
+        {
+            Ok(delta) => delta,
+            Err(error) => {
+                tracing::warn!(session_id, %error, "MCP convergence failed for session");
+                return None;
             }
         };
-        let session = match self.session(session_id) {
-            Some(s) => s,
-            None => return,
-        };
-        let sid = match tool_protocol::SessionId::new(session_id) {
-            Ok(s) => s,
-            Err(_) => return,
-        };
-        let mut tool_ids = session.mcp_tool_ids.lock().await;
-        for tid in tool_ids.drain(..) {
-            let _ = tool_server.unregister_tool_dynamic(&tid, &sid).await;
+        if !delta.is_empty() {
+            tracing::info!(
+                session_id,
+                added = ?delta.added,
+                removed = ?delta.removed,
+                failed = ?delta.failed,
+                "converged session onto the published MCP configuration"
+            );
+            let _ = self
+                .shared
+                .events
+                .send(xvora_workspace_types::WorkspaceEvent::ToolsChanged {
+                    session_id: session_id.to_owned(),
+                });
         }
-        let mut bridges = session.mcp_bridges.lock().await;
-        bridges.clear();
-        let mut state = session.mcp_state.lock().await;
-        state.owned_clients.clear();
+        Some(delta)
+    }
+    /// [`Self::drop_session`], preceded by MCP teardown when — and only when
+    /// — the drop itself would be authorized (a self-drop). One predicate
+    /// for both halves, so an unauthorized caller can neither drop another
+    /// session nor tear down its MCP servers.
+    pub async fn drop_session_with_teardown(
+        &self,
+        caller_session_id: &str,
+        session_id: &str,
+    ) -> WorkspaceResult<()> {
+        let session = self.unmap_session(caller_session_id, session_id)?;
+        self.teardown_session_mcp_arc(&session, None).await;
+        self.finalize_dropped_session(&session, session_id);
+        Ok(())
+    }
+    /// Unregister all MCP tools for a session from the server.
+    ///
+    /// Deliberately takes no `update_lock`: session-end, evict, and
+    /// `drop_session` await this from hub hooks, and a bind or reload
+    /// mid-MCP-start holds that lock for up to the discovery window — a hook
+    /// must not queue behind it. Flipping the binding to `Closed` first is
+    /// what makes the lock unnecessary: every in-flight MCP step fails
+    /// closed against it (`install_servers` refuses the session and
+    /// `claim_tools` yields nothing), and cancelling `mcp_cancel` drops any
+    /// starts still connecting. `Closed` is terminal against reloads; a
+    /// bind is the hub's authority to re-open it (enrolment compares
+    /// `mcp_epoch` so a bind that predates this teardown cannot).
+    pub async fn teardown_session_mcp(&self, session_id: &str) {
+        if let Some(session) = self.session(session_id) {
+            let _ = self.teardown_session_mcp_arc(&session, None).await;
+        }
+    }
+    /// The hub-EVENT teardown entry (`session.unbind`'s deferred task, the
+    /// `SessionEnded` hook) for a session that stays mapped: the caller
+    /// anchors the bind generation with ONE atomic load when the event
+    /// arrives, and this re-snapshots the (epoch, generation) pair
+    /// atomically under `mcp_binding` — two separate loads can tear, and a
+    /// soft rebind between them pairs the old epoch with the post-bind
+    /// generation, which would slip past the fence and close MCP under the
+    /// accepted bind. A generation moved past the anchor means a bind was
+    /// accepted since the event arrived and supersedes it. Returns whether
+    /// the teardown ran. (The unmapped-session paths — evict, drop — stay
+    /// unfenced by design: the unmap precedes the teardown, so no bind can
+    /// reach the session through the map, and the teardown must always run
+    /// or the MCP children leak.)
+    pub(crate) async fn teardown_session_mcp_for_event(
+        &self,
+        session_id: &str,
+        arrival_generation: u64,
+    ) -> bool {
+        let Some(session) = self.session(session_id) else {
+            return false;
+        };
+        let (epoch, generation) = {
+            let _binding = session.mcp_binding.lock().await;
+            (
+                session.mcp_epoch.load(std::sync::atomic::Ordering::SeqCst),
+                session
+                    .mcp_bind_generation
+                    .load(std::sync::atomic::Ordering::SeqCst),
+            )
+        };
+        if generation != arrival_generation {
+            return false;
+        }
+        self.teardown_session_mcp_arc(&session, Some((epoch, generation)))
+            .await
+    }
+    /// Arc-based teardown, so a caller that already unmapped the session
+    /// (the drop and evict paths) can still tear its MCP down.
+    pub(crate) async fn teardown_session_mcp_arc(
+        &self,
+        session: &Arc<WorkspaceSession>,
+        expected: Option<(u64, u64)>,
+    ) -> bool {
+        let session_id = session.session_id().to_owned();
+        let session_id = session_id.as_str();
+        let (servers, cancel, closed_life) = {
+            let mut binding = session.mcp_binding.lock().await;
+            let closed_life = session.mcp_epoch.load(std::sync::atomic::Ordering::SeqCst);
+            if let Some((expected_epoch, expected_bind_generation)) = expected {
+                if closed_life != expected_epoch {
+                    return false;
+                }
+                if session
+                    .mcp_bind_generation
+                    .load(std::sync::atomic::Ordering::SeqCst)
+                    != expected_bind_generation
+                {
+                    return false;
+                }
+            }
+            session
+                .mcp_epoch
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let cancel = session.mcp_cancel.lock().clone();
+            let servers = match std::mem::replace(&mut *binding, WorkspaceMcpBinding::Closed) {
+                WorkspaceMcpBinding::Active(active) => active.servers,
+                WorkspaceMcpBinding::Uninitialized | WorkspaceMcpBinding::Closed => {
+                    std::collections::HashMap::new()
+                }
+            };
+            session.mcp_state.lock().await.owned_clients.clear();
+            (servers, cancel, closed_life)
+        };
+        cancel.cancel();
+        let tool_server = {
+            let hub_guard = self.shared.hub_handle.lock().await;
+            hub_guard.as_ref().map(|hub| hub.server.clone())
+        };
+        if let (Some(tool_server), Ok(sid)) =
+            (tool_server, xvora_tool_protocol::SessionId::new(session_id))
+        {
+            for server in servers.values() {
+                for tool_id in &server.tool_ids {
+                    let _ = crate::mcp::HubToolRegistry::unregister_tool_dynamic(
+                        &tool_server,
+                        tool_id,
+                        &sid,
+                        closed_life,
+                    )
+                    .await;
+                }
+            }
+        }
+        drop(servers);
+        true
     }
     pub fn session(&self, session_id: &str) -> Option<Arc<WorkspaceSession>> {
         self.shared.sessions.read().get(session_id).cloned()
@@ -2989,6 +3125,19 @@ impl WorkspaceHandle {
             .on_unbind(Self::bind_lifecycle_ctx(session, &real_root));
     }
     pub fn drop_session(&self, caller_session_id: &str, session_id: &str) -> WorkspaceResult<()> {
+        let session = self.unmap_session(caller_session_id, session_id)?;
+        self.finalize_dropped_session(&session, session_id);
+        Ok(())
+    }
+    /// Authorize and remove the session from the map, returning the Arc so
+    /// the caller can finish teardown on it. Split from
+    /// [`Self::finalize_dropped_session`] so the MCP drop path can tear down
+    /// between the two (unmap first — see `drop_session_with_teardown`).
+    fn unmap_session(
+        &self,
+        caller_session_id: &str,
+        session_id: &str,
+    ) -> WorkspaceResult<Arc<WorkspaceSession>> {
         if caller_session_id != session_id {
             return Err(WorkspaceError::Unauthorized {
                 caller: caller_session_id.to_owned(),
@@ -2999,14 +3148,17 @@ impl WorkspaceHandle {
         let Some(session) = sessions.remove(session_id) else {
             return Err(WorkspaceError::SessionNotFound(session_id.to_owned()));
         };
-        drop(sessions);
-        self.invoke_unbind_hook(&session);
+        Ok(session)
+    }
+    /// The non-MCP half of dropping a session: unbind hook, forwarder and
+    /// backend shutdowns, debounce-entry cleanup.
+    fn finalize_dropped_session(&self, session: &Arc<WorkspaceSession>, session_id: &str) {
+        self.invoke_unbind_hook(session);
         session.abort_system_notify_producers();
         session.shutdown_terminal_backend();
         session.shutdown_browser_service();
         session.cancel_hunk_tracker();
         self.shared.tool_defs_last_emit.remove(session_id);
-        Ok(())
     }
     /// Re-resolve every session's toolset against `new_snapshot` and emit one `WorkspaceEvent::ToolsChanged` per session.
     pub fn on_mcp_snapshot_changed(
@@ -3041,12 +3193,12 @@ impl WorkspaceHandle {
     /// Extracted from `connect_hub` so tests can drive the full bind path without a hub connection.
     pub(crate) fn session_bind_resolver(
         &self,
-        catalog: Arc<Vec<Arc<dyn computer_hub_sdk::ToolServerHandler>>>,
-        rpc_tool_id: tool_protocol::ToolId,
-    ) -> computer_hub_sdk::SessionHandlerResolver {
+        catalog: Arc<Vec<Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>>>,
+        rpc_tool_id: xvora_tool_protocol::ToolId,
+    ) -> xvora_computer_hub_sdk::SessionHandlerResolver {
         let weak_shared = Arc::downgrade(&self.shared);
         Arc::new(
-            move |sid: tool_protocol::SessionId, params: Option<serde_json::Value>| {
+            move |sid: xvora_tool_protocol::SessionId, params: Option<serde_json::Value>| {
                 let catalog = catalog.clone();
                 let rpc_tool_id = rpc_tool_id.clone();
                 let weak_shared = weak_shared.clone();
@@ -3065,12 +3217,13 @@ impl WorkspaceHandle {
                     });
                 Box::pin(
                 async move {
+                    let bind_started = std::time::Instant::now();
                     let Some(shared) = weak_shared.upgrade() else {
                         WORKSPACE_BIND_FAILED_TOTAL
                             .with_label_values(&["workspace_shutdown"])
                             .inc();
                         return Err(
-                            tool_runtime::ToolError::service_unavailable(
+                            xvora_tool_runtime::ToolError::service_unavailable(
                                 "workspace is shutting down; cannot bind session",
                             ),
                         );
@@ -3239,7 +3392,7 @@ impl WorkspaceHandle {
                                         .await
                                 {
                                     return Err(
-                                        tool_runtime::ToolError::service_unavailable(
+                                        xvora_tool_runtime::ToolError::service_unavailable(
                                             format!(
                                             "path-virt remount failed for `{sid_str}`: {e}"
                                         ),
@@ -3272,7 +3425,7 @@ impl WorkspaceHandle {
                                         .with_label_values(&["session_lookup_failed"])
                                         .inc();
                                     return Err(
-                                        tool_runtime::ToolError::service_unavailable(
+                                        xvora_tool_runtime::ToolError::service_unavailable(
                                             format!(
                                             "session rebind raced teardown for `{sid_str}`; retry"
                                         ),
@@ -3290,18 +3443,21 @@ impl WorkspaceHandle {
                                 .with_label_values(&["session_error"])
                                 .inc();
                             return Err(
-                                tool_runtime::ToolError::service_unavailable(
+                                xvora_tool_runtime::ToolError::service_unavailable(
                                     format!("failed to create workspace session: {e}"),
                                 ),
                             );
                         }
                     };
+                    let mcp_bind_epoch = session
+                        .mcp_epoch
+                        .load(std::sync::atomic::Ordering::SeqCst);
                     if let Some(mapping) = path_virt {
                         if let Some(cwd) = bind_cwd_for_rebind
                             && let Err(e) = session.set_cwd_for_virtualization(cwd).await
                         {
                             return Err(
-                                tool_runtime::ToolError::service_unavailable(
+                                xvora_tool_runtime::ToolError::service_unavailable(
                                     format!(
                                 "path-virt remount failed for `{sid_str}`: {e}"
                             ),
@@ -3319,9 +3475,9 @@ impl WorkspaceHandle {
                         WORKSPACE_BIND_FAILED_TOTAL
                             .with_label_values(&["bind_mount_failed"])
                             .inc();
-                        let _ = ws.drop_session(&sid_str, &sid_str);
+                        let _ = ws.drop_session_with_teardown(&sid_str, &sid_str).await;
                         return Err(
-                            tool_runtime::ToolError::service_unavailable(
+                            xvora_tool_runtime::ToolError::service_unavailable(
                                 format!(
                             "bind mount hook failed: {e}"
                         ),
@@ -3335,6 +3491,140 @@ impl WorkspaceHandle {
                             .with_property(|| ("session_id", sid_str.clone()));
                         build_session_routed_handlers(&session.toolset(), &ws)
                     };
+                    let () = async {
+                        if ws.shared.bind_mcp.is_some() && !bind_config.rpc_only
+                            && resolve_error.is_none()
+                        {
+                            let mut native: HashSet<ToolId> = handlers
+                                .iter()
+                                .map(|handler| handler.tool_id())
+                                .collect();
+                            native.insert(rpc_tool_id.clone());
+                            let mut degraded_raced_teardown = false;
+                            let mut union_grew = false;
+                            let enrolled = {
+                                let mut binding = session.mcp_binding.lock().await;
+                                if session
+                                    .mcp_epoch
+                                    .load(std::sync::atomic::Ordering::SeqCst) != mcp_bind_epoch
+                                {
+                                    if matches!(*binding, WorkspaceMcpBinding::Closed) {
+                                        session
+                                            .mcp_bind_generation
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                        degraded_raced_teardown = true;
+                                    } else {
+                                        {
+                                            let mut set = session.mcp_native_tool_ids.lock();
+                                            let before = set.len();
+                                            set.extend(native);
+                                            union_grew = set.len() != before;
+                                        }
+                                        session
+                                            .mcp_bind_generation
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                    false
+                                } else {
+                                    if matches!(*binding, WorkspaceMcpBinding::Closed) {
+                                        *binding = WorkspaceMcpBinding::Uninitialized;
+                                        *session.mcp_cancel.lock() = tokio_util::sync::CancellationToken::new();
+                                    }
+                                    let was_active = binding.active().is_some();
+                                    let _ = binding.join();
+                                    if !was_active {
+                                        session
+                                            .mcp_epoch
+                                            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    }
+                                    session
+                                        .mcp_bind_generation
+                                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                    *session.mcp_native_tool_ids.lock() = native;
+                                    true
+                                }
+                            };
+                            if enrolled {
+                                let converge_ws = ws.clone();
+                                let converge_sid = sid_str.clone();
+                                let mut converge = tokio::spawn(async move {
+                                    converge_ws
+                                        .converge_session_mcp(
+                                            &converge_sid,
+                                            crate::mcp::McpReclaim::Always,
+                                        )
+                                        .await;
+                                });
+                                let grace = ws
+                                    .shared
+                                    .bind_mcp
+                                    .as_ref()
+                                    .map(|config| {
+                                        config
+                                            .read()
+                                            .bind_converge_grace_within(bind_started.elapsed())
+                                    })
+                                    .unwrap_or_default();
+                                let _ = tokio::time::timeout(grace, &mut converge).await;
+                            } else {
+                                tracing::warn!(
+                                session_id = %sid_str,
+                                degraded_raced_teardown,
+                                "session.bind: MCP enrolment refused — the session was torn down after this bind began"
+                            );
+                                if degraded_raced_teardown {
+                                    WORKSPACE_BIND_MCP_DEGRADED_TOTAL
+                                        .with_label_values(&["raced_teardown"])
+                                        .inc();
+                                }
+                                if union_grew {
+                                    let reclaim_ws = ws.clone();
+                                    let reclaim_sid = sid_str.clone();
+                                    tokio::spawn(async move {
+                                        reclaim_ws
+                                            .converge_session_mcp(
+                                                &reclaim_sid,
+                                                crate::mcp::McpReclaim::Always,
+                                            )
+                                            .await;
+                                    });
+                                }
+                            }
+                        } else {
+                            let mut binding = session.mcp_binding.lock().await;
+                            let epoch_current = session
+                                .mcp_epoch
+                                .load(std::sync::atomic::Ordering::SeqCst)
+                                == mcp_bind_epoch;
+                            if epoch_current
+                                && matches!(*binding, WorkspaceMcpBinding::Closed)
+                            {
+                                *binding = WorkspaceMcpBinding::Uninitialized;
+                                *session.mcp_cancel.lock() = tokio_util::sync::CancellationToken::new();
+                                session
+                                    .mcp_epoch
+                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                                session
+                                    .mcp_bind_generation
+                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            } else if !epoch_current
+                                && matches!(*binding, WorkspaceMcpBinding::Closed)
+                            {
+                                tracing::warn!(
+                                session_id = %sid_str,
+                                "session.bind: MCP re-open skipped — the session was torn down after this bind began; the next bind re-opens"
+                            );
+                                session
+                                    .mcp_bind_generation
+                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            } else {
+                                session
+                                    .mcp_bind_generation
+                                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                            }
+                        }
+                    }
+                        .await;
                     let advertised: Vec<String> = handlers
                         .iter()
                         .map(|h| h.tool_id().as_str().to_owned())
@@ -3383,7 +3673,7 @@ impl WorkspaceHandle {
                         unserved = ?unserved_tool_ids,
                         "session.bind: advertising finalized session toolset"
                     );
-                    Ok(computer_hub_sdk::ResolvedSessionHandlers {
+                    Ok(xvora_computer_hub_sdk::ResolvedSessionHandlers {
                         handlers,
                         unserved_tool_ids,
                         resolve_error,
@@ -3444,7 +3734,7 @@ impl WorkspaceHandle {
                 .iter()
                 .map(|h| h.tool_id().as_str().to_owned())
                 .collect();
-            let rpc_handler: Arc<dyn computer_hub_sdk::ToolServerHandler> =
+            let rpc_handler: Arc<dyn xvora_computer_hub_sdk::ToolServerHandler> =
                 Arc::new(crate::hub_server::WorkspaceRpcHandler::new(self.clone()));
             let rpc_tool_id = rpc_handler.tool_id();
             handlers.push(rpc_handler);
@@ -3470,9 +3760,32 @@ impl WorkspaceHandle {
                 return Err(e);
             }
         };
-        let catalog: Arc<Vec<Arc<dyn computer_hub_sdk::ToolServerHandler>>> =
+        let catalog: Arc<Vec<Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>>> =
             Arc::new(template_handlers.clone());
         let resolver = self.session_bind_resolver(catalog, rpc_tool_id);
+        let unbind_workspace = self.clone();
+        let on_session_unbound: Arc<xvora_computer_hub_sdk::SessionUnboundCallback> =
+            Arc::new(move |sid: &xvora_tool_protocol::SessionId| {
+                let workspace = unbind_workspace.clone();
+                let session_id = sid.as_str().to_owned();
+                let Some(session) = workspace.session(&session_id) else {
+                    return;
+                };
+                let arrival_generation = session
+                    .mcp_bind_generation
+                    .load(std::sync::atomic::Ordering::SeqCst);
+                tokio::spawn(async move {
+                    if workspace
+                        .teardown_session_mcp_for_event(&session_id, arrival_generation)
+                        .await
+                    {
+                        tracing::info!(
+                            session = %session_id,
+                            "hub session unbind: MCP resources torn down"
+                        );
+                    }
+                });
+            });
         let hub_ws_started = std::time::Instant::now();
         let connect_result = HubHandle::connect(
             &hub_config,
@@ -3480,6 +3793,7 @@ impl WorkspaceHandle {
             template_handlers,
             self.shared.server_metadata.clone(),
             Some(resolver),
+            Some(on_session_unbound),
         )
         .await;
         let hub_ws_connect_secs = hub_ws_started.elapsed().as_secs_f64();
@@ -3525,7 +3839,7 @@ impl WorkspaceHandle {
         let listener_task = tokio::spawn(async move {
             while let Some(notification) = notification_rx.recv().await {
                 match notification {
-                    computer_hub_sdk::HubNotification::ToolsChanged {
+                    xvora_computer_hub_sdk::HubNotification::ToolsChanged {
                         added,
                         removed,
                         updated,
@@ -3562,9 +3876,11 @@ impl WorkspaceHandle {
                     Ok(event) => {
                         let payload =
                             serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
-                        let frame = tool_protocol::ToolNotificationFrame::custom(
-                            tool_protocol::ToolId::new(crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID)
-                                .expect("constant tool id"),
+                        let frame = xvora_tool_protocol::ToolNotificationFrame::custom(
+                            xvora_tool_protocol::ToolId::new(
+                                crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID,
+                            )
+                            .expect("constant tool id"),
                             "workspace_event",
                             payload,
                         );
@@ -3600,7 +3916,7 @@ impl WorkspaceHandle {
             /// Returns `Some(true)` on success, `Some(false)` on transport failure (hub unreachable).
             /// `None` means the send was skipped due to a local error (serialization, id allocation) that does not indicate a dead connection.
             async fn send_status(
-                conn: &computer_hub_sdk::HubConnection,
+                conn: &xvora_computer_hub_sdk::HubConnection,
                 payload: ToolServerStatusPayload,
             ) -> Option<bool> {
                 let params = match serde_json::to_value(&payload) {
@@ -3617,11 +3933,11 @@ impl WorkspaceHandle {
                         return None;
                     }
                 };
-                let req = tool_protocol::JsonRpcRequest {
-                    jsonrpc: tool_protocol::JsonRpcVersion,
-                    id: tool_protocol::JsonRpcId::from_request_id(&request_id),
+                let req = xvora_tool_protocol::JsonRpcRequest {
+                    jsonrpc: xvora_tool_protocol::JsonRpcVersion,
+                    id: xvora_tool_protocol::JsonRpcId::from_request_id(&request_id),
                     session_id: None,
-                    method: tool_protocol::Method::ToolServerStatus
+                    method: xvora_tool_protocol::Method::ToolServerStatus
                         .as_wire_str()
                         .to_owned(),
                     params,
@@ -3737,8 +4053,8 @@ impl WorkspaceHandle {
             let server_for_ext = handle.server.clone();
             let ext_task = tokio::spawn(async move {
                 while let Some((method, params)) = ext_rx.recv().await {
-                    let frame = tool_protocol::ToolNotificationFrame::custom(
-                        tool_protocol::ToolId::new(
+                    let frame = xvora_tool_protocol::ToolNotificationFrame::custom(
+                        xvora_tool_protocol::ToolId::new(
                             crate::hub_ids::WORKSPACE_CLIENT_EXT_NOTIFICATIONS_TOOL_ID,
                         )
                         .expect("constant tool id"),
@@ -3785,7 +4101,7 @@ impl WorkspaceHandle {
 fn build_session_routed_handlers(
     toolset: &xvora_tools::registry::types::FinalizedToolset,
     ws: &WorkspaceHandle,
-) -> Vec<Arc<dyn computer_hub_sdk::ToolServerHandler>> {
+) -> Vec<Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>> {
     let tool_kinds = toolset.tool_kind_map();
     let mut seen = std::collections::HashSet::new();
     let mut handlers = Vec::new();
@@ -3798,7 +4114,7 @@ fn build_session_routed_handlers(
             continue;
         }
         let semantic_kind = tool_kinds.get(&def.function.name).copied();
-        let mut desc = tool_types::ToolDescription::new(
+        let mut desc = xvora_tool_types::ToolDescription::new(
             def.function.name.clone(),
             def.function.description.clone().unwrap_or_default(),
         );
@@ -3811,9 +4127,8 @@ fn build_session_routed_handlers(
             Some(def.function.parameters.clone()),
             ws.clone(),
         ) {
-            Ok(handler) => {
-                handlers.push(Arc::new(handler) as Arc<dyn computer_hub_sdk::ToolServerHandler>)
-            }
+            Ok(handler) => handlers
+                .push(Arc::new(handler) as Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>),
             Err(e) => {
                 tracing::warn!(
                     tool = %def.function.name,
@@ -4022,33 +4337,65 @@ pub(crate) async fn stream_hash_and_range(
     }
     Ok((format!("{:x}", hasher.finalize()), chunk, pos))
 }
+/// Everything [`connect_local_workspace`] needs beyond the connection
+/// identity (cwd, hub URL, auth). One options struct instead of a
+/// positional flag tail, so call sites read as named decisions and adding a
+/// knob is non-breaking. `Default` is the fail-closed configuration.
+#[derive(Clone, Default)]
+pub struct LocalWorkspaceConnectOptions {
+    /// Metadata attached to the tool-server registration (`servers.list`).
+    pub metadata: Option<serde_json::Value>,
+    /// Stable hub server id (`--server-id`).
+    pub server_id: Option<String>,
+    pub alpha_test_key: Option<String>,
+    /// Allow `ws://` hub URLs (tests and local development only).
+    pub allow_insecure_ws: bool,
+    /// Runtime-tunable timing/threshold config for the tool server.
+    pub status_config: crate::status_config::StatusConfig,
+    /// Enable the durable artifact upload queue.
+    pub upload_queue_enabled: bool,
+    /// Folder-trust verdict for project-scoped LSP servers.
+    pub project_lsp_trusted: bool,
+    /// Diagnostics server handle, when the embedder runs one.
+    pub diag: Option<DiagHandle>,
+    /// Fail binds without an explicit toolset closed instead of widening to
+    /// the default catalog (sandbox-launched standalone servers).
+    pub require_explicit_toolset: bool,
+    /// Confine `x.ai/fs/*` resolution to the workspace root (remote
+    /// sandboxes, where the root is a tenant boundary).
+    pub confine_fs_to_workspace_root: bool,
+    /// MCP servers every admitted hub session binds; hot-swappable via
+    /// [`WorkspaceHandle::reload_bind_mcp`].
+    pub bind_mcp: Option<crate::config::BindMcpConfig>,
+}
 /// Create a [`WorkspaceHandle`] and connect it to the hub.
 ///
 /// This is the shared setup used by both the standalone `workspace_server` binary and the TUI's in-process local workspace server.
 /// The workspace registers its tools on the server so external clients can reach them.
 /// Sessions are bound dynamically by clients calling `bind_server`.
 ///
-/// `confine_fs_to_workspace_root` confines `x.ai/fs/*` resolution to the root.
-/// The standalone workspace server defaults it on (it always backs a remote sandbox; override via `GROK_WORKSPACE_CONFINE_FS_TO_ROOT`).
-/// The CLI leader passes `false`.
-///
-/// Returns the connected handle (caller should keep it alive for the lifetime of the server connection).
+/// Returns the connected handle (caller should keep it alive for the
+/// lifetime of the server connection).
 pub async fn connect_local_workspace(
     cwd: std::path::PathBuf,
     hub_url: url::Url,
-    auth: computer_hub_sdk::SharedAuthProvider,
-    metadata: Option<serde_json::Value>,
-    server_id: Option<String>,
-    alpha_test_key: Option<String>,
-    allow_insecure_ws: bool,
-    status_config: crate::status_config::StatusConfig,
-    upload_queue_enabled: bool,
-    project_lsp_trusted: bool,
-    diag: Option<DiagHandle>,
-    require_explicit_toolset: bool,
-    confine_fs_to_workspace_root: bool,
+    auth: xvora_computer_hub_sdk::SharedAuthProvider,
+    options: LocalWorkspaceConnectOptions,
 ) -> WorkspaceResult<WorkspaceHandle> {
     use crate::session::tool_config::WorkspaceSessionContextFactory;
+    let LocalWorkspaceConnectOptions {
+        metadata,
+        server_id,
+        alpha_test_key,
+        allow_insecure_ws,
+        status_config,
+        upload_queue_enabled,
+        project_lsp_trusted,
+        diag,
+        require_explicit_toolset,
+        confine_fs_to_workspace_root,
+        bind_mcp,
+    } = options;
     let time_to_ready_started = std::time::Instant::now();
     let identity: crate::upload::environment::WorkspaceIdentity =
         auth.identity().map(Into::into).unwrap_or_default();
@@ -4089,6 +4436,7 @@ pub async fn connect_local_workspace(
     ws_config.project_lsp_trusted = project_lsp_trusted;
     ws_config.require_explicit_toolset = require_explicit_toolset;
     ws_config.confine_fs_to_workspace_root = confine_fs_to_workspace_root;
+    ws_config.bind_mcp = bind_mcp;
     if let Ok(dir) = std::env::var("GROK_WORKSPACE_SERVER_SKILLS_DIR")
         && !dir.is_empty()
     {
@@ -4109,13 +4457,13 @@ pub async fn connect_local_workspace(
         api_base_url.clone(),
         identity.clone(),
     ));
-    let trace_source: Arc<dyn file_utils::queue::TraceExportSource> = Arc::new(
+    let trace_source: Arc<dyn xvora_file_utils::queue::TraceExportSource> = Arc::new(
         crate::upload::WorkspaceTraceExportSource::new(proxy_storage.clone()),
     );
-    let upload_queue = Arc::new(file_utils::queue::UploadQueue::spawn(
+    let upload_queue = Arc::new(xvora_file_utils::queue::UploadQueue::spawn(
         &workspace_home,
         trace_source,
-        file_utils::queue::UploadRetryPolicy::default(),
+        xvora_file_utils::queue::UploadRetryPolicy::default(),
     ));
     {
         let recovery_started = std::time::Instant::now();
@@ -4132,7 +4480,7 @@ pub async fn connect_local_workspace(
             recovery_started.elapsed().as_secs_f64(),
         );
     }
-    upload_queue.cleanup_orphans(file_utils::queue::DEFAULT_MAX_AGE);
+    upload_queue.cleanup_orphans(xvora_file_utils::queue::DEFAULT_MAX_AGE);
     crate::upload::spawn_queue_stats_sampler(
         upload_queue.clone(),
         std::time::Duration::from_secs(15),
@@ -4228,7 +4576,7 @@ fn bundled_allowlist_ignore_dirs(dir: &str, allowlist: Option<&str>) -> Vec<Stri
 }
 /// Whether per-session `events.jsonl` recording is enabled (`GROK_WORKSPACE_EVENTS_ENABLED=true`).
 /// Any other value (including unset) keeps the legacy behaviour.
-/// [`WorkspaceShared::session_event_writer`] hands back [`EventWriter::noop()`](session_events::EventWriter::noop).
+/// [`WorkspaceShared::session_event_writer`] hands back [`EventWriter::noop()`](xvora_session_events::EventWriter::noop).
 /// No `events.jsonl` is ever opened.
 fn events_enabled() -> bool {
     std::env::var("GROK_WORKSPACE_EVENTS_ENABLED").as_deref() == Ok("true")
@@ -4297,12 +4645,12 @@ fn tool_defs_reemit_gate(
 /// Enqueue serialized workspace tool definitions at `object_path`, mapping the outcome to a log line.
 /// Shared by `emit_workspace_tool_definitions` (which spawns it) and the unit tests (which await it).
 async fn enqueue_workspace_tool_definitions(
-    upload_queue: &file_utils::queue::UploadQueue,
+    upload_queue: &xvora_file_utils::queue::UploadQueue,
     session_id: &str,
     object_path: &str,
     bytes: &[u8],
-) -> file_utils::queue::EnqueueOutcome {
-    use file_utils::queue::EnqueueOutcome;
+) -> xvora_file_utils::queue::EnqueueOutcome {
+    use xvora_file_utils::queue::EnqueueOutcome;
     let outcome = upload_queue
         .enqueue_bytes_blocking(
             bytes,
@@ -4339,8 +4687,10 @@ async fn enqueue_workspace_tool_definitions(
 }
 /// Single source of truth for mapping a turn-hook outcome to the `events.jsonl` [`TurnOutcomeLabel`].
 /// Kept as one `match` so the two enums cannot drift and the mapping is never duplicated across call sites.
-fn turn_outcome_label(outcome: tool_protocol::turn_hook::TurnHookOutcome) -> TurnOutcomeLabel {
-    use tool_protocol::turn_hook::TurnHookOutcome;
+fn turn_outcome_label(
+    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome,
+) -> TurnOutcomeLabel {
+    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
     match outcome {
         TurnHookOutcome::Completed => TurnOutcomeLabel::Completed,
         TurnHookOutcome::Cancelled => TurnOutcomeLabel::Cancelled,
@@ -4446,7 +4796,7 @@ async fn persist_and_enqueue_tool_state(
     session: Arc<crate::session::WorkspaceSession>,
     session_id: String,
     turn_number: u64,
-    upload_queue: Arc<file_utils::queue::UploadQueue>,
+    upload_queue: Arc<xvora_file_utils::queue::UploadQueue>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let toolset = session.toolset();
     let Some(state_path) = toolset
@@ -4481,20 +4831,20 @@ async fn persist_and_enqueue_tool_state(
 /// This is the same dispatch pattern as [`SessionRoutedToolHandler`] in `hub.rs`.
 /// It implements `ToolHandle` (for `LocalRegistry`) instead of `ToolServerHandler` (for `ToolServer`).
 struct SessionToolHandle {
-    tool_id: tool_protocol::ToolId,
-    desc: tool_types::ToolDescription,
+    tool_id: xvora_tool_protocol::ToolId,
+    desc: xvora_tool_types::ToolDescription,
     workspace: WorkspaceHandle,
     session_id: String,
 }
 impl SessionToolHandle {
     fn new(
         tool_name: String,
-        desc: tool_types::ToolDescription,
+        desc: xvora_tool_types::ToolDescription,
         workspace: WorkspaceHandle,
         session_id: String,
-    ) -> Result<Self, tool_protocol::IdError> {
+    ) -> Result<Self, xvora_tool_protocol::IdError> {
         Ok(Self {
-            tool_id: tool_protocol::ToolId::new(tool_name)?,
+            tool_id: xvora_tool_protocol::ToolId::new(tool_name)?,
             desc,
             workspace,
             session_id,
@@ -4513,19 +4863,22 @@ impl std::fmt::Debug for SessionToolHandle {
     }
 }
 #[async_trait::async_trait]
-impl tool_runtime::ToolDyn for SessionToolHandle {
-    fn id(&self) -> tool_protocol::ToolId {
+impl xvora_tool_runtime::ToolDyn for SessionToolHandle {
+    fn id(&self) -> xvora_tool_protocol::ToolId {
         self.tool_id.clone()
     }
-    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> tool_types::ToolDescription {
+    fn description(
+        &self,
+        _ctx: &::xvora_tool_runtime::ListToolsContext,
+    ) -> xvora_tool_types::ToolDescription {
         self.desc.clone()
     }
     async fn execute(
         &self,
-        ctx: tool_runtime::ToolCallContext,
+        ctx: xvora_tool_runtime::ToolCallContext,
         args: serde_json::Value,
-    ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
-        use tool_runtime::{ToolError, ToolErrorKind, ToolStreamItem, terminal_only};
+    ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
+        use xvora_tool_runtime::{ToolError, ToolErrorKind, ToolStreamItem, terminal_only};
         let session = match self.workspace.session(&self.session_id) {
             Some(s) => s,
             None => {
@@ -4612,21 +4965,21 @@ impl WorkspaceHandle {
     pub fn create_local_harness(
         &self,
         session_id: &str,
-    ) -> WorkspaceResult<computer_hub_sdk::ToolHarness> {
+    ) -> WorkspaceResult<xvora_computer_hub_sdk::ToolHarness> {
         let session = self
             .session(session_id)
             .ok_or_else(|| WorkspaceError::SessionNotFound(session_id.to_string()))?;
         let toolset = session.toolset();
-        let registry = computer_hub_sdk::LocalRegistry::new();
+        let registry = xvora_computer_hub_sdk::LocalRegistry::new();
         for def in toolset.tool_definitions() {
             let tool_name = def.function.name.clone();
-            let desc = tool_types::ToolDescription::new(
+            let desc = xvora_tool_types::ToolDescription::new(
                 tool_name.clone(),
                 def.function.description.clone().unwrap_or_default(),
             );
             match SessionToolHandle::new(tool_name, desc, self.clone(), session_id.to_string()) {
                 Ok(tool) => {
-                    registry.register_dyn(Arc::new(tool) as Arc<dyn tool_runtime::ToolDyn>);
+                    registry.register_dyn(Arc::new(tool) as Arc<dyn xvora_tool_runtime::ToolDyn>);
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -4637,12 +4990,12 @@ impl WorkspaceHandle {
                 }
             }
         }
-        let session_id = tool_protocol::SessionId::new(session_id.to_string())
+        let session_id = xvora_tool_protocol::SessionId::new(session_id.to_string())
             .map_err(|e| WorkspaceError::HubError(format!("invalid session id: {e}")))?;
-        Ok(computer_hub_sdk::ToolHarness::local_only_with(
+        Ok(xvora_computer_hub_sdk::ToolHarness::local_only_with(
             registry,
             session_id,
-            tool_runtime::TypedExtensions::default(),
+            xvora_tool_runtime::TypedExtensions::default(),
         ))
     }
 }
@@ -4677,6 +5030,7 @@ impl WorkspaceHandle {
             project_lsp_trusted,
             require_explicit_toolset: false,
             confine_fs_to_workspace_root: false,
+            bind_mcp: None,
         };
         Self::build(
             config,
@@ -4719,6 +5073,7 @@ impl WorkspaceHandle {
             project_lsp_trusted: true,
             require_explicit_toolset: false,
             confine_fs_to_workspace_root: false,
+            bind_mcp: None,
         }
     }
     /// Test handle backed by a temp dir. Zero sessions; `TempDir` kept alive via `Arc`.

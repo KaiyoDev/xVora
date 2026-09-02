@@ -907,13 +907,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Spawn a fake ACP agent that counts `x.ai/yolo_mode_changed` notifications.
 /// Exits when the channel closes.
 fn spawn_fake_acp_agent(
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpAgentMessage>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpAgentMessage>,
 ) -> Arc<AtomicUsize> {
     let counter = Arc::new(AtomicUsize::new(0));
     let counter_clone = counter.clone();
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
-            if let acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
+            if let xvora_acp_lib::AcpAgentMessage::ExtNotification(args) = msg {
                 if args.request.method.as_ref() == "x.ai/yolo_mode_changed" {
                     counter_clone.fetch_add(1, Ordering::SeqCst);
                 }
@@ -932,7 +932,7 @@ fn setup_grok_home_in_tempdir() -> tempfile::TempDir {
     tmp
 }
 fn register_session_in(root: &std::path::Path, id: &str) -> acp::SessionId {
-    use active_sessions::{ActiveSession, register_in};
+    use xvora_active_sessions::{ActiveSession, register_in};
     let session_id = acp::SessionId::new(id);
     register_in(
             root,
@@ -953,7 +953,7 @@ fn unregister_best_effort_removes_entry_when_lock_free() {
     let sid = register_session_in(dir.path(), "s1");
     unregister_active_session_best_effort_in(dir.path(), &sid);
     assert!(
-            active_sessions::list_in(dir.path())
+            xvora_active_sessions::list_in(dir.path())
                 .expect("list")
                 .is_empty(),
             "lock-free unregister must remove the entry",
@@ -991,7 +991,7 @@ fn unregister_best_effort_is_nonblocking_under_lock_contention() {
             "contended unregister blocked on the shared flock instead of skipping",
         );
     assert_eq!(
-            active_sessions::list_in(dir.path())
+            xvora_active_sessions::list_in(dir.path())
                 .expect("list")
                 .len(),
             1,
@@ -1315,7 +1315,7 @@ fn route_permission_mode_result_err_best_effort_routes_to_dedicated_variant() {
 }
 #[test]
 fn marketplace_outcome_succeeded_only_accepts_success_status() {
-    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     let success = ActionOutcome {
         status: OutcomeStatus::Success,
         message: "updated".into(),
@@ -1335,8 +1335,8 @@ fn marketplace_outcome_succeeded_only_accepts_success_status() {
 async fn check_marketplace_updates_dispatches_update_and_skips_failed_notifications() {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    use acp_lib::AcpAgentMessage;
-    use hooks_plugins_types::{ActionOutcome, MarketplaceAction, OutcomeStatus};
+    use xvora_acp_lib::AcpAgentMessage;
+    use xvora_hooks_plugins_types::{ActionOutcome, MarketplaceAction, OutcomeStatus};
     let action_calls = Arc::new(AtomicUsize::new(0));
     let saw_update = Arc::new(AtomicBool::new(false));
     let saw_wrong_action = Arc::new(AtomicBool::new(false));
@@ -1386,7 +1386,7 @@ async fn check_marketplace_updates_dispatches_update_and_skips_failed_notificati
                     }
                     "x.ai/marketplace/action" => {
                         action_calls_for_task.fetch_add(1, Ordering::SeqCst);
-                        let req: hooks_plugins_types::MarketplaceActionRequest = serde_json::from_str(
+                        let req: xvora_hooks_plugins_types::MarketplaceActionRequest = serde_json::from_str(
                                 args.request.params.get(),
                             )
                             .expect("parse marketplace action request");
@@ -1476,7 +1476,7 @@ async fn foreign_scan_task_echoes_sequence_without_enabled_sources() {
     execute(
         Effect::ScanForeignSessions {
             cwd: PathBuf::from("/path/that/must/not/be-read"),
-            compat: foreign_sessions::EnabledForeignSessionSources::default(),
+            compat: xvora_foreign_sessions::EnabledForeignSessionSources::default(),
             grok_home: PathBuf::from("/path/that/must/not/be-read"),
             coordinator: app_coordinator.clone(),
             seq: 41,
@@ -1529,7 +1529,7 @@ async fn foreign_resume_detection_runs_as_task_result() {
     let (quit, _) = execute(
         Effect::DetectForeignResumeHint {
             canonical_cwd: canonical_cwd.clone(),
-            compat: foreign_sessions::EnabledForeignSessionSources::default(),
+            compat: xvora_foreign_sessions::EnabledForeignSessionSources::default(),
             grok_home: PathBuf::from("/path/that/must/not-be-read"),
             launch_token: 8,
         },
@@ -1558,7 +1558,7 @@ async fn foreign_resume_detection_runs_as_task_result() {
 #[tokio::test]
 async fn fetch_session_list_pushes_query_and_echoes_seq() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1704,7 +1704,7 @@ async fn fetch_session_list_pushes_query_and_echoes_seq() {
 #[tokio::test]
 async fn fetch_dashboard_sessions_explicitly_excludes_headless() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Option<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1743,7 +1743,7 @@ async fn fetch_dashboard_sessions_explicitly_excludes_headless() {
 #[tokio::test]
 async fn fetch_session_list_sends_kind_facet_filter() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1790,7 +1790,7 @@ async fn fetch_session_list_sends_kind_facet_filter() {
 #[tokio::test]
 async fn fetch_workflows_list_sends_session_id() {
     use std::sync::{Arc, Mutex};
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -1877,7 +1877,7 @@ async fn debounce_session_search_echoes_query_and_seq() {
 async fn deep_search_sessions_echoes_routing_and_policy() {
     use std::sync::{Arc, Mutex};
     use crate::views::session_picker_surface::SessionPickerHost;
-    use acp_lib::AcpAgentMessage;
+    use xvora_acp_lib::AcpAgentMessage;
     let captured: Arc<Mutex<Vec<(String, serde_json::Value)>>> = Arc::default();
     let captured_for_task = captured.clone();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();

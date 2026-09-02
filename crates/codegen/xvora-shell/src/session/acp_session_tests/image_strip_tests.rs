@@ -43,7 +43,7 @@ async fn seed_image(actor: &SessionActor, url: &str) {
 
 /// Drain the gateway channel into debug strings for notification assertions.
 fn drain_gateway_debug(
-    rx: &mut tokio::sync::mpsc::UnboundedReceiver<acp_lib::AcpClientMessage>,
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<xvora_acp_lib::AcpClientMessage>,
 ) -> String {
     let mut out = String::new();
     while let Ok(msg) = rx.try_recv() {
@@ -143,7 +143,7 @@ async fn heuristic_images_stripped_does_not_rewrite_history() {
     local
         .run_until(async {
             let (gateway_tx, mut gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -183,7 +183,7 @@ async fn server_rejected_strip_persists_only_after_completed() {
     local
         .run_until(async {
             let (gateway_tx, mut gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -246,7 +246,7 @@ async fn timed_out_strip_survives_new_turn_until_late_completed() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -324,7 +324,7 @@ async fn rewind_cancels_detached_image_strip_before_it_runs() {
     local
         .run_until(async {
             let (gateway_tx, mut gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -437,7 +437,7 @@ async fn rejected_rewind_preserves_queued_image_strip() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -507,7 +507,7 @@ async fn failed_compaction_replay_preserves_queued_image_strip() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let mut actor = create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await;
             let unique = std::time::SystemTime::now()
@@ -618,7 +618,7 @@ async fn pending_strip_bound_preserves_detached_and_new_url_entries() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -699,7 +699,7 @@ async fn timed_out_strip_survives_when_images_stripped_is_still_queued() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -773,7 +773,7 @@ async fn non_applied_strip_outcome_still_notifies_the_user() {
     local
         .run_until(async {
             let (gateway_tx, mut gateway_rx) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -811,7 +811,7 @@ async fn server_rejected_strip_dropped_when_retry_fails() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);
@@ -854,7 +854,7 @@ async fn multi_image_blame_is_judged_on_unique_urls() {
     local
         .run_until(async {
             let (gateway_tx, _) =
-                tokio::sync::mpsc::unbounded_channel::<acp_lib::AcpClientMessage>();
+                tokio::sync::mpsc::unbounded_channel::<xvora_acp_lib::AcpClientMessage>();
             let (persistence_tx, _) = tokio::sync::mpsc::unbounded_channel::<PersistenceMsg>();
             let actor =
                 Arc::new(create_test_actor(0, 256_000, 85, gateway_tx, persistence_tx).await);

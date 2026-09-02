@@ -177,11 +177,11 @@ impl TraceUploadReason {
         }
     }
 
-    pub fn from_upload_method(method: &Option<file_utils::UploadMethod>) -> Self {
+    pub fn from_upload_method(method: &Option<xvora_file_utils::UploadMethod>) -> Self {
         match method {
-            Some(file_utils::UploadMethod::Proxy { .. }) => Self::Proxy,
-            Some(file_utils::UploadMethod::S3 { .. }) => Self::DirectS3,
-            Some(file_utils::UploadMethod::Direct { .. }) => Self::DirectGcs,
+            Some(xvora_file_utils::UploadMethod::Proxy { .. }) => Self::Proxy,
+            Some(xvora_file_utils::UploadMethod::S3 { .. }) => Self::DirectS3,
+            Some(xvora_file_utils::UploadMethod::Direct { .. }) => Self::DirectGcs,
             None => Self::NoCredentials,
         }
     }
@@ -189,7 +189,7 @@ impl TraceUploadReason {
 
 #[cfg(test)]
 mod tests {
-    use file_utils::UploadMethod;
+    use xvora_file_utils::UploadMethod;
 
     use super::TraceUploadReason;
 

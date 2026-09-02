@@ -70,7 +70,7 @@ fn set_yolo_mode_on_drains_permission_queue_with_allow_once() {
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: acp_lib::AcpArgs {
+        request: xvora_acp_lib::AcpArgs {
             request,
             response_tx,
         },
@@ -544,7 +544,7 @@ fn push_bash_allow_always(
     );
     let options = request.options.clone();
     agent.permission_queue.push_back(PermissionViewState {
-        request: acp_lib::AcpArgs {
+        request: xvora_acp_lib::AcpArgs {
             request,
             response_tx: tx,
         },

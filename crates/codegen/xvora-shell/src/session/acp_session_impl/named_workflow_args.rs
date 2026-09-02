@@ -1,5 +1,4 @@
 use xvora_sampling_types::{ReasoningEffort, ReasoningEffortOption};
-use xvora_workflow as workflow;
 
 pub(crate) struct NamedWorkflowArgs {
     pub args: serde_json::Value,
@@ -56,10 +55,10 @@ impl AgentBudget {
         if value == 0 {
             return Err("`agent_budget` must be a positive integer".to_string());
         }
-        if value > workflow::MAX_AGENT_BUDGET {
+        if value > xvora_workflow::MAX_AGENT_BUDGET {
             return Err(format!(
                 "`agent_budget` must be at most {} agents",
-                workflow::MAX_AGENT_BUDGET
+                xvora_workflow::MAX_AGENT_BUDGET
             ));
         }
         Ok(Self(value))

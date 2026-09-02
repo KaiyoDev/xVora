@@ -9,9 +9,9 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui_inline::LinkSpan;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
+use xvora_ratatui_inline::LinkSpan;
 
 use crate::theme::Theme;
 

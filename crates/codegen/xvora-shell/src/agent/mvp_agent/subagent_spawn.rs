@@ -103,7 +103,7 @@ impl MvpAgent {
         let parent_depth = ps.map(|h| h.tool_context.subagent_depth).unwrap_or(0);
         let hunk_tracker_handle = ps
             .map(|h| h.tool_context.hunk_tracker_handle.clone())
-            .unwrap_or_else(hunk_tracker::HunkTrackerHandle::noop);
+            .unwrap_or_else(xvora_hunk_tracker::HunkTrackerHandle::noop);
         let hunk_tracking_enabled = ps
             .map(|h| h.tool_context.hunk_tracking_enabled)
             .unwrap_or(false);

@@ -215,14 +215,14 @@ mod tests {
     /// Hermetic git (pinned binary, masked global/system config) so a
     /// developer's `~/.gitconfig` cannot steer these registration tests.
     fn run_git(cwd: &Path, args: &[&str]) {
-        let _ = test_utils::git::run_git(cwd, args);
+        let _ = xvora_test_utils::git::run_git(cwd, args);
     }
 
     fn init_repo_with_worktrees() -> (tempfile::TempDir, PathBuf) {
         let tmp = tempfile::TempDir::new().unwrap();
         let repo = tmp.path().join("repo");
         std::fs::create_dir(&repo).unwrap();
-        test_utils::git::init_git_repo(&repo);
+        xvora_test_utils::git::init_git_repo(&repo);
         std::fs::write(repo.join("f.txt"), b"x").unwrap();
         run_git(&repo, &["add", "f.txt"]);
         run_git(&repo, &["commit", "-m", "init"]);

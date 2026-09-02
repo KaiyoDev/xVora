@@ -57,7 +57,7 @@ impl FsmonitorProbeRunner for GitProbeRunner<'_> {
         &mut self,
         args: &[&str],
     ) -> impl std::future::Future<Output = Option<Vec<u8>>> + Send {
-        let mut cmd = tty_utils::git_command();
+        let mut cmd = xvora_tty_utils::git_command();
         cmd.args(args)
             .current_dir(self.cwd)
             .stdout(std::process::Stdio::piped())

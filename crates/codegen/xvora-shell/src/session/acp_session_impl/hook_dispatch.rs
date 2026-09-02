@@ -2,8 +2,8 @@ use super::*;
 
 pub(super) fn turn_result_to_hook_outcome(
     result: &Result<TurnOutcome, acp::Error>,
-) -> tool_protocol::turn_hook::TurnHookOutcome {
-    use tool_protocol::turn_hook::TurnHookOutcome;
+) -> xvora_tool_protocol::turn_hook::TurnHookOutcome {
+    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
     match result {
         Ok(TurnOutcome::Completed { .. }) | Ok(TurnOutcome::StationarityEnded { .. }) => {
             TurnHookOutcome::Completed
@@ -30,9 +30,9 @@ pub(super) fn cancellation_category_to_wire_string(
 /// `Cancelled` means the tool never ran (permission, doom-loop, hook, followup).
 pub(super) fn map_tool_outcome(
     outcome: crate::session::events::ToolOutcome,
-) -> tool_protocol::session_event::ToolCallOutcome {
+) -> xvora_tool_protocol::session_event::ToolCallOutcome {
     use crate::session::events::ToolOutcome;
-    use tool_protocol::session_event::ToolCallOutcome;
+    use xvora_tool_protocol::session_event::ToolCallOutcome;
     match outcome {
         ToolOutcome::Success => ToolCallOutcome::Success,
         ToolOutcome::Error | ToolOutcome::InvalidTool => ToolCallOutcome::Error,
@@ -384,7 +384,7 @@ impl SessionActor {
     /// The event fires for every origin, but synthetic wakes and subagent sessions run the gate observe-only.
     pub(super) fn should_enforce_prompt_block(
         &self,
-        policy: &agent_lifecycle::InputPolicy,
+        policy: &xvora_agent_lifecycle::InputPolicy,
     ) -> bool {
         policy.authority.is_human_intent() && !self.startup_hints.is_subagent
     }

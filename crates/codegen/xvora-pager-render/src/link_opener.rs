@@ -164,7 +164,7 @@ fn spawn_url_opener(url: &str) -> bool {
 
 /// Build the `open`/`xdg-open` opener command (macOS, Linux, BSD); Windows uses [`reveal_in_explorer`] instead.
 ///
-/// [`tty_utils::detach_std_command`] (`setsid`/`setpgid`) keeps the spawned GUI helper and its children from grabbing the TUI's `/dev/tty`.
+/// [`xvora_tty_utils::detach_std_command`] (`setsid`/`setpgid`) keeps the spawned GUI helper and its children from grabbing the TUI's `/dev/tty`.
 /// Split from [`open_path`] so it can be unit-tested without spawning.
 /// The path is passed as a single argument, never interpolated into a shell string.
 #[cfg(not(target_os = "windows"))]
@@ -178,7 +178,7 @@ fn build_open_path_command(path: &std::path::Path) -> std::process::Command {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     command
 }
 
@@ -257,7 +257,7 @@ fn reveal_in_explorer(path: &std::path::Path) -> bool {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
-    tty_utils::detach_std_command(&mut command);
+    xvora_tty_utils::detach_std_command(&mut command);
     // explorer.exe returns exit code 1 even on success, so a successful spawn is the best signal we have
     match command.spawn() {
         Ok(_) => true,

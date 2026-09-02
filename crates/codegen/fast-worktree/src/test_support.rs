@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use test_utils::git::run_git;
+use xvora_test_utils::git::run_git;
 
 #[cfg(feature = "metadata")]
 use crate::git::{Safety, safe_to_delete_worktree};
@@ -64,7 +64,7 @@ pub(crate) fn seed_source(source: &Path, ignore_lines: &str) {
         source.parent().unwrap(),
         &["init", "--bare", remote.to_str().unwrap()],
     );
-    test_utils::git::git_init_seed(source);
+    xvora_test_utils::git::git_init_seed(source);
     run_git(
         source,
         &["remote", "add", "origin", remote.to_str().unwrap()],

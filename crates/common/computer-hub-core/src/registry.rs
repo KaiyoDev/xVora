@@ -24,19 +24,19 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
 
-use tool_protocol::{
+use xvora_tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, UserId,
 };
-use tool_runtime::{SearchSnapshot, ServerSummary};
-use tool_types::ToolDescription;
+use xvora_tool_runtime::{SearchSnapshot, ServerSummary};
+use xvora_tool_types::ToolDescription;
 
 use crate::resolver::ResolvedTool;
 
 /// Outcome of a single [`ToolRegistry::bind_tool_session`] call.
 ///
 /// This enum is the source of truth for storage outcomes; the wire enum
-/// [`tool_protocol::ToolSessionBindOutcome`] is a strict subset with
+/// [`xvora_tool_protocol::ToolSessionBindOutcome`] is a strict subset with
 /// one extra wire-only variant. The two layers diverge deliberately:
 ///
 /// - `Conflict` (cross-connection race on the `(session_id, tool_id)`

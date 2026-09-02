@@ -72,7 +72,7 @@ pub fn detect_windows_shell() -> &'static WindowsShell {
         // pwsh (PowerShell 7+).
         if let Ok(output) = {
             let mut cmd = std::process::Command::new("where");
-            tty_utils::detach_std_command(&mut cmd);
+            xvora_tty_utils::detach_std_command(&mut cmd);
             cmd.arg("pwsh.exe").stdin(std::process::Stdio::null());
             cmd.output()
         } {
@@ -123,7 +123,7 @@ fn find_git_bash() -> Option<String> {
     // Fall back to PATH; prefer Git Bash over WSL bash.
     if let Ok(output) = {
         let mut cmd = std::process::Command::new("where");
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
         cmd.arg("bash.exe").stdin(std::process::Stdio::null());
         cmd.output()
     } {
@@ -444,7 +444,7 @@ fn is_executable(path: &std::path::Path) -> bool {
         return true;
     }
 
-    // Nix fallback. Detach from the controlling TTY via tty_utils so the probe cannot leak escapes onto the parent's terminal.
+    // Nix fallback. Detach from the controlling TTY via xvora_tty_utils so the probe cannot leak escapes onto the parent's terminal.
     // The resolver may run this during interactive TUI/pager startup; a misbehaving shell could otherwise spew garbage onto the pager screen
     // See `codegen-conventions` SKILL.md for the workspace-wide subprocess rule
     let mut cmd = std::process::Command::new(path);
@@ -452,7 +452,7 @@ fn is_executable(path: &std::path::Path) -> bool {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
-    tty_utils::detach_std_command(&mut cmd);
+    xvora_tty_utils::detach_std_command(&mut cmd);
     cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 

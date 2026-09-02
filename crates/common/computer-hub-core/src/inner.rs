@@ -13,8 +13,8 @@ use std::sync::Weak;
 use async_trait::async_trait;
 use serde_json::Value;
 
-use tool_protocol::{SessionId, ToolId};
-use tool_runtime::{
+use xvora_tool_protocol::{SessionId, ToolId};
+use xvora_tool_runtime::{
     ToolCallContext, ToolDispatch, ToolError, ToolStream, TypedToolOutput, terminal_only,
 };
 

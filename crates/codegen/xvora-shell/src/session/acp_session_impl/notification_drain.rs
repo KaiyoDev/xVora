@@ -564,7 +564,7 @@ impl SessionActor {
         }
         for contributor in self.extension_registry.session_lifecycle_contributors() {
             contributor
-                .on_session_idle(&agent_lifecycle::SessionIdleInput)
+                .on_session_idle(&xvora_agent_lifecycle::SessionIdleInput)
                 .await;
         }
     }

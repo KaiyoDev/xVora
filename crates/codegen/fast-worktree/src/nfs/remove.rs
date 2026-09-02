@@ -125,11 +125,11 @@ fn report_after_daemon_unmount(worktree_path: &Path) -> Result<Option<RemoveRepo
 fn plain_umount(dest: &Path) -> Result<()> {
     {
         let mut cmd = std::process::Command::new("umount");
-        tty_utils::detach_std_command(&mut cmd);
+        xvora_tty_utils::detach_std_command(&mut cmd);
         cmd.arg(dest).stdin(Stdio::null());
         #[allow(clippy::disallowed_methods)]
         let child = cmd.spawn().context("umount")?;
-        let group = tty_utils::global_process_scope()
+        let group = xvora_tty_utils::global_process_scope()
             .enroll_std(&child)
             .context("enroll umount")?;
         let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));

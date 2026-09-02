@@ -13,10 +13,6 @@ pub mod actions;
 pub mod agent;
 pub mod agent_view;
 pub mod app_view;
-/// Re-export prompt_queue types for app-level usage
-pub mod prompt_queue {
-    pub use prompt_queue::*;
-}
 pub mod bundle;
 pub(crate) mod cancel_latency;
 pub mod cli;
@@ -24,18 +20,19 @@ pub mod consent;
 pub use crate::link_opener;
 use xvora_telemetry::region;
 use xvora_telemetry::region::Parent;
+/// Off-thread full-file syntax highlight upgrade for edit diffs.
+pub mod edit_highlight_worker;
+/// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
+pub mod mermaid_worker;
+pub use xvora_prompt_queue as prompt_queue;
 mod acp_handler;
 mod connect_timeout;
 mod csi_filter;
 mod dispatch;
 /// Display-refresh probe + motion cadence + terminal telemetry at startup.
 mod display_refresh_startup;
-/// Off-thread full-file syntax highlight upgrade for edit diffs.
-pub mod edit_highlight_worker;
 mod effects;
 pub(crate) mod error_display;
-/// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
-pub mod mermaid_worker;
 pub mod roster;
 pub mod session_startup;
 pub(crate) mod session_title_resolve;
@@ -185,6 +182,32 @@ pub(crate) fn mouse_reporting_toggle_enabled() -> bool {
 /// Process-global voice gate for view code without an `AppView`.
 /// Written only by [`crate::app::app_view::AppView::apply_voice_mode_enabled`].
 pub(crate) static VOICE_MODE_ENABLED: AtomicBool = AtomicBool::new(false);
+fn dock_flag_in(layer: &toml::Value) -> Option<bool> {
+    layer
+        .get("features")?
+        .get(xvora_shell::agent::config::Feature::Dock.key())?
+        .as_bool()
+}
+/// `[features] dock` from merged `requirements.toml`.
+pub(crate) fn dock_requirement_pin() -> Option<bool> {
+    dock_flag_in(&xvora_config::load_merged_requirements()?)
+}
+/// `[features] dock` from effective config (user + managed).
+pub(crate) fn dock_config_value() -> Option<bool> {
+    dock_flag_in(&xvora_shell::config::load_effective_config().ok()?)
+}
+/// Registry precedence: pin, `GROK_DOCK` / `GROK_DOCK_V2`, config, remote `dock_enabled`, default off.
+pub(crate) fn resolve_dock_enabled(remote: Option<bool>) -> bool {
+    use xvora_shell::agent::config::{Feature, FeatureSources};
+    let mut sources = FeatureSources::from_process_env(Feature::Dock);
+    if sources.env.is_none() {
+        sources.env = xvora_config::env_bool("GROK_DOCK_V2");
+    }
+    sources.pin = dock_requirement_pin();
+    sources.config = dock_config_value();
+    sources.remote = remote;
+    Feature::Dock.resolve(sources).value
+}
 pub(crate) fn voice_mode_enabled() -> bool {
     VOICE_MODE_ENABLED.load(Ordering::Acquire)
 }
@@ -278,7 +301,7 @@ pub(crate) const MOUSE_OFF_HINT_SCROLLBACK: &str =
     "Ctrl+r to enable mouse reporting and restore TUI features";
 pub(crate) const MOUSE_OFF_HINT_PROMPT: &str =
     "/toggle-mouse-reporting to enable mouse reporting and restore TUI features";
-/// Uses [`ratatui_inline::Terminal`] instead of stock `ratatui::Terminal`: our `flush()` returns a `bool` saying whether any cells changed.
+/// Uses [`xvora_ratatui_inline::Terminal`] instead of stock `ratatui::Terminal`: our `flush()` returns a `bool` saying whether any cells changed.
 /// This lets [`crate::render::draw::draw_frame`] skip cursor escape sequences on frames with empty diffs (e.g., off-screen animation ticks).
 /// Skipping them preserves the cursor blink timer; see [`crate::render::draw`] for details.
 ///
@@ -615,7 +638,7 @@ pub async fn run(
     ) {
         args.force_login = false;
     }
-    tty_utils::redirect_native_stderr();
+    xvora_tty_utils::redirect_native_stderr();
     let refreshed_auth = tokio::time::timeout(
         xvora_shell::http::STARTUP_AUTH_REFRESH_TIMEOUT,
         xvora_shell::auth::try_ensure_fresh_auth(&grok_com_config),
@@ -1045,7 +1068,7 @@ pub async fn run(
     let restore_result = restore_terminal(terminal, writer_thread, current_screen_mode());
     drop(agent_guard);
     xvora_telemetry::session_ctx::drain_at_process_exit().await;
-    tty_utils::global_process_scope().kill_all();
+    xvora_tty_utils::global_process_scope().kill_all();
     crate::app::status_line::metrics::global().report_health();
     if let Err(cleanup_error) = restore_result {
         match &result {
@@ -1142,7 +1165,7 @@ fn print_relaunch_failure_hint(
 /// Best-effort: failures are silently ignored since this runs on teardown and panic paths where stderr may already be broken.
 fn disable_mouse_paste_raw() {
     xvora_shell::util::with_locked_stderr(|stderr| {
-        let _ = stderr.write_all(crash_handler::terminal::MOUSE_PASTE_RESET);
+        let _ = stderr.write_all(xvora_crash_handler::terminal::MOUSE_PASTE_RESET);
         let _ = stderr.flush();
     });
 }
@@ -1364,7 +1387,7 @@ fn init_terminal(
     writer_sync: crate::render::draw::WriterSync,
     cursor_blink: Option<bool>,
 ) -> io::Result<TerminalInit> {
-    crash_handler::enable_terminal_escape_restore();
+    xvora_crash_handler::enable_terminal_escape_restore();
     terminal::enable_raw_mode()?;
     #[cfg(windows)]
     configure_windows_console();
@@ -1396,7 +1419,7 @@ fn init_terminal(
             if !want_minimal {
                 execute!(stderr, event::EnableMouseCapture)?;
             } else if crate::terminal::terminal_context().mouse_reporting_leaks_as_raw_text() {
-                let _ = stderr.write_all(crash_handler::terminal::MOUSE_TRACKING_RESET);
+                let _ = stderr.write_all(xvora_crash_handler::terminal::MOUSE_TRACKING_RESET);
             }
             execute!(
                 stderr,
@@ -1439,11 +1462,11 @@ fn init_terminal(
                     Ok(true) => None,
                     _ => Some("unsupported"),
                 });
-        crate::terminal::da2::probe_at_startup();
-        let flags = crate::terminal::negotiated_kitty_flags(
-            skip_reason,
-            crate::terminal::da2::detected_packed(),
-        );
+        let alacritty_conservative_version = (ctx.brand
+            == crate::terminal::TerminalName::Alacritty)
+            .then_some(crate::terminal::kitty_keyboard::ALACRITTY_BROKEN_EVENT_TYPES_MAX_PACKED);
+        let flags =
+            crate::terminal::negotiated_kitty_flags(skip_reason, alacritty_conservative_version);
         if flags.is_empty() {
             tracing::info!(
                 kitty.flags = "none",
@@ -1464,13 +1487,17 @@ fn init_terminal(
             );
         }
         crate::terminal::set_pushed_kitty_flags(flags);
+        startup_typeahead.extend(event_loop::capture_startup_typeahead(
+            std::time::Duration::from_millis(20),
+        ));
+        event_loop::normalize_startup_submissions(&mut startup_typeahead);
         if mode.is_fullscreen() {
             let backend = CrosstermBackend::new(
                 crate::render::draw::TermWriter::new(frame_tx, writer_sync)
                     .map_err(io::Error::other)?,
             );
             Ok((
-                ratatui_inline::Terminal::new(backend)?,
+                xvora_ratatui_inline::Terminal::new(backend)?,
                 ScreenMode::Fullscreen,
             ))
         } else {
@@ -1484,7 +1511,7 @@ fn init_terminal(
                 crate::render::draw::TermWriter::new(frame_tx.clone(), writer_sync.clone())
                     .map_err(io::Error::other)?,
             );
-            if let Ok(term) = ratatui_inline::Terminal::with_options(
+            if let Ok(term) = xvora_ratatui_inline::Terminal::with_options(
                 probe_backend,
                 ratatui::TerminalOptions {
                     viewport: ratatui::Viewport::Inline(viewport_rows),
@@ -1511,7 +1538,7 @@ fn init_terminal(
                     crate::render::draw::TermWriter::new(frame_tx.clone(), writer_sync.clone())
                         .map_err(io::Error::other)?,
                 );
-                if let Ok(term) = ratatui_inline::Terminal::with_options(
+                if let Ok(term) = xvora_ratatui_inline::Terminal::with_options(
                     retry_backend,
                     ratatui::TerminalOptions {
                         viewport: ratatui::Viewport::Inline(rows),
@@ -1533,7 +1560,7 @@ fn init_terminal(
                 crate::render::draw::TermWriter::new(frame_tx, writer_sync)
                     .map_err(io::Error::other)?,
             );
-            let term = ratatui_inline::Terminal::with_options(
+            let term = xvora_ratatui_inline::Terminal::with_options(
                 backend,
                 ratatui::TerminalOptions {
                     viewport: ratatui::Viewport::Fixed(ratatui::layout::Rect::new(
@@ -1548,7 +1575,7 @@ fn init_terminal(
         emit_terminal_teardown_sequences(mode, None);
         let _ = terminal::disable_raw_mode();
         signal_handler::mark_restored();
-        crash_handler::disable_terminal_escape_restore();
+        xvora_crash_handler::disable_terminal_escape_restore();
     })?;
     Ok(TerminalInit {
         terminal,
@@ -1644,8 +1671,8 @@ fn restore_terminal_with(
     let _ = event_loop::drain_pending_events(std::time::Duration::from_millis(10), |_| false);
     let _ = terminal::disable_raw_mode();
     signal_handler::mark_restored();
-    crash_handler::disable_terminal_escape_restore();
-    tty_utils::restore_native_stderr();
+    xvora_crash_handler::disable_terminal_escape_restore();
+    xvora_tty_utils::restore_native_stderr();
     drain_result
 }
 fn restore_terminal(
@@ -1687,9 +1714,9 @@ fn set_panic_hook() {
         emit_terminal_teardown_sequences(current_screen_mode(), None);
         let _ = terminal::disable_raw_mode();
         signal_handler::mark_restored();
-        crash_handler::disable_terminal_escape_restore();
-        tty_utils::restore_native_stderr();
-        tty_utils::global_process_scope().kill_all();
+        xvora_crash_handler::disable_terminal_escape_restore();
+        xvora_tty_utils::restore_native_stderr();
+        xvora_tty_utils::global_process_scope().kill_all();
         crate::memory_trace::record_crash_sample();
         hook(info);
     }));
@@ -1705,7 +1732,7 @@ mod tests {
         let backend = CrosstermBackend::new(
             crate::render::draw::TermWriter::new(tx, sync).expect("single test writer"),
         );
-        let terminal = ratatui_inline::Terminal::with_options(
+        let terminal = xvora_ratatui_inline::Terminal::with_options(
             backend,
             TerminalOptions {
                 viewport: Viewport::Fixed(ratatui::layout::Rect::new(0, 0, 80, 24)),

@@ -159,7 +159,7 @@ pub fn build_storage_client_for_proxy(
     user_token: Option<String>,
     session_id: Option<String>,
     client_identifier: &str,
-) -> file_utils::storage_client::StorageClient {
+) -> xvora_file_utils::storage_client::StorageClient {
     let http_client = crate::http::shared_upload_client();
     if let Some(am) = auth_manager {
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(ShellAuthCredentialProvider::new(
@@ -167,9 +167,9 @@ pub fn build_storage_client_for_proxy(
             deployment_key,
             alpha_test_key,
         ));
-        let bridge: Arc<dyn file_utils::storage_client::Auth401AttributionCallback> =
+        let bridge: Arc<dyn xvora_file_utils::storage_client::Auth401AttributionCallback> =
             Arc::new(StorageClientAttributionBridge::new(am, session_id));
-        file_utils::storage_client::StorageClient::with_provider(
+        xvora_file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
@@ -188,7 +188,7 @@ pub fn build_storage_client_for_proxy(
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(
             StaticAuthCredentialProvider::new(Box::new(creds), wire_bearer),
         );
-        file_utils::storage_client::StorageClient::with_provider(
+        xvora_file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
@@ -217,7 +217,9 @@ impl StorageClientAttributionBridge {
         }
     }
 }
-impl file_utils::storage_client::Auth401AttributionCallback for StorageClientAttributionBridge {
+impl xvora_file_utils::storage_client::Auth401AttributionCallback
+    for StorageClientAttributionBridge
+{
     fn record_401(&self, operation: &str, sent_bearer_prefix: Option<&str>) {
         crate::auth::attribution::record_consumer_401(
             self.auth_manager.as_ref(),
@@ -262,6 +264,16 @@ impl OtelAuthCredentialProvider {
     }
     pub(crate) fn set_deployment_key(&self, key: String) {
         self.deployment_key.store(Arc::new(Some(key)));
+    }
+    /// Email for the external stream: OIDC/gateway only, never API-key,
+    /// deployment-key, git, or blank. Identity, not a content gate.
+    fn oauth_gateway_email(&self) -> Option<String> {
+        if self.deployment_key.load().is_some() {
+            return None;
+        }
+        let (am, _) = self.load_state();
+        let auth = am.current_or_expired()?;
+        oauth_gateway_email_from_auth(&auth)
     }
     /// Loads `live` once, returning the live manager when set, else the bootstrap.
     fn load_state(&self) -> (Arc<AuthManager>, bool) {
@@ -375,15 +387,28 @@ pub(crate) fn wire_otel_auth_manager(auth_manager: Arc<AuthManager>) {
     }
     sync_external_otel_identity();
 }
+/// Email for the external OTEL stream. OIDC/gateway only; never API-key,
+/// WebLogin, or a blank address. Callers must also skip deployment-key
+/// snapshots — this helper only inspects `GrokAuth`.
+pub(crate) fn oauth_gateway_email_from_auth(auth: &crate::auth::GrokAuth) -> Option<String> {
+    match auth.auth_mode {
+        crate::auth::AuthMode::Oidc | crate::auth::AuthMode::External => {
+            auth.email.clone().filter(|e| !e.is_empty())
+        }
+        crate::auth::AuthMode::ApiKey | crate::auth::AuthMode::WebLogin => None,
+    }
+}
 /// Push the current identity attributes (never the token) to the external OTEL stream.
 /// Reads the same `CredentialSnapshot` the internal layer stamps per export, so both pipelines attribute identically.
+/// `user.id` is copied whenever the snapshot has a non-empty principal (including API-key sessions).
+/// OAuth/gateway email is attached when present; never from git, API-key, or deployment-key.
 /// No-op when the OTel provider was never initialized or the external stream is dormant.
 pub(crate) fn sync_external_otel_identity() {
     if let Some(provider) = OTEL_PROVIDER.get() {
         let snapshot = provider.snapshot();
-        xvora_telemetry::external::set_identity(
-            xvora_telemetry::external::IdentityAttrs::from_snapshot(&snapshot),
-        );
+        let mut attrs = xvora_telemetry::external::IdentityAttrs::from_snapshot(&snapshot);
+        attrs.email = provider.oauth_gateway_email();
+        xvora_telemetry::external::set_identity(attrs);
     }
 }
 /// No-ops if the OTel layer was never initialized.
@@ -680,6 +705,11 @@ mod tests {
             Some(deployment_id_from_key("sk-apikey-xyz").as_str())
         );
         assert!(api.deployment_id.is_none());
+        assert_eq!(
+            api.user_id.as_deref(),
+            Some("test-user"),
+            "API-key sessions still carry the snapshot principal; emit attaches user.id"
+        );
         let oidc = ShellAuthCredentialProvider::new(
             make_manager(
                 &dir,
@@ -905,5 +935,38 @@ mod tests {
         let snap = provider.snapshot();
         assert_eq!(snap.token.as_deref(), Some("deployment-key-12345"));
         assert!(snap.user_id.is_none());
+    }
+    #[test]
+    fn oauth_gateway_email_oidc_and_external_only() {
+        let oidc = GrokAuth {
+            auth_mode: crate::auth::AuthMode::Oidc,
+            email: Some("alice@corp.example".into()),
+            ..GrokAuth::test_default()
+        };
+        assert_eq!(
+            oauth_gateway_email_from_auth(&oidc).as_deref(),
+            Some("alice@corp.example")
+        );
+        let external = GrokAuth {
+            auth_mode: crate::auth::AuthMode::External,
+            email: Some("bob@gateway.example".into()),
+            ..GrokAuth::test_default()
+        };
+        assert_eq!(
+            oauth_gateway_email_from_auth(&external).as_deref(),
+            Some("bob@gateway.example")
+        );
+        let blank = GrokAuth {
+            auth_mode: crate::auth::AuthMode::Oidc,
+            email: Some(String::new()),
+            ..GrokAuth::test_default()
+        };
+        assert_eq!(oauth_gateway_email_from_auth(&blank), None);
+        let api = GrokAuth {
+            auth_mode: crate::auth::AuthMode::ApiKey,
+            email: Some("should-not-export@example.com".into()),
+            ..GrokAuth::test_default()
+        };
+        assert_eq!(oauth_gateway_email_from_auth(&api), None);
     }
 }
