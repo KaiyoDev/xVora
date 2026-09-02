@@ -27,8 +27,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, warn};
-use url::Url;
 use tool_protocol::{
     ConnectionKind, HookEvent, HookFrame, HookReplyFrame, JsonRpcError, JsonRpcId,
     JsonRpcNotification, JsonRpcResponse, JsonRpcVersion, Method, ResponseOutcome, SessionId,
@@ -40,6 +38,8 @@ use tool_runtime::{
     ToolStreamItem, TraceContext, TypedToolOutput,
 };
 use tool_types::ToolDescription;
+use tracing::{debug, warn};
+use url::Url;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::cancel::CancelRegistry;

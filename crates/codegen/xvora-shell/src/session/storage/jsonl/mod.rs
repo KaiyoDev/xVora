@@ -6,11 +6,11 @@ use crate::session::persistence::{CHAT_FORMAT_VERSION, Summary};
 use crate::tools::todo::TodoState;
 use agent_client_protocol as acp;
 use async_trait::async_trait;
+use chat_state::StrictAppendAck;
 use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
-use chat_state::StrictAppendAck;
 use xvora_workspace::session::file_state::RewindPoint;
 mod copy;
 #[derive(Clone)]

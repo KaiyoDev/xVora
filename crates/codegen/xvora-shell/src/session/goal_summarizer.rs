@@ -14,8 +14,8 @@ use crate::session::goal_planner::{
 use crate::session::goal_role_tools::RoleToolNames;
 use std::path::Path;
 use std::sync::Arc;
-use xvora_session_events::EventWriter;
 use tool_types::SubagentCapabilityMode;
+use xvora_session_events::EventWriter;
 use xvora_tools::implementations::grok_build::task::backend::{ChannelBackend, SubagentBackend};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentOwner, SubagentRequest, SubagentRuntimeOverrides,

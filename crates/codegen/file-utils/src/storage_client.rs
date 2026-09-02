@@ -14,6 +14,7 @@ use std::fs::File as StdFile;
 // Positional read traits live in different modules per platform; the
 // methods we use (read_at on Unix, seek_read on Windows) have the same
 // signature, so the call site cfg-branches on the method name only.
+use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 #[cfg(unix)]
 use std::os::unix::fs::FileExt;
 #[cfg(windows)]
@@ -27,7 +28,6 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
 use xvora_auth::AuthCredentialProvider;
-use circuit_breaker::{BreakerConfig, BreakerOpen, CircuitBreaker, Outcome, RetryPolicy};
 
 use crate::circuit_breaker_observer::TracingObserver;
 

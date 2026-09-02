@@ -12,11 +12,11 @@
 //!
 //! No deadline is imposed by default ([`WorkspaceClient::with_deadline`] opts in).
 //! That preserves the `WorkspaceOps::rpc_raw` behaviour where callers own their timeouts.
+use computer_hub_sdk::harness::ToolHarness;
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use computer_hub_sdk::harness::ToolHarness;
 use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 use xvora_workspace_types::rpc::agents_md::{AgentConfigFile, DiscoverAgentsMdReq};
 use xvora_workspace_types::rpc::code_nav::{
@@ -587,9 +587,9 @@ impl WorkspaceClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use computer_hub_sdk::harness::LocalRegistry;
     use schemars::JsonSchema;
     use serde::Deserialize;
-    use computer_hub_sdk::harness::LocalRegistry;
     use tool_protocol::{SessionId, ToolId};
     use tool_runtime::{Tool, ToolError};
     use tool_types::ToolDescription;

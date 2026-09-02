@@ -15,14 +15,14 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_client_protocol::{self as acp, Agent as _};
-use serde_json::json;
-use tempfile::TempDir;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
+use agent_client_protocol::{self as acp, Agent as _};
+use serde_json::json;
+use tempfile::TempDir;
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::agent::mvp_agent::MvpAgent;
 use xvora_test_support::{MockInferenceServer, MockModelEntry};

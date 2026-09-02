@@ -1,8 +1,8 @@
 //! The stage is a data-carrying enum: [`ElicitationStage::Form`] and [`ElicitationStage::UrlConsent`] own the pending ACP responder.
 //! [`ElicitationStage::UrlWaiting`] exists only after the response was sent, so the stage itself encodes whether the card still owes a response.
 
-use agent_client_protocol as acp;
 use acp_lib::AcpResult;
+use agent_client_protocol as acp;
 use xvora_tools::mcp_elicitation::{
     ElicitFieldKind, ElicitFieldSpec, ElicitFieldValue, MAX_ELICIT_DESC_CHARS,
     MAX_ELICIT_DRAFT_CHARS, MAX_ELICIT_ENUM_VALUE_CHARS, MAX_ELICIT_MESSAGE_CHARS,

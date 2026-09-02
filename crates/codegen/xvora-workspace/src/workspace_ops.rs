@@ -18,12 +18,12 @@ use crate::file_system::ContentSearchRequest;
 use crate::handle::WorkspaceHandle;
 use crate::worktree::{ApplyWorktreeRequest, CreateWorktreeRequest, RemoveWorktreeRequest};
 use async_trait::async_trait;
+use computer_hub_sdk::ToolHarness;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use computer_hub_sdk::ToolHarness;
 use xvora_tools::types::output::ToolRunResult;
 use xvora_workspace_client::{WorkspaceClient, is_transport_fatal};
 pub use xvora_workspace_types::rpc::agents_md::DiscoverAgentsMdReq;
@@ -2088,9 +2088,9 @@ mod tests {
     /// A `SessionSummary` (with a turn carrying a hunk) mirrors identically.
     #[test]
     fn session_summary_to_wire_serializes_identically() {
-        use std::sync::Arc;
         use hunk_tracker::SessionSummary;
         use hunk_tracker::types::{Hunk, HunkSource, TurnSummary};
+        use std::sync::Arc;
         let hunk = Hunk::file_created(
             std::path::PathBuf::from("/repo/a.rs"),
             "x\n".to_string(),

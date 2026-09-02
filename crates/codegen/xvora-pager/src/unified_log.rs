@@ -5,9 +5,9 @@
 
 use std::sync::{Mutex, OnceLock};
 
+use acp_lib::AcpAgentTx;
 use agent_client_protocol as acp;
 use tokio::runtime::Handle;
-use acp_lib::AcpAgentTx;
 use xvora_telemetry::unified_log::{
     ClientLogEntry, LOG_METHOD, LogLevel, LogNotificationParams, LogSource,
 };

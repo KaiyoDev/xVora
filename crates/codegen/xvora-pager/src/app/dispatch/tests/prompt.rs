@@ -3807,8 +3807,8 @@ fn plain_send_during_pending_subagent_wait_keeps_confirmed_queue_row_reachable()
     use crate::app::agent_view::{ActivePane, test_fixtures::simulate_subagent_wait};
     use crate::app::app_view::InputOutcome;
     use crate::app::prompt_queue::QueueEntryWire;
-    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
     use acp_lib::AcpClientMessage;
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
     let mut app = test_app_with_agent();
     let id = AgentId(0);

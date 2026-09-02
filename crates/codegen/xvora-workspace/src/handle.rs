@@ -1,6 +1,7 @@
 //! [`WorkspaceHandle`] -- public handle to a workspace instance.
 use fastrace::future::FutureExt as _;
 use fastrace::local::LocalSpan;
+use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use prometheus::{
     Histogram, HistogramVec, IntCounter, IntCounterVec, register_histogram, register_histogram_vec,
     register_int_counter, register_int_counter_vec,
@@ -8,7 +9,6 @@ use prometheus::{
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use tool_protocol::turn_hook::TurnHookOutcome;
 use tool_protocol::{SessionId, ToolId, ToolServerStatusPayload};
 /// Default SIGTERM drain budget (ms); override via `GROK_WORKSPACE_TERMINATION_GRACE_MS`.
@@ -202,11 +202,11 @@ use crate::telemetry::dc_log;
 use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
-use xvora_diag_server::DiagHandle;
 use file_utils::queue::EnqueueOutcome;
+use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
+use xvora_diag_server::DiagHandle;
 use xvora_session_events::types::CancellationCategory;
 use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
-use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
 /// Per-domain checkpoint captures, by domain and turn outcome.
 pub(crate) static REWIND_CHECKPOINT_CAPTURE_TOTAL: std::sync::LazyLock<IntCounterVec> =
     std::sync::LazyLock::new(|| {

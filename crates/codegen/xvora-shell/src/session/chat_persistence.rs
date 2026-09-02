@@ -1,7 +1,7 @@
 use std::io;
 
-use tokio::sync::{mpsc, oneshot};
 use chat_state::{ChatPersistence, StrictAppendAck, StrictAppendError};
+use tokio::sync::{mpsc, oneshot};
 use xvora_sampling_types::ConversationItem;
 
 use super::persistence::PersistenceMsg;

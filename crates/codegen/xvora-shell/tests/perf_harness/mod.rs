@@ -10,12 +10,12 @@ use std::time::Instant;
 use agent_client_protocol::{self as acp};
 
 use crate::acp_harness;
-use serde_json::Value;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
 };
+use serde_json::Value;
+use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use xvora_shell::agent::config::Config as AgentConfig;
 use xvora_shell::agent::mvp_agent::MvpAgent;
 

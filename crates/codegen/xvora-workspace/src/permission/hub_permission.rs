@@ -1,11 +1,11 @@
 use crate::permission::prompter::{PromptOutcome, tool_name_for_access};
 use crate::permission::types::{AccessKind, HookAsk};
 use async_trait::async_trait;
+use computer_hub_sdk::harness::PERMISSION_REQUEST_KIND;
+use computer_hub_sdk::{ToolServer, WeakToolServer};
 use prometheus::{HistogramVec, IntCounter, register_histogram_vec, register_int_counter};
 use serde_json::Value;
 use std::sync::LazyLock;
-use computer_hub_sdk::harness::PERMISSION_REQUEST_KIND;
-use computer_hub_sdk::{ToolServer, WeakToolServer};
 use tool_protocol::SessionId;
 static PERMISSION_REPLY_DURATION: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec!(

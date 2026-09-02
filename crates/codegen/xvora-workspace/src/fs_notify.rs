@@ -6,8 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
-use xvora_fsnotify::{FsEvent, FsEventKind};
 use hunk_tracker::HunkTrackerHandle;
+use xvora_fsnotify::{FsEvent, FsEventKind};
 
 /// True if `path` lies under a hidden component below `cwd`.
 ///
@@ -390,8 +390,8 @@ mod tests {
 
     #[test]
     fn parse_diff_name_status_all_variants() {
-        use std::path::Path;
         use codebase_graph::FileEventKind;
+        use std::path::Path;
         let root = Path::new("/repo");
 
         let ev = parse_diff_name_status_line("M\tsrc/main.rs", root).unwrap();

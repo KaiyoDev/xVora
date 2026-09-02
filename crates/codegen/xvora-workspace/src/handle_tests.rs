@@ -1721,8 +1721,8 @@ pub(crate) fn make_handle_with_events() -> (WorkspaceHandle, tempfile::TempDir) 
 /// Their field content is truthful.
 #[tokio::test]
 async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
-    use xvora_session_events::ToolOutcome;
     use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use xvora_session_events::ToolOutcome;
     let (handle, home) = make_handle_with_events();
     let sid = "sess-int";
     handle
@@ -1913,8 +1913,8 @@ async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
 /// It caches no session writers and creates no `sessions/` dir.
 #[tokio::test]
 async fn events_disabled_keeps_noop_and_writes_nothing() {
-    use xvora_session_events::ToolOutcome;
     use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use xvora_session_events::ToolOutcome;
     let handle = make_handle();
     assert!(
         !handle.shared().events_enabled,
@@ -2096,8 +2096,8 @@ fn is_safe_object_segment_rejects_traversal() {
 /// The single mapping from `TurnHookOutcome` to `TurnOutcomeLabel` used by `on_after_turn` must be exhaustive and stable.
 #[test]
 fn turn_outcome_label_maps_every_variant() {
-    use xvora_session_events::TurnOutcomeLabel;
     use tool_protocol::turn_hook::TurnHookOutcome;
+    use xvora_session_events::TurnOutcomeLabel;
     assert!(matches!(
         turn_outcome_label(TurnHookOutcome::Completed),
         TurnOutcomeLabel::Completed

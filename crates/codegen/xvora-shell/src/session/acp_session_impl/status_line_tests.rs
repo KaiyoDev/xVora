@@ -2,6 +2,7 @@ use super::{
     build_context_window, emit_loop, live_turn, split_normalized_remote, strip_trailing_separator,
 };
 use crate::extensions::notification::PromptUsageModel;
+use acp_lib::AcpClientMessage;
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -10,7 +11,6 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::sync::mpsc::UnboundedReceiver;
-use acp_lib::AcpClientMessage;
 use xvora_workspace::session::git::normalize_repo_url;
 
 #[test]

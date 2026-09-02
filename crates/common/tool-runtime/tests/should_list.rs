@@ -6,9 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use tool_protocol::ToolId;
-use tool_runtime::{
-    ArcTool, Cwd, ListToolsContext, Tool, ToolCallContext, ToolError, ToolOutput,
-};
+use tool_runtime::{ArcTool, Cwd, ListToolsContext, Tool, ToolCallContext, ToolError, ToolOutput};
 use tool_types::ToolDescription;
 
 #[derive(Deserialize, JsonSchema)]

@@ -3,10 +3,10 @@ use crate::session::helpers::compaction_context::{
     BackgroundTaskSummary, CompactionInputs, CompactionStateContext, RunningSubagentSummary,
     SubagentToolNames, to_system_reminder_sync,
 };
-use std::collections::BTreeSet;
 use chat_state::compaction_utils::{
     CompactedHistoryInput, build_compacted_history as build_compacted_history_shared,
 };
+use std::collections::BTreeSet;
 /// Thin wrapper around the shared `build_compacted_history` from `xvora-chat-state`.
 /// Renders the system-reminder synchronously (no memory backend) to match the old test-local helper signature.
 fn build_compacted_history(
@@ -268,9 +268,7 @@ fn test_auto_continue_prompt_has_no_user_query_tags() {
 /// This exercises the same code path as `run_compact_inner` in `acp_session.rs`: build, sanitize, validate, then fall back if needed.
 #[test]
 fn sanitize_then_validate_produces_valid_history() {
-    use chat_state::compaction_utils::{
-        sanitize_compacted_history, validate_compacted_history,
-    };
+    use chat_state::compaction_utils::{sanitize_compacted_history, validate_compacted_history};
     let raw = vec![
         ConversationItem::system("sys"),
         ConversationItem::user("<user_query>\ntask\n</user_query>"),

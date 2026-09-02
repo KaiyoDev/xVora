@@ -1,15 +1,15 @@
 pub(crate) mod environment;
 use crate::telemetry::dc_log;
-use environment::WorkspaceIdentity;
-use prometheus::{IntCounterVec, IntGauge, register_int_counter_vec, register_int_gauge};
-use std::sync::Arc;
-use std::sync::LazyLock;
-use xvora_auth::{AuthCredentialProvider, CredentialSnapshot};
 use computer_hub_sdk::auth::{AuthCredential, AuthProvider};
+use environment::WorkspaceIdentity;
 use file_utils::gcs::StorageConfig;
 use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue};
 use file_utils::storage_client::Auth401AttributionCallback;
 use file_utils::{TraceExportConfig, UploadMethod};
+use prometheus::{IntCounterVec, IntGauge, register_int_counter_vec, register_int_gauge};
+use std::sync::Arc;
+use std::sync::LazyLock;
+use xvora_auth::{AuthCredentialProvider, CredentialSnapshot};
 /// `…_pending_bytes` is the series the mandatory queue-memory alert fires on.
 static UPLOAD_QUEUE_PENDING_BYTES: LazyLock<IntGauge> = LazyLock::new(|| {
     register_int_gauge!(
@@ -437,9 +437,7 @@ mod tests {
     /// The content-type is JSON and the artifact name is `tool_state` (asserted via queue stat and sidecar manifest).
     #[tokio::test]
     async fn tool_state_enqueues_at_session_turn_gcs_path() {
-        use file_utils::queue::{
-            QueueItemSidecar, SIDECAR_SUFFIX, UploadQueue, UploadRetryPolicy,
-        };
+        use file_utils::queue::{QueueItemSidecar, SIDECAR_SUFFIX, UploadQueue, UploadRetryPolicy};
         let home = tempfile::TempDir::new().unwrap();
         let source: Arc<dyn TraceExportSource> =
             Arc::new(WorkspaceTraceExportSource::new(proxy_config()));

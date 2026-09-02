@@ -26,6 +26,10 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use computer_hub_core::{
+    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
+    tool_error_from_wire,
+};
 use dashmap::DashMap;
 use futures::FutureExt;
 use futures::Stream;
@@ -34,11 +38,6 @@ use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
-use url::Url;
-use computer_hub_core::{
-    ErasedTool, ToolHandle, decode_call_result, error_from_envelope, progress_from_frame,
-    tool_error_from_wire,
-};
 use tool_protocol::notification_wire::{WireCustomNotification, WireToolNotification};
 use tool_protocol::session_event::{SessionEvent, ToolCallOutcome};
 use tool_protocol::{
@@ -52,6 +51,7 @@ use tool_runtime::{
     ToolStreamItem, TypedToolOutput, terminal_only,
 };
 use tool_types::ToolDescription;
+use url::Url;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::connection::{HubConnection, ReconnectCallback, ReconnectEvent};

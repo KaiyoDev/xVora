@@ -27,9 +27,9 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use criterion::{
     BenchmarkId, Criterion, SamplingMode, Throughput, criterion_group, criterion_main,
 };
+use fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 use filetime::{FileTime, set_file_mtime};
 use tempfile::TempDir;
-use fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 use xvora_shell::session::info::Info;
 use xvora_shell::session::persistence::Summary;
 use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};

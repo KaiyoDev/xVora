@@ -12,8 +12,8 @@ use std::time::{Duration, Instant};
 use dashmap::DashMap;
 use tokio::sync::OnceCell;
 use tokio::task::JoinHandle;
-use url::Url;
 use tool_protocol::ConnectionKind;
+use url::Url;
 
 use crate::auth::AuthProvider;
 use crate::connection::{

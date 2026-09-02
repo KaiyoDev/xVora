@@ -76,6 +76,12 @@ mod mac {
     use super::Cli;
     use anyhow::{Context, Result, bail};
     use clap::Parser;
+    use fast_worktree::create_latency_stamp::{
+        LIBRARY_CREATE_ENV, format_create_p50, format_create_stamp,
+    };
+    use fast_worktree::{
+        CreationMode, NfsWorktreeOpts, WorkingTreeMode, WorktreeBuilder, remove_worktree,
+    };
     use std::ffi::CString;
     use std::fs;
     use std::os::unix::ffi::OsStrExt;
@@ -83,12 +89,6 @@ mod mac {
     use std::process::{Command, Stdio};
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use std::time::Instant;
-    use fast_worktree::create_latency_stamp::{
-        LIBRARY_CREATE_ENV, format_create_p50, format_create_stamp,
-    };
-    use fast_worktree::{
-        CreationMode, NfsWorktreeOpts, WorkingTreeMode, WorktreeBuilder, remove_worktree,
-    };
 
     /// Signal-safe dest path. Handler only loads the pointer and calls
     /// `unmount`/`umount` + `_exit` (no Mutex, no spawn).
