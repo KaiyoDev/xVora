@@ -436,8 +436,8 @@ mod tests {
     use super::*;
     use serial_test::serial;
     use tempfile::tempdir;
-    use xvora_config::ConfigLayers;
     use test_support::EnvGuard;
+    use xvora_config::ConfigLayers;
 
     fn models_default_patch(default: &str) -> toml::Table {
         let mut models = toml::map::Map::new();

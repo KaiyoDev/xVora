@@ -958,8 +958,8 @@ async fn recap_request_rides_parent_prompt_cache() {
 /// A recap in a backend-search session must send the main turn's hosted tools or its prefix diverges and misses the cache.
 #[tokio::test(flavor = "current_thread")]
 async fn recap_request_sends_hosted_tools_under_backend_search() {
-    use xvora_sampling_types::HostedTool;
     use test_support::MockInferenceServer;
+    use xvora_sampling_types::HostedTool;
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1207,8 +1207,8 @@ async fn turn_summary_generate_persists_and_broadcasts() {
 /// An active per-turn cutoff must reach the recap's `x_search` entry rather than an unbounded tool.
 #[tokio::test(flavor = "current_thread")]
 async fn recap_hosted_tools_reflect_the_active_per_turn_override() {
-    use xvora_sampling_types::{HostedTool, SearchDateBound, ToolOverrides, XSearchOptions};
     use test_support::MockInferenceServer;
+    use xvora_sampling_types::{HostedTool, SearchDateBound, ToolOverrides, XSearchOptions};
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1447,8 +1447,8 @@ async fn auxiliary_calls_keep_the_main_turn_prefix() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn messages_side_calls_preserve_completed_reasoning() {
-    use xvora_sampling_types::{ReasoningEffort, rs};
     use test_support::MockInferenceServer;
+    use xvora_sampling_types::{ReasoningEffort, rs};
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1563,8 +1563,8 @@ async fn messages_side_calls_preserve_completed_reasoning() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn messages_side_calls_strip_reasoning_without_supported_thinking_effort() {
-    use xvora_sampling_types::{ReasoningEffort, synthesized_reasoning_item};
     use test_support::MockInferenceServer;
+    use xvora_sampling_types::{ReasoningEffort, synthesized_reasoning_item};
 
     let local = tokio::task::LocalSet::new();
     local
@@ -1675,8 +1675,8 @@ async fn messages_side_calls_strip_reasoning_without_supported_thinking_effort()
 /// A mid-turn `/btw` must not send a reasoning item whose assistant the trim removed, or the request goes out with an unpaired prefix.
 #[tokio::test(flavor = "current_thread")]
 async fn side_question_trims_reasoning_orphaned_by_mid_turn_truncation() {
-    use xvora_sampling_types::conversation::{AssistantItem, ToolCall};
     use test_support::MockInferenceServer;
+    use xvora_sampling_types::conversation::{AssistantItem, ToolCall};
 
     let local = tokio::task::LocalSet::new();
     local

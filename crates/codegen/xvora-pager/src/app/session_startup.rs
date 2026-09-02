@@ -2348,10 +2348,8 @@ mod tests {
     #[test]
     fn resolve_local_workspace_empty_cli_attach_falls_back_to_env() {
         let _env = advertised_tools_env();
-        let _sid = test_support::EnvGuard::set(
-            GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV,
-            "srv-from-env",
-        );
+        let _sid =
+            test_support::EnvGuard::set(GROK_CHAT_LOCAL_WORKSPACE_SERVER_ID_ENV, "srv-from-env");
         let tmp = tempfile::tempdir().unwrap();
         let cfg = resolve_local_workspace_config(true, None, Some(""), Some(tmp.path()))
             .unwrap()
@@ -2453,8 +2451,7 @@ mod tests {
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS)]
     #[test]
     fn resolve_local_workspace_refuses_uncheckable_toolset() {
-        let _tools =
-            test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV);
+        let _tools = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ADVERTISED_TOOLS_ENV);
         let tmp = tempfile::tempdir().unwrap();
         let err =
             resolve_local_workspace_config(true, None, Some("srv"), Some(tmp.path())).unwrap_err();

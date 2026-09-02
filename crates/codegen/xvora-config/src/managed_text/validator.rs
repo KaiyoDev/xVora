@@ -172,10 +172,7 @@ mod tests {
     }
 
     impl ProcessOps for InjectedOps {
-        fn attach_group(
-            &self,
-            child: &Child,
-        ) -> Result<tty_utils::ProcessGroup, std::io::Error> {
+        fn attach_group(&self, child: &Child) -> Result<tty_utils::ProcessGroup, std::io::Error> {
             if self.attach_fails {
                 Err(std::io::Error::other("injected attach failure"))
             } else {

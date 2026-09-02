@@ -1966,11 +1966,10 @@ fn main() {
     let workers = cli_worker_threads();
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.worker_threads(workers.get()).enable_all();
-    let runtime =
-        tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
-            eprintln!("grok: failed to start tokio runtime: {e}");
-            shutdown_and_flush_telemetry(1);
-        });
+    let runtime = tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
+        eprintln!("grok: failed to start tokio runtime: {e}");
+        shutdown_and_flush_telemetry(1);
+    });
     let result = run_and_shutdown(runtime, async_main(args), RUNTIME_SHUTDOWN_GRACE);
     xvora_telemetry::debug_log::flush();
     if let Err(e) = result {

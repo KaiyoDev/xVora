@@ -885,10 +885,8 @@ mod tests {
                     .to_string(),
             )
             .await;
-        let _env = test_support::EnvGuard::set(
-            "GROK_CONVERSATIONS_BASE_URL",
-            format!("http://{addr}"),
-        );
+        let _env =
+            test_support::EnvGuard::set("GROK_CONVERSATIONS_BASE_URL", format!("http://{addr}"));
         let home = tempfile::tempdir().expect("tempdir");
         let client = ConversationsClient::new(xvora_auth_manager(home.path()));
         let mut req = ListReq {
@@ -974,8 +972,7 @@ mod tests {
             "no env ⇒ lane off (Build-mode default)"
         );
         {
-            let _desktop =
-                test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "1");
+            let _desktop = test_support::EnvGuard::set("GROK_SESSION_LIST_CONVERSATIONS", "1");
             assert_eq!(conversations_lane_active(), false);
         }
         {

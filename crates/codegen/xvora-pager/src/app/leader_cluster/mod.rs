@@ -30,6 +30,7 @@ use std::time::Duration;
 
 use agent_client_protocol as acp;
 use tempfile::TempDir;
+use test_support::MockInferenceServer;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use xvora_acp_lib::{AcpClientRx, acp_send};
@@ -38,7 +39,6 @@ use xvora_shell::leader::{
     LEADER_SOCKET_ENV, LeaderClient, LeaderEnvUrls, LeaderLock, LeaderReconnector,
     LeaderServerControlState, LeaderServerMetadata, ReconnectPolicy, run_leader_server,
 };
-use test_support::MockInferenceServer;
 
 use super::actions::{Action, TaskResult};
 use super::agent::AgentState;

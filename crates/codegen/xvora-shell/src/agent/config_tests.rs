@@ -1336,8 +1336,8 @@ fn resolve_credentials_multi_env_key_uses_lc_alias() {
 #[test]
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_session() {
-    use xvora_chat_state::AuthType;
     use test_support::EnvGuard;
+    use xvora_chat_state::AuthType;
     let primary = "GROK_TEST_EMPTY_ENV_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_LC_ALIAS";
     let _primary = EnvGuard::set(primary, "");
@@ -1353,8 +1353,8 @@ fn resolve_credentials_empty_env_key_falls_through_to_session() {
 #[serial]
 fn resolve_credentials_empty_env_key_falls_through_to_global_key() {
     use crate::agent::auth_method::{LEGACY_XAI_API_KEY_ENV_VAR, XAI_API_KEY_ENV_VAR};
-    use xvora_chat_state::AuthType;
     use test_support::EnvGuard;
+    use xvora_chat_state::AuthType;
     let sentinel = "xvora-global-sentinel-key";
     let primary = "GROK_TEST_EMPTY_ENV_GLOBAL_PRIMARY";
     let alias = "GROK_TEST_EMPTY_ENV_GLOBAL_ALIAS";

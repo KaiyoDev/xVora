@@ -7,9 +7,9 @@ use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tty_utils::ProcessScope;
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_paths::AbsPathBuf;
-use tty_utils::ProcessScope;
 use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
 use xvora_workspace::session::file_state::FileStateHandle;
 #[derive(Debug, Clone, Default)]

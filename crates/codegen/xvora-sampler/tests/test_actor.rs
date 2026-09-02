@@ -18,6 +18,7 @@ use serde_json::json;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot};
 
+use test_support::{SseEvent, sse};
 use xvora_sampler::{
     ApiBackend, RequestId, RetryPolicy, SamplerActor, SamplerConfig, SamplingChannel,
     SamplingErrorKind, SamplingEvent, StripReason,
@@ -26,7 +27,6 @@ use xvora_sampling_types::{
     ConversationItem, ConversationRequest, DoomLoopRecoveryPolicy, INVALID_IMAGE_ERROR_CODE,
     UserItem,
 };
-use test_support::{SseEvent, sse};
 
 // ---------------------------------------------------------------------------
 // Mock server harness
