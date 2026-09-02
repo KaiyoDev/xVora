@@ -6,7 +6,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use xvora_tool_protocol::ToolId;
-use xvora_tool_runtime::{ArcTool, Cwd, ListToolsContext, Tool, ToolCallContext, ToolError, ToolOutput};
+use xvora_tool_runtime::{
+    ArcTool, Cwd, ListToolsContext, Tool, ToolCallContext, ToolError, ToolOutput,
+};
 use xvora_tool_types::ToolDescription;
 
 #[derive(Deserialize, JsonSchema)]

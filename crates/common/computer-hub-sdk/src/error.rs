@@ -6,8 +6,8 @@
 //! re-deriving the numeric/string code mapping.
 
 use thiserror::Error;
-use xvora_tool_protocol::{IdError, JsonRpcError, ToolCallId, ToolErrorWire};
 use url::Url;
+use xvora_tool_protocol::{IdError, JsonRpcError, ToolCallId, ToolErrorWire};
 
 /// Errors surfaced by the client SDK.
 #[derive(Debug, Error)]

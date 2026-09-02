@@ -12,10 +12,10 @@ use tokio::sync::{Mutex as TokioMutex, mpsc};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use tokio_util::sync::CancellationToken;
 
+use agent_client_protocol as acp;
 use xvora_acp_lib::{
     AcpClientChannel, AcpGatewayReceiver, AcpGatewaySender, LineBufferedRead, acp_channels,
 };
-use agent_client_protocol as acp;
 pub use xvora_shell::leader::ConnectionStatus;
 use xvora_shell::leader::{LeaderConnection, LeaderReconnector, ReconnectPolicy};
 

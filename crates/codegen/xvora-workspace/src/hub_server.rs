@@ -7,9 +7,9 @@ use crate::rpc_envelope::{RpcEnvelope, envelope_err};
 use crate::workspace_ops::{RpcActivityClass, WorkspaceOp, WorkspaceRpc};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use xvora_computer_hub_sdk::ToolServerHandler;
 use prometheus::{HistogramVec, IntCounterVec, register_histogram_vec, register_int_counter_vec};
 use serde_json::Value;
+use xvora_computer_hub_sdk::ToolServerHandler;
 use xvora_tool_protocol::{HookEvent, HookFrame, SessionId, ToolId, ToolServerEvictParams};
 use xvora_tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, TypedToolOutput, terminal_only,

@@ -51,7 +51,6 @@ use crate::session::user_message::construct_user_message_minimal;
 use crate::session::user_message::extract_user_query;
 use crate::terminal::TerminalRunRequest;
 use crate::tools::ToolContext;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use agent_client_protocol::ContentBlock;
 use parking_lot::Mutex;
@@ -63,6 +62,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::{Mutex as TokioMutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_agent::AgentDefinition;
 use xvora_agent::prompt::agents_md::LEGACY_AGENTS_MD_REMINDER_PREFIX;
 use xvora_agent::prompt::skills::SkillsConfig;
@@ -138,9 +138,9 @@ mod queue_mutation;
 use queue_mutation::{InputOrigin, QueueMutationPolicy};
 #[path = "acp_session_impl/prompt_queue.rs"]
 mod prompt_queue;
-pub(super) use xvora_prompt_queue::QueueInputRequest;
 #[cfg(test)]
 use tool_calls::BridgeToolSuccess;
+pub(super) use xvora_prompt_queue::QueueInputRequest;
 #[path = "acp_session_impl/hooks_plugins.rs"]
 mod hooks_plugins;
 #[path = "acp_session_impl/mcp.rs"]

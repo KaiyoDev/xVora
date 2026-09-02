@@ -28,11 +28,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::time::Duration;
 
-use xvora_acp_lib::{AcpClientRx, acp_send};
 use agent_client_protocol as acp;
 use tempfile::TempDir;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
+use xvora_acp_lib::{AcpClientRx, acp_send};
 use xvora_shell::leader::{
     ClientCapabilities as LeaderClientCapabilities, ClientMode, ConnectionStatus,
     LEADER_SOCKET_ENV, LeaderClient, LeaderEnvUrls, LeaderLock, LeaderReconnector,

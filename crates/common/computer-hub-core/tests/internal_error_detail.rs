@@ -3,8 +3,8 @@
 //! and its absence (frames from older peers) must fall back to the historic
 //! constant.
 
-use xvora_computer_hub_core::{error_from_envelope, tool_error_from_wire};
 use serde_json::json;
+use xvora_computer_hub_core::{error_from_envelope, tool_error_from_wire};
 use xvora_tool_protocol::{JsonRpcError, RequestId, ToolErrorWire};
 use xvora_tool_runtime::ToolErrorKind;
 

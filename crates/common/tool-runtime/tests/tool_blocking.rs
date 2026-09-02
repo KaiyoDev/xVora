@@ -5,7 +5,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use xvora_tool_protocol::ToolId;
-use xvora_tool_runtime::{Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolStreamItem};
+use xvora_tool_runtime::{
+    Tool, ToolCallContext, ToolError, ToolErrorKind, ToolOutput, ToolStreamItem,
+};
 use xvora_tool_types::ToolDescription;
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]

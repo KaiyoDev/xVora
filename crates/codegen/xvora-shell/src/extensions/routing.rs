@@ -1,6 +1,6 @@
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use serde::{Deserialize, Serialize};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 // The workspace crate defines these for fuzzy search; this module only re-exports them
 pub use xvora_workspace::file_system::{ClientId, TargetClientId};

@@ -1,0 +1,3 @@
+# Force LF for all source files — prevents CRLF corruption on Windows clones.
+# Without this, `cargo fmt --check` fails on any developer who pushes from Windows.
+* text=auto eol=lf

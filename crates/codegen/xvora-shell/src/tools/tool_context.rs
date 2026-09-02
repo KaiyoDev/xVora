@@ -3,13 +3,13 @@
 //! The session actor needs it for non-tool operations (ACP communication, git, rewind, etc.).
 //! Tool execution goes through the ToolBridge, which has its own SessionContext from xvora-tools.
 use crate::terminal::AsyncTerminalRunner;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
 use std::collections::HashMap;
 use std::sync::Arc;
-use xvora_tty_utils::ProcessScope;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_paths::AbsPathBuf;
+use xvora_tty_utils::ProcessScope;
 use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
 use xvora_workspace::session::file_state::FileStateHandle;
 #[derive(Debug, Clone, Default)]

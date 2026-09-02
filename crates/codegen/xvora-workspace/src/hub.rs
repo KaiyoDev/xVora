@@ -24,21 +24,21 @@
 use crate::error::{WorkspaceError, WorkspaceResult};
 use crate::handle::WorkspaceHandle;
 use async_trait::async_trait;
+use serde_json::Value;
+use std::sync::Arc;
+use tokio::task::JoinHandle;
+use url::Url;
 use xvora_computer_hub_sdk::{
     AuthProvider, CLOSE_CODE_SANDBOX_TERMINATED, ClientError, HubConnectionPool, ToolServer,
     ToolServerBuilder, ToolServerHandler,
 };
-use serde_json::Value;
-use std::sync::Arc;
-use tokio::task::JoinHandle;
+use xvora_diag_server::DiagHandle;
 use xvora_tool_protocol::ToolId;
 use xvora_tool_runtime::{
     ToolCallContext, ToolError, ToolErrorKind, ToolStream, ToolStreamItem, TypedToolOutput,
     terminal_only,
 };
 use xvora_tool_types::ToolDescription;
-use url::Url;
-use xvora_diag_server::DiagHandle;
 use xvora_tools::registry::types::ToolConfig;
 /// Configuration for connecting to a server instance.
 ///

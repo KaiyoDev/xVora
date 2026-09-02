@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio_util::sync::CancellationToken;
-use xvora_tool_protocol::ConnectionKind;
 use url::Url;
+use xvora_tool_protocol::ConnectionKind;
 
 use crate::auth::AuthProvider;
 use crate::connection::{

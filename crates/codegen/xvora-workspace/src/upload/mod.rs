@@ -1,6 +1,5 @@
 pub(crate) mod environment;
 use crate::telemetry::dc_log;
-use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
 use environment::WorkspaceIdentity;
 use file_utils::gcs::StorageConfig;
 use file_utils::queue::{EnqueueOutcome, TraceExportSource, UploadQueue};
@@ -10,6 +9,7 @@ use prometheus::{IntCounterVec, IntGauge, register_int_counter_vec, register_int
 use std::sync::Arc;
 use std::sync::LazyLock;
 use xvora_auth::{AuthCredentialProvider, CredentialSnapshot};
+use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
 /// `…_pending_bytes` is the series the mandatory queue-memory alert fires on.
 static UPLOAD_QUEUE_PENDING_BYTES: LazyLock<IntGauge> = LazyLock::new(|| {
     register_int_gauge!(

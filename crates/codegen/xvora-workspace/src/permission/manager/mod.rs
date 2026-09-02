@@ -4,10 +4,10 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use parking_lot::Mutex;
 
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use chrono::Utc;
 use tokio::sync::{mpsc, oneshot};
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 
 use crate::permission::auto_mode::{
     BashSecurityAssessment, ClassifierSecurityFinding, ClassifierVerdict, EnvRisk,

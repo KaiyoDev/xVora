@@ -34,8 +34,8 @@ use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};
 use crate::session::visibility::ClassifiedSessionKind;
 use crate::tools::todo::TodoState;
 use crate::util::grok_home::grok_home;
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_sampling_types::ReasoningEffort;
 
 use crate::extensions::notification::{

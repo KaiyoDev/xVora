@@ -8,11 +8,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use hunk_tracker::HunkTrackerHandle;
 use tokio::sync::mpsc;
 use tokio::time::sleep_until;
+use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_fsnotify::{FsEvent, FsEventKind};
 use xvora_workspace::file_system::{CodebaseIndexManager, FileIndex, WalkOptions};
 
