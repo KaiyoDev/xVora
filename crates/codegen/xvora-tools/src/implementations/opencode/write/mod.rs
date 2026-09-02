@@ -64,28 +64,28 @@ impl crate::types::tool_metadata::ToolMetadata for WriteTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for WriteTool {
+impl tool_runtime::Tool for WriteTool {
     type Args = WriteInput;
     type Output = WriteOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("write").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("write").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "write",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -93,9 +93,9 @@ impl xvora_tool_runtime::Tool for WriteTool {
     #[tracing::instrument(name = "tool.write", skip_all)]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: WriteInput,
-    ) -> Result<WriteOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<WriteOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -124,8 +124,8 @@ impl xvora_tool_runtime::Tool for WriteTool {
         {
             tokio::fs::create_dir_all(parent).await.map_err(|e| {
                 let ce = crate::computer::types::ComputerError::from(e);
-                xvora_tool_runtime::ToolError::execution(
-                    xvora_tool_protocol::ToolId::new("write").expect("valid"),
+                tool_runtime::ToolError::execution(
+                    tool_protocol::ToolId::new("write").expect("valid"),
                     ce.to_string(),
                 )
             })?;
@@ -135,8 +135,8 @@ impl xvora_tool_runtime::Tool for WriteTool {
         fs.write_file(&path, input.content.as_bytes())
             .await
             .map_err(|e| {
-                xvora_tool_runtime::ToolError::execution(
-                    xvora_tool_protocol::ToolId::new("write").expect("valid"),
+                tool_runtime::ToolError::execution(
+                    tool_protocol::ToolId::new("write").expect("valid"),
                     e.to_string(),
                 )
             })?;
@@ -231,7 +231,7 @@ mod tests {
             content: "hello\nworld\n".to_string(),
         };
         let result =
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(shared_resources.clone()), input)
+            tool_runtime::Tool::run(&tool, test_ctx(shared_resources.clone()), input)
                 .await
                 .unwrap();
 
@@ -260,7 +260,7 @@ mod tests {
             file_path: file_path.to_string_lossy().into_owned(),
             content: "new content\n".to_string(),
         };
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -287,7 +287,7 @@ mod tests {
             file_path: nested.to_string_lossy().into_owned(),
             content: "nested\n".to_string(),
         };
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -302,7 +302,7 @@ mod tests {
     fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = WriteTool;
-        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "write");
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "write");
         assert!(matches!(tool.kind(), ToolKind::Write));
         assert!(matches!(tool.tool_namespace(), ToolNamespace::OpenCode));
     }
@@ -335,7 +335,7 @@ mod tests {
             file_path: file_path.to_string_lossy().into_owned(),
             content: String::new(),
         };
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -360,7 +360,7 @@ mod tests {
             file_path: file_path.to_string_lossy().into_owned(),
             content: "new\n".to_string(),
         };
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -391,7 +391,7 @@ mod tests {
             file_path: "subdir/relative.txt".to_string(),
             content: "resolved\n".to_string(),
         };
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -421,7 +421,7 @@ mod tests {
             content: "data".to_string(),
         };
         let result =
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
 
         assert!(result.is_err());
         assert!(
@@ -447,7 +447,7 @@ mod tests {
             content: "data".to_string(),
         };
         let result =
-            xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
+            tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input).await;
 
         assert!(result.is_err());
         assert!(

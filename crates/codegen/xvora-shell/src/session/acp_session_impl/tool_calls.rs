@@ -70,7 +70,7 @@ fn tool_execution_span(
 /// Takes the span by value: these fields are recorded exactly once.
 fn record_tool_span_outcome(
     span: tracing::Span,
-    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+    result: &Result<ToolRunResult, tool_runtime::ToolError>,
 ) -> bool {
     let (success, result_size) = match result {
         Ok(tool_result) => (
@@ -87,7 +87,7 @@ fn record_tool_span_outcome(
 /// Maps a typed tool result onto the fixed span/log outcome set (`success` / `error` / `unconfirmed`).
 /// A delivery the tool could not confirm still dispatched successfully, so it reports `unconfirmed`, never `error`.
 pub(super) fn tool_output_span_outcome(
-    result: &Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+    result: &Result<ToolRunResult, tool_runtime::ToolError>,
 ) -> &'static str {
     use xvora_tools::implementations::grok_build::send_subagent_message::SendSubagentMessageDisposition;
     match result {
@@ -109,7 +109,7 @@ fn is_interruptible_wait_tool(tool_name: &str, args: &serde_json::Value) -> bool
         "get_task_output"
         | "get_command_or_subagent_output"
         | "get_task_or_subagent_output"
-        | "get_terminal_command_output" => xvora_tool_types::task_output_waits_from_json(args),
+        | "get_terminal_command_output" => tool_types::task_output_waits_from_json(args),
         "wait_tasks" | "wait_commands_or_subagents" | "wait_tasks_or_subagents" => true,
         "Await" | "AwaitShell" => true,
         _ => false,
@@ -535,7 +535,7 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    xvora_tool_protocol::session_event::SessionEvent::ToolCallStarted {
+                    tool_protocol::session_event::SessionEvent::ToolCallStarted {
                         tool_call_id: call.id.clone(),
                         tool_name: call.function.name.clone(),
                         turn_number: self.current_turn_number.get(),
@@ -905,7 +905,7 @@ impl SessionActor {
             approved.into_iter().map(Some).collect();
         let (dispatch_tx, mut dispatch_rx) = tokio::sync::mpsc::unbounded_channel::<(
             usize,
-            Result<ToolRunResult, xvora_tool_runtime::ToolError>,
+            Result<ToolRunResult, tool_runtime::ToolError>,
             u64,
         )>();
         let drainer = tokio::spawn(
@@ -1107,7 +1107,7 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    xvora_tool_protocol::session_event::SessionEvent::ToolCallCompleted {
+                    tool_protocol::session_event::SessionEvent::ToolCallCompleted {
                         tool_call_id: prepared.call_id.clone(),
                         tool_name: prepared.tool_name.clone(),
                         duration_ms,
@@ -2166,8 +2166,8 @@ impl SessionActor {
                     "Wait tasks: {} ids, mode={}",
                     wait.task_ids.len(),
                     match wait.mode {
-                        xvora_tool_types::WaitMode::WaitAny => "wait_any",
-                        xvora_tool_types::WaitMode::WaitAll => "wait_all",
+                        tool_types::WaitMode::WaitAny => "wait_any",
+                        tool_types::WaitMode::WaitAll => "wait_all",
                     }
                 ),
                 acp::ToolKind::Other,
@@ -2466,7 +2466,7 @@ impl SessionActor {
         tool_call_id: &acp::ToolCallId,
         call_id: &str,
         function_name: &str,
-        err: xvora_tool_runtime::ToolError,
+        err: tool_runtime::ToolError,
         raw_arguments: &str,
         model_id: &str,
     ) -> Result<(), acp::Error> {
@@ -2480,7 +2480,7 @@ impl SessionActor {
         );
         self.signals_handle().record_tool_failure(function_name);
         let message = build_tool_parse_error_message(function_name, &err, raw_arguments);
-        let title = (err.kind == xvora_tool_runtime::ToolErrorKind::NotFound)
+        let title = (err.kind == tool_runtime::ToolErrorKind::NotFound)
             .then(|| format!("Agent tried calling a tool that doesn't exist: {function_name}"));
         self.send_update(
             acp::SessionUpdate::ToolCallUpdate(acp::ToolCallUpdate::new(
@@ -3299,7 +3299,7 @@ mod plan_mode_edit_gate_tests {
     }
     #[test]
     fn task_not_gated_in_plan_mode() {
-        use xvora_tool_types::TaskToolInput;
+        use tool_types::TaskToolInput;
         let t = active_tracker();
         assert_eq!(
             gate(

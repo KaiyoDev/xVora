@@ -21,7 +21,7 @@ pub struct SchedulerDeleteOutput {
     pub message: String,
 }
 
-impl xvora_tool_runtime::ToolOutput for SchedulerDeleteOutput {}
+impl tool_runtime::ToolOutput for SchedulerDeleteOutput {}
 
 #[derive(Debug, Default)]
 pub struct SchedulerDeleteTool;
@@ -50,34 +50,34 @@ Returns success: true if the task was found and removed, false if no task with t
         use crate::types::tool_metadata::ToolMetadata as TM;
         Expr::Value(ToolRequirement::Tool {
             namespace: TM::tool_namespace(&SchedulerCreateTool).to_string(),
-            id: xvora_tool_runtime::Tool::id(&SchedulerCreateTool).to_string(),
+            id: tool_runtime::Tool::id(&SchedulerCreateTool).to_string(),
             if_params: None,
         })
     }
 }
 
-impl xvora_tool_runtime::Tool for SchedulerDeleteTool {
+impl tool_runtime::Tool for SchedulerDeleteTool {
     type Args = SchedulerDeleteInput;
     type Output = SchedulerDeleteOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("scheduler_delete").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("scheduler_delete").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "scheduler_delete",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -89,9 +89,9 @@ impl xvora_tool_runtime::Tool for SchedulerDeleteTool {
     )]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: SchedulerDeleteInput,
-    ) -> Result<SchedulerDeleteOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<SchedulerDeleteOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -99,7 +99,7 @@ impl xvora_tool_runtime::Tool for SchedulerDeleteTool {
             let res = resources.lock().await;
             res.get::<SchedulerHandle>()
                 .ok_or_else(|| {
-                    xvora_tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
+                    tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
                 })?
                 .0
                 .clone()
@@ -112,13 +112,13 @@ impl xvora_tool_runtime::Tool for SchedulerDeleteTool {
                 reply: reply_tx,
             })
             .map_err(|_| {
-                xvora_tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
+                tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
             })?;
 
         let removed = reply_rx
             .await
             .map_err(|_| {
-                xvora_tool_runtime::ToolError::custom(
+                tool_runtime::ToolError::custom(
                     "process_manager",
                     "Scheduler actor dropped reply",
                 )

@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use xvora_tool_protocol::{ServerInfo, SessionId};
+use tool_protocol::{ServerInfo, SessionId};
 
 use crate::pool::HubConnectionPool;
 use crate::{AuthProvider, ClientError, ToolHarnessBuilder};
@@ -43,7 +43,7 @@ pub fn resolve_hub_url() -> Result<url::Url, HubUrlError> {
 #[derive(Debug, thiserror::Error)]
 pub enum ListServersError {
     #[error("invalid session id: {0}")]
-    SessionId(#[from] xvora_tool_protocol::IdError),
+    SessionId(#[from] tool_protocol::IdError),
     #[error("failed to connect to computer hub: {0}")]
     Connect(ClientError),
     #[error("servers.list failed: {0}")]

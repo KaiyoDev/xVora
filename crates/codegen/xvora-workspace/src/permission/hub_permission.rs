@@ -6,7 +6,7 @@ use serde_json::Value;
 use std::sync::LazyLock;
 use xvora_computer_hub_sdk::harness::PERMISSION_REQUEST_KIND;
 use xvora_computer_hub_sdk::{ToolServer, WeakToolServer};
-use xvora_tool_protocol::SessionId;
+use tool_protocol::SessionId;
 static PERMISSION_REPLY_DURATION: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec!(
         "grok_workspace_permission_reply_seconds",

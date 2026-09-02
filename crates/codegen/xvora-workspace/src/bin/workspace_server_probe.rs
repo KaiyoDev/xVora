@@ -19,8 +19,8 @@ use url::Url;
 use uuid::Uuid;
 use xvora_computer_hub_sdk::pool::HubConnectionPool;
 use xvora_computer_hub_sdk::{AuthCredential, ToolHarnessBuilder};
-use xvora_tool_protocol::{SessionId, ToolId};
-use xvora_tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
+use tool_protocol::{SessionId, ToolId};
+use tool_runtime::{ToolCallContext, ToolStreamItem, TypedToolOutput};
 
 #[derive(Parser)]
 #[command(name = "workspace-server-probe")]

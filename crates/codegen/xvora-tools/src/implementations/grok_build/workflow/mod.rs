@@ -265,7 +265,7 @@ pub struct WorkflowToolOutput {
     pub message: String,
 }
 
-impl xvora_tool_runtime::ToolOutput for WorkflowToolOutput {}
+impl tool_runtime::ToolOutput for WorkflowToolOutput {}
 
 #[derive(Debug, Default)]
 pub struct WorkflowTool;
@@ -296,28 +296,28 @@ A started run gets a session-unique display name (e.g. `review-changes`, `review
     }
 }
 
-impl xvora_tool_runtime::Tool for WorkflowTool {
+impl tool_runtime::Tool for WorkflowTool {
     type Args = WorkflowToolInput;
     type Output = WorkflowToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new(WORKFLOW_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new(WORKFLOW_TOOL_NAME).expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             WORKFLOW_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -325,16 +325,16 @@ impl xvora_tool_runtime::Tool for WorkflowTool {
     #[tracing::instrument(name = "new_tool.workflow", skip_all)]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         mut input: WorkflowToolInput,
-    ) -> Result<WorkflowToolOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<WorkflowToolOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
         input.normalize();
 
         if let Err(detail) = input.validate() {
-            return Err(xvora_tool_runtime::ToolError::custom(
+            return Err(tool_runtime::ToolError::custom(
                 "workflow_invalid_input",
                 detail,
             ));
@@ -349,7 +349,7 @@ impl xvora_tool_runtime::Tool for WorkflowTool {
 
         // Workflows stay top-level-only regardless of configurable subagent depth.
         if depth > 0 {
-            return Err(xvora_tool_runtime::ToolError::custom(
+            return Err(tool_runtime::ToolError::custom(
                 "workflow_depth_exceeded",
                 "Workflows can only be launched from a top-level session (subagents and \
                  workflow-spawned agents cannot start workflows)",
@@ -357,7 +357,7 @@ impl xvora_tool_runtime::Tool for WorkflowTool {
         }
 
         let sender = sender.ok_or_else(|| {
-            xvora_tool_runtime::ToolError::custom(
+            tool_runtime::ToolError::custom(
                 "workflow_not_available",
                 "Workflow launching is not available in this session (WorkflowLaunchHandle not \
                  registered)",
@@ -368,7 +368,7 @@ impl xvora_tool_runtime::Tool for WorkflowTool {
         sender
             .send((WorkflowLaunchRequest { input }, ack_tx))
             .map_err(|_| {
-                xvora_tool_runtime::ToolError::custom(
+                tool_runtime::ToolError::custom(
                     "workflow_channel_closed",
                     "Workflow launch channel closed — the session may be shutting down",
                 )
@@ -420,9 +420,9 @@ impl xvora_tool_runtime::Tool for WorkflowTool {
                 script_path: None,
             }),
             Ok(WorkflowLaunchAck::Rejected { code, detail }) => {
-                Err(xvora_tool_runtime::ToolError::custom(code, detail))
+                Err(tool_runtime::ToolError::custom(code, detail))
             }
-            Err(_) => Err(xvora_tool_runtime::ToolError::custom(
+            Err(_) => Err(tool_runtime::ToolError::custom(
                 "workflow_launch_no_ack",
                 "The session dropped the launch channel before answering; the workflow may not \
                  have started.",

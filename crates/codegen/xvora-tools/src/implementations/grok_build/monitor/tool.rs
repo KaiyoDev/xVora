@@ -45,28 +45,28 @@ Set `persistent: true` for session-length watches (PR monitoring, log tails) -- 
     }
 }
 
-impl xvora_tool_runtime::Tool for MonitorTool {
+impl tool_runtime::Tool for MonitorTool {
     type Args = MonitorInput;
     type Output = MonitorOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("monitor").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("monitor").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "monitor",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -74,15 +74,15 @@ impl xvora_tool_runtime::Tool for MonitorTool {
     #[tracing::instrument(name = "tool.monitor", skip_all)]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: MonitorInput,
-    ) -> Result<MonitorOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<MonitorOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
         input
             .validate()
-            .map_err(|e| xvora_tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
+            .map_err(|e| tool_runtime::ToolError::invalid_arguments(e.to_string()))?;
 
         let resolved_timeout = input.resolved_timeout_ms();
         let description = input.description;
@@ -137,7 +137,7 @@ impl xvora_tool_runtime::Tool for MonitorTool {
                 description: Some(description.clone()).filter(|d| !d.trim().is_empty()),
             })
             .await
-            .map_err(|e| xvora_tool_runtime::ToolError::custom("process_manager", e.to_string()))?;
+            .map_err(|e| tool_runtime::ToolError::custom("process_manager", e.to_string()))?;
 
         let task_id = bg_handle.task_id.clone();
         let tray_description = Some(description.clone()).filter(|d| !d.trim().is_empty());

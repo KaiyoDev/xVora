@@ -918,7 +918,7 @@ fn test_update_configs_diff_nonempty_to_empty() {
 
 #[test]
 fn test_mcp_erased_tool_id_is_qualified() {
-    use xvora_tool_runtime::Tool;
+    use tool_runtime::Tool;
 
     let mcp_state = Arc::new(Mutex::new(McpState::new(vec![])));
 
@@ -955,7 +955,7 @@ fn test_mcp_erased_tool_id_is_qualified() {
 #[test]
 fn test_same_raw_name_different_servers_no_local_registry_collision() {
     use xvora_computer_hub_sdk::LocalRegistry;
-    use xvora_tool_runtime::Tool;
+    use tool_runtime::Tool;
 
     let mcp_state = Arc::new(Mutex::new(McpState::new(vec![])));
     let registry = LocalRegistry::new();

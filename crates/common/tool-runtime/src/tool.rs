@@ -22,8 +22,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use xvora_tool_protocol::{ToolCapabilities, ToolId};
-use xvora_tool_types::ToolDescription;
+use tool_protocol::{ToolCapabilities, ToolId};
+use tool_types::ToolDescription;
 
 use crate::context::{ListToolsContext, ToolCallContext};
 use crate::error::ToolError;

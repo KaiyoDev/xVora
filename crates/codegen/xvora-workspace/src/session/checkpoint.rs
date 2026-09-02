@@ -11,7 +11,7 @@ use crate::session::git;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use xvora_hunk_tracker::{HunkId, HunkTrackerSnapshot, HunkTurnDelta};
-use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+use tool_protocol::turn_hook::TurnHookOutcome;
 /// A turn/prompt boundary routed through [`WorkspaceHandle::on_turn_boundary`].
 ///
 /// `prompt_index` selects the origin and keeps the two effect sets disjoint:

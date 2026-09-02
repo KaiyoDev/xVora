@@ -307,28 +307,28 @@ impl crate::types::tool_metadata::ToolMetadata for BashTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for BashTool {
+impl tool_runtime::Tool for BashTool {
     type Args = BashInput;
     type Output = BashToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("bash").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("bash").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "bash",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -336,9 +336,9 @@ impl xvora_tool_runtime::Tool for BashTool {
     #[tracing::instrument(name = "tool.opencode.bash", skip_all)]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: BashInput,
-    ) -> Result<BashToolOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<BashToolOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -410,8 +410,8 @@ impl xvora_tool_runtime::Tool for BashTool {
                     cwd: cwd.clone(),
                     error: e.to_string(),
                 });
-                return Err(xvora_tool_runtime::ToolError::execution(
-                    xvora_tool_protocol::ToolId::new("run_terminal_command").expect("valid"),
+                return Err(tool_runtime::ToolError::execution(
+                    tool_protocol::ToolId::new("run_terminal_command").expect("valid"),
                     e.to_string(),
                 ));
             }
@@ -467,9 +467,9 @@ mod tests {
     fn rt_ctx_with_call_id(
         resources: Resources,
         call_id: &str,
-    ) -> xvora_tool_runtime::ToolCallContext {
-        let id = xvora_tool_protocol::ToolCallId::new(call_id).unwrap();
-        let mut ctx = xvora_tool_runtime::ToolCallContext::new(id);
+    ) -> tool_runtime::ToolCallContext {
+        let id = tool_protocol::ToolCallId::new(call_id).unwrap();
+        let mut ctx = tool_runtime::ToolCallContext::new(id);
         ctx.extensions.insert(resources.into_shared());
         ctx
     }
@@ -637,7 +637,7 @@ mod tests {
         let resources = make_resources(MockTerminal::success("hello world\n", 0));
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo hello"),
@@ -663,7 +663,7 @@ mod tests {
         let resources = make_resources(MockTerminal::timed_out("partial output"));
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("sleep 999"),
@@ -685,7 +685,7 @@ mod tests {
         let resources = make_resources(MockTerminal::failing());
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("bad_cmd"),
@@ -729,7 +729,7 @@ mod tests {
     async fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = BashTool;
-        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "bash");
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "bash");
         assert!(matches!(tool.kind(), ToolKind::Execute));
         assert!(matches!(tool.tool_namespace(), ToolNamespace::OpenCode));
     }
@@ -742,7 +742,7 @@ mod tests {
         // No Terminal inserted
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("ls"),
@@ -774,7 +774,7 @@ mod tests {
         let resources = make_resources(mock);
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("cat bigfile"),
@@ -808,7 +808,7 @@ mod tests {
         let resources = make_resources(mock);
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("kill -9 $$"),
@@ -832,7 +832,7 @@ mod tests {
         resources.insert(SessionFolder(PathBuf::from("/sessions/abc")));
 
         let tool = BashTool;
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             rt_ctx_with_call_id(resources, "my-call-42"),
             make_input("echo ok"),
@@ -853,7 +853,7 @@ mod tests {
         let resources = make_resources(MockTerminal::success("ok", 0));
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo ok"),
@@ -972,7 +972,7 @@ mod tests {
         let resources = make_resources(MockTerminal::success("hello world\n", 0));
         let tool = BashTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo hello"),
@@ -1007,7 +1007,7 @@ mod tests {
             description: "Check workdir".to_string(),
         };
 
-        let result = xvora_tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
+        let result = tool_runtime::Tool::run(&tool, test_ctx(resources.into_shared()), input)
             .await
             .unwrap();
 
@@ -1096,7 +1096,7 @@ mod tests {
         resources.insert(TruncationCfg(cfg));
 
         let tool = BashTool;
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("echo ok"),
@@ -1125,7 +1125,7 @@ mod tests {
         resources.insert(NotificationHandle(ToolNotificationHandle::noop()));
 
         let tool = BashTool;
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             make_input("ls"),

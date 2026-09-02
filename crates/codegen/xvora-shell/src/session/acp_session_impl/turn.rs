@@ -675,19 +675,19 @@ impl SessionActor {
         });
         self.observability_bridge
             .emit(
-                xvora_tool_protocol::session_event::SessionEvent::TurnStarted {
+                tool_protocol::session_event::SessionEvent::TurnStarted {
                     turn_number,
                     model_id: model_id.clone(),
                     yolo_mode,
                 },
             )
             .await;
-        self.send_before_turn_event(xvora_tool_protocol::turn_hook::BeforeTurnPayload {
+        self.send_before_turn_event(tool_protocol::turn_hook::BeforeTurnPayload {
             turn_number: self.chat_state_handle.get_prompt_index().await as u64,
             model_id: model_id.clone(),
             yolo_mode: self.permissions.is_yolo_mode(),
             conversation_message_count: msg_count,
-            session_relationship: xvora_tool_protocol::turn_hook::DEFAULT_SESSION_RELATIONSHIP
+            session_relationship: tool_protocol::turn_hook::DEFAULT_SESSION_RELATIONSHIP
                 .to_string(),
             schema_version: crate::session::events::EVENT_SCHEMA_VERSION.to_string(),
         })
@@ -1237,7 +1237,7 @@ impl SessionActor {
         let bridge_outcome = turn_result_to_hook_outcome(&result);
         self.observability_bridge
             .emit(
-                xvora_tool_protocol::session_event::SessionEvent::TurnEnded {
+                tool_protocol::session_event::SessionEvent::TurnEnded {
                     turn_number: current_prompt_index as u64,
                     outcome: bridge_outcome,
                     duration_ms: turn_duration_ms,
@@ -1264,9 +1264,9 @@ impl SessionActor {
                         },
                     );
                 }
-                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Completed,
+                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Completed,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1290,9 +1290,9 @@ impl SessionActor {
                     None,
                     None,
                 );
-                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Completed,
+                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Completed,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1327,9 +1327,9 @@ impl SessionActor {
                 {
                     self.events.set_prior_interrupt_category(*cause);
                 }
-                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
+                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1358,9 +1358,9 @@ impl SessionActor {
                         "limit": limit,
                     })),
                 );
-                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
+                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Cancelled,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -1385,9 +1385,9 @@ impl SessionActor {
             }
             Err(err) => {
                 self.emit_turn_ended(crate::session::events::TurnOutcomeLabel::Error, None, None);
-                self.send_after_turn_event(xvora_tool_protocol::turn_hook::AfterTurnPayload {
+                self.send_after_turn_event(tool_protocol::turn_hook::AfterTurnPayload {
                     turn_number: current_prompt_index as u64,
-                    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome::Error,
+                    outcome: tool_protocol::turn_hook::TurnHookOutcome::Error,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id.clone(),
@@ -2594,8 +2594,8 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    xvora_tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: xvora_tool_protocol::session_event::SessionPhase::Sampling,
+                    tool_protocol::session_event::SessionEvent::PhaseChanged {
+                        phase: tool_protocol::session_event::SessionPhase::Sampling,
                     },
                 )
                 .await;
@@ -3359,8 +3359,8 @@ impl SessionActor {
             });
             self.observability_bridge
                 .emit(
-                    xvora_tool_protocol::session_event::SessionEvent::PhaseChanged {
-                        phase: xvora_tool_protocol::session_event::SessionPhase::ToolExecution,
+                    tool_protocol::session_event::SessionEvent::PhaseChanged {
+                        phase: tool_protocol::session_event::SessionPhase::ToolExecution,
                     },
                 )
                 .await;

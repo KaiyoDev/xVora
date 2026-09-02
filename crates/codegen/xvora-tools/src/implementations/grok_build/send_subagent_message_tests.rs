@@ -77,7 +77,7 @@ async fn run(
     subagent_id: &str,
     text: String,
 ) -> SendSubagentMessageOutput {
-    completes(xvora_tool_runtime::Tool::run(
+    completes(tool_runtime::Tool::run(
         &SendSubagentMessageTool,
         test_ctx(resources),
         SendSubagentMessageInput {
@@ -120,11 +120,11 @@ fn required_input_keys_are_semantically_pinned() {
 
 #[test]
 fn tool_capabilities_are_write_scoped() {
-    let capabilities = xvora_tool_runtime::Tool::capabilities(&SendSubagentMessageTool);
+    let capabilities = tool_runtime::Tool::capabilities(&SendSubagentMessageTool);
     assert!(!capabilities.is_read_only);
     assert_eq!(
         capabilities.tool_scope,
-        Some(xvora_tool_protocol::ToolScope::Write)
+        Some(tool_protocol::ToolScope::Write)
     );
 }
 

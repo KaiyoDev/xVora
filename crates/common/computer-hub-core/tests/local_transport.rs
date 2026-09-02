@@ -15,15 +15,15 @@ use xvora_computer_hub_core::{
     SessionCleanupReport, ToolHandle, ToolRegistry, ToolSessionBindOutcome,
     ToolSessionUnbindOutcome, Transport, TransportKind,
 };
-use xvora_tool_protocol::{
+use tool_protocol::{
     ConnectionId, RegistrationOutcome, ServerId, SessionId, ToolDefinitionMode, ToolId,
     ToolRegistration, ToolServerRegistration, TransportKind as WireTransportKind, UserId,
 };
-use xvora_tool_runtime::{
+use tool_runtime::{
     SearchSnapshot, ServerSummary, Tool, ToolCallContext, ToolError, ToolProgress, ToolStream,
     ToolStreamItem, with_progress,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 struct EchoArgs {
@@ -41,7 +41,7 @@ impl Tool for EchoTool {
         ToolId::new("echo").expect("tool id")
     }
 
-    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("echo", "Echoes its input.")
     }
 
@@ -65,7 +65,7 @@ impl Tool for StreamerTool {
         ToolId::new("streamer").expect("tool id")
     }
 
-    fn description(&self, _ctx: &::xvora_tool_runtime::ListToolsContext) -> ToolDescription {
+    fn description(&self, _ctx: &::tool_runtime::ListToolsContext) -> ToolDescription {
         ToolDescription::new("streamer", "Emits three progress chunks.")
     }
 
@@ -101,7 +101,7 @@ impl InMemRegistry {
             sessions: Some(vec![session.clone()]),
             user_id: UserId::new("alice").expect("user id"),
             server_id: None,
-            description: handle.description(&xvora_tool_runtime::ListToolsContext::default()),
+            description: handle.description(&tool_runtime::ListToolsContext::default()),
             input_schema: None,
             capabilities: Some(handle.capabilities()),
             notification_schemas: None,
@@ -192,7 +192,7 @@ impl ToolRegistry for InMemRegistry {
 
     fn list_servers_for_user(
         &self,
-        _user_id: &xvora_tool_protocol::UserId,
+        _user_id: &tool_protocol::UserId,
     ) -> Vec<xvora_computer_hub_core::registry::ServerRecord> {
         Vec::new()
     }
@@ -218,8 +218,8 @@ fn uid(s: &str) -> UserId {
 }
 
 async fn collect(
-    stream: &mut ToolStream<xvora_tool_runtime::TypedToolOutput>,
-) -> Vec<ToolStreamItem<xvora_tool_runtime::TypedToolOutput>> {
+    stream: &mut ToolStream<tool_runtime::TypedToolOutput>,
+) -> Vec<ToolStreamItem<tool_runtime::TypedToolOutput>> {
     let mut items = Vec::new();
     while let Some(item) = stream.next().await {
         items.push(item);
@@ -304,7 +304,7 @@ async fn missing_tool_resolves_as_terminal_not_found() {
     assert_eq!(items.len(), 1);
     match &items[0] {
         ToolStreamItem::Terminal(Err(e))
-            if e.kind == xvora_tool_runtime::ToolErrorKind::NotFound =>
+            if e.kind == tool_runtime::ToolErrorKind::NotFound =>
         {
             assert!(
                 e.detail.contains("ghost"),
@@ -341,7 +341,7 @@ async fn invalid_arguments_surface_as_terminal_error() {
     assert_eq!(items.len(), 1);
     match &items[0] {
         ToolStreamItem::Terminal(Err(e))
-            if e.kind == xvora_tool_runtime::ToolErrorKind::InvalidArguments => {}
+            if e.kind == tool_runtime::ToolErrorKind::InvalidArguments => {}
         other => panic!("expected Terminal(Err(InvalidArguments)), got {other:?}"),
     }
 }

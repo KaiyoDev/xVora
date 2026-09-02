@@ -30,7 +30,7 @@ pub(crate) fn resolve_session_toolset(
     factory: &dyn SessionContextFactory,
     local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
     lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
-    viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+    viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
 ) -> WorkspaceResult<(
     ToolServerConfig,
@@ -77,7 +77,7 @@ pub(crate) fn resolve_session_toolset_rebuild(
     factory: &dyn SessionContextFactory,
     local_registry: Option<xvora_computer_hub_sdk::LocalRegistry>,
     lsp: Option<std::sync::Arc<dyn xvora_tools::implementations::lsp::LspBackend>>,
-    viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+    viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     notification_handle: Option<xvora_tools::notification::types::ToolNotificationHandle>,
     terminal_backend: Arc<dyn xvora_tools::computer::types::TerminalBackend>,
 ) -> WorkspaceResult<(ToolServerConfig, Arc<FinalizedToolset>)> {

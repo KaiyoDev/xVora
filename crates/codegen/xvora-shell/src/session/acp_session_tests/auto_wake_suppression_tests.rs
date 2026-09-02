@@ -1,6 +1,6 @@
 use super::support::*;
 use super::*;
-use xvora_tool_types::{
+use tool_types::{
     KillTaskOutput, KillTaskResult, MultiTaskOutputResult, SubagentCompletedOutput,
     TaskOutputOutput, TaskOutputResult,
 };

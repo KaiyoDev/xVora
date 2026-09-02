@@ -3,7 +3,7 @@
 use super::{TaskOutputTool, background_bash_requires_exprs};
 use crate::types::requirements::{Expr, ToolRequirement};
 use crate::types::tool::{ToolKind, ToolNamespace};
-use xvora_tool_types::{TaskOutputOutput, TaskOutputToolInput};
+use tool_types::{TaskOutputOutput, TaskOutputToolInput};
 
 fn terminal_command_output_requires_expr() -> Expr<ToolRequirement> {
     Expr::Or(background_bash_requires_exprs())
@@ -43,28 +43,28 @@ Usage notes:
     }
 }
 
-impl xvora_tool_runtime::Tool for GetTerminalCommandOutputTool {
+impl tool_runtime::Tool for GetTerminalCommandOutputTool {
     type Args = TaskOutputToolInput;
     type Output = TaskOutputOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("get_terminal_command_output").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("get_terminal_command_output").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "get_terminal_command_output",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
+            tool_scope: Some(tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -76,10 +76,10 @@ impl xvora_tool_runtime::Tool for GetTerminalCommandOutputTool {
     )]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: TaskOutputToolInput,
-    ) -> Result<TaskOutputOutput, xvora_tool_runtime::ToolError> {
-        xvora_tool_runtime::Tool::run(&TaskOutputTool, ctx, input).await
+    ) -> Result<TaskOutputOutput, tool_runtime::ToolError> {
+        tool_runtime::Tool::run(&TaskOutputTool, ctx, input).await
     }
 }
 
@@ -96,7 +96,7 @@ mod tests {
     fn tool_name_and_description_are_subagent_free() {
         let tool = GetTerminalCommandOutputTool;
         assert_eq!(
-            xvora_tool_runtime::Tool::id(&tool).as_str(),
+            tool_runtime::Tool::id(&tool).as_str(),
             "get_terminal_command_output"
         );
         let tmpl = ToolMetadata::description_template(&tool);
@@ -116,7 +116,7 @@ mod tests {
     async fn delegates_to_task_output_for_running_task() {
         let snapshot = make_snapshot("tc-1", false, None);
         let resources = resources_with_terminal(Some(snapshot));
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &GetTerminalCommandOutputTool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {
@@ -140,7 +140,7 @@ mod tests {
     async fn delegates_to_task_output_for_completed_task() {
         let snapshot = make_snapshot("tc-2", true, Some(0));
         let resources = resources_with_terminal(Some(snapshot));
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &GetTerminalCommandOutputTool,
             test_ctx(resources.into_shared()),
             TaskOutputToolInput {

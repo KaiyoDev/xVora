@@ -1488,7 +1488,7 @@ impl WorkspaceOps {
         cwd: std::path::PathBuf,
         hunk_tracker: xvora_hunk_tracker::HunkTrackerHandle,
         toolset: Arc<xvora_tools::registry::types::FinalizedToolset>,
-        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     ) -> WorkspaceResult<()> {
         let Self::Local { handle } = self else {
             return Ok(());
@@ -1523,7 +1523,7 @@ impl WorkspaceOps {
     pub async fn on_before_turn(
         &self,
         session_id: &str,
-        payload: &xvora_tool_protocol::turn_hook::BeforeTurnPayload,
+        payload: &tool_protocol::turn_hook::BeforeTurnPayload,
     ) {
         match self {
             Self::Local { handle } => {
@@ -1537,7 +1537,7 @@ impl WorkspaceOps {
     pub async fn on_after_turn(
         &self,
         session_id: &str,
-        payload: &xvora_tool_protocol::turn_hook::AfterTurnPayload,
+        payload: &tool_protocol::turn_hook::AfterTurnPayload,
     ) {
         match self {
             Self::Local { handle } => {
@@ -1677,17 +1677,17 @@ impl WorkspaceOps {
         args: Value,
         call_id: &str,
         session_id: Option<&str>,
-    ) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+    ) -> Result<ToolRunResult, tool_runtime::ToolError> {
         match self {
             Self::Local { handle } => {
                 let session_id = session_id.ok_or_else(|| {
-                    xvora_tool_runtime::ToolError::custom(
+                    tool_runtime::ToolError::custom(
                         "missing_session",
                         "session_id required for local tool dispatch",
                     )
                 })?;
                 let session = handle.session(session_id).ok_or_else(|| {
-                    xvora_tool_runtime::ToolError::custom(
+                    tool_runtime::ToolError::custom(
                         "session_not_found",
                         format!(
                             "workspace session not found: {session_id} \
@@ -1699,20 +1699,20 @@ impl WorkspaceOps {
             }
             Self::Proxy { client } => {
                 if !client.is_connected() {
-                    return Err(xvora_tool_runtime::ToolError::network_error(
+                    return Err(tool_runtime::ToolError::network_error(
                         "The workspace server connection was lost. \
                          Please restart your session to reconnect.",
                     ));
                 }
-                let tool_id = xvora_tool_protocol::ToolId::new(name).map_err(|e| {
-                    xvora_tool_runtime::ToolError::custom(
+                let tool_id = tool_protocol::ToolId::new(name).map_err(|e| {
+                    tool_runtime::ToolError::custom(
                         "hub_proxy_error",
                         format!("invalid tool name: {e}"),
                     )
                 })?;
-                let mut ctx = xvora_tool_runtime::ToolCallContext::default();
+                let mut ctx = tool_runtime::ToolCallContext::default();
                 ctx.call_id =
-                    xvora_tool_protocol::ToolCallId::new(call_id.to_owned()).unwrap_or(ctx.call_id);
+                    tool_protocol::ToolCallId::new(call_id.to_owned()).unwrap_or(ctx.call_id);
                 let mut stream = client.harness().call(tool_id, args, ctx).await;
                 let typed = crate::hub_channel::consume_stream_terminal(&mut stream)
                     .await
@@ -1722,7 +1722,7 @@ impl WorkspaceOps {
                         }
                     })?;
                 serde_json::from_value::<ToolRunResult>(typed.value).map_err(|e| {
-                    xvora_tool_runtime::ToolError::custom(
+                    tool_runtime::ToolError::custom(
                         "tool_result_deserialize",
                         format!("tool result deserialization failed: {e}"),
                     )

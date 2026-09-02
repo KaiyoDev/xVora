@@ -22,17 +22,17 @@ use futures::stream::BoxStream;
 use serde_json::Value;
 use tracing::warn;
 
-use xvora_tool_protocol::{
+use tool_protocol::{
     JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Method,
     ResponseOutcome, SessionId, ToolCallId, ToolCallParams, ToolCallProgressFrame, ToolCallResult,
     ToolCapabilities, ToolErrorWire, ToolId, ToolOutputWire, UserId, WORKSPACE_UNAVAILABLE_SUBCODE,
 };
-use xvora_tool_runtime::{
+use tool_runtime::{
     BehaviorVersion, ContentBlock, Cwd, ListToolsContext, ToolCallContext,
     ToolChatCompletionResponse, ToolError, ToolErrorKind, ToolProgress, ToolStream, ToolStreamItem,
     TypedToolOutput, terminal_only,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 use crate::resolver::ToolHandle;
 use crate::transport::{Principal, Transport, TransportKind};
@@ -402,8 +402,8 @@ pub fn output_to_value(output: ToolOutputWire) -> Value {
     }
 }
 
-fn map_block(block: xvora_tool_protocol::McpBlock) -> ContentBlock {
-    use xvora_tool_protocol::McpBlock;
+fn map_block(block: tool_protocol::McpBlock) -> ContentBlock {
+    use tool_protocol::McpBlock;
     match block {
         McpBlock::Text { text } => ContentBlock::Text { text },
         McpBlock::Image { mime_type, data } => ContentBlock::Image {
@@ -430,7 +430,7 @@ fn map_block(block: xvora_tool_protocol::McpBlock) -> ContentBlock {
 /// `data` field is expected to carry a serialised [`ToolErrorWire`] when
 /// available; falls back to a [`ToolError::Custom`] keyed by the numeric
 /// envelope code when the data shape is unknown.
-pub fn error_from_envelope(err: xvora_tool_protocol::JsonRpcError) -> ToolError {
+pub fn error_from_envelope(err: tool_protocol::JsonRpcError) -> ToolError {
     if let Some(data) = err.data.clone()
         && let Ok(wire) = serde_json::from_value::<ToolErrorWire>(data)
     {

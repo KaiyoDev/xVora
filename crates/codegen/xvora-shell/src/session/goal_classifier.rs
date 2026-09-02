@@ -369,7 +369,7 @@ pub(crate) async fn capture_git_baseline(workspace_root: &Path) -> Option<String
 
 /// Build the synthetic `task` tool_call and tool_result pair for a harness-spawned subagent, shaped like a model-issued `task` spawn.
 ///
-/// The tool_result MUST carry the real task tool's `<subagent_result>` footer (via [`xvora_tool_types::format_resume_footer`]).
+/// The tool_result MUST carry the real task tool's `<subagent_result>` footer (via [`tool_types::format_resume_footer`]).
 /// Trace tooling discovers subagents by scanning tool_result bodies for that `subagent_id:` block;
 /// without it the harness subagent never shows in the session tree.
 /// The footer id equals the child session id, so the viewer can fetch its uploaded trace.
@@ -393,7 +393,7 @@ pub(crate) fn build_subagent_trace_items(
         name: task_tool_name.to_string(),
         arguments: std::sync::Arc::from(arguments),
     }]);
-    let footer = xvora_tool_types::format_resume_footer(subagent_id, subagent_type, None);
+    let footer = tool_types::format_resume_footer(subagent_id, subagent_type, None);
     let result = ConversationItem::tool_result(subagent_id, format!("{output}\n\n{footer}"));
     vec![call, result]
 }

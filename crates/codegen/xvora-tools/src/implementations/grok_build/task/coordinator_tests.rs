@@ -1250,7 +1250,7 @@ async fn spawn_session_child(
     harness: &mut Harness,
     id: &str,
     session: &str,
-) -> tokio::task::JoinHandle<Result<SubagentResult, xvora_tool_runtime::ToolError>> {
+) -> tokio::task::JoinHandle<Result<SubagentResult, tool_runtime::ToolError>> {
     let mut req = request(id, false);
     req.await_to_completion = true;
     req.parent_session_id = session.to_owned();

@@ -497,7 +497,7 @@ impl HostService {
         };
         let isolation = opts
             .isolation_worktree
-            .then_some(xvora_tool_types::SubagentIsolationMode::Worktree);
+            .then_some(tool_types::SubagentIsolationMode::Worktree);
         let subagent_type = opts
             .agent_type
             .clone()

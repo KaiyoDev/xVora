@@ -132,28 +132,28 @@ Usage notes:
     }
 }
 
-impl xvora_tool_runtime::Tool for WebFetchTool {
+impl tool_runtime::Tool for WebFetchTool {
     type Args = WebFetchInput;
     type Output = WebFetchOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("web_fetch").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("web_fetch").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "web_fetch",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
+            tool_scope: Some(tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -161,9 +161,9 @@ impl xvora_tool_runtime::Tool for WebFetchTool {
     #[tracing::instrument(name = "tool.web_fetch", skip_all, fields(url = %input.url))]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: WebFetchInput,
-    ) -> Result<WebFetchOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<WebFetchOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn tool_name_and_description() {
         let tool = WebFetchTool;
-        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "web_fetch");
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "web_fetch");
         assert_eq!(
             crate::types::tool_metadata::ToolMetadata::kind(&tool),
             ToolKind::WebFetch
@@ -212,7 +212,7 @@ mod tests {
     async fn errors_when_client_not_in_resources() {
         let resources = crate::types::resources::Resources::new();
         let tool = WebFetchTool;
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(resources.into_shared(), "test-call"),
             WebFetchInput {

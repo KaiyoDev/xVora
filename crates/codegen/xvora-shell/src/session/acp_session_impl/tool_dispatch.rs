@@ -15,7 +15,7 @@ pub(super) async fn dispatch_tool(
     workspace_ops: &xvora_workspace::WorkspaceOps,
     prepared: &PreparedToolCall,
     session_id: &str,
-) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+) -> Result<ToolRunResult, tool_runtime::ToolError> {
     tracing::debug!(
         tool = %prepared.tool_name,
         call_id = %prepared.tool_call_id.0,
@@ -404,7 +404,7 @@ pub(crate) const MAX_ARGS_IN_ERROR: usize = 2_000;
 /// The JSON position (e.g. a missing `"` before a key name) lets the model fix a one-character typo rather than regenerating a thousand-line file.
 pub(super) fn build_tool_parse_error_message(
     function_name: &str,
-    err: &xvora_tool_runtime::ToolError,
+    err: &tool_runtime::ToolError,
     raw_arguments: &str,
 ) -> String {
     let mut msg = format!("Failed to parse arguments for tool `{function_name}`: {err}");

@@ -49,7 +49,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 use url::Url;
-use xvora_tool_protocol::{
+use tool_protocol::{
     ConnectionId, ConnectionKind, JsonRpcId, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion,
     Method, PingFrame, PongFrame, ResponseOutcome, SessionId,
 };
@@ -294,7 +294,7 @@ impl From<DeadlineCallError> for ClientError {
 }
 struct WaiterGuard<'a> {
     demux: &'a Demux,
-    request_id: &'a xvora_tool_protocol::RequestId,
+    request_id: &'a tool_protocol::RequestId,
 }
 impl Drop for WaiterGuard<'_> {
     fn drop(&mut self) {
@@ -514,7 +514,7 @@ pub struct ConnectionConfig {
     pub on_connect: Option<Arc<ConnectCallback>>,
     /// Stable server identity sent in the hello frame. Only meaningful
     /// for [`ConnectionKind::ToolServer`] connections.
-    pub server_id: Option<xvora_tool_protocol::ServerId>,
+    pub server_id: Option<tool_protocol::ServerId>,
     /// One-line server description for `servers.list`.
     pub server_description: Option<String>,
     /// Opaque metadata surfaced in `ServerInfo.metadata`.
@@ -564,7 +564,7 @@ struct HubConnectionInner {
     on_reconnect: Option<Arc<ReconnectCallback>>,
     on_disconnect: Option<Arc<DisconnectCallback>>,
     on_terminal_close: Option<Arc<TerminalCloseCallback>>,
-    server_id: Option<xvora_tool_protocol::ServerId>,
+    server_id: Option<tool_protocol::ServerId>,
     server_description: Option<String>,
     server_metadata: Option<serde_json::Value>,
     /// Attached as an extra access header on every (re)connect when set.
@@ -867,7 +867,7 @@ impl HubConnection {
     /// cannot leak a parked waiter across a reconnect episode.
     pub async fn call_request<P>(
         &self,
-        request_id: xvora_tool_protocol::RequestId,
+        request_id: tool_protocol::RequestId,
         request: &JsonRpcRequest<P>,
     ) -> Result<JsonRpcResponse, ClientError>
     where
@@ -888,7 +888,7 @@ impl HubConnection {
     /// Send a JSON-RPC request and await the response, bounded by `timeout`.
     pub async fn call_request_with_timeout<P>(
         &self,
-        request_id: xvora_tool_protocol::RequestId,
+        request_id: tool_protocol::RequestId,
         request: &JsonRpcRequest<P>,
         timeout: Duration,
     ) -> Result<JsonRpcResponse, ClientError>
@@ -901,7 +901,7 @@ impl HubConnection {
     }
     async fn call_request_with_deadline<P>(
         &self,
-        request_id: xvora_tool_protocol::RequestId,
+        request_id: tool_protocol::RequestId,
         request: &JsonRpcRequest<P>,
         timeout: Duration,
     ) -> Result<JsonRpcResponse, DeadlineCallError>
@@ -977,12 +977,12 @@ impl HubConnection {
     /// failure path is the empty-string check, which `format!` cannot
     /// produce). Callers in non-fallible contexts should propagate
     /// the error rather than panic.
-    pub fn try_alloc_request_id(&self) -> Result<xvora_tool_protocol::RequestId, ClientError> {
+    pub fn try_alloc_request_id(&self) -> Result<tool_protocol::RequestId, ClientError> {
         let value = self
             .inner
             .next_request_id
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        xvora_tool_protocol::RequestId::new(format!("c{value}")).map_err(ClientError::from)
+        tool_protocol::RequestId::new(format!("c{value}")).map_err(ClientError::from)
     }
     /// Number of sessions currently bound to this connection.
     /// Stable observable for monitoring and tests; not on the hot path.
@@ -997,8 +997,8 @@ impl HubConnection {
     pub async fn serve(
         &self,
         session_id: SessionId,
-        params: xvora_tool_protocol::ServeParams,
-    ) -> Result<xvora_tool_protocol::ServeResult, ClientError> {
+        params: tool_protocol::ServeParams,
+    ) -> Result<tool_protocol::ServeResult, ClientError> {
         let mut last_err: Option<ClientError> = None;
         for attempt in 1..=SERVE_MAX_ATTEMPTS {
             let request_id = self.try_alloc_request_id()?;
@@ -1121,14 +1121,14 @@ async fn run_handshake(
     mut sink: SplitSink<WsStream, Message>,
     mut stream: SplitStream<WsStream>,
     kind: ConnectionKind,
-    server_id: Option<xvora_tool_protocol::ServerId>,
+    server_id: Option<tool_protocol::ServerId>,
     server_description: Option<String>,
     server_metadata: Option<serde_json::Value>,
 ) -> Result<
     (
         SplitSink<WsStream, Message>,
         SplitStream<WsStream>,
-        xvora_tool_protocol::HelloAckMsg,
+        tool_protocol::HelloAckMsg,
     ),
     ClientError,
 > {
@@ -1890,12 +1890,12 @@ async fn reconnect_and_replay(
     let sessions = inner.bound_sessions.snapshot_keys();
     if inner.kind == ConnectionKind::Harness {
         for sid in &sessions {
-            let req = xvora_tool_protocol::JsonRpcRequest {
-                jsonrpc: xvora_tool_protocol::JsonRpcVersion,
-                id: xvora_tool_protocol::JsonRpcId::new_uuid_v7(),
+            let req = tool_protocol::JsonRpcRequest {
+                jsonrpc: tool_protocol::JsonRpcVersion,
+                id: tool_protocol::JsonRpcId::new_uuid_v7(),
                 session_id: Some(sid.clone()),
                 method: Method::SessionOpen.as_wire_str().to_owned(),
-                params: xvora_tool_protocol::SessionOpenParams {
+                params: tool_protocol::SessionOpenParams {
                     resume: false,
                     last_seq: None,
                 },

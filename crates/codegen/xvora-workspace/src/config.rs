@@ -94,7 +94,7 @@ pub struct WorkspaceBindConfig {
     /// Fully-specified toolset in the runtime serde shape. Takes precedence over `tools`.
     pub tool_config: Option<ToolServerConfig>,
     /// Per-user feature-flag bag. `None` on legacy payloads means tools fall back to their safe defaults.
-    pub viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+    pub viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     /// Initial auto-approve (YOLO) state. `None` on legacy payloads fails closed (false).
     pub yolo_mode: Option<bool>,
     /// Plane-configured toolset in the gRPC wire shape. An empty list is treated as unset (proto3 repeated default).
@@ -138,10 +138,10 @@ impl ResolvedTools {
 }
 impl WorkspaceBindConfig {
     /// Parse hub `session.bind` metadata.
-    /// The envelope is the shared [`xvora_tool_runtime::WorkspaceBindMetadata`], the same type the emitter serializes.
+    /// The envelope is the shared [`tool_runtime::WorkspaceBindMetadata`], the same type the emitter serializes.
     /// `tool_config` is a consumer-only raw escape hatch read separately.
     pub fn from_metadata(metadata: &serde_json::Value) -> Self {
-        let wire: xvora_tool_runtime::WorkspaceBindMetadata =
+        let wire: tool_runtime::WorkspaceBindMetadata =
             serde_json::from_value(metadata.clone()).unwrap_or_default();
         Self {
             preset: wire.preset,
@@ -747,7 +747,7 @@ pub struct WorkspaceConfig {
 }
 /// Metadata a tool server announces so hub consumers can identify and route to it.
 /// Re-export of the protocol crate's single catalog of well-known registration-metadata keys; every field is optional and independently sourced.
-pub use xvora_tool_protocol::ServerIdentityMetadata as WorkspaceServerMetadata;
+pub use tool_protocol::ServerIdentityMetadata as WorkspaceServerMetadata;
 /// Merge an env-sourced logical session id into caller-supplied tool-server metadata (`None` on the restore/local path).
 ///
 /// `env_session_id` is the raw `GROK_SESSION_ID`; empty is normalized to absent.

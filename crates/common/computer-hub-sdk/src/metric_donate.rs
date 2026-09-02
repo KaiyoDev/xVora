@@ -26,7 +26,7 @@ use prometheus::proto::{MetricFamily, MetricType};
 use prost::Message as _;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use xvora_tool_protocol::{MAX_DONATION_BYTES, MAX_METRICS_PER_DONATION};
+use tool_protocol::{MAX_DONATION_BYTES, MAX_METRICS_PER_DONATION};
 
 use crate::donate_pump::{
     PENDING_FLUSHES, PumpMsg, make_resource, now_unix_nanos, run_pump, string_kv,

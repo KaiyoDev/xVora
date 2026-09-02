@@ -7,7 +7,7 @@
 //! identity.
 
 use serde::{Deserialize, Serialize};
-use xvora_tool_protocol::StreamingSpec;
+use tool_protocol::StreamingSpec;
 
 use crate::tool::ToolProgress;
 

@@ -210,28 +210,28 @@ impl crate::types::tool_metadata::ToolMetadata for SkillTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for SkillTool {
+impl tool_runtime::Tool for SkillTool {
     type Args = SkillInput;
     type Output = SkillOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("skill").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("skill").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "skill",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
@@ -239,9 +239,9 @@ impl xvora_tool_runtime::Tool for SkillTool {
     #[tracing::instrument(name = "tool.opencode_skill", skip_all, fields(skill_name = %input.name))]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: SkillInput,
-    ) -> Result<SkillOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<SkillOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -370,7 +370,7 @@ mod tests {
     fn tool_metadata() {
         use crate::types::tool_metadata::ToolMetadata;
         let tool = SkillTool;
-        assert_eq!(xvora_tool_runtime::Tool::id(&tool).as_str(), "skill");
+        assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "skill");
         assert!(matches!(tool.kind(), ToolKind::Skill));
         assert!(matches!(tool.tool_namespace(), ToolNamespace::OpenCode));
         let desc = tool.description_template();
@@ -458,7 +458,7 @@ mod tests {
         ]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -486,7 +486,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -508,7 +508,7 @@ mod tests {
         let resources = Resources::new();
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -541,7 +541,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -587,7 +587,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -622,7 +622,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -649,7 +649,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -678,7 +678,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -710,7 +710,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -745,7 +745,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput { name: "fmt".into() },
@@ -794,7 +794,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -831,7 +831,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -864,7 +864,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {
@@ -914,7 +914,7 @@ mod tests {
         )]));
 
         let tool = SkillTool;
-        let output = xvora_tool_runtime::Tool::run(
+        let output = tool_runtime::Tool::run(
             &tool,
             test_ctx(resources.into_shared()),
             SkillInput {

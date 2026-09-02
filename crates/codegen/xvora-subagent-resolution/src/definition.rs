@@ -6,7 +6,7 @@ use std::path::Path;
 use xvora_agent::config::{AgentDefinition, IsolationMode};
 use xvora_agent::plugins::PluginRegistry;
 use xvora_agent::prompt::context::{PromptAudience, PromptContext};
-use xvora_tool_types::{SubagentCapabilityMode, SubagentIsolationMode};
+use tool_types::{SubagentCapabilityMode, SubagentIsolationMode};
 use xvora_tools::implementations::grok_build::task::types::{
     SubagentCapabilityModeExt, SubagentRuntimeOverrides, prune_orphaned_background_task_tools,
 };

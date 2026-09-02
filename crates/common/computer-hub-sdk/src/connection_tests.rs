@@ -1589,12 +1589,12 @@ async fn serve_send_failure_fails_fast_without_retry() {
     let session = SessionId::new("serve_session").expect("valid");
     let result = tokio::time::timeout(
         Duration::from_secs(5),
-        conn.serve(session, xvora_tool_protocol::ServeParams { tools: vec![] }),
+        conn.serve(session, tool_protocol::ServeParams { tools: vec![] }),
     )
     .await
     .expect("serve must fail bounded, not park");
     assert!(matches!(result, Err(ClientError::NetworkError(_))));
-    let request_id = xvora_tool_protocol::RequestId::new("c1").expect("valid");
+    let request_id = tool_protocol::RequestId::new("c1").expect("valid");
     assert!(
         demux.take_response_waiter(&request_id).is_none(),
         "the failed attempt must not leak a waiter"
@@ -1610,14 +1610,14 @@ async fn serve_times_out_bounded_and_reclaims_every_attempt_waiter() {
     let (conn, demux, mut outbound_rx) = test_connection();
     let session = SessionId::new("serve_timeout").expect("valid");
     let result = conn
-        .serve(session, xvora_tool_protocol::ServeParams { tools: vec![] })
+        .serve(session, tool_protocol::ServeParams { tools: vec![] })
         .await;
     assert!(matches!(result, Err(ClientError::NetworkError(_))));
     for id in ["c1", "c2", "c3"] {
         let sent = outbound_rx.try_recv().expect("attempt frame sent");
         let value: Value = serde_json::from_str(&sent).expect("valid json");
         assert_eq!(value["id"].as_str(), Some(id));
-        let request_id = xvora_tool_protocol::RequestId::new(id).expect("valid");
+        let request_id = tool_protocol::RequestId::new(id).expect("valid");
         assert!(
             demux.take_response_waiter(&request_id).is_none(),
             "attempt {id} must not leak a waiter"

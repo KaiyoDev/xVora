@@ -468,26 +468,26 @@ impl xvora_tools::types::tool_metadata::ToolMetadata for McpErrorResultTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for McpErrorResultTool {
+impl tool_runtime::Tool for McpErrorResultTool {
     type Args = serde_json::Value;
     type Output = xvora_tools::types::output::ToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("mock_error_tool").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("mock_error_tool").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new("mock_error_tool", "stub MCP error tool")
+        _ctx: &tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new("mock_error_tool", "stub MCP error tool")
     }
 
     async fn run(
         &self,
-        _ctx: xvora_tool_runtime::ToolCallContext,
+        _ctx: tool_runtime::ToolCallContext,
         _args: serde_json::Value,
-    ) -> Result<Self::Output, xvora_tool_runtime::ToolError> {
+    ) -> Result<Self::Output, tool_runtime::ToolError> {
         Ok(xvora_tools::types::output::ToolOutput::MCP(
             xvora_tools::types::output::MCPOutput::errored(
                 "mock_error_tool".into(),

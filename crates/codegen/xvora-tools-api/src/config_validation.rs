@@ -4,7 +4,7 @@
 //! so callers can render gRPC violations without re-parsing.
 
 use serde_json::{Map, Value};
-use xvora_tool_protocol::ToolId;
+use tool_protocol::ToolId;
 
 /// Why a [`ToolConfigEntry`](crate::ToolConfigEntry) is invalid.
 #[derive(Debug, Clone, PartialEq, Eq)]

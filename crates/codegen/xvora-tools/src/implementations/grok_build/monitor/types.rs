@@ -79,7 +79,7 @@ pub struct MonitorOutput {
     pub persistent: bool,
 }
 
-impl xvora_tool_runtime::ToolOutput for MonitorOutput {}
+impl tool_runtime::ToolOutput for MonitorOutput {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum MonitorError {

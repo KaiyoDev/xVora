@@ -7,8 +7,8 @@ use prometheus::{
 use std::path::PathBuf;
 use std::sync::Arc;
 use xvora_hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
-use xvora_tool_protocol::ToolServerStatusPayload;
-use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+use tool_protocol::ToolServerStatusPayload;
+use tool_protocol::turn_hook::TurnHookOutcome;
 /// Default SIGTERM drain budget (ms); override via `GROK_WORKSPACE_TERMINATION_GRACE_MS`.
 /// 45s fits under the K8s grace period.
 const DEFAULT_TERMINATION_GRACE_MS: u64 = 45_000;
@@ -191,7 +191,7 @@ use xvora_diag_server::DiagHandle;
 use xvora_file_utils::queue::EnqueueOutcome;
 use xvora_session_events::types::CancellationCategory;
 use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
-use xvora_tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
+use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
 /// Per-domain checkpoint captures, by domain and turn outcome.
 pub(crate) static REWIND_CHECKPOINT_CAPTURE_TOTAL: std::sync::LazyLock<IntCounterVec> =
     std::sync::LazyLock::new(|| {
@@ -749,7 +749,7 @@ impl WorkspaceHandle {
         cwd: Option<std::path::PathBuf>,
         tool_config: Option<xvora_tools::registry::types::ToolServerConfig>,
         capability: CapabilityMode,
-        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
         system_notifications: bool,
     ) -> WorkspaceResult<Arc<WorkspaceSession>> {
         let session_id = session_id.into();
@@ -807,7 +807,7 @@ impl WorkspaceHandle {
         hunk_tracker: HunkTrackerHandle,
         tool_config: Option<xvora_tools::registry::types::ToolServerConfig>,
         capability: CapabilityMode,
-        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
         system_notifications: bool,
     ) -> WorkspaceResult<Arc<WorkspaceSession>> {
         self.create_session_with_tracker_inner(
@@ -833,7 +833,7 @@ impl WorkspaceHandle {
         hunk_tracker_cancel: Option<tokio_util::sync::CancellationToken>,
         tool_config: Option<xvora_tools::registry::types::ToolServerConfig>,
         capability: CapabilityMode,
-        viewer_ctx: Option<xvora_tool_runtime::WorkspaceViewerContext>,
+        viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
         system_notifications: bool,
     ) -> WorkspaceResult<Arc<WorkspaceSession>> {
         let session_id = session_id.into();
@@ -1245,7 +1245,7 @@ impl WorkspaceHandle {
     pub async fn on_before_turn(
         &self,
         session_id: &str,
-        payload: &xvora_tool_protocol::turn_hook::BeforeTurnPayload,
+        payload: &tool_protocol::turn_hook::BeforeTurnPayload,
     ) {
         self.sync_session_yolo_mode(session_id, payload.yolo_mode);
         let before_handle = self
@@ -1283,14 +1283,14 @@ impl WorkspaceHandle {
     pub async fn on_after_turn(
         &self,
         session_id: &str,
-        payload: &xvora_tool_protocol::turn_hook::AfterTurnPayload,
+        payload: &tool_protocol::turn_hook::AfterTurnPayload,
     ) {
         let _ = self.process_after_turn(session_id, payload).await;
     }
     async fn process_after_turn(
         &self,
         session_id: &str,
-        payload: &xvora_tool_protocol::turn_hook::AfterTurnPayload,
+        payload: &tool_protocol::turn_hook::AfterTurnPayload,
     ) -> (
         Option<tokio::task::JoinHandle<EnqueueOutcome>>,
         Option<tokio::task::JoinHandle<EnqueueOutcome>>,
@@ -1341,9 +1341,9 @@ impl WorkspaceHandle {
     pub async fn compute_turn_injections(
         &self,
         session_id: &str,
-        request: &xvora_tool_protocol::turn_hook::TurnHookRequest,
-    ) -> xvora_tool_protocol::turn_hook::HookReply {
-        use xvora_tool_protocol::turn_hook::{HookReply, TurnHookRequest};
+        request: &tool_protocol::turn_hook::TurnHookRequest,
+    ) -> tool_protocol::turn_hook::HookReply {
+        use tool_protocol::turn_hook::{HookReply, TurnHookRequest};
         match request {
             TurnHookRequest::Before(payload) => {
                 self.on_before_turn(session_id, payload).await;
@@ -2634,7 +2634,7 @@ impl WorkspaceHandle {
         use xvora_computer_hub_mcp_adapter::McpBridge;
         use xvora_computer_hub_sdk::ToolServerHandler as _;
         use xvora_mcp::servers::MCP_TOOL_NAME_DELIMITER;
-        use xvora_tool_protocol::SessionId;
+        use tool_protocol::SessionId;
         let tool_server = {
             let hub_guard = self.shared.hub_handle.lock().await;
             let hub = hub_guard
@@ -2730,7 +2730,7 @@ impl WorkspaceHandle {
                                         "failed to register MCP tool on hub"
                                     );
                                 } else if let Ok(tid) =
-                                    xvora_tool_protocol::ToolId::new(&qualified_name)
+                                    tool_protocol::ToolId::new(&qualified_name)
                                 {
                                     registered_tool_ids.push(tid);
                                 }
@@ -2806,7 +2806,7 @@ impl WorkspaceHandle {
             Some(s) => s,
             None => return,
         };
-        let sid = match xvora_tool_protocol::SessionId::new(session_id) {
+        let sid = match tool_protocol::SessionId::new(session_id) {
             Ok(s) => s,
             Err(_) => return,
         };
@@ -3044,11 +3044,11 @@ impl WorkspaceHandle {
     pub(crate) fn session_bind_resolver(
         &self,
         catalog: Arc<Vec<Arc<dyn xvora_computer_hub_sdk::ToolServerHandler>>>,
-        rpc_tool_id: xvora_tool_protocol::ToolId,
+        rpc_tool_id: tool_protocol::ToolId,
     ) -> xvora_computer_hub_sdk::SessionHandlerResolver {
         let weak_shared = Arc::downgrade(&self.shared);
         Arc::new(
-            move |sid: xvora_tool_protocol::SessionId, params: Option<serde_json::Value>| {
+            move |sid: tool_protocol::SessionId, params: Option<serde_json::Value>| {
                 let catalog = catalog.clone();
                 let rpc_tool_id = rpc_tool_id.clone();
                 let weak_shared = weak_shared.clone();
@@ -3072,7 +3072,7 @@ impl WorkspaceHandle {
                             .with_label_values(&["workspace_shutdown"])
                             .inc();
                         return Err(
-                            xvora_tool_runtime::ToolError::service_unavailable(
+                            tool_runtime::ToolError::service_unavailable(
                                 "workspace is shutting down; cannot bind session",
                             ),
                         );
@@ -3241,7 +3241,7 @@ impl WorkspaceHandle {
                                         .await
                                 {
                                     return Err(
-                                        xvora_tool_runtime::ToolError::service_unavailable(
+                                        tool_runtime::ToolError::service_unavailable(
                                             format!(
                                             "path-virt remount failed for `{sid_str}`: {e}"
                                         ),
@@ -3274,7 +3274,7 @@ impl WorkspaceHandle {
                                         .with_label_values(&["session_lookup_failed"])
                                         .inc();
                                     return Err(
-                                        xvora_tool_runtime::ToolError::service_unavailable(
+                                        tool_runtime::ToolError::service_unavailable(
                                             format!(
                                             "session rebind raced teardown for `{sid_str}`; retry"
                                         ),
@@ -3292,7 +3292,7 @@ impl WorkspaceHandle {
                                 .with_label_values(&["session_error"])
                                 .inc();
                             return Err(
-                                xvora_tool_runtime::ToolError::service_unavailable(
+                                tool_runtime::ToolError::service_unavailable(
                                     format!("failed to create workspace session: {e}"),
                                 ),
                             );
@@ -3303,7 +3303,7 @@ impl WorkspaceHandle {
                             && let Err(e) = session.set_cwd_for_virtualization(cwd).await
                         {
                             return Err(
-                                xvora_tool_runtime::ToolError::service_unavailable(
+                                tool_runtime::ToolError::service_unavailable(
                                     format!(
                                 "path-virt remount failed for `{sid_str}`: {e}"
                             ),
@@ -3323,7 +3323,7 @@ impl WorkspaceHandle {
                             .inc();
                         let _ = ws.drop_session(&sid_str, &sid_str);
                         return Err(
-                            xvora_tool_runtime::ToolError::service_unavailable(
+                            tool_runtime::ToolError::service_unavailable(
                                 format!(
                             "bind mount hook failed: {e}"
                         ),
@@ -3564,8 +3564,8 @@ impl WorkspaceHandle {
                     Ok(event) => {
                         let payload =
                             serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
-                        let frame = xvora_tool_protocol::ToolNotificationFrame::custom(
-                            xvora_tool_protocol::ToolId::new(
+                        let frame = tool_protocol::ToolNotificationFrame::custom(
+                            tool_protocol::ToolId::new(
                                 crate::hub_ids::WORKSPACE_EVENTS_TOOL_ID,
                             )
                             .expect("constant tool id"),
@@ -3621,11 +3621,11 @@ impl WorkspaceHandle {
                         return None;
                     }
                 };
-                let req = xvora_tool_protocol::JsonRpcRequest {
-                    jsonrpc: xvora_tool_protocol::JsonRpcVersion,
-                    id: xvora_tool_protocol::JsonRpcId::from_request_id(&request_id),
+                let req = tool_protocol::JsonRpcRequest {
+                    jsonrpc: tool_protocol::JsonRpcVersion,
+                    id: tool_protocol::JsonRpcId::from_request_id(&request_id),
                     session_id: None,
-                    method: xvora_tool_protocol::Method::ToolServerStatus
+                    method: tool_protocol::Method::ToolServerStatus
                         .as_wire_str()
                         .to_owned(),
                     params,
@@ -3741,8 +3741,8 @@ impl WorkspaceHandle {
             let server_for_ext = handle.server.clone();
             let ext_task = tokio::spawn(async move {
                 while let Some((method, params)) = ext_rx.recv().await {
-                    let frame = xvora_tool_protocol::ToolNotificationFrame::custom(
-                        xvora_tool_protocol::ToolId::new(
+                    let frame = tool_protocol::ToolNotificationFrame::custom(
+                        tool_protocol::ToolId::new(
                             crate::hub_ids::WORKSPACE_CLIENT_EXT_NOTIFICATIONS_TOOL_ID,
                         )
                         .expect("constant tool id"),
@@ -3802,7 +3802,7 @@ fn build_session_routed_handlers(
             continue;
         }
         let semantic_kind = tool_kinds.get(&def.function.name).copied();
-        let mut desc = xvora_tool_types::ToolDescription::new(
+        let mut desc = tool_types::ToolDescription::new(
             def.function.name.clone(),
             def.function.description.clone().unwrap_or_default(),
         );
@@ -4343,9 +4343,9 @@ async fn enqueue_workspace_tool_definitions(
 /// Single source of truth for mapping a turn-hook outcome to the `events.jsonl` [`TurnOutcomeLabel`].
 /// Kept as one `match` so the two enums cannot drift and the mapping is never duplicated across call sites.
 fn turn_outcome_label(
-    outcome: xvora_tool_protocol::turn_hook::TurnHookOutcome,
+    outcome: tool_protocol::turn_hook::TurnHookOutcome,
 ) -> TurnOutcomeLabel {
-    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+    use tool_protocol::turn_hook::TurnHookOutcome;
     match outcome {
         TurnHookOutcome::Completed => TurnOutcomeLabel::Completed,
         TurnHookOutcome::Cancelled => TurnOutcomeLabel::Cancelled,
@@ -4486,20 +4486,20 @@ async fn persist_and_enqueue_tool_state(
 /// This is the same dispatch pattern as [`SessionRoutedToolHandler`] in `hub.rs`.
 /// It implements `ToolHandle` (for `LocalRegistry`) instead of `ToolServerHandler` (for `ToolServer`).
 struct SessionToolHandle {
-    tool_id: xvora_tool_protocol::ToolId,
-    desc: xvora_tool_types::ToolDescription,
+    tool_id: tool_protocol::ToolId,
+    desc: tool_types::ToolDescription,
     workspace: WorkspaceHandle,
     session_id: String,
 }
 impl SessionToolHandle {
     fn new(
         tool_name: String,
-        desc: xvora_tool_types::ToolDescription,
+        desc: tool_types::ToolDescription,
         workspace: WorkspaceHandle,
         session_id: String,
-    ) -> Result<Self, xvora_tool_protocol::IdError> {
+    ) -> Result<Self, tool_protocol::IdError> {
         Ok(Self {
-            tool_id: xvora_tool_protocol::ToolId::new(tool_name)?,
+            tool_id: tool_protocol::ToolId::new(tool_name)?,
             desc,
             workspace,
             session_id,
@@ -4518,22 +4518,22 @@ impl std::fmt::Debug for SessionToolHandle {
     }
 }
 #[async_trait::async_trait]
-impl xvora_tool_runtime::ToolDyn for SessionToolHandle {
-    fn id(&self) -> xvora_tool_protocol::ToolId {
+impl tool_runtime::ToolDyn for SessionToolHandle {
+    fn id(&self) -> tool_protocol::ToolId {
         self.tool_id.clone()
     }
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
         self.desc.clone()
     }
     async fn execute(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         args: serde_json::Value,
-    ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
-        use xvora_tool_runtime::{ToolError, ToolErrorKind, ToolStreamItem, terminal_only};
+    ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
+        use tool_runtime::{ToolError, ToolErrorKind, ToolStreamItem, terminal_only};
         let session = match self.workspace.session(&self.session_id) {
             Some(s) => s,
             None => {
@@ -4628,13 +4628,13 @@ impl WorkspaceHandle {
         let registry = xvora_computer_hub_sdk::LocalRegistry::new();
         for def in toolset.tool_definitions() {
             let tool_name = def.function.name.clone();
-            let desc = xvora_tool_types::ToolDescription::new(
+            let desc = tool_types::ToolDescription::new(
                 tool_name.clone(),
                 def.function.description.clone().unwrap_or_default(),
             );
             match SessionToolHandle::new(tool_name, desc, self.clone(), session_id.to_string()) {
                 Ok(tool) => {
-                    registry.register_dyn(Arc::new(tool) as Arc<dyn xvora_tool_runtime::ToolDyn>);
+                    registry.register_dyn(Arc::new(tool) as Arc<dyn tool_runtime::ToolDyn>);
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -4645,12 +4645,12 @@ impl WorkspaceHandle {
                 }
             }
         }
-        let session_id = xvora_tool_protocol::SessionId::new(session_id.to_string())
+        let session_id = tool_protocol::SessionId::new(session_id.to_string())
             .map_err(|e| WorkspaceError::HubError(format!("invalid session id: {e}")))?;
         Ok(xvora_computer_hub_sdk::ToolHarness::local_only_with(
             registry,
             session_id,
-            xvora_tool_runtime::TypedExtensions::default(),
+            tool_runtime::TypedExtensions::default(),
         ))
     }
 }

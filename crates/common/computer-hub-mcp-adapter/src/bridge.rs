@@ -10,9 +10,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 use tracing::{debug, info, warn};
-use xvora_tool_protocol::{McpBlock, SessionId, ToolId, ToolOutputWire};
-use xvora_tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput, terminal_only};
-use xvora_tool_types::ToolDescription;
+use tool_protocol::{McpBlock, SessionId, ToolId, ToolOutputWire};
+use tool_runtime::{ToolCallContext, ToolError, ToolStream, TypedToolOutput, terminal_only};
+use tool_types::ToolDescription;
 
 use crate::transport::McpTransport;
 use crate::types::{McpCallResult, McpContent, McpError, McpServerInfo, McpToolDefinition};
@@ -511,7 +511,7 @@ mod tests {
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+            tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
                 let output: ToolOutputWire = serde_json::from_value(typed.value).unwrap();
                 assert_eq!(output, ToolOutputWire::Text("found 3 results".into()));
             }
@@ -555,7 +555,7 @@ mod tests {
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+            tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
                 let output: ToolOutputWire = serde_json::from_value(typed.value).unwrap();
                 match output {
                     ToolOutputWire::Mcp { blocks } => {
@@ -602,7 +602,7 @@ mod tests {
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
+            tool_runtime::ToolStreamItem::Terminal(Ok(typed)) => {
                 let output: ToolOutputWire = serde_json::from_value(typed.value).unwrap();
                 assert_eq!(output, ToolOutputWire::Text("permission denied".into()));
             }
@@ -632,8 +632,8 @@ mod tests {
 
         let item = stream.next().await.unwrap();
         match item {
-            xvora_tool_runtime::ToolStreamItem::Terminal(Err(ref e))
-                if e.kind == xvora_tool_runtime::ToolErrorKind::Execution =>
+            tool_runtime::ToolStreamItem::Terminal(Err(ref e))
+                if e.kind == tool_runtime::ToolErrorKind::Execution =>
             {
                 assert!(
                     e.detail.contains("connection reset"),

@@ -160,7 +160,7 @@ impl LengthSalvageStreak {
 ///
 /// String fallbacks remain for tools that report auth failures without going through the structured `HttpFailure` path.
 /// Examples: JSON-only `invalid_token` payloads, BYOK key-validation messages.
-pub(super) fn is_auth_tool_error(err: &xvora_tool_runtime::ToolError) -> bool {
+pub(super) fn is_auth_tool_error(err: &tool_runtime::ToolError) -> bool {
     // When the error carries a structured HTTP status code in details, trust it as the authoritative signal
     // This replaces the legacy `HttpFailure { status, .. }` variant matching.
     if let Some(details) = &err.details
@@ -219,13 +219,13 @@ pub(super) async fn call_with_auth_retry<F, Fut>(
     shared_recovery: Option<&tokio::sync::OnceCell<bool>>,
     tool_name: &str,
     mut call: F,
-) -> Result<xvora_tools::types::output::ToolRunResult, xvora_tool_runtime::ToolError>
+) -> Result<xvora_tools::types::output::ToolRunResult, tool_runtime::ToolError>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<
             Output = Result<
                 xvora_tools::types::output::ToolRunResult,
-                xvora_tool_runtime::ToolError,
+                tool_runtime::ToolError,
             >,
         >,
 {

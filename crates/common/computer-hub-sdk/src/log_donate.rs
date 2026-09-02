@@ -25,7 +25,7 @@ use tracing::Level;
 use tracing::field::{Field, Visit};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
-use xvora_tool_protocol::{MAX_DONATION_BYTES, MAX_LOG_RECORDS_PER_DONATION};
+use tool_protocol::{MAX_DONATION_BYTES, MAX_LOG_RECORDS_PER_DONATION};
 
 use crate::donate_pump::{
     PENDING_FLUSHES, PumpMsg, drain_via, make_resource, now_unix_nanos, run_pump, string_kv,

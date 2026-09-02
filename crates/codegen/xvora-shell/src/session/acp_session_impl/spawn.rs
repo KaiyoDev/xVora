@@ -1534,8 +1534,8 @@ pub(crate) async fn spawn_session_actor(
         });
     }
     let obs_bridge = {
-        let sid = xvora_tool_protocol::SessionId::new(&*session_info.id.0)
-            .unwrap_or_else(|_| xvora_tool_protocol::SessionId::new("unknown").expect("valid"));
+        let sid = tool_protocol::SessionId::new(&*session_info.id.0)
+            .unwrap_or_else(|_| tool_protocol::SessionId::new("unknown").expect("valid"));
         xvora_computer_hub_sdk::ObservabilityBridge::new(None, sid)
     };
     let mut effective_config = crate::config::load_effective_config()

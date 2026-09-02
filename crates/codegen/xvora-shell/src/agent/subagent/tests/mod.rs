@@ -974,7 +974,7 @@ fn partial_override_fills_from_role() {
     assert_eq!(resolved.model.as_deref(), Some("explicit-model"));
     assert_eq!(
             resolved.capability_mode,
-            Some(xvora_tool_types::SubagentCapabilityMode::Execute)
+            Some(tool_types::SubagentCapabilityMode::Execute)
         );
 }
 #[test]

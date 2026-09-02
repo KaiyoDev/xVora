@@ -190,7 +190,7 @@ where
 }
 /// Lenient boolean deserializers (shared via `xvora-tool-types`), re-exported so
 /// fields reference them under the same `crate::types::schema::` path as above.
-pub use xvora_tool_types::{deserialize_lenient_bool, deserialize_lenient_option_bool};
+pub use tool_types::{deserialize_lenient_bool, deserialize_lenient_option_bool};
 #[cfg(test)]
 mod tests {
     use super::*;

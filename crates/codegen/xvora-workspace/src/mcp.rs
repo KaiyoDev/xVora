@@ -11,9 +11,9 @@ use xvora_computer_hub_mcp_adapter::{
 use xvora_computer_hub_sdk::ToolServerHandler;
 use xvora_mcp::rmcp;
 use xvora_mcp::servers::{McpClient, parse_mcp_qualified_name};
-use xvora_tool_protocol::ToolId;
-use xvora_tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
-use xvora_tool_types::ToolDescription;
+use tool_protocol::ToolId;
+use tool_runtime::{ToolCallContext, ToolStream, TypedToolOutput};
+use tool_types::ToolDescription;
 
 /// Adapts [`McpClient`] to the [`McpTransport`] trait for [`McpBridge`].
 pub(crate) struct McpClientTransportAdapter {
@@ -201,7 +201,7 @@ pub(crate) fn server_name_from_mcp_error(e: &xvora_mcp::servers::McpError) -> &s
 }
 
 pub(crate) fn make_bridge_config(
-    session_id: xvora_tool_protocol::SessionId,
+    session_id: tool_protocol::SessionId,
     server_name: &str,
 ) -> McpBridgeConfig {
     McpBridgeConfig {
@@ -214,7 +214,7 @@ pub(crate) fn make_bridge_config(
 mod tests {
     use super::*;
     use xvora_computer_hub_mcp_adapter::{McpBridge, McpError};
-    use xvora_tool_protocol::SessionId;
+    use tool_protocol::SessionId;
 
     struct TestTransport;
 

@@ -2,8 +2,8 @@ use super::*;
 
 pub(super) fn turn_result_to_hook_outcome(
     result: &Result<TurnOutcome, acp::Error>,
-) -> xvora_tool_protocol::turn_hook::TurnHookOutcome {
-    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+) -> tool_protocol::turn_hook::TurnHookOutcome {
+    use tool_protocol::turn_hook::TurnHookOutcome;
     match result {
         Ok(TurnOutcome::Completed { .. }) | Ok(TurnOutcome::StationarityEnded { .. }) => {
             TurnHookOutcome::Completed
@@ -30,9 +30,9 @@ pub(super) fn cancellation_category_to_wire_string(
 /// `Cancelled` means the tool never ran (permission, doom-loop, hook, followup).
 pub(super) fn map_tool_outcome(
     outcome: crate::session::events::ToolOutcome,
-) -> xvora_tool_protocol::session_event::ToolCallOutcome {
+) -> tool_protocol::session_event::ToolCallOutcome {
     use crate::session::events::ToolOutcome;
-    use xvora_tool_protocol::session_event::ToolCallOutcome;
+    use tool_protocol::session_event::ToolCallOutcome;
     match outcome {
         ToolOutcome::Success => ToolCallOutcome::Success,
         ToolOutcome::Error | ToolOutcome::InvalidTool => ToolCallOutcome::Error,

@@ -72,9 +72,9 @@ impl ToolBridge {
         builder: ToolRegistryBuilder,
         config: ToolServerConfig,
         ctx: SessionContext,
-    ) -> Result<Self, xvora_tool_runtime::ToolError> {
+    ) -> Result<Self, tool_runtime::ToolError> {
         let finalized_toolset = builder.finalize(config, ctx).map_err(|errs| {
-            xvora_tool_runtime::ToolError::invalid_arguments(format!(
+            tool_runtime::ToolError::invalid_arguments(format!(
                 "Requirements unsatisfied: {errs:?}"
             ))
         })?;
@@ -170,9 +170,9 @@ impl ToolBridge {
         mcp_name: String,
         tool: T,
         input_schema: Option<serde_json::Value>,
-    ) -> Result<(), xvora_tool_runtime::ToolError>
+    ) -> Result<(), tool_runtime::ToolError>
     where
-        T: xvora_tool_runtime::Tool
+        T: tool_runtime::Tool
             + crate::types::tool_metadata::ToolMetadata
             + std::fmt::Debug
             + Send
@@ -206,7 +206,7 @@ impl ToolBridge {
         client_function_name: &str,
         client_params: serde_json::Value,
         tool_call_id: &str,
-    ) -> Result<ToolRunResult, xvora_tool_runtime::ToolError> {
+    ) -> Result<ToolRunResult, tool_runtime::ToolError> {
         self.registry
             .call(client_function_name, client_params, tool_call_id, None)
             .await
@@ -216,7 +216,7 @@ impl ToolBridge {
         &self,
         client_function_name: &str,
         client_params: serde_json::Value,
-    ) -> Result<ToolInput, xvora_tool_runtime::ToolError> {
+    ) -> Result<ToolInput, tool_runtime::ToolError> {
         self.registry
             .try_parse(client_function_name, &client_params)
             .await
@@ -578,11 +578,11 @@ impl ToolBridge {
         &self,
         task_id: &str,
         source: KillSource,
-    ) -> Result<KillOutcome, xvora_tool_runtime::ToolError> {
+    ) -> Result<KillOutcome, tool_runtime::ToolError> {
         if let Some(terminal) = &self.terminal {
             Ok(terminal.kill_task_with_source(task_id, source).await)
         } else {
-            Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
+            Err(tool_runtime::ToolError::invalid_arguments(format!(
                 "Missing Task Id: {task_id}"
             )))
         }
@@ -619,7 +619,7 @@ impl ToolBridge {
     pub async fn delete_scheduled_task(
         &self,
         task_id: &str,
-    ) -> Result<bool, xvora_tool_runtime::ToolError> {
+    ) -> Result<bool, tool_runtime::ToolError> {
         use crate::implementations::grok_build::scheduler::types::{
             SchedulerCommand, SchedulerHandle,
         };
@@ -627,7 +627,7 @@ impl ToolBridge {
             let res = self.registry.resources.lock().await;
             res.get::<SchedulerHandle>()
                 .ok_or_else(|| {
-                    xvora_tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
+                    tool_runtime::ToolError::custom("missing_resource", "SchedulerHandle")
                 })?
                 .0
                 .clone()
@@ -639,12 +639,12 @@ impl ToolBridge {
                 reply: reply_tx,
             })
             .map_err(|_| {
-                xvora_tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
+                tool_runtime::ToolError::custom("process_manager", "Scheduler actor stopped")
             })?;
         reply_rx
             .await
             .map_err(|_| {
-                xvora_tool_runtime::ToolError::custom(
+                tool_runtime::ToolError::custom(
                     "process_manager",
                     "Scheduler actor dropped reply",
                 )
@@ -752,24 +752,24 @@ mod tests {
         }
     }
 
-    impl xvora_tool_runtime::Tool for KindFixture {
+    impl tool_runtime::Tool for KindFixture {
         type Args = serde_json::Value;
         type Output = String;
 
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new(self.id).expect("valid id")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new(self.id).expect("valid id")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new(self.id, "kind fixture")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new(self.id, "kind fixture")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _input: serde_json::Value,
-        ) -> Result<String, xvora_tool_runtime::ToolError> {
+        ) -> Result<String, tool_runtime::ToolError> {
             Ok("ok".into())
         }
     }

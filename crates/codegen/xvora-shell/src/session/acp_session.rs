@@ -473,7 +473,7 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
         caller: &str,
     ) -> Result<
         xvora_tools::types::resources::ManagedGatewayToolCallResponse,
-        xvora_tool_runtime::ToolError,
+        tool_runtime::ToolError,
     > {
         let auth_key = self
             .auth_manager
@@ -482,7 +482,7 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
             .ok()
             .or_else(|| self.auth_manager.current_or_expired().map(|a| a.key))
             .ok_or_else(|| {
-                xvora_tool_runtime::ToolError::unauthorized("no auth token available")
+                tool_runtime::ToolError::unauthorized("no auth token available")
             })?;
         let response = crate::session::managed_mcp::call_gateway_tool(
             &self.proxy_base_url,
@@ -503,19 +503,19 @@ impl xvora_tools::types::resources::ManagedGatewayToolCaller for ShellManagedGat
 fn managed_gateway_error_to_tool_error(
     error: crate::session::managed_mcp::ManagedMcpFetchError,
     caller: &str,
-) -> xvora_tool_runtime::ToolError {
+) -> tool_runtime::ToolError {
     match error {
         crate::session::managed_mcp::ManagedMcpFetchError::Status { status, message } => {
             let detail = format!("Managed MCP gateway tool call failed: {message}");
             let mut err = if status == reqwest::StatusCode::UNAUTHORIZED {
-                xvora_tool_runtime::ToolError::unauthorized(detail)
+                tool_runtime::ToolError::unauthorized(detail)
             } else if status == reqwest::StatusCode::FORBIDDEN {
-                xvora_tool_runtime::ToolError::permission_denied(detail)
+                tool_runtime::ToolError::permission_denied(detail)
             } else {
-                let tool_id = xvora_tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
-                    xvora_tool_protocol::ToolId::new("use_tool").expect("valid")
+                let tool_id = tool_protocol::ToolId::new(caller).unwrap_or_else(|_| {
+                    tool_protocol::ToolId::new("use_tool").expect("valid")
                 });
-                xvora_tool_runtime::ToolError::execution(tool_id, detail)
+                tool_runtime::ToolError::execution(tool_id, detail)
             };
             match err.details.as_mut() {
                 Some(serde_json::Value::Object(map)) => {
@@ -533,13 +533,13 @@ fn managed_gateway_error_to_tool_error(
             err
         }
         crate::session::managed_mcp::ManagedMcpFetchError::Transport(e) => {
-            xvora_tool_runtime::ToolError::network_error(format!(
+            tool_runtime::ToolError::network_error(format!(
                 "Managed MCP gateway tool call failed: {}",
                 e.without_url()
             ))
         }
         crate::session::managed_mcp::ManagedMcpFetchError::NoAuth => {
-            xvora_tool_runtime::ToolError::unauthorized("no auth token available")
+            tool_runtime::ToolError::unauthorized("no auth token available")
         }
     }
 }
@@ -556,7 +556,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn unauthorized_status_maps_to_unauthorized_and_carries_status() {
         let err = managed_gateway_error_to_tool_error(status_error(401, "expired"), "use_tool");
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Unauthorized);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Unauthorized);
         assert!(err.detail.contains("expired"));
         let details = err.details.as_ref().unwrap();
         assert_eq!(
@@ -569,7 +569,7 @@ mod managed_gateway_error_tests {
         let err = managed_gateway_error_to_tool_error(status_error(403, "denied"), "use_tool");
         assert_eq!(
             err.kind,
-            xvora_tool_runtime::ToolErrorKind::PermissionDenied
+            tool_runtime::ToolErrorKind::PermissionDenied
         );
         let details = err.details.as_ref().unwrap();
         assert_eq!(
@@ -580,7 +580,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn general_status_maps_to_execution_with_caller_tool_id() {
         let err = managed_gateway_error_to_tool_error(status_error(500, "boom"), "CallMcpTool");
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Execution);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Execution);
         let details = err.details.as_ref().unwrap();
         assert_eq!(
             details.get(HTTP_STATUS_DETAILS_KEY),
@@ -594,7 +594,7 @@ mod managed_gateway_error_tests {
     #[test]
     fn general_status_falls_back_to_use_tool_for_unknown_caller() {
         let err = managed_gateway_error_to_tool_error(status_error(500, "boom"), "not a tool id");
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Execution);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Execution);
         let details = err.details.as_ref().unwrap();
         assert_eq!(details.get("tool_id"), Some(&serde_json::json!("use_tool")));
     }
@@ -604,7 +604,7 @@ mod managed_gateway_error_tests {
             crate::session::managed_mcp::ManagedMcpFetchError::NoAuth,
             "use_tool",
         );
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::Unauthorized);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::Unauthorized);
     }
     #[tokio::test]
     async fn transport_error_maps_to_network_error_without_url() {
@@ -617,7 +617,7 @@ mod managed_gateway_error_tests {
             crate::session::managed_mcp::ManagedMcpFetchError::Transport(transport),
             "use_tool",
         );
-        assert_eq!(err.kind, xvora_tool_runtime::ToolErrorKind::NetworkError);
+        assert_eq!(err.kind, tool_runtime::ToolErrorKind::NetworkError);
         assert!(err.detail.contains("Managed MCP gateway tool call failed"));
         assert!(
             !err.detail.contains("http://"),
@@ -1239,7 +1239,7 @@ impl SessionActor {
     /// Fire-and-forget; failures are logged but do not interrupt the turn.
     async fn send_before_turn_event(
         &self,
-        payload: xvora_tool_protocol::turn_hook::BeforeTurnPayload,
+        payload: tool_protocol::turn_hook::BeforeTurnPayload,
     ) {
         self.workspace_ops
             .on_before_turn(&self.session_id_string(), &payload)
@@ -1254,7 +1254,7 @@ impl SessionActor {
     )]
     async fn send_after_turn_event(
         &self,
-        payload: xvora_tool_protocol::turn_hook::AfterTurnPayload,
+        payload: tool_protocol::turn_hook::AfterTurnPayload,
     ) {
         self.workspace_ops
             .on_after_turn(&self.session_id_string(), &payload)
@@ -1545,23 +1545,23 @@ mod managed_gateway_descriptor_tests {
             "fixture"
         }
     }
-    impl xvora_tool_runtime::Tool for FixtureMcpTool {
+    impl tool_runtime::Tool for FixtureMcpTool {
         type Args = serde_json::Value;
         type Output = ToolOutput;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("server__tool").expect("valid")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("server__tool").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("server__tool", "fixture")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("server__tool", "fixture")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _args: serde_json::Value,
-        ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
+        ) -> Result<ToolOutput, tool_runtime::ToolError> {
             Ok(ToolOutput::MCP(MCPOutput::okay_output(
                 "server__tool".to_string(),
                 "server".to_string(),
@@ -2074,23 +2074,23 @@ mod managed_gateway_tool_tests {
             "fixture"
         }
     }
-    impl xvora_tool_runtime::Tool for FixtureMcpTool {
+    impl tool_runtime::Tool for FixtureMcpTool {
         type Args = serde_json::Value;
         type Output = ToolOutput;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("server__tool").expect("valid")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("server__tool").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("server__tool", "fixture")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("server__tool", "fixture")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             _args: serde_json::Value,
-        ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
+        ) -> Result<ToolOutput, tool_runtime::ToolError> {
             Ok(ToolOutput::MCP(MCPOutput::okay_output(
                 "server__tool".to_string(),
                 "server".to_string(),

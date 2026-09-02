@@ -89,16 +89,16 @@ async fn dispatch_local_mcp(
     dispatch: std::sync::Arc<crate::types::resources::InnerDispatch>,
     tool_name: &str,
     tool_input: serde_json::Value,
-    ctx: xvora_tool_runtime::ToolCallContext,
-) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
-    let tool_id = xvora_tool_protocol::ToolId::new(tool_name).map_err(|_| {
-        xvora_tool_runtime::ToolError::invalid_arguments(format!(
+    ctx: tool_runtime::ToolCallContext,
+) -> Result<ToolOutput, tool_runtime::ToolError> {
+    let tool_id = tool_protocol::ToolId::new(tool_name).map_err(|_| {
+        tool_runtime::ToolError::invalid_arguments(format!(
             "invalid tool name: '{tool_name}'"
         ))
     })?;
     let typed = dispatch.0.call_terminal(tool_id, tool_input, ctx).await?;
     serde_json::from_value(typed.value)
-        .map_err(|e| xvora_tool_runtime::ToolError::custom("output_decoding", e.to_string()))
+        .map_err(|e| tool_runtime::ToolError::custom("output_decoding", e.to_string()))
 }
 
 fn gateway_result_is_error(result: &serde_json::Value) -> bool {
@@ -154,13 +154,13 @@ fn normalize_mcp_arguments(input: serde_json::Value) -> serde_json::Value {
     }
 }
 
-fn is_local_tool_id_rejection(err: &xvora_tool_runtime::ToolError, tool_name: &str) -> bool {
-    err.kind == xvora_tool_runtime::ToolErrorKind::InvalidArguments
+fn is_local_tool_id_rejection(err: &tool_runtime::ToolError, tool_name: &str) -> bool {
+    err.kind == tool_runtime::ToolErrorKind::InvalidArguments
         && err.detail == format!("invalid tool name: '{tool_name}'")
 }
 
 async fn gateway_lookup(
-    ctx: &xvora_tool_runtime::ToolCallContext,
+    ctx: &tool_runtime::ToolCallContext,
     tool_name: &str,
 ) -> (
     Option<crate::types::resources::ManagedGatewayToolSource>,
@@ -203,11 +203,11 @@ fn gateway_response_to_output(
 }
 
 pub async fn dispatch_mcp_tool(
-    ctx: &xvora_tool_runtime::ToolCallContext,
+    ctx: &tool_runtime::ToolCallContext,
     tool_name: &str,
     tool_input: serde_json::Value,
     caller: &str,
-) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
+) -> Result<ToolOutput, tool_runtime::ToolError> {
     let tool_input = normalize_mcp_arguments(tool_input);
     let (gateway_source, gateway_client) = gateway_lookup(ctx, tool_name).await;
     let dispatch = ctx
@@ -215,7 +215,7 @@ pub async fn dispatch_mcp_tool(
         .get::<crate::types::resources::InnerDispatch>();
 
     if gateway_source.is_none() && dispatch.is_none() {
-        return Err(xvora_tool_runtime::ToolError::invalid_arguments(format!(
+        return Err(tool_runtime::ToolError::invalid_arguments(format!(
             "{caller} called outside of tool execution context. inner_dispatch not set -- this is a bug."
         )));
     }
@@ -233,7 +233,7 @@ pub async fn dispatch_mcp_tool(
             match dispatch_local_mcp(dispatch, tool_name, tool_input.clone(), ctx.clone()).await {
                 Ok(local_output) => return Ok(local_output),
                 Err(err)
-                    if err.kind != xvora_tool_runtime::ToolErrorKind::NotFound
+                    if err.kind != tool_runtime::ToolErrorKind::NotFound
                         && !is_local_tool_id_rejection(&err, tool_name) =>
                 {
                     return Err(err);
@@ -243,7 +243,7 @@ pub async fn dispatch_mcp_tool(
         }
 
         let Some(client) = gateway_client else {
-            return Err(xvora_tool_runtime::ToolError::custom(
+            return Err(tool_runtime::ToolError::custom(
                 "managed_gateway_unavailable",
                 format!(
                     "Managed MCP gateway tool '{}' is indexed but no gateway client is available.",
@@ -293,37 +293,37 @@ impl crate::types::tool_metadata::ToolMetadata for UseTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for UseTool {
+impl tool_runtime::Tool for UseTool {
     type Args = UseToolInput;
     type Output = ToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new(USE_TOOL_NAME).expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new(USE_TOOL_NAME).expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             USE_TOOL_NAME,
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
-        xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: false,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Write),
+            tool_scope: Some(tool_protocol::ToolScope::Write),
             ..Default::default()
         }
     }
 
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         input: UseToolInput,
-    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<ToolOutput, tool_runtime::ToolError> {
         use crate::types::resources::{EnabledNativeToolNames, ManagedGatewayToolCatalog, Params};
 
         let resources = crate::types::tool_metadata::shared_resources(&ctx).ok();
@@ -360,7 +360,7 @@ impl xvora_tool_runtime::Tool for UseTool {
                     tool_name = %input.tool_name,
                     "use_tool: native tool detected, returning corrective error"
                 );
-                xvora_tool_runtime::ToolError::invalid_arguments(format!(
+                tool_runtime::ToolError::invalid_arguments(format!(
                     "`{tool}` is a native tool, not an MCP integration tool. \
                      Call `{tool}` directly as its own tool call instead of \
                      routing it through `use_tool`.",
@@ -370,7 +370,7 @@ impl xvora_tool_runtime::Tool for UseTool {
                 // Unknown name (e.g. a built-in skill like `jira`). Keep the
                 // existing search_tool steer (empirically reduces retry loops
                 // on unqualified tool names).
-                xvora_tool_runtime::ToolError::invalid_arguments(format!(
+                tool_runtime::ToolError::invalid_arguments(format!(
                     "'{}' is not a valid MCP tool name. \
                      Tool names must be qualified as `server__tool` (e.g., `linear__save_issue`). \
                      Use `{}` to discover available tools.",
@@ -402,16 +402,16 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl xvora_tool_runtime::ToolDispatch for MockToolDispatch {
+    impl tool_runtime::ToolDispatch for MockToolDispatch {
         async fn call(
             &self,
-            tool_id: xvora_tool_protocol::ToolId,
+            tool_id: tool_protocol::ToolId,
             _args: serde_json::Value,
-            _ctx: xvora_tool_runtime::ToolCallContext,
-        ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
+            _ctx: tool_runtime::ToolCallContext,
+        ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
             assert_eq!(tool_id.as_str(), self.expected_tool_name);
             let value = serde_json::to_value(self.return_output.clone()).unwrap();
-            xvora_tool_runtime::terminal_only(Ok(xvora_tool_runtime::TypedToolOutput::from_value(
+            tool_runtime::terminal_only(Ok(tool_runtime::TypedToolOutput::from_value(
                 tool_id, value,
             )))
         }
@@ -425,30 +425,30 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl xvora_tool_runtime::ToolDispatch for CapturingDispatch {
+    impl tool_runtime::ToolDispatch for CapturingDispatch {
         async fn call(
             &self,
-            tool_id: xvora_tool_protocol::ToolId,
+            tool_id: tool_protocol::ToolId,
             args: serde_json::Value,
-            _ctx: xvora_tool_runtime::ToolCallContext,
-        ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
+            _ctx: tool_runtime::ToolCallContext,
+        ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
             if !matches!(
                 tool_id.as_str(),
                 "server__tool" | "linear__save_issue" | "linear__list_issues"
             ) {
-                return xvora_tool_runtime::terminal_only(Err(
-                    xvora_tool_runtime::ToolError::not_found(tool_id, "Tool not found"),
+                return tool_runtime::terminal_only(Err(
+                    tool_runtime::ToolError::not_found(tool_id, "Tool not found"),
                 ));
             }
             *self.captured_args.lock().unwrap() = Some(args);
             let value = serde_json::to_value(ToolOutput::Text("ok".into())).unwrap();
-            xvora_tool_runtime::terminal_only(Ok(xvora_tool_runtime::TypedToolOutput::from_value(
+            tool_runtime::terminal_only(Ok(tool_runtime::TypedToolOutput::from_value(
                 tool_id, value,
             )))
         }
     }
 
-    fn ctx_capturing() -> (xvora_tool_runtime::ToolCallContext, SharedArgs) {
+    fn ctx_capturing() -> (tool_runtime::ToolCallContext, SharedArgs) {
         let args: SharedArgs = Arc::new(std::sync::Mutex::new(None));
         let ctx = ctx_with_dispatch(CapturingDispatch {
             captured_args: Arc::clone(&args),
@@ -461,14 +461,14 @@ mod tests {
     struct InvalidArgumentsDispatch;
 
     #[async_trait::async_trait]
-    impl xvora_tool_runtime::ToolDispatch for NotFoundDispatch {
+    impl tool_runtime::ToolDispatch for NotFoundDispatch {
         async fn call(
             &self,
-            tool_id: xvora_tool_protocol::ToolId,
+            tool_id: tool_protocol::ToolId,
             _args: serde_json::Value,
-            _ctx: xvora_tool_runtime::ToolCallContext,
-        ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
-            xvora_tool_runtime::terminal_only(Err(xvora_tool_runtime::ToolError::not_found(
+            _ctx: tool_runtime::ToolCallContext,
+        ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
+            tool_runtime::terminal_only(Err(tool_runtime::ToolError::not_found(
                 tool_id,
                 "Tool not found",
             )))
@@ -476,15 +476,15 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl xvora_tool_runtime::ToolDispatch for InvalidArgumentsDispatch {
+    impl tool_runtime::ToolDispatch for InvalidArgumentsDispatch {
         async fn call(
             &self,
-            _tool_id: xvora_tool_protocol::ToolId,
+            _tool_id: tool_protocol::ToolId,
             _args: serde_json::Value,
-            _ctx: xvora_tool_runtime::ToolCallContext,
-        ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
-            xvora_tool_runtime::terminal_only(Err(
-                xvora_tool_runtime::ToolError::invalid_arguments("local validation failed"),
+            _ctx: tool_runtime::ToolCallContext,
+        ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
+            tool_runtime::terminal_only(Err(
+                tool_runtime::ToolError::invalid_arguments("local validation failed"),
             ))
         }
     }
@@ -495,30 +495,30 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl xvora_tool_runtime::ToolDispatch for ErrorToolDispatch {
+    impl tool_runtime::ToolDispatch for ErrorToolDispatch {
         async fn call(
             &self,
-            _tool_id: xvora_tool_protocol::ToolId,
+            _tool_id: tool_protocol::ToolId,
             _args: serde_json::Value,
-            _ctx: xvora_tool_runtime::ToolCallContext,
-        ) -> xvora_tool_runtime::ToolStream<xvora_tool_runtime::TypedToolOutput> {
-            let tid = xvora_tool_protocol::ToolId::new(&self.error)
-                .unwrap_or_else(|_| xvora_tool_protocol::ToolId::new("unknown").expect("valid"));
-            xvora_tool_runtime::terminal_only(Err(xvora_tool_runtime::ToolError::not_found(
+            _ctx: tool_runtime::ToolCallContext,
+        ) -> tool_runtime::ToolStream<tool_runtime::TypedToolOutput> {
+            let tid = tool_protocol::ToolId::new(&self.error)
+                .unwrap_or_else(|_| tool_protocol::ToolId::new("unknown").expect("valid"));
+            tool_runtime::terminal_only(Err(tool_runtime::ToolError::not_found(
                 tid,
                 format!("Tool not found: {}", self.error),
             )))
         }
     }
 
-    fn new_ctx() -> xvora_tool_runtime::ToolCallContext {
-        let call_id = xvora_tool_protocol::ToolCallId::new_v7();
-        xvora_tool_runtime::ToolCallContext::new(call_id)
+    fn new_ctx() -> tool_runtime::ToolCallContext {
+        let call_id = tool_protocol::ToolCallId::new_v7();
+        tool_runtime::ToolCallContext::new(call_id)
     }
 
     fn ctx_with_dispatch(
-        dispatch: impl xvora_tool_runtime::ToolDispatch + 'static,
-    ) -> xvora_tool_runtime::ToolCallContext {
+        dispatch: impl tool_runtime::ToolDispatch + 'static,
+    ) -> tool_runtime::ToolCallContext {
         let mut ctx = new_ctx();
         ctx.extensions.insert(InnerDispatch(Arc::new(dispatch)));
         ctx
@@ -529,7 +529,7 @@ mod tests {
         let tool = UseTool;
         let ctx = new_ctx();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -542,7 +542,7 @@ mod tests {
         let err = result.unwrap_err();
         assert_eq!(
             err.kind,
-            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+            tool_runtime::ToolErrorKind::InvalidArguments
         );
         assert!(err.detail.contains("not a valid MCP tool name"));
         assert!(err.detail.contains("read_file"));
@@ -553,7 +553,7 @@ mod tests {
         let tool = UseTool;
         let ctx = new_ctx();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -566,7 +566,7 @@ mod tests {
         let err = result.unwrap_err();
         assert_eq!(
             err.kind,
-            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+            tool_runtime::ToolErrorKind::InvalidArguments
         );
         assert!(err.detail.contains("inner_dispatch not set"));
     }
@@ -579,7 +579,7 @@ mod tests {
             return_output: ToolOutput::Text("issue created".into()),
         });
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -604,7 +604,7 @@ mod tests {
             error: "bad__tool".into(),
         });
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -634,7 +634,7 @@ mod tests {
             _caller: &str,
         ) -> Result<
             crate::types::resources::ManagedGatewayToolCallResponse,
-            xvora_tool_runtime::ToolError,
+            tool_runtime::ToolError,
         > {
             if let Some(expected) = self.expected_call_id {
                 assert_eq!(call_id, expected);
@@ -717,7 +717,7 @@ mod tests {
             ),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -755,7 +755,7 @@ mod tests {
             ),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -788,7 +788,7 @@ mod tests {
             ),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -811,7 +811,7 @@ mod tests {
             gateway_resources(Arc::clone(&captured), serde_json::json!({"ok": true})),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -833,7 +833,7 @@ mod tests {
             gateway_resources(Arc::clone(&captured), serde_json::json!("ok")),
         );
 
-        xvora_tool_runtime::Tool::run(
+        tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -855,7 +855,7 @@ mod tests {
         let tool = UseTool;
         let (ctx, captured_args) = ctx_capturing();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -881,7 +881,7 @@ mod tests {
         let (ctx, captured_args) = ctx_capturing();
 
         let expected = serde_json::json!({"title": "test", "team": "ENG"});
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -901,7 +901,7 @@ mod tests {
         let tool = UseTool;
         let (ctx, captured_args) = ctx_capturing();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -928,7 +928,7 @@ mod tests {
             ),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -954,7 +954,7 @@ mod tests {
             ),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -967,7 +967,7 @@ mod tests {
         let err = result.unwrap_err();
         assert_eq!(
             err.kind,
-            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+            tool_runtime::ToolErrorKind::InvalidArguments
         );
         assert!(err.detail.contains("local validation failed"));
         assert!(gateway_captured.lock().unwrap().is_none());
@@ -986,7 +986,7 @@ mod tests {
             ),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -1006,7 +1006,7 @@ mod tests {
         let tool = UseTool;
         let (ctx, captured_args) = ctx_capturing();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -1022,9 +1022,9 @@ mod tests {
     }
 
     fn ctx_with_dispatch_and_resources(
-        dispatch: impl xvora_tool_runtime::ToolDispatch + 'static,
+        dispatch: impl tool_runtime::ToolDispatch + 'static,
         resources: crate::types::resources::SharedResources,
-    ) -> xvora_tool_runtime::ToolCallContext {
+    ) -> tool_runtime::ToolCallContext {
         let mut ctx = new_ctx();
         ctx.extensions.insert(InnerDispatch(Arc::new(dispatch)));
         ctx.extensions.insert(resources);
@@ -1060,7 +1060,7 @@ mod tests {
             resources.into_shared(),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -1119,7 +1119,7 @@ mod tests {
             resources.into_shared(),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -1175,7 +1175,7 @@ mod tests {
             resources.into_shared(),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             ctx,
             UseToolInput {
@@ -1432,7 +1432,7 @@ mod tests {
             resources.into_shared(),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -1518,7 +1518,7 @@ mod tests {
             resources.into_shared(),
         );
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -1570,7 +1570,7 @@ mod tests {
 
     fn ctx_capturing_with_resources(
         resources: crate::types::resources::SharedResources,
-    ) -> (xvora_tool_runtime::ToolCallContext, SharedArgs) {
+    ) -> (tool_runtime::ToolCallContext, SharedArgs) {
         let args: SharedArgs = Arc::new(std::sync::Mutex::new(None));
         let mut ctx = new_ctx();
         ctx.extensions
@@ -1586,7 +1586,7 @@ mod tests {
         let (ctx, captured_args) =
             ctx_capturing_with_resources(native_resources(&["scheduler_create"]));
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -1599,7 +1599,7 @@ mod tests {
         let err = result.unwrap_err();
         assert_eq!(
             err.kind,
-            xvora_tool_runtime::ToolErrorKind::InvalidArguments
+            tool_runtime::ToolErrorKind::InvalidArguments
         );
         assert!(err.detail.contains("native tool"), "got: {}", err.detail);
         assert!(err.detail.contains("scheduler_create"));
@@ -1617,7 +1617,7 @@ mod tests {
         let (ctx, captured_args) =
             ctx_capturing_with_resources(native_resources(&["scheduler_create"]));
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {
@@ -1647,7 +1647,7 @@ mod tests {
         let (ctx, captured_args) =
             ctx_capturing_with_resources(native_resources_correction_off(&["scheduler_create"]));
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &UseTool,
             ctx,
             UseToolInput {

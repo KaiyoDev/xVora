@@ -66,35 +66,35 @@ impl crate::types::tool_metadata::ToolMetadata for EnterPlanModeTool {
         Expr::Value(ToolRequirement::Tool {
             namespace: crate::types::tool_metadata::ToolMetadata::tool_namespace(&ExitPlanModeTool)
                 .to_string(),
-            id: xvora_tool_runtime::Tool::id(&ExitPlanModeTool).to_string(),
+            id: tool_runtime::Tool::id(&ExitPlanModeTool).to_string(),
             if_params: None,
         })
     }
 }
 
-impl xvora_tool_runtime::Tool for EnterPlanModeTool {
+impl tool_runtime::Tool for EnterPlanModeTool {
     type Args = EnterPlanModeInput;
     type Output = EnterPlanModeOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new("enter_plan_mode").expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new("enter_plan_mode").expect("valid tool id")
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(
             "enter_plan_mode",
             crate::types::tool_metadata::ToolMetadata::sanitized_description_template(self),
         )
     }
 
-    fn capabilities(&self) -> xvora_tool_protocol::ToolCapabilities {
+    fn capabilities(&self) -> tool_protocol::ToolCapabilities {
         // Read-only for permission UX; only FS write is seeding the session plan file.
-        xvora_tool_protocol::ToolCapabilities {
+        tool_protocol::ToolCapabilities {
             is_read_only: true,
-            tool_scope: Some(xvora_tool_protocol::ToolScope::Read),
+            tool_scope: Some(tool_protocol::ToolScope::Read),
             ..Default::default()
         }
     }
@@ -102,9 +102,9 @@ impl xvora_tool_runtime::Tool for EnterPlanModeTool {
     #[tracing::instrument(name = "tool.enter_plan_mode", skip_all)]
     async fn run(
         &self,
-        ctx: xvora_tool_runtime::ToolCallContext,
+        ctx: tool_runtime::ToolCallContext,
         _input: EnterPlanModeInput,
-    ) -> Result<EnterPlanModeOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<EnterPlanModeOutput, tool_runtime::ToolError> {
         use crate::types::tool_metadata::shared_resources;
         let resources = shared_resources(&ctx)?;
 
@@ -303,7 +303,7 @@ mod tests {
     fn tool_name_and_description() {
         let tool = EnterPlanModeTool;
         assert_eq!(
-            xvora_tool_runtime::Tool::id(&tool).as_str(),
+            tool_runtime::Tool::id(&tool).as_str(),
             "enter_plan_mode"
         );
     }
@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn tool_is_read_only() {
         let tool = EnterPlanModeTool;
-        assert!(xvora_tool_runtime::Tool::capabilities(&tool).is_read_only);
+        assert!(tool_runtime::Tool::capabilities(&tool).is_read_only);
     }
 
     #[test]
@@ -330,7 +330,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = EnterPlanModeTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             EnterPlanModeInput {},
@@ -357,7 +357,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = EnterPlanModeTool;
 
-        xvora_tool_runtime::Tool::run(
+        tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "call-42"),
             EnterPlanModeInput {},
@@ -380,7 +380,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = EnterPlanModeTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             EnterPlanModeInput {},
@@ -395,7 +395,7 @@ mod tests {
         let resources = Resources::new();
         let shared = resources.into_shared();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "test-call"),
             EnterPlanModeInput {},
@@ -435,7 +435,7 @@ mod tests {
         resources.insert(FileSystem(fs.clone()));
         let shared = resources.into_shared();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "no-anchor"),
             EnterPlanModeInput {},
@@ -464,7 +464,7 @@ mod tests {
         let shared = resources.into_shared();
         let tool = EnterPlanModeTool;
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &tool,
             test_ctx_with_call_id(shared, "test-call"),
             EnterPlanModeInput {},
@@ -488,7 +488,7 @@ mod tests {
         let fs = LocalFs;
         fs.write_file(&plan_path, b"# prior plan\n").await.unwrap();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "reentry"),
             EnterPlanModeInput {},
@@ -521,7 +521,7 @@ mod tests {
         let fs = LocalFs;
         fs.write_file(&plan_path, b"").await.unwrap();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "empty-reentry"),
             EnterPlanModeInput {},
@@ -605,7 +605,7 @@ mod tests {
         resources.insert(PlanFilePath(session_plan.clone()));
         let shared = resources.into_shared();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "t1"),
             EnterPlanModeInput {},
@@ -626,7 +626,7 @@ mod tests {
         resources.insert(Cwd(PathBuf::from("/workspace/my-project")));
         let shared = resources.into_shared();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "t2"),
             EnterPlanModeInput {},
@@ -654,7 +654,7 @@ mod tests {
         resources.insert(TemplateRenderer::new(tools, HashMap::new()));
         let shared = resources.into_shared();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "t5"),
             EnterPlanModeInput {},
@@ -673,7 +673,7 @@ mod tests {
         let resources = Resources::new();
         let shared = resources.into_shared();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "t6"),
             EnterPlanModeInput {},
@@ -699,7 +699,7 @@ mod tests {
         )));
         let shared = resources.into_shared();
 
-        let result = xvora_tool_runtime::Tool::run(
+        let result = tool_runtime::Tool::run(
             &EnterPlanModeTool,
             test_ctx_with_call_id(shared, "t4"),
             EnterPlanModeInput {},

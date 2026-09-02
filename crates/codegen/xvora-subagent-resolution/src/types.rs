@@ -25,7 +25,7 @@ pub struct EffectiveRuntimeConfig {
     // It stays a plain string for compatibility with the shell's existing API
     pub reasoning_effort: Option<String>,
     /// Resolved capability mode controlling tool access.
-    pub capability_mode: Option<xvora_tool_types::SubagentCapabilityMode>,
+    pub capability_mode: Option<tool_types::SubagentCapabilityMode>,
     /// Resolved persona name (for metadata/observability).
     pub persona: Option<String>,
     /// Resolved persona instructions text (for prompt assembly).
@@ -40,7 +40,7 @@ pub struct EffectiveRuntimeConfig {
     /// Unlike role prompts, persona errors are fatal: spawn is aborted.
     pub persona_error: Option<String>,
     /// Isolation mode for the child execution environment.
-    pub isolation: xvora_tool_types::SubagentIsolationMode,
+    pub isolation: tool_types::SubagentIsolationMode,
 }
 
 /// Data about a completed source subagent, needed to validate a resume and to spawn the resumed child.

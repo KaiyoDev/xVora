@@ -17,7 +17,7 @@ pub(crate) fn test_auth_method_id(id: &str) -> crate::agent::auth_method::Shared
 pub(crate) fn noop_observability_bridge() -> xvora_computer_hub_sdk::ObservabilityBridge {
     xvora_computer_hub_sdk::ObservabilityBridge::new(
         None,
-        xvora_tool_protocol::SessionId::new("test").expect("valid"),
+        tool_protocol::SessionId::new("test").expect("valid"),
     )
 }
 #[cfg(test)]

@@ -29,17 +29,17 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 use url::Url;
-use xvora_tool_protocol::{
+use tool_protocol::{
     ConnectionKind, HookEvent, HookFrame, HookReplyFrame, JsonRpcError, JsonRpcId,
     JsonRpcNotification, JsonRpcResponse, JsonRpcVersion, Method, ResponseOutcome, SessionId,
     ToolCallId, ToolCallParams, ToolCallProgressFrame, ToolCallResult, ToolErrorWire, ToolId,
     ToolOutputWire, ToolServerEvictParams, error_codes,
 };
-use xvora_tool_runtime::{
+use tool_runtime::{
     BehaviorVersion, Cancellation, Cwd, ToolCallContext, ToolError, ToolProgress, ToolStream,
     ToolStreamItem, TraceContext, TypedToolOutput,
 };
-use xvora_tool_types::ToolDescription;
+use tool_types::ToolDescription;
 
 use crate::auth::{AuthCredential, AuthProvider};
 use crate::cancel::CancelRegistry;
@@ -89,7 +89,7 @@ fn system_notify_ack_from_outcome(
         // require `data` absent so a richer error still flows through the normal taxonomy.
         ResponseOutcome::Error(err)
             if err.data.is_none()
-                && xvora_tool_protocol::error_codes::string_for(err.code)
+                && tool_protocol::error_codes::string_for(err.code)
                     == Some("method_not_found") =>
         {
             Ok(SystemNotifyAck::ForwardingUnsupported)
@@ -114,10 +114,10 @@ type SessionHandlerMap =
 pub struct ResolvedSessionHandlers {
     pub handlers: Vec<Arc<dyn ToolServerHandler>>,
     /// Tool ids the resolver declined to serve; forwarded as
-    /// [`xvora_tool_protocol::SessionBindResult::unserved_tool_ids`].
+    /// [`tool_protocol::SessionBindResult::unserved_tool_ids`].
     pub unserved_tool_ids: Vec<String>,
     /// Human-readable reason the resolver failed the toolset closed;
-    /// forwarded as [`xvora_tool_protocol::SessionBindResult::resolve_error`].
+    /// forwarded as [`tool_protocol::SessionBindResult::resolve_error`].
     pub resolve_error: Option<String>,
 }
 
@@ -154,7 +154,7 @@ pub type SessionHandlerResolver = Arc<
 ///
 /// The server speaks JSON, so handlers receive `serde_json::Value`
 /// arguments and return a `ToolStream<Value>`. Implementations that
-/// already use [`xvora_tool_runtime::Tool`] can adapt by calling the
+/// already use [`tool_runtime::Tool`] can adapt by calling the
 /// underlying tool's `execute` and serialising the typed output.
 #[async_trait]
 pub trait ToolServerHandler: Send + Sync + 'static {
@@ -224,7 +224,7 @@ pub struct ToolServerBuilder {
     on_terminal_close: Option<Arc<TerminalCloseCallback>>,
     on_connect: Option<Arc<ConnectCallback>>,
     metadata: Option<serde_json::Value>,
-    server_id: Option<xvora_tool_protocol::ServerId>,
+    server_id: Option<tool_protocol::ServerId>,
     server_description: Option<String>,
     alpha_test_key: Option<String>,
     allow_insecure_ws: bool,
@@ -467,7 +467,7 @@ impl ToolServerBuilder {
 
     /// Stable server identity for `servers.list` discovery and
     /// `session.open` addressing. Sent in the hello frame.
-    pub fn server_id(mut self, id: xvora_tool_protocol::ServerId) -> Self {
+    pub fn server_id(mut self, id: tool_protocol::ServerId) -> Self {
         self.server_id = Some(id);
         self
     }
@@ -492,14 +492,14 @@ impl ToolServerBuilder {
     }
 
     /// Version of the embedding binary, echoed as
-    /// [`xvora_tool_protocol::SessionBindResult::binary_version`].
+    /// [`tool_protocol::SessionBindResult::binary_version`].
     pub fn binary_version(mut self, version: impl Into<String>) -> Self {
         self.binary_version = Some(version.into());
         self
     }
 
     /// Image capability tokens echoed on every bind as
-    /// [`xvora_tool_protocol::SessionBindResult::image_capabilities`]. The
+    /// [`tool_protocol::SessionBindResult::image_capabilities`]. The
     /// caller validates and sorts them; the SDK forwards them verbatim.
     pub fn image_capabilities(mut self, tokens: Vec<String>) -> Self {
         self.image_capabilities = tokens;
@@ -993,13 +993,13 @@ impl ToolServer {
     pub async fn serve(&self, session_id: SessionId) -> Result<(), ClientError> {
         // Build tool descriptions while holding the read lock so the
         // handler list cannot mutate between read and serialization.
-        let tools: Vec<xvora_tool_protocol::ToolDescriptionWithSchema> = {
+        let tools: Vec<tool_protocol::ToolDescriptionWithSchema> = {
             let map = self.inner().session_handlers.read();
             let handlers = map.get(&session_id);
             handlers
                 .map(|h| {
                     h.iter()
-                        .map(|h| xvora_tool_protocol::ToolDescriptionWithSchema {
+                        .map(|h| tool_protocol::ToolDescriptionWithSchema {
                             description: h.description(),
                             input_schema: h.input_schema(),
                             capabilities: None,
@@ -1010,7 +1010,7 @@ impl ToolServer {
                 .unwrap_or_default()
         };
 
-        let params = xvora_tool_protocol::ServeParams { tools };
+        let params = tool_protocol::ServeParams { tools };
 
         let connection = self.inner().borrow.connection();
         connection.serve(session_id, params).await?;
@@ -1158,7 +1158,7 @@ impl ToolServer {
     /// outbound message is queued, without waiting for a server ack.
     pub async fn send_notification(
         &self,
-        notification: xvora_tool_protocol::ToolNotificationFrame,
+        notification: tool_protocol::ToolNotificationFrame,
     ) -> Result<(), ClientError> {
         let session = self
             .inner()
@@ -1173,7 +1173,7 @@ impl ToolServer {
             })?;
         let connection = self.inner().borrow.connection();
         let request_id = connection.try_alloc_request_id()?;
-        let req = xvora_tool_protocol::JsonRpcRequest {
+        let req = tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session),
@@ -1189,19 +1189,19 @@ impl ToolServer {
     pub async fn send_system_notification(
         &self,
         session_id: SessionId,
-        params: xvora_tool_protocol::SystemNotifyParams,
+        params: tool_protocol::SystemNotifyParams,
     ) -> Result<SystemNotifyAck, ClientError> {
         // Fail fast on an oversized payload instead of round-tripping to the server.
         let payload_len = json_serialized_len(&params.payload)?;
-        if payload_len > xvora_tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES {
+        if payload_len > tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES {
             return Err(ClientError::ProtocolError(format!(
                 "system.notify payload {payload_len} bytes exceeds {} byte cap",
-                xvora_tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES
+                tool_protocol::MAX_SYSTEM_NOTIFY_PAYLOAD_BYTES
             )));
         }
         let connection = self.inner().borrow.connection();
         let request_id = connection.try_alloc_request_id()?;
-        let req = xvora_tool_protocol::JsonRpcRequest {
+        let req = tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session_id),
@@ -1258,7 +1258,7 @@ impl ToolServer {
         let hook_id = ToolCallId::new_v7().to_string();
         let hook = HookFrame::custom_request(session_id.clone(), hook_id, kind, payload);
         let request_id = connection.try_alloc_request_id()?;
-        let req = xvora_tool_protocol::JsonRpcRequest {
+        let req = tool_protocol::JsonRpcRequest {
             jsonrpc: JsonRpcVersion,
             id: JsonRpcId::from_request_id(&request_id),
             session_id: Some(session_id),
@@ -1295,7 +1295,7 @@ impl ToolServer {
                 )
             })?;
         let connection = self.inner().borrow.connection();
-        let notification = xvora_tool_protocol::JsonRpcNotification {
+        let notification = tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: Some(session),
             seq: None,
@@ -1330,7 +1330,7 @@ impl ToolServer {
                 )
             })?;
         let connection = self.inner().borrow.connection();
-        let notification = xvora_tool_protocol::JsonRpcNotification {
+        let notification = tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: Some(session),
             seq: None,
@@ -1355,7 +1355,7 @@ impl ToolServer {
             otlp_request: &'a str,
         }
         let connection = self.inner().borrow.connection();
-        let notification = xvora_tool_protocol::JsonRpcNotification {
+        let notification = tool_protocol::JsonRpcNotification {
             jsonrpc: JsonRpcVersion,
             session_id: None,
             seq: None,
@@ -1453,7 +1453,7 @@ impl ToolServer {
                         else {
                             continue;
                         };
-                        let Ok(sid) = xvora_tool_protocol::SessionId::new(sid_str) else {
+                        let Ok(sid) = tool_protocol::SessionId::new(sid_str) else {
                             continue;
                         };
                         tracing::info!(%sid, "session.bind: binding new session");
@@ -1472,12 +1472,12 @@ impl ToolServer {
                             if let Some(id) = request_id {
                                 let response = match result {
                                     Ok(()) => {
-                                        let tools: Vec<xvora_tool_types::ToolDescription> = server
+                                        let tools: Vec<tool_types::ToolDescription> = server
                                             .handlers_for_session(&sid)
                                             .iter()
                                             .map(|h| h.description())
                                             .collect();
-                                        let result = xvora_tool_protocol::SessionBindResult {
+                                        let result = tool_protocol::SessionBindResult {
                                             tools,
                                             binary_version: server.inner().binary_version.clone(),
                                             unserved_tool_ids: server.unserved_for_session(&sid),
@@ -1539,7 +1539,7 @@ impl ToolServer {
                         else {
                             continue;
                         };
-                        let Ok(sid) = xvora_tool_protocol::SessionId::new(sid_str) else {
+                        let Ok(sid) = tool_protocol::SessionId::new(sid_str) else {
                             continue;
                         };
                         tracing::info!(%sid, "session.unbind: unbinding session");
@@ -1831,7 +1831,7 @@ async fn teardown_sessions(inner: &ToolServerInner) {
 /// Must be called before `unregister_session` (the server needs the
 /// session bindings to route the notification).
 async fn push_disconnect_status(connection: &HubConnection, sessions: &[SessionId]) {
-    use xvora_tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
+    use tool_protocol::{JsonRpcRequest, ToolServerLifecycleStatus, ToolServerStatusPayload};
 
     for sid in sessions {
         let mut payload =
@@ -2186,7 +2186,7 @@ async fn execute_call(
         .unwrap_or_else(fastrace::Span::noop);
 
     let mut ctx = ToolCallContext::new(params.tool_call_id.clone());
-    ctx.extensions.insert(xvora_tool_runtime::SessionContext(
+    ctx.extensions.insert(tool_runtime::SessionContext(
         session_id.as_str().to_owned(),
     ));
     if let Some(cwd) = params.cwd {
@@ -2418,7 +2418,7 @@ async fn send_overloaded(connection: &Arc<HubConnection>, id: JsonRpcId, session
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xvora_tool_runtime::ContentBlock;
+    use tool_runtime::ContentBlock;
 
     fn call_id() -> ToolCallId {
         ToolCallId::new_v7()

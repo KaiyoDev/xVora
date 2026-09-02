@@ -1161,8 +1161,8 @@ pub fn parse_mcp_meta_config(
 /// MCP initialization strategy. Defined in `xvora-telemetry`; re-exported here so existing call sites continue to work.
 pub use xvora_telemetry::enums::McpInitStrategy;
 
-/// Parse a non-empty `server__tool` ID with one overlap-aware delimiter and valid [`xvora_tool_protocol::ToolId`] syntax.
-pub fn parse_mcp_qualified_name(name: &str) -> Option<(xvora_tool_protocol::ToolId, &str, &str)> {
+/// Parse a non-empty `server__tool` ID with one overlap-aware delimiter and valid [`tool_protocol::ToolId`] syntax.
+pub fn parse_mcp_qualified_name(name: &str) -> Option<(tool_protocol::ToolId, &str, &str)> {
     let delimiter = MCP_TOOL_NAME_DELIMITER.as_bytes();
     // Byte windows preserve both overlapping `__` boundaries in `___`.
     let mut boundaries = name
@@ -1179,7 +1179,7 @@ pub fn parse_mcp_qualified_name(name: &str) -> Option<(xvora_tool_protocol::Tool
     if server.is_empty() || tool.is_empty() {
         return None;
     }
-    Some((xvora_tool_protocol::ToolId::new(name).ok()?, server, tool))
+    Some((tool_protocol::ToolId::new(name).ok()?, server, tool))
 }
 
 /// Parse an MCP tool name in `server__tool` format into owned segments.
@@ -1520,7 +1520,7 @@ impl McpTool {
 
 /// MCP tool wrapper for runtime dispatch.
 ///
-/// MCP tools are already untyped (JSON in, JSON out), so they implement `xvora_tool_runtime::Tool` directly instead of going through typed wrappers.
+/// MCP tools are already untyped (JSON in, JSON out), so they implement `tool_runtime::Tool` directly instead of going through typed wrappers.
 pub struct McpErasedTool {
     tool: McpTool,
 }
@@ -1548,32 +1548,32 @@ impl ToolMetadata for McpErasedTool {
     }
 }
 
-impl xvora_tool_runtime::Tool for McpErasedTool {
+impl tool_runtime::Tool for McpErasedTool {
     type Args = serde_json::Value;
     type Output = ToolOutput;
 
-    fn id(&self) -> xvora_tool_protocol::ToolId {
+    fn id(&self) -> tool_protocol::ToolId {
         // Use the qualified name (server__tool) so that two MCP servers exposing the same raw tool name get distinct LocalRegistry entries
         let qualified = format!(
             "{}{}{}",
             self.tool.server_name, MCP_TOOL_NAME_DELIMITER, self.tool.name
         );
-        xvora_tool_protocol::ToolId::new(&qualified)
-            .unwrap_or_else(|_| xvora_tool_protocol::ToolId::new("mcp_tool").expect("valid"))
+        tool_protocol::ToolId::new(&qualified)
+            .unwrap_or_else(|_| tool_protocol::ToolId::new("mcp_tool").expect("valid"))
     }
 
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(&self.tool.name, &self.tool.description)
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(&self.tool.name, &self.tool.description)
     }
 
     async fn run(
         &self,
-        _ctx: xvora_tool_runtime::ToolCallContext,
+        _ctx: tool_runtime::ToolCallContext,
         raw: serde_json::Value,
-    ) -> Result<ToolOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<ToolOutput, tool_runtime::ToolError> {
         let call_span = xvora_telemetry::region::Region::from_span(tracing::info_span!(
             "mcp.tool_call",
             server_name = %self.tool.server_name,
@@ -1586,7 +1586,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
         let (client, event_writer) = {
             let state = self.tool.mcp_state.lock().await;
             let c = Arc::clone(state.get_client(&self.tool.server_name).ok_or_else(|| {
-                xvora_tool_runtime::ToolError::custom(
+                tool_runtime::ToolError::custom(
                     "process_manager",
                     format!("MCP server '{}' not found", self.tool.server_name),
                 )
@@ -1627,7 +1627,7 @@ impl xvora_tool_runtime::Tool for McpErasedTool {
                     self.try_call_tool(&client, &raw, &mut reconnect_attempted, &mut is_timeout, ew)
                         .await
                         .map_err(|e| {
-                            xvora_tool_runtime::ToolError::custom("process_manager", e.to_string())
+                            tool_runtime::ToolError::custom("process_manager", e.to_string())
                         })
                 } else {
                     Err(first_err)
@@ -1803,11 +1803,11 @@ impl McpErasedTool {
         reconnect_attempted: &mut bool,
         is_timeout: &mut bool,
         ew: &xvora_session_events::EventWriter,
-    ) -> Result<rmcp::model::CallToolResult, xvora_tool_runtime::ToolError> {
+    ) -> Result<rmcp::model::CallToolResult, tool_runtime::ToolError> {
         let mcp_service = client
             .ensure_initialized()
             .await
-            .map_err(|e| xvora_tool_runtime::ToolError::custom("process_manager", e.to_string()))?;
+            .map_err(|e| tool_runtime::ToolError::custom("process_manager", e.to_string()))?;
         let tool_timeout = client.tool_timeout_for(&self.tool.name);
         let timeout_duration = std::time::Duration::from_secs(tool_timeout);
         let mut params = CallToolRequestParams::new(self.tool.name.clone());
@@ -1837,7 +1837,7 @@ impl McpErasedTool {
                 )
                 .await
             }
-            Ok(Err(e)) => Err(xvora_tool_runtime::ToolError::custom(
+            Ok(Err(e)) => Err(tool_runtime::ToolError::custom(
                 "process_manager",
                 e.to_string(),
             )),
@@ -1848,7 +1848,7 @@ impl McpErasedTool {
                     client.reset_transport().await;
                     *reconnect_attempted = true;
                 }
-                Err(xvora_tool_runtime::ToolError::custom(
+                Err(tool_runtime::ToolError::custom(
                     "process_manager",
                     format!(
                         "MCP tool '{}' timed out after {} seconds",
@@ -1871,7 +1871,7 @@ impl McpErasedTool {
         reconnect_attempted: &mut bool,
         is_timeout: &mut bool,
         ew: &xvora_session_events::EventWriter,
-    ) -> Result<rmcp::model::CallToolResult, xvora_tool_runtime::ToolError> {
+    ) -> Result<rmcp::model::CallToolResult, tool_runtime::ToolError> {
         *reconnect_attempted = true;
         tracing::warn!(
             server = self.tool.server_name.as_str(),
@@ -1899,7 +1899,7 @@ impl McpErasedTool {
                     success: false,
                     error: Some(e.to_string()),
                 });
-                return Err(xvora_tool_runtime::ToolError::custom(
+                return Err(tool_runtime::ToolError::custom(
                     "process_manager",
                     original_err.to_string(),
                 ));
@@ -1907,13 +1907,13 @@ impl McpErasedTool {
         };
         match tokio::time::timeout(timeout_duration, mcp_service.call_tool(params)).await {
             Ok(Ok(call_result)) => Ok(call_result),
-            Ok(Err(retry_err)) => Err(xvora_tool_runtime::ToolError::custom(
+            Ok(Err(retry_err)) => Err(tool_runtime::ToolError::custom(
                 "process_manager",
                 retry_err.to_string(),
             )),
             Err(_) => {
                 *is_timeout = true;
-                Err(xvora_tool_runtime::ToolError::custom(
+                Err(tool_runtime::ToolError::custom(
                     "process_manager",
                     format!(
                         "MCP tool '{}' timed out after {} seconds",

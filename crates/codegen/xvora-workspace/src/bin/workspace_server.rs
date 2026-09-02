@@ -22,7 +22,7 @@ const WORKSPACE_HUB_AUTH_FAILED_MARKER: &str = "workspace hub auth failed";
 /// Post-failure dwell so the host can poll `/ready` before exit ([500ms, 2s]).
 const HUB_CONNECT_FAILED_DWELL: Duration = Duration::from_millis(750);
 fn server_id_startup_error(id: &str) -> Option<String> {
-    id.parse::<xvora_tool_protocol::ServerId>()
+    id.parse::<tool_protocol::ServerId>()
         .err()
         .map(|e| format!("{INVALID_SERVER_ID_MARKER} {id:?}: {e}"))
 }

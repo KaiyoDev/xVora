@@ -127,23 +127,23 @@ impl xvora_tools::types::tool_metadata::ToolMetadata for BashCcoStub {
         "bash cco stub"
     }
 }
-impl xvora_tool_runtime::Tool for BashCcoStub {
+impl tool_runtime::Tool for BashCcoStub {
     type Args = serde_json::Value;
     type Output = xvora_tools::types::output::ToolOutput;
-    fn id(&self) -> xvora_tool_protocol::ToolId {
-        xvora_tool_protocol::ToolId::new(BASH_CCO_STUB_NAME).expect("valid tool id")
+    fn id(&self) -> tool_protocol::ToolId {
+        tool_protocol::ToolId::new(BASH_CCO_STUB_NAME).expect("valid tool id")
     }
     fn description(
         &self,
-        _ctx: &::xvora_tool_runtime::ListToolsContext,
-    ) -> xvora_tool_types::ToolDescription {
-        xvora_tool_types::ToolDescription::new(BASH_CCO_STUB_NAME, "bash cco stub")
+        _ctx: &::tool_runtime::ListToolsContext,
+    ) -> tool_types::ToolDescription {
+        tool_types::ToolDescription::new(BASH_CCO_STUB_NAME, "bash cco stub")
     }
     async fn run(
         &self,
-        _ctx: xvora_tool_runtime::ToolCallContext,
+        _ctx: tool_runtime::ToolCallContext,
         _input: serde_json::Value,
-    ) -> Result<xvora_tools::types::output::ToolOutput, xvora_tool_runtime::ToolError> {
+    ) -> Result<xvora_tools::types::output::ToolOutput, tool_runtime::ToolError> {
         let output = BASH_CCO_STUB_STDOUT.as_bytes();
         Ok(xvora_tools::types::output::ToolOutput::Bash(
             xvora_tools::types::output::BashOutput {
@@ -180,8 +180,8 @@ pub(crate) fn register_bash_cco_stub_on(handle: &WorkspaceHandle, session_id: &s
         )
         .expect("register bash_cco_stub");
 }
-pub(crate) fn assert_bash_cco_terminal(typed: &xvora_tool_runtime::TypedToolOutput) {
-    use xvora_tool_runtime::ToolOutput as _;
+pub(crate) fn assert_bash_cco_terminal(typed: &tool_runtime::TypedToolOutput) {
+    use tool_runtime::ToolOutput as _;
     let resp = typed
         .chat_completion_output()
         .expect("bash chat_completion_output must be preserved");
@@ -196,11 +196,11 @@ pub(crate) fn assert_bash_cco_terminal(typed: &xvora_tool_runtime::TypedToolOutp
 }
 pub(crate) async fn drain_terminal_ok(
     mut stream: impl futures::Stream<
-        Item = xvora_tool_runtime::ToolStreamItem<xvora_tool_runtime::TypedToolOutput>,
+        Item = tool_runtime::ToolStreamItem<tool_runtime::TypedToolOutput>,
     > + Unpin,
-) -> xvora_tool_runtime::TypedToolOutput {
+) -> tool_runtime::TypedToolOutput {
     use futures::StreamExt;
-    use xvora_tool_runtime::ToolStreamItem;
+    use tool_runtime::ToolStreamItem;
     while let Some(item) = stream.next().await {
         match item {
             ToolStreamItem::Terminal(Ok(t)) => return t,
@@ -214,11 +214,11 @@ pub(crate) async fn drain_terminal_ok(
 }
 #[tokio::test]
 async fn local_harness_preserves_bash_chat_completion_output() {
-    use xvora_tool_runtime::ToolCallContext;
+    use tool_runtime::ToolCallContext;
     let handle = make_handle();
     register_bash_cco_stub(&handle);
     let harness = handle.create_local_harness("main").expect("local harness");
-    let tool_id = xvora_tool_protocol::ToolId::new(BASH_CCO_STUB_NAME).expect("valid tool id");
+    let tool_id = tool_protocol::ToolId::new(BASH_CCO_STUB_NAME).expect("valid tool id");
     let stream = harness
         .call(tool_id, serde_json::json!({}), ToolCallContext::default())
         .await;
@@ -1539,7 +1539,7 @@ async fn restarted_workspace_recreates_session_and_reports_lost_task() {
         .await
         .expect("get_task_output must answer, not error");
     let xvora_tools::types::output::ToolOutput::TaskOutput(
-        xvora_tool_types::TaskOutputOutput::TaskNotFound(msg),
+        tool_types::TaskOutputOutput::TaskNotFound(msg),
     ) = &result.output
     else {
         panic!("expected TaskNotFound, got: {:?}", result.output);
@@ -1715,7 +1715,7 @@ pub(crate) fn make_handle_with_events() -> (WorkspaceHandle, tempfile::TempDir) 
 #[tokio::test]
 async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
     use xvora_session_events::ToolOutcome;
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
     let (handle, home) = make_handle_with_events();
     let sid = "sess-int";
     handle
@@ -1805,7 +1805,7 @@ async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
 /// Both before-turn hook delivery styles sync YOLO state into the session.
 #[tokio::test]
 async fn before_turn_hooks_sync_session_yolo_mode() {
-    use xvora_tool_protocol::turn_hook::{BeforeTurnPayload, TurnHookRequest};
+    use tool_protocol::turn_hook::{BeforeTurnPayload, TurnHookRequest};
     let handle = make_handle();
     let session = handle.session("main").expect("main session");
     assert!(!session.yolo_mode(), "fail-closed default");
@@ -1834,7 +1834,7 @@ async fn before_turn_hooks_sync_session_yolo_mode() {
         .await;
     assert_eq!(
         reply,
-        xvora_tool_protocol::turn_hook::HookReply::default(),
+        tool_protocol::turn_hook::HookReply::default(),
         "reply stays a behavior-neutral no-op"
     );
     assert!(
@@ -1856,7 +1856,7 @@ async fn before_turn_hooks_sync_session_yolo_mode() {
 /// YOLO transitions emit `yolo_toggled` in events.jsonl; repeats don't.
 #[tokio::test]
 async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
-    use xvora_tool_protocol::turn_hook::BeforeTurnPayload;
+    use tool_protocol::turn_hook::BeforeTurnPayload;
     let (handle, home) = make_handle_with_events();
     let sid = "sess-yolo";
     let _session = handle
@@ -1907,7 +1907,7 @@ async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
 #[tokio::test]
 async fn events_disabled_keeps_noop_and_writes_nothing() {
     use xvora_session_events::ToolOutcome;
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
     let handle = make_handle();
     assert!(
         !handle.shared().events_enabled,
@@ -1961,7 +1961,7 @@ async fn events_disabled_keeps_noop_and_writes_nothing() {
 /// Events already written to disk must survive.
 #[tokio::test]
 async fn session_end_evicts_event_writer_without_data_loss() {
-    use xvora_tool_protocol::turn_hook::BeforeTurnPayload;
+    use tool_protocol::turn_hook::BeforeTurnPayload;
     let (handle, home) = make_handle_with_events();
     let sid = "sess-evict";
     handle
@@ -2090,7 +2090,7 @@ fn is_safe_object_segment_rejects_traversal() {
 #[test]
 fn turn_outcome_label_maps_every_variant() {
     use xvora_session_events::TurnOutcomeLabel;
-    use xvora_tool_protocol::turn_hook::TurnHookOutcome;
+    use tool_protocol::turn_hook::TurnHookOutcome;
     assert!(matches!(
         turn_outcome_label(TurnHookOutcome::Completed),
         TurnOutcomeLabel::Completed
@@ -3883,7 +3883,7 @@ async fn fork_session_inherits_viewer_ctx_from_parent() {
             xvora_hunk_tracker::HunkTrackerHandle::noop(),
             None,
             CapabilityMode::All,
-            Some(xvora_tool_runtime::WorkspaceViewerContext {
+            Some(tool_runtime::WorkspaceViewerContext {
                 stream_tool_progress: true,
             }),
             false,
@@ -3931,7 +3931,7 @@ async fn strict_bind_without_explicit_toolset_fails_closed_end_to_end() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
     let resolved = resolver(
-        xvora_tool_protocol::SessionId::new("bind-e2e-strict").unwrap(),
+        tool_protocol::SessionId::new("bind-e2e-strict").unwrap(),
         Some(serde_json::json!({
             "metadata": {"preset": "grok-computer", "capability_mode": "all"},
         })),
@@ -3958,7 +3958,7 @@ async fn strict_rpc_only_bind_fails_closed_with_resolve_error_end_to_end() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
     let resolved = resolver(
-        xvora_tool_protocol::SessionId::new("bind-e2e-rpc-only").unwrap(),
+        tool_protocol::SessionId::new("bind-e2e-rpc-only").unwrap(),
         Some(serde_json::json!({
             "metadata": {
                 "capability_mode": "read_write",
@@ -3982,7 +3982,7 @@ async fn strict_bind_with_explicit_toolset_serves_it_end_to_end() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
     let resolved = resolver(
-        xvora_tool_protocol::SessionId::new("bind-e2e-tools").unwrap(),
+        tool_protocol::SessionId::new("bind-e2e-tools").unwrap(),
         Some(serde_json::json!({
             "metadata": {"tools": [{"id": "GrokBuild:read_file"}]},
         })),
@@ -4003,7 +4003,7 @@ async fn lax_bind_without_metadata_uses_default_catalog_end_to_end() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
     let resolved = resolver(
-        xvora_tool_protocol::SessionId::new("bind-e2e-lax").unwrap(),
+        tool_protocol::SessionId::new("bind-e2e-lax").unwrap(),
         None,
     )
     .await
@@ -4021,7 +4021,7 @@ async fn lax_bind_without_metadata_uses_default_catalog_end_to_end() {
 async fn rejected_rebind_config_keeps_resolve_error_end_to_end() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-rejected").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-rejected").unwrap();
     let first = resolver(
         sid.clone(),
         Some(serde_json::json!({
@@ -4053,7 +4053,7 @@ async fn rejected_rebind_config_keeps_resolve_error_end_to_end() {
 async fn explicit_empty_toolset_rebind_never_swaps_session_tools() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-rpc-only").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-rpc-only").unwrap();
     let first = resolver(
         sid.clone(),
         Some(serde_json::json!({
@@ -4083,7 +4083,7 @@ async fn explicit_empty_toolset_rebind_never_swaps_session_tools() {
 async fn strict_rebind_with_corrected_toolset_heals_end_to_end() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-heal").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-heal").unwrap();
     let first = resolver(
         sid.clone(),
         Some(serde_json::json!({"metadata": {"preset": "grok-computer"}})),
@@ -4138,7 +4138,7 @@ fn assert_advertises_owner_tools(names: &[String], context: &str) {
 async fn owner_toolset_survives_concurrent_consumer_shaped_rebinds() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-consumer-storm").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-consumer-storm").unwrap();
     let owner = resolver(sid.clone(), Some(owner_full_bind_metadata()))
         .await
         .expect("owner bind");
@@ -4194,7 +4194,7 @@ async fn owner_toolset_survives_concurrent_consumer_shaped_rebinds() {
 async fn restored_server_first_bind_ordering_decides_capability_and_toolset() {
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-restore-read-first").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-restore-read-first").unwrap();
     let read_first = resolver(
         sid.clone(),
         Some(serde_json::json!({"metadata": {"capability_mode": "read_only"}})),
@@ -4229,7 +4229,7 @@ async fn restored_server_first_bind_ordering_decides_capability_and_toolset() {
     );
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-restore-write-first").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-restore-write-first").unwrap();
     resolver(
         sid.clone(),
         Some(serde_json::json!({"metadata": {"capability_mode": "read_write"}})),
@@ -4251,7 +4251,7 @@ async fn restored_server_first_bind_ordering_decides_capability_and_toolset() {
     );
     let handle = make_strict_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-restore-owner-first").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-restore-owner-first").unwrap();
     let owner = resolver(sid, Some(owner_full_bind_metadata()))
         .await
         .expect("owner bind resolves");
@@ -4280,7 +4280,7 @@ async fn bind_flow_rebinds_keep_backend_and_task_alive_end_to_end() {
     let orphaned_before = orphaned_swap_count();
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
-    let sid = xvora_tool_protocol::SessionId::new("bind-e2e-bg").unwrap();
+    let sid = tool_protocol::SessionId::new("bind-e2e-bg").unwrap();
     let bg_metadata = serde_json::json!({
         "metadata": {"tools": [
             {"id": "GrokBuild:read_file"},
@@ -4373,7 +4373,7 @@ async fn drop_then_rebind_session_replaces_viewer_ctx_value() {
             xvora_hunk_tracker::HunkTrackerHandle::noop(),
             None,
             CapabilityMode::All,
-            Some(xvora_tool_runtime::WorkspaceViewerContext {
+            Some(tool_runtime::WorkspaceViewerContext {
                 stream_tool_progress: true,
             }),
             false,
@@ -4388,7 +4388,7 @@ async fn drop_then_rebind_session_replaces_viewer_ctx_value() {
             xvora_hunk_tracker::HunkTrackerHandle::noop(),
             None,
             CapabilityMode::All,
-            Some(xvora_tool_runtime::WorkspaceViewerContext {
+            Some(tool_runtime::WorkspaceViewerContext {
                 stream_tool_progress: false,
             }),
             false,
@@ -4575,7 +4575,7 @@ fn cancellation_category_decode_round_trips() {
 /// Nothing is registered in `inflight_enqueues` and the ack machinery has nothing to await.
 #[tokio::test]
 async fn no_upload_queue_registers_no_inflight_enqueue() {
-    use xvora_tool_protocol::turn_hook::BeforeTurnPayload;
+    use tool_protocol::turn_hook::BeforeTurnPayload;
     let handle = make_handle();
     handle
         .on_before_turn(
@@ -4600,7 +4600,7 @@ async fn no_upload_queue_registers_no_inflight_enqueue() {
 /// The turn-end path evicts a stored inflight before-turn entry.
 #[tokio::test]
 async fn compute_turn_injections_after_returns_skipped_ack_without_queue() {
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
+    use tool_protocol::turn_hook::{AfterTurnPayload, TurnHookOutcome, TurnHookRequest};
     let handle = make_handle();
     handle.shared().inflight_enqueues.insert(
         ("main".to_owned(), 3),
@@ -4661,7 +4661,7 @@ async fn compute_turn_injections_after_returns_skipped_ack_without_queue() {
 /// The request channel is the only turn signal the server-side sampler sends.
 #[tokio::test]
 async fn compute_turn_injections_before_runs_turn_start_and_replies_noop() {
-    use xvora_tool_protocol::turn_hook::{BeforeTurnPayload, HookReply, TurnHookRequest};
+    use tool_protocol::turn_hook::{BeforeTurnPayload, HookReply, TurnHookRequest};
     let handle = make_handle();
     let reply = handle
         .compute_turn_injections(
@@ -4686,7 +4686,7 @@ async fn compute_turn_injections_before_runs_turn_start_and_replies_noop() {
 /// The category string becomes the enum's snake_case form and the context object passes through verbatim.
 #[tokio::test]
 async fn after_turn_decodes_cancellation_fields_into_events_jsonl() {
-    use xvora_tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
+    use tool_protocol::turn_hook::{AfterTurnPayload, BeforeTurnPayload, TurnHookOutcome};
     let (handle, home) = make_handle_with_events();
     let sid = "sess-cancel";
     handle
@@ -5220,7 +5220,7 @@ async fn two_phase_drain_no_queue_marks_draining_and_returns_zero() {
     let snap = tracker.snapshot();
     assert_eq!(
         snap.status,
-        xvora_tool_protocol::ToolServerLifecycleStatus::Draining
+        tool_protocol::ToolServerLifecycleStatus::Draining
     );
     assert!(
         snap.drain_started_ms.is_some(),
@@ -5457,7 +5457,7 @@ async fn bind_session_root_sets_mapping_and_real_cwd() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
     resolver(
-        xvora_tool_protocol::SessionId::new("conv-abc").unwrap(),
+        tool_protocol::SessionId::new("conv-abc").unwrap(),
         Some(serde_json::json!({
             "cwd": "/workspace",
             "metadata": { "session_root": "/workspace/conv-abc" },
@@ -5482,7 +5482,7 @@ async fn rebind_session_root_rewrites_existing_cwd() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
     resolver(
-        xvora_tool_protocol::SessionId::new("rebind-virt").unwrap(),
+        tool_protocol::SessionId::new("rebind-virt").unwrap(),
         Some(serde_json::json!({ "cwd": "/workspace" })),
     )
     .await
@@ -5491,7 +5491,7 @@ async fn rebind_session_root_rewrites_existing_cwd() {
     assert!(session.path_virtualization().is_none());
     assert_eq!(session.cwd(), std::path::Path::new("/workspace"));
     resolver(
-        xvora_tool_protocol::SessionId::new("rebind-virt").unwrap(),
+        tool_protocol::SessionId::new("rebind-virt").unwrap(),
         Some(serde_json::json!({
             "cwd": "/workspace",
             "metadata": { "session_root": "/workspace/conv-rebind" },
@@ -5535,7 +5535,7 @@ async fn bind_session_root_rewrites_artifacts_cwd() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
     resolver(
-        xvora_tool_protocol::SessionId::new("conv-art").unwrap(),
+        tool_protocol::SessionId::new("conv-art").unwrap(),
         Some(serde_json::json!({
             "cwd": "/workspace/artifacts",
             "metadata": { "session_root": "/workspace/conv-art" },
@@ -5551,7 +5551,7 @@ async fn bind_without_session_root_does_not_virtualize() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
     resolver(
-        xvora_tool_protocol::SessionId::new("plain").unwrap(),
+        tool_protocol::SessionId::new("plain").unwrap(),
         Some(serde_json::json!({ "cwd": "/tmp/plain" })),
     )
     .await
@@ -5568,7 +5568,7 @@ async fn malformed_session_root_does_not_virtualize() {
     let handle = make_handle();
     let resolver = bind_resolver_fixture(&handle);
     resolver(
-        xvora_tool_protocol::SessionId::new("bad-root").unwrap(),
+        tool_protocol::SessionId::new("bad-root").unwrap(),
         Some(serde_json::json!({
             "metadata": { "session_root": "/workspace/../etc" },
         })),
@@ -5606,7 +5606,7 @@ async fn bind_invokes_mount_hook_unbind_does_not_unmount() {
     );
     let resolver = bind_resolver_fixture(&handle);
     resolver(
-        xvora_tool_protocol::SessionId::new("hook-conv").unwrap(),
+        tool_protocol::SessionId::new("hook-conv").unwrap(),
         Some(serde_json::json!({
             "metadata": { "session_root": "/workspace/hook-conv" },
         })),
@@ -5636,7 +5636,7 @@ async fn bind_mount_error_fails_bind() {
     ));
     let resolver = bind_resolver_fixture(&handle);
     let err = match resolver(
-        xvora_tool_protocol::SessionId::new("fail-mount").unwrap(),
+        tool_protocol::SessionId::new("fail-mount").unwrap(),
         Some(serde_json::json!({
             "metadata": { "session_root": "/workspace/fail-mount" },
         })),
@@ -5670,7 +5670,7 @@ async fn rebind_mount_error_fails_bind_and_drops_leftover() {
     ));
     let resolver = bind_resolver_fixture(&handle);
     resolver(
-        xvora_tool_protocol::SessionId::new("rebind-fail-mount").unwrap(),
+        tool_protocol::SessionId::new("rebind-fail-mount").unwrap(),
         Some(serde_json::json!({
             "metadata": { "session_root": "/workspace/rebind-fail-mount" },
         })),
@@ -5698,7 +5698,7 @@ async fn rebind_mount_error_fails_bind_and_drops_leftover() {
         }),
     );
     let err = match resolver(
-        xvora_tool_protocol::SessionId::new("rebind-fail-mount").unwrap(),
+        tool_protocol::SessionId::new("rebind-fail-mount").unwrap(),
         Some(serde_json::json!({
             "metadata": { "session_root": "/workspace/rebind-fail-mount" },
         })),
@@ -5736,7 +5736,7 @@ async fn bind_probe_hit_skips_mount() {
         },
     ));
     bind_resolver_fixture(&handle)(
-        xvora_tool_protocol::SessionId::new("probed").unwrap(),
+        tool_protocol::SessionId::new("probed").unwrap(),
         Some(serde_json::json!({
             "metadata": { "session_root": "/workspace/probed" },
         })),
@@ -5759,7 +5759,7 @@ async fn bind_without_session_root_skips_mount_hook() {
         },
     ));
     bind_resolver_fixture(&handle)(
-        xvora_tool_protocol::SessionId::new("no-root").unwrap(),
+        tool_protocol::SessionId::new("no-root").unwrap(),
         Some(serde_json::json!({ "cwd": "/tmp/plain" })),
     )
     .await
@@ -5772,7 +5772,7 @@ async fn bind_without_session_root_skips_mount_hook() {
 }
 #[tokio::test]
 async fn local_harness_virtualizes_inbound_and_outbound() {
-    use xvora_tool_runtime::ToolCallContext;
+    use tool_runtime::ToolCallContext;
     let handle = make_handle();
     let session = handle
         .create_session_with_cwd("virt-local", None)
@@ -5798,23 +5798,23 @@ async fn local_harness_virtualizes_inbound_and_outbound() {
             "local path echo"
         }
     }
-    impl xvora_tool_runtime::Tool for LocalPathEcho {
+    impl tool_runtime::Tool for LocalPathEcho {
         type Args = serde_json::Value;
         type Output = serde_json::Value;
-        fn id(&self) -> xvora_tool_protocol::ToolId {
-            xvora_tool_protocol::ToolId::new("local_path_echo").expect("valid")
+        fn id(&self) -> tool_protocol::ToolId {
+            tool_protocol::ToolId::new("local_path_echo").expect("valid")
         }
         fn description(
             &self,
-            _ctx: &::xvora_tool_runtime::ListToolsContext,
-        ) -> xvora_tool_types::ToolDescription {
-            xvora_tool_types::ToolDescription::new("local_path_echo", "local path echo")
+            _ctx: &::tool_runtime::ListToolsContext,
+        ) -> tool_types::ToolDescription {
+            tool_types::ToolDescription::new("local_path_echo", "local path echo")
         }
         async fn run(
             &self,
-            _ctx: xvora_tool_runtime::ToolCallContext,
+            _ctx: tool_runtime::ToolCallContext,
             input: serde_json::Value,
-        ) -> Result<serde_json::Value, xvora_tool_runtime::ToolError> {
+        ) -> Result<serde_json::Value, tool_runtime::ToolError> {
             *self.0.lock().expect("lock") = Some(input.clone());
             Ok(serde_json::json!({
                 "guest": "/workspace/conv-abc/out.txt",
@@ -5834,7 +5834,7 @@ async fn local_harness_virtualizes_inbound_and_outbound() {
         .expect("local harness");
     let stream = harness
         .call(
-            xvora_tool_protocol::ToolId::new("local_path_echo").expect("valid"),
+            tool_protocol::ToolId::new("local_path_echo").expect("valid"),
             serde_json::json!({ "path": "/workspace/foo.txt" }),
             ToolCallContext::default(),
         )

@@ -22,8 +22,8 @@ impl SubagentBackend for FixedActiveMessageBackend {
     async fn spawn(
         &self,
         _: SubagentRequest,
-    ) -> Result<SubagentResult, xvora_tool_runtime::ToolError> {
-        Err(xvora_tool_runtime::ToolError::custom(
+    ) -> Result<SubagentResult, tool_runtime::ToolError> {
+        Err(tool_runtime::ToolError::custom(
             "unsupported",
             "spawn unsupported",
         ))
@@ -133,7 +133,7 @@ fn active_message_outputs_distinguish_uncertain_from_proved_rejection() {
         ),
     ] {
         let output = ToolOutput::SendSubagentMessage(output);
-        let result: Result<ToolRunResult, xvora_tool_runtime::ToolError> = Ok(ToolRunResult {
+        let result: Result<ToolRunResult, tool_runtime::ToolError> = Ok(ToolRunResult {
             prompt_text: output.to_prompt_format(),
             output,
             effective_tool_name: None,

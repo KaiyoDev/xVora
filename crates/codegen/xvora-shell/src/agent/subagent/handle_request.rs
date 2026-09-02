@@ -434,7 +434,7 @@ pub(crate) async fn run_shell_child(
         return child_run_output(failure_result(&request, &error), completion_data, None);
     }
     let worktree_path = if let Some(ref source) = resume_source {
-        if effective_runtime.isolation != xvora_tool_types::SubagentIsolationMode::None
+        if effective_runtime.isolation != tool_types::SubagentIsolationMode::None
             && source.worktree_path.is_none()
         {
             tracing::info!(
@@ -488,7 +488,7 @@ pub(crate) async fn run_shell_child(
                 }
             }
         }
-    } else if effective_runtime.isolation != xvora_tool_types::SubagentIsolationMode::None {
+    } else if effective_runtime.isolation != tool_types::SubagentIsolationMode::None {
         let source_cwd = parent_source_cwd(&ctx);
         let dest = match crate::session::worktree::worktree_base_dir_for_source(&source_cwd) {
             Ok(base) => base.join(format!("subagent-{}", request.id)),

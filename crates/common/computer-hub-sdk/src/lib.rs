@@ -12,7 +12,7 @@
 //! implementations, and call [`ToolServer::run`] to drive the inbound
 //! loop. The harness entry point is [`ToolHarness`]: build it via
 //! [`ToolHarnessBuilder`], optionally seed it with in-process
-//! [`xvora_tool_runtime::Tool`] implementations, and call
+//! [`tool_runtime::Tool`] implementations, and call
 //! [`ToolHarness::call`] to dispatch a tool call. Authorisation
 //! credentials (`AuthCredential`) plus the target URL determine
 //! which pool entry the consumer attaches to; multiple
