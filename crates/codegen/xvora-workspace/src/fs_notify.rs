@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use xvora_fsnotify::{FsEvent, FsEventKind};
-use xvora_hunk_tracker::HunkTrackerHandle;
+use hunk_tracker::HunkTrackerHandle;
 
 /// True if `path` lies under a hidden component below `cwd`.
 ///

@@ -49,11 +49,11 @@ fn subprocess_entry() {
     let crash_dir = std::path::PathBuf::from(crash_dir);
 
     // Install the crash handler before anything else.
-    let config = xvora_crash_handler::CrashHandlerConfig {
+    let config = crash_handler::CrashHandlerConfig {
         app_version: "0.0.0-test".to_string(),
         crash_dir,
     };
-    xvora_crash_handler::install(config);
+    crash_handler::install(config);
 
     match scenario.as_str() {
         // Scenario 1: install handler, run tokio runtime with concurrent work, exit cleanly.
@@ -211,7 +211,7 @@ fn sigbus_produces_valid_crash_blob() {
     );
 
     let blob =
-        xvora_crash_handler::format::CrashBlob::parse(&data).expect("crash blob should parse");
+        crash_handler::format::CrashBlob::parse(&data).expect("crash blob should parse");
 
     // On macOS SIGBUS=10, on Linux SIGBUS=7, SIGSEGV=11 on both.
     // The frame-pointer walker may cause a secondary SIGSEGV.
@@ -225,7 +225,7 @@ fn sigbus_produces_valid_crash_blob() {
     assert!(blob.timestamp > 0, "timestamp should be nonzero");
 
     // check_previous_crash should produce a report.
-    let report = xvora_crash_handler::check_previous_crash(tmp.path())
+    let report = crash_handler::check_previous_crash(tmp.path())
         .expect("should produce a crash report");
     assert!(report.signal_name.contains("SIGBUS"));
     assert_eq!(report.app_version, "0.0.0-test");
@@ -258,7 +258,7 @@ fn sigsegv_produces_valid_crash_blob() {
     assert!(crash_file.exists(), "crash file should exist after SIGSEGV");
     let data = std::fs::read(&crash_file).expect("read crash file");
     let blob =
-        xvora_crash_handler::format::CrashBlob::parse(&data).expect("crash blob should parse");
+        crash_handler::format::CrashBlob::parse(&data).expect("crash blob should parse");
     assert_eq!(blob.signal, 11, "signal should be SIGSEGV (11)");
     assert_eq!(blob.app_version, "0.0.0-test");
 }
@@ -285,7 +285,7 @@ fn sigabrt_produces_valid_crash_blob() {
     assert!(crash_file.exists(), "crash file should exist after abort()");
     let data = std::fs::read(&crash_file).expect("read crash file");
     let blob =
-        xvora_crash_handler::format::CrashBlob::parse(&data).expect("crash blob should parse");
+        crash_handler::format::CrashBlob::parse(&data).expect("crash blob should parse");
     assert_eq!(
         blob.signal, 6,
         "signal should be SIGABRT (6), got {}",
@@ -296,7 +296,7 @@ fn sigabrt_produces_valid_crash_blob() {
     assert!(blob.timestamp > 0, "timestamp should be nonzero");
 
     // check_previous_crash should produce a SIGABRT-labelled report.
-    let report = xvora_crash_handler::check_previous_crash(tmp.path())
+    let report = crash_handler::check_previous_crash(tmp.path())
         .expect("should produce a crash report");
     assert!(
         report.signal_name.contains("SIGABRT"),
@@ -320,6 +320,6 @@ fn clean_exit_does_not_produce_crash_report() {
         assert!(status.success(), "{scenario} failed: {stderr}");
     }
     // check_previous_crash should return None.
-    let report = xvora_crash_handler::check_previous_crash(tmp.path());
+    let report = crash_handler::check_previous_crash(tmp.path());
     assert!(report.is_none(), "no crash report after clean exits");
 }

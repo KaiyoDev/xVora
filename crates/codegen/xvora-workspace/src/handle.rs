@@ -6,7 +6,7 @@ use prometheus::{
 };
 use std::path::PathBuf;
 use std::sync::Arc;
-use xvora_hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
+use hunk_tracker::{HunkTrackerActor, HunkTrackerHandle, TrackingMode};
 use tool_protocol::ToolServerStatusPayload;
 use tool_protocol::turn_hook::TurnHookOutcome;
 /// Default SIGTERM drain budget (ms); override via `GROK_WORKSPACE_TERMINATION_GRACE_MS`.
@@ -188,7 +188,7 @@ use crate::workspace_ops::{
     GetFileEntry, GetFileResult, GetFilesRes, PutFileEntry, PutFileResult, PutFilesRes,
 };
 use xvora_diag_server::DiagHandle;
-use xvora_file_utils::queue::EnqueueOutcome;
+use file_utils::queue::EnqueueOutcome;
 use xvora_session_events::types::CancellationCategory;
 use xvora_session_events::{Event, SessionRelationship, TurnOutcomeLabel};
 use tool_protocol::turn_hook::{AfterTurnAckPayload, AfterTurnAckStatus};
@@ -501,7 +501,7 @@ impl WorkspaceHandle {
             crate::upload::environment::WorkspaceIdentity::default(),
         )
     }
-    /// Construct a handle with an explicit `$GROK_WORKSPACE_HOME` and a pre-spawned [`UploadQueue`](xvora_file_utils::queue::UploadQueue).
+    /// Construct a handle with an explicit `$GROK_WORKSPACE_HOME` and a pre-spawned [`UploadQueue`](file_utils::queue::UploadQueue).
     ///
     /// [`connect_local_workspace`] calls this so the queue is backed by the proxy storage config.
     /// [`Self::new`] takes the queue-less path for tests and local mode.
@@ -511,7 +511,7 @@ impl WorkspaceHandle {
     pub(crate) fn new_with_data_collection(
         config: WorkspaceConfig,
         workspace_home: std::path::PathBuf,
-        upload_queue: Arc<xvora_file_utils::queue::UploadQueue>,
+        upload_queue: Arc<file_utils::queue::UploadQueue>,
         upload_queue_enabled: bool,
         data_collection_disabled: bool,
         identity: crate::upload::environment::WorkspaceIdentity,
@@ -531,7 +531,7 @@ impl WorkspaceHandle {
     fn build(
         config: WorkspaceConfig,
         workspace_home: std::path::PathBuf,
-        upload_queue: Option<Arc<xvora_file_utils::queue::UploadQueue>>,
+        upload_queue: Option<Arc<file_utils::queue::UploadQueue>>,
         _upload_queue_enabled: bool,
         data_collection_disabled: bool,
         events_enabled: bool,
@@ -2520,7 +2520,7 @@ impl WorkspaceHandle {
         session_id: &str,
         cwd: &std::path::Path,
         trace_parent: Option<fastrace::collector::SpanContext>,
-    ) -> Option<xvora_file_utils::queue::EnqueueOutcome> {
+    ) -> Option<file_utils::queue::EnqueueOutcome> {
         let upload_queue = self.shared.upload_queue.clone()?;
         if !is_safe_object_segment(session_id) {
             tracing::warn!(%session_id, "environment: unsafe session id, skipping");
@@ -2599,7 +2599,7 @@ impl WorkspaceHandle {
             )
             .await;
         match &outcome {
-            xvora_file_utils::queue::EnqueueOutcome::Failed { reason: _ } => {
+            file_utils::queue::EnqueueOutcome::Failed { reason: _ } => {
                 dc_log!(
                     warn,
                     session_id = %session_id,
@@ -4112,13 +4112,13 @@ pub async fn connect_local_workspace(
         api_base_url.clone(),
         identity.clone(),
     ));
-    let trace_source: Arc<dyn xvora_file_utils::queue::TraceExportSource> = Arc::new(
+    let trace_source: Arc<dyn file_utils::queue::TraceExportSource> = Arc::new(
         crate::upload::WorkspaceTraceExportSource::new(proxy_storage.clone()),
     );
-    let upload_queue = Arc::new(xvora_file_utils::queue::UploadQueue::spawn(
+    let upload_queue = Arc::new(file_utils::queue::UploadQueue::spawn(
         &workspace_home,
         trace_source,
-        xvora_file_utils::queue::UploadRetryPolicy::default(),
+        file_utils::queue::UploadRetryPolicy::default(),
     ));
     {
         let recovery_started = std::time::Instant::now();
@@ -4135,7 +4135,7 @@ pub async fn connect_local_workspace(
             recovery_started.elapsed().as_secs_f64(),
         );
     }
-    upload_queue.cleanup_orphans(xvora_file_utils::queue::DEFAULT_MAX_AGE);
+    upload_queue.cleanup_orphans(file_utils::queue::DEFAULT_MAX_AGE);
     crate::upload::spawn_queue_stats_sampler(
         upload_queue.clone(),
         std::time::Duration::from_secs(15),
@@ -4300,12 +4300,12 @@ fn tool_defs_reemit_gate(
 /// Enqueue serialized workspace tool definitions at `object_path`, mapping the outcome to a log line.
 /// Shared by `emit_workspace_tool_definitions` (which spawns it) and the unit tests (which await it).
 async fn enqueue_workspace_tool_definitions(
-    upload_queue: &xvora_file_utils::queue::UploadQueue,
+    upload_queue: &file_utils::queue::UploadQueue,
     session_id: &str,
     object_path: &str,
     bytes: &[u8],
-) -> xvora_file_utils::queue::EnqueueOutcome {
-    use xvora_file_utils::queue::EnqueueOutcome;
+) -> file_utils::queue::EnqueueOutcome {
+    use file_utils::queue::EnqueueOutcome;
     let outcome = upload_queue
         .enqueue_bytes_blocking(
             bytes,
@@ -4451,7 +4451,7 @@ async fn persist_and_enqueue_tool_state(
     session: Arc<crate::session::WorkspaceSession>,
     session_id: String,
     turn_number: u64,
-    upload_queue: Arc<xvora_file_utils::queue::UploadQueue>,
+    upload_queue: Arc<file_utils::queue::UploadQueue>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let toolset = session.toolset();
     let Some(state_path) = toolset

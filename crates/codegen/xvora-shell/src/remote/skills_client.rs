@@ -415,7 +415,7 @@ impl SkillsClient {
         if let Some(email) = email {
             builder = builder.header("x-email", email);
         }
-        xvora_file_utils::trace_context::inject_trace_context_into_request(builder)
+        file_utils::trace_context::inject_trace_context_into_request(builder)
     }
 
     /// Grok.com product Skills require first-party session auth (the same gate as managed MCP and sibling grok.com clients), not plain BYOK API keys.

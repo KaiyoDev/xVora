@@ -2643,7 +2643,7 @@ fn masked_auth_token_view(input: &str, cursor_byte: usize, width: usize) -> (Str
     }
     let masked = build_masked_auth_token(input, cursor_byte);
     let buffer =
-        xvora_ratatui_textarea::EditBuffer::from_parts(masked.display.as_str(), masked.cursor_byte);
+        ratatui_textarea::EditBuffer::from_parts(masked.display.as_str(), masked.cursor_byte);
     let viewport = buffer.single_line_viewport(width);
     (
         masked.display[viewport.visible_byte_range].to_owned(),

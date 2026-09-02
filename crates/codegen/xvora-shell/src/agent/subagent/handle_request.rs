@@ -505,17 +505,17 @@ pub(crate) async fn run_shell_child(
         };
         let source_clone = source_cwd;
         let subagent_id = request.id.clone();
-        let creation_mode: xvora_fast_worktree::CreationMode = ctx.worktree_type.into();
+        let creation_mode: fast_worktree::CreationMode = ctx.worktree_type.into();
         let btrfs_delegate = crate::session::worktree::btrfs_delegate_from_env();
         let worktree_create_span = region!(
             "subagent_spawn.worktree_create",
             Parent::Explicit(spawn_prepare_span.span())
         );
         let created = match tokio::task::spawn_blocking(move || {
-            let mut builder = xvora_fast_worktree::WorktreeBuilder::new(&source_clone, &dest)
-                .working_tree_mode(xvora_fast_worktree::WorkingTreeMode::PreserveWorkingTree)
+            let mut builder = fast_worktree::WorktreeBuilder::new(&source_clone, &dest)
+                .working_tree_mode(fast_worktree::WorkingTreeMode::PreserveWorkingTree)
                 .creation_mode(creation_mode)
-                .worktree_kind(xvora_fast_worktree::WorktreeKind::Subagent)
+                .worktree_kind(fast_worktree::WorktreeKind::Subagent)
                 .session_id(subagent_id);
             if let Some(delegate) = btrfs_delegate {
                 builder = builder.btrfs_delegate(delegate);
@@ -950,7 +950,7 @@ pub(crate) async fn run_shell_child(
     tool_ctx.subagent_depth = child_depth;
     tool_ctx.lsp = ctx.lsp.clone();
     tool_ctx.process_scope = ctx.process_scope.clone();
-    let parent_traceparent = xvora_file_utils::trace_context::current_traceparent();
+    let parent_traceparent = file_utils::trace_context::current_traceparent();
     let tracker_child_cwd = child_session_info.cwd.clone();
     let tracker_model_id = effective_model_id.0.to_string();
     let initial_child_tokens = xvora_chat_state::estimate_conversation_tokens(&forked_conversation);
@@ -2036,7 +2036,7 @@ pub(crate) async fn dispose_worktree_after_completion(
     let checked_snapshot = snapshot_ref.clone();
     let reclaim_span = region!("worktree.reclaim_check", Parent::Inherit);
     let reclaim = tokio::task::spawn_blocking(move || {
-        xvora_fast_worktree::reclaimable_after_snapshot(
+        fast_worktree::reclaimable_after_snapshot(
             &checked_path,
             Some(&checked_source_repo),
             &checked_snapshot,
@@ -2045,8 +2045,8 @@ pub(crate) async fn dispose_worktree_after_completion(
     .await;
     reclaim_span.close();
     match reclaim {
-        Ok(xvora_fast_worktree::Reclaim::Now { .. }) => {}
-        Ok(xvora_fast_worktree::Reclaim::Keep(reason)) => {
+        Ok(fast_worktree::Reclaim::Now { .. }) => {}
+        Ok(fast_worktree::Reclaim::Keep(reason)) => {
             tracing::info!(
                 subagent_id = %subagent_id,
                 worktree_path = %worktree.display(),
@@ -2055,7 +2055,7 @@ pub(crate) async fn dispose_worktree_after_completion(
             );
             return Disposal::Kept;
         }
-        Ok(xvora_fast_worktree::Reclaim::Unnamed(error)) => {
+        Ok(fast_worktree::Reclaim::Unnamed(error)) => {
             tracing::warn!(
                 subagent_id = %subagent_id,
                 worktree_path = %worktree.display(),

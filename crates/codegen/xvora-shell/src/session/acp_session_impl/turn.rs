@@ -331,7 +331,7 @@ impl SessionActor {
             command_source = tracing::field::Empty,
         );
         if let Some(ref tp) = request.traceparent {
-            xvora_file_utils::trace_context::link_span_to_meta(
+            file_utils::trace_context::link_span_to_meta(
                 &span,
                 &serde_json::json!({ "traceparent": tp }),
             );

@@ -438,8 +438,8 @@ fn make_test_subagent(child_sid: &str, sa_id: &str) -> crate::app::subagent::Sub
         transcript: Default::default(),
     }
 }
-fn cta_entry(name: &str, status: &str) -> xvora_hooks_plugins_types::MarketplacePluginEntry {
-    xvora_hooks_plugins_types::MarketplacePluginEntry {
+fn cta_entry(name: &str, status: &str) -> hooks_plugins_types::MarketplacePluginEntry {
+    hooks_plugins_types::MarketplacePluginEntry {
         name: name.into(),
         version: None,
         description: None,
@@ -464,10 +464,10 @@ fn cta_entry(name: &str, status: &str) -> xvora_hooks_plugins_types::Marketplace
     }
 }
 fn cta_outcome(
-    status: xvora_hooks_plugins_types::OutcomeStatus,
+    status: hooks_plugins_types::OutcomeStatus,
     message: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
-    xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
+    hooks_plugins_types::ActionOutcome {
         status,
         message: message.into(),
         requires_reload: false,

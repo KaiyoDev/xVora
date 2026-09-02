@@ -49,10 +49,10 @@ pub(super) fn cta_settle_installed(
 /// (The URL check stops a source from spoofing the official name: the scanned URL is the install root.)
 /// A name-only match then keeps mirrors registered under the official name working; first registered wins within a tier.
 pub(super) fn plugin_cta_candidates(
-    response: xvora_hooks_plugins_types::MarketplaceListResponse,
+    response: hooks_plugins_types::MarketplaceListResponse,
     cta_marketplace: Option<&str>,
 ) -> (
-    Vec<xvora_hooks_plugins_types::MarketplacePluginEntry>,
+    Vec<hooks_plugins_types::MarketplacePluginEntry>,
     Option<String>,
 ) {
     let mut sources = response.sources;
@@ -83,7 +83,7 @@ pub(super) fn plugin_cta_candidates(
 /// Prefers the still-cached candidate entry.
 /// The `plugins/{name}` fallback assumes the conventional marketplace layout (a guess for a configured override source).
 pub(super) fn cta_install_relative_path(
-    candidates: &[xvora_hooks_plugins_types::MarketplacePluginEntry],
+    candidates: &[hooks_plugins_types::MarketplacePluginEntry],
     name: &str,
 ) -> String {
     candidates
@@ -94,9 +94,9 @@ pub(super) fn cta_install_relative_path(
 }
 
 pub(super) fn cta_install_error_category(
-    result: &Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+    result: &Result<hooks_plugins_types::ActionOutcome, String>,
 ) -> Option<String> {
-    use xvora_hooks_plugins_types::OutcomeStatus;
+    use hooks_plugins_types::OutcomeStatus;
     match result {
         Ok(outcome) => match outcome.status {
             OutcomeStatus::Success => None,
@@ -117,7 +117,7 @@ pub(super) fn cta_install_error_category(
 pub(super) fn plugin_cta_phase_for(
     enabled: bool,
     cta_source_present: bool,
-    candidates: &[xvora_hooks_plugins_types::MarketplacePluginEntry],
+    candidates: &[hooks_plugins_types::MarketplacePluginEntry],
     prompt_text: &str,
     is_dismissed: impl Fn(&str) -> bool,
 ) -> crate::app::agent_view::CtaPhase {
@@ -170,7 +170,7 @@ pub(super) fn handle_cta_plugin_install_done(
     app: &mut AppView,
     agent_id: AgentId,
     plugin_name: String,
-    result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+    result: Result<hooks_plugins_types::ActionOutcome, String>,
 ) -> Vec<Effect> {
     use crate::app::agent_view::CtaPhase;
     let Some(agent) = app.agents.get_mut(&agent_id) else {
@@ -201,7 +201,7 @@ pub(super) fn handle_cta_plugin_install_done(
     });
     // Ok(requires_reload) on success; Err(message) otherwise.
     let install_result = match result {
-        Ok(outcome) if outcome.status == xvora_hooks_plugins_types::OutcomeStatus::Success => {
+        Ok(outcome) if outcome.status == hooks_plugins_types::OutcomeStatus::Success => {
             Ok(outcome.requires_reload)
         }
         Ok(outcome) => Err(crate::app::effects::sanitize_user_error(&outcome.message)),
@@ -247,7 +247,7 @@ pub(super) fn handle_cta_plugin_reload_done(
     app: &mut AppView,
     agent_id: AgentId,
     plugin_name: String,
-    result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+    result: Result<hooks_plugins_types::ActionOutcome, String>,
 ) -> Vec<Effect> {
     use crate::app::agent_view::CtaPhase;
     let Some(agent) = app.agents.get_mut(&agent_id) else {
@@ -264,7 +264,7 @@ pub(super) fn handle_cta_plugin_reload_done(
     let session_id = agent.session.session_id.clone();
     // Mirror the install handler: a non-Success outcome is a failure, not a reason to advance to the steps after install
     let reload_result = match result {
-        Ok(outcome) if outcome.status == xvora_hooks_plugins_types::OutcomeStatus::Success => {
+        Ok(outcome) if outcome.status == hooks_plugins_types::OutcomeStatus::Success => {
             Ok(())
         }
         Ok(outcome) => Err(crate::app::effects::sanitize_user_error(&outcome.message)),
@@ -425,7 +425,7 @@ pub(super) fn handle_plugin_cta_mcps_loaded(
 pub(super) fn handle_plugin_cta_catalog_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+    result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
 ) -> Vec<Effect> {
     use crate::app::agent_view::CtaPhase;
     match result {

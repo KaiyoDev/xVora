@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex as TokioMutex, mpsc};
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_hunk_tracker::HunkTrackerHandle;
+use hunk_tracker::HunkTrackerHandle;
 use xvora_tools::notification::types::{ToolNotification, ToolNotificationHandle};
 use xvora_tools::types::output::{BashOutput, ToolOutput};
 use xvora_workspace::session::file_state::FileStateTracker;
@@ -420,7 +420,7 @@ async fn handle_notification(
                         client_identifier: None,
                         screen_mode: None,
                         verbatim: true,
-                        traceparent: xvora_file_utils::trace_context::current_traceparent(),
+                        traceparent: file_utils::trace_context::current_traceparent(),
                         json_schema: None,
                         send_now: false,
                         tool_overrides_update: None,

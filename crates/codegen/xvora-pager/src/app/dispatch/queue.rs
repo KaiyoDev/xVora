@@ -399,7 +399,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
             // Scrollback shows display text (never raw skill XML)
             // Combined drains paint one bubble per original follow-up
             let is_skill = queued.display_as_skill;
-            let multi = xvora_prompt_queue::is_combined(&queued.combined_texts);
+            let multi = prompt_queue::is_combined(&queued.combined_texts);
             let (prompt_idx, prompt_entry_id, combined_entries) = if multi {
                 let (first_idx, _, last_id, all_ids) =
                     paint_or_reuse_combined_user_bubbles(agent, &queued.combined_texts);
@@ -456,7 +456,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                             serde_json::Value::Bool(true),
                         );
                     }
-                    xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                    prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 } else {
                     tracing::debug!(
                         "wire_blocks[0] is not TextContent — displayText annotation skipped"
@@ -480,7 +480,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                 );
                 if let Some(acp::ContentBlock::Text(tb)) = blocks.first_mut() {
                     let map = tb.meta.get_or_insert_with(acp::Meta::new);
-                    xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                    prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 }
                 vec![Effect::SendPromptBlocks {
                     agent_id,
@@ -493,7 +493,7 @@ pub(super) fn maybe_drain_queue(agent: &mut AgentView) -> QueueDrain {
                 // No skillTokenRanges: dequeue_combined_prompt clears them on every combined drain (multi paints plain per-segment bubbles)
                 let mut tb = acp::TextContent::new(queued.text);
                 let map = tb.meta.get_or_insert_with(acp::Meta::new);
-                xvora_prompt_queue::stamp_combined_display_texts(map, &combined_segs);
+                prompt_queue::stamp_combined_display_texts(map, &combined_segs);
                 vec![Effect::SendPromptBlocks {
                     agent_id,
                     session_id,
@@ -697,7 +697,7 @@ fn paint_or_reuse_combined_user_bubbles(
         return (first_idx, first_id, last_id, ids);
     }
 
-    let joined = xvora_prompt_queue::join_texts(segments.iter().map(String::as_str));
+    let joined = prompt_queue::join_texts(segments.iter().map(String::as_str));
     if let Some((_, id)) = trailing_user_prompt_matching(agent, &joined, false) {
         agent.scrollback.remove_entry(id);
     }
@@ -908,7 +908,7 @@ pub(crate) fn apply_turn_start_shim(
             paint_or_reuse_combined_user_bubbles(agent, &segments);
         if rewindable {
             let restore = text.clone().unwrap_or_else(|| {
-                xvora_prompt_queue::join_texts(segments.iter().map(String::as_str))
+                prompt_queue::join_texts(segments.iter().map(String::as_str))
             });
             let earlier = all_ids.into_iter().filter(|id| *id != last_id).collect();
             // An adopted turn arrives with text only, never the original attachments, so a Ctrl+C rewind restores just the joined text

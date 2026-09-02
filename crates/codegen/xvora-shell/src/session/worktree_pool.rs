@@ -45,7 +45,7 @@ pub fn cleanup_stale_pool_worktrees(source_git_root: Option<&Path>) {
     if let Some(git_root) = source_git_root {
         let root = git_root.to_path_buf();
         REGISTRATION_CLEANUP_ONCE.call_once(move || {
-            let removed = xvora_fast_worktree::remove_stale_worktree_registrations_under(
+            let removed = fast_worktree::remove_stale_worktree_registrations_under(
                 &root,
                 &pool_base_directory(),
             );

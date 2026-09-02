@@ -2488,8 +2488,8 @@ impl Config {
     }
     /// Automatic worktree GC policy.
     /// Precedence: env kill/dry-run > `[worktree.auto_gc]` TOML > remote `worktree_auto_gc` > defaults.
-    /// Platform age-expiry (`process_cwd_scan_available`: linux+macos) is enforced inside `xvora_fast_worktree::maybe_auto_gc`, not here.
-    pub(crate) fn resolve_worktree_auto_gc(&self) -> xvora_fast_worktree::ResolvedWorktreeAutoGc {
+    /// Platform age-expiry (`process_cwd_scan_available`: linux+macos) is enforced inside `fast_worktree::maybe_auto_gc`, not here.
+    pub(crate) fn resolve_worktree_auto_gc(&self) -> fast_worktree::ResolvedWorktreeAutoGc {
         crate::util::config::resolve_worktree_auto_gc_from_settings(
             Some(&self.worktree.auto_gc),
             self.remote_settings

@@ -2251,8 +2251,8 @@ mod esc_would_cancel_turn_tests {
             entry_id: crate::scrollback::entry::EntryId::new(1),
             prompt_index: 0,
             original: "sent".into(),
-            textarea: xvora_ratatui_textarea::TextArea::new(),
-            textarea_state: xvora_ratatui_textarea::TextAreaState::default(),
+            textarea: ratatui_textarea::TextArea::new(),
+            textarea_state: ratatui_textarea::TextAreaState::default(),
             last_text_area: None,
             last_rect: None,
         });
@@ -2512,7 +2512,7 @@ mod rich_textarea_paste_routing_tests {
     use crate::app::inline_edit::InlineEditState;
     use crate::scrollback::entry::EntryId;
     use crossterm::event::Event;
-    use xvora_ratatui_textarea::{TextArea, TextAreaState};
+    use ratatui_textarea::{TextArea, TextAreaState};
     #[test]
     fn inline_edit_receives_raw_multiline_paste_without_touching_prompt() {
         let mut agent = make_agent();

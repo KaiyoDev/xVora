@@ -621,20 +621,20 @@ pub enum SessionCommand {
         respond_to: oneshot::Sender<bool>,
     },
     GetHooksList {
-        respond_to: oneshot::Sender<xvora_hooks_plugins_types::HooksListResponse>,
+        respond_to: oneshot::Sender<hooks_plugins_types::HooksListResponse>,
     },
     /// Execute a hooks management action from the pager modal.
     HooksAction {
-        action: xvora_hooks_plugins_types::HooksAction,
-        respond_to: oneshot::Sender<xvora_hooks_plugins_types::ActionOutcome>,
+        action: hooks_plugins_types::HooksAction,
+        respond_to: oneshot::Sender<hooks_plugins_types::ActionOutcome>,
     },
     NotifyPluginUpdates {
         updates: Vec<(String, String, String)>,
     },
     /// Execute a plugins management action from the pager modal.
     PluginsAction {
-        action: xvora_hooks_plugins_types::PluginsAction,
-        respond_to: oneshot::Sender<xvora_hooks_plugins_types::ActionOutcome>,
+        action: hooks_plugins_types::PluginsAction,
+        respond_to: oneshot::Sender<hooks_plugins_types::ActionOutcome>,
     },
     /// This session's plugin registry, as served by `x.ai/plugins/list`.
     PluginsList {

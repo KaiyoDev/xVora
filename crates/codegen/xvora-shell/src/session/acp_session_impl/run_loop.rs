@@ -789,7 +789,7 @@ pub(super) async fn run_session(
                                     std::path::Path::new(&session.session_info.cwd),
                                 );
 
-                            let _ = respond_to.send(xvora_hooks_plugins_types::HooksListResponse {
+                            let _ = respond_to.send(hooks_plugins_types::HooksListResponse {
                                 hooks,
                                 project_trusted,
                                 load_errors: session.hook_load_errors.borrow().clone(),

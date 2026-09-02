@@ -234,17 +234,17 @@ fn open_block_viewer_opens_image_only_blocks_natively() {
 
 // -- Plugins tab: group-collapse seeding on PluginsListLoaded --------------
 
-fn plugins_list_response() -> xvora_hooks_plugins_types::PluginsListResponse {
+fn plugins_list_response() -> hooks_plugins_types::PluginsListResponse {
     use crate::views::extensions_modal::test_plugin_info;
-    xvora_hooks_plugins_types::PluginsListResponse {
+    hooks_plugins_types::PluginsListResponse {
         plugins: vec![
             test_plugin_info(
                 "user-tool",
-                Some(xvora_hooks_plugins_types::PluginOrigin::UserGrok),
+                Some(hooks_plugins_types::PluginOrigin::UserGrok),
             ),
             test_plugin_info(
                 "claude-tool",
-                Some(xvora_hooks_plugins_types::PluginOrigin::UserClaude),
+                Some(hooks_plugins_types::PluginOrigin::UserClaude),
             ),
         ],
     }

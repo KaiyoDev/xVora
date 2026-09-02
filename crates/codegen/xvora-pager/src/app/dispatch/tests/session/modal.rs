@@ -286,17 +286,17 @@ fn count_marketplace_fetches(effects: &[Effect]) -> usize {
         .count()
 }
 
-fn success_outcome() -> xvora_hooks_plugins_types::ActionOutcome {
-    xvora_hooks_plugins_types::ActionOutcome {
-        status: xvora_hooks_plugins_types::OutcomeStatus::Success,
+fn success_outcome() -> hooks_plugins_types::ActionOutcome {
+    hooks_plugins_types::ActionOutcome {
+        status: hooks_plugins_types::OutcomeStatus::Success,
         message: "ok".into(),
         requires_reload: false,
         requires_restart: false,
     }
 }
 
-fn empty_marketplace_response() -> xvora_hooks_plugins_types::MarketplaceListResponse {
-    xvora_hooks_plugins_types::MarketplaceListResponse { sources: vec![] }
+fn empty_marketplace_response() -> hooks_plugins_types::MarketplaceListResponse {
+    hooks_plugins_types::MarketplaceListResponse { sources: vec![] }
 }
 
 #[test]

@@ -1397,7 +1397,7 @@ async fn drop_session_shuts_down_terminal_backend_explicitly() {
     assert_backend_stops(&retained_backend).await;
     drop(retained_toolset);
 }
-async fn assert_hunk_tracker_stops(tracker: &xvora_hunk_tracker::HunkTrackerHandle) {
+async fn assert_hunk_tracker_stops(tracker: &hunk_tracker::HunkTrackerHandle) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     while !tracker.is_closed() {
         assert!(
@@ -2118,12 +2118,12 @@ pub(crate) fn fork_cfg_with(
 }
 /// Resolver pointing at a never-listening port; tests assert only on the synchronous enqueue bookkeeping, never on upload completion.
 struct UnreachableSource;
-impl xvora_file_utils::queue::TraceExportSource for UnreachableSource {
-    fn resolve(&self) -> xvora_file_utils::TraceExportConfig {
-        xvora_file_utils::TraceExportConfig {
+impl file_utils::queue::TraceExportSource for UnreachableSource {
+    fn resolve(&self) -> file_utils::TraceExportConfig {
+        file_utils::TraceExportConfig {
             bucket_url: None,
             service_account_key: None,
-            upload_method: xvora_file_utils::UploadMethod::Proxy {
+            upload_method: file_utils::UploadMethod::Proxy {
                 proxy_base_url: "http://127.0.0.1:1/v1".to_string(),
                 user_token: String::new(),
                 deployment_key: None,
@@ -2137,12 +2137,12 @@ impl xvora_file_utils::queue::TraceExportSource for UnreachableSource {
     }
 }
 /// Upload queue whose worker never deletes an enqueued item mid-test (1h backoff after the first fast failure).
-fn spawn_test_queue(home: &std::path::Path) -> Arc<xvora_file_utils::queue::UploadQueue> {
-    let policy = xvora_file_utils::queue::UploadRetryPolicy {
+fn spawn_test_queue(home: &std::path::Path) -> Arc<file_utils::queue::UploadQueue> {
+    let policy = file_utils::queue::UploadRetryPolicy {
         initial_delay: std::time::Duration::from_secs(3600),
         ..Default::default()
     };
-    Arc::new(xvora_file_utils::queue::UploadQueue::spawn(
+    Arc::new(file_utils::queue::UploadQueue::spawn(
         home,
         Arc::new(UnreachableSource),
         policy,
@@ -2318,13 +2318,13 @@ fn make_queue_backed_handle_with(
         "http://127.0.0.1:1/v1".to_string(),
         identity.clone(),
     ));
-    let source: Arc<dyn xvora_file_utils::queue::TraceExportSource> =
+    let source: Arc<dyn file_utils::queue::TraceExportSource> =
         Arc::new(crate::upload::WorkspaceTraceExportSource::new(proxy));
-    let policy = xvora_file_utils::queue::UploadRetryPolicy {
+    let policy = file_utils::queue::UploadRetryPolicy {
         max_attempts: 1,
         ..Default::default()
     };
-    let queue = Arc::new(xvora_file_utils::queue::UploadQueue::spawn(
+    let queue = Arc::new(file_utils::queue::UploadQueue::spawn(
         home.path(),
         source,
         policy,
@@ -2381,7 +2381,7 @@ async fn environment_artifact_enqueued_when_queue_present() {
     assert!(
         matches!(
             outcome,
-            Some(xvora_file_utils::queue::EnqueueOutcome::Enqueued)
+            Some(file_utils::queue::EnqueueOutcome::Enqueued)
         ),
         "expected Enqueued, got {outcome:?}"
     );
@@ -3880,7 +3880,7 @@ async fn fork_session_inherits_viewer_ctx_from_parent() {
         .create_session_with_tracker_and_viewer_ctx(
             "main",
             handle.root_cwd().unwrap(),
-            xvora_hunk_tracker::HunkTrackerHandle::noop(),
+            hunk_tracker::HunkTrackerHandle::noop(),
             None,
             CapabilityMode::All,
             Some(tool_runtime::WorkspaceViewerContext {
@@ -4370,7 +4370,7 @@ async fn drop_then_rebind_session_replaces_viewer_ctx_value() {
         .create_session_with_tracker_and_viewer_ctx(
             "main",
             handle.root_cwd().unwrap(),
-            xvora_hunk_tracker::HunkTrackerHandle::noop(),
+            hunk_tracker::HunkTrackerHandle::noop(),
             None,
             CapabilityMode::All,
             Some(tool_runtime::WorkspaceViewerContext {
@@ -4385,7 +4385,7 @@ async fn drop_then_rebind_session_replaces_viewer_ctx_value() {
         .create_session_with_tracker_and_viewer_ctx(
             "main",
             handle.root_cwd().unwrap(),
-            xvora_hunk_tracker::HunkTrackerHandle::noop(),
+            hunk_tracker::HunkTrackerHandle::noop(),
             None,
             CapabilityMode::All,
             Some(tool_runtime::WorkspaceViewerContext {
@@ -4994,7 +4994,7 @@ fn make_handle_with_queue_routing(
     upload_queue_enabled: bool,
 ) -> (
     WorkspaceHandle,
-    Arc<xvora_file_utils::queue::UploadQueue>,
+    Arc<file_utils::queue::UploadQueue>,
     tempfile::TempDir,
 ) {
     use xvora_computer_hub_sdk::auth::{AuthCredential, AuthProvider};
@@ -5026,12 +5026,12 @@ fn make_handle_with_queue_routing(
         "https://proxy.example/v1".to_string(),
         crate::upload::environment::WorkspaceIdentity::default(),
     ));
-    let source: Arc<dyn xvora_file_utils::queue::TraceExportSource> =
+    let source: Arc<dyn file_utils::queue::TraceExportSource> =
         Arc::new(crate::upload::WorkspaceTraceExportSource::new(proxy));
-    let queue = Arc::new(xvora_file_utils::queue::UploadQueue::spawn(
+    let queue = Arc::new(file_utils::queue::UploadQueue::spawn(
         home.path(),
         source,
-        xvora_file_utils::queue::UploadRetryPolicy::default(),
+        file_utils::queue::UploadRetryPolicy::default(),
     ));
     let handle = WorkspaceHandle::build(
         config,
@@ -5053,12 +5053,12 @@ fn make_handle_with_queue(
     tool_defs_enabled: bool,
 ) -> (
     WorkspaceHandle,
-    Arc<xvora_file_utils::queue::UploadQueue>,
+    Arc<file_utils::queue::UploadQueue>,
     tempfile::TempDir,
 ) {
     make_handle_with_queue_routing(tool_defs_enabled, false)
 }
-async fn wait_enqueued(queue: &xvora_file_utils::queue::UploadQueue, want: u64) {
+async fn wait_enqueued(queue: &file_utils::queue::UploadQueue, want: u64) {
     use std::sync::atomic::Ordering;
     for _ in 0..200 {
         if queue.stats().enqueued.load(Ordering::Relaxed) >= want {
@@ -5107,7 +5107,7 @@ async fn enqueue_workspace_tool_definitions_reports_enqueued_at_session_root() {
         .expect("payload for an existing session");
     assert_eq!(path, "main/workspace_tool_definitions.json");
     let outcome = enqueue_workspace_tool_definitions(&queue, "main", &path, &bytes).await;
-    assert_eq!(outcome, xvora_file_utils::queue::EnqueueOutcome::Enqueued);
+    assert_eq!(outcome, file_utils::queue::EnqueueOutcome::Enqueued);
     assert_eq!(
         queue
             .stats()
@@ -5407,7 +5407,7 @@ async fn drain_wedged_producer_does_not_starve_queue_flush() {
     )
     .expect("queue-backed handle construction");
     let outcome = enqueue_workspace_tool_definitions(&queue, "main", "main/pre.json", b"{}").await;
-    assert_eq!(outcome, xvora_file_utils::queue::EnqueueOutcome::Enqueued);
+    assert_eq!(outcome, file_utils::queue::EnqueueOutcome::Enqueued);
     let _join = handle.spawn_producer(std::future::pending::<()>());
     let before = DRAIN_COMPLETED_TOTAL
         .with_label_values(&[DrainOutcome::ProducersTimeout.as_str()])

@@ -23,11 +23,11 @@ async fn persist_ack_waits_for_disk_flush_before_success() {
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
                 "test-persist-ack".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                xvora_hunk_tracker::TrackingMode::AgentOnly,
+                hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =
@@ -577,11 +577,11 @@ async fn first_turn_memory_injection_disabled_does_not_persist_to_chat_history()
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
                 "test-memory-disabled".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                xvora_hunk_tracker::TrackingMode::AgentOnly,
+                hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =
@@ -954,11 +954,11 @@ async fn cancel_running_task_teardown_clears_running_and_pending_work() {
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
                 "test-cancel".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                xvora_hunk_tracker::TrackingMode::AgentOnly,
+                hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =
@@ -2491,11 +2491,11 @@ async fn cancel_propagates_to_sampler_handle_so_no_further_emission() {
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
                 "test-cancel-sampler".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                xvora_hunk_tracker::TrackingMode::AgentOnly,
+                hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =

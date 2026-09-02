@@ -91,10 +91,10 @@ impl ChatStateActor {
         let context_window = self.state.sampling_config.context_window;
         let cw = context_window.get();
 
-        if xvora_token_estimation::exceeds_threshold(self.state.total_tokens, cw, threshold_percent)
+        if token_estimation::exceeds_threshold(self.state.total_tokens, cw, threshold_percent)
         {
             let utilization_percent =
-                xvora_token_estimation::usage_percentage_truncated_u8(self.state.total_tokens, cw);
+                token_estimation::usage_percentage_truncated_u8(self.state.total_tokens, cw);
             Some(AutoCompactTrigger {
                 total_tokens: self.state.total_tokens,
                 context_window,

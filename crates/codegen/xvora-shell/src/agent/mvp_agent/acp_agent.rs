@@ -54,7 +54,7 @@ impl acp::Agent for MvpAgent {
                 "auto worktree gc and session search deferred until remote_settings arrive"
             );
         }
-        let grok_home = xvora_fast_worktree::resolve_grok_home();
+        let grok_home = fast_worktree::resolve_grok_home();
         tokio::task::spawn_blocking(move || {
             crate::session::worktree_pool::cleanup_stale_pool_worktrees(None);
             if !remote_settled {
@@ -947,7 +947,7 @@ impl acp::Agent for MvpAgent {
     ) -> Result<acp::PromptResponse, acp::Error> {
         use crate::session::plan_mode::PromptMode;
         if let Some(meta) = arguments.meta.as_ref() {
-            xvora_file_utils::trace_context::link_current_span_to_meta(
+            file_utils::trace_context::link_current_span_to_meta(
                 &serde_json::Value::Object(meta.clone()),
             );
         }
@@ -1275,7 +1275,7 @@ impl acp::Agent for MvpAgent {
         let artifact_upload_ctx = trace_context
             .as_ref()
             .map(|ctx| ctx.artifact_upload_context());
-        let traceparent = xvora_file_utils::trace_context::current_traceparent();
+        let traceparent = file_utils::trace_context::current_traceparent();
         let dispatch_result: Result<(), acp::Error> = if send_now {
             handle
                 .cmd_tx
@@ -2241,7 +2241,7 @@ impl acp::Agent for MvpAgent {
             .ok()
             .and_then(|v| v.get("_meta").cloned());
         if let Some(meta) = &request_meta {
-            xvora_file_utils::trace_context::link_current_span_to_meta(meta);
+            file_utils::trace_context::link_current_span_to_meta(meta);
         }
         tracing::info!("Received extension method call: method={}", args.method);
         #[allow(unused_mut)]

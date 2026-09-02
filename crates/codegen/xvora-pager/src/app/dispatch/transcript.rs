@@ -669,7 +669,7 @@ pub(super) fn dispatch_dump_input_log(app: &mut AppView) -> Vec<Effect> {
 pub(super) fn handle_hooks_list_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::HooksListResponse, String>,
+    result: Result<hooks_plugins_types::HooksListResponse, String>,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::TabDataState;
     if let Some(agent) = app.agents.get_mut(&agent_id)
@@ -690,7 +690,7 @@ pub(super) fn handle_hooks_list_loaded(
 pub(super) fn handle_plugins_list_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::PluginsListResponse, String>,
+    result: Result<hooks_plugins_types::PluginsListResponse, String>,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::TabDataState;
     if let Some(agent) = app.agents.get_mut(&agent_id)
@@ -768,7 +768,7 @@ pub(super) fn handle_marketplace_updates_available(
 pub(super) fn handle_marketplace_list_loaded(
     app: &mut AppView,
     agent_id: AgentId,
-    result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+    result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
 ) -> Vec<Effect> {
     use crate::views::extensions_modal::TabDataState;
     let mut effects = Vec::new();

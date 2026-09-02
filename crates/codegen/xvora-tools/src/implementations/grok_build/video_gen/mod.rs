@@ -75,8 +75,8 @@ impl S3AccessCredentials {
         !self.access_key_id.trim().is_empty() && !self.secret_access_key.trim().is_empty()
     }
 
-    fn to_static(&self) -> xvora_file_utils::s3::S3StaticCredentials {
-        xvora_file_utils::s3::S3StaticCredentials {
+    fn to_static(&self) -> file_utils::s3::S3StaticCredentials {
+        file_utils::s3::S3StaticCredentials {
             access_key_id: self.access_key_id.clone(),
             secret_access_key: self.secret_access_key.clone(),
         }
@@ -588,7 +588,7 @@ impl VideoGenClient {
             std::time::Duration::from_secs(zdr_presign_expires_secs(config.expires_secs));
         let endpoint = Some(config.endpoint.as_str());
 
-        let upload_url = xvora_file_utils::s3::presign_put_url(
+        let upload_url = file_utils::s3::presign_put_url(
             &config.region,
             endpoint,
             &config.read_write.to_static(),
@@ -668,7 +668,7 @@ impl VideoGenClient {
     ) -> Result<String, tool_runtime::ToolError> {
         let endpoint = Some(config.endpoint.as_str());
         let (creds, creds_source) = zdr_get_credentials(config);
-        let url = xvora_file_utils::s3::presign_get_url(
+        let url = file_utils::s3::presign_get_url(
             &config.region,
             endpoint,
             &creds.to_static(),

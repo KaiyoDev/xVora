@@ -525,7 +525,7 @@ fn setup_acp_connection(
     });
     tokio::task::spawn_local(
         GatewayReceiver::new(conn_gw_rx, conn)
-            .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
+            .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
             .run(),
     );
 

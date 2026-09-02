@@ -356,11 +356,11 @@ pub enum Action {
     /// Refresh MCP server list from the modal.
     RefreshMcpList,
     /// Execute a hooks management action from the modal.
-    ExecuteHooksAction(xvora_hooks_plugins_types::HooksAction),
+    ExecuteHooksAction(hooks_plugins_types::HooksAction),
     /// Execute a plugins management action from the modal.
-    ExecutePluginsAction(xvora_hooks_plugins_types::PluginsAction),
+    ExecutePluginsAction(hooks_plugins_types::PluginsAction),
     /// Execute a marketplace management action from the modal.
-    ExecuteMarketplaceAction(xvora_hooks_plugins_types::MarketplaceAction),
+    ExecuteMarketplaceAction(hooks_plugins_types::MarketplaceAction),
     /// Add or update an MCP server via x.ai/mcp/upsert.
     UpsertMcpServer {
         name: String,
@@ -1709,13 +1709,13 @@ pub enum Effect {
     HooksAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: xvora_hooks_plugins_types::HooksAction,
+        action: hooks_plugins_types::HooksAction,
     },
     /// Execute a plugins management action via ACP.
     PluginsAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: xvora_hooks_plugins_types::PluginsAction,
+        action: hooks_plugins_types::PluginsAction,
     },
     /// Fetch marketplace plugin list from the shell.
     FetchMarketplaceList {
@@ -1752,7 +1752,7 @@ pub enum Effect {
     MarketplaceAction {
         agent_id: AgentId,
         session_id: acp::SessionId,
-        action: xvora_hooks_plugins_types::MarketplaceAction,
+        action: hooks_plugins_types::MarketplaceAction,
     },
     /// Install a plugin from the inline CTA via `x.ai/marketplace/action`, reported back via `TaskResult::CtaPluginInstallDone`.
     InstallPluginFromCta {
@@ -2520,32 +2520,32 @@ pub enum TaskResult {
     /// Hooks list fetched from shell.
     HooksListLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::HooksListResponse, String>,
+        result: Result<hooks_plugins_types::HooksListResponse, String>,
     },
     /// Plugins list fetched from shell.
     PluginsListLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::PluginsListResponse, String>,
+        result: Result<hooks_plugins_types::PluginsListResponse, String>,
     },
     /// Hooks action completed.
     HooksActionResult {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Plugins action completed.
     PluginsActionResult {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Marketplace list loaded.
     MarketplaceListLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+        result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
     },
     /// Official-marketplace CTA catalog loaded into agent-level state.
     PluginCtaCatalogLoaded {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::MarketplaceListResponse, String>,
+        result: Result<hooks_plugins_types::MarketplaceListResponse, String>,
     },
     /// Skills list loaded.
     SkillsListLoaded {
@@ -2570,19 +2570,19 @@ pub enum TaskResult {
     /// Marketplace action completed.
     MarketplaceActionResult {
         agent_id: AgentId,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Inline-CTA plugin install completed.
     CtaPluginInstallDone {
         agent_id: AgentId,
         plugin_name: String,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Post-CTA-install plugins reload completed (modal-independent).
     CtaPluginReloadDone {
         agent_id: AgentId,
         plugin_name: String,
-        result: Result<xvora_hooks_plugins_types::ActionOutcome, String>,
+        result: Result<hooks_plugins_types::ActionOutcome, String>,
     },
     /// Post-CTA-install MCP server list loaded (modal-independent).
     PluginCtaMcpsLoaded {

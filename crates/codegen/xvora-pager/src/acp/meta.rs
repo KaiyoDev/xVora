@@ -72,8 +72,8 @@ pub mod user_prompt_meta {
     /// `[[start, end], …]` byte ranges of recognized slash tokens into the block's `text`.
     /// Only meaningful when that text is displayed verbatim (never stamped alongside `displayText`).
     pub const SKILL_TOKEN_RANGES: &str = "skillTokenRanges";
-    /// See [`xvora_prompt_queue::COMBINED_DISPLAY_TEXTS_META`].
-    pub const COMBINED_DISPLAY_TEXTS: &str = xvora_prompt_queue::COMBINED_DISPLAY_TEXTS_META;
+    /// See [`prompt_queue::COMBINED_DISPLAY_TEXTS_META`].
+    pub const COMBINED_DISPLAY_TEXTS: &str = prompt_queue::COMBINED_DISPLAY_TEXTS_META;
 }
 
 /// `UserMessageChunk` / `ContentChunk._meta` keys stamped by the shell and

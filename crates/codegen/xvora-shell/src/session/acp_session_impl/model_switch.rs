@@ -130,7 +130,7 @@ impl SessionActor {
             let trigger_info = compaction::AutoCompactTriggerInfo {
                 tokens_used: estimated_total_tokens,
                 context_window,
-                percentage: xvora_token_estimation::usage_percentage_u8(
+                percentage: token_estimation::usage_percentage_u8(
                     estimated_total_tokens,
                     context_window,
                 ),

@@ -1134,7 +1134,7 @@ mod plan_approval_enter_tests {
     fn approve_does_not_duplicate_prefilled_session_images() {
         let mut agent = agent_with_revise_prompt();
         let session_img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(1),
+            element_id: ratatui_textarea::ElementId::from_raw(1),
             display_number: 1,
             mime_type: "image/png".into(),
             dimensions: Some((100, 80)),
@@ -1160,7 +1160,7 @@ mod plan_approval_enter_tests {
             };
         }
         let mut freeform_img = session_img;
-        freeform_img.element_id = xvora_ratatui_textarea::ElementId::from_raw(2);
+        freeform_img.element_id = ratatui_textarea::ElementId::from_raw(2);
         agent.prompt.set_text("see [Image #1] ");
         agent.prompt.set_images(vec![freeform_img]);
         agent.approve_plan();
@@ -1171,7 +1171,7 @@ mod plan_approval_enter_tests {
     fn approve_merges_new_freeform_image_despite_reused_display_number() {
         let mut agent = agent_with_revise_prompt();
         let session_img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(1),
+            element_id: ratatui_textarea::ElementId::from_raw(1),
             display_number: 1,
             mime_type: "image/png".into(),
             dimensions: Some((100, 80)),
@@ -1198,7 +1198,7 @@ mod plan_approval_enter_tests {
         }
         agent.prompt.set_text("");
         let new_img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+            element_id: ratatui_textarea::ElementId::from_raw(0),
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((100, 80)),
@@ -1244,7 +1244,7 @@ mod plan_approval_enter_tests {
         let mut agent = agent_with_revise_prompt();
         agent.prompt.set_text("also check auth ");
         let img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+            element_id: ratatui_textarea::ElementId::from_raw(0),
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((100, 80)),
@@ -1300,7 +1300,7 @@ mod plan_approval_enter_tests {
     fn a_on_image_only_freeform_approves() {
         let mut agent = agent_with_revise_prompt();
         let img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+            element_id: ratatui_textarea::ElementId::from_raw(0),
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((100, 80)),
@@ -1331,7 +1331,7 @@ mod plan_approval_enter_tests {
     fn image_only_freeform_enter_toasts_instead_of_empty_revision() {
         let mut agent = agent_with_revise_prompt();
         let img = crate::prompt_images::PastedImage {
-            element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+            element_id: ratatui_textarea::ElementId::from_raw(0),
             display_number: 0,
             mime_type: "image/png".into(),
             dimensions: Some((100, 80)),

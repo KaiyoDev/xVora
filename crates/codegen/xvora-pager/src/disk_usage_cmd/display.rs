@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::Path;
 
 use unicode_width::UnicodeWidthStr;
-use xvora_fast_worktree::WorktreeStatus;
+use fast_worktree::WorktreeStatus;
 
 use super::{DiskUsageReport, Registration, RegistryState, WorktreeUsage};
 use crate::util::{format_age, format_bytes, pad_to_width, truncate_to_width};

@@ -270,7 +270,7 @@ fn sanitize_session_id(session_id: &str) -> String {
         modified = true;
     }
     if modified {
-        let digest = xvora_file_utils::sha256_hex(session_id.as_bytes());
+        let digest = file_utils::sha256_hex(session_id.as_bytes());
         safe.push('-');
         safe.push_str(&digest[..8]);
     }

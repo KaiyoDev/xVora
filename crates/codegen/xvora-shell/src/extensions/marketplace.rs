@@ -2,7 +2,7 @@
 //! Scanning and install logic live in the `xvora-plugin-marketplace` crate.
 
 use agent_client_protocol as acp;
-use xvora_hooks_plugins_types::{
+use hooks_plugins_types::{
     MarketplaceAction, MarketplaceActionRequest, MarketplaceListResponse, MarketplacePluginEntry,
     MarketplaceScanResult,
 };
@@ -118,8 +118,8 @@ async fn handle_action(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
                 .await
             {
                 Ok(outcome) => outcome,
-                Err(e) => xvora_hooks_plugins_types::ActionOutcome {
-                    status: xvora_hooks_plugins_types::OutcomeStatus::InternalError,
+                Err(e) => hooks_plugins_types::ActionOutcome {
+                    status: hooks_plugins_types::OutcomeStatus::InternalError,
                     message: format!("Refresh task failed: {e}"),
                     requires_reload: false,
                     requires_restart: false,
@@ -150,7 +150,7 @@ async fn handle_action(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
 fn refresh_sources(
     sources: &[xvora_plugin_marketplace::MarketplaceSource],
     source_url_or_path: Option<&str>,
-) -> xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
     let mut refreshed = 0;
     let mut errors = Vec::new();
     for source in sources {
@@ -185,8 +185,8 @@ fn refresh_sources(
             errors.join("; ")
         )
     };
-    xvora_hooks_plugins_types::ActionOutcome {
-        status: xvora_hooks_plugins_types::OutcomeStatus::Success,
+    hooks_plugins_types::ActionOutcome {
+        status: hooks_plugins_types::OutcomeStatus::Success,
         message: msg,
         requires_reload: false,
         requires_restart: false,
@@ -198,8 +198,8 @@ async fn handle_update(
     sid: &acp::SessionId,
     source_url_or_path: &str,
     plugin_relative_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+) -> hooks_plugins_types::ActionOutcome {
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
     let sources = load_filtered_marketplace_sources();
@@ -311,7 +311,7 @@ async fn handle_update(
                 tracing::warn!("{w}");
             }
             let reload_outcome = agent
-                .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+                .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
                 .await;
             let mut msg = format!(
                 "Updated {} ({} -> {})",
@@ -352,8 +352,8 @@ async fn handle_install(
     sid: &acp::SessionId,
     source_url_or_path: &str,
     plugin_relative_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+) -> hooks_plugins_types::ActionOutcome {
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
     let sources = load_filtered_marketplace_sources();
@@ -423,7 +423,7 @@ async fn handle_install(
                     tracing::warn!("{w}");
                 }
                 let _ = agent
-                    .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+                    .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
                     .await;
                 ActionOutcome {
                     status: OutcomeStatus::Success,
@@ -540,7 +540,7 @@ async fn handle_install(
                     tracing::warn!("{w}");
                 }
                 let _ = agent
-                    .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+                    .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
                     .await;
                 ActionOutcome {
                     status: OutcomeStatus::Success,
@@ -577,8 +577,8 @@ async fn handle_uninstall(
     sid: &acp::SessionId,
     source_url_or_path: &str,
     plugin_relative_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+) -> hooks_plugins_types::ActionOutcome {
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     use xvora_plugin_marketplace::installer;
 
     let mut registry = xvora_agent::plugins::install_registry::InstallRegistry::load();
@@ -628,7 +628,7 @@ async fn handle_uninstall(
 
     // Trigger plugin reload so the removed plugin disappears from the session.
     let _ = agent
-        .execute_plugins_action(sid, xvora_hooks_plugins_types::PluginsAction::Reload)
+        .execute_plugins_action(sid, hooks_plugins_types::PluginsAction::Reload)
         .await;
 
     ActionOutcome {
@@ -782,9 +782,9 @@ fn to_plugin_entry(
 }
 
 /// Add a new git or local-path marketplace source to `~/.grok/config.toml`.
-async fn handle_add_source(url: &str) -> xvora_hooks_plugins_types::ActionOutcome {
+async fn handle_add_source(url: &str) -> hooks_plugins_types::ActionOutcome {
     use crate::plugin::{self, MarketplaceAddInput};
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
 
     let url = url.trim();
     if url.is_empty() {
@@ -1025,14 +1025,14 @@ fn add_marketplace_source(
 /// plugins that were installed from it.
 async fn handle_remove_source(
     source_url_or_path: &str,
-) -> xvora_hooks_plugins_types::ActionOutcome {
+) -> hooks_plugins_types::ActionOutcome {
     let src = source_url_or_path.to_string();
     // Lock, then run the blocking FS work off the reactor
     let _save_guard = crate::util::config::lock_config_writes().await;
     match tokio::task::spawn_blocking(move || remove_source_locked(&src)).await {
         Ok(outcome) => outcome,
-        Err(e) => xvora_hooks_plugins_types::ActionOutcome {
-            status: xvora_hooks_plugins_types::OutcomeStatus::InternalError,
+        Err(e) => hooks_plugins_types::ActionOutcome {
+            status: hooks_plugins_types::OutcomeStatus::InternalError,
             message: format!("Config write task failed: {e}"),
             requires_reload: false,
             requires_restart: false,
@@ -1042,9 +1042,9 @@ async fn handle_remove_source(
 
 /// Sync body of [`handle_remove_source`], run on a blocking thread.
 /// Holds the flock for the whole read-modify-write so a concurrent auto-register can't re-add the source mid-removal.
-fn remove_source_locked(source_url_or_path: &str) -> xvora_hooks_plugins_types::ActionOutcome {
+fn remove_source_locked(source_url_or_path: &str) -> hooks_plugins_types::ActionOutcome {
     use crate::plugin;
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
 
     let grok_home = xvora_config::grok_home();
     let _flock = acquire_init_lock(&grok_home).ok();
@@ -1928,8 +1928,8 @@ mod conversion_tests {
             remote_ref: None,
             remote_sha: None,
             remote_subdir: Some("plugins/acme".into()),
-            components: Some(xvora_hooks_plugins_types::PluginComponents {
-                skills: vec![xvora_hooks_plugins_types::ComponentItem::new(
+            components: Some(hooks_plugins_types::PluginComponents {
+                skills: vec![hooks_plugins_types::ComponentItem::new(
                     "code-review",
                     Some("Review staged changes".to_string()),
                 )],

@@ -1163,7 +1163,7 @@ fn send_prompt_with_images_while_running_and_steer_stays_local() {
         agent
             .prompt
             .insert_image(crate::prompt_images::PastedImage {
-                element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+                element_id: ratatui_textarea::ElementId::from_raw(0),
                 display_number: 0,
                 mime_type: "image/png".to_owned(),
                 dimensions: Some((8, 8)),
@@ -2020,7 +2020,7 @@ fn prompt_response_disk_full_suppresses_turn_failed_and_toast() {
         dispatch(
             Action::TaskComplete(TaskResult::PromptResponse {
                 agent_id: id,
-                result: Err(xvora_fast_worktree::ENOSPC_OS_MESSAGE.to_string()),
+                result: Err(fast_worktree::ENOSPC_OS_MESSAGE.to_string()),
                 http_status: None,
                 prompt_id: None,
             }),

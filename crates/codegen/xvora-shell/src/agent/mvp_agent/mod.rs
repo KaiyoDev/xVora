@@ -97,7 +97,7 @@ use crate::upload::turn::{
 use tokio_util::sync::CancellationToken;
 use xvora_paths::AbsPathBuf;
 use xvora_workspace::session::git::GitDiscoveryResult;
-use xvora_hunk_tracker::HunkTrackerActor;
+use hunk_tracker::HunkTrackerActor;
 /// Hard-error message for legacy Direct hub-bind sessions (`x.ai/cloud_server_id`).
 pub(crate) const DIRECT_HUB_CLOUD_REMOVED_MSG: &str = "Direct hub cloud removed; use Gateway (envId or existing-workspace attach)";
 /// Reject session `_meta` that still requests Direct hub bind.
@@ -1319,7 +1319,7 @@ impl MvpAgent {
 /// Absent, blank, `off`, or `disabled` yields `None`; unknown yields `AllDirty`.
 fn resolve_hunk_tracking_mode(
     mode_str: Option<&str>,
-) -> Option<xvora_hunk_tracker::TrackingMode> {
+) -> Option<hunk_tracker::TrackingMode> {
     let mode = mode_str.map(str::trim)?;
     if mode.is_empty() || mode.eq_ignore_ascii_case("off")
         || mode.eq_ignore_ascii_case("disabled")
@@ -1328,7 +1328,7 @@ fn resolve_hunk_tracking_mode(
     }
     Some(
         serde_json::from_value(serde_json::Value::String(mode.to_ascii_lowercase()))
-            .unwrap_or(xvora_hunk_tracker::TrackingMode::AllDirty),
+            .unwrap_or(hunk_tracker::TrackingMode::AllDirty),
     )
 }
 /// Session wiring derived from the resolved tracking mode.
@@ -1337,7 +1337,7 @@ fn resolve_hunk_tracking_mode(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct HunkTrackingPlan {
     /// `Some` means spawn the actor in this mode; `None` means use `noop()`, no actor.
-    actor_mode: Option<xvora_hunk_tracker::TrackingMode>,
+    actor_mode: Option<hunk_tracker::TrackingMode>,
 }
 impl HunkTrackingPlan {
     /// Gate for the fs-notify forward sites (via `ToolContext.hunk_tracking_enabled`) and LOC-sink eligibility.
@@ -1965,7 +1965,7 @@ impl MvpAgent {
         }
         #[cfg(test)] self.auto_gc_spawn_count.set(self.auto_gc_spawn_count.get() + 1);
         let auto_gc_policy = self.cfg.borrow().resolve_worktree_auto_gc();
-        let grok_home = xvora_fast_worktree::resolve_grok_home();
+        let grok_home = fast_worktree::resolve_grok_home();
         tokio::task::spawn_blocking(move || Self::reclaim_worktrees(
             grok_home,
             auto_gc_policy,
@@ -1975,11 +1975,11 @@ impl MvpAgent {
     /// This deletes worktrees under what it finds.
     pub(super) fn reclaim_worktrees(
         grok_home: anyhow::Result<std::path::PathBuf>,
-        policy: xvora_fast_worktree::ResolvedWorktreeAutoGc,
+        policy: fast_worktree::ResolvedWorktreeAutoGc,
     ) {
         if let Err(e) = grok_home
-            .and_then(|home| xvora_fast_worktree::WorktreeDb::open(&home))
-            .and_then(|db| xvora_fast_worktree::maybe_auto_gc(&db, &policy))
+            .and_then(|home| fast_worktree::WorktreeDb::open(&home))
+            .and_then(|db| fast_worktree::maybe_auto_gc(&db, &policy))
         {
             tracing::warn!(error = %e, "auto worktree gc failed");
         }

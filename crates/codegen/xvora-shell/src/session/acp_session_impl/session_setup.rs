@@ -621,8 +621,8 @@ impl SessionActor {
         let message_count = self.chat_state_handle.get_conversation_len().await;
         let message_tokens = self.chat_state_handle.get_estimated_messages_tokens().await;
         let usage_categories = self.usage_categories().await;
-        let free_tokens = xvora_token_estimation::free_tokens(context_window, total_tokens);
-        let usage_pct = xvora_token_estimation::usage_percentage_u8(total_tokens, context_window);
+        let free_tokens = token_estimation::free_tokens(context_window, total_tokens);
+        let usage_pct = token_estimation::usage_percentage_u8(total_tokens, context_window);
         let api_backend = config.as_ref().map(|c| format!("{:?}", c.api_backend));
         let agent_name = self.agent.borrow().definition().name.clone();
         let conversation_id = None;

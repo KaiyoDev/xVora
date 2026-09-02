@@ -54,11 +54,11 @@ pub(super) async fn make_replay_send_update_fixture() -> ReplaySendUpdateFixture
     let fs = Arc::new(MockFs::new(cwd.to_path_buf()));
     let terminal = Arc::new(DummyTerminal {});
     let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test-session".to_string(),
         cwd.to_path_buf(),
         hunk_tx,
-        xvora_hunk_tracker::TrackingMode::AgentOnly,
+        hunk_tracker::TrackingMode::AgentOnly,
         tokio_util::sync::CancellationToken::new(),
     );
     let tool_context = ToolContext::new(cwd.clone(), None, None, fs, terminal, hunk_tracker_handle);

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 
-use xvora_fast_worktree::WORKTREE_DEPTH;
+use fast_worktree::WORKTREE_DEPTH;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct WalkIssues {

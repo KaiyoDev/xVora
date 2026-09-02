@@ -40,7 +40,7 @@ impl NewWorktreeDialogState {
     pub fn label(&self) -> &str {
         self.label.text()
     }
-    pub(crate) fn viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    pub(crate) fn viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.label.viewport(width)
     }
     #[cfg(test)]

@@ -33,7 +33,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
 use xvora_agent::config::{McpInheritance, ModelOverride, PermissionMode};
-use xvora_hunk_tracker::HunkTrackerHandle;
+use hunk_tracker::HunkTrackerHandle;
 use xvora_sampling_types::conversation::ConversationItem;
 use xvora_session_events::types::CancellationCategory;
 use xvora_subagent_resolution::ResumeSourceData;

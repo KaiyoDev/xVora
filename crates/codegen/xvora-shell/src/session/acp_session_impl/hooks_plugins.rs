@@ -92,9 +92,9 @@ impl SessionActor {
     /// Handle a hooks management action from the pager modal.
     pub(super) async fn handle_hooks_action(
         self: &Arc<Self>,
-        action: xvora_hooks_plugins_types::HooksAction,
-    ) -> xvora_hooks_plugins_types::ActionOutcome {
-        use xvora_hooks_plugins_types::{ActionOutcome, HooksAction, OutcomeStatus};
+        action: hooks_plugins_types::HooksAction,
+    ) -> hooks_plugins_types::ActionOutcome {
+        use hooks_plugins_types::{ActionOutcome, HooksAction, OutcomeStatus};
 
         match action {
             HooksAction::Reload => {
@@ -303,9 +303,9 @@ impl SessionActor {
     /// Handle a plugins management action from the pager modal.
     pub(super) async fn handle_plugins_action(
         self: &Arc<Self>,
-        action: xvora_hooks_plugins_types::PluginsAction,
-    ) -> xvora_hooks_plugins_types::ActionOutcome {
-        use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus, PluginsAction};
+        action: hooks_plugins_types::PluginsAction,
+    ) -> hooks_plugins_types::ActionOutcome {
+        use hooks_plugins_types::{ActionOutcome, OutcomeStatus, PluginsAction};
 
         match action {
             PluginsAction::Reload => match &self.plugin_registry_handle {

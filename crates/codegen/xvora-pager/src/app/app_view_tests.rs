@@ -62,7 +62,7 @@ fn app_draw_drains_deferred_release_after_flush() {
         crate::render::draw::TermWriter::new(frame_tx, crate::render::draw::WriterSync::new())
             .expect("single test writer");
     let backend = ratatui::backend::CrosstermBackend::new(writer);
-    let mut terminal = xvora_ratatui_inline::Terminal::with_options(
+    let mut terminal = ratatui_inline::Terminal::with_options(
         backend,
         TerminalOptions {
             viewport: Viewport::Fixed(ratatui::layout::Rect::new(0, 0, 80, 24)),

@@ -547,13 +547,13 @@ fn block_on_worktree_info(cwd: &Path) -> Option<(bool, Option<String>)> {
 }
 
 fn register_db_worktree(home: &Path, wt: &Path, source: &Path, label: &str) {
-    let db = xvora_fast_worktree::db::WorktreeDb::open(home).unwrap();
-    db.register(&xvora_fast_worktree::db::WorktreeRecord {
+    let db = fast_worktree::db::WorktreeDb::open(home).unwrap();
+    db.register(&fast_worktree::db::WorktreeRecord {
         id: "db-wt".into(),
         path: dunce::canonicalize(wt).unwrap_or_else(|_| wt.to_path_buf()),
         source_repo: source.to_path_buf(),
         repo_name: "main-repo".into(),
-        kind: xvora_fast_worktree::db::WorktreeKind::Session,
+        kind: fast_worktree::db::WorktreeKind::Session,
         creation_mode: "standalone".into(),
         git_ref: None,
         head_commit: None,
@@ -561,7 +561,7 @@ fn register_db_worktree(home: &Path, wt: &Path, source: &Path, label: &str) {
         creator_pid: None,
         created_at: 1,
         last_accessed_at: None,
-        status: xvora_fast_worktree::db::WorktreeStatus::Alive,
+        status: fast_worktree::db::WorktreeStatus::Alive,
         metadata: Some(serde_json::json!({ "label": label })),
     })
     .unwrap();

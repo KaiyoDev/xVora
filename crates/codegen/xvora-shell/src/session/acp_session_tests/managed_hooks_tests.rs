@@ -88,13 +88,13 @@ async fn managed_policy_hook_disable_actions_are_refused() {
             let actor = Arc::new(actor);
 
             let outcome = actor
-                .handle_hooks_action(xvora_hooks_plugins_types::HooksAction::Disable {
+                .handle_hooks_action(hooks_plugins_types::HooksAction::Disable {
                     hook_name: MANAGED_HOOK.to_string(),
                 })
                 .await;
             assert_eq!(
                 outcome.status,
-                xvora_hooks_plugins_types::OutcomeStatus::ValidationError,
+                hooks_plugins_types::OutcomeStatus::ValidationError,
                 "disable of a managed-policy hook must be refused: {}",
                 outcome.message
             );
@@ -105,7 +105,7 @@ async fn managed_policy_hook_disable_actions_are_refused() {
             );
 
             let outcome = actor
-                .handle_hooks_action(xvora_hooks_plugins_types::HooksAction::ToggleSource {
+                .handle_hooks_action(hooks_plugins_types::HooksAction::ToggleSource {
                     hook_names: vec![MANAGED_HOOK.to_string()],
                     disable: true,
                 })

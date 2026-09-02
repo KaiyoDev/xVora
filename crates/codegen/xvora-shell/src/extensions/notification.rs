@@ -557,7 +557,7 @@ pub enum SessionUpdate {
     /// Hooks registry changed (after reload or trust/untrust).
     /// Sent so the pager modal can auto-refresh if open.
     HooksChanged {
-        hooks: Vec<xvora_hooks_plugins_types::HookInfo>,
+        hooks: Vec<hooks_plugins_types::HookInfo>,
         project_trusted: bool,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         load_errors: Vec<String>,
@@ -565,7 +565,7 @@ pub enum SessionUpdate {
     /// Plugins registry changed (after reload).
     /// Sent so the pager modal can auto-refresh if open.
     PluginsChanged {
-        plugins: Vec<xvora_hooks_plugins_types::PluginInfo>,
+        plugins: Vec<hooks_plugins_types::PluginInfo>,
     },
     /// Marketplace plugin updates were auto-installed on session start.
     /// Sent so desktop/pager can show a notification to the user.

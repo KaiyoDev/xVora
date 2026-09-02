@@ -621,7 +621,7 @@ impl CompactionScope {
             is_subagent,
         } = params;
         let compaction_id = uuid::Uuid::new_v4().to_string();
-        let percentage = xvora_token_estimation::usage_percentage_u8(tokens_used, context_window);
+        let percentage = token_estimation::usage_percentage_u8(tokens_used, context_window);
         let active = crate::activity::COMPACTIONS_ACTIVE.enter();
         debug_assert!(
             crate::activity::COMPACTIONS_ACTIVE.get() >= 1,

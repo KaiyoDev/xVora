@@ -51,8 +51,8 @@ pub fn make_worktree_record(
     id: &str,
     path: &std::path::Path,
     label: &str,
-) -> xvora_fast_worktree::WorktreeRecord {
-    use xvora_fast_worktree::{WorktreeKind, WorktreeRecord, WorktreeStatus};
+) -> fast_worktree::WorktreeRecord {
+    use fast_worktree::{WorktreeKind, WorktreeRecord, WorktreeStatus};
     WorktreeRecord {
         id: id.to_owned(),
         path: path.to_path_buf(),

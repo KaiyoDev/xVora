@@ -1936,17 +1936,17 @@ fn main() {
         disabled: xvora_shell::agent::config::is_error_reporting_disabled_sync(),
     });
     xvora_pager::docs::extract_user_guide_docs(&xvora_shell::util::grok_home::grok_home());
-    xvora_crash_handler::install_terminal_restore_only();
+    crash_handler::install_terminal_restore_only();
     if xvora_shell::util::config::load_crash_handler_enabled_sync() {
         let crash_dir = xvora_shell::util::grok_home::grok_home().join("crash");
-        if let Some(report) = xvora_crash_handler::check_previous_crash(&crash_dir) {
+        if let Some(report) = crash_handler::check_previous_crash(&crash_dir) {
             eprintln!("Grok crashed during your last session.");
             eprintln!("  Signal:  {}", report.signal_name);
             eprintln!("  Version: {}", report.app_version);
             eprintln!("  Report:  {}", report.report_path.display());
             eprintln!();
         }
-        if !xvora_crash_handler::install(xvora_crash_handler::CrashHandlerConfig {
+        if !crash_handler::install(crash_handler::CrashHandlerConfig {
             app_version: env!("VERSION_WITH_COMMIT").to_string(),
             crash_dir: crash_dir.clone(),
         }) {

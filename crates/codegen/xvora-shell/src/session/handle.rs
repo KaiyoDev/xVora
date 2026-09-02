@@ -6,8 +6,8 @@ use super::persistence::{LocalFeedbackEntry, PersistenceMsg};
 use agent_client_protocol as acp;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::{mpsc, oneshot};
-use xvora_file_utils::queue::UploadQueue;
-use xvora_hunk_tracker::HunkTrackerHandle;
+use file_utils::queue::UploadQueue;
+use hunk_tracker::HunkTrackerHandle;
 use xvora_sampling_types::ReasoningEffort;
 /// Coarse lifecycle state of a session as known to the leader/agent.
 ///
@@ -252,7 +252,7 @@ impl SessionHandle {
     /// Get hooks list for the pager modal.
     pub(crate) async fn get_hooks_list(
         &self,
-    ) -> Option<xvora_hooks_plugins_types::HooksListResponse> {
+    ) -> Option<hooks_plugins_types::HooksListResponse> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -266,8 +266,8 @@ impl SessionHandle {
     /// Execute a hooks management action from the pager modal.
     pub(crate) async fn execute_hooks_action(
         &self,
-        action: xvora_hooks_plugins_types::HooksAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
+        action: hooks_plugins_types::HooksAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx
@@ -284,8 +284,8 @@ impl SessionHandle {
     /// Execute a plugins management action from the pager modal.
     pub(crate) async fn execute_plugins_action(
         &self,
-        action: xvora_hooks_plugins_types::PluginsAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
+        action: hooks_plugins_types::PluginsAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
         let (tx, rx) = oneshot::channel();
         if self
             .cmd_tx

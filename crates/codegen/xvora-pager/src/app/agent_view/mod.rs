@@ -753,7 +753,7 @@ impl CtaPhase {
 pub struct PluginCtaState {
     /// Not-installed candidate plugins for CTA matching, from the CTA source
     /// (xAI Official, or the configured `plugin_cta_marketplace` override).
-    pub candidates: Vec<xvora_hooks_plugins_types::MarketplacePluginEntry>,
+    pub candidates: Vec<hooks_plugins_types::MarketplacePluginEntry>,
     /// URL/path of the CTA source the candidates came from: the install
     /// target (the shell resolves marketplace sources by URL/path identity).
     /// `None` means no CTA source (official by default, the

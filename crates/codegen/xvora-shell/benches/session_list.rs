@@ -29,7 +29,7 @@ use criterion::{
 };
 use filetime::{FileTime, set_file_mtime};
 use tempfile::TempDir;
-use xvora_fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
+use fast_worktree::{ListFilter, WorktreeDb, WorktreeKind, WorktreeRecord, WorktreeStatus};
 use xvora_shell::session::info::Info;
 use xvora_shell::session::persistence::Summary;
 use xvora_shell::session::storage::{JsonlStorageAdapter, StorageAdapter};

@@ -26,11 +26,11 @@ async fn create_test_actor(
     let fs = Arc::new(MockFs::new(cwd.to_path_buf()));
     let terminal = Arc::new(DummyTerminal {});
     let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test-auto-compact".to_string(),
         cwd.to_path_buf(),
         hunk_tx,
-        xvora_hunk_tracker::TrackingMode::AgentOnly,
+        hunk_tracker::TrackingMode::AgentOnly,
         tokio_util::sync::CancellationToken::new(),
     );
     let tool_context = ToolContext::new(cwd.clone(), None, None, fs, terminal, hunk_tracker_handle);
@@ -430,11 +430,11 @@ async fn create_test_actor_with_memory(
     let fs = Arc::new(MockFs::new(cwd.to_path_buf()));
     let terminal = Arc::new(DummyTerminal {});
     let (hunk_tx, _) = tokio::sync::mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test-memory".to_string(),
         cwd.to_path_buf(),
         hunk_tx,
-        xvora_hunk_tracker::TrackingMode::AgentOnly,
+        hunk_tracker::TrackingMode::AgentOnly,
         tokio_util::sync::CancellationToken::new(),
     );
     let tool_context = ToolContext::new(cwd.clone(), None, None, fs, terminal, hunk_tracker_handle);

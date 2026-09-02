@@ -262,8 +262,8 @@ pub(crate) fn parse_session_scheduler_background_loops(
 }
 /// Whether `raw` is (or wraps) a disk-full / ENOSPC failure.
 pub(crate) fn is_disk_full_error(raw: &str) -> bool {
-    raw.contains(xvora_fast_worktree::OUT_OF_DISK_CONTEXT)
-        || raw.contains(xvora_fast_worktree::ENOSPC_OS_MESSAGE)
+    raw.contains(fast_worktree::OUT_OF_DISK_CONTEXT)
+        || raw.contains(fast_worktree::ENOSPC_OS_MESSAGE)
         || raw.contains("Disk quota exceeded") || raw.contains("Out of disk space")
 }
 /// Sanitize an error string before showing it to the user.
@@ -271,7 +271,7 @@ pub(crate) fn is_disk_full_error(raw: &str) -> bool {
 /// Strips protocol jargon (ACP, JSON-RPC) and other technical noise that would be meaningless in a toast, and collapses known disk-full markers.
 pub(crate) fn sanitize_user_error(raw: &str) -> String {
     if is_disk_full_error(raw) {
-        return xvora_fast_worktree::ENOSPC_OS_MESSAGE.to_string();
+        return fast_worktree::ENOSPC_OS_MESSAGE.to_string();
     }
     static REPLACEMENTS: &[(&str, &str)] = &[
         ("ACP error:", "error:"),
@@ -1490,9 +1490,9 @@ pub(super) fn should_send_yolo_acp_notification(
     }
 }
 pub(super) fn marketplace_outcome_succeeded(
-    outcome: &xvora_hooks_plugins_types::ActionOutcome,
+    outcome: &hooks_plugins_types::ActionOutcome,
 ) -> bool {
-    outcome.status == xvora_hooks_plugins_types::OutcomeStatus::Success
+    outcome.status == hooks_plugins_types::OutcomeStatus::Success
 }
 /// Extract the typed kill outcome from an `x.ai/task/kill` ext response.
 ///

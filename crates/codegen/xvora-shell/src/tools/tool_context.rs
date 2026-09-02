@@ -7,7 +7,7 @@ use agent_client_protocol as acp;
 use std::collections::HashMap;
 use std::sync::Arc;
 use xvora_acp_lib::AcpAgentGatewaySender as GatewaySender;
-use xvora_hunk_tracker::HunkTrackerHandle;
+use hunk_tracker::HunkTrackerHandle;
 use xvora_paths::AbsPathBuf;
 use xvora_tty_utils::ProcessScope;
 use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
@@ -399,7 +399,7 @@ mod tests {
     use crate::{terminal::AsyncTerminalRunner, tools::ToolContext};
     use std::collections::HashMap;
     use std::sync::Arc;
-    use xvora_hunk_tracker::HunkTrackerHandle;
+    use hunk_tracker::HunkTrackerHandle;
     use xvora_paths::AbsPathBuf;
     use xvora_workspace::file_system::{AsyncFileSystem, AsyncFsWrapper};
     impl ToolContext {

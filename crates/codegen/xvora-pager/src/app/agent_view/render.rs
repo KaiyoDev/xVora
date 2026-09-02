@@ -878,7 +878,7 @@ impl AgentView {
         bundle_state: &crate::app::bundle::BundleState,
         in_dashboard_overlay: bool,
         overlay_can_cycle: bool,
-        link_spans_out: &mut Vec<xvora_ratatui_inline::LinkSpan>,
+        link_spans_out: &mut Vec<ratatui_inline::LinkSpan>,
         app_params: AppRenderParams<'_>,
     ) -> (
         Option<(u16, u16)>,
@@ -1546,7 +1546,7 @@ impl AgentView {
             }
         }
         agent::fill_background(buf, area, layout_cfg, compact, &theme);
-        let mut status_line_link_spans: Vec<xvora_ratatui_inline::LinkSpan> = Vec::new();
+        let mut status_line_link_spans: Vec<ratatui_inline::LinkSpan> = Vec::new();
         if let Some(padding) = status_line.padding()
             && layout.status_line.height > 0
         {
@@ -1876,7 +1876,7 @@ impl AgentView {
                     search.is_composing(),
                     !search.is_composing(),
                     None,
-                    viewport.unwrap_or(xvora_ratatui_textarea::SingleLineViewport {
+                    viewport.unwrap_or(ratatui_textarea::SingleLineViewport {
                         visible_byte_range: 0..rendered_query.len(),
                         cursor_display_column: 0,
                     }),
@@ -4544,7 +4544,7 @@ impl AgentView {
                             link.presentation,
                         )
                         .and_then(|resolved| resolved.osc8_url)
-                        .map(|url| xvora_ratatui_inline::LinkSpan {
+                        .map(|url| ratatui_inline::LinkSpan {
                             row: link.screen_row,
                             col_start: link.col_start,
                             col_end: link.col_end,

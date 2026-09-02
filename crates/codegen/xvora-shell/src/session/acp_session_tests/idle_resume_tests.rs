@@ -75,11 +75,11 @@ async fn test_e2e_idle_resume_refreshes_model_metadata() {
             let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
             let terminal = Arc::new(DummyTerminal {});
             let (hunk_tx, _) = tokio::sync::mpsc::unbounded_channel();
-            let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+            let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
                 "test-idle-resume".to_string(),
                 cwd.to_path_buf(),
                 hunk_tx,
-                xvora_hunk_tracker::TrackingMode::AgentOnly,
+                hunk_tracker::TrackingMode::AgentOnly,
                 tokio_util::sync::CancellationToken::new(),
             );
             let tool_context =

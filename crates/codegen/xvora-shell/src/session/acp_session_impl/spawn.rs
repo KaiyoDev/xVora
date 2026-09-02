@@ -2437,7 +2437,7 @@ pub(crate) async fn spawn_session_on_thread(
                         .as_object()
                         .cloned()
                         .unwrap_or_default();
-                    let span = xvora_file_utils::trace_context::span_from_meta_traceparent(&meta);
+                    let span = file_utils::trace_context::span_from_meta_traceparent(&meta);
                     span.entered()
                 });
                 let (handle, permission_events_rx, system_prompt, session_done_rx) =

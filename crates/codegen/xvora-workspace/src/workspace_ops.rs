@@ -146,7 +146,7 @@ impl WorkspaceRpc for GetRewindPointsReq {
     const ACTIVITY: RpcActivityClass = RpcActivityClass::Read;
     type Response = Vec<crate::session::file_state::RewindPoint>;
 }
-fn hunk_line_info_to_wire(info: &xvora_hunk_tracker::types::HunkLineInfo) -> HunkLineInfoWire {
+fn hunk_line_info_to_wire(info: &hunk_tracker::types::HunkLineInfo) -> HunkLineInfoWire {
     HunkLineInfoWire {
         old_start: info.old_start,
         old_count: info.old_count,
@@ -154,15 +154,15 @@ fn hunk_line_info_to_wire(info: &xvora_hunk_tracker::types::HunkLineInfo) -> Hun
         new_count: info.new_count,
     }
 }
-fn hunk_source_to_wire(source: xvora_hunk_tracker::types::HunkSource) -> HunkSourceWire {
-    use xvora_hunk_tracker::types::HunkSource as S;
+fn hunk_source_to_wire(source: hunk_tracker::types::HunkSource) -> HunkSourceWire {
+    use hunk_tracker::types::HunkSource as S;
     match source {
         S::AgentEdit { prompt_index } => HunkSourceWire::AgentEdit { prompt_index },
         S::ExternalEditOnAgentFile => HunkSourceWire::ExternalEditOnAgentFile,
         S::External => HunkSourceWire::External,
     }
 }
-fn hunk_to_wire(hunk: &xvora_hunk_tracker::types::Hunk) -> HunkWire {
+fn hunk_to_wire(hunk: &hunk_tracker::types::Hunk) -> HunkWire {
     HunkWire {
         id: hunk.id.as_str().to_owned(),
         path: hunk.path.clone(),
@@ -175,9 +175,9 @@ fn hunk_to_wire(hunk: &xvora_hunk_tracker::types::Hunk) -> HunkWire {
     }
 }
 fn file_content_status_to_wire(
-    status: xvora_hunk_tracker::types::FileContentStatus,
+    status: hunk_tracker::types::FileContentStatus,
 ) -> FileContentStatusWire {
-    use xvora_hunk_tracker::types::FileContentStatus as S;
+    use hunk_tracker::types::FileContentStatus as S;
     match status {
         S::Missing => FileContentStatusWire::Missing,
         S::Binary => FileContentStatusWire::Binary,
@@ -188,7 +188,7 @@ fn file_content_status_to_wire(
     }
 }
 fn file_content_view_to_wire(
-    view: xvora_hunk_tracker::types::FileContentView,
+    view: hunk_tracker::types::FileContentView,
 ) -> FileContentViewWire {
     FileContentViewWire {
         status: file_content_status_to_wire(view.status),
@@ -196,7 +196,7 @@ fn file_content_view_to_wire(
         content: view.content,
     }
 }
-fn file_content_entry_to_wire(entry: xvora_hunk_tracker::FileContentEntry) -> FileContentEntryWire {
+fn file_content_entry_to_wire(entry: hunk_tracker::FileContentEntry) -> FileContentEntryWire {
     FileContentEntryWire {
         path: entry.path,
         baseline: file_content_view_to_wire(entry.baseline),
@@ -205,7 +205,7 @@ fn file_content_entry_to_wire(entry: xvora_hunk_tracker::FileContentEntry) -> Fi
         staged: entry.staged,
     }
 }
-fn session_stats_to_wire(stats: &xvora_hunk_tracker::types::SessionStats) -> SessionStatsWire {
+fn session_stats_to_wire(stats: &hunk_tracker::types::SessionStats) -> SessionStatsWire {
     SessionStatsWire {
         accepted_hunks: stats.accepted_hunks,
         rejected_hunks: stats.rejected_hunks,
@@ -215,7 +215,7 @@ fn session_stats_to_wire(stats: &xvora_hunk_tracker::types::SessionStats) -> Ses
         rejected_lines_removed: stats.rejected_lines_removed,
     }
 }
-fn turn_summary_to_wire(turn: xvora_hunk_tracker::types::TurnSummary) -> TurnSummaryWire {
+fn turn_summary_to_wire(turn: hunk_tracker::types::TurnSummary) -> TurnSummaryWire {
     TurnSummaryWire {
         prompt_index: turn.prompt_index,
         files: turn.files,
@@ -224,7 +224,7 @@ fn turn_summary_to_wire(turn: xvora_hunk_tracker::types::TurnSummary) -> TurnSum
         lines_removed: turn.lines_removed,
     }
 }
-fn session_summary_to_wire(summary: xvora_hunk_tracker::SessionSummary) -> SessionSummaryWire {
+fn session_summary_to_wire(summary: hunk_tracker::SessionSummary) -> SessionSummaryWire {
     SessionSummaryWire {
         stats: session_stats_to_wire(&summary.stats),
         turns: summary
@@ -240,17 +240,17 @@ fn session_summary_to_wire(summary: xvora_hunk_tracker::SessionSummary) -> Sessi
         unattributed_pending: summary.unattributed_pending,
     }
 }
-fn tracker_action(kind: HunkActionKind) -> xvora_hunk_tracker::types::HunkAction {
+fn tracker_action(kind: HunkActionKind) -> hunk_tracker::types::HunkAction {
     match kind {
-        HunkActionKind::Accept => xvora_hunk_tracker::types::HunkAction::Accept,
-        HunkActionKind::Reject => xvora_hunk_tracker::types::HunkAction::Reject,
+        HunkActionKind::Accept => hunk_tracker::types::HunkAction::Accept,
+        HunkActionKind::Reject => hunk_tracker::types::HunkAction::Reject,
     }
 }
 /// Access the per-session hunk tracker; the op must carry a session.
 fn session_tracker(
     ws: &WorkspaceHandle,
     session_id: Option<&str>,
-) -> WorkspaceResult<xvora_hunk_tracker::HunkTrackerHandle> {
+) -> WorkspaceResult<hunk_tracker::HunkTrackerHandle> {
     let sid = session_id
         .ok_or_else(|| WorkspaceError::HubError("per-session hunk op requires a session".into()))?;
     let session = ws
@@ -746,7 +746,7 @@ impl WorkspaceOp for HunkSingleActionReq {
         ws: &WorkspaceHandle,
         session_id: Option<&str>,
     ) -> WorkspaceResult<Self::Response> {
-        let hunk_id = xvora_hunk_tracker::types::HunkId::from_string(self.action.hunk_id.clone());
+        let hunk_id = hunk_tracker::types::HunkId::from_string(self.action.hunk_id.clone());
         let hunk_action = tracker_action(self.action.action);
         session_tracker(ws, session_id)?
             .hunk_action(hunk_id, hunk_action)
@@ -905,7 +905,7 @@ impl WorkspaceOp for HunkGetFileSummariesReq {
             let path_str = h.path.to_string_lossy().to_string();
             let is_agent = matches!(
                 h.source,
-                xvora_hunk_tracker::types::HunkSource::AgentEdit { .. }
+                hunk_tracker::types::HunkSource::AgentEdit { .. }
             );
             let entry = file_map.entry(path_str).or_insert((0, false));
             entry.0 += 1;
@@ -1486,7 +1486,7 @@ impl WorkspaceOps {
         &self,
         session_id: &str,
         cwd: std::path::PathBuf,
-        hunk_tracker: xvora_hunk_tracker::HunkTrackerHandle,
+        hunk_tracker: hunk_tracker::HunkTrackerHandle,
         toolset: Arc<xvora_tools::registry::types::FinalizedToolset>,
         viewer_ctx: Option<tool_runtime::WorkspaceViewerContext>,
     ) -> WorkspaceResult<()> {
@@ -1980,7 +1980,7 @@ mod tests {
         ops.bind_local_session(
             sid,
             handle.root_cwd().unwrap(),
-            xvora_hunk_tracker::HunkTrackerHandle::noop(),
+            hunk_tracker::HunkTrackerHandle::noop(),
             toolset,
             None,
         )
@@ -2054,7 +2054,7 @@ mod tests {
     /// A `Hunk`'s wire mirror serializes byte-for-byte like the heavy type.
     #[test]
     fn hunk_to_wire_serializes_identically() {
-        use xvora_hunk_tracker::types::{Hunk, HunkSource};
+        use hunk_tracker::types::{Hunk, HunkSource};
         let mut hunk = Hunk::file_created(
             std::path::PathBuf::from("/repo/a.rs"),
             "new\n".to_string(),
@@ -2071,8 +2071,8 @@ mod tests {
     /// A `FileContentEntry`'s wire mirror serializes identically (including the `skip_serializing_if` handling on absent baseline content).
     #[test]
     fn file_content_entry_to_wire_serializes_identically() {
-        use xvora_hunk_tracker::FileContentEntry;
-        use xvora_hunk_tracker::types::FileContentView;
+        use hunk_tracker::FileContentEntry;
+        use hunk_tracker::types::FileContentView;
         let entry = FileContentEntry {
             path: std::path::PathBuf::from("/repo/a.rs"),
             baseline: FileContentView::missing(),
@@ -2089,8 +2089,8 @@ mod tests {
     #[test]
     fn session_summary_to_wire_serializes_identically() {
         use std::sync::Arc;
-        use xvora_hunk_tracker::SessionSummary;
-        use xvora_hunk_tracker::types::{Hunk, HunkSource, TurnSummary};
+        use hunk_tracker::SessionSummary;
+        use hunk_tracker::types::{Hunk, HunkSource, TurnSummary};
         let hunk = Hunk::file_created(
             std::path::PathBuf::from("/repo/a.rs"),
             "x\n".to_string(),

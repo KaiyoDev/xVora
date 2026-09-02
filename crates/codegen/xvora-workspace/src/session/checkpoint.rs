@@ -10,7 +10,7 @@ use crate::session::file_state::{FileRewindResponse, RewindPoint, rewind_files};
 use crate::session::git;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use xvora_hunk_tracker::{HunkId, HunkTrackerSnapshot, HunkTurnDelta};
+use hunk_tracker::{HunkId, HunkTrackerSnapshot, HunkTurnDelta};
 use tool_protocol::turn_hook::TurnHookOutcome;
 /// A turn/prompt boundary routed through [`WorkspaceHandle::on_turn_boundary`].
 ///
@@ -156,7 +156,7 @@ impl WorkspaceSession {
         prompts.sort_unstable();
         let mut file_states: HashMap<
             std::path::PathBuf,
-            xvora_hunk_tracker::FileHunkStateSnapshot,
+            hunk_tracker::FileHunkStateSnapshot,
         > = HashMap::new();
         let mut turn_index: HashMap<usize, HashSet<HunkId>> = HashMap::new();
         for idx in prompts {
@@ -230,7 +230,7 @@ impl WorkspaceHandle {
         &self,
         session_id: &str,
         boundary: TurnBoundary,
-    ) -> Option<tokio::task::JoinHandle<xvora_file_utils::queue::EnqueueOutcome>> {
+    ) -> Option<tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>> {
         match boundary {
             TurnBoundary::Start {
                 prompt_index: Some(idx),
@@ -981,7 +981,7 @@ mod tests {
             .create_session_with_tracker_and_viewer_ctx(
                 "main",
                 handle.root_cwd().unwrap(),
-                xvora_hunk_tracker::HunkTrackerHandle::noop(),
+                hunk_tracker::HunkTrackerHandle::noop(),
                 None,
                 crate::capability::CapabilityMode::All,
                 None,

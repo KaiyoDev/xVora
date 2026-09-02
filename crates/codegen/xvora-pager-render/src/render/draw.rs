@@ -29,7 +29,7 @@
 //! - **Visibility transition**: `Show`/`Hide` (only on actual transition)
 //! - **Idle (no draw calls)**: nothing sent, so blink runs undisturbed
 //!
-//! The "no cell changes" case is detectable because [`xvora_ratatui_inline::Terminal`]'s `flush()` returns whether any cells were written.
+//! The "no cell changes" case is detectable because [`ratatui_inline::Terminal`]'s `flush()` returns whether any cells were written.
 //! When animated entries are off-screen, the buffer diff is empty and we skip all cursor commands.
 //!
 //! # Synchronized output
@@ -44,10 +44,10 @@ use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
-use xvora_ratatui_inline::LinkSpan;
+use ratatui_inline::LinkSpan;
 /// Defined here (beside [`TermWriter`]) so the `render` module does not depend on `app`.
 /// Re-exported from `app` as `crate::app::PagerTerminal` for existing call sites.
-pub type PagerTerminal = xvora_ratatui_inline::Terminal<CrosstermBackend<TermWriter>>;
+pub type PagerTerminal = ratatui_inline::Terminal<CrosstermBackend<TermWriter>>;
 #[derive(Debug)]
 pub enum WriterEvent {
     Written(u64),
@@ -466,7 +466,7 @@ mod tests {
         let backend = CrosstermBackend::new(
             TermWriter::new(tx, WriterSync::new()).expect("single test writer"),
         );
-        let mut terminal = xvora_ratatui_inline::Terminal::with_options(
+        let mut terminal = ratatui_inline::Terminal::with_options(
             backend,
             TerminalOptions {
                 viewport: Viewport::Fixed(Rect::new(0, 0, 80, 24)),

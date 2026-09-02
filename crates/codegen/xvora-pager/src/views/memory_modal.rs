@@ -135,7 +135,7 @@ impl MemoryModalState {
     }
 
     #[cfg(test)]
-    fn query_viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    fn query_viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.query.viewport(width)
     }
 

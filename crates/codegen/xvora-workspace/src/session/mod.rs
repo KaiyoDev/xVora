@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use xvora_computer_hub_mcp_adapter::McpBridgeHandle;
-use xvora_hunk_tracker::HunkTrackerHandle;
+use hunk_tracker::HunkTrackerHandle;
 use xvora_mcp::servers::McpState;
 use tool_protocol::ToolId;
 use tool_runtime::WorkspaceViewerContext;
@@ -62,7 +62,7 @@ pub struct WorkspaceSession {
     /// [`Self::cancel_hunk_tracker`] fires it on session teardown.
     /// `None` when the tracker is externally owned (e.g. `create_session_with_tracker` / local shell mode).
     ///
-    /// [`HunkTrackerActor`]: xvora_hunk_tracker::HunkTrackerActor
+    /// [`HunkTrackerActor`]: hunk_tracker::HunkTrackerActor
     pub(crate) hunk_tracker_cancel: Option<tokio_util::sync::CancellationToken>,
     pub(crate) file_state_tracker: Arc<FileStateTracker>,
     /// Per-turn hunk deltas keyed by `prompt_index`, captured at finalize and replayed on rewind (only when `workspace_rewind_hunks` is on).
@@ -70,7 +70,7 @@ pub struct WorkspaceSession {
     ///
     /// [`checkpoint_store`]: WorkspaceSession::checkpoint_store
     pub(crate) hunk_checkpoints:
-        Arc<tokio::sync::Mutex<HashMap<usize, xvora_hunk_tracker::HunkTurnDelta>>>,
+        Arc<tokio::sync::Mutex<HashMap<usize, hunk_tracker::HunkTurnDelta>>>,
     /// Git domain of the per-prompt rewind checkpoints (HEAD and the staged set).
     pub(crate) git_checkpoints: crate::session::git::GitCheckpointStore,
     /// Disk-backed durability mirror for finalized checkpoints, fronted by an in-memory cache.
@@ -597,7 +597,7 @@ pub struct WorkspaceShared {
     /// Resolved `$GROK_WORKSPACE_HOME`, the workspace-owned on-disk state root (`<grok_home>/workspace` by default).
     /// The upload queue spills here.
     pub(crate) workspace_home: std::path::PathBuf,
-    pub(crate) upload_queue: Option<std::sync::Arc<xvora_file_utils::queue::UploadQueue>>,
+    pub(crate) upload_queue: Option<std::sync::Arc<file_utils::queue::UploadQueue>>,
     /// Whether collection is disabled (opt-out, or the fail-closed default).
     pub(crate) data_collection_disabled: bool,
     /// Whether per-session `events.jsonl` recording is enabled (`GROK_WORKSPACE_EVENTS_ENABLED=true`).
@@ -619,7 +619,7 @@ pub struct WorkspaceShared {
     /// The `After` turn-hook handler awaits the handle for its ack's `artifact_count`; the fire-and-forget path just drops it (detach, not abort).
     pub(crate) inflight_enqueues: dashmap::DashMap<
         (String, u64),
-        tokio::task::JoinHandle<xvora_file_utils::queue::EnqueueOutcome>,
+        tokio::task::JoinHandle<file_utils::queue::EnqueueOutcome>,
     >,
     /// Artifact-producer tasks, awaited by the drain and counted by the status publisher.
     /// See [`WorkspaceHandle::spawn_producer`](crate::handle::WorkspaceHandle).
@@ -645,7 +645,7 @@ impl WorkspaceShared {
     }
     /// The durable upload queue used for archives.
     /// `None` in tests and local mode; see [`WorkspaceShared::upload_queue`].
-    pub fn upload_queue(&self) -> Option<&std::sync::Arc<xvora_file_utils::queue::UploadQueue>> {
+    pub fn upload_queue(&self) -> Option<&std::sync::Arc<file_utils::queue::UploadQueue>> {
         self.upload_queue.as_ref()
     }
     /// Return the per-session `events.jsonl` writer for `session_id`, opened and cached on first use under `workspace_home/sessions/{session_id}/`.

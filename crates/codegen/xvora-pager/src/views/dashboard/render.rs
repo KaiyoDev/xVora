@@ -2765,7 +2765,7 @@ fn render_dispatch(
             }
             0
         } else {
-            let viewport = xvora_ratatui_textarea::EditBuffer::from_parts(
+            let viewport = ratatui_textarea::EditBuffer::from_parts(
                 state.dispatch.text(),
                 state.dispatch.cursor(),
             )

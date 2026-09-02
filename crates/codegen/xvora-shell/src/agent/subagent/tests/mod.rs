@@ -190,11 +190,11 @@ fn wedged_child_handle() -> (
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
     let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel();
     let (hunk_event_tx, _hunk_event_rx) = mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test".to_string(),
         PathBuf::from("/tmp"),
         hunk_event_tx,
-        xvora_hunk_tracker::TrackingMode::AllDirty,
+        hunk_tracker::TrackingMode::AllDirty,
         CancellationToken::new(),
     );
     let (signals_handle, signals_actor) = crate::session::signals::SessionSignalsActor::new();
@@ -2130,7 +2130,7 @@ async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
     std::fs::write(repo.join("tracked.txt"), "original").unwrap();
     git_commit_all(&repo, "initial");
     let fresh = temp.path().join("subagent-fresh");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &fresh)
+    fast_worktree::WorktreeBuilder::new(&repo, &fresh)
         .standalone(true)
         .create()
         .unwrap();
@@ -2141,7 +2141,7 @@ async fn cancel_pending_at_promote_removes_fresh_worktree_preserves_resumed() {
             "freshly-created worktree must be removed on pending-kill"
         );
     let resumed = temp.path().join("subagent-resumed");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &resumed)
+    fast_worktree::WorktreeBuilder::new(&repo, &resumed)
         .standalone(true)
         .create()
         .unwrap();

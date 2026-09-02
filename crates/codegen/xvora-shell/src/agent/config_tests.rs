@@ -3944,7 +3944,7 @@ fn doom_loop_recovery_section_parses_from_toml() {
 #[test]
 #[serial]
 fn worktree_auto_gc_section_parses_from_toml() {
-    unsafe { xvora_fast_worktree::clear_auto_gc_env_for_test() };
+    unsafe { fast_worktree::clear_auto_gc_env_for_test() };
     let raw: toml::Value = toml::from_str(
         r#"
             [worktree.auto_gc]
@@ -3968,12 +3968,12 @@ fn worktree_auto_gc_section_parses_from_toml() {
     assert!(p.dry_run);
     assert_eq!(
         p.max_age_by_kind
-            .get(&xvora_fast_worktree::WorktreeKind::Subagent),
+            .get(&fast_worktree::WorktreeKind::Subagent),
         Some(&Some(3600))
     );
     assert_eq!(
         p.max_age_by_kind
-            .get(&xvora_fast_worktree::WorktreeKind::Manual),
+            .get(&fast_worktree::WorktreeKind::Manual),
         Some(&None)
     );
 }

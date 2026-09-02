@@ -2,7 +2,7 @@
 
 use agent_client_protocol as acp;
 use serde::Deserialize;
-use xvora_hooks_plugins_types::{
+use hooks_plugins_types::{
     HookStatus, McpStatus, PluginInfo, PluginOrigin, PluginScope, PluginsListResponse,
 };
 
@@ -152,7 +152,7 @@ pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
             super::to_ext_response(Ok::<_, anyhow::Error>(response))
         }
         "x.ai/plugins/action" => {
-            let req: xvora_hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
+            let req: hooks_plugins_types::PluginsActionRequest = super::parse_params(args)?;
             let sid = acp::SessionId::new(req.session_id);
 
             let result = agent

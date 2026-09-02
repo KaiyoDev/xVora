@@ -100,13 +100,13 @@ fn db_recorded_source_wins_over_git_discovery() {
     let wt = fixture.worktrees.join("repo").join("db-wins");
     git_worktree_add_detached(&repo, &wt);
 
-    let db = xvora_fast_worktree::WorktreeDb::open(&fixture.home).unwrap();
-    db.register(&xvora_fast_worktree::WorktreeRecord {
+    let db = fast_worktree::WorktreeDb::open(&fixture.home).unwrap();
+    db.register(&fast_worktree::WorktreeRecord {
         id: "db-wins".to_owned(),
         path: wt.clone(),
         source_repo: "/db-source".into(),
         repo_name: "repo".to_owned(),
-        kind: xvora_fast_worktree::WorktreeKind::Session,
+        kind: fast_worktree::WorktreeKind::Session,
         creation_mode: "linked".to_owned(),
         git_ref: None,
         head_commit: None,
@@ -114,7 +114,7 @@ fn db_recorded_source_wins_over_git_discovery() {
         creator_pid: None,
         created_at: 100,
         last_accessed_at: None,
-        status: xvora_fast_worktree::WorktreeStatus::Alive,
+        status: fast_worktree::WorktreeStatus::Alive,
         metadata: Some(crate::worktree::build_label_metadata("db-wins", false)),
     })
     .unwrap();

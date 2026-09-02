@@ -787,7 +787,7 @@ pub struct InFlightPrompt {
 #[derive(Debug, Clone)]
 pub struct ChipElement {
     pub range: std::ops::Range<usize>,
-    pub kind: xvora_ratatui_textarea::ElementKind,
+    pub kind: ratatui_textarea::ElementKind,
     pub display: Option<ratatui::text::Line<'static>>,
 }
 impl AgentSession {
@@ -1000,10 +1000,10 @@ impl AgentSession {
     pub fn dequeue_prompt(&mut self) -> Option<QueuedPrompt> {
         self.pending_prompts.pop_front()
     }
-    /// Pop the front entry, merging consecutive plain `Prompt` followers via [`xvora_prompt_queue::combine_prefix_len`].
+    /// Pop the front entry, merging consecutive plain `Prompt` followers via [`prompt_queue::combine_prefix_len`].
     /// `editing_id` is held out of the merge (composer draft must not vanish). Front may keep images.
     pub fn dequeue_combined_prompt(&mut self, editing_id: Option<u64>) -> Option<QueuedPrompt> {
-        use xvora_prompt_queue::{CombineGate, TEXT_SEPARATOR, combine_prefix_len, join_texts};
+        use prompt_queue::{CombineGate, TEXT_SEPARATOR, combine_prefix_len, join_texts};
         if self.pending_prompts.is_empty() {
             return None;
         }

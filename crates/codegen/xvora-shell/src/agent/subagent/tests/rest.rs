@@ -630,7 +630,7 @@ async fn kept_worktree_leaves_no_resume_pointer() {
     std::fs::write(repo.join(".gitignore"), ".env\n").unwrap();
     git_commit_all(&repo, "ignore env");
     let wt = temp.path().join("subagent-keeps");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt)
+    fast_worktree::WorktreeBuilder::new(&repo, &wt)
         .standalone(true)
         .create()
         .unwrap();
@@ -683,7 +683,7 @@ async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_director
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-1");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
+    fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
     let meta_dir = temp.path().join("meta");
     write_subagent_meta(&meta_dir, &snapshot_test_meta("reclaim-1"));
     let disposal = crate::agent::subagent::handle_request::dispose_worktree_after_completion(
@@ -720,7 +720,7 @@ async fn disposal_names_a_reflog_only_commit_before_removing_the_worktree() {
     let temp = tempfile::TempDir::new().unwrap();
     let (repo, _remote) = seed_repo_with_remote(temp.path());
     let wt = temp.path().join("subagent-reclaim-2");
-    xvora_fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
+    fast_worktree::WorktreeBuilder::new(&repo, &wt).create().unwrap();
     let discarded = reflog_only_commit(&wt, None);
     let meta_dir = temp.path().join("meta");
     write_subagent_meta(&meta_dir, &snapshot_test_meta("reclaim-2"));

@@ -74,7 +74,7 @@ fn prepare_items(
 fn effective_image_budget_limits(compaction_tool_tokens: u64) -> (usize, usize) {
     // The existing tool estimate is bytes/4; invert that same heuristic here.
     // Saturation is conservative: an unrepresentable reserve leaves no image budget.
-    let reserved_bytes = usize::try_from(xvora_token_estimation::estimate_chars(
+    let reserved_bytes = usize::try_from(token_estimation::estimate_chars(
         compaction_tool_tokens,
     ))
     .unwrap_or(usize::MAX);

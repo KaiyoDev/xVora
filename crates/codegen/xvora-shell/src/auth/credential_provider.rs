@@ -159,7 +159,7 @@ pub fn build_storage_client_for_proxy(
     user_token: Option<String>,
     session_id: Option<String>,
     client_identifier: &str,
-) -> xvora_file_utils::storage_client::StorageClient {
+) -> file_utils::storage_client::StorageClient {
     let http_client = crate::http::shared_upload_client();
     if let Some(am) = auth_manager {
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(ShellAuthCredentialProvider::new(
@@ -167,9 +167,9 @@ pub fn build_storage_client_for_proxy(
             deployment_key,
             alpha_test_key,
         ));
-        let bridge: Arc<dyn xvora_file_utils::storage_client::Auth401AttributionCallback> =
+        let bridge: Arc<dyn file_utils::storage_client::Auth401AttributionCallback> =
             Arc::new(StorageClientAttributionBridge::new(am, session_id));
-        xvora_file_utils::storage_client::StorageClient::with_provider(
+        file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
@@ -188,7 +188,7 @@ pub fn build_storage_client_for_proxy(
         let provider: Arc<dyn AuthCredentialProvider> = Arc::new(
             StaticAuthCredentialProvider::new(Box::new(creds), wire_bearer),
         );
-        xvora_file_utils::storage_client::StorageClient::with_provider(
+        file_utils::storage_client::StorageClient::with_provider(
             proxy_base_url,
             http_client,
             provider,
@@ -217,7 +217,7 @@ impl StorageClientAttributionBridge {
         }
     }
 }
-impl xvora_file_utils::storage_client::Auth401AttributionCallback
+impl file_utils::storage_client::Auth401AttributionCallback
     for StorageClientAttributionBridge
 {
     fn record_401(&self, operation: &str, sent_bearer_prefix: Option<&str>) {

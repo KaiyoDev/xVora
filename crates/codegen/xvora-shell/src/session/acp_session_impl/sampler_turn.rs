@@ -610,7 +610,7 @@ impl SessionActor {
         struct TraceContextInjector;
         impl xvora_sampler::HeaderInjector for TraceContextInjector {
             fn inject(&self, headers: &mut reqwest::header::HeaderMap) {
-                if let Some(tp) = xvora_file_utils::trace_context::current_traceparent()
+                if let Some(tp) = file_utils::trace_context::current_traceparent()
                     && let Ok(v) = reqwest::header::HeaderValue::from_str(&tp)
                 {
                     headers.insert("traceparent", v);
@@ -1197,7 +1197,7 @@ impl SessionActor {
                 .expect("should_compact_on_error guarantees context_window");
             {
                 let total_tokens = self.chat_state_handle.get_estimated_total_tokens().await;
-                let percentage = xvora_token_estimation::usage_percentage_u8(total_tokens, cw);
+                let percentage = token_estimation::usage_percentage_u8(total_tokens, cw);
 
                 // Update the in-memory sampling config's `context_window` if the model reported a different value (mirror the legacy path's bookkeeping)
                 if let Some(mut cfg) = self.chat_state_handle.get_sampling_config().await

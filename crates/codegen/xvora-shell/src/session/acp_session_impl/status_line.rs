@@ -71,7 +71,7 @@ fn build_context_window(
     // The field is omitted rather than zero when the window is unknown, which is the only part the helper cannot express
     let used_percentage = used_tokens
         .filter(|_| size > 0)
-        .map(|used| xvora_token_estimation::usage_percentage_u8(used, size));
+        .map(|used| token_estimation::usage_percentage_u8(used, size));
     StatusLineContextWindow {
         context_window_size: (size > 0).then_some(size),
         context_tokens: used_tokens,

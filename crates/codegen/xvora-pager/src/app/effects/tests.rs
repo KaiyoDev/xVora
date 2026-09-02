@@ -1315,7 +1315,7 @@ fn route_permission_mode_result_err_best_effort_routes_to_dedicated_variant() {
 }
 #[test]
 fn marketplace_outcome_succeeded_only_accepts_success_status() {
-    use xvora_hooks_plugins_types::{ActionOutcome, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
     let success = ActionOutcome {
         status: OutcomeStatus::Success,
         message: "updated".into(),
@@ -1336,7 +1336,7 @@ async fn check_marketplace_updates_dispatches_update_and_skips_failed_notificati
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use xvora_acp_lib::AcpAgentMessage;
-    use xvora_hooks_plugins_types::{ActionOutcome, MarketplaceAction, OutcomeStatus};
+    use hooks_plugins_types::{ActionOutcome, MarketplaceAction, OutcomeStatus};
     let action_calls = Arc::new(AtomicUsize::new(0));
     let saw_update = Arc::new(AtomicBool::new(false));
     let saw_wrong_action = Arc::new(AtomicBool::new(false));
@@ -1386,7 +1386,7 @@ async fn check_marketplace_updates_dispatches_update_and_skips_failed_notificati
                     }
                     "x.ai/marketplace/action" => {
                         action_calls_for_task.fetch_add(1, Ordering::SeqCst);
-                        let req: xvora_hooks_plugins_types::MarketplaceActionRequest = serde_json::from_str(
+                        let req: hooks_plugins_types::MarketplaceActionRequest = serde_json::from_str(
                                 args.request.params.get(),
                             )
                             .expect("parse marketplace action request");

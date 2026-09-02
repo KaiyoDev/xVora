@@ -1129,8 +1129,8 @@ impl AgentView {
                 if total > 0 {
                     snap.total = total;
                 }
-                snap.usage_pct = xvora_token_estimation::usage_percentage_u8(used, snap.total);
-                snap.free_tokens = xvora_token_estimation::free_tokens(snap.total, used);
+                snap.usage_pct = token_estimation::usage_percentage_u8(used, snap.total);
+                snap.free_tokens = token_estimation::free_tokens(snap.total, used);
             }
             None => {
                 self.context_state = Some(xvora_shell::session::ContextInfo::from_notification(

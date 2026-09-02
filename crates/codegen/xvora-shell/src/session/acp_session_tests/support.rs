@@ -208,11 +208,11 @@ pub(crate) async fn create_test_actor_with_terminal(
     let cwd = xvora_paths::AbsPathBuf::new(std::path::PathBuf::from("/tmp")).unwrap();
     let fs = Arc::new(xvora_workspace::file_system::MockFs::new(cwd.to_path_buf()));
     let (hunk_tx, _hunk_rx) = tokio::sync::mpsc::unbounded_channel();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test-actor".to_string(),
         cwd.to_path_buf(),
         hunk_tx,
-        xvora_hunk_tracker::TrackingMode::AgentOnly,
+        hunk_tracker::TrackingMode::AgentOnly,
         tokio_util::sync::CancellationToken::new(),
     );
     let mut tool_context =

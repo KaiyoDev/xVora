@@ -26,7 +26,7 @@ fn populate_and_evict(agent: &MvpAgent, i: usize) {
         ops.bind_local_session(
             sid.0.as_ref(),
             std::env::temp_dir(),
-            xvora_hunk_tracker::HunkTrackerHandle::noop(),
+            hunk_tracker::HunkTrackerHandle::noop(),
             toolset,
             None,
         )

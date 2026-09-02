@@ -25,7 +25,7 @@
 
 use std::path::{Path, PathBuf};
 
-use xvora_fast_worktree::{
+use fast_worktree::{
     CleanupReport, RemoveReport, WorktreeBuilder, WorktreeReport, cleanup_worktrees_in,
     remove_worktree,
 };
@@ -796,7 +796,7 @@ fn test_cleanup_orphaned_overlay_snapshots() {
     );
 
     // Run orphan cleanup.
-    let report = xvora_fast_worktree::cleanup_orphaned_overlay_snapshots();
+    let report = fast_worktree::cleanup_orphaned_overlay_snapshots();
 
     eprintln!(
         "orphan cleanup report: removed={}, btrfs={}, errors={}",

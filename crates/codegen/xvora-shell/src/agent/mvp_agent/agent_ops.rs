@@ -3011,7 +3011,7 @@ impl MvpAgent {
     pub(crate) async fn list_hooks(
         &self,
         session_id: &acp::SessionId,
-    ) -> Option<xvora_hooks_plugins_types::HooksListResponse> {
+    ) -> Option<hooks_plugins_types::HooksListResponse> {
         let handle = self.get_session_handle(session_id)?;
         handle.get_hooks_list().await
     }
@@ -3019,9 +3019,9 @@ impl MvpAgent {
     pub(crate) async fn execute_hooks_action(
         &self,
         session_id: &acp::SessionId,
-        action: xvora_hooks_plugins_types::HooksAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
-        if matches!(action, xvora_hooks_plugins_types::HooksAction::Untrust)
+        action: hooks_plugins_types::HooksAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
+        if matches!(action, hooks_plugins_types::HooksAction::Untrust)
             && let Some(cwd) = self.get_session_cwd(session_id)
         {
             self.interactive_trust_prompted
@@ -3035,14 +3035,14 @@ impl MvpAgent {
     pub(crate) async fn execute_plugins_action(
         &self,
         session_id: &acp::SessionId,
-        action: xvora_hooks_plugins_types::PluginsAction,
-    ) -> Option<xvora_hooks_plugins_types::ActionOutcome> {
-        let is_reload = matches!(action, xvora_hooks_plugins_types::PluginsAction::Reload);
+        action: hooks_plugins_types::PluginsAction,
+    ) -> Option<hooks_plugins_types::ActionOutcome> {
+        let is_reload = matches!(action, hooks_plugins_types::PluginsAction::Reload);
         let handle = self.get_session_handle(session_id)?;
         let outcome = handle.execute_plugins_action(action).await;
         let succeeded = matches!(
             outcome.as_ref().map(|o| &o.status),
-            Some(xvora_hooks_plugins_types::OutcomeStatus::Success)
+            Some(hooks_plugins_types::OutcomeStatus::Success)
         );
         if is_reload && succeeded {
             self.broadcast_plugin_registry_to_sessions(Some(session_id));
@@ -4098,7 +4098,7 @@ impl MvpAgent {
                 );
                 (handle, Some((hunk_event_rx, cancel)))
             }
-            None => (xvora_hunk_tracker::HunkTrackerHandle::noop(), None),
+            None => (hunk_tracker::HunkTrackerHandle::noop(), None),
         };
         let has_xai_auth = self.auth_manager.current().is_some_and(|a| a.is_xai_auth());
         let loc_tracking_enabled = hunk_tracking_enabled && has_xai_auth
@@ -4127,15 +4127,15 @@ impl MvpAgent {
                 let (loc_agg_tx, loc_agg_rx) = tokio::sync::mpsc::unbounded_channel();
                 let loc_path = crate::session::persistence::session_dir(&session_info)
                     .join("hunk_records.jsonl");
-                let loc_writer = xvora_hunk_tracker::JsonlHunkRecordWriter::new(loc_path);
-                let loc_ctx = xvora_hunk_tracker::LocSinkContext {
+                let loc_writer = hunk_tracker::JsonlHunkRecordWriter::new(loc_path);
+                let loc_ctx = hunk_tracker::LocSinkContext {
                     session_id: session_info.id.0.to_string(),
                     agent_id: agent_id(),
                     user_id: self.auth_manager.current().map(|a| a.user_id.clone()),
                     aggregate_tx: Some(loc_agg_tx),
                 };
                 tokio::spawn(
-                    xvora_hunk_tracker::run_loc_sink(
+                    hunk_tracker::run_loc_sink(
                         hunk_event_rx,
                         loc_writer,
                         loc_ctx,
@@ -4823,14 +4823,14 @@ impl MvpAgent {
             tokio::spawn(async move {
                 while let Some(agg) = loc_rx.recv().await {
                     match agg {
-                        xvora_hunk_tracker::LocAggregate::LinesChanged {
+                        hunk_tracker::LocAggregate::LinesChanged {
                             author_type,
                             lines_added,
                             lines_removed,
                             file_path,
                         } => {
                             let is_agent = author_type
-                                == xvora_hunk_tracker::AuthorType::Agent;
+                                == hunk_tracker::AuthorType::Agent;
                             signals
                                 .record_loc_change(
                                     is_agent,
@@ -4839,7 +4839,7 @@ impl MvpAgent {
                                     file_path,
                                 );
                         }
-                        xvora_hunk_tracker::LocAggregate::LinesReverted {
+                        hunk_tracker::LocAggregate::LinesReverted {
                             lines_added_reverted,
                             lines_removed_reverted,
                         } => {

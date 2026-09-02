@@ -12,7 +12,7 @@
 //! maps e.g. U+0085 to a control action while VTE prints it; that corner was
 //! unspecified before and is not exercised by terminal output we render).
 
-use xvora_ratatui_inline::split_into_line_segments;
+use ratatui_inline::split_into_line_segments;
 
 // ─── Reference: the previous termwiz-based implementation, verbatim ────────
 

@@ -334,7 +334,7 @@ impl SessionActor {
                 };
 
                 let ctx = &info.context;
-                let context_pct = xvora_token_estimation::usage_percentage(ctx.used, ctx.total);
+                let context_pct = token_estimation::usage_percentage(ctx.used, ctx.total);
 
                 let summary_path = crate::session::persistence::session_dir(&self.session_info)
                     .join("summary.json");

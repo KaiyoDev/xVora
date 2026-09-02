@@ -64,7 +64,7 @@ pub(crate) fn ctx_with_toggle(toggle: HashMap<String, bool>) -> SubagentSpawnCon
         inherited_tool_overrides: None,
         yolo_mode: false,
         subagent_event_tx: tx,
-        hunk_tracker_handle: xvora_hunk_tracker::HunkTrackerHandle::noop(),
+        hunk_tracker_handle: hunk_tracker::HunkTrackerHandle::noop(),
         hunk_tracking_enabled: false,
         fs: Arc::new(xvora_workspace::file_system::LocalFs::new(PathBuf::from(
             "/tmp",

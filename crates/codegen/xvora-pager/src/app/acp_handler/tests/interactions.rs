@@ -1010,7 +1010,7 @@
             let agent = app.agents.get_mut(&AgentId(0)).unwrap();
             agent.prompt.set_text("see ");
             let img = crate::prompt_images::PastedImage {
-                element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+                element_id: ratatui_textarea::ElementId::from_raw(0),
                 display_number: 0,
                 mime_type: "image/png".into(),
                 dimensions: Some((100, 80)),

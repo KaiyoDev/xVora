@@ -173,7 +173,7 @@ fn post_unblock_jwt_retry_in_flight_guard_clears_on_drop() {
 }
 mod hunk_tracking_mode {
     use super::super::{plan_hunk_tracking, resolve_hunk_tracking_mode};
-    use xvora_hunk_tracker::TrackingMode;
+    use hunk_tracker::TrackingMode;
     #[test]
     fn off_and_disabled_disable_tracking() {
         assert_eq!(resolve_hunk_tracking_mode(Some("off")), None);
@@ -1115,11 +1115,11 @@ fn make_test_handle(
     let (persistence_tx, _persistence_rx) = tokio::sync::mpsc::unbounded_channel();
     let (hunk_event_tx, _hunk_event_rx) = tokio::sync::mpsc::unbounded_channel();
     let hunk_cancel = tokio_util::sync::CancellationToken::new();
-    let hunk_tracker_handle = xvora_hunk_tracker::HunkTrackerActor::spawn(
+    let hunk_tracker_handle = hunk_tracker::HunkTrackerActor::spawn(
         "test".to_string(),
         std::path::PathBuf::from("/tmp"),
         hunk_event_tx,
-        xvora_hunk_tracker::TrackingMode::AllDirty,
+        hunk_tracker::TrackingMode::AllDirty,
         hunk_cancel,
     );
     crate::session::SessionHandle {
@@ -4059,7 +4059,7 @@ async fn remove_session_releases_workspace_binding_and_side_maps() {
     ops.bind_local_session(
         sid.0.as_ref(),
         std::env::temp_dir(),
-        xvora_hunk_tracker::HunkTrackerHandle::noop(),
+        hunk_tracker::HunkTrackerHandle::noop(),
         toolset,
         None,
     )
@@ -6236,7 +6236,7 @@ fn interactive_trust_prompt_reloads_all_same_workspace_sessions() {
 #[serial_test::serial]
 fn interactive_trust_prompt_reprompts_after_untrust() {
     use xvora_test_support::EnvGuard;
-    use xvora_hooks_plugins_types::HooksAction;
+    use hooks_plugins_types::HooksAction;
     let home = tempfile::tempdir().unwrap();
     let _env = EnvGuard::set("GROK_HOME", home.path());
     let _sim = EnvGuard::set(xvora_version::TEST_VERSION_ENV, "0.0-sim");

@@ -158,7 +158,7 @@ fn spawn_agent_local(
     });
     tokio::task::spawn_local(
         GatewayReceiver::new(gw_rx, conn)
-            .with_on_meta(xvora_file_utils::trace_context::span_from_meta_traceparent)
+            .with_on_meta(file_utils::trace_context::span_from_meta_traceparent)
             .run(),
     );
     handle_io
@@ -241,9 +241,9 @@ pub async fn run_stdio_agent(
         );
     }
     xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
-    xvora_file_utils::queue::cleanup_orphaned_uploads(
+    file_utils::queue::cleanup_orphaned_uploads(
         &grok_home::grok_home(),
-        xvora_file_utils::queue::DEFAULT_MAX_AGE,
+        file_utils::queue::DEFAULT_MAX_AGE,
     );
     if let Ok(version) = std::env::var("GROK_CLIENT_VERSION") {
         crate::unified_log::info(
@@ -320,9 +320,9 @@ pub async fn run_headless(
     use tokio_util::sync::CancellationToken;
     const HEADLESS_NO_SESSION: &str = "Headless mode requires a grok.com session. \
         Run `grok login` to sign in, or use `grok agent stdio` for API-key access.";
-    xvora_file_utils::queue::cleanup_orphaned_uploads(
+    file_utils::queue::cleanup_orphaned_uploads(
         &grok_home::grok_home(),
-        xvora_file_utils::queue::DEFAULT_MAX_AGE,
+        file_utils::queue::DEFAULT_MAX_AGE,
     );
     let mut agent_config = agent_config.clone();
     agent_config.mode = crate::agent::config::AgentMode::Headless;
@@ -449,7 +449,7 @@ pub async fn run_headless(
                 tokio::task::spawn_local(
                     GatewayReceiver::new(gw_rx, conn)
                         .with_on_meta(
-                            xvora_file_utils::trace_context::span_from_meta_traceparent,
+                            file_utils::trace_context::span_from_meta_traceparent,
                         )
                         .run(),
                 );
@@ -717,9 +717,9 @@ pub async fn run_leader(
     register_fs_watch_runtime();
     xvora_telemetry::unified_log::set_version(xvora_version::VERSION);
     tokio::task::spawn_blocking(|| {
-        xvora_file_utils::queue::cleanup_orphaned_uploads(
+        file_utils::queue::cleanup_orphaned_uploads(
             &grok_home::grok_home(),
-            xvora_file_utils::queue::DEFAULT_MAX_AGE,
+            file_utils::queue::DEFAULT_MAX_AGE,
         );
     });
     let mut agent_config = agent_config.clone();
@@ -936,7 +936,7 @@ pub async fn run_leader(
                 tokio::task::spawn_local(
                     GatewayReceiver::new(gw_rx, conn)
                         .with_on_meta(
-                            xvora_file_utils::trace_context::span_from_meta_traceparent,
+                            file_utils::trace_context::span_from_meta_traceparent,
                         )
                         .run(),
                 );

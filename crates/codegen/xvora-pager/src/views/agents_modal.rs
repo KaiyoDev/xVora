@@ -350,7 +350,7 @@ impl AgentsModalState {
         &self.search
     }
     #[cfg(test)]
-    fn search_viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    fn search_viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.search.viewport(width)
     }
     #[cfg(test)]

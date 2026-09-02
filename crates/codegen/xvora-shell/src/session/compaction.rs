@@ -175,7 +175,7 @@ impl SessionActor {
         let estimated_total = self.chat_state_handle.get_estimated_total_tokens().await;
         let threshold = self.compaction.threshold_percent.get() as u64;
         let start_pct = threshold.saturating_sub(prefire_lead_percent());
-        xvora_token_estimation::exceeds_threshold(estimated_total, cw, start_pct as u8)
+        token_estimation::exceeds_threshold(estimated_total, cw, start_pct as u8)
     }
     /// Background pass-1: summarize the ~95% prefix into NOTE₁ and cache it for a later pass-2 apply.
     /// Always releases the in-flight guard.
@@ -801,7 +801,7 @@ impl SessionActor {
                     tokens_before,
                     xvora_chat_state::estimate_conversation_tokens(&full_conv),
                 );
-                if xvora_token_estimation::exceeds_threshold(
+                if token_estimation::exceeds_threshold(
                     projected_preserved,
                     context_window,
                     self.compaction.threshold_percent.get(),
@@ -1710,7 +1710,7 @@ impl SessionActor {
             .replace_conversation_for_compaction(compacted_history);
         if self.startup_hints.inherited_prefix_len.is_some() {
             let post_replace_tokens = self.chat_state_handle.get_total_tokens().await;
-            if xvora_token_estimation::exceeds_threshold(
+            if token_estimation::exceeds_threshold(
                 post_replace_tokens,
                 context_window,
                 self.compaction.threshold_percent.get(),
@@ -1836,12 +1836,12 @@ impl SessionActor {
         context_window: std::num::NonZeroU64,
     ) -> Option<AutoCompactTriggerInfo> {
         let cw = context_window.get();
-        if xvora_token_estimation::exceeds_threshold(
+        if token_estimation::exceeds_threshold(
             total_tokens,
             cw,
             self.compaction.threshold_percent.get(),
         ) {
-            let percentage = xvora_token_estimation::usage_percentage_u8(total_tokens, cw);
+            let percentage = token_estimation::usage_percentage_u8(total_tokens, cw);
             Some(AutoCompactTriggerInfo {
                 tokens_used: total_tokens,
                 context_window: cw,
@@ -1918,7 +1918,7 @@ impl SessionActor {
             )
             .is_ok()
         {
-            let percentage = xvora_token_estimation::usage_percentage_u8(estimated_total, cw);
+            let percentage = token_estimation::usage_percentage_u8(estimated_total, cw);
             tracing::info!(
                 "Forced auto-compact trigger (debug): model={model}, \
                  {percentage}% full ({estimated_total}/{cw} tokens)",
@@ -1953,7 +1953,7 @@ impl SessionActor {
             return None;
         }
         let overflow = estimated_total.saturating_sub(cw);
-        let percentage = xvora_token_estimation::usage_percentage_u8(estimated_total, cw);
+        let percentage = token_estimation::usage_percentage_u8(estimated_total, cw);
         tracing::warn!(
             estimated_total,
             context_window = cw,

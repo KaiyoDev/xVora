@@ -267,7 +267,7 @@ pub struct FeedbackManager {
     /// GCS upload queue stats for periodic snapshots into signals.
     /// Set once after the first upload queue is created via `set_upload_queue_stats()`.
     /// `OnceLock` because `FeedbackManager` is behind `Arc` and this is set after construction.
-    upload_queue_stats: std::sync::OnceLock<Arc<xvora_file_utils::queue::UploadQueueStats>>,
+    upload_queue_stats: std::sync::OnceLock<Arc<file_utils::queue::UploadQueueStats>>,
 }
 
 impl FeedbackManager {
@@ -308,7 +308,7 @@ impl FeedbackManager {
 
     pub(crate) fn set_upload_queue_stats(
         &self,
-        stats: Arc<xvora_file_utils::queue::UploadQueueStats>,
+        stats: Arc<file_utils::queue::UploadQueueStats>,
     ) {
         let _ = self.upload_queue_stats.set(stats);
     }
@@ -866,7 +866,7 @@ impl FeedbackManager {
     /// For an empty session (no turns or tool calls), `sync_signals_inner(force)` skips the analytics POST; drain is skipped when pending is also 0.
     /// Non-empty drains use `min(config.drain_timeout, cap)` (default cap 5s, `GROK_SESSION_EXIT_DRAIN_SECS` up to hard max 7s).
     /// Incomplete drains leave durable pairs on disk for next-session recovery.
-    pub async fn shutdown(&self, queue: Option<&xvora_file_utils::queue::UploadQueue>) {
+    pub async fn shutdown(&self, queue: Option<&file_utils::queue::UploadQueue>) {
         let pending = queue
             .map(|q| q.stats().pending.load(Ordering::Relaxed))
             .unwrap_or(0);
@@ -1266,7 +1266,7 @@ mod tests {
     async fn test_shutdown_with_upload_queue_drains() {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
         use std::sync::Arc;
-        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1517,7 +1517,7 @@ mod tests {
         use crate::session::repo_changes::{TraceExportConfig, UploadMethod};
         use std::sync::Arc;
         use std::time::Instant;
-        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         struct MockResolver;
         impl TraceExportSource for MockResolver {
@@ -1561,7 +1561,7 @@ mod tests {
         use axum::{Router, body::Body, http::StatusCode, response::IntoResponse, routing::post};
         use std::sync::Arc;
         use std::time::Instant;
-        use xvora_file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
+        use file_utils::queue::{TraceExportSource, UploadQueue, UploadRetryPolicy};
 
         async fn slow_handler(_body: Body) -> impl IntoResponse {
             tokio::time::sleep(Duration::from_secs(60)).await;

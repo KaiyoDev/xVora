@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::Serialize;
-use xvora_fast_worktree::{
+use fast_worktree::{
     ListFilter, RegistryOpen, SqliteFailureKind, WORKTREE_POOL_DIR, WORKTREES_DIR, WorktreeDb,
     WorktreeKind, WorktreeRecord, WorktreeStatus, classify_sqlite_error, discover_worktrees,
     managed_worktree_roots, path_under_worktree_roots, resolve_grok_home,

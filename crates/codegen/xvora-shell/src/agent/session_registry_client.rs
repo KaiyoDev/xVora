@@ -190,7 +190,7 @@ impl SessionRegistryClient {
         builder: RequestBuilder,
         op: &'static str,
     ) -> Result<(reqwest::Response, Option<xvora_auth::StampedBearerSuffix>)> {
-        let builder = xvora_file_utils::trace_context::inject_trace_context_into_request(builder);
+        let builder = file_utils::trace_context::inject_trace_context_into_request(builder);
         let request = builder.build().context(op)?;
         xvora_auth::execute_with_stamp(&self.client, request)
             .await

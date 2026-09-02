@@ -83,10 +83,10 @@ mod mac {
     use std::process::{Command, Stdio};
     use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
     use std::time::Instant;
-    use xvora_fast_worktree::create_latency_stamp::{
+    use fast_worktree::create_latency_stamp::{
         LIBRARY_CREATE_ENV, format_create_p50, format_create_stamp,
     };
-    use xvora_fast_worktree::{
+    use fast_worktree::{
         CreationMode, NfsWorktreeOpts, WorkingTreeMode, WorktreeBuilder, remove_worktree,
     };
 
@@ -267,7 +267,7 @@ mod mac {
     }
 
     fn assert_clean_shape(src: &Path, expect: Option<usize>) -> Result<usize> {
-        let tracked = xvora_fast_worktree::count_tracked_files(src)
+        let tracked = fast_worktree::count_tracked_files(src)
             .with_context(|| format!("count_tracked_files {}", src.display()))?;
         if let Some(n) = expect
             && tracked != n

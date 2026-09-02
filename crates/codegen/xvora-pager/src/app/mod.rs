@@ -24,7 +24,7 @@ use xvora_telemetry::region::Parent;
 pub mod edit_highlight_worker;
 /// Off-thread Mermaid diagram render worker (out of process) + per-session cache.
 pub mod mermaid_worker;
-pub use xvora_prompt_queue as prompt_queue;
+pub use prompt_queue as prompt_queue;
 mod acp_handler;
 mod connect_timeout;
 mod csi_filter;
@@ -275,7 +275,7 @@ pub(crate) const MOUSE_OFF_HINT_SCROLLBACK: &str =
     "Ctrl+r to enable mouse reporting and restore TUI features";
 pub(crate) const MOUSE_OFF_HINT_PROMPT: &str =
     "/toggle-mouse-reporting to enable mouse reporting and restore TUI features";
-/// Uses [`xvora_ratatui_inline::Terminal`] instead of stock `ratatui::Terminal`: our `flush()` returns a `bool` saying whether any cells changed.
+/// Uses [`ratatui_inline::Terminal`] instead of stock `ratatui::Terminal`: our `flush()` returns a `bool` saying whether any cells changed.
 /// This lets [`crate::render::draw::draw_frame`] skip cursor escape sequences on frames with empty diffs (e.g., off-screen animation ticks).
 /// Skipping them preserves the cursor blink timer; see [`crate::render::draw`] for details.
 ///
@@ -1139,7 +1139,7 @@ fn print_relaunch_failure_hint(
 /// Best-effort: failures are silently ignored since this runs on teardown and panic paths where stderr may already be broken.
 fn disable_mouse_paste_raw() {
     xvora_shell::util::with_locked_stderr(|stderr| {
-        let _ = stderr.write_all(xvora_crash_handler::terminal::MOUSE_PASTE_RESET);
+        let _ = stderr.write_all(crash_handler::terminal::MOUSE_PASTE_RESET);
         let _ = stderr.flush();
     });
 }
@@ -1361,7 +1361,7 @@ fn init_terminal(
     writer_sync: crate::render::draw::WriterSync,
     cursor_blink: Option<bool>,
 ) -> io::Result<TerminalInit> {
-    xvora_crash_handler::enable_terminal_escape_restore();
+    crash_handler::enable_terminal_escape_restore();
     terminal::enable_raw_mode()?;
     #[cfg(windows)]
     configure_windows_console();
@@ -1393,7 +1393,7 @@ fn init_terminal(
             if !want_minimal {
                 execute!(stderr, event::EnableMouseCapture)?;
             } else if crate::terminal::terminal_context().mouse_reporting_leaks_as_raw_text() {
-                let _ = stderr.write_all(xvora_crash_handler::terminal::MOUSE_TRACKING_RESET);
+                let _ = stderr.write_all(crash_handler::terminal::MOUSE_TRACKING_RESET);
             }
             execute!(
                 stderr,
@@ -1467,7 +1467,7 @@ fn init_terminal(
                     .map_err(io::Error::other)?,
             );
             Ok((
-                xvora_ratatui_inline::Terminal::new(backend)?,
+                ratatui_inline::Terminal::new(backend)?,
                 ScreenMode::Fullscreen,
             ))
         } else {
@@ -1481,7 +1481,7 @@ fn init_terminal(
                 crate::render::draw::TermWriter::new(frame_tx.clone(), writer_sync.clone())
                     .map_err(io::Error::other)?,
             );
-            if let Ok(term) = xvora_ratatui_inline::Terminal::with_options(
+            if let Ok(term) = ratatui_inline::Terminal::with_options(
                 probe_backend,
                 ratatui::TerminalOptions {
                     viewport: ratatui::Viewport::Inline(viewport_rows),
@@ -1508,7 +1508,7 @@ fn init_terminal(
                     crate::render::draw::TermWriter::new(frame_tx.clone(), writer_sync.clone())
                         .map_err(io::Error::other)?,
                 );
-                if let Ok(term) = xvora_ratatui_inline::Terminal::with_options(
+                if let Ok(term) = ratatui_inline::Terminal::with_options(
                     retry_backend,
                     ratatui::TerminalOptions {
                         viewport: ratatui::Viewport::Inline(rows),
@@ -1530,7 +1530,7 @@ fn init_terminal(
                 crate::render::draw::TermWriter::new(frame_tx, writer_sync)
                     .map_err(io::Error::other)?,
             );
-            let term = xvora_ratatui_inline::Terminal::with_options(
+            let term = ratatui_inline::Terminal::with_options(
                 backend,
                 ratatui::TerminalOptions {
                     viewport: ratatui::Viewport::Fixed(ratatui::layout::Rect::new(
@@ -1545,7 +1545,7 @@ fn init_terminal(
         emit_terminal_teardown_sequences(mode, None);
         let _ = terminal::disable_raw_mode();
         signal_handler::mark_restored();
-        xvora_crash_handler::disable_terminal_escape_restore();
+        crash_handler::disable_terminal_escape_restore();
     })?;
     Ok(TerminalInit {
         terminal,
@@ -1641,7 +1641,7 @@ fn restore_terminal_with(
     let _ = event_loop::drain_pending_events(std::time::Duration::from_millis(10), |_| false);
     let _ = terminal::disable_raw_mode();
     signal_handler::mark_restored();
-    xvora_crash_handler::disable_terminal_escape_restore();
+    crash_handler::disable_terminal_escape_restore();
     xvora_tty_utils::restore_native_stderr();
     drain_result
 }
@@ -1684,7 +1684,7 @@ fn set_panic_hook() {
         emit_terminal_teardown_sequences(current_screen_mode(), None);
         let _ = terminal::disable_raw_mode();
         signal_handler::mark_restored();
-        xvora_crash_handler::disable_terminal_escape_restore();
+        crash_handler::disable_terminal_escape_restore();
         xvora_tty_utils::restore_native_stderr();
         xvora_tty_utils::global_process_scope().kill_all();
         crate::memory_trace::record_crash_sample();
@@ -1702,7 +1702,7 @@ mod tests {
         let backend = CrosstermBackend::new(
             crate::render::draw::TermWriter::new(tx, sync).expect("single test writer"),
         );
-        let terminal = xvora_ratatui_inline::Terminal::with_options(
+        let terminal = ratatui_inline::Terminal::with_options(
             backend,
             TerminalOptions {
                 viewport: Viewport::Fixed(ratatui::layout::Rect::new(0, 0, 80, 24)),

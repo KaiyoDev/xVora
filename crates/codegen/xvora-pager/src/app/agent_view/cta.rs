@@ -619,8 +619,8 @@ mod prompt_suggestion_gate_tests {
 mod plugin_cta_notify_tests {
     use super::test_fixtures::make_agent;
 
-    fn cta_entry(name: &str) -> xvora_hooks_plugins_types::MarketplacePluginEntry {
-        xvora_hooks_plugins_types::MarketplacePluginEntry {
+    fn cta_entry(name: &str) -> hooks_plugins_types::MarketplacePluginEntry {
+        hooks_plugins_types::MarketplacePluginEntry {
             name: name.into(),
             version: None,
             description: None,

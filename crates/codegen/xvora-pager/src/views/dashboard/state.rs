@@ -698,7 +698,7 @@ impl RenameDraft {
         self.editor.cursor_byte()
     }
 
-    pub(crate) fn viewport(&self, width: usize) -> xvora_ratatui_textarea::SingleLineViewport {
+    pub(crate) fn viewport(&self, width: usize) -> ratatui_textarea::SingleLineViewport {
         self.editor.viewport(width)
     }
 

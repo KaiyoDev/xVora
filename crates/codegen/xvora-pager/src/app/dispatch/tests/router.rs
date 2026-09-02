@@ -154,7 +154,7 @@ fn external_prompt_editor_refuses_elements_with_visible_message() {
     let agent = app.agents.get_mut(&id).unwrap();
     agent.prompt.set_text("");
     let image = crate::prompt_images::PastedImage {
-        element_id: xvora_ratatui_textarea::ElementId::from_raw(0),
+        element_id: ratatui_textarea::ElementId::from_raw(0),
         display_number: 0,
         mime_type: "image/png".to_owned(),
         dimensions: Some((8, 8)),

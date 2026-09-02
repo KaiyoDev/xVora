@@ -849,7 +849,7 @@ pub(crate) struct SessionActor {
     /// Feedback manager for signal tracking and feedback request heuristics
     pub(crate) feedback_manager: Arc<FeedbackManager>,
     pub(crate) upload_queue:
-        std::sync::Arc<std::sync::OnceLock<xvora_file_utils::queue::UploadQueue>>,
+        std::sync::Arc<std::sync::OnceLock<file_utils::queue::UploadQueue>>,
     /// Cancellation token for the feedback sync loop (None if no feedback client)
     pub(crate) sync_loop_cancel: Option<tokio_util::sync::CancellationToken>,
     /// The fully-built Agent: owns the ToolBridge, system prompt, policies, and the AgentDefinition.

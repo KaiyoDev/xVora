@@ -1,4 +1,4 @@
-//! Shell-side adapter that threads the live `AuthManager` through to the `StorageClient` constructed inside `xvora_file_utils::gcs::*` helpers.
+//! Shell-side adapter that threads the live `AuthManager` through to the `StorageClient` constructed inside `file_utils::gcs::*` helpers.
 //!
 //! Background: the data-collector helpers (`upload_bytes`, `upload_file`, `upload_stream`, `upload_bytes_signed`) build a `StorageClient` per call.
 //! Without a `StorageConfig` impl that provides `proxy_credentials` / `proxy_attribution`, that client falls back to a static `user_token` snapshot.
@@ -14,16 +14,16 @@
 //!   2. A `StorageClientAttributionBridge` that emits the `auth_401_attribution` event on 401 with the right consumer tag.
 //!
 //! Use [`WithAuth::with_auth`] at every shell-side upload call site that has an `AuthManager` in scope.
-//! Call it immediately before passing the config to an `xvora_file_utils::gcs::*` helper.
+//! Call it immediately before passing the config to an `file_utils::gcs::*` helper.
 use crate::auth::AuthManager;
 use crate::auth::credential_provider::{
     ShellAuthCredentialProvider, StorageClientAttributionBridge,
 };
 use std::sync::Arc;
 use xvora_auth::AuthCredentialProvider;
-use xvora_file_utils::gcs::StorageConfig;
-use xvora_file_utils::storage_client::Auth401AttributionCallback;
-use xvora_file_utils::{TraceExportConfig, UploadMethod};
+use file_utils::gcs::StorageConfig;
+use file_utils::storage_client::Auth401AttributionCallback;
+use file_utils::{TraceExportConfig, UploadMethod};
 /// See the module docs for why this exists.
 ///
 /// `auth_manager == None` is supported (for tests, direct-mode upload, and a few sites without an `AuthManager` in scope).
@@ -81,7 +81,7 @@ impl StorageConfig for TraceExportConfigWithAuth {
 /// Convenience trait for wrapping a `TraceExportConfig` at upload call sites. Pattern:
 ///
 /// ```ignore
-/// xvora_file_utils::gcs::upload_bytes(
+/// file_utils::gcs::upload_bytes(
 ///     &gcs_config.with_auth(Some(auth_manager.clone())),
 ///     ...,
 /// ).await
@@ -120,7 +120,7 @@ pub(crate) async fn upload_to_auth_diagnostics(
         absolute_paths: false,
         archive_name_override: None,
     };
-    match xvora_file_utils::gcs::upload_bytes(
+    match file_utils::gcs::upload_bytes(
         &config.with_auth(Some(auth_manager)),
         &object_path,
         log_bytes,
