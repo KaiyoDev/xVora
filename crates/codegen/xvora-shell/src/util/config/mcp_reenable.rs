@@ -1,3 +1,4 @@
+use crate::test_support;
 //! Whether a personally disabled MCP name should appear as a re-enableable stub in `/mcps`.
 //!
 //! A row shows only when a definition still exists (ignoring personal disable) and org policy would not block enable.

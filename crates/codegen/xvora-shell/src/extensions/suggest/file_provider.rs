@@ -1,3 +1,4 @@
+use crate::test_support;
 //! Filesystem completion for the shell token under the cursor.
 //! Any command's file arguments complete, plus path-like first tokens and redirection targets.
 //! Matching is fuzzy, and completions respect shell quoting, `~`, and `$VAR`.

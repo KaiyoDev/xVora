@@ -1,3 +1,4 @@
+use crate::test_support;
 use super::super::support::*;
 use super::super::*;
 use super::{AutoCompactTriggerInfo, SuppressReason};

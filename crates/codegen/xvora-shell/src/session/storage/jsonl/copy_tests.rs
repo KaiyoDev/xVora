@@ -1,3 +1,4 @@
+use crate::test_support;
 use crate::sampling::ConversationItem;
 use crate::session::info::Info;
 use crate::session::persistence::{CHAT_FORMAT_VERSION, default_model_id};

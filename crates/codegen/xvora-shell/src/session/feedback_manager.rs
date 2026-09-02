@@ -1,3 +1,4 @@
+use crate::test_support;
 //! This manager coordinates:
 //! - Signal tracking via SessionSignalsHandle
 //! - Heuristics evaluation to determine when to request feedback

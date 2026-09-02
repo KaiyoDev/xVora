@@ -1,3 +1,4 @@
+use crate::test_support;
 //! Pull-on-miss: fetch a session from the backend and hydrate local JSONL storage.
 
 use crate::remote::client::{BackendClient, BackendError};

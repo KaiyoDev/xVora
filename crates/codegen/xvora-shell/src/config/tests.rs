@@ -1,3 +1,4 @@
+use crate::test_support;
 #![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 fn with_env_var<T>(name: &str, value: &str, f: impl FnOnce() -> T) -> T {

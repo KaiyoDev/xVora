@@ -1,3 +1,4 @@
+use crate::test_support;
 use agent_client_protocol as acp;
 use anyhow::Result;
 use indexmap::IndexMap;

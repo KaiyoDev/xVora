@@ -1,3 +1,4 @@
+use crate::test_support;
 use super::*;
 /// Build an unsigned JWT with a `tier` claim (header.payload.sig base64url).
 fn jwt_with_tier(tier: u64) -> String {
