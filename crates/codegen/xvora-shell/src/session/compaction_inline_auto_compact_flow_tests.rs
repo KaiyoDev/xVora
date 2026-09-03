@@ -1568,7 +1568,7 @@ fn user_facing_compact_error_strips_prefix_single_lines_and_caps() {
         SessionActor::user_facing_compact_error("compact failed: API error\n  detail  line\t2"),
         "API error detail line 2"
     );
-    let nested = compaction::CompactionSampleError::Build(format!(
+    let nested = xvora_compaction::CompactionSampleError::Build(format!(
         "{COMPACT_FAILED_PREFIX}API error (status 400 Bad Request): invalid_image: too big"
     ))
     .to_string();
