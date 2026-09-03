@@ -79,7 +79,7 @@ pub(crate) use foreign_sessions::{
     badge_for_picker_source, foreign_tool_display_label, is_foreign_picker_source,
 };
 use ratatui::backend::CrosstermBackend;
-use shell::util::config;
+use shell::util::config as shell_config;
 pub use startup_failure::StartupFailure;
 use std::io::{self, IsTerminal, Write};
 use std::panic;
@@ -442,7 +442,7 @@ pub fn resolve_leader_mode<'p>(
         if !eligible {
             break 'policy (false, None);
         }
-        if let Some(v) = config::use_leader_from_toml_opt(raw_config) {
+        if let Some(v) = shell_config::use_leader_from_toml_opt(raw_config) {
             break 'policy (v, (!v).then_some("config"));
         }
         #[cfg(feature = "release-dist")]

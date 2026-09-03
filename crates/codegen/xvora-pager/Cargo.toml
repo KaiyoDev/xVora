@@ -18,10 +18,10 @@ prompt-queue = { workspace = true }
 pager-render = { path = "../xvora-pager-render", package = "xvora-pager-render" }
 
 # The /gboom easter-egg game (extracted)
-gboom = { path = "../xvora-gboom", package = "xvora-gboom" }
+xvora-gboom = { path = "../xvora-gboom", package = "xvora-gboom" }
 
 # Diff hunk construction (extracted)
-pager-diff = { path = "../xvora-pager-diff", package = "xvora-pager-diff" }
+xvora-pager-diff = { path = "../xvora-pager-diff", package = "xvora-pager-diff" }
 
 # Rendering
 ratatui = { workspace = true, features = ["crossterm", "unstable-widget-ref"] }
@@ -122,7 +122,7 @@ flate2 = { workspace = true }
 tar = { workspace = true }
 tools = { workspace = true }
 agent = { workspace = true }
-plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
+xvora-plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
 # Blocked-card copy: `hook_display_name` lives next to the hook-name grammar.
 xvora-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
 hooks-plugins-types = { path = "../hooks-plugins-types", package = "xvora-hooks-plugins-types" }
@@ -180,7 +180,7 @@ windows-sys = { version = "0.59", features = ["Win32_System_Console"] }
 # The fixture that builds a `[ui.status_line]` section field by field.
 status-line = { workspace = true, features = ["test-support"] }
 pager-render = { path = "../xvora-pager-render", package = "xvora-pager-render", features = ["test-support"] }
-gboom = { path = "../xvora-gboom", package = "xvora-gboom", features = ["test-support"] }
+xvora-gboom = { path = "../xvora-gboom", package = "xvora-gboom", features = ["test-support"] }
 shell = { workspace = true, features = ["test-support"] }
 pretty_assertions = { workspace = true }
 insta = { workspace = true }
@@ -299,4 +299,4 @@ release-dist = []
 # Exposes test-only view-model constructors/setters (e.g. `test_agent_view`,
 # `AgentSession::set_yolo_mode_for_test`) to sibling crates' test builds — used
 # by `xvora-pager-minimal`'s unit tests. Never enabled in production builds.
-test-support = ["pager-render/test-support", "gboom/test-support"]
+test-support = ["pager-render/test-support", "xvora-gboom/test-support"]

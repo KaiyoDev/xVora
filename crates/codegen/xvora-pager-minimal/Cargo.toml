@@ -37,7 +37,7 @@ ratatui-inline = { workspace = true }
 # dev) dependency because gazelle lists `src/commit_tests.rs` in the library
 # `srcs` and so attributes its imports to the library target; a
 # `[dev-dependencies]` entry here would fail `just gazelle --check`.
-pager-diff = { path = "../xvora-pager-diff", package = "xvora-pager-diff" }
+xvora-pager-diff = { path = "../xvora-pager-diff", package = "xvora-pager-diff" }
 
 # Misc used by the commit/live/full-view paths.
 chrono = { workspace = true }
