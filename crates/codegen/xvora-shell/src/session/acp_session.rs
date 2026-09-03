@@ -161,10 +161,10 @@ use super::telemetry;
 // Extern crate aliases: resolve `telemetry::`, `prompt_queue::`, `status_line::`
 // used in acp_session_impl/* files (which `use super::*`) against the external
 // crates rather than the local sibling modules of the same name.
-extern crate prompt_queue as ext_prompt_queue;
-extern crate status_line as ext_status_line;
-extern crate telemetry as ext_telemetry;
-extern crate xvora_mcp as ext_mcp;
+
+
+
+
 #[path = "acp_session_impl/prompt_build.rs"]
 mod prompt_build;
 use prompt_build::*;
