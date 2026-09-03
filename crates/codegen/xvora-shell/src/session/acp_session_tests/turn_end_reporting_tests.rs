@@ -447,13 +447,13 @@ async fn a_subagent_session_end_names_the_child() {
 
         let mut parent = Harness::new().await;
         parent.listen(&events);
-        let timer = telemetry::session_end::SessionEndTimer::new_shared();
+        let timer = ext_telemetry::session_end::SessionEndTimer::new_shared();
         super::run_loop::fire_session_end_hooks(&parent.actor, "shutdown", &timer).await;
         assert_eq!(parent.fired(), vec!["session_end", "stop"]);
 
         let mut child = Harness::subagent().await;
         child.listen(&events);
-        let child_timer = telemetry::session_end::SessionEndTimer::new_shared();
+        let child_timer = ext_telemetry::session_end::SessionEndTimer::new_shared();
         super::run_loop::fire_session_end_hooks(&child.actor, "shutdown", &child_timer).await;
         let fired = child.fired_payloads();
         assert_eq!(

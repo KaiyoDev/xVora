@@ -3,6 +3,7 @@ use super::support::*;
 use super::*;
 use tools::types::output::{MCPOutput, ToolOutput, ToolRunResult};
 use tools::util::base64_images::{ExtractedImage, IMAGE_CONTENT_PLACEHOLDER};
+use base64::Engine as _;
 use xvora_sampling_types::{ContentPart, ConversationItem};
 /// A 32×32 solid PNG, above the vision minimum side and area, so normalize keeps it.
 fn vision_ok_png_b64() -> String {
@@ -12,6 +13,7 @@ fn vision_ok_png_b64() -> String {
     let mut buf = Vec::new();
     img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
         .expect("encode png");
+
     base64::engine::general_purpose::STANDARD.encode(buf)
 }
 fn mcp_screenshot_result(payload_b64: &str) -> ToolRunResult {

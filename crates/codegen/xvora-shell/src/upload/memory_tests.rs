@@ -3,7 +3,7 @@
 //! terminal records.
 use super::*;
 use crate::upload::trace::tests::{
-    assert_artifact_failed, read_tar_gz_entries, test_prompt_trace_ctx,
+    read_tar_gz_entries,
 };
 use crate::upload::trace::{ArchiveBuildFault, set_archive_build_fault, spawn_upload_queue};
 #[tokio::test(flavor = "current_thread")]

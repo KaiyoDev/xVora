@@ -261,9 +261,9 @@ async fn generic_tool_completion_chokepoint_has_exact_active_message_cardinality
                 events.as_slice(),
                 [
                     crate::session::telemetry::ActiveAgentMessageEvent::Completed(
-                        telemetry::events::ActiveAgentMessageCompleted {
+                        ext_telemetry::events::ActiveAgentMessageCompleted {
                             requested_operation:
-                                telemetry::events::ActiveAgentMessageOperation::Queue,
+                                ext_telemetry::events::ActiveAgentMessageOperation::Queue,
                             ..
                         }
                     )
