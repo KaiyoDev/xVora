@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use xvora_config::is_direct_hook_json_name;
+use xvora_xvora_config::is_direct_hook_json_name;
 
 use crate::config::{self, HookSpec};
 use crate::error::HookError;
@@ -345,7 +345,7 @@ fn load_hooks_from_directory(dir: &Path) -> (Vec<HookSpec>, Vec<HookError>) {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        if !config::is_direct_hook_json_name(name) || !path.is_file() {
+        if !xvora_config::is_direct_hook_json_name(name) || !path.is_file() {
             continue;
         }
         json_files.push(path);
@@ -381,7 +381,7 @@ fn is_valid_hook_file(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
-    config::is_direct_hook_json_name(name) && path.is_file()
+    xvora_config::is_direct_hook_json_name(name) && path.is_file()
 }
 
 #[cfg(test)]
