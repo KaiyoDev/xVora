@@ -36,6 +36,8 @@
 //! println!("loaded {} pre_tool_use hooks", pre_hooks.len());
 //! ```
 
+extern crate config as xvora_config;
+
 pub mod config;
 pub mod discovery;
 pub mod dispatcher;

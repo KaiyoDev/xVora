@@ -290,7 +290,6 @@ computer-hub-sdk = {  path = "crates/common/computer-hub-sdk", package = "xvora-
   auth = { path = "crates/codegen/xvora-auth", package = "xvora-auth" }
   config = { path = "crates/codegen/xvora-config" , package = "xvora-config"}
   config-types = { path = "crates/codegen/xvora-config-types" , package = "xvora-config-types"}
-  xvora-config = { path = "crates/codegen/xvora-config" , package = "xvora-config"}
   env = { path = "crates/codegen/xvora-env", package = "xvora-env" }
   markdown = { path = "crates/codegen/xvora-markdown" , package = "xvora-markdown"}
   markdown-core = { path = "crates/codegen/xvora-markdown-core" , package = "xvora-markdown-core"}
