@@ -272,7 +272,7 @@ impl SessionActor {
             } else {
                 "prompt"
             };
-            Some(crate::session::ext_prompt_queue::QueueEntryMeta {
+            Some(crate::ext_prompt_queue::QueueEntryMeta {
                 id: prompt_id.clone(),
                 version: 0,
                 owner: client_identifier.clone(),
@@ -507,7 +507,7 @@ impl SessionActor {
             Some(r) => (Some(r.text), Some(r.kind), r.combined_texts),
             None => (None, None, None),
         };
-        let payload = crate::session::ext_prompt_queue::QueueChanged {
+        let payload = crate::ext_prompt_queue::QueueChanged {
             session_id: self.session_info.id.0.to_string(),
             entries,
             running_prompt_id: running_id,
