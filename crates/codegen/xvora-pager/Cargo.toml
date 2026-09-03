@@ -124,7 +124,7 @@ tools = { workspace = true }
 agent = { workspace = true }
 plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
 # Blocked-card copy: `hook_display_name` lives next to the hook-name grammar.
-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+xvora-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
 hooks-plugins-types = { path = "../hooks-plugins-types", package = "xvora-hooks-plugins-types" }
 walkdir = { workspace = true }
 xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }

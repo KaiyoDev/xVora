@@ -7,7 +7,7 @@ description = "Agent builder, definition parsing, and system prompt assembly"
 
 [dependencies]
 dunce = { workspace = true }
-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+xvora-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
 xvora-sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
 tools = { path = "../xvora-tools", package = "xvora-tools" }
 tty-utils = { workspace = true }

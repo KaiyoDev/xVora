@@ -167,7 +167,7 @@ config = { workspace = true }
 config-types = { workspace = true }
 dirs = { workspace = true }
 memory = { workspace = true }
-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+xvora-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
 hooks-plugins-types = { path = "../hooks-plugins-types", package = "xvora-hooks-plugins-types" }
 plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
 file-utils = { path = "../file-utils", package = "xvora-file-utils" }

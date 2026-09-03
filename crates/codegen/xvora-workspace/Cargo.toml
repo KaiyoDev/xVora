@@ -74,7 +74,7 @@ humantime-serde = { workspace = true }
 prometheus = { workspace = true }
 glob = "0.3"
 xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
+xvora-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
 hunk-tracker = { path = "../hunk-tracker", package = "xvora-hunk-tracker" }
 # `metrics` enables the SDK's metric-donation client (periodic Prometheus
 # registry gather → OTLP → hub donation pump); see metric_donation_reporter.
