@@ -258,7 +258,7 @@ fn confirmed_switch<'a>(recorded: Option<&'a str>, current: Option<&str>) -> Opt
 /// Offline tenant-purge detector: a confirmed team switch vs the marker returns the evicted principal.
 /// Key-scoped markers never confirm (key owns the machine's policy, not the team).
 pub fn confirmed_team_switch(new_team_id: &str) -> Option<String> {
-    user_grok_home().and_then(|home| confirmed_team_switch_at(&home, new_team_id))
+    user_grok_home().and_then(|home| confirmed_team_switch_at(home.as_path(), new_team_id))
 }
 
 /// [`confirmed_team_switch`] for an explicit `home` (purge-lock holder: same dir as delete).
@@ -351,7 +351,7 @@ impl TamperSignals {
 /// The session-start refresh blocks (bounded) on this but not timer-staleness, so a present same-identity cache never delays startup offline.
 pub fn is_managed_config_hard_stale_for(identity: &ServingIdentity) -> bool {
     match user_grok_home() {
-        Some(home) => is_managed_config_hard_stale_for_at(&home, identity),
+        Some(home) => is_managed_config_hard_stale_for_at(home.as_path(), identity),
         None => false,
     }
 }
@@ -415,7 +415,7 @@ fn is_managed_config_hard_stale_for_at(home: &Path, identity: &ServingIdentity) 
 /// A fail-closed marker then REQUIRES an authentic sidecar.
 /// The dark build uses only the best-effort marker decision.
 pub fn managed_policy_compromised_for(identity: &ServingIdentity) -> bool {
-    user_grok_home().is_some_and(|home| managed_policy_compromised_for_at(&home, identity))
+    user_grok_home().is_some_and(|home| managed_policy_compromised_for_at(home.as_path(), identity))
 }
 
 // No retry: the gate reads this under the flock the apply holds across its write sequence.

@@ -62,12 +62,12 @@ pub struct RequirementsLayer {
 /// Use when you need per-layer source attribution; otherwise use [`load_merged_requirements`].
 pub fn requirements_layers() -> Vec<RequirementsLayer> {
     let mut out = Vec::new();
-    if let Some(user_path) = user_grok_home().map(|g| g.join("requirements.toml"))
+    if let Some(user_path) = user_grok_home().map(|g: PathBuf| g.join("requirements.toml"))
         && let Some(value) = load_requirements_layer(&user_path)
     {
         out.push(RequirementsLayer {
             value,
-            source: RequirementsSource::File(user_path),
+            source: RequirementsSource::File(user_path.to_path_buf()),
             is_system: false,
         });
     }
