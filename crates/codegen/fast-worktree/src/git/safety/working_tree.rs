@@ -66,7 +66,8 @@ pub(super) fn find_working_tree_content(
                 )),
         );
     });
-    let items = xvora_gix_status::with_budgeted_thread_limit(platform).into_iter(Vec::<BString>::new());
+    let items =
+        xvora_gix_status::with_budgeted_thread_limit(platform).into_iter(Vec::<BString>::new());
     let items = match items {
         Ok(items) => items,
         Err(error) => {
