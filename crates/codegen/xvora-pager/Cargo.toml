@@ -294,7 +294,7 @@ local-workspace = ["shell/local-workspace"]
 # workspace-uniform `[jemalloc, sandbox-enforce]` default set resolves
 # here too and the generated `crate_features` stay valid.
 jemalloc = []
-sandbox-enforce = ["sandbox/enforce"]
+sandbox-enforce = ["xvora-sandbox/enforce"]
 release-dist = []
 # Exposes test-only view-model constructors/setters (e.g. `test_agent_view`,
 # `AgentSession::set_yolo_mode_for_test`) to sibling crates' test builds — used

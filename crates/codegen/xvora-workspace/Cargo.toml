@@ -131,7 +131,7 @@ default = ["sandbox-enforce"]
 compression = []
 test-support = []
 test-util = []
-sandbox-enforce = ["sandbox/enforce"]
+sandbox-enforce = ["xvora-sandbox/enforce"]
 default-bazel = [
     "sandbox-enforce",
     ]
