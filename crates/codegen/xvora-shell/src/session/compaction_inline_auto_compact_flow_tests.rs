@@ -1564,15 +1564,16 @@ fn compact_error_data_scrubs_and_caps_raw_producer_input() {
 #[test]
 fn user_facing_compact_error_strips_prefix_single_lines_and_caps() {
     use crate::session::helpers::session_compact::{COMPACT_CANCELLED_MSG, COMPACT_FAILED_PREFIX};
-    use compaction::CompactionSampleError;
     assert_eq!(
         SessionActor::user_facing_compact_error("compact failed: API error\n  detail  line\t2"),
         "API error detail line 2"
     );
-    let nested = CompactionSampleError::Build(format!(
-        "{COMPACT_FAILED_PREFIX}API error (status 400 Bad Request): invalid_image: too big"
-    ))
-    .to_string();
+    // `CompactionSampleError::Build(msg)` displays as `"Compaction sampler build failed: {msg}"`.
+    // We construct the same nested-prefixed string directly to avoid the ambiguous
+    // `compaction` name resolution (local `session::compaction` module vs crate).
+    let nested = format!(
+        "Compaction sampler build failed: {COMPACT_FAILED_PREFIX}API error (status 400 Bad Request): invalid_image: too big"
+    );
     assert_eq!(
         SessionActor::user_facing_compact_error(&nested),
         "API error (status 400 Bad Request): invalid_image: too big"
