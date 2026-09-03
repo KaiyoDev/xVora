@@ -51,7 +51,7 @@ tty-utils = { workspace = true }
 # `collect_crashed()` for the startup crash notice.
 active-sessions = { workspace = true }
 config = { workspace = true }
-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
+xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
 extra-ca = { workspace = true }
 
 # Binary hardening: compile-time string + control-flow obfuscation.

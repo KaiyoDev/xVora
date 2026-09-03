@@ -22,7 +22,7 @@ url = { workspace = true }
 config = { workspace = true }
 # Child-network restriction on hook command spawns; enforce is feature-unified
 # from the binary crate, matching the other consumers.
-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
+xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
 tools = { workspace = true }
 
 [dev-dependencies]

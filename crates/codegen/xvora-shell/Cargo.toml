@@ -142,7 +142,7 @@ hunk-tracker = { path = "../hunk-tracker", package = "xvora-hunk-tracker" }
 agent-lifecycle = { workspace = true }
 interjection-core = { workspace = true }
 message-delivery-core = { workspace = true }
-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
+xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
 chat-state = { path = "../chat-state", package = "xvora-chat-state" }
 # Segment markdown rendering + the `compaction/` store path convention.
 compaction-transcript = { workspace = true }

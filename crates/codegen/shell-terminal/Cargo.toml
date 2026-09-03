@@ -30,7 +30,7 @@ uuid = { workspace = true, features = ["v7"] }
 acp-lib = { workspace = true  }
 config = { workspace = true }
 paths = { path = "../xvora-paths", package = "xvora-paths" }
-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
+xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
 tools = { workspace = true }
 workspace = { workspace = true }
 tty-utils = { workspace = true  }
