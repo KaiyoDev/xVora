@@ -7,9 +7,9 @@
 #![allow(clippy::items_after_test_module)]
 use super::*;
 use crate::remote::DEFAULT_CONTEXT_WINDOW;
-use ext_telemetry::subagent_spawn::phase_region_under;
 use ext_telemetry::region;
 use ext_telemetry::region::Parent as SpanParent;
+use ext_telemetry::subagent_spawn::phase_region_under;
 static SESSIONS_ACTIVE: ext_telemetry::activity::ActivityGauge =
     ext_telemetry::activity::ActivityGauge::residency(ext_telemetry::activity::SESSIONS_ACTIVE_KEY);
 /// Drop catch-all `--allow` rules (the `--yolo` substitute, see `resolution::is_catchall_allow`)
