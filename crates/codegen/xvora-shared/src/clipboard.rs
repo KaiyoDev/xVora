@@ -1088,6 +1088,7 @@ mod platform {
 #[cfg(not(target_os = "macos"))]
 mod platform {
     use super::ImageData;
+    #[cfg(target_os = "linux")]
     use std::process::{Command, Stdio};
 
     /// No subprocess-free pasteboard probe exists off-macOS.
@@ -1846,7 +1847,7 @@ mod platform {
     // -- Public API ----------------------------------------------------------
 
     pub fn get_text() -> anyhow::Result<Option<String>> {
-        let mut arboard_error = None;
+        let arboard_error = None;
         match arboard_get_text() {
             Ok(Some(text)) => return Ok(Some(text)),
             // Wayland-only: arboard's empty answer is not authoritative, fall through to wl-paste (see `wayland_tool_selected`)
@@ -1952,7 +1953,7 @@ mod platform {
     }
 
     pub fn get_image() -> anyhow::Result<Option<ImageData>> {
-        let mut arboard_error = None;
+        let arboard_error = None;
         match arboard_get_image() {
             Ok(Some(image)) => return Ok(Some(image)),
             // Wayland-only: arboard's empty answer is not authoritative, fall through to wl-paste (see `wayland_tool_selected`)
