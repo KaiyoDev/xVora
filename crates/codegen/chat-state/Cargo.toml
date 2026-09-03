@@ -19,7 +19,7 @@ tracing = { workspace = true }
 # `CompactionDetail`, embedded in `CompactionMode::Segments`.
 compaction-transcript = { workspace = true }
 compaction = { path = "../../common/xvora-compaction", package = "xvora-compaction" }
-sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
+xvora-sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
 token-estimation = { workspace = true  }
 
 [dev-dependencies]

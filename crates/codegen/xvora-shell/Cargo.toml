@@ -152,7 +152,7 @@ sampler = { path = "../xvora-sampler", package = "xvora-sampler" }
 # Session FTS search; owns this crate's only rusqlite/bundled-SQLite use.
 session-search = { workspace = true }
 token-estimation = { workspace = true  }
-sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
+xvora-sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
 tools = { path = "../xvora-tools", package = "xvora-tools" }
 tty-utils = { workspace = true }
 workflow = { path = "../xvora-workflow", package = "xvora-workflow" }
