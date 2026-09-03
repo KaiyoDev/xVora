@@ -12,7 +12,7 @@ dunce = { workspace = true }
 rustc-hash = { workspace = true }
 gix = { workspace = true, features = ["status", "index", "parallel"] }
 serde = { workspace = true, features = ["derive", "rc"] }
-gix-status = { workspace = true }
+xvora-gix-status = { path = "../xvora-gix-status" }
 serde_json = { workspace = true }
 similar = { workspace = true }
 thiserror = { workspace = true }

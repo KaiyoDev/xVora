@@ -40,7 +40,7 @@ pub fn candidate_data_dirs() -> Vec<PathBuf> {
     if let Some(home) = dirs::home_dir() {
         push(home.join(".local/share/grove"));
     }
-    if let Some(grok_home) = dirs::resolve_grok_home() {
+    if let Some(grok_home) = xvora_dirs::resolve_grok_home() {
         push(grok_home.join("grove"));
     }
     dirs

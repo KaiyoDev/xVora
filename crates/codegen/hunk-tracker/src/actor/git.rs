@@ -140,7 +140,7 @@ impl HunkTrackerActor {
 
             // Cap produce workers: gix-features spawn-EAGAIN aborts under panic=abort.
             let status = match repo.status(gix::progress::Discard) {
-                Ok(s) => gix_status::with_budgeted_thread_limit(s)
+                Ok(s) => xvora_gix_status::with_budgeted_thread_limit(s)
                     .untracked_files(gix::status::UntrackedFiles::Files),
                 Err(_) => {
                     // Git status failed - return empty but keep cache

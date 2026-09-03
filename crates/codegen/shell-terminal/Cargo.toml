@@ -29,7 +29,7 @@ tracing = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
 acp-lib = { workspace = true  }
 config = { workspace = true }
-paths = { path = "../xvora-paths", package = "xvora-paths" }
+xvora-paths = { path = "../xvora-paths", package = "xvora-paths" }
 xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
 tools = { workspace = true }
 workspace = { workspace = true }

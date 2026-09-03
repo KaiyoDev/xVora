@@ -21,7 +21,7 @@ toml = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
-dirs = { workspace = true }
+xvora-dirs = { path = "../xvora-dirs" }
 extra-ca = { workspace = true }
 # Sanctioned TTY detach for the capture subprocesses (Linux system recorders,
 # macOS `__mic-capture` self-exec helper) — workspace rule: never spawn a raw
