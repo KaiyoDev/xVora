@@ -42,13 +42,13 @@ impl SessionActor {
             skills_count = counts.skills_count,
             "session_context_snapshot: emitted"
         );
-        telemetry::session_ctx::log_session_event(session_context_snapshot(
+        ext_telemetry::session_ctx::log_session_event(session_context_snapshot(
             self.session_info.id.0.to_string(),
             &info,
             &counts,
             &tokens,
         ));
-        telemetry::session_ctx::drain_pending(telemetry::session_ctx::CLI_DRAIN).await;
+        ext_telemetry::session_ctx::drain_pending(ext_telemetry::session_ctx::CLI_DRAIN).await;
     }
 
     async fn tokenize_api_key(&self) -> Option<String> {

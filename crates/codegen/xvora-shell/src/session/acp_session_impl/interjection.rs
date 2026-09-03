@@ -254,14 +254,14 @@ impl SessionActor {
         // Those attribute the turn, which this skill did not start
         // `SkillDispatched` still carries `plugin_source`, so dispatch counts stay complete
         for sk in &parsed {
-            telemetry::session_ctx::log_event(telemetry::events::SlashCommandUsed {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::SlashCommandUsed {
                 command: sk.name.clone(),
                 args_provided: !sk.args.is_empty(),
             });
-            telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::SkillDispatched {
                 skill_name: sk.name.clone(),
                 plugin_source: sk.plugin_name.clone(),
-                trigger: telemetry::events::SkillTrigger::SlashCommand,
+                trigger: ext_telemetry::events::SkillTrigger::SlashCommand,
             });
         }
         slash_commands::build_skill_information_for_refs(

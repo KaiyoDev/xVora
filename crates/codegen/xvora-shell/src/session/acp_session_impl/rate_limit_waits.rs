@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use ext_telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
+use ext_ext_telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
 use sampler::{SamplingErrorInfo, SamplingErrorKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -217,7 +217,7 @@ impl BudgetState {
 impl Drop for RateLimitWaitBudget {
     fn drop(&mut self) {
         if let Some(event) = self.telemetry_event() {
-            telemetry::session_ctx::log_event(event);
+            ext_telemetry::session_ctx::log_event(event);
         }
     }
 }

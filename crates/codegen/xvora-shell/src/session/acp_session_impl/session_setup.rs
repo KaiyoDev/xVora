@@ -18,7 +18,7 @@ impl SessionActor {
             } else {
                 crate::agent::auth_method::AUTH_ERROR_API_KEY
             };
-            telemetry::unified_log::error(
+            ext_telemetry::unified_log::error(
                 "sampling auth error",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({

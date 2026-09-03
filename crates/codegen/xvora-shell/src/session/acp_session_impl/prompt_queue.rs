@@ -134,7 +134,7 @@ impl SessionActor {
         } = request;
         tracing::info!("queueing prompt: {prompt_id}");
         let queue_depth = { self.state.lock().await.pending_inputs.len() };
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.prompt.queued",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -363,7 +363,7 @@ impl SessionActor {
             "server appended prompt to pending_inputs",
         );
         if send_now && turn_running {
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.prompt.send_now_decision",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -868,7 +868,7 @@ impl SessionActor {
                 cancel_running_turn = cancel_decision;
                 tracing::info!(queued_id = %id, cancel_running_turn, "send-now: promoted queued prompt to run next");
             }
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.prompt.send_now_decision",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1080,7 +1080,7 @@ impl SessionActor {
         if !self.state.lock().await.take_hook_block_hold() {
             return;
         }
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.prompt.hook_block_hold_released",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({ "reason": reason })),

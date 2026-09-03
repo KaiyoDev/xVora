@@ -552,7 +552,7 @@ impl SessionActor {
     ) -> Option<String> {
         use crate::session::helpers::prompt_suggest;
 
-        use ext_telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
+        use ext_ext_telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
 
         if !crate::util::config::prompt_suggestions_enabled_from_disk() {
             tracing::debug!("prompt suggest: feature disabled; skipping request");
@@ -584,7 +584,7 @@ impl SessionActor {
                 reasoning_is_off,
                 "prompt suggest: effective model not in catalog; skipping request"
             );
-            telemetry::session_ctx::log_event(PromptSuggestion {
+            ext_telemetry::session_ctx::log_event(PromptSuggestion {
                 action: PsAction::SkippedCatalog,
                 chars: 0,
                 words: 0,
@@ -680,7 +680,7 @@ impl SessionActor {
 
         let started = std::time::Instant::now();
         let log_fetch = |action, chars, words, latency_ms| {
-            telemetry::session_ctx::log_event(PromptSuggestion {
+            ext_telemetry::session_ctx::log_event(PromptSuggestion {
                 action,
                 chars,
                 words,

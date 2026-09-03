@@ -8,8 +8,8 @@ use tools::implementations::grok_build::task::types::{
 };
 use tools::types::tool::ToolKind;
 use tracing::Instrument;
-static TURNS_ACTIVE: telemetry::activity::ActivityGauge =
-    telemetry::activity::ActivityGauge::work(telemetry::activity::TURNS_ACTIVE_KEY);
+static TURNS_ACTIVE: ext_telemetry::activity::ActivityGauge =
+    ext_telemetry::activity::ActivityGauge::work(ext_telemetry::activity::TURNS_ACTIVE_KEY);
 /// Synthetic tool for schema-constrained final answers on backends without native
 /// output constraints (Messages API); intercepted in the loop, never really executed.
 const STRUCTURED_OUTPUT_TOOL: &str = "StructuredOutput";
@@ -371,7 +371,7 @@ impl SessionActor {
             .sum();
         tracing::Span::current().record("prompt_length", prompt_length as i64);
         *self.active_skill.lock() = None;
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.handle_prompt.start",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -522,7 +522,7 @@ impl SessionActor {
             Err(SlashCommandOutcome::Builtin(action)) => {
                 let text_block =
                     |text: String| acp::ContentBlock::Text(acp::TextContent::new(text));
-                let slash_used = telemetry::events::SlashCommandUsed {
+                let slash_used = ext_telemetry::events::SlashCommandUsed {
                     command: action.command_name().to_string(),
                     args_provided: action.args_provided(),
                 };
@@ -537,12 +537,12 @@ impl SessionActor {
                         objective,
                         token_budget,
                     } => {
-                        telemetry::session_ctx::log_event(slash_used);
+                        ext_telemetry::session_ctx::log_event(slash_used);
                         let reminder = self.setup_goal(&objective, token_budget).await;
                         vec![text_block(reminder)]
                     }
                     BuiltinAction::GoalResume => {
-                        telemetry::session_ctx::log_event(slash_used);
+                        ext_telemetry::session_ctx::log_event(slash_used);
                         match self.resume_goal().await {
                             GoalResumeOutcome::Inference { reminder, user_msg } => {
                                 self.send_slash_command_output(&user_msg).await;
@@ -595,14 +595,16 @@ impl SessionActor {
                     );
                 }
                 for sk in &parsed_skills {
-                    telemetry::session_ctx::log_event(telemetry::events::SlashCommandUsed {
-                        command: sk.name.clone(),
-                        args_provided: !sk.args.is_empty(),
-                    });
-                    telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
+                    ext_telemetry::session_ctx::log_event(
+                        ext_telemetry::events::SlashCommandUsed {
+                            command: sk.name.clone(),
+                            args_provided: !sk.args.is_empty(),
+                        },
+                    );
+                    ext_telemetry::session_ctx::log_event(ext_telemetry::events::SkillDispatched {
                         skill_name: sk.name.clone(),
                         plugin_source: sk.plugin_name.clone(),
-                        trigger: telemetry::events::SkillTrigger::SlashCommand,
+                        trigger: ext_telemetry::events::SkillTrigger::SlashCommand,
                     });
                     let skill_source = if sk.plugin_name.is_some() {
                         "plugin"
@@ -620,7 +622,7 @@ impl SessionActor {
                     )
                     .in_scope(|| {});
                     if let Some(ref pname) = sk.plugin_name {
-                        telemetry::session_ctx::log_event(telemetry::events::PluginUsed {
+                        ext_telemetry::session_ctx::log_event(ext_telemetry::events::PluginUsed {
                             plugin_id: pname.clone(),
                             plugin_name: pname.clone(),
                             skill_name: Some(sk.name.clone()),
@@ -688,12 +690,12 @@ impl SessionActor {
         })
         .await;
         let turn_idx = self.chat_state_handle.get_prompt_index().await as u64;
-        telemetry::session_ctx::log_session_event(crate::agent::session_metrics::Turn {
+        ext_telemetry::session_ctx::log_session_event(crate::agent::session_metrics::Turn {
             session_id: self.session_info.id.0.to_string(),
             turn_number: turn_idx,
         });
         let current_prompt_index = self.chat_state_handle.get_prompt_index().await;
-        telemetry::session_ctx::begin_prompt_id();
+        ext_telemetry::session_ctx::begin_prompt_id();
         let mut chunk_meta = serde_json::Map::new();
         chunk_meta.insert("modelId".into(), serde_json::json!(model_id));
         chunk_meta.insert(
@@ -909,19 +911,20 @@ impl SessionActor {
                 .map(|c| c.model)
                 .unwrap_or_default();
             if policy.analytics.is_human_prompt()
-                && (self.telemetry_enabled || telemetry::external::is_active())
+                && (self.telemetry_enabled || ext_telemetry::external::is_active())
             {
                 let effective_client_identifier =
                     prompt_client_identifier.or_else(|| self.client_identifier.clone());
-                let ev = telemetry::events::PromptSubmitted {
+                let ev = ext_telemetry::events::PromptSubmitted {
                     prompt_length: user_message.len(),
                     model_id,
                     client_identifier: effective_client_identifier,
                     screen_mode: prompt_screen_mode,
-                    prompt_text: telemetry::external::is_active().then(|| user_message.to_owned()),
+                    prompt_text: ext_telemetry::external::is_active()
+                        .then(|| user_message.to_owned()),
                     command_name: otel_command_name,
                 };
-                telemetry::session_ctx::log_event_dual(self.telemetry_enabled, ev);
+                ext_telemetry::session_ctx::log_event_dual(self.telemetry_enabled, ev);
             }
             self.maybe_inject_mcp_reminder().await;
             self.maybe_inject_mcp_connecting_reminder().await;
@@ -932,7 +935,7 @@ impl SessionActor {
                 if let Some(gate) = &self.tool_context.task_wake_suppressed {
                     gate.set(false);
                 }
-                telemetry::unified_log::info(
+                ext_telemetry::unified_log::info(
                     "shell.task_wake.gate_cleared",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({ "reason": "handle_prompt_user_start" })),
@@ -1072,9 +1075,9 @@ impl SessionActor {
             if let Some(kind) = redirect_kind {
                 self.events.set_prior_redirect_kind(kind);
             }
-            telemetry::session_ctx::log_event(telemetry::events::HookBlocked {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::HookBlocked {
                 hook_name: hook_name.clone(),
-                cause: telemetry::events::HookBlockCause::PromptBlocked,
+                cause: ext_telemetry::events::HookBlockCause::PromptBlocked,
             });
             self.send_hook_annotation(&format!(
                 "\u{26a0} Prompt blocked by {}: {reason}",
@@ -1134,7 +1137,7 @@ impl SessionActor {
                 );
                 if goal_active {
                     if self.has_runnable_queued_user_row().await {
-                        telemetry::unified_log::info(
+                        ext_telemetry::unified_log::info(
                             "shell.goal.yielded_to_queued_input",
                             Some(self.session_info.id.0.as_ref()),
                             Some(serde_json::json!({ "prompt_id": prompt_id })),
@@ -1213,7 +1216,7 @@ impl SessionActor {
         let turn_duration_ms =
             super::turn_task::elapsed_ms_saturating(turn_timer, std::time::Instant::now());
         let handle_prompt_elapsed_ms = handle_prompt_start.elapsed().as_millis() as u64;
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.handle_prompt.done",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1235,7 +1238,7 @@ impl SessionActor {
                 model_id: turn_model_id.clone(),
             })
             .await;
-        if telemetry::external::is_active() {
+        if ext_telemetry::external::is_active() {
             let committed = self
                 .chat_state_handle
                 .get_assistant_text_in_turn()
@@ -1251,7 +1254,7 @@ impl SessionActor {
                 &captured,
                 trust_committed,
             );
-            telemetry::external::emit(&telemetry::events::AssistantResponse {
+            ext_telemetry::external::emit(&ext_telemetry::events::AssistantResponse {
                 response_length: response_text.len(),
                 response_text: (!response_text.is_empty()).then_some(response_text),
             });
@@ -1285,8 +1288,8 @@ impl SessionActor {
                     cancellation_context: None,
                 })
                 .await;
-                telemetry::session_ctx::log_event(telemetry::events::TurnCompleted {
-                    outcome: telemetry::events::Outcome::Completed,
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::TurnCompleted {
+                    outcome: ext_telemetry::events::Outcome::Completed,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id,
@@ -1313,8 +1316,8 @@ impl SessionActor {
                     cancellation_context: None,
                 })
                 .await;
-                telemetry::session_ctx::log_event(telemetry::events::TurnCompleted {
-                    outcome: telemetry::events::Outcome::Completed,
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::TurnCompleted {
+                    outcome: ext_telemetry::events::Outcome::Completed,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id,
@@ -1348,8 +1351,8 @@ impl SessionActor {
                     cancellation_context: context_json,
                 })
                 .await;
-                telemetry::session_ctx::log_event(telemetry::events::TurnCompleted {
-                    outcome: telemetry::events::Outcome::Cancelled,
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::TurnCompleted {
+                    outcome: ext_telemetry::events::Outcome::Cancelled,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id,
@@ -1382,8 +1385,8 @@ impl SessionActor {
                     })),
                 })
                 .await;
-                telemetry::session_ctx::log_event(telemetry::events::TurnCompleted {
-                    outcome: telemetry::events::Outcome::Cancelled,
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::TurnCompleted {
+                    outcome: ext_telemetry::events::Outcome::Cancelled,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id,
@@ -1407,14 +1410,14 @@ impl SessionActor {
                 })
                 .await;
                 let error_category = Self::classify_turn_error(err);
-                telemetry::session_ctx::log_session_event(telemetry::events::ApiError {
+                ext_telemetry::session_ctx::log_session_event(ext_telemetry::events::ApiError {
                     error_category: error_category.clone(),
                     model_id: turn_model_id.clone(),
                     status_code: None,
                     duration_ms: Some(turn_duration_ms),
                 });
-                telemetry::session_ctx::log_event(telemetry::events::TurnCompleted {
-                    outcome: telemetry::events::Outcome::Error,
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::TurnCompleted {
+                    outcome: ext_telemetry::events::Outcome::Error,
                     duration_ms: turn_duration_ms,
                     tool_call_count: turn_tool_count,
                     model_id: turn_model_id,
@@ -1431,7 +1434,7 @@ impl SessionActor {
                 );
             }
         }
-        telemetry::session_ctx::log_session_event(
+        ext_telemetry::session_ctx::log_session_event(
             crate::agent::session_metrics::TurnCompletedLifecycle {
                 session_id: self.session_info.id.0.to_string(),
                 turn_number: current_prompt_index as u64,
@@ -1440,7 +1443,7 @@ impl SessionActor {
         let doom_tally = std::mem::take(&mut *self.doom_loop_turn_tally.lock());
         if doom_tally.detected() {
             let summary = doom_tally.detection_summary();
-            telemetry::session_ctx::log_session_event(
+            ext_telemetry::session_ctx::log_session_event(
                 crate::agent::session_metrics::DoomLoopDetected {
                     session_id: self.session_info.id.0.to_string(),
                     turn_number: current_prompt_index as u64,
@@ -1456,7 +1459,7 @@ impl SessionActor {
             );
         }
         if doom_tally.fired() {
-            telemetry::session_ctx::log_session_event(
+            ext_telemetry::session_ctx::log_session_event(
                 crate::agent::session_metrics::DoomLoopRecovery {
                     session_id: self.session_info.id.0.to_string(),
                     turn_number: current_prompt_index as u64,
@@ -1975,12 +1978,12 @@ impl SessionActor {
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if !self.memory.initial_injection_config.enabled {
             tracing::info!(
-                target: telemetry::memory_log::TARGET,
+                target: ext_telemetry::memory_log::TARGET,
                 "MEMORY_INJECT: first-turn injection disabled by config"
             );
             crate::session::memory_observation::log_memory_injection(
                 self.session_info.id.to_string(),
-                telemetry::memory_telemetry::MemoryInjectionOutcome::Skipped,
+                ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Skipped,
                 Default::default(),
             );
             return None;
@@ -1990,7 +1993,7 @@ impl SessionActor {
         else {
             crate::session::memory_observation::log_memory_injection(
                 self.session_info.id.to_string(),
-                telemetry::memory_telemetry::MemoryInjectionOutcome::Skipped,
+                ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Skipped,
                 Default::default(),
             );
             return None;
@@ -1998,12 +2001,12 @@ impl SessionActor {
         let conversation = self.chat_state_handle.get_conversation().await;
         if crate::session::helpers::memory_context::conversation_has_memory_context(&conversation) {
             tracing::info!(
-                target: telemetry::memory_log::TARGET,
+                target: ext_telemetry::memory_log::TARGET,
                 "MEMORY_INJECT: existing memory-context block present in system message -- skipping re-injection to preserve prompt cache"
             );
             crate::session::memory_observation::log_memory_injection(
                 self.session_info.id.to_string(),
-                telemetry::memory_telemetry::MemoryInjectionOutcome::Skipped,
+                ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Skipped,
                 Default::default(),
             );
             return None;
@@ -2030,30 +2033,30 @@ impl SessionActor {
         let search_result = backend.search(&query, 6, configured_min_score).await;
         let (outcome, mut inject_results) = match search_result {
             Ok(results) if results.is_empty() => (
-                telemetry::memory_telemetry::MemoryInjectionOutcome::Empty,
+                ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Empty,
                 results,
             ),
             Ok(results) => (
-                telemetry::memory_telemetry::MemoryInjectionOutcome::Results,
+                ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Results,
                 results,
             ),
             Err(error) => {
                 tracing::warn!(
-                    target: telemetry::memory_log::TARGET,
+                    target: ext_telemetry::memory_log::TARGET,
                     %error,
                     "MEMORY_INJECT_SEARCH: search failed"
                 );
                 (
-                    telemetry::memory_telemetry::MemoryInjectionOutcome::Error,
+                    ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Error,
                     Vec::new(),
                 )
             }
         };
         inject_results.retain(|result| Self::is_first_turn_memory_score_visible(result.score));
-        let outcome = if outcome == telemetry::memory_telemetry::MemoryInjectionOutcome::Results
+        let outcome = if outcome == ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Results
             && inject_results.is_empty()
         {
-            telemetry::memory_telemetry::MemoryInjectionOutcome::Empty
+            ext_telemetry::memory_telemetry::MemoryInjectionOutcome::Empty
         } else {
             outcome
         };
@@ -2064,7 +2067,7 @@ impl SessionActor {
             .map(|result| result.snippet.len())
             .sum();
         tracing::info!(
-            target: telemetry::memory_log::TARGET,
+            target: ext_telemetry::memory_log::TARGET,
             configured_min_score,
             result_count,
             "MEMORY_INJECT_SEARCH: completed"
@@ -2199,7 +2202,7 @@ impl SessionActor {
             snap.turn_output_tokens = turn_span_totals.output_tokens.max(0) as u64;
             snap.turn_cached_input_tokens = turn_span_totals.cache_read_tokens.max(0) as u64;
             for pr in &snap.delta.prs_created_this_turn {
-                telemetry::session_ctx::log_event(telemetry::events::PrCreated {
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::PrCreated {
                     source: pr.source,
                     had_commit_in_session: pr.had_commit_in_session,
                 });
@@ -2306,7 +2309,7 @@ impl SessionActor {
         if let Some(ref mut pt) = prompt_timing {
             pt.record_tool_prep(mcp_wait_ms, total_prep_ms);
         }
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.turn.tool_prep_done",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -2389,7 +2392,7 @@ impl SessionActor {
                     true_noop,
                     "action stationarity: ending turn after repeated identical tool calls"
                 );
-                telemetry::unified_log::warn(
+                ext_telemetry::unified_log::warn(
                     "shell.turn.action_stationarity_stop",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -2400,12 +2403,14 @@ impl SessionActor {
                         "problematically_repeating": problematically_repeating,
                     })),
                 );
-                telemetry::session_ctx::log_event(telemetry::events::ActionStationarityStop {
-                    true_noop,
-                    problematically_repeating,
-                    run_len,
-                    tool_name: tool_name.clone(),
-                });
+                ext_telemetry::session_ctx::log_event(
+                    ext_telemetry::events::ActionStationarityStop {
+                        true_noop,
+                        problematically_repeating,
+                        run_len,
+                        tool_name: tool_name.clone(),
+                    },
+                );
                 let snapshot = self
                     .finalize_turn_bookkeeping(
                         req_id,
@@ -2428,7 +2433,7 @@ impl SessionActor {
                     run_len,
                     "action stationarity: nudging model to break repeated identical tool calls"
                 );
-                telemetry::unified_log::warn(
+                ext_telemetry::unified_log::warn(
                     "shell.turn.action_stationarity_nudge",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -2438,11 +2443,13 @@ impl SessionActor {
                         "problematically_repeating": problematically_repeating,
                     })),
                 );
-                telemetry::session_ctx::log_event(telemetry::events::ActionStationarityNudge {
-                    problematically_repeating,
-                    run_len,
-                    tool_name: tool_name.clone(),
-                });
+                ext_telemetry::session_ctx::log_event(
+                    ext_telemetry::events::ActionStationarityNudge {
+                        problematically_repeating,
+                        run_len,
+                        tool_name: tool_name.clone(),
+                    },
+                );
                 let reminder = self
                     .tool_bridge_handle()
                     .render_prompt(
@@ -2467,7 +2474,7 @@ impl SessionActor {
                     .injection_count
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 tracing::info!(
-                    target: telemetry::memory_log::TARGET,
+                    target: ext_telemetry::memory_log::TARGET,
                     "MEMORY_INJECT: first-turn memory context injected"
                 );
             }
@@ -2561,7 +2568,7 @@ impl SessionActor {
                 )
                 .await
                 .expect("chat state actor should be alive");
-            telemetry::unified_log::debug(
+            ext_telemetry::unified_log::debug(
                 "shell.turn.build_request_done",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -2600,7 +2607,7 @@ impl SessionActor {
                     phase: tool_protocol::session_event::SessionPhase::Sampling,
                 })
                 .await;
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.turn.inference_start",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -2634,7 +2641,7 @@ impl SessionActor {
                         && crate::sampling::error::is_max_tokens_turn_error(&error)
                     {
                         salvage.response_arrived();
-                        telemetry::unified_log::warn(
+                        ext_telemetry::unified_log::warn(
                             "shell.turn.length_empty_continuation",
                             Some(self.session_info.id.0.as_ref()),
                             Some(serde_json::json!({
@@ -2701,7 +2708,7 @@ impl SessionActor {
                     }
                     let display_max =
                         transient_display_ceiling(transient_retry_attempts, prompt_total);
-                    telemetry::unified_log::warn(
+                    ext_telemetry::unified_log::warn(
                         "shell.turn.transient_retry_backoff",
                         Some(self.session_info.id.0.as_ref()),
                         Some(serde_json::json!({
@@ -2738,7 +2745,7 @@ impl SessionActor {
                 Ok(SamplerTurnOutcome::RefreshAuthAndResubmit { credential, store }) => {
                     if auth_retry_schedule.reset_if_incident_spans_suspend() {
                         tracing::info!("auth 401 retry: incident spanned a suspend; budget reset");
-                        telemetry::unified_log::info(
+                        ext_telemetry::unified_log::info(
                             "shell.turn.auth_retry_reset_after_suspend",
                             Some(self.session_info.id.0.as_ref()),
                             Some(serde_json::json!({ "loop_index": loop_index })),
@@ -2750,7 +2757,7 @@ impl SessionActor {
                                 resubmit,
                                 "auth 401 retry: no credential was sent; resubmitting uncharged"
                             );
-                            telemetry::unified_log::warn(
+                            ext_telemetry::unified_log::warn(
                                 "shell.turn.auth_resubmit_uncharged",
                                 Some(self.session_info.id.0.as_ref()),
                                 Some(serde_json::json!({
@@ -2780,7 +2787,7 @@ impl SessionActor {
                                 delay_ms,
                                 "auth 401 retry: backing off before resubmit"
                             );
-                            telemetry::unified_log::warn(
+                            ext_telemetry::unified_log::warn(
                                 "shell.turn.auth_retry_backoff",
                                 Some(self.session_info.id.0.as_ref()),
                                 Some(serde_json::json!({
@@ -2843,7 +2850,7 @@ impl SessionActor {
                                 }
                             };
                             tracing::error!(msg);
-                            telemetry::unified_log::error(
+                            ext_telemetry::unified_log::error(
                                 "shell.turn.auth_retry_exhausted",
                                 Some(self.session_info.id.0.as_ref()),
                                 Some(serde_json::json!({
@@ -2888,7 +2895,7 @@ impl SessionActor {
                 }
                 _ => None,
             };
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.turn.inference_done",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -2921,23 +2928,28 @@ impl SessionActor {
             let model_duration_ms = model_timer.elapsed().as_millis() as u64;
             {
                 let model_id = self.current_model_id().await;
-                telemetry::session_ctx::log_event(telemetry::events::ModelResponseReceived {
-                    model_id,
-                    duration_ms: model_duration_ms,
-                    stop_reason: response
-                        .stop_reason
-                        .as_ref()
-                        .map(|r| format!("{r:?}").to_ascii_lowercase()),
-                    prompt_tokens: response.usage.as_ref().map(|u| u.prompt_tokens),
-                    completion_tokens: response.usage.as_ref().map(|u| u.completion_tokens),
-                    reasoning_tokens: response.usage.as_ref().map(|u| u.reasoning_tokens),
-                    cached_prompt_tokens: response.usage.as_ref().map(|u| u.cached_prompt_tokens),
-                    cache_creation_tokens: response
-                        .usage
-                        .as_ref()
-                        .map(|u| u.cache_creation_prompt_tokens),
-                    cost_usd_ticks: response.cost_usd_ticks,
-                });
+                ext_telemetry::session_ctx::log_event(
+                    ext_telemetry::events::ModelResponseReceived {
+                        model_id,
+                        duration_ms: model_duration_ms,
+                        stop_reason: response
+                            .stop_reason
+                            .as_ref()
+                            .map(|r| format!("{r:?}").to_ascii_lowercase()),
+                        prompt_tokens: response.usage.as_ref().map(|u| u.prompt_tokens),
+                        completion_tokens: response.usage.as_ref().map(|u| u.completion_tokens),
+                        reasoning_tokens: response.usage.as_ref().map(|u| u.reasoning_tokens),
+                        cached_prompt_tokens: response
+                            .usage
+                            .as_ref()
+                            .map(|u| u.cached_prompt_tokens),
+                        cache_creation_tokens: response
+                            .usage
+                            .as_ref()
+                            .map(|u| u.cache_creation_prompt_tokens),
+                        cost_usd_ticks: response.cost_usd_ticks,
+                    },
+                );
             }
             self.record_response_token_usage(&response, Some(model_duration_ms));
             let response_completed = self.response_completed_update(&response);
@@ -2994,7 +3006,7 @@ impl SessionActor {
                     resample = media_gen_resamples,
                     "media_gen 2x over-cap — discarding generation and resampling"
                 );
-                telemetry::unified_log::info(
+                ext_telemetry::unified_log::info(
                     "shell.media_gen.batch_resampled",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -3101,7 +3113,7 @@ impl SessionActor {
                 None
             };
             if let Some(value) = &schema_complete_at_cap {
-                telemetry::unified_log::info(
+                ext_telemetry::unified_log::info(
                     "shell.turn.length_schema_complete_at_cap",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -3132,7 +3144,7 @@ impl SessionActor {
                             max = salvage.budget(),
                             "Output token limit exceeded — injecting reminder and retrying"
                         );
-                        telemetry::unified_log::warn(
+                        ext_telemetry::unified_log::warn(
                             "shell.turn.length_truncation_continue",
                             Some(self.session_info.id.0.as_ref()),
                             Some(serde_json::json!({
@@ -3148,7 +3160,7 @@ impl SessionActor {
                             retries = salvage.continues(),
                             "Output token limit retries exhausted, completing the turn truncated"
                         );
-                        telemetry::unified_log::warn(
+                        ext_telemetry::unified_log::warn(
                             "shell.turn.length_truncation_exhausted",
                             Some(self.session_info.id.0.as_ref()),
                             Some(serde_json::json!({
@@ -3334,7 +3346,7 @@ impl SessionActor {
                 is_true_noop,
             );
             if is_true_noop {
-                telemetry::session_ctx::log_event(telemetry::events::ShellTrueNoop {
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::ShellTrueNoop {
                     tool_name: step_tool_name.clone(),
                 });
             }

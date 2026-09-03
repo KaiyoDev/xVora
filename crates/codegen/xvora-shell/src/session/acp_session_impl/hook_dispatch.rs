@@ -425,16 +425,28 @@ impl SessionActor {
             let (hook_name, elapsed, outcome) = match r {
                 xvora_hooks::result::HookRunResult::Success {
                     hook_name, elapsed, ..
-                } => (hook_name, elapsed, telemetry::events::HookOutcome::Success),
+                } => (
+                    hook_name,
+                    elapsed,
+                    ext_telemetry::events::HookOutcome::Success,
+                ),
                 xvora_hooks::result::HookRunResult::Blocked {
                     hook_name, elapsed, ..
-                } => (hook_name, elapsed, telemetry::events::HookOutcome::Blocked),
+                } => (
+                    hook_name,
+                    elapsed,
+                    ext_telemetry::events::HookOutcome::Blocked,
+                ),
                 xvora_hooks::result::HookRunResult::Failed {
                     hook_name, elapsed, ..
-                } => (hook_name, elapsed, telemetry::events::HookOutcome::Error),
+                } => (
+                    hook_name,
+                    elapsed,
+                    ext_telemetry::events::HookOutcome::Error,
+                ),
                 xvora_hooks::result::HookRunResult::Skipped { .. } => continue,
             };
-            telemetry::session_ctx::log_event(telemetry::events::HookExecuted {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::HookExecuted {
                 hook_name: hook_name.clone(),
                 event: event_name.to_string(),
                 tool_name: tool.clone(),

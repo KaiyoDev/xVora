@@ -368,9 +368,9 @@ impl SessionActor {
                 block.hook_name, block.reason
             ))
             .await;
-            telemetry::session_ctx::log_event(telemetry::events::HookBlocked {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::HookBlocked {
                 hook_name: block.hook_name.clone(),
-                cause: telemetry::events::HookBlockCause::StopBlocked,
+                cause: ext_telemetry::events::HookBlockCause::StopBlocked,
             });
         }
         if blocks.is_empty() {

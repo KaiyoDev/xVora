@@ -3,7 +3,7 @@ use std::time::Duration;
 use pretty_assertions::assert_eq;
 use sampler::{SamplingErrorInfo, SamplingErrorKind};
 
-use ext_telemetry::events::RateLimitWaitOutcome;
+use ext_ext_telemetry::events::RateLimitWaitOutcome;
 
 use super::{
     BudgetLimit, RateLimitWaitBudget, RateLimitWaitConfig, RateLimitWaitDecision,

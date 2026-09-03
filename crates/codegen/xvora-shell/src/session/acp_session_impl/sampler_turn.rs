@@ -248,7 +248,7 @@ where
         call().await
     } else {
         tracing::warn!(tool = tool_name, "auth recovery: tool 401, refresh failed");
-        telemetry::unified_log::warn(
+        ext_telemetry::unified_log::warn(
             "auth recovery: tool 401, refresh failed",
             None,
             Some(serde_json::json!({ "tool": tool_name })),
@@ -503,7 +503,7 @@ impl SessionActor {
                     model = %model_id,
                     "auth provider pre-turn refresh failed"
                 );
-                telemetry::unified_log::warn(
+                ext_telemetry::unified_log::warn(
                     "auth provider pre-turn refresh failed",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -533,7 +533,7 @@ impl SessionActor {
                 provider = %provider.name,
                 "auth recovery: sampler 401, provider re-mint declined or failed"
             );
-            telemetry::unified_log::warn(
+            ext_telemetry::unified_log::warn(
                 "auth recovery: sampler 401, provider re-mint declined or failed",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({ "provider": provider.name })),
@@ -545,7 +545,7 @@ impl SessionActor {
             provider = %provider.name,
             "auth recovery: sampler 401, auth provider re-mint, retrying"
         );
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "auth recovery: sampler 401, auth provider re-mint, retrying",
             Some(self.session_info.id.0.as_ref()),
             None,
@@ -585,13 +585,13 @@ impl SessionActor {
         });
         let sid = Some(self.session_info.id.0.as_ref());
         if refresh_active {
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "auth gate: Unknown BYOK on first-party endpoint — session-token refresh kept active",
                 sid,
                 Some(ctx),
             );
         } else {
-            telemetry::unified_log::warn(
+            ext_telemetry::unified_log::warn(
                 "auth gate: Unknown BYOK on non-first-party endpoint — refresh withheld (may surface stale-token 401)",
                 sid,
                 Some(ctx),
@@ -993,7 +993,7 @@ impl SessionActor {
         message: String,
         status_code: Option<u16>,
     ) -> (&'static str, String) {
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "auth: turn failure classified",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1061,7 +1061,7 @@ impl SessionActor {
             .as_ref()
             .and_then(|am| am.current_or_expired());
         let reauthable = is_reauthable_failure(Some(error_type), message);
-        telemetry::unified_log::warn(
+        ext_telemetry::unified_log::warn(
             "turn.terminal_failure",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1284,7 +1284,7 @@ impl SessionActor {
                     endpoint_is_first_party = gate.endpoint_is_first_party,
                     "auth recovery: sampler 401 not refreshable (api-key auth) — surfacing 401",
                 );
-                telemetry::unified_log::warn(
+                ext_telemetry::unified_log::warn(
                     "auth recovery: sampler 401 not eligible (api-key auth)",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -1312,7 +1312,7 @@ impl SessionActor {
             && error.status_code == Some(401)
             && auth_provider.is_none()
         {
-            telemetry::unified_log::warn(
+            ext_telemetry::unified_log::warn(
                 "auth recovery: sampler 401 not eligible (non-auth error kind)",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1336,7 +1336,7 @@ impl SessionActor {
                 .await
             {
                 tracing::info!(session_id = %self.session_info.id.0, "auth recovery: sampler 401, recovered, retrying");
-                telemetry::unified_log::info(
+                ext_telemetry::unified_log::info(
                     "auth recovery: sampler 401, recovered, retrying",
                     Some(self.session_info.id.0.as_ref()),
                     None,
@@ -1348,7 +1348,7 @@ impl SessionActor {
                 });
             }
             tracing::warn!(session_id = %self.session_info.id.0, "auth recovery: sampler 401, refresh failed");
-            telemetry::unified_log::warn(
+            ext_telemetry::unified_log::warn(
                 "auth recovery: sampler 401, refresh failed",
                 Some(self.session_info.id.0.as_ref()),
                 None,
@@ -1379,7 +1379,7 @@ impl SessionActor {
                     status_code: error.status_code,
                 });
             }
-            telemetry::unified_log::error(
+            ext_telemetry::unified_log::error(
                 "shell.turn.transient_retry_exhausted",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -1810,7 +1810,7 @@ impl SessionActor {
         );
         // Per-wait unified-log marker so each pause is visible in session logs like auth backoff
         // The terminal give-up alone (the `subagent_rate_limit_exhausted` marker) is not enough
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.turn.subagent_rate_limit_backoff",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1849,7 +1849,7 @@ impl SessionActor {
             retry_after_secs = ?error.retry_after_secs,
             "subagent stopped waiting out rate limits; failing the turn"
         );
-        telemetry::unified_log::warn(
+        ext_telemetry::unified_log::warn(
             "shell.turn.subagent_rate_limit_exhausted",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -1909,7 +1909,7 @@ impl SessionActor {
                             model = %model_id,
                             "auth: preflight get_valid_token failed"
                         );
-                        telemetry::unified_log::warn(
+                        ext_telemetry::unified_log::warn(
                             "auth.preflight.refresh_failed",
                             Some(self.session_info.id.0.as_ref()),
                             Some(serde_json::json!({
@@ -1923,7 +1923,7 @@ impl SessionActor {
                 }
             }
         } else {
-            telemetry::unified_log::debug(
+            ext_telemetry::unified_log::debug(
                 "token refresh skipped: no auth manager",
                 Some(self.session_info.id.0.as_ref()),
                 None,

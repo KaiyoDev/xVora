@@ -282,28 +282,28 @@ fn external_tool_bodies(
         Ok(tool_result) if tool_result.output.is_error() => {
             let body = tool_result.output.to_prompt_format();
             (
-                Some(telemetry::external::truncate::cap_bytes(
+                Some(ext_telemetry::external::truncate::cap_bytes(
                     &body,
-                    telemetry::external::truncate::MAX_CONTENT_BYTES,
+                    ext_telemetry::external::truncate::MAX_CONTENT_BYTES,
                 )),
-                Some(telemetry::external::truncate::cap_bytes(
+                Some(ext_telemetry::external::truncate::cap_bytes(
                     &body,
-                    telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
+                    ext_telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
                 )),
             )
         }
         Ok(tool_result) => (
-            Some(telemetry::external::truncate::cap_bytes(
+            Some(ext_telemetry::external::truncate::cap_bytes(
                 &tool_result.output.to_prompt_format(),
-                telemetry::external::truncate::MAX_CONTENT_BYTES,
+                ext_telemetry::external::truncate::MAX_CONTENT_BYTES,
             )),
             None,
         ),
         Err(e) => (
             None,
-            Some(telemetry::external::truncate::cap_bytes(
+            Some(ext_telemetry::external::truncate::cap_bytes(
                 &e.to_string(),
-                telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
+                ext_telemetry::external::truncate::MAX_TOOL_INPUT_JSON_BYTES,
             )),
         ),
     }
@@ -494,7 +494,7 @@ impl SessionActor {
                 .and_then(|k| tools::media_gen_limits::max_calls_per_batch(k, limits))
                 .unwrap_or(0);
             let admitted = allowed.iter().filter(|c| c.function.name == *name).count();
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.media_gen.batch_rejected",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -914,7 +914,7 @@ impl SessionActor {
                     let duration_ms = exec_start.elapsed().as_millis() as u64;
                     let outcome = tool_output_span_outcome(&result);
                     let success = record_tool_span_outcome(tool_span_for_record, &result);
-                    telemetry::unified_log::info(
+                    ext_telemetry::unified_log::info(
                         "shell.tool.exec_done",
                         Some(session_id.as_ref()),
                         Some(serde_json::json!({
@@ -1003,7 +1003,7 @@ impl SessionActor {
                 }
                 Err(_) => true,
             };
-            let (ext_tool_output, ext_error_message) = if telemetry::external::is_active() {
+            let (ext_tool_output, ext_error_message) = if ext_telemetry::external::is_active() {
                 external_tool_bodies(&result)
             } else {
                 (None, None)
@@ -1166,7 +1166,7 @@ impl SessionActor {
                     },
                 )
                 .await;
-            let (ext_file_path, ext_parameters) = if telemetry::external::is_active() {
+            let (ext_file_path, ext_parameters) = if ext_telemetry::external::is_active() {
                 let parsed: Option<serde_json::Value> =
                     serde_json::from_str(&prepared.raw_arguments).ok();
                 let file_path = parsed.as_ref().and_then(|v| {
@@ -1179,7 +1179,7 @@ impl SessionActor {
             } else {
                 (None, None)
             };
-            telemetry::session_ctx::log_event(telemetry::events::ToolCallCompleted {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::ToolCallCompleted {
                 tool_name: prepared.tool_name.clone(),
                 outcome: tool_outcome,
                 hook_rewrote,
@@ -1187,7 +1187,7 @@ impl SessionActor {
                 tool_result_size_bytes,
                 file_path: ext_file_path,
                 parameters: ext_parameters,
-                tool_use_id: telemetry::external::is_active().then(|| prepared.call_id.clone()),
+                tool_use_id: ext_telemetry::external::is_active().then(|| prepared.call_id.clone()),
                 tool_output: ext_tool_output,
                 error_message: ext_error_message,
             });
@@ -1583,33 +1583,33 @@ impl SessionActor {
             .meta(self.stamp_tool_meta(None, &call.function.name, Some(&tool_input)));
             let (telemetry_access_kind, _access_detail) = match &access_kind {
                 workspace::permission::AccessKind::Read(p) => (
-                    telemetry::events::AccessKind::Read,
+                    ext_telemetry::events::AccessKind::Read,
                     p.clone().unwrap_or_default(),
                 ),
                 workspace::permission::AccessKind::Edit(p) => {
-                    (telemetry::events::AccessKind::Edit, p.clone())
+                    (ext_telemetry::events::AccessKind::Edit, p.clone())
                 }
                 workspace::permission::AccessKind::Bash(cmd) => {
-                    (telemetry::events::AccessKind::Bash, cmd.clone())
+                    (ext_telemetry::events::AccessKind::Bash, cmd.clone())
                 }
                 workspace::permission::AccessKind::Grep { path, glob } => (
-                    telemetry::events::AccessKind::Grep,
+                    ext_telemetry::events::AccessKind::Grep,
                     path.clone().or_else(|| glob.clone()).unwrap_or_default(),
                 ),
                 workspace::permission::AccessKind::MCPTool { name, .. } => {
-                    (telemetry::events::AccessKind::Mcp, name.clone())
+                    (ext_telemetry::events::AccessKind::Mcp, name.clone())
                 }
                 workspace::permission::AccessKind::WebFetch(u) => {
-                    (telemetry::events::AccessKind::Web, u.clone())
+                    (ext_telemetry::events::AccessKind::Web, u.clone())
                 }
                 workspace::permission::AccessKind::WebSearch(q) => {
-                    (telemetry::events::AccessKind::Web, q.clone())
+                    (ext_telemetry::events::AccessKind::Web, q.clone())
                 }
                 workspace::permission::AccessKind::AgentMessage { subagent_id } => (
-                    telemetry::events::AccessKind::AgentMessage,
+                    ext_telemetry::events::AccessKind::AgentMessage,
                     subagent_id.clone(),
                 ),
-                _ => (telemetry::events::AccessKind::Other, String::new()),
+                _ => (ext_telemetry::events::AccessKind::Other, String::new()),
             };
             let canonical_permission_tool_name =
                 crate::session::telemetry::canonical_permission_tool_name(&access_kind);
@@ -1619,13 +1619,13 @@ impl SessionActor {
                 None
             };
             let perm_mode = if self.permissions.is_yolo_mode() {
-                telemetry::enums::PermissionMode::AlwaysApprove
+                ext_telemetry::enums::PermissionMode::AlwaysApprove
             } else if self.permissions.is_auto_mode() {
-                telemetry::enums::PermissionMode::Auto
+                ext_telemetry::enums::PermissionMode::Auto
             } else {
-                telemetry::enums::PermissionMode::Ask
+                ext_telemetry::enums::PermissionMode::Ask
             };
-            telemetry::session_ctx::log_event(telemetry::events::PermissionPrompted {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::PermissionPrompted {
                 tool_name: canonical_permission_tool_name.clone(),
                 access_kind: telemetry_access_kind,
                 permission_mode: perm_mode,
@@ -1698,7 +1698,7 @@ impl SessionActor {
                 wait_ms = resolved.wait_ms as i64,
             )
             .in_scope(|| {});
-            telemetry::session_ctx::log_event({
+            ext_telemetry::session_ctx::log_event({
                 let payload = crate::session::telemetry::permission_decision_payload(
                     canonical_permission_tool_name,
                     telemetry_access_kind,
@@ -1707,15 +1707,15 @@ impl SessionActor {
                     manager_event.as_ref(),
                     resolved,
                 );
-                let tool_input = if telemetry::external::is_active() {
-                    telemetry::events::ExternalToolInput {
+                let tool_input = if ext_telemetry::external::is_active() {
+                    ext_telemetry::events::ExternalToolInput {
                         parameters: Some(raw_input.clone()),
                         tool_use_id: Some(call.id.clone()),
                     }
                 } else {
-                    telemetry::events::ExternalToolInput::default()
+                    ext_telemetry::events::ExternalToolInput::default()
                 };
-                telemetry::events::PermissionDecisionRecord {
+                ext_telemetry::events::PermissionDecisionRecord {
                     payload,
                     tool_input,
                 }
@@ -2244,10 +2244,10 @@ impl SessionActor {
                 vec![],
             ),
             ToolInput::Skill(skill) => {
-                telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
+                ext_telemetry::session_ctx::log_event(ext_telemetry::events::SkillDispatched {
                     skill_name: skill.skill.clone(),
                     plugin_source: None,
-                    trigger: telemetry::events::SkillTrigger::SkillTool,
+                    trigger: ext_telemetry::events::SkillTrigger::SkillTool,
                 });
                 tracing::info_span!(
                     "skill.activated",
@@ -2498,10 +2498,10 @@ impl SessionActor {
             skill_source = skill_source,
         )
         .in_scope(|| {});
-        telemetry::session_ctx::log_event(telemetry::events::SkillDispatched {
+        ext_telemetry::session_ctx::log_event(ext_telemetry::events::SkillDispatched {
             skill_name: skill.name,
             plugin_source: skill.plugin_name,
-            trigger: telemetry::events::SkillTrigger::SkillMdRead,
+            trigger: ext_telemetry::events::SkillTrigger::SkillMdRead,
         });
     }
     fn make_pre_tool_use_envelope(
@@ -2648,7 +2648,7 @@ impl SessionActor {
     /// It scans successful foreground bash commands, plus MCP `create_pull_request` results (url/number parsed from the result text).
     /// Backgrounded commands are not scanned.
     fn record_git_pr_signals(&self, effective_tool_name: &str, result: &ToolRunResult) {
-        use ext_telemetry::enums::PrCreationSource;
+        use ext_ext_telemetry::enums::PrCreationSource;
         use tools::util::git_detect;
         match &result.output {
             tools::types::output::ToolOutput::Bash(b) if b.exit_code == 0 => {
@@ -2663,7 +2663,7 @@ impl SessionActor {
                 }
                 if ops.pr_merged {
                     self.signals_handle().record_pr_merged();
-                    telemetry::session_ctx::log_event(telemetry::events::PrMerged {});
+                    ext_telemetry::session_ctx::log_event(ext_telemetry::events::PrMerged {});
                 }
             }
             tools::types::output::ToolOutput::MCP(m)
@@ -2686,7 +2686,7 @@ impl SessionActor {
     fn record_pr_created(
         &self,
         pr: tools::util::git_detect::PrRef,
-        source: telemetry::enums::PrCreationSource,
+        source: ext_telemetry::enums::PrCreationSource,
     ) {
         self.signals_handle()
             .record_pr_created(crate::session::signals::PrCreatedSignal {

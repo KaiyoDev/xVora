@@ -63,9 +63,9 @@ impl SessionActor {
             if entered && turn_in_flight {
                 self.activate_plan_mode_mid_turn().await;
             }
-            telemetry::session_ctx::log_event(telemetry::events::PlanModeToggled {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::PlanModeToggled {
                 enabled: true,
-                trigger: telemetry::events::PlanModeTrigger::User,
+                trigger: ext_telemetry::events::PlanModeTrigger::User,
                 turn_in_flight,
                 was_previously_active: !entered,
                 from_mode: Some(if entered {
@@ -107,9 +107,9 @@ impl SessionActor {
                 turn_in_flight,
                 "Plan mode toggled OFF"
             );
-            telemetry::session_ctx::log_event(telemetry::events::PlanModeToggled {
+            ext_telemetry::session_ctx::log_event(ext_telemetry::events::PlanModeToggled {
                 enabled: false,
-                trigger: telemetry::events::PlanModeTrigger::User,
+                trigger: ext_telemetry::events::PlanModeTrigger::User,
                 turn_in_flight,
                 was_previously_active: true,
                 from_mode: Some("plan".into()),

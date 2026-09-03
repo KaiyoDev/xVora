@@ -387,7 +387,7 @@ impl AgentTask {
             prompt_id: request.prompt_id.clone(),
             epoch,
             identity: identity.clone(),
-            handle: telemetry::session_ctx::spawn_local_in_session_ctx(run_task(
+            handle: ext_telemetry::session_ctx::spawn_local_in_session_ctx(run_task(
                 session,
                 request,
                 epoch,

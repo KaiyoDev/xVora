@@ -193,7 +193,7 @@ impl SessionActor {
         else {
             let state = self.state.lock().await;
             tracing::warn!("Received stale completion for prompt: {prompt_id}");
-            telemetry::unified_log::warn(
+            ext_telemetry::unified_log::warn(
                 "shell.turn.stale_completion_dropped",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -245,7 +245,7 @@ impl SessionActor {
             broadcast_queue = input.queue_meta.is_some();
         } else {
             tracing::warn!("Received completion for unknown prompt: {prompt_id}");
-            telemetry::unified_log::warn(
+            ext_telemetry::unified_log::warn(
                 "shell.turn.stale_completion_dropped",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({

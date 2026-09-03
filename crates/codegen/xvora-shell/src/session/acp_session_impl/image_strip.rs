@@ -176,7 +176,7 @@ impl SessionActor {
             );
             enforce_pending_image_strip_bound(&mut pending, Some(&request_id));
         }
-        telemetry::unified_log::warn(
+        ext_telemetry::unified_log::warn(
             "shell.turn.images_stripped",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -233,7 +233,7 @@ impl SessionActor {
             StripOutcome::WriteFailed { .. } => ("write_failed", 0),
             StripOutcome::ActorUnavailable => ("actor_unavailable", 0),
         };
-        telemetry::unified_log::warn(
+        ext_telemetry::unified_log::warn(
             "shell.turn.images_strip_persisted",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({

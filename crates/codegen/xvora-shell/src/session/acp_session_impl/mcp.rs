@@ -1,7 +1,7 @@
 use super::mcp_failed_reminder::{classify_failed_servers, render_failed_section};
 use super::*;
 use crate::session::mcp_servers::McpOauthDiscovery;
-use ext_telemetry::instrument_task;
+use ext_ext_telemetry::instrument_task;
 use ext_telemetry::region::Parent;
 /// Wire the session's elicitation inbox into a freshly built client so its `elicitation/create` requests reach the coordinator.
 /// Takes the already-locked `McpState` so each caller keeps its own lock scope.
@@ -1656,18 +1656,18 @@ impl SessionActor {
                                     .copied()
                                     .unwrap_or("unknown")
                                 {
-                                    "stdio" => telemetry::events::McpTransport::Stdio,
-                                    "sse" => telemetry::events::McpTransport::Sse,
-                                    _ => telemetry::events::McpTransport::Http,
+                                    "stdio" => ext_telemetry::events::McpTransport::Stdio,
+                                    "sse" => ext_telemetry::events::McpTransport::Sse,
+                                    _ => ext_telemetry::events::McpTransport::Http,
                                 };
                                 debug_assert!(
-                                    telemetry::activity::gauge_value(
-                                        telemetry::activity::MCP_SERVERS_CONNECTED_KEY
+                                    ext_telemetry::activity::gauge_value(
+                                        ext_telemetry::activity::MCP_SERVERS_CONNECTED_KEY
                                     ) >= 1,
                                     "McpServerConnected must stamp a self-inclusive count"
                                 );
-                                telemetry::session_ctx::log_event(
-                                    telemetry::events::McpServerConnected {
+                                ext_telemetry::session_ctx::log_event(
+                                    ext_telemetry::events::McpServerConnected {
                                         server_name: server_name.clone(),
                                         tool_count,
                                         transport: transport_enum,
@@ -1709,15 +1709,15 @@ impl SessionActor {
                                 };
                                 let error_type_label = match error_cat {
                                     session_events::McpErrorCategory::AuthRequired => {
-                                        telemetry::events::McpErrorType::Auth
+                                        ext_telemetry::events::McpErrorType::Auth
                                     }
                                     session_events::McpErrorCategory::Timeout => {
-                                        telemetry::events::McpErrorType::Timeout
+                                        ext_telemetry::events::McpErrorType::Timeout
                                     }
-                                    _ => telemetry::events::McpErrorType::HandshakeFailed,
+                                    _ => ext_telemetry::events::McpErrorType::HandshakeFailed,
                                 };
-                                telemetry::session_ctx::log_event(
-                                    telemetry::events::McpServerFailed {
+                                ext_telemetry::session_ctx::log_event(
+                                    ext_telemetry::events::McpServerFailed {
                                         server_name: server_name.clone(),
                                         error_type: error_type_label,
                                         duration_ms: elapsed.as_millis() as u64,
@@ -1805,16 +1805,18 @@ impl SessionActor {
                     // Wake `wait_for_mcp_templated_prefix_ready`.
                     mcp_handshakes_done.notify_waiters();
 
-                    telemetry::session_ctx::log_event(telemetry::events::McpInitCompleted {
-                        total_duration_ms: handshake_start.elapsed().as_millis() as u64,
-                        server_count,
-                        servers_succeeded,
-                        servers_failed,
-                        servers_auth_required,
-                        total_tools_registered,
-                        strategy: mcp_strategy,
-                        is_reinit,
-                    });
+                    ext_telemetry::session_ctx::log_event(
+                        ext_telemetry::events::McpInitCompleted {
+                            total_duration_ms: handshake_start.elapsed().as_millis() as u64,
+                            server_count,
+                            servers_succeeded,
+                            servers_failed,
+                            servers_auth_required,
+                            total_tools_registered,
+                            strategy: mcp_strategy,
+                            is_reinit,
+                        },
+                    );
                     event_writer.emit(session_events::Event::McpInitCompleted {
                         total_servers: server_count,
                         succeeded: servers_succeeded,

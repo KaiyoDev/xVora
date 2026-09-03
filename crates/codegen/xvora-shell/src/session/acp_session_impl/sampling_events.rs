@@ -350,7 +350,7 @@ impl SessionActor {
                         );
                     }
                 }
-                telemetry::unified_log::warn(
+                ext_telemetry::unified_log::warn(
                     "shell.turn.inference_retry",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({
@@ -382,7 +382,7 @@ impl SessionActor {
                 // This arm only records telemetry
                 // The terminal error fires through `submit_and_collect`'s Result branch
                 // The turn loop's `handle_sampling_failure` decides whether to compact or show a friendly message
-                telemetry::unified_log::error(
+                ext_telemetry::unified_log::error(
                     "shell.turn.inference_failed",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({

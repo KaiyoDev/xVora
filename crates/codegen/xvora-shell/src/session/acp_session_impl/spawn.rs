@@ -10,8 +10,10 @@ use crate::remote::DEFAULT_CONTEXT_WINDOW;
 use ext_telemetry::region;
 use ext_telemetry::region::Parent as SpanParent;
 use ext_telemetry::subagent_spawn::phase_region_under;
-static SESSIONS_ACTIVE: ext_telemetry::activity::ActivityGauge =
-    ext_telemetry::activity::ActivityGauge::residency(ext_telemetry::activity::SESSIONS_ACTIVE_KEY);
+static SESSIONS_ACTIVE: ext_ext_telemetry::activity::ActivityGauge =
+    ext_ext_telemetry::activity::ActivityGauge::residency(
+        ext_ext_telemetry::activity::SESSIONS_ACTIVE_KEY,
+    );
 /// Drop catch-all `--allow` rules (the `--yolo` substitute, see `resolution::is_catchall_allow`)
 /// when `policy_block` is set; keep everything else. Pure, so it is unit-testable.
 fn drop_cli_catchall_allows(
@@ -45,8 +47,8 @@ pub(crate) fn build_session_runtime() -> std::io::Result<tokio::runtime::Runtime
 }
 fn configured_memory_retrieval_mode(
     config: Option<&crate::config::MemoryConfig>,
-) -> ext_telemetry::events::MemoryRetrievalMode {
-    use ext_telemetry::events::MemoryRetrievalMode::*;
+) -> ext_ext_telemetry::events::MemoryRetrievalMode {
+    use ext_ext_telemetry::events::MemoryRetrievalMode::*;
     match config.filter(|config| config.enabled) {
         None => Disabled,
         Some(config)
@@ -91,7 +93,7 @@ mod cli_catchall_drop_tests {
     fn disabled_memory_config_has_disabled_retrieval_mode() {
         assert_eq!(
             configured_memory_retrieval_mode(Some(&Default::default())),
-            ext_telemetry::events::MemoryRetrievalMode::Disabled
+            ext_ext_telemetry::events::MemoryRetrievalMode::Disabled
         );
     }
     /// Under the pin, CLI catch-all `--allow` rules (`*`, `**`) are dropped while a scoped rule (`Bash(touch *)`) survives.
@@ -789,7 +791,7 @@ pub(crate) async fn spawn_session_actor(
     > = if let Some(ref storage) = memory_storage_for_session {
         if let Err(e) = storage.ensure_initialized() {
             tracing::warn!(
-                target: ext_telemetry::memory_log::TARGET,
+                target: ext_ext_telemetry::memory_log::TARGET,
                 error = %e,
                 "MEMORY_INIT: ensure_initialized failed, continuing without template files"
             );
@@ -803,14 +805,14 @@ pub(crate) async fn spawn_session_actor(
                 match gc_storage.gc(gc_max_age) {
                     Ok(removed) if removed > 0 => {
                         tracing::info!(
-                            target: ext_telemetry::memory_log::TARGET,
+                            target: ext_ext_telemetry::memory_log::TARGET,
                             removed,
                             "MEMORY_GC: cleaned orphaned workspace directories"
                         );
                     }
                     Err(e) => {
                         tracing::debug!(
-                            target: ext_telemetry::memory_log::TARGET,
+                            target: ext_ext_telemetry::memory_log::TARGET,
                             error = %e,
                             "MEMORY_GC: failed"
                         );
@@ -864,13 +866,13 @@ pub(crate) async fn spawn_session_actor(
         memory_backend_params_for_session = Some(params);
         if watcher_config.enabled && !watcher_started {
             tracing::warn!(
-                target: ext_telemetry::memory_log::TARGET,
+                target: ext_ext_telemetry::memory_log::TARGET,
                 "MEMORY_INIT: watcher was configured but failed to start \
                  (directory may not exist or OS watcher unavailable)"
             );
         }
         tracing::info!(
-            target: ext_telemetry::memory_log::TARGET,
+            target: ext_ext_telemetry::memory_log::TARGET,
             workspace = %storage.workspace_dir().display(),
             global = %storage.global_dir().display(),
             watcher_config_enabled = watcher_config.enabled,
@@ -879,25 +881,27 @@ pub(crate) async fn spawn_session_actor(
         );
         let mc = memory_config.as_ref();
         let total_chunks = storage.total_chunk_count();
-        ext_telemetry::session_ctx::log_event(ext_telemetry::memory_telemetry::MemorySessionInit {
-            session_id: session_info.id.to_string(),
-            memory_enabled: true,
-            watcher_config_enabled: watcher_config.enabled,
-            watcher_started,
-            temporal_decay_enabled: mc.is_none_or(|c| c.search.temporal_decay.enabled),
-            mmr_enabled: mc.is_some_and(|c| c.search.mmr.enabled),
-            mmr_lambda: mc.map_or(0.7, |c| c.search.mmr.lambda),
-            half_life_days: mc.map_or(30.0, |c| c.search.temporal_decay.half_life_days),
-            embedding_dimensions: mc.map_or(1024, |c| c.embedding.dimensions),
-            total_chunks,
-            total_files: storage.list_memory_files().map_or(0, |f| f.len()),
-            has_global_memory_md: storage.global_memory_file().exists(),
-            has_workspace_memory_md: storage.workspace_memory_file().exists(),
-        });
+        ext_ext_telemetry::session_ctx::log_event(
+            ext_ext_telemetry::memory_telemetry::MemorySessionInit {
+                session_id: session_info.id.to_string(),
+                memory_enabled: true,
+                watcher_config_enabled: watcher_config.enabled,
+                watcher_started,
+                temporal_decay_enabled: mc.is_none_or(|c| c.search.temporal_decay.enabled),
+                mmr_enabled: mc.is_some_and(|c| c.search.mmr.enabled),
+                mmr_lambda: mc.map_or(0.7, |c| c.search.mmr.lambda),
+                half_life_days: mc.map_or(30.0, |c| c.search.temporal_decay.half_life_days),
+                embedding_dimensions: mc.map_or(1024, |c| c.embedding.dimensions),
+                total_chunks,
+                total_files: storage.list_memory_files().map_or(0, |f| f.len()),
+                has_global_memory_md: storage.global_memory_file().exists(),
+                has_workspace_memory_md: storage.workspace_memory_file().exists(),
+            },
+        );
         Some(backend)
     } else {
         tracing::debug!(
-            target: ext_telemetry::memory_log::TARGET,
+            target: ext_ext_telemetry::memory_log::TARGET,
             "MEMORY_INIT: memory disabled, no storage created"
         );
         None
@@ -1046,7 +1050,7 @@ pub(crate) async fn spawn_session_actor(
         .await;
     let memory_retrieval_mode = configured_memory_retrieval_mode(memory_config.as_ref());
     let harness_metrics = if !startup_hints.is_subagent
-        && (telemetry_enabled || ext_telemetry::external::is_active())
+        && (telemetry_enabled || ext_ext_telemetry::external::is_active())
     {
         let plugin_names = plugin_registry
             .as_ref()
@@ -1057,19 +1061,19 @@ pub(crate) async fn spawn_session_actor(
                     .collect()
             })
             .unwrap_or_default();
-        Some(super::ext_telemetry::SessionHarnessMetrics {
+        Some(crate::ext_telemetry::SessionHarnessMetrics {
             session_id: session_info.id.0.to_string(),
             client_identifier: session_client_identifier.clone(),
             model_id: session_model_id.0.to_string(),
             agent_name: initial_agent_name,
             permission_mode: if session_yolo_mode {
-                ext_telemetry::enums::PermissionMode::AlwaysApprove
+                ext_ext_telemetry::enums::PermissionMode::AlwaysApprove
             } else if session_auto_mode
                 && crate::util::config::auto_permission_mode_enabled_from_disk()
             {
-                ext_telemetry::enums::PermissionMode::Auto
+                ext_ext_telemetry::enums::PermissionMode::Auto
             } else {
-                ext_telemetry::enums::PermissionMode::Ask
+                ext_ext_telemetry::enums::PermissionMode::Ask
             },
             mcp_server_names: mcp_servers
                 .iter()
@@ -2009,7 +2013,7 @@ pub(crate) async fn spawn_session_actor(
                     }
                 }
                 tracing::info!(
-                    target: ext_telemetry::memory_log::TARGET,
+                    target: ext_ext_telemetry::memory_log::TARGET,
                     files = files.len(),
                     "MEMORY_REINDEX: background reindex complete"
                 );
@@ -2028,8 +2032,8 @@ pub(crate) async fn spawn_session_actor(
                 } else {
                     0
                 };
-                ext_telemetry::session_ctx::log_event(
-                    ext_telemetry::memory_telemetry::MemoryReindex {
+                ext_ext_telemetry::session_ctx::log_event(
+                    ext_ext_telemetry::memory_telemetry::MemoryReindex {
                         session_id: session_id_for_reindex.clone(),
                         source: "init".to_owned(),
                         added: total_added,
@@ -2152,32 +2156,32 @@ pub(crate) async fn spawn_session_actor(
         applied_tool_overrides: session.effective_tool_overrides(),
         scheduler_background_loops,
     };
-    let telemetry_ctx = ext_telemetry::session_ctx::TelemetryCtx::new(
+    let telemetry_ctx = ext_ext_telemetry::session_ctx::TelemetryCtx::new(
         session.session_info.id.0.to_string(),
         session.tool_context.prompt_index.clone(),
     );
     if let Some(metrics) = harness_metrics {
-        let hooks: Vec<super::ext_telemetry::HookRegInfo> = session
+        let hooks: Vec<crate::ext_telemetry::HookRegInfo> = session
             .hook_registry
             .borrow()
             .as_ref()
             .map(|reg| {
                 reg.all_hooks()
                     .iter()
-                    .map(|s| super::ext_telemetry::HookRegInfo::from_spec(s))
+                    .map(|s| crate::ext_telemetry::HookRegInfo::from_spec(s))
                     .collect()
             })
             .unwrap_or_default();
         let telemetry_enabled = session.telemetry_enabled;
         tokio::spawn(async move {
             let ev = metrics.into_event(hooks).await;
-            ext_telemetry::session_ctx::log_event_dual(telemetry_enabled, ev);
+            ext_ext_telemetry::session_ctx::log_event_dual(telemetry_enabled, ev);
         });
     }
     let hosting = SESSIONS_ACTIVE.enter();
     tokio::task::spawn_local(async move {
         let _hosting = hosting;
-        ext_telemetry::session_ctx::with_session_ctx(
+        ext_ext_telemetry::session_ctx::with_session_ctx(
             telemetry_ctx,
             run_session(
                 session,
@@ -2579,7 +2583,7 @@ pub(crate) async fn spawn_session_on_thread(
                 let _ = session_done_rx.await;
             };
             local.block_on(&rt, actor_main);
-            rt.block_on(ext_telemetry::session_ctx::drain_at_session_exit());
+            rt.block_on(ext_ext_telemetry::session_ctx::drain_at_session_exit());
         });
     let join_handle = match join_handle {
         Ok(h) => h,

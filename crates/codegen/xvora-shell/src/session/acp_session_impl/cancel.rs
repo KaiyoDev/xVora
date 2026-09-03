@@ -100,7 +100,7 @@ impl SessionActor {
         }
         let mut state = self.state.try_lock().expect("session state is actor-owned");
         state.notifications_suppressed = true;
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.task_wake.cancel_barrier",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -137,7 +137,7 @@ impl SessionActor {
         }
         let flushed = self.flush_stranded_interjections().await;
         if flushed > 0 {
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.prompt.send_now_flushed_interjections",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({ "count": flushed })),
@@ -159,14 +159,14 @@ impl SessionActor {
             let mut state = self.state.lock().await;
             state.notifications_suppressed = false;
             if state.take_hook_block_hold() {
-                telemetry::unified_log::info(
+                ext_telemetry::unified_log::info(
                     "shell.prompt.hook_block_hold_released",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({ "reason": "send_now" })),
                 );
             }
         }
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.task_wake.gate_cleared",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({ "reason": "send_now" })),
@@ -195,7 +195,7 @@ impl SessionActor {
         front_prompt_id: Option<&str>,
         rewind_disposition: &str,
     ) {
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.cancel.rewind_decision",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -306,7 +306,7 @@ impl SessionActor {
                     gate.set(false);
                 }
                 state.notifications_suppressed = false;
-                telemetry::unified_log::info(
+                ext_telemetry::unified_log::info(
                     "shell.task_wake.gate_cleared",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({ "reason": "rewind" })),
@@ -407,7 +407,7 @@ impl SessionActor {
             .expect("current_prompt_id mutex poisoned")
             .clone();
         {
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.cancel.processing",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -557,7 +557,7 @@ impl SessionActor {
                     gate.set(false);
                 }
                 state.notifications_suppressed = false;
-                telemetry::unified_log::info(
+                ext_telemetry::unified_log::info(
                     "shell.task_wake.gate_cleared",
                     Some(self.session_info.id.0.as_ref()),
                     Some(serde_json::json!({ "reason": "rewind" })),

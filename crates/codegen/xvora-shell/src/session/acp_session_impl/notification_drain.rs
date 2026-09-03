@@ -127,7 +127,7 @@ impl SessionActor {
             if state.running_task.is_some() || state.finalization_gate.is_active() {
                 let queue_depth = state.pending_inputs.len();
                 if queue_depth > 0 {
-                    telemetry::unified_log::debug(
+                    ext_telemetry::unified_log::debug(
                         "shell.prompt.start_blocked",
                         Some(self.session_info.id.0.as_ref()),
                         Some(serde_json::json!({
@@ -176,7 +176,7 @@ impl SessionActor {
         }
 
         if state.hook_block_held() {
-            telemetry::unified_log::debug(
+            ext_telemetry::unified_log::debug(
                 "shell.prompt.start_blocked",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -252,7 +252,7 @@ impl SessionActor {
         {
             let front_prompt_id = front.prompt_id.as_str();
             let queue_depth = state.pending_inputs.len();
-            telemetry::unified_log::debug(
+            ext_telemetry::unified_log::debug(
                 "shell.prompt.start_blocked",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -331,7 +331,7 @@ impl SessionActor {
                 gate.set(false);
             }
             state.notifications_suppressed = false;
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.task_wake.gate_cleared",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({ "reason": "queued_user_promotion" })),

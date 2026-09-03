@@ -1,7 +1,7 @@
 //! The session actor's main loop (`run_session`): command dispatch, the idle timer arms, and the free helpers only the loop consumes.
 #![allow(clippy::items_after_test_module)]
 use super::*;
-use ext_telemetry::instrument_task;
+use ext_ext_telemetry::instrument_task;
 use ext_telemetry::region::Parent;
 use ext_telemetry::session_end::{self, Phase, SharedSessionEndTimer};
 /// The `YoloToggled` event to emit after `set_yolo_mode(requested)`: `Some(actual)` only on a real change.
@@ -124,7 +124,7 @@ impl SessionActor {
         if !admitted {
             Self::push_task_wake_fallback(&mut state, fallback);
             drop(state);
-            telemetry::unified_log::info(
+            ext_telemetry::unified_log::info(
                 "shell.task_wake.actor_admission",
                 Some(self.session_info.id.0.as_ref()),
                 Some(serde_json::json!({
@@ -142,7 +142,7 @@ impl SessionActor {
             return None;
         }
         drop(state);
-        telemetry::unified_log::info(
+        ext_telemetry::unified_log::info(
             "shell.task_wake.actor_admission",
             Some(self.session_info.id.0.as_ref()),
             Some(serde_json::json!({
@@ -197,7 +197,7 @@ async fn shutdown_workflows(session: &SessionActor, timer: &SharedSessionEndTime
 async fn log_session_ended(session: &SessionActor) {
     let model_id = session.current_model_id().await;
     if let Some(signals) = session.signals_handle().snapshot().await {
-        telemetry::session_ctx::log_event(telemetry::events::SessionEnded {
+        ext_telemetry::session_ctx::log_event(ext_telemetry::events::SessionEnded {
             duration_secs: session.session_start.elapsed().as_secs(),
             turn_count: signals.turn_count as u64,
             tool_call_count: signals.tool_call_count as u64,
@@ -211,12 +211,12 @@ async fn emit_session_end_timings(timer: &SharedSessionEndTimer, is_subagent: bo
     if is_subagent {
         return;
     }
-    let mut event = telemetry::events::SessionEndTimings::default();
+    let mut event = ext_telemetry::events::SessionEndTimings::default();
     timer.write_event_phases(&mut event);
     event.total_ms = Some(timer.elapsed_ms());
     let _ = tokio::time::timeout(
         SESSION_END_EMIT_BUDGET,
-        telemetry::session_ctx::log_event_now(event),
+        ext_telemetry::session_ctx::log_event_now(event),
     )
     .await;
 }
@@ -430,7 +430,7 @@ pub(super) async fn run_session(
                     let last_len = session.last_idle_flush_conversation_len
                         .load(std::sync::atomic::Ordering::Relaxed);
                     if current_len > last_len {
-                        tracing::info!(target: telemetry::memory_log::TARGET,
+                        tracing::info!(target: ext_telemetry::memory_log::TARGET,
                             "MEMORY_IDLE_FLUSH: timer fired (conversation {last_len} → {current_len})");
                         session.last_idle_flush_conversation_len
                             .store(current_len, std::sync::atomic::Ordering::Relaxed);
@@ -438,13 +438,13 @@ pub(super) async fn run_session(
                             let session = session.clone();
                             async move {
                                 if !session.run_memory_flush("interval", None).await {
-                                    tracing::info!(target: telemetry::memory_log::TARGET,
+                                    tracing::info!(target: ext_telemetry::memory_log::TARGET,
                                         "MEMORY_IDLE_FLUSH: skipped — another flush already in progress");
                                 }
                             }
                         });
                     } else {
-                        tracing::debug!(target: telemetry::memory_log::TARGET,
+                        tracing::debug!(target: ext_telemetry::memory_log::TARGET,
                             "MEMORY_IDLE_FLUSH: skipped, no new messages since last flush (len={current_len})");
                     }
                     // Reset for next idle period
@@ -456,7 +456,7 @@ pub(super) async fn run_session(
                 _ = &mut dream_check_sleep, if session.dream_check_timeout.is_some()
                     && session.memory.is_enabled()
                     && !session.startup_hints.is_subagent => {
-                    tracing::debug!(target: telemetry::memory_log::TARGET,
+                    tracing::debug!(target: ext_telemetry::memory_log::TARGET,
                         "MEMORY_DREAM_CHECK: timer fired");
                     // Only start a new dream when the previous one has finished; a shorter check
                     // interval must not abort an in-flight consolidation.
@@ -497,7 +497,7 @@ pub(super) async fn run_session(
                             body_bytes_after,
                         }) => {
                             // Log to the unified log so image eviction can be verified locally
-                            telemetry::unified_log::info(
+                            ext_telemetry::unified_log::info(
                                 "shell.image_budget",
                                 Some(session.session_info.id.0.as_ref()),
                                 Some(serde_json::json!({
@@ -645,13 +645,13 @@ pub(super) async fn run_session(
                                 let mut state = session.state.lock().await;
                                 state.notifications_suppressed = false;
                                 if state.take_hook_block_hold() {
-                                    telemetry::unified_log::info(
+                                    ext_telemetry::unified_log::info(
                                         "shell.prompt.hook_block_hold_released",
                                         Some(session.session_info.id.0.as_ref()),
                                         Some(serde_json::json!({ "reason": "user_intake" })),
                                     );
                                 }
-                                telemetry::unified_log::info(
+                                ext_telemetry::unified_log::info(
                                     "shell.task_wake.gate_cleared",
                                     Some(session.session_info.id.0.as_ref()),
                                     Some(serde_json::json!({ "reason": "user_intake" })),
