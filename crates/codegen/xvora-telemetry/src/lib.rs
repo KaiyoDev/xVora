@@ -41,7 +41,8 @@ pub use client::{
     is_session_metrics_enabled,
 };
 pub use events::TelemetryEvent;
-pub use region::{Parent, instrument_task};
+pub use region;
+pub use region::Parent;
 pub use session_ctx::{
     EmitterOrigin, TelemetryCtx, emit_event, emit_event_with_origin, log_event, log_session_event,
     log_session_event_with_origin, spawn_local_in_session_ctx, with_session_ctx,
