@@ -1847,17 +1847,13 @@ mod platform {
     // -- Public API ----------------------------------------------------------
 
     pub fn get_text() -> anyhow::Result<Option<String>> {
-        let arboard_error = None;
         match arboard_get_text() {
             Ok(Some(text)) => return Ok(Some(text)),
             // Wayland-only: arboard's empty answer is not authoritative, fall through to wl-paste (see `wayland_tool_selected`)
             #[cfg(target_os = "linux")]
             Ok(None) if wayland_tool_selected(linux_tool_spec()) => {}
             Ok(None) => return Ok(None),
-            Err(e) => {
-                tracing::debug!("arboard get_text failed: {e}");
-                arboard_error = Some(e);
-            }
+            Err(e) => return Err(e),
         }
         #[cfg(target_os = "linux")]
         if let Some(spec) = linux_tool_spec() {
@@ -1868,9 +1864,6 @@ mod platform {
             } else {
                 Some(String::from_utf8_lossy(&bytes).into_owned())
             });
-        }
-        if let Some(error) = arboard_error {
-            return Err(error);
         }
         Ok(None)
     }
@@ -1953,17 +1946,13 @@ mod platform {
     }
 
     pub fn get_image() -> anyhow::Result<Option<ImageData>> {
-        let arboard_error = None;
         match arboard_get_image() {
             Ok(Some(image)) => return Ok(Some(image)),
             // Wayland-only: arboard's empty answer is not authoritative, fall through to wl-paste (see `wayland_tool_selected`)
             #[cfg(target_os = "linux")]
             Ok(None) if wayland_tool_selected(linux_tool_spec()) => {}
             Ok(None) => return Ok(None),
-            Err(e) => {
-                tracing::debug!("arboard get_image failed: {e}");
-                arboard_error = Some(e);
-            }
+            Err(e) => return Err(e),
         }
         #[cfg(target_os = "linux")]
         if let Some(spec) = linux_tool_spec()
@@ -1979,9 +1968,6 @@ mod platform {
                 }));
             }
             return Ok(None);
-        }
-        if let Some(error) = arboard_error {
-            return Err(error);
         }
         Ok(None)
     }
