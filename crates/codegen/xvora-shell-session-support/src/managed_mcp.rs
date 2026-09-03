@@ -149,7 +149,7 @@ async fn get_authenticated_json<T: serde::de::DeserializeOwned>(
     fetch_failed_message: &'static str,
     parse_error_message: &'static str,
 ) -> Result<T, ManagedMcpFetchError> {
-    let resp = match http::shared_client()
+    let resp = match xvora_http::shared_client()
         .get(url)
         .timeout(std::time::Duration::from_secs(10))
         .header("Authorization", format!("Bearer {auth_key}"))
@@ -202,7 +202,7 @@ pub async fn call_gateway_tool(
         arguments,
     };
 
-    let resp = match http::shared_client()
+    let resp = match xvora_http::shared_client()
         .post(&url)
         .timeout(GATEWAY_TOOL_CALL_TIMEOUT)
         .header("Authorization", format!("Bearer {auth_key}"))

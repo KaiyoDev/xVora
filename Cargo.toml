@@ -325,6 +325,7 @@ tool-runtime = {  path = "crates/common/tool-runtime", package = "xvora-tool-run
 tool-types = {  path = "crates/common/tool-types", package = "xvora-tool-types" }
 tracing-util = {  path = "crates/common/xvora-tracing", package = "xvora-tracing" }
 xvora-tracing = { path = "crates/common/xvora-tracing", package = "xvora-tracing" }
+xvora-http = { path = "crates/codegen/xvora-http", package = "xvora-http" }
 tty-utils = {  path = "crates/codegen/tty-utils", package = "xvora-tty-utils" }
 zbus = { version = "5" }
 zstd = "0.13"
