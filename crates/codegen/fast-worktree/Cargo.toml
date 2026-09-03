@@ -45,6 +45,7 @@ dashmap = { workspace = true }
 dunce = { workspace = true }
 xvora-dirs = { path = "../xvora-dirs" }
 gix = { workspace = true, features = ["status", "parallel"] }
+gix-status = { version = "0.30.0" }
 xvora-gix-status = { path = "../xvora-gix-status" }
 globset = { workspace = true }
 ignore = { workspace = true }
