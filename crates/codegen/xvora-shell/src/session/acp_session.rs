@@ -162,9 +162,6 @@ use super::telemetry;
 // used in acp_session_impl/* files (which `use super::*`) against the external
 // crates rather than the local sibling modules of the same name.
 
-
-
-
 #[path = "acp_session_impl/prompt_build.rs"]
 mod prompt_build;
 use prompt_build::*;

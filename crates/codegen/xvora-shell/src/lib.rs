@@ -11,10 +11,10 @@
 static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
 pub(crate) use telemetry::unified_log;
 // Extern crate aliases for crates whose names shadow local modules in this crate.
-extern crate telemetry as ext_telemetry;
+extern crate mcp as ext_mcp;
 extern crate prompt_queue as ext_prompt_queue;
 extern crate status_line as ext_status_line;
-extern crate mcp as ext_mcp;
+extern crate telemetry as ext_telemetry;
 pub use tracing_macros::{teprintln, timed, tprintln};
 pub mod agent;
 pub mod auth;
