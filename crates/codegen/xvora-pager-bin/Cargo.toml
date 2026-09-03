@@ -17,9 +17,9 @@ path = "src/main.rs"
 
 [dependencies]
 # The pager library (all application logic + the public API main.rs drives).
-pager = { path = "../xvora-pager", package = "xvora-pager" }
+xvora-pager = { path = "../xvora-pager", package = "xvora-pager" }
 # Optional scrollback-native render mode, wired in via the fn-pointer seam.
-pager-minimal = { path = "../xvora-pager-minimal", package = "xvora-pager-minimal" }
+xvora-pager-minimal = { path = "../xvora-pager-minimal", package = "xvora-pager-minimal" }
 
 # Agent runtime + leader/stdio/headless entry points.
 shell = { workspace = true }
@@ -94,8 +94,8 @@ default-bazel = [
     ]
 jemalloc = ["dep:tikv-jemallocator", "dep:tikv-jemalloc-sys", "dep:tikv-jemalloc-ctl"]
 # xvora-workspace no longer enables sandbox-enforce by default, so enable it here.
-sandbox-enforce = ["pager/sandbox-enforce", "workspace/sandbox-enforce"]
-local-workspace = ["pager/local-workspace"]
+sandbox-enforce = ["xvora-pager/sandbox-enforce", "workspace/sandbox-enforce"]
+local-workspace = ["xvora-pager/local-workspace"]
 release-dist = [
-    "pager/release-dist",
+    "xvora-pager/release-dist",
     ]
