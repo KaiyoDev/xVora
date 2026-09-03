@@ -155,12 +155,12 @@ token-estimation = { workspace = true  }
 xvora-sampling-types = { path = "../xvora-sampling-types", package = "xvora-sampling-types" }
 tools = { path = "../xvora-tools", package = "xvora-tools" }
 tty-utils = { workspace = true }
-workflow = { path = "../xvora-workflow", package = "xvora-workflow" }
+xvora-workflow = { path = "../xvora-workflow", package = "xvora-workflow" }
 system-power = { workspace = true }
 workspace = { workspace = true }
 # Backs the compatibility-only `xvora_shell::foreign_sessions` re-export.
 foreign-sessions = { workspace = true }
-subagent-resolution = { path = "../xvora-subagent-resolution", package = "xvora-subagent-resolution" }
+xvora-subagent-resolution = { path = "../xvora-subagent-resolution", package = "xvora-subagent-resolution" }
 agent = { path = "../xvora-agent", package = "xvora-agent" }
 bundle = { workspace = true }
 config = { workspace = true }
@@ -169,11 +169,12 @@ dirs = { workspace = true }
 memory = { workspace = true }
 xvora-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }
 hooks-plugins-types = { path = "../hooks-plugins-types", package = "xvora-hooks-plugins-types" }
-plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
+xvora-plugin-marketplace = { path = "../xvora-plugin-marketplace", package = "xvora-plugin-marketplace" }
 file-utils = { path = "../file-utils", package = "xvora-file-utils" }
 session-events = { workspace = true }
 auth = { workspace = true, features = ["middleware"] }
 telemetry = { workspace = true }
+xvora-http = { workspace = true }
 http = { workspace = true }
 models = { workspace = true }
 prod-mc-cli-chat-proxy-types = { path = "../../../prod/mc/cli-chat-proxy-types" }

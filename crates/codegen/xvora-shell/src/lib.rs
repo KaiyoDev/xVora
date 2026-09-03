@@ -26,7 +26,7 @@ pub use shell_base::env;
 pub mod extensions;
 pub use foreign_sessions;
 pub mod heap_profile;
-pub use http;
+pub use xvora_http as http;
 pub mod inspect;
 pub mod instrumentation;
 pub mod leader;
