@@ -857,7 +857,7 @@ impl SessionActor {
                         x_grok_conv_id: Some(format!("perm-classifier-{}", uuid::Uuid::new_v4())),
                         x_grok_req_id: Some(format!("xvora-perm-auto-{}", uuid::Uuid::new_v4())),
                         x_grok_session_id: Some(session_id),
-                        x_grok_agent_id: Some(telemetry::id::agent_id()),
+                        x_grok_agent_id: Some(ext_telemetry::id::agent_id()),
                         ..ConversationRequest::default()
                     };
                     let fut = sampling_client.conversation_collect(request);

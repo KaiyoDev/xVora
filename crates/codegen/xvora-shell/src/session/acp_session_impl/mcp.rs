@@ -1,7 +1,7 @@
 use super::mcp_failed_reminder::{classify_failed_servers, render_failed_section};
 use super::*;
 use crate::session::mcp_servers::McpOauthDiscovery;
-use ext_ext_telemetry::instrument_task;
+use ext_telemetry::instrument_task;
 use ext_telemetry::region::Parent;
 /// Wire the session's elicitation inbox into a freshly built client so its `elicitation/create` requests reach the coordinator.
 /// Takes the already-locked `McpState` so each caller keeps its own lock scope.

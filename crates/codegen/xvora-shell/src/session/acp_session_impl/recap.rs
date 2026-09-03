@@ -552,7 +552,7 @@ impl SessionActor {
     ) -> Option<String> {
         use crate::session::helpers::prompt_suggest;
 
-        use ext_ext_telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
+        use ext_telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
 
         if !crate::util::config::prompt_suggestions_enabled_from_disk() {
             tracing::debug!("prompt suggest: feature disabled; skipping request");
@@ -674,7 +674,7 @@ impl SessionActor {
             x_grok_conv_id: Some(format!("promptsuggest-{}", uuid::Uuid::new_v4())),
             x_grok_req_id: Some(request_id.clone()),
             x_grok_session_id: Some(self.session_info.id.to_string()),
-            x_grok_agent_id: Some(telemetry::id::agent_id()),
+            x_grok_agent_id: Some(ext_telemetry::id::agent_id()),
             ..Default::default()
         };
 

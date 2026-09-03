@@ -104,7 +104,7 @@ impl SessionActor {
     pub(super) async fn run_session_end_memory_pipeline(
         &self,
         log_suffix: &str,
-        timer: &telemetry::session_end::SharedSessionEndTimer,
+        timer: &ext_telemetry::session_end::SharedSessionEndTimer,
     ) {
         let span = session_end::span(Phase::Memory);
         if self.startup_hints.is_subagent {
@@ -487,7 +487,7 @@ impl SessionActor {
             x_grok_conv_id: Some(format!("dream-{}", uuid::Uuid::new_v4())),
             x_grok_req_id: Some(format!("xvora-dream-{}", uuid::Uuid::new_v4())),
             x_grok_session_id: Some(session_id),
-            x_grok_agent_id: Some(telemetry::id::agent_id()),
+            x_grok_agent_id: Some(ext_telemetry::id::agent_id()),
             ..Default::default()
         };
         let response = sampling_client
@@ -597,7 +597,7 @@ impl SessionActor {
                 x_grok_conv_id: Some(format!("flush-{}", uuid::Uuid::new_v4())),
                 x_grok_req_id: Some(format!("xvora-flush-{}", uuid::Uuid::new_v4())),
                 x_grok_session_id: Some(session_id.clone()),
-                x_grok_agent_id: Some(telemetry::id::agent_id()),
+                x_grok_agent_id: Some(ext_telemetry::id::agent_id()),
                 ..Default::default()
             };
 

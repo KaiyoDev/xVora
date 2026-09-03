@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use ext_ext_telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
+use ext_telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
 use sampler::{SamplingErrorInfo, SamplingErrorKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

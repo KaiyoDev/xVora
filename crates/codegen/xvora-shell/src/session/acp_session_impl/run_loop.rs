@@ -1,7 +1,7 @@
 //! The session actor's main loop (`run_session`): command dispatch, the idle timer arms, and the free helpers only the loop consumes.
 #![allow(clippy::items_after_test_module)]
 use super::*;
-use ext_ext_telemetry::instrument_task;
+use ext_telemetry::instrument_task;
 use ext_telemetry::region::Parent;
 use ext_telemetry::session_end::{self, Phase, SharedSessionEndTimer};
 /// The `YoloToggled` event to emit after `set_yolo_mode(requested)`: `Some(actual)` only on a real change.

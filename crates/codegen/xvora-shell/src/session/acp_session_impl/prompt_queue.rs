@@ -272,7 +272,7 @@ impl SessionActor {
             } else {
                 "prompt"
             };
-            Some(crate::session::prompt_queue::QueueEntryMeta {
+            Some(crate::session::ext_prompt_queue::QueueEntryMeta {
                 id: prompt_id.clone(),
                 version: 0,
                 owner: client_identifier.clone(),
@@ -507,7 +507,7 @@ impl SessionActor {
             Some(r) => (Some(r.text), Some(r.kind), r.combined_texts),
             None => (None, None, None),
         };
-        let payload = crate::session::prompt_queue::QueueChanged {
+        let payload = crate::session::ext_prompt_queue::QueueChanged {
             session_id: self.session_info.id.0.to_string(),
             entries,
             running_prompt_id: running_id,
@@ -1133,7 +1133,7 @@ impl SessionActor {
         }
     }
 
-    fn combine_gate(item: &InputItem) -> prompt_queue::CombineGate<'_> {
+    fn combine_gate(item: &InputItem) -> ext_prompt_queue::CombineGate<'_> {
         let is_bash = Self::extract_bash_command(&item.prompt_blocks).is_some();
         let is_plain_prompt = item.is_queue_editable()
             && item.queue_meta.as_ref().map(|m| m.kind.as_str()) == Some("prompt")
@@ -1162,7 +1162,7 @@ impl SessionActor {
             .as_ref()
             .map(|m| m.text.as_str())
             .unwrap_or("");
-        prompt_queue::CombineGate {
+        ext_prompt_queue::CombineGate {
             id: item.prompt_id.as_str(),
             // A row with its own override can't merge into another turn (the merge would drop its override)
             is_plain_prompt: is_plain_prompt
