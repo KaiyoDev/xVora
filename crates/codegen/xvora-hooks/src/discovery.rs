@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use xvora_xvora_config::is_direct_hook_json_name;
+use xvora_config::is_direct_hook_json_name;
 
 use crate::config::{self, HookSpec};
 use crate::error::HookError;
