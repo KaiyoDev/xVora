@@ -20,6 +20,7 @@ toml = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 config = { workspace = true }
+xvora-config = { workspace = true }
 # Child-network restriction on hook command spawns; enforce is feature-unified
 # from the binary crate, matching the other consumers.
 xvora-sandbox = { path = "../xvora-sandbox", package = "xvora-sandbox", default-features = false }
