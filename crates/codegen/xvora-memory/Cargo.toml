@@ -33,7 +33,8 @@ tar = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }
 tracing = { workspace = true }
 auth = { workspace = true }
-config-types = { workspace = true }
+xvora-config-types = { workspace = true }
+xvora-http = { workspace = true }
 http = { workspace = true }
 tools = { workspace = true }
 version = { workspace = true }

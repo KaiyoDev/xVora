@@ -19,7 +19,7 @@ tempfile = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
-config-types = { workspace = true }
+xvora-config-types = { workspace = true }
 models = { workspace = true }
 status-line = { workspace = true }
 tools = { workspace = true }

@@ -13748,6 +13748,7 @@ dependencies = [
  "xvora-tool-protocol",
  "xvora-tool-runtime",
  "xvora-tool-types",
+ "xvora-tracing",
 ]
 
 [[package]]
@@ -13757,7 +13758,6 @@ dependencies = [
  "base64 0.22.1",
  "blake3",
  "core-foundation",
- "dirs 5.0.1",
  "dunce",
  "prod-mc-cli-chat-proxy-types",
  "ring",
@@ -13771,6 +13771,7 @@ dependencies = [
  "tracing",
  "urlencoding",
  "which",
+ "xvora-dirs",
  "xvora-tty-utils",
  "xvora-version",
 ]
@@ -13829,7 +13830,6 @@ dependencies = [
  "clap",
  "crossbeam",
  "dashmap",
- "dirs 5.0.1",
  "dunce",
  "gix",
  "gix-status",
@@ -13850,6 +13850,8 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
+ "xvora-dirs",
+ "xvora-gix-status",
  "xvora-sqlite-journal",
  "xvora-test-utils",
  "xvora-tty-utils",
@@ -14117,6 +14119,7 @@ dependencies = [
  "windows 0.61.3",
  "xvora-auth",
  "xvora-config-types",
+ "xvora-http",
  "xvora-sqlite-journal",
  "xvora-token-estimation",
  "xvora-tools",
@@ -14777,6 +14780,7 @@ dependencies = [
  "tokio",
  "tracing",
  "xvora-file-utils",
+ "xvora-http",
  "xvora-version",
 ]
 
@@ -15141,7 +15145,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cpal",
- "dirs 5.0.1",
  "extra-ca",
  "futures-util",
  "serde",
@@ -15153,6 +15156,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "xvora-dirs",
  "xvora-tty-utils",
 ]
 
@@ -15258,6 +15262,7 @@ dependencies = [
  "xvora-tool-types",
  "xvora-tools",
  "xvora-tools-api",
+ "xvora-tracing",
  "xvora-tty-utils",
  "xvora-version",
  "xvora-workspace-client",

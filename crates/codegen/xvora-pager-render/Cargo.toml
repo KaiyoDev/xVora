@@ -71,7 +71,7 @@ shared = { workspace = true }
 workspace = { workspace = true }
 telemetry = { workspace = true }
 tools = { workspace = true }
-paths = { path = "../xvora-paths", package = "xvora-paths" }
+xvora-paths = { path = "../xvora-paths", package = "xvora-paths" }
 gboom = { path = "../xvora-gboom", package = "xvora-gboom" }
 
 # Base64 encoding for image data

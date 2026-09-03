@@ -71,7 +71,7 @@ impl ApiEmbeddingProvider {
 pub(super) fn build_middleware_client(
     credentials: std::sync::Arc<dyn auth::AuthCredentialProvider>,
 ) -> reqwest_middleware::ClientWithMiddleware {
-    http::with_auth_retry(http::shared_client(), credentials)
+    xvora_http::with_auth_retry(xvora_http::shared_client(), credentials)
 }
 
 fn build_static_middleware_client(
@@ -127,7 +127,7 @@ impl EmbeddingProvider for ApiEmbeddingProvider {
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                 }
 
-                let request = http::shared_client()
+                let request = xvora_http::shared_client()
                     .post(format!("{}/embeddings", self.api_base))
                     .json(&body_json)
                     .header("X-XAI-Token-Auth", "xvora-cli")

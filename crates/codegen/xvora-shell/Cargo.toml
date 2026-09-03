@@ -129,7 +129,7 @@ fast-worktree = { path = "../fast-worktree", package = "xvora-fast-worktree", fe
 
 tonic = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
-paths = { path = "../xvora-paths", package = "xvora-paths" }
+xvora-paths = { path = "../xvora-paths", package = "xvora-paths" }
 shell-base = { workspace = true }
 shell-session-support = { workspace = true }
 shell-terminal = { workspace = true }
@@ -164,7 +164,7 @@ subagent-resolution = { path = "../xvora-subagent-resolution", package = "xvora-
 agent = { path = "../xvora-agent", package = "xvora-agent" }
 bundle = { workspace = true }
 config = { workspace = true }
-config-types = { workspace = true }
+xvora-config-types = { workspace = true }
 dirs = { workspace = true }
 memory = { workspace = true }
 xvora-hooks = { path = "../xvora-hooks", package = "xvora-hooks" }

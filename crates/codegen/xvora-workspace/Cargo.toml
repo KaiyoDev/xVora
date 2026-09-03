@@ -33,13 +33,14 @@ tokio = { workspace = true, features = [
     "time",
 ] }
 tracing = { workspace = true }
+xvora-tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4", "v5", "v7"] }
 agent = { path = "../xvora-agent", package = "xvora-agent" }
 tools = { path = "../xvora-tools", package = "xvora-tools" }
 tools-api = { path = "../xvora-tools-api", package = "xvora-tools-api" }
 # `DiagHandle`, held by the hub config and threaded through `connect_hub`.
 diag-server = { workspace = true }
-workspace-client = { path = "../xvora-workspace-client", package = "xvora-workspace-client" }
+xvora-workspace-client = { path = "../xvora-workspace-client", package = "xvora-workspace-client" }
 # Daemon/process-lifecycle machinery for `bin/workspace_server.rs` only; the
 # library never references it.
 workspace-daemon = { path = "../xvora-workspace-daemon", package = "xvora-workspace-daemon" }
@@ -47,13 +48,13 @@ workspace-types = { path = "../xvora-workspace-types", package = "xvora-workspac
 config = { workspace = true }
 dirs = { workspace = true }
 # Leaf config value types (RemoteSettings, BoolFlag) for the folder-trust decision.
-config-types = { workspace = true }
+xvora-config-types = { workspace = true }
 toml = { workspace = true, features = ["preserve_order"] }
 dashmap = { workspace = true }
 agent-client-protocol = { workspace = true }
 acp-lib = { workspace = true }
 codebase-graph = { path = "../codebase-graph", package = "xvora-codebase-graph" }
-paths = { path = "../xvora-paths", package = "xvora-paths" }
+xvora-paths = { path = "../xvora-paths", package = "xvora-paths" }
 base64 = { workspace = true }
 infer = { workspace = true }
 sha2 = { workspace = true, features = ["force-soft"] }

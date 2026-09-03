@@ -2558,7 +2558,7 @@ impl WorkspaceHandle {
             .in_span(
                 fastrace::Span::root(
                     "tool_server.session_bind.environment_capture",
-                    trace_parent.unwrap_or_else(tracing::local_or_random_span_ctx),
+                    trace_parent.unwrap_or_else(xvora_tracing::local_or_random_span_ctx),
                 )
                 .with_properties(|| {
                     [
@@ -3202,7 +3202,7 @@ impl WorkspaceHandle {
                     .and_then(|p| p.pointer("/trace_context"))
                     .and_then(serde_json::Value::as_str)
                     .and_then(fastrace::collector::SpanContext::decode_w3c_traceparent)
-                    .unwrap_or_else(tracing::local_or_random_span_ctx);
+                    .unwrap_or_else(xvora_tracing::local_or_random_span_ctx);
                 let bind_span = fastrace::Span::root("tool_server.session_bind", bind_parent)
                     .with_properties(|| {
                         [
