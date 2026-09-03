@@ -9,7 +9,7 @@ impl SessionActor {
     /// Record itemized context occupancy for this session.
     /// No-op when session metrics are disabled or there is no credential for the tokenizer endpoint.
     pub(super) async fn emit_session_context_snapshot(&self) {
-        if !self.telemetry_enabled || !telemetry::is_session_metrics_enabled() {
+        if !self.telemetry_enabled || !ext_telemetry::is_session_metrics_enabled() {
             return;
         }
         let Some(api_key) = self.tokenize_api_key().await else {

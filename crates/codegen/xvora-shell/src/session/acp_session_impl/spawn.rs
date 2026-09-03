@@ -1057,7 +1057,7 @@ pub(crate) async fn spawn_session_actor(
                     .collect()
             })
             .unwrap_or_default();
-        Some(crate::ext_telemetry::SessionHarnessMetrics {
+        Some(crate::session::telemetry::SessionHarnessMetrics {
             session_id: session_info.id.0.to_string(),
             client_identifier: session_client_identifier.clone(),
             model_id: session_model_id.0.to_string(),
@@ -2157,14 +2157,14 @@ pub(crate) async fn spawn_session_actor(
         session.tool_context.prompt_index.clone(),
     );
     if let Some(metrics) = harness_metrics {
-        let hooks: Vec<crate::ext_telemetry::HookRegInfo> = session
+        let hooks: Vec<crate::session::telemetry::HookRegInfo> = session
             .hook_registry
             .borrow()
             .as_ref()
             .map(|reg| {
                 reg.all_hooks()
                     .iter()
-                    .map(|s| crate::ext_telemetry::HookRegInfo::from_spec(s))
+                    .map(|s| crate::session::telemetry::HookRegInfo::from_spec(s))
                     .collect()
             })
             .unwrap_or_default();

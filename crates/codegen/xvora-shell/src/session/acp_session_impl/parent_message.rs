@@ -160,7 +160,7 @@ impl SessionActor {
         self: &Arc<Self>,
         delivery: ActiveAgentMessageDelivery,
         receipt_sink: mpsc::Sender<crate::agent::subagent::PromptTurnReceipt>,
-        parent_telemetry_ctx: telemetry::TelemetryCtx,
+        parent_telemetry_ctx: ext_telemetry::session_ctx::TelemetryCtx,
         respond_to: oneshot::Sender<ActiveMessageAdmission>,
         completion_tx: mpsc::UnboundedSender<super::turn_task::TurnCompletionMsg>,
     ) {
@@ -184,7 +184,7 @@ impl SessionActor {
         message: ActiveAgentMessage,
         requested: ActiveAgentMessageOperation,
         receipt_sink: mpsc::Sender<crate::agent::subagent::PromptTurnReceipt>,
-        parent_telemetry_ctx: telemetry::TelemetryCtx,
+        parent_telemetry_ctx: ext_telemetry::session_ctx::TelemetryCtx,
         respond_to: oneshot::Sender<ActiveMessageAdmission>,
         completion_tx: mpsc::UnboundedSender<super::turn_task::TurnCompletionMsg>,
     ) {
@@ -461,7 +461,7 @@ impl SessionActor {
             message,
             operation,
             receipt_sink,
-            telemetry::TelemetryCtx::new(
+            ext_telemetry::session_ctx::TelemetryCtx::new(
                 "test-parent".to_owned(),
                 std::sync::Arc::new(tokio::sync::Mutex::new(0)),
             ),

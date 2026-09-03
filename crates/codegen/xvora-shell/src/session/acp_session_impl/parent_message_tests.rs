@@ -107,7 +107,7 @@ async fn receipt_backpressure_waits_before_queue_commit() {
                 result: occupied_rx,
                 telemetry: crate::session::telemetry::ActiveAgentMessageAdmissionTelemetry::new(
                     std::time::Instant::now(),
-                    telemetry::TelemetryCtx::new(
+                    ext_telemetry::session_ctx::TelemetryCtx::new(
                         "parent".to_owned(),
                         Arc::new(tokio::sync::Mutex::new(0)),
                     ),
