@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use agent_client_protocol as acp;
 use agent_client_protocol::Client as _;
+use ext_telemetry::events::{ClientHookGateOutcome, HookBlockCause};
 use futures::stream::{FuturesUnordered, StreamExt as _};
 use serde_json::value::RawValue;
-use telemetry::events::{ClientHookGateOutcome, HookBlockCause};
 use xvora_hooks::event::{
     HookEventEnvelope, HookEventName, HookPayload, MAX_HOOK_FEEDBACK_CHARS, clip_text,
 };

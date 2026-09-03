@@ -6,7 +6,7 @@ use std::sync::atomic::Ordering;
 use super::*;
 
 use crate::extensions::notification::{PromptUsage, PromptUsageModel, ticks_to_usd};
-use status_line::{
+use ext_status_line::{
     STATUS_LINE_SCHEMA_VERSION, StatusLineContext, StatusLineContextWindow, StatusLineCost,
     StatusLineEffort, StatusLineModel, StatusLineRepo, StatusLineSessionUsage, StatusLineTurn,
     StatusLineWorkspace, StatusLineWorktree,

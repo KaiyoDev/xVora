@@ -3,8 +3,8 @@
 
 use super::*;
 use crate::auth::backend::{ActiveAuthBackend, AuthBackend};
-use telemetry::region;
-use telemetry::region::Parent;
+use ext_telemetry::region;
+use ext_telemetry::region::Parent;
 
 const CLASSIFIER_REQUEST_TOKEN_RESERVE: u64 = 16_384;
 

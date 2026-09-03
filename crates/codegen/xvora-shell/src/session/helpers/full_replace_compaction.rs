@@ -16,8 +16,8 @@ use compaction::{
     CompactionPrompt, CompactionSampleError, CompactionSampler, FullReplaceAttemptOutcome,
     FullReplaceObserver, LlmCompactionOutput,
 };
+use ext_telemetry::events::{CompactionRetryDegraded, CompactionTrigger};
 use sampler::SamplerConfig as SamplingConfig;
-use telemetry::events::{CompactionRetryDegraded, CompactionTrigger};
 use xvora_sampling_types::{ConversationItem, HostedTool, ToolSpec};
 
 use chat_state::compaction_utils::{

@@ -1,5 +1,5 @@
-use telemetry::enums::PermissionMode;
-use telemetry::events::{
+use crate::ext_telemetry::enums::PermissionMode;
+use crate::ext_telemetry::events::{
     self, PermissionClassifierSource, PermissionClassifierVerdict, PermissionDecisionPayload,
     PermissionDecisionReason, PermissionOutcome, PermissionPromptOutcome,
     PermissionPromptOutcomeDetail, PermissionSecurityFinding,
@@ -238,12 +238,12 @@ pub(crate) fn permission_decision_payload(
 #[cfg(test)]
 mod permission_analytics_tests {
     use super::*;
-    use chrono::Utc;
-    use telemetry::events::{
+    use crate::ext_telemetry::events::{
         self, AutoDenialKpi, PermissionClassifierSource, PermissionClassifierVerdict,
         PermissionDecisionPayload, PermissionDecisionReason, PermissionPromptOutcome,
         PermissionSecurityFinding,
     };
+    use chrono::Utc;
     use workspace::permission::{ClassifierSecurityFinding, reasons};
 
     /// Build a manager `PermissionEvent` for the prompted auto denial-limit cohort.
@@ -581,8 +581,8 @@ mod permission_analytics_tests {
     /// A new "Always allow" prompt option thus cannot be silently dropped from adoption analytics.
     #[test]
     fn prompt_outcome_detail_matches_manager_vocabulary() {
+        use crate::ext_telemetry::events::PermissionPromptOutcomeDetail;
         use std::collections::BTreeSet;
-        use telemetry::events::PermissionPromptOutcomeDetail;
         use workspace::permission::PromptOutcomeKind;
         let manager: BTreeSet<&str> = PromptOutcomeKind::ALL
             .iter()

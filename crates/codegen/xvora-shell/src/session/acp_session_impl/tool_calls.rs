@@ -2648,7 +2648,7 @@ impl SessionActor {
     /// It scans successful foreground bash commands, plus MCP `create_pull_request` results (url/number parsed from the result text).
     /// Backgrounded commands are not scanned.
     fn record_git_pr_signals(&self, effective_tool_name: &str, result: &ToolRunResult) {
-        use telemetry::enums::PrCreationSource;
+        use ext_telemetry::enums::PrCreationSource;
         use tools::util::git_detect;
         match &result.output {
             tools::types::output::ToolOutput::Bash(b) if b.exit_code == 0 => {

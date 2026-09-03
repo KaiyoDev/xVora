@@ -552,7 +552,7 @@ impl SessionActor {
     ) -> Option<String> {
         use crate::session::helpers::prompt_suggest;
 
-        use telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
+        use ext_telemetry::events::{PromptSuggestion, PromptSuggestionAction as PsAction};
 
         if !crate::util::config::prompt_suggestions_enabled_from_disk() {
             tracing::debug!("prompt suggest: feature disabled; skipping request");

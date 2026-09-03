@@ -2,8 +2,8 @@
 
 use std::time::Duration;
 
+use ext_telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
 use sampler::{SamplingErrorInfo, SamplingErrorKind};
-use telemetry::events::{RateLimitWaitOutcome as ReportedOutcome, SubagentRateLimitWaited};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RateLimitWaitConfig {

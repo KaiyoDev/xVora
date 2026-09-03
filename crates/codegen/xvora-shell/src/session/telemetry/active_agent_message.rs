@@ -3,8 +3,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use telemetry::TelemetryCtx;
-use telemetry::events::{
+use crate::ext_telemetry::TelemetryCtx;
+use crate::ext_telemetry::events::{
     ActiveAgentMessageCompleted as Completed,
     ActiveAgentMessageFallbackDisposition as FallbackDisposition,
     ActiveAgentMessageFallbackReason as FallbackReason, ActiveAgentMessageLimitHit as LimitHit,
@@ -73,7 +73,7 @@ impl ActiveAgentMessageAdmissionTelemetry {
     }
 }
 
-pub(crate) use telemetry::events::ActiveAgentMessageFallbackReason;
+pub(crate) use crate::ext_telemetry::events::ActiveAgentMessageFallbackReason;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ActiveAgentMessageSettlementStatus {

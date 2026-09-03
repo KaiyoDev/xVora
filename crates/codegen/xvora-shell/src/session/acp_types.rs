@@ -582,7 +582,7 @@ pub struct StartupHints {
 impl StartupHints {
     /// Shared by the spawn path and the resident re-attach path so both resolve identically.
     pub(crate) fn resolve_mcp_strategy(&self) -> telemetry::enums::McpInitStrategy {
-        use telemetry::enums::McpInitStrategy;
+        use ext_telemetry::enums::McpInitStrategy;
         match std::env::var("MCP_INIT_STRATEGY") {
             Ok(v) if !v.trim().is_empty() => McpInitStrategy::from(v),
             _ if self.non_interactive => McpInitStrategy::Blocking,

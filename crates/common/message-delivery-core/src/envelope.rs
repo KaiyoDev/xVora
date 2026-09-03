@@ -88,6 +88,8 @@ pub struct OperationSet(u8);
 
 impl OperationSet {
     pub const QUEUE: Self = Self(1 << 0);
+    pub const STEER: Self = Self(1 << 1);
+    pub const QUEUE_AND_STEER: Self = Self(3);
 
     pub fn contains(self, operation: Operation) -> bool {
         let flag = match operation {

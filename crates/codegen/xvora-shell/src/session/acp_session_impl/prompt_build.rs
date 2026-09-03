@@ -3,8 +3,8 @@
 #![allow(clippy::items_after_test_module)]
 use super::*;
 use crate::session::repo_status_prefix::RepoStatusSnapshot;
-use telemetry::region;
-use telemetry::region::Parent;
+use ext_telemetry::region;
+use ext_telemetry::region::Parent;
 /// Normalize a free-form name (e.g. an MCP server identifier) into a single safe filesystem segment.
 ///
 /// Replaces anything outside `[A-Za-z0-9._-]` with `_` so the result is a portable directory name on macOS/Linux.

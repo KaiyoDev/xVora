@@ -7,11 +7,11 @@
 #![allow(clippy::items_after_test_module)]
 use super::*;
 use crate::remote::DEFAULT_CONTEXT_WINDOW;
-use telemetry::region;
-use telemetry::region::Parent as SpanParent;
-use telemetry::subagent_spawn::phase_region_under;
-static SESSIONS_ACTIVE: telemetry::activity::ActivityGauge =
-    telemetry::activity::ActivityGauge::residency(telemetry::activity::SESSIONS_ACTIVE_KEY);
+use ext_telemetry::region;
+use ext_telemetry::region::Parent as SpanParent;
+use ext_telemetry::subagent_spawn::phase_region_under;
+static SESSIONS_ACTIVE: ext_telemetry::activity::ActivityGauge =
+    ext_telemetry::activity::ActivityGauge::residency(ext_telemetry::activity::SESSIONS_ACTIVE_KEY);
 /// Drop catch-all `--allow` rules (the `--yolo` substitute, see `resolution::is_catchall_allow`)
 /// when `policy_block` is set; keep everything else. Pure, so it is unit-testable.
 fn drop_cli_catchall_allows(
@@ -45,8 +45,8 @@ pub(crate) fn build_session_runtime() -> std::io::Result<tokio::runtime::Runtime
 }
 fn configured_memory_retrieval_mode(
     config: Option<&crate::config::MemoryConfig>,
-) -> telemetry::events::MemoryRetrievalMode {
-    use telemetry::events::MemoryRetrievalMode::*;
+) -> ext_telemetry::events::MemoryRetrievalMode {
+    use ext_telemetry::events::MemoryRetrievalMode::*;
     match config.filter(|config| config.enabled) {
         None => Disabled,
         Some(config)
@@ -91,7 +91,7 @@ mod cli_catchall_drop_tests {
     fn disabled_memory_config_has_disabled_retrieval_mode() {
         assert_eq!(
             configured_memory_retrieval_mode(Some(&Default::default())),
-            telemetry::events::MemoryRetrievalMode::Disabled
+            ext_telemetry::events::MemoryRetrievalMode::Disabled
         );
     }
     /// Under the pin, CLI catch-all `--allow` rules (`*`, `**`) are dropped while a scoped rule (`Bash(touch *)`) survives.
@@ -291,7 +291,7 @@ pub(crate) async fn spawn_session_actor(
     max_turns: Option<usize>,
     forked_tool_override: Option<Vec<ToolSpec>>,
     is_chat_kind: bool,
-    spawn_ctx: Option<telemetry::subagent_spawn::SpawnPhaseContext>,
+    spawn_ctx: Option<ext_telemetry::subagent_spawn::SpawnPhaseContext>,
     sampling_gate: Option<Arc<tokio::sync::Semaphore>>,
 ) -> Result<
     (
@@ -789,7 +789,7 @@ pub(crate) async fn spawn_session_actor(
     > = if let Some(ref storage) = memory_storage_for_session {
         if let Err(e) = storage.ensure_initialized() {
             tracing::warn!(
-                target: telemetry::memory_log::TARGET,
+                target: ext_telemetry::memory_log::TARGET,
                 error = %e,
                 "MEMORY_INIT: ensure_initialized failed, continuing without template files"
             );
@@ -803,14 +803,14 @@ pub(crate) async fn spawn_session_actor(
                 match gc_storage.gc(gc_max_age) {
                     Ok(removed) if removed > 0 => {
                         tracing::info!(
-                            target: telemetry::memory_log::TARGET,
+                            target: ext_telemetry::memory_log::TARGET,
                             removed,
                             "MEMORY_GC: cleaned orphaned workspace directories"
                         );
                     }
                     Err(e) => {
                         tracing::debug!(
-                            target: telemetry::memory_log::TARGET,
+                            target: ext_telemetry::memory_log::TARGET,
                             error = %e,
                             "MEMORY_GC: failed"
                         );
@@ -864,13 +864,13 @@ pub(crate) async fn spawn_session_actor(
         memory_backend_params_for_session = Some(params);
         if watcher_config.enabled && !watcher_started {
             tracing::warn!(
-                target: telemetry::memory_log::TARGET,
+                target: ext_telemetry::memory_log::TARGET,
                 "MEMORY_INIT: watcher was configured but failed to start \
                  (directory may not exist or OS watcher unavailable)"
             );
         }
         tracing::info!(
-            target: telemetry::memory_log::TARGET,
+            target: ext_telemetry::memory_log::TARGET,
             workspace = %storage.workspace_dir().display(),
             global = %storage.global_dir().display(),
             watcher_config_enabled = watcher_config.enabled,
@@ -879,7 +879,7 @@ pub(crate) async fn spawn_session_actor(
         );
         let mc = memory_config.as_ref();
         let total_chunks = storage.total_chunk_count();
-        telemetry::session_ctx::log_event(telemetry::memory_telemetry::MemorySessionInit {
+        ext_telemetry::session_ctx::log_event(ext_telemetry::memory_telemetry::MemorySessionInit {
             session_id: session_info.id.to_string(),
             memory_enabled: true,
             watcher_config_enabled: watcher_config.enabled,
@@ -897,7 +897,7 @@ pub(crate) async fn spawn_session_actor(
         Some(backend)
     } else {
         tracing::debug!(
-            target: telemetry::memory_log::TARGET,
+            target: ext_telemetry::memory_log::TARGET,
             "MEMORY_INIT: memory disabled, no storage created"
         );
         None
@@ -1007,7 +1007,7 @@ pub(crate) async fn spawn_session_actor(
             None
         },
     });
-    use telemetry::subagent_spawn::SubagentSpawnPhase;
+    use ext_telemetry::subagent_spawn::SubagentSpawnPhase;
     let builder_started_at = std::time::Instant::now();
     let agent_build_timer = crate::instrumentation_timer!("session.spawn_actor.agent_build");
     let agent_build_span = spawn_ctx
@@ -1045,48 +1045,49 @@ pub(crate) async fn spawn_session_actor(
         })
         .await;
     let memory_retrieval_mode = configured_memory_retrieval_mode(memory_config.as_ref());
-    let harness_metrics =
-        if !startup_hints.is_subagent && (telemetry_enabled || telemetry::external::is_active()) {
-            let plugin_names = plugin_registry
-                .as_ref()
-                .map(|reg| {
-                    reg.active_plugins()
-                        .iter()
-                        .map(|p| p.name.clone())
-                        .collect()
-                })
-                .unwrap_or_default();
-            Some(super::telemetry::SessionHarnessMetrics {
-                session_id: session_info.id.0.to_string(),
-                client_identifier: session_client_identifier.clone(),
-                model_id: session_model_id.0.to_string(),
-                agent_name: initial_agent_name,
-                permission_mode: if session_yolo_mode {
-                    telemetry::enums::PermissionMode::AlwaysApprove
-                } else if session_auto_mode
-                    && crate::util::config::auto_permission_mode_enabled_from_disk()
-                {
-                    telemetry::enums::PermissionMode::Auto
-                } else {
-                    telemetry::enums::PermissionMode::Ask
-                },
-                mcp_server_names: mcp_servers
+    let harness_metrics = if !startup_hints.is_subagent
+        && (telemetry_enabled || ext_telemetry::external::is_active())
+    {
+        let plugin_names = plugin_registry
+            .as_ref()
+            .map(|reg| {
+                reg.active_plugins()
                     .iter()
-                    .map(|s| mcp_server_name(s).to_owned())
-                    .collect(),
-                lsp_server_names: tool_context.lsp_server_names.clone(),
-                memory_enabled: memory_config.as_ref().is_some_and(|config| config.enabled),
-                memory_retrieval_mode,
-                auto_update,
-                cwd: tool_context.cwd.as_str().to_owned(),
-                skill_names: agent.tool_bridge().skill_discovery_snapshot_names().await,
-                compat,
-                plugin_registry: plugin_registry.clone(),
-                plugin_names,
+                    .map(|p| p.name.clone())
+                    .collect()
             })
-        } else {
-            None
-        };
+            .unwrap_or_default();
+        Some(super::ext_telemetry::SessionHarnessMetrics {
+            session_id: session_info.id.0.to_string(),
+            client_identifier: session_client_identifier.clone(),
+            model_id: session_model_id.0.to_string(),
+            agent_name: initial_agent_name,
+            permission_mode: if session_yolo_mode {
+                ext_telemetry::enums::PermissionMode::AlwaysApprove
+            } else if session_auto_mode
+                && crate::util::config::auto_permission_mode_enabled_from_disk()
+            {
+                ext_telemetry::enums::PermissionMode::Auto
+            } else {
+                ext_telemetry::enums::PermissionMode::Ask
+            },
+            mcp_server_names: mcp_servers
+                .iter()
+                .map(|s| mcp_server_name(s).to_owned())
+                .collect(),
+            lsp_server_names: tool_context.lsp_server_names.clone(),
+            memory_enabled: memory_config.as_ref().is_some_and(|config| config.enabled),
+            memory_retrieval_mode,
+            auto_update,
+            cwd: tool_context.cwd.as_str().to_owned(),
+            skill_names: agent.tool_bridge().skill_discovery_snapshot_names().await,
+            compat,
+            plugin_registry: plugin_registry.clone(),
+            plugin_names,
+        })
+    } else {
+        None
+    };
     let resolved_task_output =
         tools::reminders::task_completion::resolve_task_output_tool_name(agent.tool_bridge()).await;
     let resolved_read =
@@ -2008,7 +2009,7 @@ pub(crate) async fn spawn_session_actor(
                     }
                 }
                 tracing::info!(
-                    target: telemetry::memory_log::TARGET,
+                    target: ext_telemetry::memory_log::TARGET,
                     files = files.len(),
                     "MEMORY_REINDEX: background reindex complete"
                 );
@@ -2027,16 +2028,18 @@ pub(crate) async fn spawn_session_actor(
                 } else {
                     0
                 };
-                telemetry::session_ctx::log_event(telemetry::memory_telemetry::MemoryReindex {
-                    session_id: session_id_for_reindex.clone(),
-                    source: "init".to_owned(),
-                    added: total_added,
-                    updated: total_updated,
-                    removed: total_removed,
-                    embedded: embedded_count,
-                    duration_ms: reindex_start.elapsed().as_millis() as u64,
-                    trigger: "init".to_owned(),
-                });
+                ext_telemetry::session_ctx::log_event(
+                    ext_telemetry::memory_telemetry::MemoryReindex {
+                        session_id: session_id_for_reindex.clone(),
+                        source: "init".to_owned(),
+                        added: total_added,
+                        updated: total_updated,
+                        removed: total_removed,
+                        embedded: embedded_count,
+                        duration_ms: reindex_start.elapsed().as_millis() as u64,
+                        trigger: "init".to_owned(),
+                    },
+                );
                 chunks_added_counter
                     .fetch_add(total_added as u64, std::sync::atomic::Ordering::Relaxed);
             }
@@ -2149,32 +2152,32 @@ pub(crate) async fn spawn_session_actor(
         applied_tool_overrides: session.effective_tool_overrides(),
         scheduler_background_loops,
     };
-    let telemetry_ctx = telemetry::session_ctx::TelemetryCtx::new(
+    let telemetry_ctx = ext_telemetry::session_ctx::TelemetryCtx::new(
         session.session_info.id.0.to_string(),
         session.tool_context.prompt_index.clone(),
     );
     if let Some(metrics) = harness_metrics {
-        let hooks: Vec<super::telemetry::HookRegInfo> = session
+        let hooks: Vec<super::ext_telemetry::HookRegInfo> = session
             .hook_registry
             .borrow()
             .as_ref()
             .map(|reg| {
                 reg.all_hooks()
                     .iter()
-                    .map(|s| super::telemetry::HookRegInfo::from_spec(s))
+                    .map(|s| super::ext_telemetry::HookRegInfo::from_spec(s))
                     .collect()
             })
             .unwrap_or_default();
         let telemetry_enabled = session.telemetry_enabled;
         tokio::spawn(async move {
             let ev = metrics.into_event(hooks).await;
-            telemetry::session_ctx::log_event_dual(telemetry_enabled, ev);
+            ext_telemetry::session_ctx::log_event_dual(telemetry_enabled, ev);
         });
     }
     let hosting = SESSIONS_ACTIVE.enter();
     tokio::task::spawn_local(async move {
         let _hosting = hosting;
-        telemetry::session_ctx::with_session_ctx(
+        ext_telemetry::session_ctx::with_session_ctx(
             telemetry_ctx,
             run_session(
                 session,
@@ -2383,7 +2386,7 @@ pub(crate) async fn spawn_session_on_thread(
     max_turns: Option<usize>,
     forked_tool_override: Option<Vec<ToolSpec>>,
     is_chat_kind: bool,
-    spawn_ctx: Option<telemetry::subagent_spawn::SpawnPhaseContext>,
+    spawn_ctx: Option<ext_telemetry::subagent_spawn::SpawnPhaseContext>,
     sampling_gate: Option<Arc<tokio::sync::Semaphore>>,
 ) -> Result<
     (
@@ -2576,7 +2579,7 @@ pub(crate) async fn spawn_session_on_thread(
                 let _ = session_done_rx.await;
             };
             local.block_on(&rt, actor_main);
-            rt.block_on(telemetry::session_ctx::drain_at_session_exit());
+            rt.block_on(ext_telemetry::session_ctx::drain_at_session_exit());
         });
     let join_handle = match join_handle {
         Ok(h) => h,

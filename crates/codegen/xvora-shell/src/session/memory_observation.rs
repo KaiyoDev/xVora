@@ -1,12 +1,12 @@
-use memory::{
-    MemoryObservationSink, MemoryRetrievalMode, MemorySearchErrorClass, MemorySearchObservation,
-    MemorySearchSource, MemoryWatcherSyncObservation,
-};
-use telemetry::memory_telemetry::{
+use ext_telemetry::memory_telemetry::{
     MemoryInjection, MemoryInjectionOutcome, MemorySearch,
     MemorySearchErrorClass as TelemetryErrorClass, MemorySearchMode as TelemetryMode,
     MemorySearchOutcome as TelemetryOutcome, MemorySearchSource as TelemetrySource,
     MemoryWatcherSync,
+};
+use memory::{
+    MemoryObservationSink, MemoryRetrievalMode, MemorySearchErrorClass, MemorySearchObservation,
+    MemorySearchSource, MemoryWatcherSyncObservation,
 };
 
 pub(crate) struct TelemetryMemoryObservationSink {

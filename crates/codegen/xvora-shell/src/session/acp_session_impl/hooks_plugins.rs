@@ -932,7 +932,7 @@ impl SessionActor {
             if (!diff.added.is_empty() || !diff.removed.is_empty())
                 && let Some(tx) = &dispatch_event_tx
             {
-                let _ = tx.send(mcp::servers::McpClientEvent::ConfigDiff {
+                let _ = tx.send(ext_mcp::servers::McpClientEvent::ConfigDiff {
                     added: diff.added.clone(),
                     removed: diff.removed.clone(),
                 });

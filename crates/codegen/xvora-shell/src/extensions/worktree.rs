@@ -13,8 +13,8 @@ use crate::session::worktree::{
     create_jj_workspace, create_worktree_async, create_worktree_from_worktree_async,
     rehydrate_session_in_worktree, resolve_session_repo_wide, resume_session_in_worktree,
 };
-use telemetry::instrument_task;
-use telemetry::region::Parent;
+use ext_telemetry::instrument_task;
+use ext_telemetry::region::Parent;
 
 type ExtResult = Result<acp::ExtResponse, acp::Error>;
 

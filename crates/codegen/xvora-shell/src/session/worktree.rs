@@ -4,9 +4,9 @@
 use crate::session::worktree_cleanup::cleanup_worktree_on_failure;
 use crate::util::config::WorktreeType as ShellWorktreeType;
 use anyhow::{Context, Result};
+use ext_telemetry::region;
+use ext_telemetry::region::Parent;
 use std::path::Path;
-use telemetry::region;
-use telemetry::region::Parent;
 use workspace::session::git::find_git_root_from_path;
 pub use workspace::worktree::*;
 const WORKTREE_LOG: &str = "xvora_worktree";

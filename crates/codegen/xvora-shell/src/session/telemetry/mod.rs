@@ -6,7 +6,7 @@ mod permission;
 pub(crate) use active_agent_message::*;
 pub(crate) use permission::*;
 
-use telemetry::events::SessionHarness;
+use crate::ext_telemetry::events::SessionHarness;
 
 /// `duration_ms`, `tool_count`, and `error_type` are status-specific; pass `None` when not applicable.
 pub(crate) fn emit_mcp_connection_span(

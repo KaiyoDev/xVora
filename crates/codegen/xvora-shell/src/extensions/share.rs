@@ -14,7 +14,7 @@ use crate::session::info::Info as SessionInfo;
 use crate::session::persistence::list_summaries;
 use crate::session::share::{ShareSessionRequest, ShareSessionResponse};
 use crate::upload::trace::{SessionMetadataType, upload_session_metadata};
-use telemetry::id::agent_id;
+use ext_telemetry::id::agent_id;
 
 #[tracing::instrument(skip_all, fields(method = %args.method))]
 pub async fn handle(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {

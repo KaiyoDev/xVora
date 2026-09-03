@@ -1,8 +1,8 @@
 use super::mcp_failed_reminder::{classify_failed_servers, render_failed_section};
 use super::*;
 use crate::session::mcp_servers::McpOauthDiscovery;
-use telemetry::instrument_task;
-use telemetry::region::Parent;
+use ext_telemetry::instrument_task;
+use ext_telemetry::region::Parent;
 /// Wire the session's elicitation inbox into a freshly built client so its `elicitation/create` requests reach the coordinator.
 /// Takes the already-locked `McpState` so each caller keeps its own lock scope.
 fn attach_elicitation_tx(
@@ -437,7 +437,7 @@ impl SessionActor {
         );
         oauth_config_map
     }
-    /// Attempt to respawn MCP servers whose last spawn failed as unreachable ([`mcp::servers::McpError::Unreachable`]).
+    /// Attempt to respawn MCP servers whose last spawn failed as unreachable ([`ext_mcp::servers::McpError::Unreachable`]).
     /// A transient connectivity loss during one startup probe must not strip the session of the server's tools for its remaining lifetime.
     /// Init runs once per config generation, so nothing else ever re-attempts the spawn.
     ///
@@ -540,7 +540,7 @@ impl SessionActor {
                         }
                     };
                     let _ = arc
-                        .arm_liveness_watcher(mcp::liveness::DEFAULT_POLL_INTERVAL)
+                        .arm_liveness_watcher(ext_mcp::liveness::DEFAULT_POLL_INTERVAL)
                         .await;
                     let mut mcp_state = self.mcp_state.lock().await;
                     if !mcp_state.finish_unreachable_attempt(&server_name, token) {
@@ -1065,13 +1065,13 @@ impl SessionActor {
         }
         if let Some(tx) = event_tx {
             new_client.set_event_tx(Some(tx.clone()));
-            let _ = tx.send(mcp::servers::McpClientEvent::ToolsChanged {
+            let _ = tx.send(ext_mcp::servers::McpClientEvent::ToolsChanged {
                 server: server.to_string(),
             });
         }
         let arc_client = std::sync::Arc::new(new_client);
         let _ = arc_client
-            .arm_liveness_watcher(mcp::liveness::DEFAULT_POLL_INTERVAL)
+            .arm_liveness_watcher(ext_mcp::liveness::DEFAULT_POLL_INTERVAL)
             .await;
         {
             let mut mcp_state = self.mcp_state.lock().await;
@@ -1788,7 +1788,7 @@ impl SessionActor {
                         let arc = std::sync::Arc::new(c);
                         // `arm_liveness_watcher` does nothing when the client is not `Ready`, already has a watcher, or is ACP
                         let _ = arc
-                            .arm_liveness_watcher(mcp::liveness::DEFAULT_POLL_INTERVAL)
+                            .arm_liveness_watcher(ext_mcp::liveness::DEFAULT_POLL_INTERVAL)
                             .await;
                         mcp_state
                             .owned_clients

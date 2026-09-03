@@ -1,5 +1,5 @@
 use super::*;
-use telemetry::events::TelemetryEvent;
+use crate::ext_telemetry::events::TelemetryEvent;
 use tools::types::output::{SearchToolOutput, ToolOutput};
 
 fn event_name(event: &ActiveAgentMessageEvent) -> &'static str {

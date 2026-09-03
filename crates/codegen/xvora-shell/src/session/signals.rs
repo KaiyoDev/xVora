@@ -76,7 +76,7 @@ pub struct ToolDuration {
 }
 
 /// How a PR creation was performed (shared with the `pr_created` telemetry event so signal and event values can never diverge).
-pub use telemetry::enums::PrCreationSource;
+pub use ext_telemetry::enums::PrCreationSource;
 
 /// A PR created during a turn, recorded for PR metrics.
 ///

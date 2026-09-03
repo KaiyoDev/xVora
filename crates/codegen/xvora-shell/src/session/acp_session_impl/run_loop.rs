@@ -1,9 +1,9 @@
 //! The session actor's main loop (`run_session`): command dispatch, the idle timer arms, and the free helpers only the loop consumes.
 #![allow(clippy::items_after_test_module)]
 use super::*;
-use telemetry::instrument_task;
-use telemetry::region::Parent;
-use telemetry::session_end::{self, Phase, SharedSessionEndTimer};
+use ext_telemetry::instrument_task;
+use ext_telemetry::region::Parent;
+use ext_telemetry::session_end::{self, Phase, SharedSessionEndTimer};
 /// The `YoloToggled` event to emit after `set_yolo_mode(requested)`: `Some(actual)` only on a real change.
 /// Callers MUST pass the post-call state read back via `is_yolo_mode()`, never the request.
 /// Under the always-approve pin the manager clamps a requested ON to OFF, so reporting the request would announce a turn-on that never happened.
@@ -337,7 +337,7 @@ pub(super) async fn run_session(
         )
     };
     let _elicitation_coordinator = if !session.startup_hints.is_subagent {
-        let elicit_inbox = mcp::elicitation::ElicitationInbox::new();
+        let elicit_inbox = ext_mcp::elicitation::ElicitationInbox::new();
         {
             let mut mcp_state = session.mcp_state.lock().await;
             mcp_state.set_elicitation_tx(Some(elicit_inbox.clone()));
@@ -356,7 +356,7 @@ pub(super) async fn run_session(
     };
     if !session.startup_hints.is_subagent {
         let (event_tx, event_rx) =
-            tokio::sync::mpsc::unbounded_channel::<mcp::servers::McpClientEvent>();
+            tokio::sync::mpsc::unbounded_channel::<ext_mcp::servers::McpClientEvent>();
         {
             let mut mcp_state = session.mcp_state.lock().await;
             mcp_state.set_client_event_tx(Some(event_tx));
@@ -1384,7 +1384,7 @@ pub(super) async fn run_session(
                                 && let Some(tx) = &dispatch_event_tx
                             {
                                 let _ = tx.send(
-                                    mcp::servers::McpClientEvent::ConfigDiff {
+                                    ext_mcp::servers::McpClientEvent::ConfigDiff {
                                         added: diff.added.clone(),
                                         removed: diff.removed.clone(),
                                     },
@@ -1466,7 +1466,7 @@ pub(super) async fn run_session(
                                 && let Some(tx) = &dispatch_event_tx
                             {
                                 let _ = tx.send(
-                                    mcp::servers::McpClientEvent::ConfigDiff {
+                                    ext_mcp::servers::McpClientEvent::ConfigDiff {
                                         added: diff.added.clone(),
                                         removed: diff.removed.clone(),
                                     },
