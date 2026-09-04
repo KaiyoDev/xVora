@@ -688,7 +688,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
                 "ngôn ngữ",
             ],
             kind: SettingKind::Enum {
-                default: "vi",
+                default: "auto",
                 choices: LANGUAGE_CHOICES,
                 supports_preview: false,
             },

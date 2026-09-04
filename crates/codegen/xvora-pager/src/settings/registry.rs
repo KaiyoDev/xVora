@@ -836,8 +836,8 @@ mod tests {
                         "test assumes UiConfig::default().language is None",
                     );
                     assert_eq!(
-                        *default, "vi",
-                        "language default must be vi (Vietnamese) when UiConfig.language is None",
+                        *default, "auto",
+                        "language default must be auto when UiConfig.language is None",
                     );
                 }
                 ("theme", SettingKind::Enum { default, .. }) => {
