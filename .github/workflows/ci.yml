@@ -139,7 +139,7 @@ jobs:
       - name: Smoke test binary
         shell: pwsh
         run: |
-          $bin = "target\release\xvora.exe"
+          $bin = "target\release\xvora-pager.exe"
           if (-not (Test-Path $bin)) { throw "missing $bin" }
           & $bin --version
           Get-Item $bin | Format-List Name, Length, FullName
@@ -148,7 +148,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: xvora-win-x64
-          path: target/release/xvora.exe
+          path: target/release/xvora-pager.exe
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
