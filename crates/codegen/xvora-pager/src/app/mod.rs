@@ -1698,10 +1698,10 @@ pub(crate) fn set_terminal_title(title: &str) {
 fn terminal_title_string(title: &str) -> String {
     let sanitized: String = title.chars().filter(|c| !c.is_control()).collect();
     if sanitized.is_empty() {
-        "grok".into()
+        "xVora".into()
     } else {
         let truncated: String = sanitized.chars().take(80 - 6).collect();
-        format!("{} - grok", truncated)
+        format!("{} - xVora", truncated)
     }
 }
 /// Reads [`current_screen_mode`] at panic time; never capture a mode here, or an in-process mode switch tears down the wrong screen.
@@ -1780,9 +1780,9 @@ mod tests {
             terminal_title_string("evil\x07\x1b]52;c;payload\x07title"),
             "evil]52;c;payloadtitle - grok"
         );
-        assert_eq!(terminal_title_string("\x07\x1b\x00"), "grok");
-        assert_eq!(terminal_title_string(""), "grok");
-        assert_eq!(terminal_title_string("My chat"), "My chat - grok");
+        assert_eq!(terminal_title_string("\x07\x1b\x00"), "xVora");
+        assert_eq!(terminal_title_string(""), "xVora");
+        assert_eq!(terminal_title_string("My chat"), "My chat - xVora");
     }
     #[test]
     fn hunk_tracker_mode_nothing_set_is_none() {
@@ -2299,9 +2299,9 @@ mod tests {
         assert!(!args.no_alt_screen);
     }
     #[test]
-    fn cli_command_name_is_grok() {
+    fn cli_command_name_is_xvora() {
         use clap::CommandFactory;
-        assert_eq!(PagerArgs::command().get_name(), "grok");
+        assert_eq!(PagerArgs::command().get_name(), "xvora");
     }
     #[test]
     fn cli_help_output_header() {

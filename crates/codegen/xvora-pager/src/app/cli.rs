@@ -316,13 +316,13 @@ impl AgentArgs {
                 Ok(canonical) if canonical.is_dir() => Some(canonical),
                 Ok(_) => {
                     eprintln!(
-                        "grok: --plugin-dir {}: not a directory; skipping",
+                        "xvora: --plugin-dir {}: not a directory; skipping",
                         p.display()
                     );
                     None
                 }
                 Err(e) => {
-                    eprintln!("grok: --plugin-dir {}: {e}; skipping", p.display());
+                    eprintln!("xvora: --plugin-dir {}: {e}; skipping", p.display());
                     None
                 }
             })
@@ -399,9 +399,9 @@ pub struct LeaderArgs {
 }
 #[derive(Debug, Clone, Parser)]
 #[command(
-    name = "grok",
+    name = "xvora",
     version = version::full_version(),
-    about = "Grok Build TUI",
+    about = "xVora — Terminal AI (BYOK-first)",
     disable_version_flag = true,
     next_display_order = None,
     help_template = "\
@@ -839,8 +839,8 @@ impl PagerArgs {
             .map(std::path::Path::new)
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .filter(|n| *n == "grok" || *n == "agent")
-            .unwrap_or("grok")
+            .filter(|n| *n == "xvora" || *n == "grok" || *n == "agent")
+            .unwrap_or("xvora")
             .to_owned();
         Self::parse_from(std::iter::once(bin_name).chain(std::env::args().skip(1)))
     }
