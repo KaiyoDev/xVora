@@ -35,7 +35,7 @@ pub enum AuthMode {
     Oidc,
     /// External auth provider binary
     External,
-    /// Plain API key (e.g. from grok-desktop login or `grok login --api-key`)
+    /// Plain API key (e.g. from xvora-desktop login or `xvora login --api-key`)
     ApiKey,
 }
 
