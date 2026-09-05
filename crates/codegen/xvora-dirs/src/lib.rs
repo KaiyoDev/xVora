@@ -53,6 +53,7 @@ fn grok_home_in(home: &Path) -> PathBuf {
 /// used as-is (not canonicalized) so it stays stable and comparable: callers do
 /// literal prefix checks against it, and downstream symlink guards must still see
 /// its original components.
+#[allow(dead_code)]
 fn resolve_grok_home_from(
     grok_home_env: Option<&OsStr>,
     os_home: Option<&Path>,
@@ -92,8 +93,8 @@ pub fn default_grok_home() -> PathBuf {
 /// The xvora home, created if missing and cached for the process; falls back to
 /// [`default_grok_home`] when neither `$xvora_home` nor a home resolves.
 pub fn xvora_home() -> PathBuf {
-    static xvora_home: OnceLock<PathBuf> = OnceLock::new();
-    xvora_home
+    static XVORA_HOME: OnceLock<PathBuf> = OnceLock::new();
+    XVORA_HOME
         .get_or_init(|| {
             let home = resolve_grok_home().unwrap_or_else(default_grok_home);
             if let Err(err) = std::fs::create_dir_all(&home) {
