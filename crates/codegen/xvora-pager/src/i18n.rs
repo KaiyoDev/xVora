@@ -65,18 +65,24 @@ pub fn init_locale_from_env() {
 
 /// Initialize the locale from the `[ui].language` config value.
 /// Only applies if the locale has not been set by `init_locale_from_env()`.
-pub fn init_locale_from_config(value: Option<&str>) {
+/// Reads the raw config table directly since `UiConfig` has no `language` field.
+pub fn init_locale_from_raw_config() {
     // Only apply config if env var was not already set
     if std::env::var("XVORA_LANG").is_ok() || std::env::var("GROK_LANG").is_ok() {
         return;
     }
-    let raw = value.unwrap_or("auto").trim();
-    if raw.eq_ignore_ascii_case("vi") || raw.eq_ignore_ascii_case("vietnamese") {
-        set_locale("vi");
-    } else if raw.eq_ignore_ascii_case("en") || raw.eq_ignore_ascii_case("english") {
-        set_locale("en");
+    if let Ok(root) = shell::config::load_effective_config() {
+        if let Some(ui_value) = root.get("ui") {
+            if let Some(language) = ui_value.get("language").and_then(|v| v.as_str()) {
+                let raw = language.trim();
+                if raw.eq_ignore_ascii_case("vi") || raw.eq_ignore_ascii_case("vietnamese") {
+                    set_locale("vi");
+                } else if raw.eq_ignore_ascii_case("en") || raw.eq_ignore_ascii_case("english") {
+                    set_locale("en");
+                }
+            }
+        }
     }
-    // "auto" means use system locale — keep default (English) for now
 }
 
 /// Canonicalise a raw UI language string to a registry choice.

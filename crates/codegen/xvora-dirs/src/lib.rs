@@ -71,12 +71,12 @@ pub fn resolve_grok_home() -> Option<PathBuf> {
 
 /// [`resolve_grok_home`] plus the [`GrokHomeSource`] the path came from.
 pub fn resolve_grok_home_with_source() -> Option<(PathBuf, GrokHomeSource)> {
-    // Try XVORA_HOME first, then fall back to xvora_home for backward compat
+    // Try XVORA_HOME first, then fall back to GROK_HOME for backward compat
     let xvora_home = std::env::var_os("XVORA_HOME");
-    let xvora_home = std::env::var_os("xvora_home");
-    let resolved = if let Some(env) = xvora_home.filter(|v| !v.is_empty()) {
+    let grok_home = std::env::var_os("GROK_HOME");
+    let resolved = if let Some(env) = xvora_home.as_ref().filter(|v| !v.is_empty()) {
         Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
-    } else if let Some(env) = xvora_home.filter(|v| !v.is_empty()) {
+    } else if let Some(env) = grok_home.as_ref().filter(|v| !v.is_empty()) {
         Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
     } else {
         home_dir().map(|home| (grok_home_in(&home), GrokHomeSource::HomeDefault))
