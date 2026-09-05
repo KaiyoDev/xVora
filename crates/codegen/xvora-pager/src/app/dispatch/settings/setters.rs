@@ -1988,7 +1988,11 @@ pub(in crate::app::dispatch) fn set_max_thoughts_width(app: &mut AppView, new: i
 pub(in crate::app::dispatch) fn set_locale(_app: &mut AppView, new: String) -> Vec<Effect> {
     let prev = crate::i18n::locale();
     crate::i18n::set_locale(&new);
-    let label = if new == "vi" { "Tiếng Việt" } else { "English" };
+    let label = if new == "vi" {
+        "Tiếng Việt"
+    } else {
+        "English"
+    };
     tracing::info!(
         target = "settings",
         key = "language",

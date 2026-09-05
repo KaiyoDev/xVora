@@ -5,9 +5,9 @@ use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
 use super::state::{
-    CONTENT_MIN_WIDTH, MAX_THOUGHTS_WIDTH_WIDENED_MARGIN, modal_title, RowEntry,
-    STANDARD_MAX_WIDTH, SettingsModalState, SettingsMode, SettingsModeKind,
-    TITLE_LEADING_DECORATION_W, effective_enum_choices, group_children, mode_is_consent_chooser,
+    CONTENT_MIN_WIDTH, MAX_THOUGHTS_WIDTH_WIDENED_MARGIN, RowEntry, STANDARD_MAX_WIDTH,
+    SettingsModalState, SettingsMode, SettingsModeKind, TITLE_LEADING_DECORATION_W,
+    effective_enum_choices, group_children, modal_title, mode_is_consent_chooser,
 };
 use crate::render::line_utils::truncate_str;
 use crate::settings::{

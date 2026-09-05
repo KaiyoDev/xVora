@@ -8,11 +8,11 @@
 //! `scripts/gen_i18n_settings_slash.py` and `scripts/gen_i18n_full_vi.py`.
 //! Run those scripts after editing their source dicts to regenerate.
 
+pub mod actions_long_help;
+pub mod chrome;
+pub mod enums;
 pub mod settings;
 pub mod slash;
-pub mod enums;
-pub mod chrome;
-pub mod actions_long_help;
 
 use std::sync::OnceLock;
 

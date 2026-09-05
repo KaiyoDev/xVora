@@ -5,8 +5,12 @@ pub fn t(key: &str) -> &'static str {
     match (locale(), key) {
         (Locale::Vi, "settings.title") => "Cài đặt",
         (Locale::En, "settings.title") => "Settings",
-        (Locale::Vi, "settings.tip.long") => "Mẹo · Hỏi xVora: \"đổi theme sang grokday\" hoặc \"compact mode làm gì?\"",
-        (Locale::En, "settings.tip.long") => "Tip · Ask xVora: \"change theme to grokday\" or \"what does compact mode do?\"",
+        (Locale::Vi, "settings.tip.long") => {
+            "Mẹo · Hỏi xVora: \"đổi theme sang grokday\" hoặc \"compact mode làm gì?\""
+        }
+        (Locale::En, "settings.tip.long") => {
+            "Tip · Ask xVora: \"change theme to grokday\" or \"what does compact mode do?\""
+        }
         (Locale::Vi, "settings.tip.short") => "Mẹo · Hỏi xVora để đổi một cài đặt",
         (Locale::En, "settings.tip.short") => "Tip · Ask xVora to change a setting",
         (Locale::Vi, "settings.value.on") => "bật",
@@ -26,7 +30,9 @@ pub fn t(key: &str) -> &'static str {
         (Locale::Vi, "settings.validate.whitespace") => "Giá trị không được chứa khoảng trắng",
         (Locale::En, "settings.validate.whitespace") => "Value cannot contain whitespace",
         (Locale::Vi, "settings.validate.catalog_loading") => "Catalog mô hình đang tải — thử lại",
-        (Locale::En, "settings.validate.catalog_loading") => "Model catalog still loading — try again",
+        (Locale::En, "settings.validate.catalog_loading") => {
+            "Model catalog still loading — try again"
+        }
         (Locale::Vi, "settings.footer.nav") => "↑/↓/j/k điều hướng",
         (Locale::En, "settings.footer.nav") => "↑/↓/j/k nav",
         (Locale::Vi, "settings.footer.top_btm") => "g/G đầu/cuối",
@@ -122,4 +128,3 @@ pub fn t(key: &str) -> &'static str {
         _ => "",
     }
 }
-

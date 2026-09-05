@@ -26,25 +26,37 @@ pub fn description(name: &str) -> Option<&'static str> {
         (Locale::Vi, "export") => Some("Xuất hội thoại ra file hoặc clipboard"),
         (Locale::En, "export") => Some("Export the current conversation to a file or clipboard"),
         (Locale::Vi, "transcript") => Some("Xem toàn bộ transcript trong pager"),
-        (Locale::En, "transcript") => Some("View the full conversation transcript in your pager ($PAGER)"),
+        (Locale::En, "transcript") => {
+            Some("View the full conversation transcript in your pager ($PAGER)")
+        }
         (Locale::Vi, "expand") => Some("In lại khối thu gọn gần nhất (minimal)"),
-        (Locale::En, "expand") => Some("Re-print the last collapsed block, fully expanded (minimal mode)"),
+        (Locale::En, "expand") => {
+            Some("Re-print the last collapsed block, fully expanded (minimal mode)")
+        }
         (Locale::Vi, "context") => Some("Xem mức dùng context"),
         (Locale::En, "context") => Some("View context usage"),
         (Locale::Vi, "minimal") => Some("Mở lại phiên ở chế độ tối giản — /fullscreen để về"),
-        (Locale::En, "minimal") => Some("Reopen this session in minimal mode — switch back with /fullscreen"),
+        (Locale::En, "minimal") => {
+            Some("Reopen this session in minimal mode — switch back with /fullscreen")
+        }
         (Locale::Vi, "fullscreen") => Some("Mở lại phiên toàn màn hình — /minimal để về"),
-        (Locale::En, "fullscreen") => Some("Reopen this session in fullscreen mode — switch back with /minimal"),
+        (Locale::En, "fullscreen") => {
+            Some("Reopen this session in fullscreen mode — switch back with /minimal")
+        }
         (Locale::Vi, "model") => Some("Đổi mô hình đang dùng"),
         (Locale::En, "model") => Some("Switch the active model"),
         (Locale::Vi, "effort") => Some("Đặt mức reasoning cho mô hình"),
         (Locale::En, "effort") => Some("Set reasoning effort for the current model"),
         (Locale::Vi, "always-approve") => Some("Bật/tắt luôn duyệt (bỏ qua hỏi quyền)"),
-        (Locale::En, "always-approve") => Some("Toggle always-approve mode (skip all permission prompts)"),
+        (Locale::En, "always-approve") => {
+            Some("Toggle always-approve mode (skip all permission prompts)")
+        }
         (Locale::Vi, "auto") => Some("Bật/tắt auto (LLM duyệt tool an toàn)"),
         (Locale::En, "auto") => Some("Toggle auto mode (classifier approves safe tools)"),
         (Locale::Vi, "multiline") => Some("Bật/tắt nhập nhiều dòng (đổi Enter / Shift+Enter)"),
-        (Locale::En, "multiline") => Some("Toggle multiline input mode (swap Enter and Shift+Enter)"),
+        (Locale::En, "multiline") => {
+            Some("Toggle multiline input mode (swap Enter and Shift+Enter)")
+        }
         (Locale::Vi, "compact-mode") => Some("Bật/tắt UI gọn (ít padding, nhiều nội dung)"),
         (Locale::En, "compact-mode") => Some("Toggle compact UI (less padding, more content)"),
         (Locale::Vi, "vim-mode") => Some("Bật/tắt phím vim cho scrollback"),
@@ -64,7 +76,9 @@ pub fn description(name: &str) -> Option<&'static str> {
         (Locale::Vi, "rename") => Some("Đổi tên phiên hiện tại"),
         (Locale::En, "rename") => Some("Rename the current session"),
         (Locale::Vi, "dashboard") => Some("Mở Agent Dashboard — tổng quan mọi phiên"),
-        (Locale::En, "dashboard") => Some("Open the Agent Dashboard — overview of every running session"),
+        (Locale::En, "dashboard") => {
+            Some("Open the Agent Dashboard — overview of every running session")
+        }
         (Locale::Vi, "cd") => Some("Đổi thư mục làm việc cho agent mới"),
         (Locale::En, "cd") => Some("Change the working directory for new agents"),
         (Locale::Vi, "theme") => Some("Đổi bảng màu"),
@@ -102,7 +116,9 @@ pub fn description(name: &str) -> Option<&'static str> {
         (Locale::Vi, "timeline") => Some("Bật/tắt thanh timeline"),
         (Locale::En, "timeline") => Some("Toggle the timeline sidebar"),
         (Locale::Vi, "toggle-mouse-reporting") => Some("Bật/tắt mouse reporting terminal"),
-        (Locale::En, "toggle-mouse-reporting") => Some("Toggle terminal mouse reporting (native click-drag copy/paste)"),
+        (Locale::En, "toggle-mouse-reporting") => {
+            Some("Toggle terminal mouse reporting (native click-drag copy/paste)")
+        }
         (Locale::Vi, "settings") => Some("Mở modal cài đặt"),
         (Locale::En, "settings") => Some("Open the settings modal"),
         (Locale::Vi, "privacy") => Some("Xem/đổi trạng thái riêng tư & lưu dữ liệu"),
@@ -132,7 +148,9 @@ pub fn description(name: &str) -> Option<&'static str> {
         (Locale::Vi, "debug") => Some("Bật/tắt overlay debug"),
         (Locale::En, "debug") => Some("Toggle debug overlays"),
         (Locale::Vi, "full") => Some("Mở lại phiên toàn màn hình — /minimal để về"),
-        (Locale::En, "full") => Some("Reopen this session in fullscreen mode — switch back with /minimal"),
+        (Locale::En, "full") => {
+            Some("Reopen this session in fullscreen mode — switch back with /minimal")
+        }
         (Locale::Vi, "welcome") => Some("Về màn hình chào"),
         (Locale::En, "welcome") => Some("Return to the welcome screen"),
         (Locale::Vi, "changelog") => Some("Xem ghi chú phát hành phiên bản hiện tại"),
@@ -140,4 +158,3 @@ pub fn description(name: &str) -> Option<&'static str> {
         _ => None,
     }
 }
-
