@@ -62,27 +62,39 @@ pub fn render_settings_modal(
         match &state.state.mode {
             SettingsMode::PickingEnum { key, .. } => {
                 if let Some(meta) = state.registry.find(key) {
-                    breadcrumb_owned =
-                        format!("{MODAL_TITLE} {} {}", crate::glyphs::chevron(), meta.label);
+                    breadcrumb_owned = format!(
+                        "{} {} {}",
+                        modal_title(),
+                        crate::glyphs::chevron(),
+                        meta.label
+                    );
                     &breadcrumb_owned
                 } else {
-                    MODAL_TITLE
+                    modal_title()
                 }
             }
 
             SettingsMode::EditingString { key, .. } | SettingsMode::EditingInt { key, .. } => {
                 if let Some(meta) = state.registry.find(key) {
-                    breadcrumb_owned =
-                        format!("{MODAL_TITLE} {} {}", crate::glyphs::chevron(), meta.label);
+                    breadcrumb_owned = format!(
+                        "{} {} {}",
+                        modal_title(),
+                        crate::glyphs::chevron(),
+                        meta.label
+                    );
                     &breadcrumb_owned
                 } else {
-                    MODAL_TITLE
+                    modal_title()
                 }
             }
             SettingsMode::PickingGroup { key, .. } => {
                 if let Some(meta) = state.registry.find(key) {
-                    breadcrumb_owned =
-                        format!("{} {} {}", modal_title(), crate::glyphs::chevron(), meta.label);
+                    breadcrumb_owned = format!(
+                        "{} {} {}",
+                        modal_title(),
+                        crate::glyphs::chevron(),
+                        meta.label
+                    );
                     &breadcrumb_owned
                 } else {
                     modal_title()
