@@ -53,7 +53,8 @@ pub fn render_settings_modal(
     let breadcrumb_owned: String;
     let title: &str = if let Some(o) = overlay {
         breadcrumb_owned = format!(
-            "{modal_title} {} {}",
+            "{} {} {}",
+            modal_title(),
             crate::glyphs::chevron(),
             o.breadcrumb_suffix
         );
