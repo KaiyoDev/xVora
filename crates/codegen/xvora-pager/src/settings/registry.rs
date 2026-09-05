@@ -3,12 +3,21 @@
 //! See the module-level docs in `mod.rs` for the architectural rationale.
 
 use agent_client_protocol as acp;
-use xvora_shell::agent::config::UiConfig;
-use xvora_tools::implementations::xvora::ask_user_question;
+use shell::agent::config::UiConfig;
+use tools::implementations::xvora::ask_user_question;
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+/// Reasons why a user's coding data sharing setting may be locked (non-editable).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CodingDataSharingLock {
+    /// Locked by an external policy (e.g. org/enterprise rule).
+    Policy,
+    /// Locked because the user is not signed in.
+    Unauthenticated,
+}
 
 /// Stable identity for a setting. The string id matches the `UiConfig`
 /// serde field name (for SHELL/SHARED settings) and is the canonical key
@@ -267,6 +276,12 @@ pub struct PagerLocalSnapshot {
     /// Lives in auth metadata (no `UiConfig` field). Inverted mapping:
     /// `opt_out == false` → canonical "opt-in".
     pub coding_data_sharing_opt_out: bool,
+    /// Whether the user's coding data sharing setting is locked (e.g. by admin policy).
+    /// `None` means the user can change it; `Some(lock)` describes why it is locked.
+    pub coding_data_sharing_lock: Option<CodingDataSharingLock>,
+    /// Whether background loops (e.g. `/loop`) should run detached from the
+    /// active session. Mirrors `app.scheduler_background_loops_seed` at snapshot time.
+    pub scheduler_background_loops: bool,
     /// Whether plan mode is active. Uses effective state
     /// (`pending.unwrap_or(active)`) so rapid toggles don't double-send.
     /// Refreshed on all mutation paths including ACP `CurrentModeUpdate`.
@@ -306,6 +321,8 @@ impl Default for PagerLocalSnapshot {
             current_model_name: None,
             available_models: Vec::new(),
             coding_data_sharing_opt_out: false,
+            coding_data_sharing_lock: None,
+            scheduler_background_loops: false,
             plan_mode_active: false,
             show_tips: None,
             auto_update: None,
@@ -317,7 +334,7 @@ impl Default for PagerLocalSnapshot {
             respect_manual_folds: crate::appearance::ScrollConfig::default().respect_manual_folds,
             auto_mode_gate: false,
             ask_user_question_timeout_enabled: None,
-            voice_stt_language: xvora_voice::STT_LANGUAGE_DEFAULT.to_string(),
+            voice_stt_language: voice::STT_LANGUAGE_DEFAULT.to_string(),
         }
     }
 }
@@ -339,7 +356,7 @@ pub fn canonical_voice_capture_mode(value: Option<&str>) -> &'static str {
 /// the STT client share one catalog (official Grok STT languages + client-only
 /// `auto`). Unknown/blank/`None` → `en`.
 pub fn canonical_voice_stt_language(value: Option<&str>) -> &'static str {
-    xvora_voice::canonicalize_stt_language(value)
+    voice::canonicalize_stt_language(value)
 }
 
 /// Canonicalize a raw hunk-tracker mode to a registry choice. Case-insensitive
@@ -701,7 +718,7 @@ pub fn current_value_for(
         "auto_update" => Some(SettingValue::Bool(pager.auto_update.unwrap_or(false))),
         // fork_secondary_model: baseline value folds to empty string.
         "fork_secondary_model" => Some(SettingValue::String({
-            let baseline = xvora_shell::models::default_model();
+            let baseline = shell::models::default_model();
             if ui.fork_secondary_model == baseline {
                 String::new()
             } else {
@@ -1148,7 +1165,7 @@ mod tests {
                     // Cross-check: the UiConfig field IS the built-in default.
                     assert_eq!(
                         ui.fork_secondary_model,
-                        xvora_shell::models::default_model(),
+                        shell::models::default_model(),
                         "UiConfig::default().fork_secondary_model must equal \
                          models::default_model() — drift here breaks the empty-fold contract",
                     );
@@ -1333,7 +1350,7 @@ mod tests {
                 "duplicate settings language code {}",
                 c.canonical
             );
-            let lang = xvora_voice::stt_language_by_code(c.canonical)
+            let lang = voice::stt_language_by_code(c.canonical)
                 .unwrap_or_else(|| panic!("settings offers unsupported STT code {}", c.canonical));
             assert_eq!(
                 c.display, lang.name,
@@ -1343,8 +1360,7 @@ mod tests {
         }
         assert!(saw_auto, "settings must offer System (auto)");
 
-        let crate_codes: HashSet<&str> =
-            xvora_voice::STT_LANGUAGES.iter().map(|l| l.code).collect();
+        let crate_codes: HashSet<&str> = voice::STT_LANGUAGES.iter().map(|l| l.code).collect();
         assert_eq!(
             setting_codes, crate_codes,
             "settings concrete languages must match xvora_voice::STT_LANGUAGES exactly"
@@ -1588,7 +1604,7 @@ mod tests {
         );
         // A user opt-out flips the read for that tip only.
         let ui = UiConfig {
-            contextual_hints: xvora_shell::agent::config::ContextualHints {
+            contextual_hints: shell::agent::config::ContextualHints {
                 undo: Some(false),
                 ..Default::default()
             },
