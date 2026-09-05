@@ -4,7 +4,7 @@
 
 use agent_client_protocol as acp;
 use shell::agent::config::UiConfig;
-use tools::implementations::xvora::ask_user_question;
+use tools::implementations::grok_build::ask_user_question;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -13,10 +13,20 @@ use tools::implementations::xvora::ask_user_question;
 /// Reasons why a user's coding data sharing setting may be locked (non-editable).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CodingDataSharingLock {
-    /// Locked by an external policy (e.g. org/enterprise rule).
-    Policy,
-    /// Locked because the user is not signed in.
-    Unauthenticated,
+    /// Locked because the user is in a ZDR (zero-day remediation) environment.
+    Zdr,
+    /// Locked because the team has managed policy enforcement.
+    TeamManaged,
+}
+
+impl CodingDataSharingLock {
+    /// Human-readable reason string for the lock.
+    pub fn reason(&self) -> &'static str {
+        match self {
+            Self::Zdr => "ZDR mode — coding data sharing is locked by environment policy",
+            Self::TeamManaged => "Team-managed policy — coding data sharing is locked by org rules",
+        }
+    }
 }
 
 /// Stable identity for a setting. The string id matches the `UiConfig`
@@ -382,6 +392,16 @@ pub fn canonical_screen_mode(value: Option<&str>) -> &'static str {
     }
 }
 
+/// Returns `true` when the user has not yet given consent for the coding-data-sharing
+/// chooser (i.e. the setting should present the consent flow rather than the direct toggle).
+///
+/// This is a stub — the real implementation lives in the auth/permission layer and is
+/// passed in at runtime via `AppView`. When that wiring is restored this function will
+/// be replaced by a proper call.
+pub fn is_consent_chooser(_key: &str) -> bool {
+    false
+}
+
 impl PagerLocalSnapshot {
     /// Iterate over just the display names. Convenience helper for
     /// validator paths that don't need the ids.
@@ -626,10 +646,9 @@ pub fn current_value_for(
                 .as_deref()
                 .unwrap_or(&pager.voice_stt_language),
         )))),
-        // UI language: unset / auto → "auto".
-        "language" => Some(SettingValue::Enum(crate::i18n::config_language_canonical(
-            ui.language.as_deref(),
-        ))),
+        // UI language: always "auto" — no UiConfig field drives this currently.
+        // The i18n layer is a stub; real localisation will wire a language selector here.
+        "language" => Some(SettingValue::Enum(crate::i18n::config_language_canonical(None))),
         // Theme: unknown disk values fall through to canonical default.
         // auto_dark/light additionally filter out "auto" (circular ref).
         "theme" => Some(SettingValue::Enum(
@@ -848,13 +867,10 @@ mod tests {
                     );
                 }
                 ("language", SettingKind::Enum { default, .. }) => {
-                    assert_eq!(
-                        ui.language, None,
-                        "test assumes UiConfig::default().language is None",
-                    );
+                    // UiConfig has no `language` field; the setting always defaults to "auto".
                     assert_eq!(
                         *default, "auto",
-                        "language default must be auto when UiConfig.language is None",
+                        "language default must be auto"
                     );
                 }
                 ("theme", SettingKind::Enum { default, .. }) => {
