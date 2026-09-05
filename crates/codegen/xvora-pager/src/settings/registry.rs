@@ -21,7 +21,7 @@ pub enum CodingDataSharingLock {
 
 impl CodingDataSharingLock {
     /// Human-readable reason string for the lock.
-    pub fn reason(&self) -> &'static str {
+    pub fn reason(self) -> &'static str {
         match self {
             Self::Zdr => "ZDR mode — coding data sharing is locked by environment policy",
             Self::TeamManaged => "Team-managed policy — coding data sharing is locked by org rules",
