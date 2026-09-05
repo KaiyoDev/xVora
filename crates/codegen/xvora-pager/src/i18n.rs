@@ -7,24 +7,24 @@
 
 pub mod settings {
     /// Locale-aware category label. Returns the English fallback.
-    pub fn category(en: &str) -> &'static str {
+    pub fn category(en: &'static str) -> &'static str {
         en
     }
 
     /// Locale-aware setting label. Returns the English fallback.
-    pub fn setting_label(_key: &str, en: &str) -> &'static str {
+    pub fn setting_label(_key: &str, en: &'static str) -> &'static str {
         en
     }
 
     /// Locale-aware setting description. Returns the English fallback.
-    pub fn setting_description(_key: &str, en: &str) -> &'static str {
+    pub fn setting_description(_key: &str, en: &'static str) -> &'static str {
         en
     }
 }
 
 /// Canonicalise a raw UI language string to a registry choice.
 /// `None` / empty / unknown → `"auto"`.
-pub fn config_language_canonical(value: Option<&str>) -> &'static str {
+pub fn config_language_canonical(value: Option<&'static str>) -> &'static str {
     let raw = value.unwrap_or_default().trim();
     if raw.eq_ignore_ascii_case("vi") || raw.eq_ignore_ascii_case("vietnamese") {
         "vi"
