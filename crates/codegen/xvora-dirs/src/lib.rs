@@ -75,14 +75,13 @@ pub fn resolve_grok_home_with_source() -> Option<(PathBuf, GrokHomeSource)> {
     // Try XVORA_HOME first, then fall back to legacy GROK_HOME for backward compat
     let xvora_home = std::env::var_os("XVORA_HOME");
     let legacy_home = std::env::var_os("GROK_HOME");
-    let resolved = if let Some(env) = xvora_home.as_ref().filter(|v| !v.is_empty()) {
+    if let Some(env) = xvora_home.as_ref().filter(|v| !v.is_empty()) {
         Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
     } else if let Some(env) = legacy_home.as_ref().filter(|v| !v.is_empty()) {
         Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
     } else {
         home_dir().map(|home| (grok_home_in(&home), GrokHomeSource::HomeDefault))
-    };
-    resolved
+    }
 }
 
 /// The default `<home>/.xvora`, used when neither env var is set.
