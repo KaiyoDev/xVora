@@ -88,6 +88,7 @@ use super::settings::setters::{
     set_show_thinking_blocks, set_show_tips, set_simple_mode, set_theme, set_timeline,
     set_timestamps, set_vim_mode, set_voice_capture_mode, set_voice_keybind_enabled,
     set_voice_stt_language,
+    set_locale,
 };
 use super::settings::ui::{
     dispatch_confirm_reset_setting, dispatch_open_command_palette, dispatch_open_howto_guides,
@@ -1097,6 +1098,7 @@ pub(crate) fn dispatch(action: Action, app: &mut AppView) -> Vec<Effect> {
         Action::SetContextualHintExportCopy(v) => set_contextual_hint_export_copy(app, v),
         Action::SetContextualHintSshWrap(v) => set_contextual_hint_ssh_wrap(app, v),
         Action::SetTheme(v) => set_theme(app, v),
+        Action::SetLocale(v) => set_locale(app, v),
         Action::SetAutoDarkTheme(v) => set_auto_dark_theme(app, v),
         Action::SetAutoLightTheme(v) => set_auto_light_theme(app, v),
         Action::SetDefaultModel(v) => set_default_model(app, v),

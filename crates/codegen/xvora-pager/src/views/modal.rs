@@ -684,7 +684,7 @@ impl ActiveModal {
             ActiveModal::DocViewer { title, .. } => title.as_str(),
             ActiveModal::ShortcutsHelp { .. } => "Keyboard Shortcuts",
             ActiveModal::MemoryBrowser { .. } => "Memory",
-            ActiveModal::Settings { .. } => crate::views::settings_modal::MODAL_TITLE,
+            ActiveModal::Settings { .. } => crate::views::settings_modal::modal_title(),
             ActiveModal::ResetSettingsConfirm { .. } => "Reset setting?",
             ActiveModal::RememberNoteReview { .. } => "Memory Note",
             ActiveModal::UsageInfo { .. } => "Usage",

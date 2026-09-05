@@ -20,7 +20,10 @@ use shell::agent::config::UiConfig;
 // ---------------------------------------------------------------------------
 
 /// Public display title of the modal, also used by `views/modal.rs::ActiveModal::message` so renames stay in one place.
-pub const MODAL_TITLE: &str = "Settings";
+/// Delegates to `chrome::t("settings.title")` for locale-aware rendering.
+pub fn modal_title() -> &'static str {
+    crate::i18n::chrome::t("settings.title")
+}
 
 /// Width of the `"─ "` leading decoration before the title in the modal's top border.
 /// Used to compute the breadcrumb hit-rect x offset.

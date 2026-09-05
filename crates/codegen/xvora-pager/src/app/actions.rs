@@ -527,6 +527,8 @@ pub enum Action {
     SetContextualHintSshWrap(bool),
     /// Commit the active theme (canonical name, e.g. `"groknight"`, `"auto"`).
     SetTheme(String),
+    /// Commit the UI locale (`"en"` or `"vi"`). Changes language immediately without restart.
+    SetLocale(String),
     /// Commit the theme used when the OS is in dark mode.
     /// Only updates the live display when `theme = "auto"` AND system is in dark mode.
     SetAutoDarkTheme(String),

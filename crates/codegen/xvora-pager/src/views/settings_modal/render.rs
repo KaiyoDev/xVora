@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
 use super::state::{
-    CONTENT_MIN_WIDTH, MAX_THOUGHTS_WIDTH_WIDENED_MARGIN, MODAL_TITLE, RowEntry,
+    CONTENT_MIN_WIDTH, MAX_THOUGHTS_WIDTH_WIDENED_MARGIN, modal_title, RowEntry,
     STANDARD_MAX_WIDTH, SettingsModalState, SettingsMode, SettingsModeKind,
     TITLE_LEADING_DECORATION_W, effective_enum_choices, group_children, mode_is_consent_chooser,
 };
@@ -53,7 +53,7 @@ pub fn render_settings_modal(
     let breadcrumb_owned: String;
     let title: &str = if let Some(o) = overlay {
         breadcrumb_owned = format!(
-            "{MODAL_TITLE} {} {}",
+            "{modal_title} {} {}",
             crate::glyphs::chevron(),
             o.breadcrumb_suffix
         );

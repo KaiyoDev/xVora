@@ -1,11 +1,11 @@
-# grok clone
+# xvora clone
 
-`grok clone` fetches a Git repository into a Grove content store and mounts a
+`xvora clone` fetches a Git repository into a Grove content store and mounts a
 projected working tree (NFS on macOS, FUSE on Linux). It is gated by
 `[clone] enabled = true` in Grove config (`~/.config/grove/config.toml`).
 
 ```bash
-grok clone <url> [dir] [--branch NAME] [--cone PATH]... [--full-history]
+xvora clone <url> [dir] [--branch NAME] [--cone PATH]... [--full-history]
 ```
 
 ## History

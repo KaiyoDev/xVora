@@ -1979,6 +1979,28 @@ pub(in crate::app::dispatch) fn set_max_thoughts_width(app: &mut AppView, new: i
 // The mirror field stays for compat
 
 // ---------------------------------------------------------------------------
+// locale (language) — process-wide, no PersistSetting
+// Changing locale does not write config; it updates the in-process i18n cache.
+// ---------------------------------------------------------------------------
+
+/// Apply a locale change immediately (no restart needed).
+/// Called from the settings modal when the user picks "vi" or "en".
+pub(in crate::app::dispatch) fn set_locale(_app: &mut AppView, new: String) -> Vec<Effect> {
+    let prev = crate::i18n::locale();
+    crate::i18n::set_locale(&new);
+    let label = if new == "vi" { "Tiếng Việt" } else { "English" };
+    tracing::info!(
+        target = "settings",
+        key = "language",
+        value = new,
+        "locale changed",
+    );
+    // Refresh open settings modals so labels render in the new language.
+    super::ui::refresh_open_settings_modals(_app);
+    vec![Effect::Toast(format!("\u{2713} Language: {label}"))]
+}
+
+// ---------------------------------------------------------------------------
 // show_tips and auto_update are SHELL-OWNED `Option<bool>` setters
 // Changes take effect on next session start (restart_required: true).
 // Standard inner/outer split

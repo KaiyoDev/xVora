@@ -30,6 +30,9 @@ All notable user-facing changes to **xVora** are documented here and in
 - Multi-provider model catalog: xAI is one provider; /model shows `provider · name` when mixed.
 - Welcome logo from brand mark (braille + orange tint).
 - Per-version user changelog with auto Whats-new toast on upgrade.
+- Full Vietnamese i18n for settings, slash commands, enums, chrome, and action hints.
+- Runtime locale switching via /settings → Language — no restart required.
+- All user-guide docs renamed from Grok/grok to xVora/xvora (27 files).
 
 ## Bug Fixes
 

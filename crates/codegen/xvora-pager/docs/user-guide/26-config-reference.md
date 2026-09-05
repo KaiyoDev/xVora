@@ -1,35 +1,35 @@
 # Configuration reference
 
-This file ships with the CLI and is extracted to `~/.grok/docs/user-guide/26-config-reference.md` on launch. It is the complete field list for `config.toml`, `managed_config.toml`, and `requirements.toml`. For conceptual guidance see [05-configuration.md](05-configuration.md).
+This file ships with the CLI and is extracted to `~/.xvora/docs/user-guide/26-config-reference.md` on launch. It is the complete field list for `config.toml`, `managed_config.toml`, and `requirements.toml`. For conceptual guidance see [05-configuration.md](05-configuration.md).
 
 ## How to configure
 
-Three files configure Grok Build, and they are written by different people.
+Three files configure xVora, and they are written by different people.
 
 | File | Who writes it | Where it lives | Use it to |
 | --- | --- | --- | --- |
-| `config.toml` | The developer | `~/.grok/config.toml`, and `.grok/config.toml` in a project | Set personal defaults. Anything here can be changed by the person using the machine. |
-| `managed_config.toml` | You, through the console or a deployment tool | `/etc/grok/managed_config.toml` | Ship a starting point to a fleet. A developer's own file overrides it. |
-| `requirements.toml` | You, signed | `/etc/grok/requirements.toml`, or macOS device management | Set values a developer cannot change. Keys marked `pin` below hold against every other file, the environment, and the command line. |
+| `config.toml` | The developer | `~/.xvora/config.toml`, and `.grok/config.toml` in a project | Set personal defaults. Anything here can be changed by the person using the machine. |
+| `managed_config.toml` | You, through the console or a deployment tool | `/etc/xvora/managed_config.toml` | Ship a starting point to a fleet. A developer's own file overrides it. |
+| `requirements.toml` | You, signed | `/etc/xvora/requirements.toml`, or macOS device management | Set values a developer cannot change. Keys marked `pin` below hold against every other file, the environment, and the command line. |
 
 Choose `managed_config.toml` for defaults you want people to be able to adjust, and `requirements.toml` for the ones you do not.
 
-Grok Build also reads these layers, later rows winning except where a requirements pin or the Managed column says otherwise.
+xVora also reads these layers, later rows winning except where a requirements pin or the Managed column says otherwise.
 
 1. Compiled defaults.
-2. `/etc/grok/managed_config.toml`, then `$GROK_HOME/managed_config.toml` (fleet defaults; console-synced).
-3. `$GROK_HOME/config.toml` (your settings; `/settings` writes here). Default `$GROK_HOME` is `~/.grok`.
+2. `/etc/xvora/managed_config.toml`, then `$XVORA_HOME/managed_config.toml` (fleet defaults; console-synced).
+3. `$XVORA_HOME/config.toml` (your settings; `/settings` writes here). Default `$XVORA_HOME` is `~/.grok`.
 4. Project `.grok/config.toml`: only `[mcp_servers]`, `[plugins]`, `[permission]`, and `[mcp] max_output_bytes`.
-5. `GROK_CONFIG` (inline JSON) or `GROK_CONFIG_PATH` (JSON or TOML file). Allowlisted keys only.
-6. `$GROK_HOME/requirements.toml`, then `/etc/grok/requirements.toml`, then macOS MDM `ai.x.grok`. Admin layer. Keys marked `pin` in the table cannot be overridden; keys marked `yes` are also valid in this file.
+5. `XVORA_CONFIG` (inline JSON) or `XVORA_CONFIG_PATH` (JSON or TOML file). Allowlisted keys only.
+6. `$XVORA_HOME/requirements.toml`, then `/etc/xvora/requirements.toml`, then macOS MDM `ai.x.xvora`. Admin layer. Keys marked `pin` in the table cannot be overridden; keys marked `yes` are also valid in this file.
 7. `GROK_*` environment variables.
 8. CLI flags such as `--model`, `--sandbox`, `--yolo`.
 
-Run `grok inspect` or `grok inspect --json` to see which files and values won.
+Run `xvora inspect` or `xvora inspect --json` to see which files and values won.
 
 ## config.toml
 
-User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/config.toml`; Windows `%USERPROFILE%\.grok\config.toml`). Project-scoped overrides live in `.grok/config.toml` and only contribute `[mcp_servers]`, `[plugins]`, `[permission]`, and `[mcp] max_output_bytes`.
+User-level configuration lives in `$XVORA_HOME/config.toml` (default `~/.xvora/config.toml`; Windows `%USERPROFILE%\.grok\config.toml`). Project-scoped overrides live in `.grok/config.toml` and only contribute `[mcp_servers]`, `[plugins]`, `[permission]`, and `[mcp] max_output_bytes`.
 
 **Requirements** marks whether the same key can be set in `requirements.toml`: `pin` cannot be overridden (including env and CLI where the resolver honors the pin); `yes` is accepted in that file; `—` is not read from `requirements.toml`. **Managed** marks whether a fleet `managed_config.toml` value stands (`fleet`) or the user's file wins (`user`).
 
@@ -38,7 +38,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
 | `agent.definition` | `string (path)` | `yes` | `user` | Path to an agent definition markdown file with YAML frontmatter. |
-| `agent.name` | `string` | `yes` | `user` | Built-in or discovered agent definition name. Also GROK_AGENT and `--agent-profile`. |
+| `agent.name` | `string` | `yes` | `user` | Built-in or discovered agent definition name. Also XVORA_AGENT and `--agent-profile`. |
 | `agent.system_prompt_label` | `string` | `yes` | `user` | Global system-prompt identity; per-model override wins. |
 
 ### `announcements`
@@ -52,25 +52,25 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
 | `auth` | `table` | `yes` | `user` | Alias of `[grok_com_config]`; every `grok_com_config.*` key also works as `auth.*`. |
-| `auth.auth_provider_command` | `string` | `yes` | `user` | External auth binary; stdout is the token. Also GROK_AUTH_PROVIDER_COMMAND; also valid as `grok_com_config.auth_provider_command`. |
-| `auth.auth_provider_label` | `string` | `yes` | `user` | Login button label for an external auth provider. Also GROK_AUTH_PROVIDER_LABEL; also valid as `grok_com_config.auth_provider_label`. |
-| `auth.auth_token_ttl` | `number` | `yes` | `user` | Token TTL in seconds for providers that return a bare token. Also GROK_AUTH_TOKEN_TTL; also valid as `grok_com_config.auth_token_ttl`. |
-| `auth.disable_api_key_auth` | `boolean` | `pin` | `user` | Refuse API-key auth so only the deployment IdP can log in. Also GROK_DISABLE_API_KEY_AUTH; also valid as `grok_com_config.disable_api_key_auth`. |
-| `auth.force_login_team_uuid` | `string / string[]` | `pin` | `user` | Require login to this team UUID, or any of an array; empty array fails closed. Also GROK_FORCE_LOGIN_TEAM_ID; also valid as `grok_com_config.force_login_team_uuid`. |
-| `auth.grok_ws_origin` | `string` | `yes` | `user` | Websocket origin for grok.com. Also GROK_WS_ORIGIN; also valid as `grok_com_config.grok_ws_origin`. |
-| `auth.grok_ws_url` | `string` | `yes` | `user` | Relay websocket URL. Also GROK_WS_URL; also valid as `grok_com_config.grok_ws_url`. |
+| `auth.auth_provider_command` | `string` | `yes` | `user` | External auth binary; stdout is the token. Also XVORA_AUTH_PROVIDER_COMMAND; also valid as `grok_com_config.auth_provider_command`. |
+| `auth.auth_provider_label` | `string` | `yes` | `user` | Login button label for an external auth provider. Also XVORA_AUTH_PROVIDER_LABEL; also valid as `grok_com_config.auth_provider_label`. |
+| `auth.auth_token_ttl` | `number` | `yes` | `user` | Token TTL in seconds for providers that return a bare token. Also XVORA_AUTH_TOKEN_TTL; also valid as `grok_com_config.auth_token_ttl`. |
+| `auth.disable_api_key_auth` | `boolean` | `pin` | `user` | Refuse API-key auth so only the deployment IdP can log in. Also XVORA_DISABLE_API_KEY_AUTH; also valid as `grok_com_config.disable_api_key_auth`. |
+| `auth.force_login_team_uuid` | `string / string[]` | `pin` | `user` | Require login to this team UUID, or any of an array; empty array fails closed. Also XVORA_FORCE_LOGIN_TEAM_ID; also valid as `grok_com_config.force_login_team_uuid`. |
+| `auth.grok_ws_origin` | `string` | `yes` | `user` | Websocket origin for xvora.com. Also XVORA_WS_ORIGIN; also valid as `grok_com_config.grok_ws_origin`. |
+| `auth.grok_ws_url` | `string` | `yes` | `user` | Relay websocket URL. Also XVORA_WS_URL; also valid as `grok_com_config.grok_ws_url`. |
 | `auth.oauth2` | `table` | `yes` | `user` | OAuth2 provider used when enterprise OIDC is unset; also valid as `grok_com_config.oauth2`. |
-| `auth.oauth2.client_id` | `string` | `yes` | `user` | OAuth2 client id. Also GROK_OAUTH2_CLIENT_ID; also valid as `grok_com_config.oauth2.client_id`. |
-| `auth.oauth2.issuer` | `string` | `yes` | `user` | OAuth2 issuer URL. Also GROK_OAUTH2_ISSUER; also valid as `grok_com_config.oauth2.issuer`. |
-| `auth.oauth2.principal_id` | `string` | `yes` | `user` | Required principal id when `principal_type` is set. Also GROK_OAUTH2_PRINCIPAL_ID; also valid as `grok_com_config.oauth2.principal_id`. |
-| `auth.oauth2.principal_type` | `string` | `yes` | `user` | Token principal type, such as Team. Also GROK_OAUTH2_PRINCIPAL_TYPE; also valid as `grok_com_config.oauth2.principal_type`. |
-| `auth.oauth2.referrer` | `string` | `yes` | `user` | Referrer for OAuth usage attribution. Also GROK_OAUTH2_REFERRER; also valid as `grok_com_config.oauth2.referrer`. |
-| `auth.oauth2.scopes` | `string[]` | `yes` | `user` | OAuth2 scopes. Also GROK_OAUTH2_SCOPES; also valid as `grok_com_config.oauth2.scopes`. |
+| `auth.oauth2.client_id` | `string` | `yes` | `user` | OAuth2 client id. Also XVORA_OAUTH2_CLIENT_ID; also valid as `grok_com_config.oauth2.client_id`. |
+| `auth.oauth2.issuer` | `string` | `yes` | `user` | OAuth2 issuer URL. Also XVORA_OAUTH2_ISSUER; also valid as `grok_com_config.oauth2.issuer`. |
+| `auth.oauth2.principal_id` | `string` | `yes` | `user` | Required principal id when `principal_type` is set. Also XVORA_OAUTH2_PRINCIPAL_ID; also valid as `grok_com_config.oauth2.principal_id`. |
+| `auth.oauth2.principal_type` | `string` | `yes` | `user` | Token principal type, such as Team. Also XVORA_OAUTH2_PRINCIPAL_TYPE; also valid as `grok_com_config.oauth2.principal_type`. |
+| `auth.oauth2.referrer` | `string` | `yes` | `user` | Referrer for OAuth usage attribution. Also XVORA_OAUTH2_REFERRER; also valid as `grok_com_config.oauth2.referrer`. |
+| `auth.oauth2.scopes` | `string[]` | `yes` | `user` | OAuth2 scopes. Also XVORA_OAUTH2_SCOPES; also valid as `grok_com_config.oauth2.scopes`. |
 | `auth.oidc` | `table` | `yes` | `user` | Customer OIDC identity-provider settings; also valid as `grok_com_config.oidc`. |
-| `auth.oidc.audience` | `string` | `yes` | `user` | Optional OIDC audience. Also GROK_OIDC_AUDIENCE; also valid as `grok_com_config.oidc.audience`. |
-| `auth.oidc.client_id` | `string` | `yes` | `user` | OIDC client id. Also GROK_OIDC_CLIENT_ID; also valid as `grok_com_config.oidc.client_id`. |
-| `auth.oidc.issuer` | `string` | `yes` | `user` | OIDC issuer URL. Also GROK_OIDC_ISSUER; also valid as `grok_com_config.oidc.issuer`. |
-| `auth.oidc.scopes` | `string[]` | `yes` | `user` | OIDC scopes. Also GROK_OIDC_SCOPES; also valid as `grok_com_config.oidc.scopes`. |
+| `auth.oidc.audience` | `string` | `yes` | `user` | Optional OIDC audience. Also XVORA_OIDC_AUDIENCE; also valid as `grok_com_config.oidc.audience`. |
+| `auth.oidc.client_id` | `string` | `yes` | `user` | OIDC client id. Also XVORA_OIDC_CLIENT_ID; also valid as `grok_com_config.oidc.client_id`. |
+| `auth.oidc.issuer` | `string` | `yes` | `user` | OIDC issuer URL. Also XVORA_OIDC_ISSUER; also valid as `grok_com_config.oidc.issuer`. |
+| `auth.oidc.scopes` | `string[]` | `yes` | `user` | OIDC scopes. Also XVORA_OIDC_SCOPES; also valid as `grok_com_config.oidc.scopes`. |
 | `auth.preferred_method` | `api_key / oidc` | `yes` | `user` | Pin automatic auth to one method with no fallthrough; also valid as `grok_com_config.preferred_method`. |
 | `auth.token_header` | `string` | `yes` | `user` | Header name that carries the CLI auth token; default `xvora-cli`; also valid as `grok_com_config.token_header`. |
 
@@ -96,14 +96,14 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `cli.auto_update` | `boolean` | `pin` | `user` | Check for CLI updates on launch. Also GROK_DISABLE_AUTOUPDATER to suppress. |
+| `cli.auto_update` | `boolean` | `pin` | `user` | Check for CLI updates on launch. Also XVORA_DISABLE_AUTOUPDATER to suppress. |
 | `cli.channel` | `stable / alpha` | `pin` | `user` | Release channel preference. |
 | `cli.installer` | `string` | `—` | `user` | Which installer last set up this CLI, used to pick the update path. |
-| `cli.maximum_version` | `string` | `pin` | `user` | Highest CLI version that still runs without a hard block. Also GROK_MAXIMUM_VERSION. |
-| `cli.minimum_version` | `string` | `pin` | `user` | Lowest CLI version that still runs without a hard block. Also GROK_MINIMUM_VERSION. |
+| `cli.maximum_version` | `string` | `pin` | `user` | Highest CLI version that still runs without a hard block. Also XVORA_MAXIMUM_VERSION. |
+| `cli.minimum_version` | `string` | `pin` | `user` | Lowest CLI version that still runs without a hard block. Also XVORA_MINIMUM_VERSION. |
 | `cli.npm_registry` | `string` | `yes` | `user` | npm registry used by the auto-updater. |
-| `cli.required_maximum_version` | `string` | `pin` | `user` | Hard maximum CLI version. Also GROK_REQUIRED_MAXIMUM_VERSION. |
-| `cli.required_minimum_version` | `string` | `pin` | `user` | Hard minimum CLI version. Also GROK_REQUIRED_MINIMUM_VERSION. |
+| `cli.required_maximum_version` | `string` | `pin` | `user` | Hard maximum CLI version. Also XVORA_REQUIRED_MAXIMUM_VERSION. |
+| `cli.required_minimum_version` | `string` | `pin` | `user` | Hard minimum CLI version. Also XVORA_REQUIRED_MINIMUM_VERSION. |
 | `cli.session_picker_grouped` | `boolean` | `yes` | `user` | Group sessions by repo in the picker and CLI listings. |
 | `cli.session_registry` | `boolean` | `yes` | `user` | Participate in the cross-process session registry. |
 | `cli.show_tips` | `boolean` | `pin` | `user` | Startup tips. |
@@ -114,18 +114,18 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `compat.claude.agents` | `boolean` | `yes` | `user` | Scan CLAUDE.md. Also GROK_CLAUDE_AGENTS_ENABLED. |
-| `compat.claude.hooks` | `boolean` | `yes` | `user` | Scan Claude hooks. Also GROK_CLAUDE_HOOKS_ENABLED. |
-| `compat.claude.mcps` | `boolean` | `yes` | `user` | Scan Claude MCP config. Also GROK_CLAUDE_MCPS_ENABLED. |
-| `compat.claude.rules` | `boolean` | `yes` | `user` | Scan Claude rules. Also GROK_CLAUDE_RULES_ENABLED. |
-| `compat.claude.skills` | `boolean` | `yes` | `user` | Scan Claude skills. Also GROK_CLAUDE_SKILLS_ENABLED. |
+| `compat.claude.agents` | `boolean` | `yes` | `user` | Scan CLAUDE.md. Also XVORA_CLAUDE_AGENTS_ENABLED. |
+| `compat.claude.hooks` | `boolean` | `yes` | `user` | Scan Claude hooks. Also XVORA_CLAUDE_HOOKS_ENABLED. |
+| `compat.claude.mcps` | `boolean` | `yes` | `user` | Scan Claude MCP config. Also XVORA_CLAUDE_MCPS_ENABLED. |
+| `compat.claude.rules` | `boolean` | `yes` | `user` | Scan Claude rules. Also XVORA_CLAUDE_RULES_ENABLED. |
+| `compat.claude.skills` | `boolean` | `yes` | `user` | Scan Claude skills. Also XVORA_CLAUDE_SKILLS_ENABLED. |
 | `compat.codex.hooks` | `boolean` | `yes` | `user` | Scan Codex hooks when present. |
 | `compat.codex.skills` | `boolean` | `yes` | `user` | Scan Codex skills directories when present. |
-| `compat.cursor.agents` | `boolean` | `yes` | `user` | Scan agent definitions from Cursor compat sources. Also GROK_CURSOR_AGENTS_ENABLED. |
-| `compat.cursor.hooks` | `boolean` | `yes` | `user` | Scan Cursor hooks. Also GROK_CURSOR_HOOKS_ENABLED. |
-| `compat.cursor.mcps` | `boolean` | `yes` | `user` | Scan Cursor mcp.json. Also GROK_CURSOR_MCPS_ENABLED. |
-| `compat.cursor.rules` | `boolean` | `yes` | `user` | Scan `.cursor/rules/`. Also GROK_CURSOR_RULES_ENABLED. |
-| `compat.cursor.skills` | `boolean` | `yes` | `user` | Scan Cursor skills directories. Also GROK_CURSOR_SKILLS_ENABLED. |
+| `compat.cursor.agents` | `boolean` | `yes` | `user` | Scan agent definitions from Cursor compat sources. Also XVORA_CURSOR_AGENTS_ENABLED. |
+| `compat.cursor.hooks` | `boolean` | `yes` | `user` | Scan Cursor hooks. Also XVORA_CURSOR_HOOKS_ENABLED. |
+| `compat.cursor.mcps` | `boolean` | `yes` | `user` | Scan Cursor mcp.json. Also XVORA_CURSOR_MCPS_ENABLED. |
+| `compat.cursor.rules` | `boolean` | `yes` | `user` | Scan `.cursor/rules/`. Also XVORA_CURSOR_RULES_ENABLED. |
+| `compat.cursor.skills` | `boolean` | `yes` | `user` | Scan Cursor skills directories. Also XVORA_CURSOR_SKILLS_ENABLED. |
 
 ### `dashboard`
 
@@ -144,7 +144,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `diagnostics.crash_handler` | `boolean` | `yes` | `user` | Write a panic report under `$GROK_HOME/crash/`. Also GROK_CRASH_HANDLER. |
+| `diagnostics.crash_handler` | `boolean` | `yes` | `user` | Write a panic report under `$XVORA_HOME/crash/`. Also XVORA_CRASH_HANDLER. |
 
 ### `disable_web_search`
 
@@ -175,63 +175,63 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
 | `endpoints.cli_chat_proxy_base_url` | `string` | `pin` | `user` | Session-service API base URL. |
-| `endpoints.deployment_key` | `string` | `pin` | `user` | Management key for enterprise deployments. Also GROK_DEPLOYMENT_KEY. |
-| `endpoints.feedback_base_url` | `string` | `yes` | `user` | Where feedback submissions go. Also GROK_FEEDBACK_BASE_URL. |
-| `endpoints.managed_config_url` | `string` | `yes` | `user` | Override managed config endpoint. Also GROK_MANAGED_CONFIG_URL. |
-| `endpoints.models_base_url` | `string` | `pin` | `user` | Custom inference base URL. Also GROK_MODELS_BASE_URL. |
-| `endpoints.models_list_url` | `string` | `pin` | `user` | Override model-list URL. Also GROK_MODELS_LIST_URL. Alias `models_endpoint`. |
-| `endpoints.trace_upload_bucket` | `string` | `yes` | `user` | Direct gs:// or s3:// bucket for traces; bypasses the proxy. Also GROK_TRACE_UPLOAD_BUCKET. |
+| `endpoints.deployment_key` | `string` | `pin` | `user` | Management key for enterprise deployments. Also XVORA_DEPLOYMENT_KEY. |
+| `endpoints.feedback_base_url` | `string` | `yes` | `user` | Where feedback submissions go. Also XVORA_FEEDBACK_BASE_URL. |
+| `endpoints.managed_config_url` | `string` | `yes` | `user` | Override managed config endpoint. Also XVORA_MANAGED_CONFIG_URL. |
+| `endpoints.models_base_url` | `string` | `pin` | `user` | Custom inference base URL. Also XVORA_MODELS_BASE_URL. |
+| `endpoints.models_list_url` | `string` | `pin` | `user` | Override model-list URL. Also XVORA_MODELS_LIST_URL. Alias `models_endpoint`. |
+| `endpoints.trace_upload_bucket` | `string` | `yes` | `user` | Direct gs:// or s3:// bucket for traces; bypasses the proxy. Also XVORA_TRACE_UPLOAD_BUCKET. |
 | `endpoints.trace_upload_credentials` | `string` | `yes` | `user` | Inline GCS service-account JSON or AWS credentials for that bucket; wins over `trace_upload_credentials_file` and has no environment variable. |
-| `endpoints.trace_upload_credentials_file` | `string (path)` | `yes` | `user` | Path to a GCS service-account JSON or AWS credentials file for that bucket. Also GROK_TRACE_UPLOAD_CREDENTIALS_FILE. |
-| `endpoints.trace_upload_endpoint_url` | `string` | `yes` | `user` | Custom S3-compatible endpoint for s3:// bucket uploads. Also GROK_TRACE_UPLOAD_ENDPOINT_URL. |
-| `endpoints.trace_upload_region` | `string` | `yes` | `user` | AWS region for s3:// bucket uploads; default us-east-1. Also GROK_TRACE_UPLOAD_REGION. |
-| `endpoints.trace_upload_url` | `string` | `pin` | `user` | Proxy destination for traces when no direct bucket is set. Also GROK_TRACE_UPLOAD_URL. |
-| `endpoints.xvora_api_base_url` | `string` | `pin` | `user` | Public xAI API base. Also GROK_XAI_API_BASE_URL. |
+| `endpoints.trace_upload_credentials_file` | `string (path)` | `yes` | `user` | Path to a GCS service-account JSON or AWS credentials file for that bucket. Also XVORA_TRACE_UPLOAD_CREDENTIALS_FILE. |
+| `endpoints.trace_upload_endpoint_url` | `string` | `yes` | `user` | Custom S3-compatible endpoint for s3:// bucket uploads. Also XVORA_TRACE_UPLOAD_ENDPOINT_URL. |
+| `endpoints.trace_upload_region` | `string` | `yes` | `user` | AWS region for s3:// bucket uploads; default us-east-1. Also XVORA_TRACE_UPLOAD_REGION. |
+| `endpoints.trace_upload_url` | `string` | `pin` | `user` | Proxy destination for traces when no direct bucket is set. Also XVORA_TRACE_UPLOAD_URL. |
+| `endpoints.xvora_api_base_url` | `string` | `pin` | `user` | Public xAI API base. Also XVORA_XAI_API_BASE_URL. |
 
 ### `features`
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `features.active_agent_messages` | `boolean` | `pin` | `user` | Enable or disable `active_agent_messages`. Default false. Also `GROK_ACTIVE_AGENT_MESSAGES`. |
-| `features.ask_user_question` | `boolean` | `pin` | `user` | Enable or disable `ask_user_question`. Default true. Also `GROK_ASK_USER_QUESTION`. |
-| `features.auto_wake` | `boolean` | `pin` | `user` | Enable or disable `auto_wake`. Default true. Also `GROK_AUTO_WAKE`. |
-| `features.backend_tools` | `boolean` | `pin` | `user` | Enable or disable `backend_tools`. Default true. Also `GROK_BACKEND_SEARCH`. |
-| `features.campaigns` | `boolean` | `yes` | `user` | Enable remote campaign patches. `GROK_CAMPAIGNS=0` still disables even when requirements set this true. |
-| `features.cancel_rewind` | `boolean` | `pin` | `user` | Enable or disable `cancel_rewind`. Default true. Also `GROK_CANCEL_REWIND`. |
+| `features.active_agent_messages` | `boolean` | `pin` | `user` | Enable or disable `active_agent_messages`. Default false. Also `XVORA_ACTIVE_AGENT_MESSAGES`. |
+| `features.ask_user_question` | `boolean` | `pin` | `user` | Enable or disable `ask_user_question`. Default true. Also `XVORA_ASK_USER_QUESTION`. |
+| `features.auto_wake` | `boolean` | `pin` | `user` | Enable or disable `auto_wake`. Default true. Also `XVORA_AUTO_WAKE`. |
+| `features.backend_tools` | `boolean` | `pin` | `user` | Enable or disable `backend_tools`. Default true. Also `XVORA_BACKEND_SEARCH`. |
+| `features.campaigns` | `boolean` | `yes` | `user` | Enable remote campaign patches. `XVORA_CAMPAIGNS=0` still disables even when requirements set this true. |
+| `features.cancel_rewind` | `boolean` | `pin` | `user` | Enable or disable `cancel_rewind`. Default true. Also `XVORA_CANCEL_REWIND`. |
 | `features.codebase_indexing` | `boolean / string[]` | `pin` | `user` | Codebase graph indexing; true indexes git repos, or pass include/exclude globs. |
-| `features.compaction_detail` | `none / minimal / balanced / verbose` | `yes` | `user` | Verbatim detail level for `segments` compaction. Also GROK_COMPACTION_DETAIL. |
-| `features.compaction_mode` | `summary / transcript / segments` | `yes` | `user` | Compaction strategy. Also GROK_COMPACTION_MODE. |
+| `features.compaction_detail` | `none / minimal / balanced / verbose` | `yes` | `user` | Verbatim detail level for `segments` compaction. Also XVORA_COMPACTION_DETAIL. |
+| `features.compaction_mode` | `summary / transcript / segments` | `yes` | `user` | Compaction strategy. Also XVORA_COMPACTION_MODE. |
 | `features.compaction_tool_choice` | `string` | `yes` | `user` | Tool-choice hint used during compaction. |
-| `features.compaction_verbatim_input` | `boolean` | `pin` | `user` | Enable or disable `compaction_verbatim_input`. Default true. Also `GROK_COMPACTION_VERBATIM_INPUT`. |
-| `features.dock` | `boolean` | `pin` | `user` | Enable or disable `dock`. Default false. Also `GROK_DOCK`. |
-| `features.feedback` | `boolean` | `pin` | `user` | Enable or disable `feedback`. Default true. Also `GROK_FEEDBACK_ENABLED`. |
-| `features.feedback_trace_card` | `boolean` | `pin` | `user` | Show a trace-upload consent question after `/feedback`. Default false. Also `GROK_FEEDBACK_TRACE_CARD`. |
+| `features.compaction_verbatim_input` | `boolean` | `pin` | `user` | Enable or disable `compaction_verbatim_input`. Default true. Also `XVORA_COMPACTION_VERBATIM_INPUT`. |
+| `features.dock` | `boolean` | `pin` | `user` | Enable or disable `dock`. Default false. Also `XVORA_DOCK`. |
+| `features.feedback` | `boolean` | `pin` | `user` | Enable or disable `feedback`. Default true. Also `XVORA_FEEDBACK_ENABLED`. |
+| `features.feedback_trace_card` | `boolean` | `pin` | `user` | Show a trace-upload consent question after `/feedback`. Default false. Also `XVORA_FEEDBACK_TRACE_CARD`. |
 | `features.image_edit_model_override` | `string` | `yes` | `user` | Imagine model id for image_edit. |
 | `features.image_gen` | `boolean` | `pin` | `user` | Enable image_gen / `/imagine`. |
 | `features.image_gen_model_override` | `string` | `yes` | `user` | Imagine model id for image_gen. Empty defers to the remotely configured default. |
-| `features.lsp_tools` | `boolean` | `pin` | `user` | Enable or disable `lsp_tools`. Default false. Also `GROK_LSP_TOOLS`. |
+| `features.lsp_tools` | `boolean` | `pin` | `user` | Enable or disable `lsp_tools`. Default false. Also `XVORA_LSP_TOOLS`. |
 | `features.managed_config` | `boolean` | `yes` | `user` | Fetch managed_config.toml and requirements.toml from the deployment. |
-| `features.mcp_auto_restart` | `boolean` | `yes` | `user` | Auto-restart stdio MCP servers after transport failure. Also GROK_MCP_AUTO_RESTART. |
+| `features.mcp_auto_restart` | `boolean` | `yes` | `user` | Auto-restart stdio MCP servers after transport failure. Also XVORA_MCP_AUTO_RESTART. |
 | `features.mcp_liveness_watchers` | `boolean` | `yes` | `user` | Poll MCP transports and push server_status updates. Emergency kill switch when false. |
-| `features.mcp_push_server_status` | `boolean` | `yes` | `user` | Pager subscribes to MCP server_status push. Process env GROK_MCP_PUSH_SERVER_STATUS wins at launch. |
+| `features.mcp_push_server_status` | `boolean` | `yes` | `user` | Pager subscribes to MCP server_status push. Process env XVORA_MCP_PUSH_SERVER_STATUS wins at launch. |
 | `features.mcp_recursive_config_watch` | `boolean` | `yes` | `user` | Watch `<cwd>/` and `<cwd>/.grok/` for project MCP config edits. Name is a misnomer; watches are non-recursive. |
-| `features.non_git_warning` | `boolean` | `yes` | `user` | Show a blocking warning when Grok starts outside a Git repository. |
+| `features.non_git_warning` | `boolean` | `yes` | `user` | Show a blocking warning when xVora starts outside a Git repository. |
 | `features.remember_mode` | `boolean` | `—` | `—` | Remember the last permission mode across sessions. Read from user `config.toml` only. |
 | `features.remote_fetch` | `boolean` | `pin` | `fleet` | Pin remote model-catalog and asset fetch. Managed wins over the user file when both set. |
-| `features.repo_status_in_system_prompt` | `boolean` | `pin` | `user` | Enable or disable `repo_status_in_system_prompt`. Default true. Also `GROK_REPO_STATUS_IN_SYSTEM_PROMPT`. |
-| `features.session_recap` | `boolean` | `pin` | `user` | Enable or disable `session_recap`. Default true. Also `GROK_SESSION_RECAP`. |
-| `features.session_search` | `boolean` | `pin` | `user` | Enable or disable `session_search`. Default true. Also `GROK_SESSION_SEARCH`. |
-| `features.subagent_worktree_snapshot` | `boolean` | `pin` | `user` | Enable or disable `subagent_worktree_snapshot`. Default false. Also `GROK_SUBAGENT_WORKTREE_SNAPSHOT`. |
+| `features.repo_status_in_system_prompt` | `boolean` | `pin` | `user` | Enable or disable `repo_status_in_system_prompt`. Default true. Also `XVORA_REPO_STATUS_IN_SYSTEM_PROMPT`. |
+| `features.session_recap` | `boolean` | `pin` | `user` | Enable or disable `session_recap`. Default true. Also `XVORA_SESSION_RECAP`. |
+| `features.session_search` | `boolean` | `pin` | `user` | Enable or disable `session_search`. Default true. Also `XVORA_SESSION_SEARCH`. |
+| `features.subagent_worktree_snapshot` | `boolean` | `pin` | `user` | Enable or disable `subagent_worktree_snapshot`. Default false. Also `XVORA_SUBAGENT_WORKTREE_SNAPSHOT`. |
 | `features.support_permission` | `boolean` | `yes` | `user` | Allow the agent to ask permission for tool executions. |
 | `features.telemetry` | `boolean / session_metrics / off` | `pin` | `user` | Product telemetry mode. Enterprise default is off. |
-| `features.title_refresh` | `boolean` | `pin` | `user` | Early-session auto-title refresh. Pin this in requirements to beat GROK_TITLE_REFRESH. |
-| `features.turn_summary` | `boolean` | `pin` | `user` | Enable or disable `turn_summary`. Default true. Also `GROK_TURN_SUMMARY`. |
-| `features.two_pass_compaction` | `boolean` | `pin` | `user` | Enable or disable `two_pass_compaction`. Default true. Also `GROK_TWO_PASS_COMPACTION`. |
+| `features.title_refresh` | `boolean` | `pin` | `user` | Early-session auto-title refresh. Pin this in requirements to beat XVORA_TITLE_REFRESH. |
+| `features.turn_summary` | `boolean` | `pin` | `user` | Enable or disable `turn_summary`. Default true. Also `XVORA_TURN_SUMMARY`. |
+| `features.two_pass_compaction` | `boolean` | `pin` | `user` | Enable or disable `two_pass_compaction`. Default true. Also `XVORA_TWO_PASS_COMPACTION`. |
 | `features.video_gen` | `boolean` | `pin` | `user` | Enable video tools / `/imagine-video`. |
-| `features.voice_mode` | `boolean` | `pin` | `user` | Enable or disable `voice_mode`. Default true. Also `GROK_VOICE_MODE`. |
-| `features.web_fetch` | `boolean` | `pin` | `user` | Enable or disable `web_fetch`. Default false. Also `GROK_WEB_FETCH`. |
-| `features.write_file` | `boolean` | `pin` | `user` | Enable or disable `write_file`. Default true. Also `GROK_WRITE_FILE`. |
-| `features.zdr_access_enabled` | `boolean` | `pin` | `user` | Advertise ZDR-incompatible tools when the team is on Zero Data Retention. Also `GROK_ZDR_ACCESS_ENABLED`. |
+| `features.voice_mode` | `boolean` | `pin` | `user` | Enable or disable `voice_mode`. Default true. Also `XVORA_VOICE_MODE`. |
+| `features.web_fetch` | `boolean` | `pin` | `user` | Enable or disable `web_fetch`. Default false. Also `XVORA_WEB_FETCH`. |
+| `features.write_file` | `boolean` | `pin` | `user` | Enable or disable `write_file`. Default true. Also `XVORA_WRITE_FILE`. |
+| `features.zdr_access_enabled` | `boolean` | `pin` | `user` | Advertise ZDR-incompatible tools when the team is on Zero Data Retention. Also `XVORA_ZDR_ACCESS_ENABLED`. |
 
 ### `feedback`
 
@@ -251,26 +251,26 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `grok_com_config` | `table` | `yes` | `user` | Grok.com websocket and OAuth/OIDC settings. `[auth]` is an alias. |
-| `grok_com_config.auth_provider_command` | `string` | `yes` | `user` | External auth binary; stdout is the token. Also GROK_AUTH_PROVIDER_COMMAND. |
-| `grok_com_config.auth_provider_label` | `string` | `yes` | `user` | Login button label for an external auth provider. Also GROK_AUTH_PROVIDER_LABEL. |
-| `grok_com_config.auth_token_ttl` | `number` | `yes` | `user` | Token TTL in seconds for providers that return a bare token. Also GROK_AUTH_TOKEN_TTL. |
-| `grok_com_config.disable_api_key_auth` | `boolean` | `pin` | `user` | Refuse API-key auth so only the deployment IdP can log in. Also GROK_DISABLE_API_KEY_AUTH. |
-| `grok_com_config.force_login_team_uuid` | `string / string[]` | `pin` | `user` | Require login to this team UUID, or any of an array; empty array fails closed. Also GROK_FORCE_LOGIN_TEAM_ID. |
-| `grok_com_config.grok_ws_origin` | `string` | `yes` | `user` | Websocket origin for grok.com. Also GROK_WS_ORIGIN. |
-| `grok_com_config.grok_ws_url` | `string` | `yes` | `user` | Relay websocket URL. Also GROK_WS_URL. |
+| `grok_com_config` | `table` | `yes` | `user` | xVora.com websocket and OAuth/OIDC settings. `[auth]` is an alias. |
+| `grok_com_config.auth_provider_command` | `string` | `yes` | `user` | External auth binary; stdout is the token. Also XVORA_AUTH_PROVIDER_COMMAND. |
+| `grok_com_config.auth_provider_label` | `string` | `yes` | `user` | Login button label for an external auth provider. Also XVORA_AUTH_PROVIDER_LABEL. |
+| `grok_com_config.auth_token_ttl` | `number` | `yes` | `user` | Token TTL in seconds for providers that return a bare token. Also XVORA_AUTH_TOKEN_TTL. |
+| `grok_com_config.disable_api_key_auth` | `boolean` | `pin` | `user` | Refuse API-key auth so only the deployment IdP can log in. Also XVORA_DISABLE_API_KEY_AUTH. |
+| `grok_com_config.force_login_team_uuid` | `string / string[]` | `pin` | `user` | Require login to this team UUID, or any of an array; empty array fails closed. Also XVORA_FORCE_LOGIN_TEAM_ID. |
+| `grok_com_config.grok_ws_origin` | `string` | `yes` | `user` | Websocket origin for xvora.com. Also XVORA_WS_ORIGIN. |
+| `grok_com_config.grok_ws_url` | `string` | `yes` | `user` | Relay websocket URL. Also XVORA_WS_URL. |
 | `grok_com_config.oauth2` | `table` | `yes` | `user` | OAuth2 provider used when enterprise OIDC is unset. |
-| `grok_com_config.oauth2.client_id` | `string` | `yes` | `user` | OAuth2 client id. Also GROK_OAUTH2_CLIENT_ID. |
-| `grok_com_config.oauth2.issuer` | `string` | `yes` | `user` | OAuth2 issuer URL. Also GROK_OAUTH2_ISSUER. |
-| `grok_com_config.oauth2.principal_id` | `string` | `yes` | `user` | Required principal id when `principal_type` is set. Also GROK_OAUTH2_PRINCIPAL_ID. |
-| `grok_com_config.oauth2.principal_type` | `string` | `yes` | `user` | Token principal type, such as Team. Also GROK_OAUTH2_PRINCIPAL_TYPE. |
-| `grok_com_config.oauth2.referrer` | `string` | `yes` | `user` | Referrer for OAuth usage attribution. Also GROK_OAUTH2_REFERRER. |
-| `grok_com_config.oauth2.scopes` | `string[]` | `yes` | `user` | OAuth2 scopes. Also GROK_OAUTH2_SCOPES. |
+| `grok_com_config.oauth2.client_id` | `string` | `yes` | `user` | OAuth2 client id. Also XVORA_OAUTH2_CLIENT_ID. |
+| `grok_com_config.oauth2.issuer` | `string` | `yes` | `user` | OAuth2 issuer URL. Also XVORA_OAUTH2_ISSUER. |
+| `grok_com_config.oauth2.principal_id` | `string` | `yes` | `user` | Required principal id when `principal_type` is set. Also XVORA_OAUTH2_PRINCIPAL_ID. |
+| `grok_com_config.oauth2.principal_type` | `string` | `yes` | `user` | Token principal type, such as Team. Also XVORA_OAUTH2_PRINCIPAL_TYPE. |
+| `grok_com_config.oauth2.referrer` | `string` | `yes` | `user` | Referrer for OAuth usage attribution. Also XVORA_OAUTH2_REFERRER. |
+| `grok_com_config.oauth2.scopes` | `string[]` | `yes` | `user` | OAuth2 scopes. Also XVORA_OAUTH2_SCOPES. |
 | `grok_com_config.oidc` | `table` | `yes` | `user` | Customer OIDC identity-provider settings. |
-| `grok_com_config.oidc.audience` | `string` | `yes` | `user` | Optional OIDC audience. Also GROK_OIDC_AUDIENCE. |
-| `grok_com_config.oidc.client_id` | `string` | `yes` | `user` | OIDC client id. Also GROK_OIDC_CLIENT_ID. |
-| `grok_com_config.oidc.issuer` | `string` | `yes` | `user` | OIDC issuer URL. Also GROK_OIDC_ISSUER. |
-| `grok_com_config.oidc.scopes` | `string[]` | `yes` | `user` | OIDC scopes. Also GROK_OIDC_SCOPES. |
+| `grok_com_config.oidc.audience` | `string` | `yes` | `user` | Optional OIDC audience. Also XVORA_OIDC_AUDIENCE. |
+| `grok_com_config.oidc.client_id` | `string` | `yes` | `user` | OIDC client id. Also XVORA_OIDC_CLIENT_ID. |
+| `grok_com_config.oidc.issuer` | `string` | `yes` | `user` | OIDC issuer URL. Also XVORA_OIDC_ISSUER. |
+| `grok_com_config.oidc.scopes` | `string[]` | `yes` | `user` | OIDC scopes. Also XVORA_OIDC_SCOPES. |
 | `grok_com_config.preferred_method` | `api_key / oidc` | `yes` | `user` | Pin automatic auth to one method with no fallthrough. |
 | `grok_com_config.token_header` | `string` | `yes` | `user` | Header name that carries the CLI auth token; default `xvora-cli`. |
 
@@ -301,8 +301,8 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `managed_mcps.enabled` | `boolean` | `pin` | `user` | Fetch managed MCP configs at startup. Also GROK_MANAGED_MCPS_ENABLED. |
-| `managed_mcps.gateway_tools_enabled` | `boolean` | `yes` | `user` | Expose managed MCP gateway tools. Also GROK_MANAGED_MCP_GATEWAY_TOOLS_ENABLED. |
+| `managed_mcps.enabled` | `boolean` | `pin` | `user` | Fetch managed MCP configs at startup. Also XVORA_MANAGED_MCPS_ENABLED. |
+| `managed_mcps.gateway_tools_enabled` | `boolean` | `yes` | `user` | Expose managed MCP gateway tools. Also XVORA_MANAGED_MCP_GATEWAY_TOOLS_ENABLED. |
 
 ### `marketplace`
 
@@ -343,7 +343,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `memory.enabled` | `boolean` | `pin` | `user` | Cross-session memory master switch. Also GROK_MEMORY. |
+| `memory.enabled` | `boolean` | `pin` | `user` | Cross-session memory master switch. Also XVORA_MEMORY. |
 
 ### `model`
 
@@ -378,7 +378,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | `model.<id>.show_model_fingerprint` | `boolean` | `yes` | `user` | Show the provider model fingerprint in the UI when present. |
 | `model.<id>.stream_tool_calls` | `boolean` | `yes` | `user` | Per-model tool-call streaming request shape. |
 | `model.<id>.supported_in_api` | `boolean` | `yes` | `user` | Whether this catalog entry is offered as a public API model. |
-| `model.<id>.supports_backend_search` | `boolean` | `yes` | `user` | Whether the endpoint supports Grok-hosted server-side search tools. |
+| `model.<id>.supports_backend_search` | `boolean` | `yes` | `user` | Whether the endpoint supports xVora-hosted server-side search tools. |
 | `model.<id>.supports_reasoning_effort` | `boolean` | `yes` | `user` | Deprecated; prefer `reasoning_efforts`. |
 | `model.<id>.system_prompt_label` | `string` | `yes` | `user` | Per-model system-prompt identity label. |
 | `model.<id>.temperature` | `number` | `yes` | `user` | Per-model sampling temperature. |
@@ -397,7 +397,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | --- | --- | --- | --- | --- |
 | `models.agent_type` | `string` | `yes` | `user` | Fallback agent_type for models without a per-model override. |
 | `models.allowed_models` | `string[]` | `pin` | `user` | Glob allowlist for the model picker, default, and `-m`. Empty means no restriction. |
-| `models.default` | `string` | `pin` | `user` | Model used for new sessions. Also `GROK_DEFAULT_MODEL`, `--model`, `-m`. |
+| `models.default` | `string` | `pin` | `user` | Model used for new sessions. Also `XVORA_DEFAULT_MODEL`, `--model`, `-m`. |
 | `models.default_reasoning_effort` | `string` | `yes` | `user` | Default reasoning effort for the default model when the model supports it. |
 | `models.disabled_models` | `string[]` | `yes` | `user` | Remove these model IDs from the catalog. Wins over `hidden_models`. |
 | `models.extra_headers` | `map<string,string>` | `yes` | `user` | Request headers applied to every model; per-model keys win. |
@@ -411,7 +411,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | `models.stream_tool_calls` | `boolean` | `yes` | `user` | Global tool-call streaming request shape; some BYOK endpoints need false. |
 | `models.temperature` | `number` | `yes` | `user` | Global sampling temperature default when a model leaves it unset. |
 | `models.top_p` | `number` | `yes` | `user` | Global top_p default when a model leaves it unset. |
-| `models.web_search` | `string` | `pin` | `user` | Model used by the client `web_search` tool. Also `GROK_WEB_SEARCH_MODEL`. |
+| `models.web_search` | `string` | `pin` | `user` | Model used by the client `web_search` tool. Also `XVORA_WEB_SEARCH_MODEL`. |
 
 ### `path_not_found_hints`
 
@@ -459,8 +459,8 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `sandbox.auto_allow_bash` | `boolean` | `pin` | `user` | Skip bash permission prompts when a sandbox profile is active. Also GROK_SANDBOX_AUTO_ALLOW_BASH. |
-| `sandbox.profile` | `off / workspace / read-only / strict / string` | `pin` | `user` | Filesystem sandbox profile. Also `--sandbox` and GROK_SANDBOX. |
+| `sandbox.auto_allow_bash` | `boolean` | `pin` | `user` | Skip bash permission prompts when a sandbox profile is active. Also XVORA_SANDBOX_AUTO_ALLOW_BASH. |
+| `sandbox.profile` | `off / workspace / read-only / strict / string` | `pin` | `user` | Filesystem sandbox profile. Also `--sandbox` and XVORA_SANDBOX. |
 
 ### `session`
 
@@ -496,7 +496,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `subagents.enabled` | `boolean` | `pin` | `user` | Subagent / task tool master switch. Also GROK_SUBAGENTS. |
+| `subagents.enabled` | `boolean` | `pin` | `user` | Subagent / task tool master switch. Also XVORA_SUBAGENTS. |
 | `subagents.limit_behavior` | `queue / fail` | `yes` | `user` | What to do when the concurrent subagent cap is hit. |
 | `subagents.max_concurrent` | `integer` | `yes` | `user` | Max concurrent subagents. |
 | `subagents.max_depth` | `integer` | `yes` | `user` | Max nested subagent depth (clamped ≥1). |
@@ -507,7 +507,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `telemetry.otel_enabled` | `boolean` | `pin` | `user` | External OTEL master switch. Also GROK_EXTERNAL_OTEL. |
+| `telemetry.otel_enabled` | `boolean` | `pin` | `user` | External OTEL master switch. Also XVORA_EXTERNAL_OTEL. |
 | `telemetry.otel_metrics_exporter` | `otlp / console / none` | `pin` | `user` | External OTEL metrics exporter. Also OTEL_METRICS_EXPORTER. |
 | `telemetry.otel_logs_exporter` | `otlp / console / none` | `pin` | `user` | External OTEL logs exporter. Also OTEL_LOGS_EXPORTER. |
 | `telemetry.otel_endpoint` | `string` | `pin` | `user` | External OTLP base endpoint. Also OTEL_EXPORTER_OTLP_ENDPOINT. Pin strips developer env and unlisted user/managed file siblings except listed. |
@@ -538,10 +538,10 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 
 | Key | Type / Values | Requirements | Managed | Details |
 | --- | --- | --- | --- | --- |
-| `tools.disable_zdr_incompatible_tools` | `boolean` | `yes` | `user` | Restrict tools that need xAI-hosted output under ZDR. Also GROK_DISABLE_ZDR_INCOMPATIBLE_TOOLS. |
-| `tools.media_gen.max_parallel_image_gen_calls` | `integer` | `yes` | `user` | Cap parallel image_gen/image_edit calls in one model step. Also GROK_MAX_PARALLEL_IMAGE_GEN_CALLS. |
-| `tools.media_gen.max_parallel_video_gen_calls` | `integer` | `yes` | `user` | Cap parallel video_gen calls in one model step. Also GROK_MAX_PARALLEL_VIDEO_GEN_CALLS. |
-| `tools.respect_gitignore` | `boolean` | `pin` | `user` | When true, search and read tools skip gitignored files. Also GROK_RESPECT_GITIGNORE. |
+| `tools.disable_zdr_incompatible_tools` | `boolean` | `yes` | `user` | Restrict tools that need xAI-hosted output under ZDR. Also XVORA_DISABLE_ZDR_INCOMPATIBLE_TOOLS. |
+| `tools.media_gen.max_parallel_image_gen_calls` | `integer` | `yes` | `user` | Cap parallel image_gen/image_edit calls in one model step. Also XVORA_MAX_PARALLEL_IMAGE_GEN_CALLS. |
+| `tools.media_gen.max_parallel_video_gen_calls` | `integer` | `yes` | `user` | Cap parallel video_gen calls in one model step. Also XVORA_MAX_PARALLEL_VIDEO_GEN_CALLS. |
+| `tools.respect_gitignore` | `boolean` | `pin` | `user` | When true, search and read tools skip gitignored files. Also XVORA_RESPECT_GITIGNORE. |
 | `tools.zdr_video_output_s3` | `table` | `yes` | `user` | Team S3 bucket for ZDR video output. See ZDR Video Storage. |
 
 ### `toolset`
@@ -556,7 +556,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | `toolset.bash.timeout_secs` | `number` | `yes` | `user` | Foreground bash command timeout in seconds. |
 | `toolset.file_toolset` | `standard / hashline` | `yes` | `user` | File edit tool scheme. |
 | `toolset.web_fetch.allowed_domains` | `string[]` | `yes` | `user` | Domain allowlist override for web_fetch. |
-| `toolset.web_fetch.proxy_endpoint` | `string` | `yes` | `user` | Egress proxy URL for web_fetch. Also GROK_WEB_FETCH_PROXY. |
+| `toolset.web_fetch.proxy_endpoint` | `string` | `yes` | `user` | Egress proxy URL for web_fetch. Also XVORA_WEB_FETCH_PROXY. |
 | `toolset.web_search.allowed_domains` | `string[]` | `yes` | `user` | Domain allowlist for client web_search. Overlay-allowlisted. |
 | `toolset.web_search.excluded_domains` | `string[]` | `yes` | `user` | Domain denylist for client web_search. Overlay-allowlisted. |
 
@@ -568,7 +568,7 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | `ui.auto_dark_theme` | `string` | `yes` | `user` | Theme when `theme = auto` and the OS is dark. |
 | `ui.auto_light_theme` | `string` | `yes` | `user` | Theme when `theme = auto` and the OS is light. |
 | `ui.cancel_subagents_on_turn_cancel` | `ask / always_stop / always_continue` | `yes` | `user` | What to do with running subagents when cancelling a parent turn. |
-| `ui.collapsed_edit_blocks` | `boolean` | `yes` | `user` | Show edits as one-line +N/-M summaries. Also GROK_COLLAPSED_EDIT_BLOCKS. |
+| `ui.collapsed_edit_blocks` | `boolean` | `yes` | `user` | Show edits as one-line +N/-M summaries. Also XVORA_COLLAPSED_EDIT_BLOCKS. |
 | `ui.combine_queued_prompts` | `boolean` | `yes` | `user` | Merge consecutive plain follow-ups into one turn. |
 | `ui.compact_mode` | `boolean` | `yes` | `user` | Denser message padding. Also `/compact-mode`. |
 | `ui.confirm_before_rewind` | `boolean` | `yes` | `user` | Ask before rewinding conversation history. |
@@ -576,39 +576,39 @@ User-level configuration lives in `$GROK_HOME/config.toml` (default `~/.grok/con
 | `ui.contextual_hints.plan_mode` | `boolean` | `yes` | `user` | Suggest plan mode (Shift+Tab) for planning-style prompts. |
 | `ui.contextual_hints.send_now` | `boolean` | `yes` | `user` | After queuing a mid-turn follow-up, Enter on an empty prompt sends now. |
 | `ui.contextual_hints.small_screen` | `boolean` | `yes` | `user` | Suggest `/compact-mode` on short terminals. |
-| `ui.contextual_hints.ssh_wrap` | `boolean` | `yes` | `user` | Recommend `grok wrap` when SSH lacks a clipboard sink. |
+| `ui.contextual_hints.ssh_wrap` | `boolean` | `yes` | `user` | Recommend `xvora wrap` when SSH lacks a clipboard sink. |
 | `ui.contextual_hints.undo` | `boolean` | `yes` | `user` | Ctrl+Z restores a wiped prompt draft tip. |
 | `ui.contextual_hints.word_select` | `boolean` | `yes` | `user` | After double-click with fold/nav selection, point at Word select in settings. |
 | `ui.cursor_blink` | `boolean` | `yes` | `user` | Force blinking (true) or steady (false) block cursor. Unset inherits the terminal. |
-| `ui.default_selected_permission` | `string` | `yes` | `user` | Preselected approval row on the first prompt of a session. Also GROK_DEFAULT_SELECTED_PERMISSION. |
-| `ui.display_refresh.auto_cadence_enabled` | `boolean` | `yes` | `user` | Match stream/scroll cadence to display refresh rate. Also GROK_DISPLAY_REFRESH_AUTO_CADENCE. |
+| `ui.default_selected_permission` | `string` | `yes` | `user` | Preselected approval row on the first prompt of a session. Also XVORA_DEFAULT_SELECTED_PERMISSION. |
+| `ui.display_refresh.auto_cadence_enabled` | `boolean` | `yes` | `user` | Match stream/scroll cadence to display refresh rate. Also XVORA_DISPLAY_REFRESH_AUTO_CADENCE. |
 | `ui.follow_up_behavior` | `queue / steer` | `yes` | `user` | Mid-turn follow-up routing. |
 | `ui.fork_secondary_model` | `string` | `yes` | `user` | Model for the secondary agent when forking. Defaults to the main default model. |
-| `ui.group_tool_verbs` | `boolean` | `yes` | `user` | Fold consecutive read/search/list tool rows. Also GROK_GROUP_TOOL_VERBS. |
-| `ui.hunk_tracker_mode` | `agent_only / all_dirty / off` | `yes` | `user` | File-change hunk tracking. Also GROK_HUNK_TRACKER and `--hunk-tracker-mode`. |
-| `ui.invert_scroll` | `boolean` | `yes` | `user` | Reverse vertical scroll direction. Also GROK_INVERT_SCROLL. |
+| `ui.group_tool_verbs` | `boolean` | `yes` | `user` | Fold consecutive read/search/list tool rows. Also XVORA_GROUP_TOOL_VERBS. |
+| `ui.hunk_tracker_mode` | `agent_only / all_dirty / off` | `yes` | `user` | File-change hunk tracking. Also XVORA_HUNK_TRACKER and `--hunk-tracker-mode`. |
+| `ui.invert_scroll` | `boolean` | `yes` | `user` | Reverse vertical scroll direction. Also XVORA_INVERT_SCROLL. |
 | `ui.keep_text_selection` | `flash / hold / word_select` | `yes` | `user` | In-app selection: brief flash, hold, or double-click word select. |
 | `ui.max_thoughts_width` | `number` | `yes` | `user` | Column width for the thoughts panel (40–500). |
-| `ui.mouse_reporting_toggle` | `boolean` | `yes` | `user` | Ctrl+R in scrollback toggles terminal mouse capture. Also GROK_MOUSE_REPORTING_TOGGLE. |
+| `ui.mouse_reporting_toggle` | `boolean` | `yes` | `user` | Ctrl+R in scrollback toggles terminal mouse capture. Also XVORA_MOUSE_REPORTING_TOGGLE. |
 | `ui.page_flip_on_send` | `boolean` | `yes` | `user` | Snap the sent prompt to the top of the viewport. |
 | `ui.permission_mode` | `default / ask / auto / always-approve` | `yes` | `user` | Default tool-permission behavior. Enterprise locks use requirements.toml. |
-| `ui.prompt_suggestions` | `boolean` | `yes` | `user` | Next-prompt ghost text after each turn. Also GROK_PROMPT_SUGGESTIONS; a remote kill-switch can disable it fleet-wide. |
+| `ui.prompt_suggestions` | `boolean` | `yes` | `user` | Next-prompt ghost text after each turn. Also XVORA_PROMPT_SUGGESTIONS; a remote kill-switch can disable it fleet-wide. |
 | `prompt_suggestions.max_output_tokens` | `number` | `yes` | `user` | Visible-output tokens for the suggestion call; clamped to 16–256, default 64, with a separate reserve for reasoning. Remote-overridable. |
 | `prompt_suggestions.temperature` | `number` | `yes` | `user` | Sampling temperature for the suggestion call (default 0.2). Remote-overridable. |
 | `prompt_suggestions.reasoning_effort` | `none / minimal / low / medium / high` | `yes` | `user` | Reasoning effort for the suggestion call; default and `none` disable reasoning, while other values use a supported model effort. Remote-overridable. |
-| `ui.remember_tool_approvals` | `boolean` | `yes` | `user` | Show per-tool Always allow options. Also GROK_REMEMBER_TOOL_APPROVALS. |
+| `ui.remember_tool_approvals` | `boolean` | `yes` | `user` | Show per-tool Always allow options. Also XVORA_REMEMBER_TOOL_APPROVALS. |
 | `ui.render_mermaid` | `auto / on / off` | `yes` | `user` | How mermaid fences render: clickable open row or raw source. |
-| `ui.screen_mode` | `fullscreen / minimal` | `yes` | `user` | Default render mode for plain `grok`. Restart required. |
-| `ui.scroll_lines` | `integer` | `yes` | `user` | Lines per scroll tick (1–10). Also GROK_SCROLL_LINES. |
-| `ui.scroll_mode` | `auto / wheel / trackpad` | `yes` | `user` | Scroll input classification. Also GROK_SCROLL_MODE. |
-| `ui.scroll_speed` | `integer` | `yes` | `user` | Mouse/trackpad scroll speed multiplier (1–100). Also GROK_SCROLL_SPEED. |
-| `ui.show_thinking_blocks` | `boolean` | `yes` | `user` | Show thinking/reasoning blocks while streaming. Also GROK_SHOW_THINKING_BLOCKS. |
+| `ui.screen_mode` | `fullscreen / minimal` | `yes` | `user` | Default render mode for plain `xvora`. Restart required. |
+| `ui.scroll_lines` | `integer` | `yes` | `user` | Lines per scroll tick (1–10). Also XVORA_SCROLL_LINES. |
+| `ui.scroll_mode` | `auto / wheel / trackpad` | `yes` | `user` | Scroll input classification. Also XVORA_SCROLL_MODE. |
+| `ui.scroll_speed` | `integer` | `yes` | `user` | Mouse/trackpad scroll speed multiplier (1–100). Also XVORA_SCROLL_SPEED. |
+| `ui.show_thinking_blocks` | `boolean` | `yes` | `user` | Show thinking/reasoning blocks while streaming. Also XVORA_SHOW_THINKING_BLOCKS. |
 | `ui.show_timeline` | `boolean` | `yes` | `user` | Per-turn tick rail instead of the scrollbar. |
 | `ui.show_timestamps` | `boolean` | `yes` | `user` | Clock time next to messages. Also `/timestamps`. |
 | `ui.simple_mode` | `boolean` | `yes` | `user` | Readline prompt editing when true; experimental vim prompt keys when false. |
 | `ui.status_line.command` | `string` | `yes` | `user` | Script for a `command` status line. Campaigns strip this path; a requirements layer still merges it. |
 | `ui.status_line.type` | `disabled / command` | `yes` | `user` | Optional status-line row above the shortcuts bar. Off by default. See the status-line user guide. |
-| `ui.theme` | `string` | `yes` | `user` | Color theme name, or `auto`/`system` to follow the OS. Also `/theme` and GROK_THEME. |
+| `ui.theme` | `string` | `yes` | `user` | Color theme name, or `auto`/`system` to follow the OS. Also `/theme` and XVORA_THEME. |
 | `ui.ui_theme` | `string` | `yes` | `user` | Legacy alias for `ui.theme`. |
 | `ui.vim_mode` | `boolean` | `yes` | `user` | Vim keys in the scrollback, not the prompt. Also `/vim-mode`. |
 | `ui.voice_capture_mode` | `hold / toggle` | `yes` | `user` | Hold-to-talk or press-to-toggle voice capture. |
@@ -652,13 +652,13 @@ One exception to that rule:
 | --- | --- |
 | `features.remote_fetch` | The managed value wins over the developer's. |
 
-Grok Build reads `/etc/grok/managed_config.toml` first, then `$GROK_HOME/managed_config.toml`, which the console keeps in sync. Values in the second replace values in the first.
+xVora reads `/etc/xvora/managed_config.toml` first, then `$XVORA_HOME/managed_config.toml`, which the console keeps in sync. Values in the second replace values in the first.
 
 The **Managed** column on the tables above is the per-key answer: `fleet` means the fleet value stands, `user` means the user's file wins, `—` means this file is ignored.
 
 ## requirements.toml
 
-`requirements.toml` is an admin-enforced file. Locations: `$GROK_HOME/requirements.toml` (signed cache) then `/etc/grok/requirements.toml`, then macOS MDM `ai.x.grok`. The **Requirements** column on the `config.toml` tables lists every `config.toml` key this file accepts (`pin` or `yes`). Omitted keys stay unconstrained.
+`requirements.toml` is an admin-enforced file. Locations: `$XVORA_HOME/requirements.toml` (signed cache) then `/etc/xvora/requirements.toml`, then macOS MDM `ai.x.xvora`. The **Requirements** column on the `config.toml` tables lists every `config.toml` key this file accepts (`pin` or `yes`). Omitted keys stay unconstrained.
 
 These keys exist only in `requirements.toml`:
 
@@ -670,13 +670,13 @@ These keys exist only in `requirements.toml`:
 
 ## What happens when a setting is refused
 
-| Situation | What Grok Build does |
+| Situation | What xVora does |
 | --- | --- |
-| A developer sets a key you pinned | The pinned value applies. `grok inspect` lists the requirements file that contributed. |
+| A developer sets a key you pinned | The pinned value applies. `xvora inspect` lists the requirements file that contributed. |
 | A developer sets a key you shipped in `managed_config.toml` | Their value applies, except `features.remote_fetch`. Pin the key instead if it must hold. |
-| `requirements.toml` is missing or its signature does not verify | The pins do not apply, and Grok Build starts without them. Set `fail_closed = true` to refuse to start instead. |
+| `requirements.toml` is missing or its signature does not verify | The pins do not apply, and xVora starts without them. Set `fail_closed = true` to refuse to start instead. |
 | A pinned key names a value this version does not recognise | The key is ignored and the rest of the file still applies. |
 
 ## Check what is in effect
 
-Run `grok inspect` on the developer's machine. It lists every config file that contributed, including requirements and managed layers, so a policy that is not applying is visible in one command.
+Run `xvora inspect` on the developer's machine. It lists every config file that contributed, including requirements and managed layers, so a policy that is not applying is visible in one command.

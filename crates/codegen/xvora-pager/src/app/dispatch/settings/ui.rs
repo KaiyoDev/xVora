@@ -15,6 +15,7 @@ use super::setters::{
     set_show_tips_inner, set_simple_mode_inner, set_theme_inner, set_timeline_inner,
     set_timestamps, set_timestamps_inner, set_vim_mode_inner, set_voice_capture_mode_inner,
     set_voice_keybind_enabled_inner, set_voice_stt_language_inner,
+    set_locale,
 };
 use crate::app::actions::{Action, Effect};
 use crate::app::app_view::{ActiveView, AppView};
@@ -830,6 +831,8 @@ pub(in crate::app::dispatch) fn action_for_reset(
                 None
             }
         }
+        // language: process-wide locale change, no PersistSetting
+        ("language", SettingValue::Enum(s)) => Some(Action::SetLocale((*s).to_string())),
 
         _ => None,
     }

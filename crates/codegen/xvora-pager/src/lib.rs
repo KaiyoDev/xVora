@@ -60,7 +60,7 @@ pub use xvora_pager_render::{
     appearance, clipboard, glyphs, host, input, link_opener, modal_window_state, prompt_images,
     render, search, syntax, terminal, theme, util,
 };
-mod i18n;
+pub mod i18n;
 #[cfg(test)]
 pub mod test_util;
 pub mod trace_cmd;

@@ -5742,10 +5742,10 @@ fn settings_breadcrumb_rect_set_in_sub_pane_modes() {
     );
     // Width is the full breadcrumb `Settings › <label>`
     // The leaf label varies by setting
-    // Assert it's strictly wider than `Settings` alone (proof that the rect extends past the prefix) AND at least MODAL_TITLE + " › "
-    let prefix_w = MODAL_TITLE.width() + " \u{203A} ".width();
+    // Assert it's strictly wider than `Settings` alone (proof that the rect extends past the prefix) AND at least modal_title() + " › "
+    let prefix_w = super::state::modal_title().width() + " \u{203A} ".width();
     assert!(
-        (rect.width as usize) > MODAL_TITLE.width(),
+        (rect.width as usize) > super::state::modal_title().width(),
         "rect width must extend past `Settings` alone for theme picker, got {}",
         rect.width,
     );
@@ -5771,7 +5771,7 @@ fn settings_breadcrumb_rect_set_in_sub_pane_modes() {
         .expect("EditingValue must populate settings_breadcrumb_rect");
     assert_eq!(rect2.height, 1, "EditingValue rect height must be 1");
     assert!(
-        (rect2.width as usize) > MODAL_TITLE.width(),
+        (rect2.width as usize) > super::state::modal_title().width(),
         "EditingValue rect must extend past `Settings` alone, got {}",
         rect2.width,
     );

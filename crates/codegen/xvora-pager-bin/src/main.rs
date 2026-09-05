@@ -1894,6 +1894,8 @@ fn dispatch_doctor_if_requested(args: &PagerArgs) -> bool {
 fn main() {
     version::set_full_version(env!("VERSION_WITH_COMMIT"));
     telemetry::startup::mark_process_start();
+    // Initialize UI locale from XVORA_LANG / GROK_LANG env var before anything else.
+    xvora_pager::i18n::init_locale_from_env();
     if let Some(code) = xvora_pager::app::mermaid_worker::maybe_run_render_subprocess() {
         std::process::exit(code);
     }

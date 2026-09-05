@@ -646,11 +646,12 @@ pub fn current_value_for(
                 .as_deref()
                 .unwrap_or(&pager.voice_stt_language),
         )))),
-        // UI language: always "auto" — no UiConfig field drives this currently.
-        // The i18n layer is a stub; real localisation will wire a language selector here.
-        "language" => Some(SettingValue::Enum(crate::i18n::config_language_canonical(
-            None,
-        ))),
+        // UI language: reads current process-wide locale so the selector shows
+        // the active choice (en / vi) instead of always reporting "auto".
+        "language" => Some(SettingValue::Enum(match crate::i18n::locale() {
+            crate::i18n::Locale::Vi => "vi",
+            crate::i18n::Locale::En => "en",
+        })),
         // Theme: unknown disk values fall through to canonical default.
         // auto_dark/light additionally filter out "auto" (circular ref).
         "theme" => Some(SettingValue::Enum(
