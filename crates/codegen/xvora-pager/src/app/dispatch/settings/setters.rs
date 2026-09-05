@@ -1985,7 +1985,7 @@ pub(in crate::app::dispatch) fn set_max_thoughts_width(app: &mut AppView, new: i
 
 /// Apply a locale change immediately (no restart needed).
 /// Called from the settings modal when the user picks "vi" or "en".
-pub(in crate::app::dispatch) fn set_locale(_app: &mut AppView, new: String) -> Vec<Effect> {
+pub(in crate::app::dispatch) fn set_locale(app: &mut AppView, new: String) -> Vec<Effect> {
     let prev = crate::i18n::locale();
     crate::i18n::set_locale(&new);
     let label = if new == "vi" {
@@ -2000,8 +2000,9 @@ pub(in crate::app::dispatch) fn set_locale(_app: &mut AppView, new: String) -> V
         "locale changed",
     );
     // Refresh open settings modals so labels render in the new language.
-    super::ui::refresh_open_settings_modals(_app);
-    vec![Effect::Toast(format!("\u{2713} Language: {label}"))]
+    super::ui::refresh_open_settings_modals(app);
+    app.show_toast(&format!("\u{2713} Language: {label}"));
+    vec![]
 }
 
 // ---------------------------------------------------------------------------

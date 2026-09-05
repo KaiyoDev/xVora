@@ -82,13 +82,13 @@ pub fn render_settings_modal(
             SettingsMode::PickingGroup { key, .. } => {
                 if let Some(meta) = state.registry.find(key) {
                     breadcrumb_owned =
-                        format!("{MODAL_TITLE} {} {}", crate::glyphs::chevron(), meta.label);
+                        format!("{} {} {}", modal_title(), crate::glyphs::chevron(), meta.label);
                     &breadcrumb_owned
                 } else {
-                    MODAL_TITLE
+                    modal_title()
                 }
             }
-            _ => MODAL_TITLE,
+            _ => modal_title(),
         }
     };
 
