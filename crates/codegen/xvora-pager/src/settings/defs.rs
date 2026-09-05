@@ -11,8 +11,8 @@ use crate::appearance::ScrollMode;
 use crate::appearance::TextSelection;
 use crate::appearance::permission_cursor::DefaultSelectedPermission;
 
-use xvora_shell::agent::config::UiConfig;
-use xvora_tools::implementations::xvora::ask_user_question;
+use shell::agent::config::UiConfig;
+use tools::implementations::grok_build::ask_user_question;
 
 // ---------------------------------------------------------------------------
 // Int bounds for `max_thoughts_width`.
