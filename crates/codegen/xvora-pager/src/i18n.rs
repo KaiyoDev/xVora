@@ -63,6 +63,22 @@ pub fn init_locale_from_env() {
     }
 }
 
+/// Initialize the locale from the `[ui].language` config value.
+/// Only applies if the locale has not been set by `init_locale_from_env()`.
+pub fn init_locale_from_config(value: Option<&str>) {
+    // Only apply config if env var was not already set
+    if std::env::var("XVORA_LANG").is_ok() || std::env::var("GROK_LANG").is_ok() {
+        return;
+    }
+    let raw = value.unwrap_or("auto").trim();
+    if raw.eq_ignore_ascii_case("vi") || raw.eq_ignore_ascii_case("vietnamese") {
+        set_locale("vi");
+    } else if raw.eq_ignore_ascii_case("en") || raw.eq_ignore_ascii_case("english") {
+        set_locale("en");
+    }
+    // "auto" means use system locale — keep default (English) for now
+}
+
 /// Canonicalise a raw UI language string to a registry choice.
 /// `None` / empty / unknown → `"auto"`.
 pub fn config_language_canonical(value: Option<&'static str>) -> &'static str {

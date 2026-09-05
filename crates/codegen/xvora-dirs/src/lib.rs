@@ -1,11 +1,11 @@
 //! Home-directory resolution generally: USERPROFILE-first `home_dir`, plus
-//! grok-home (`$GROK_HOME` or `<home>/.grok`). Shared by `xvora-config`
+//! xvora-home (`$XVORA_HOME` or `<home>/.xvora`). Shared by `xvora-config`
 //! and `xvora-fast-worktree`.
 //!
 //! Which function to call:
 //! - [`grok_home`]: the usual choice, a cached, created path to build on.
 //! - [`user_grok_home`]: `None` instead of a cwd fallback when no home resolves.
-//! - [`default_grok_home`]: the `<home>/.grok` default, ignoring `$GROK_HOME`, so callers can detect an override.
+//! - [`default_grok_home`]: the `<home>/.xvora` default, ignoring `$XVORA_HOME`, so callers can detect an override.
 //! - [`resolve_grok_home`]: a fresh, uncached resolve.
 //! - [`resolve_grok_home_with_source`]: [`resolve_grok_home`] plus where the path came from.
 //! - [`home_dir`]: the home directory itself, for sibling dot dirs (`~/.claude`, `~/.agents`, ...).
@@ -17,14 +17,14 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-/// Where a resolved grok home came from, so "why did grok pick this
+/// Where a resolved home dir came from, so "why did the app pick this
 /// directory?" is answerable in diagnostics without re-reading the
 /// environment at the asking site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GrokHomeSource {
-    /// A non-empty `$GROK_HOME` override.
+    /// A non-empty `$XVORA_HOME` / `$GROK_HOME` override.
     EnvOverride,
-    /// `<home>/.grok` derived from the home directory.
+    /// `<home>/.xvora` derived from the home directory.
     HomeDefault,
 }
 
@@ -41,15 +41,15 @@ pub fn home_dir() -> Option<PathBuf> {
     std::env::home_dir()
 }
 
-/// `<home>/.grok`, canonicalized via `dunce` (not `std::fs::canonicalize`,
+/// `<home>/.xvora`, canonicalized via `dunce` (not `std::fs::canonicalize`,
 /// which yields Windows `\\?\` verbatim paths).
 fn grok_home_in(home: &Path) -> PathBuf {
     dunce::canonicalize(home)
         .unwrap_or_else(|_| home.to_path_buf())
-        .join(".grok")
+        .join(".xvora")
 }
 
-/// `$GROK_HOME` verbatim when non-empty, else `<home>/.grok`. The env value is
+/// `$XVORA_HOME` verbatim when non-empty, else `<home>/.xvora`. The env value is
 /// used as-is (not canonicalized) so it stays stable and comparable: callers do
 /// literal prefix checks against it, and downstream symlink guards must still see
 /// its original components.
@@ -63,20 +63,28 @@ fn resolve_grok_home_from(
     os_home.map(|home| (grok_home_in(home), GrokHomeSource::HomeDefault))
 }
 
-/// Resolve the grok home from the environment (fresh, no cache); `None` if neither resolves.
+/// Resolve the home dir from the environment (fresh, no cache); `None` if neither resolves.
+/// Supports both `$XVORA_HOME` and legacy `$GROK_HOME`.
 pub fn resolve_grok_home() -> Option<PathBuf> {
     resolve_grok_home_with_source().map(|(home, _)| home)
 }
 
 /// [`resolve_grok_home`] plus the [`GrokHomeSource`] the path came from.
 pub fn resolve_grok_home_with_source() -> Option<(PathBuf, GrokHomeSource)> {
-    resolve_grok_home_from(
-        std::env::var_os("GROK_HOME").as_deref(),
-        home_dir().as_deref(),
-    )
+    // Try XVORA_HOME first, then fall back to GROK_HOME for backward compat
+    let xvora_home = std::env::var_os("XVORA_HOME");
+    let grok_home = std::env::var_os("GROK_HOME");
+    let resolved = if let Some(env) = xvora_home.filter(|v| !v.is_empty()) {
+        Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
+    } else if let Some(env) = grok_home.filter(|v| !v.is_empty()) {
+        Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
+    } else {
+        home_dir().map(|home| (grok_home_in(&home), GrokHomeSource::HomeDefault))
+    };
+    resolved
 }
 
-/// The default `<home>/.grok`, used when `$GROK_HOME` is unset.
+/// The default `<home>/.xvora`, used when neither env var is set.
 pub fn default_grok_home() -> PathBuf {
     grok_home_in(&home_dir().unwrap_or_else(|| PathBuf::from(".")))
 }
