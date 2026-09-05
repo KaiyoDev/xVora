@@ -648,7 +648,9 @@ pub fn current_value_for(
         )))),
         // UI language: always "auto" — no UiConfig field drives this currently.
         // The i18n layer is a stub; real localisation will wire a language selector here.
-        "language" => Some(SettingValue::Enum(crate::i18n::config_language_canonical(None))),
+        "language" => Some(SettingValue::Enum(crate::i18n::config_language_canonical(
+            None,
+        ))),
         // Theme: unknown disk values fall through to canonical default.
         // auto_dark/light additionally filter out "auto" (circular ref).
         "theme" => Some(SettingValue::Enum(
@@ -868,10 +870,7 @@ mod tests {
                 }
                 ("language", SettingKind::Enum { default, .. }) => {
                     // UiConfig has no `language` field; the setting always defaults to "auto".
-                    assert_eq!(
-                        *default, "auto",
-                        "language default must be auto"
-                    );
+                    assert_eq!(*default, "auto", "language default must be auto");
                 }
                 ("theme", SettingKind::Enum { default, .. }) => {
                     assert_eq!(
