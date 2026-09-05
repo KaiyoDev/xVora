@@ -1,4 +1,4 @@
-//! Hermetic filesystem and child-environment owner for grok integration tests.
+//! Hermetic filesystem and child-environment owner for xvora integration tests.
 
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
@@ -14,11 +14,11 @@ const REDACTED: &str = "<redacted>";
 /// One test's isolated filesystem tree and canonical child environment.
 ///
 /// Construction never mutates the process environment.
-/// Child commands start from `env_clear()` and receive only platform essentials, sandbox paths, grok network kill switches, and explicit overrides.
+/// Child commands start from `env_clear()` and receive only platform essentials, sandbox paths, xvora network kill switches, and explicit overrides.
 pub struct TestSandbox {
     root: TempDir,
     home: PathBuf,
-    grok_home: PathBuf,
+    xvora_home: PathBuf,
     workspace: PathBuf,
     temp: PathBuf,
     env: BTreeMap<OsString, OsString>,
@@ -45,9 +45,9 @@ impl TestSandbox {
         &self.home
     }
 
-    /// Explicit grok state root.
-    pub fn grok_home(&self) -> &Path {
-        &self.grok_home
+    /// Explicit xvora state root.
+    pub fn xvora_home(&self) -> &Path {
+        &self.xvora_home
     }
 
     /// Isolated working directory.
@@ -159,10 +159,10 @@ impl TestSandbox {
     /// Secret-bearing values are never included.
     pub fn diagnostic_summary(&self) -> String {
         let mut summary = format!(
-            "root={} home={} grok_home={} workspace={} temp={}",
+            "root={} home={} xvora_home={} workspace={} temp={}",
             self.root().display(),
             self.home.display(),
-            self.grok_home.display(),
+            self.xvora_home.display(),
             self.workspace.display(),
             self.temp.display(),
         );
@@ -196,7 +196,7 @@ pub struct TestSandboxBuilder {
 }
 
 impl TestSandboxBuilder {
-    /// Wire grok API, models, feedback, trace, conversation, and web traffic to a loopback mock endpoint and install the fake CI API key.
+    /// Wire xvora API, models, feedback, trace, conversation, and web traffic to a loopback mock endpoint and install the fake CI API key.
     pub fn mock_url(mut self, url: impl Into<String>) -> Self {
         self.mock_url = Some(url.into());
         self
@@ -212,16 +212,16 @@ impl TestSandboxBuilder {
     pub fn build(self) -> TestSandbox {
         let root = TempDir::new().expect("create test sandbox root");
         let home = root.path().join("home");
-        let grok_home = home.join(".grok");
+        let xvora_home = home.join(".xvora");
         let workspace = root.path().join("workspace");
         let temp = root.path().join("tmp");
-        for path in [&home, &grok_home, &workspace, &temp] {
+        for path in [&home, &xvora_home, &workspace, &temp] {
             std::fs::create_dir_all(path)
                 .unwrap_or_else(|e| panic!("create sandbox path {}: {e}", path.display()));
         }
 
         let parent_cwd = std::env::current_dir().expect("read parent cwd for test sandbox");
-        let mut env = baseline_env(&home, &grok_home, &temp, &parent_cwd);
+        let mut env = baseline_env(&home, &xvora_home, &temp, &parent_cwd);
         if let Some(url) = self.mock_url {
             apply_mock_url(&mut env, url);
         }
@@ -229,7 +229,7 @@ impl TestSandboxBuilder {
         let sandbox = TestSandbox {
             root,
             home,
-            grok_home,
+            xvora_home,
             workspace,
             temp,
             env,
@@ -245,7 +245,7 @@ impl TestSandbox {
     fn init_git_workspace(&self) {
         run_git(self, &["init"]);
         run_git(self, &["config", "user.email", "test@test.invalid"]);
-        run_git(self, &["config", "user.name", "Grok Test"]);
+        run_git(self, &["config", "user.name", "xvora Test"]);
         std::fs::write(self.workspace.join("README.md"), "test file\n")
             .expect("write sandbox git fixture");
         run_git(self, &["add", "-A"]);
@@ -293,17 +293,17 @@ fn apply_mock_url(env: &mut BTreeMap<OsString, OsString>, url: String) {
 
 fn baseline_env(
     home: &Path,
-    grok_home: &Path,
+    xvora_home: &Path,
     temp: &Path,
     parent_cwd: &Path,
 ) -> BTreeMap<OsString, OsString> {
     let parent_env = std::env::vars_os().collect();
-    baseline_env_from_parent(home, grok_home, temp, parent_cwd, &parent_env)
+    baseline_env_from_parent(home, xvora_home, temp, parent_cwd, &parent_env)
 }
 
 fn baseline_env_from_parent(
     home: &Path,
-    grok_home: &Path,
+    xvora_home: &Path,
     temp: &Path,
     parent_cwd: &Path,
     parent_env: &BTreeMap<OsString, OsString>,
@@ -322,7 +322,7 @@ fn baseline_env_from_parent(
     for (key, value) in [
         ("HOME", home),
         ("USERPROFILE", home),
-        ("GROK_HOME", grok_home),
+        ("xvora_home", xvora_home),
         ("TMPDIR", temp),
         ("TMP", temp),
         ("TEMP", temp),
@@ -357,7 +357,7 @@ fn baseline_env_from_parent(
     }
     env.insert(
         "GIT_CONFIG_GLOBAL".into(),
-        grok_home.join("gitconfig").into_os_string(),
+        xvora_home.join("gitconfig").into_os_string(),
     );
     env
 }
@@ -469,7 +469,7 @@ fn diagnostic_value_is_sensitive(key: &OsStr) -> bool {
         || is_endpoint_key(&key)
         || matches!(
             key.to_ascii_uppercase().as_str(),
-            "HOME" | "USERPROFILE" | "GROK_HOME" | "TMPDIR" | "TMP" | "TEMP" | "GIT_CONFIG_GLOBAL"
+            "HOME" | "USERPROFILE" | "xvora_home" | "TMPDIR" | "TMP" | "TEMP" | "GIT_CONFIG_GLOBAL"
         )
 }
 
@@ -513,7 +513,7 @@ mod tests {
         let sandbox = TestSandbox::new();
         for path in [
             sandbox.home(),
-            sandbox.grok_home(),
+            sandbox.xvora_home(),
             sandbox.workspace(),
             sandbox.temp_dir(),
         ] {
@@ -522,7 +522,7 @@ mod tests {
         }
         assert_ne!(sandbox.home(), sandbox.workspace());
         assert_ne!(sandbox.home(), sandbox.temp_dir());
-        assert_eq!(sandbox.grok_home(), sandbox.home().join(".grok"));
+        assert_eq!(sandbox.xvora_home(), sandbox.home().join(".xvora"));
     }
 
     #[test]
@@ -562,7 +562,7 @@ mod tests {
         let root = tempfile::tempdir().expect("create baseline fixture");
         baseline_env_from_parent(
             &root.path().join("home"),
-            &root.path().join("home/.grok"),
+            &root.path().join("home/.xvora"),
             &root.path().join("tmp"),
             parent_cwd,
             &parent_env,
@@ -626,7 +626,7 @@ mod tests {
         );
         let sandbox = TestSandbox {
             home: root.path().join("home"),
-            grok_home: root.path().join("home/.grok"),
+            xvora_home: root.path().join("home/.xvora"),
             workspace: root.path().join("workspace"),
             temp: root.path().join("tmp"),
             root,
@@ -693,8 +693,8 @@ mod tests {
             .build();
         assert_eq!(env_value(&sandbox, "HOME"), Some(sandbox.home().into()));
         assert_eq!(
-            env_value(&sandbox, "GROK_HOME"),
-            Some(sandbox.grok_home().into())
+            env_value(&sandbox, "xvora_home"),
+            Some(sandbox.xvora_home().into())
         );
         assert_eq!(
             env_value(&sandbox, "TMPDIR"),

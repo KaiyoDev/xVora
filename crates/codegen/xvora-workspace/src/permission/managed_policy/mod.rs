@@ -113,7 +113,7 @@ fn managed_toml_policy_layers(
 /// Pure form of [`load_managed_settings`] over pre-loaded sources (testable
 /// without on-disk config). Native TOML layers apply trust-descending (see
 /// [`PolicyLayerTier`]); the advisory Claude file applies last, so its extras
-/// and pin attributions never claim a name ahead of a grok layer.
+/// and pin attributions never claim a name ahead of a xvora layer.
 fn resolve_managed_settings(
     claude: Option<(serde_json::Value, PathBuf)>,
     mut toml_layers: Vec<PolicyLayer>,
@@ -249,7 +249,7 @@ fn apply_policy_source(
     }
 
     for (extra, auto_update) in parse_extra_marketplaces(json, ownership) {
-        // Claude's per-marketplace `autoUpdate: false` has no granular grok
+        // Claude's per-marketplace `autoUpdate: false` has no granular xvora
         // equivalent, so it pins the GLOBAL auto-update off (tighten-only)
         // rather than silently dropping an update opt-out.
         if auto_update == Some(false) {

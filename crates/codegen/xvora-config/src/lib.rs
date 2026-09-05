@@ -1,12 +1,12 @@
-//! Config file loading for Grok.
+//! Config file loading for xvora.
 //!
 //! Merge order (lowest to highest priority):
-//! 1. `/etc/grok/managed_config.toml`
-//! 2. `$GROK_HOME/managed_config.toml`
-//! 3. `$GROK_HOME/config.toml`
-//! 4. `$GROK_HOME/requirements.toml` (cloud cache; Ed25519-signed at rest once a key is embedded, see [`signed_policy`])
-//! 5. `/etc/grok/requirements.toml`
-//! 6. macOS MDM managed preferences (`ai.x.grok`, admin-forced), macOS only
+//! 1. `/etc/xvora/managed_config.toml`
+//! 2. `$xvora_home/managed_config.toml`
+//! 3. `$xvora_home/config.toml`
+//! 4. `$xvora_home/requirements.toml` (cloud cache; Ed25519-signed at rest once a key is embedded, see [`signed_policy`])
+//! 5. `/etc/xvora/requirements.toml`
+//! 6. macOS MDM managed preferences (`ai.x.xvora`, admin-forced), macOS only
 //!
 //! Each layer applies its own [`[[version_overrides]]`](version_overrides) before merge.
 //! Requirements layers (#4 through #6) may opt into fail-closed startup; see [`validate_requirements`].
@@ -72,8 +72,8 @@ pub use managed_cache::{
 pub use paths::{
     claude_managed_settings_path, claude_managed_settings_probe_path, create_dir_all_owner_only,
     decode_cwd_from_dirname, default_grok_home, encode_cwd_dirname, ensure_sessions_cwd_dir,
-    ensure_sessions_cwd_dir_in, grok_application, grok_application_in, grok_home, sessions_cwd_dir,
-    sessions_cwd_dir_in, set_dir_owner_only, system_config_dir, user_grok_home,
+    ensure_sessions_cwd_dir_in, grok_application, grok_application_in, sessions_cwd_dir,
+    sessions_cwd_dir_in, set_dir_owner_only, system_config_dir, user_grok_home, xvora_home,
 };
 pub use validation::{
     RequirementsError, RequirementsLayer, RequirementsSource, load_merged_requirements,

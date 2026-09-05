@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 //! This module takes [`Effect`] values produced by [`super::dispatch`] and spawns them as async tasks on a [`JoinSet`].
 //! When tasks complete, the event loop converts their output into [`TaskResult`] and feeds it back through dispatch.
 mod helpers;
@@ -638,7 +638,7 @@ pub(crate) fn execute(
                     }
                 });
         }
-        Effect::ScanForeignSessions { cwd, compat, grok_home, coordinator, seq } => {
+        Effect::ScanForeignSessions { cwd, compat, xvora_home, coordinator, seq } => {
             if coordinator.latest_seq() != seq {
                 return (false, meta);
             }
@@ -660,7 +660,7 @@ pub(crate) fn execute(
                     }
                     let enabled = crate::app::foreign_sessions::gated_sources_async(
                             compat,
-                            &grok_home,
+                            &xvora_home,
                         )
                         .await;
                     if latest_seq.load(std::sync::atomic::Ordering::Acquire) != seq
@@ -716,7 +716,7 @@ pub(crate) fn execute(
         Effect::DetectForeignResumeHint {
             canonical_cwd,
             compat,
-            grok_home,
+            xvora_home,
             launch_token,
         } => {
             tasks
@@ -724,7 +724,7 @@ pub(crate) fn execute(
                     let cwd_for_scan = canonical_cwd.clone();
                     let recent = crate::app::foreign_sessions::with_gated_sources_async(
                             compat,
-                            &grok_home,
+                            &xvora_home,
                             |enabled| async move {
                                 tokio::task::spawn_blocking(move || foreign_sessions::most_recent_foreign_session(
                                         &cwd_for_scan,
@@ -774,7 +774,7 @@ pub(crate) fn execute(
                         "x.ai/facetFilters": { "kind": kinds },
                     });
                         tracing::info!(
-                        target: "grok.pager.workspace_mode",
+                        target: "xvora.pager.workspace_mode",
                         event = "session_list_fetch",
                         kind_filter = ?kinds,
                         query = ?query,
@@ -1039,7 +1039,7 @@ pub(crate) fn execute(
                         Some(auth_manager.clone()),
                         None,
                         Some(session_id.clone()),
-                        "grok-pager",
+                        "xvora-pager",
                     );
                     Some((auth_manager, registry, storage))
                 });
@@ -4464,9 +4464,9 @@ pub(crate) fn execute(
                             if !shell::util::config::resolve_remote_fetch_enabled() {
                                 return None;
                             }
-                            let grok_home = shell::util::grok_home::grok_home();
+                            let xvora_home = shell::util::xvora_home::xvora_home();
                             let store = shell::auth::read_auth_json(
-                                    &grok_home.join("auth.json"),
+                                    &xvora_home.join("auth.json"),
                                 )
                                 .ok()?;
                             let scope = shell::auth::GrokComConfig::default()
@@ -4767,7 +4767,7 @@ async fn session_rename_rpc(
 /// `cwd` comes from the `x.ai/session/info` response.
 async fn lookup_session_title(session_id: &acp::SessionId, cwd: &str) -> Option<String> {
     lookup_session_title_in(
-            shell::util::grok_home::grok_home(),
+            shell::util::xvora_home::xvora_home(),
             session_id,
             cwd,
         )
@@ -4888,7 +4888,7 @@ fn format_auth_lines(is_api_key_auth: bool, api_key_env_set: bool) -> String {
             "  Auth method: API key\n"
         };
         return format!(
-            "{method}  Run `grok login` to use your SuperGrok subscription instead.\n"
+            "{method}  Run `xvora login` to use your SuperGrok subscription instead.\n"
         );
     }
     String::from("  Auth method: OAuth\n")

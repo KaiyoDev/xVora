@@ -164,7 +164,7 @@ fn resolve_skill_path(raw: &str, cwd: &str) -> String {
 /// Collect auto-discovered skill source directories and their counts.
 fn discover_auto_sources(cwd: &str, skills: &[SkillInfo]) -> Vec<(String, usize)> {
     let cwd_path = std::path::PathBuf::from(cwd);
-    let grok_home = tools::util::grok_home::grok_home();
+    let xvora_home = tools::util::xvora_home::xvora_home();
     let git_root = git2::Repository::discover(&cwd_path)
         .ok()
         .and_then(|repo| repo.workdir().map(|p| p.to_path_buf()));
@@ -173,9 +173,9 @@ fn discover_auto_sources(cwd: &str, skills: &[SkillInfo]) -> Vec<(String, usize)
     // Equivalent locations should be opted in via [paths] extra_skill_dirs in config.toml (written by /import-claude)
     let imported = crate::claude_import::is_claude_import_marked();
     let local_dir_names: &[&str] = if imported {
-        &[".grok", ".agents"]
+        &[".xvora", ".agents"]
     } else {
-        &[".grok", ".agents", ".claude"]
+        &[".xvora", ".agents", ".claude"]
     };
 
     let mut sources: Vec<(String, usize)> = Vec::new();
@@ -208,7 +208,7 @@ fn discover_auto_sources(cwd: &str, skills: &[SkillInfo]) -> Vec<(String, usize)
     }
 
     for subdir in &subdirs {
-        try_add_source(grok_home.join(subdir), None);
+        try_add_source(xvora_home.join(subdir), None);
     }
 
     if let Some(home_path) = dirs::home_dir() {

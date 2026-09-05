@@ -1298,11 +1298,11 @@ pub(crate) async fn run(
                 crate::acp::AuthStartMode::Command => super::app_view::AuthMode::Command,
             };
         } else {
-            // --force-login: find the grok.com method from the advertised list
+            // --force-login: find the xvora.com method from the advertised list
             let grok_com = connection
                 .auth_methods
                 .iter()
-                .find(|m| m.id().0.as_ref() == "grok.com");
+                .find(|m| m.id().0.as_ref() == "xvora.com");
             if let Some(method) = grok_com {
                 app.login_label = Some(method.name().to_string());
                 app.login_method_id = Some(method.id().clone());
@@ -1318,7 +1318,7 @@ pub(crate) async fn run(
                     super::app_view::AuthMode::Pending
                 };
             } else {
-                // No grok.com method available, use the first method as fallback
+                // No xvora.com method available, use the first method as fallback
                 let first = &connection.auth_methods[0];
                 app.login_label = Some(first.name().to_string());
                 app.login_method_id = Some(first.id().clone());
@@ -1328,7 +1328,7 @@ pub(crate) async fn run(
 
         // Skip the login splash screen: auto-trigger login immediately by reusing dispatch_login
         // Effects are stashed and drained after the initial render so the user sees the auth UI right away
-        // Empty auth_methods (preferred_method pin with no credentials) is fail-closed: do not invent grok.com / auto-start OIDC
+        // Empty auth_methods (preferred_method pin with no credentials) is fail-closed: do not invent xvora.com / auto-start OIDC
         tracing::info!(
             method_id = ?app.login_method_id,
             methods_empty = connection.auth_methods.is_empty(),
@@ -1439,7 +1439,7 @@ pub(crate) async fn run(
             app.voice_config = voice::VoiceConfig::from_config_table(table, Some(&endpoints_base));
         }
     }
-    // Stamp request-identity headers so the STT handshake attributes voice usage to grok-cli server-side (mirrors sampler / imagine)
+    // Stamp request-identity headers so the STT handshake attributes voice usage to xvora-cli server-side (mirrors sampler / imagine)
     // Done after `from_config_table`, which yields a fresh config with these `#[serde(skip)]` fields defaulted to empty
     // Done unconditionally, so the headers apply even when there is no `[voice]` table (or no config at all)
     app.voice_config.client_identifier = crate::client_identity::HEADLESS_CLIENT_TYPE.to_string();
@@ -1534,8 +1534,8 @@ pub(crate) async fn run(
         );
 
         if !app.tips.is_empty() {
-            let grok_home = tools::util::grok_home::grok_home();
-            app.tip = shell::util::tips::pick_and_advance(&app.tips, &grok_home);
+            let xvora_home = tools::util::xvora_home::xvora_home();
+            app.tip = shell::util::tips::pick_and_advance(&app.tips, &xvora_home);
         }
 
         // Slash-command dropdown tags: remote base, local [slash_command_tags] wins per key
@@ -1635,7 +1635,7 @@ pub(crate) async fn run(
         );
     }
 
-    // Apply initial config (may come from existing ~/.grok/pager.toml).
+    // Apply initial config (may come from existing ~/.xvora/pager.toml).
     let mut initial_config = config_watcher.current().clone();
     // The cache holds the USER compact value; the render value is derived (auto-compact while the startup terminal is short)
     initial_config.prompt.compact = crate::views::agent::effective_compact(
@@ -2090,7 +2090,7 @@ pub(crate) async fn run(
         app.finish_startup(telemetry::startup::StartupOutcome::Ok);
     }
 
-    // Initial prompt from the CLI positional (`grok "fix the bug"`)
+    // Initial prompt from the CLI positional (`xvora "fix the bug"`)
     // When already authenticated, hand it to the shared dispatcher helper (same `NewSession`/`SendPrompt` path the welcome screen uses)
     // ZDR-blocked accounts cannot start a session, so drop the prompt
     // This mirrors the deferred post-login path, which clears the startup prompt for ZDR-blocked accounts
@@ -2110,7 +2110,7 @@ pub(crate) async fn run(
         }
     }
 
-    // `grok dashboard` startup: open the dashboard view immediately
+    // `xvora dashboard` startup: open the dashboard view immediately
     // The CLI subcommand wrote a `GROK_OPEN_DASHBOARD_AT_STARTUP=1` env var so we don't have to thread a flag through every arg struct
     if std::env::var("GROK_OPEN_DASHBOARD_AT_STARTUP").as_deref() == Ok("1") {
         // SAFETY: we are pre-multithreaded init for this app loop.
@@ -2309,7 +2309,7 @@ pub(crate) async fn run(
             } else if app.voice_cmd_tx.is_none() {
                 app.voice_state = VoiceState::Idle;
                 app.voice_ui_active = false;
-                app.show_toast("Voice could not start. Restart Grok.");
+                app.show_toast("Voice could not start. Restart xvora.");
             } else {
                 // Defensive: a queued start with the pipeline already up (which shouldn't occur); drop it so we don't re-enter every tick
                 app.voice_state = VoiceState::Idle;
@@ -2871,7 +2871,7 @@ pub(crate) async fn run(
             // Hot-reload: config file changed (dev mode) or initial load.
             Ok(()) = config_watcher.changed() => {
                 let mut config = config_watcher.current().clone();
-                // Preserve fields persisted via `~/.grok/config.toml [ui]` rather than `~/.grok/pager.toml`
+                // Preserve fields persisted via `~/.xvora/config.toml [ui]` rather than `~/.xvora/pager.toml`
                 // The watcher only knows about pager.toml, so a hot-reload would otherwise revert these to their hardcoded defaults
                 // Compact carries the PRE-reload render value
                 // The canonical re-derive below owns any correction, so its fast path cannot skip a needed prompt-widget fan-out

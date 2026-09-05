@@ -18,7 +18,7 @@ pub use session_search::{
 };
 
 /// Private on purpose: [`start_if_enabled`] is the only way to a manager, so the feature cannot be bypassed.
-/// One live manager per grok home, at most.
+/// One live manager per xvora home, at most.
 fn start_search_index() -> SearchIndexManager {
     SearchIndexManager::start(
         |root| -> Box<dyn SessionSource> {
@@ -180,7 +180,7 @@ pub fn notify_session_updated(index: Option<&SearchIndexManager>, session_id: &s
     let Some(index) = index else {
         return;
     };
-    let root = crate::util::grok_home::grok_home();
+    let root = crate::util::xvora_home::xvora_home();
     index.enqueue(root, session_id.to_string(), cwd.to_string());
 }
 

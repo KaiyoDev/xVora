@@ -208,7 +208,7 @@ pub struct ToolIdentity {
 ///
 /// Consumer contract:
 /// - **`label`** is the cross-harness grouping/display key: equivalent tools
-///   share it (grok `read_file` → `"Read"`).
+///   share it (xvora `read_file` → `"Read"`).
 /// - **`kind`** is a finer discriminator (`metadata.kind()`), *not* guaranteed
 ///   equal for equivalent ops across harnesses (listing is `list` in one
 ///   toolset, `list_dir` in another); prefer `label` to join, tolerate unknowns.

@@ -33,7 +33,7 @@ pub struct CampaignOverride {
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct DoomLoopRecoverySettings {
-    /// Send the `x-grok-doom-loop-check` header, parse the reported triggers, and resample confident loops.
+    /// Send the `x-xvora-doom-loop-check` header, parse the reported triggers, and resample confident loops.
     /// `Some(false)` is a kill-switch; absent uses the client default (on).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
@@ -45,7 +45,7 @@ pub struct DoomLoopRecoverySettings {
     /// Resample budget per turn (clamped to 0..=5); absent uses the client default (2).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_retries: Option<u32>,
-    /// Detector window sent as the value of `x-grok-doom-loop-check` (honored in 512..=4096, otherwise 4096; absent uses the client default, 1024).
+    /// Detector window sent as the value of `x-xvora-doom-loop-check` (honored in 512..=4096, otherwise 4096; absent uses the client default, 1024).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window_tokens: Option<u32>,
 }
@@ -148,7 +148,7 @@ pub struct WorktreeAutoGcSettings {
         skip_serializing_if = "Option::is_none"
     )]
     pub max_age_by_kind: Option<std::collections::BTreeMap<String, WorktreeKindMaxAge>>,
-    /// Also rebuild discovery and scrub grok's stale `.git/worktrees/` entries (default off).
+    /// Also rebuild discovery and scrub xvora's stale `.git/worktrees/` entries (default off).
     #[serde(
         default,
         deserialize_with = "de_opt_bool_tolerant",
@@ -540,7 +540,7 @@ pub struct RemoteSettings {
     /// OAuth2 client_id for the CLI. It pairs with `oauth2_issuer`.
     #[serde(default)]
     pub oauth2_client_id: Option<String>,
-    /// When `Some(true)`, enables grok's default OAuth2 (xAI auth.x.ai).
+    /// When `Some(true)`, enables xvora's default OAuth2 (xAI auth.x.ai).
     /// Enterprise OIDC (user's own IdP via `oidc` config) always wins.
     /// The `--oauth` CLI flag overrides it.
     #[serde(default)]
@@ -805,7 +805,7 @@ pub struct RemoteSettings {
     #[serde(default)]
     pub image_gen_enabled: Option<bool>,
     /// Remote settings flag: optional Imagine model override for `image_gen`.
-    /// When present and non-empty, `image_gen` uses this model slug (e.g. `grok-imagine-image`) instead of the default `grok-imagine-image-quality`.
+    /// When present and non-empty, `image_gen` uses this model slug (e.g. `xvora-imagine-image`) instead of the default `xvora-imagine-image-quality`.
     /// Absent or empty uses the default model.
     #[serde(default)]
     pub image_gen_model_override: Option<String>,
@@ -964,7 +964,7 @@ pub struct RemoteSettings {
     /// When `None` or `Some(false)`, sessions are shown in a flat list.
     #[serde(default)]
     pub session_picker_grouped: Option<bool>,
-    /// Whether the user is allowed to use Grok Build. Remote settings `grok_build_access_gate` targeting rules set it.
+    /// Whether the user is allowed to use xvora build. Remote settings `grok_build_access_gate` targeting rules set it.
     /// `None` means no server response yet (the client uses its own fallback check); `Some(false)` means blocked.
     #[serde(default)]
     pub allow_access: Option<bool>,
@@ -1037,7 +1037,7 @@ pub struct RemoteSettings {
     /// See `Config::resolve_image_edit`.
     #[serde(default)]
     pub imagine_tools_disabled: Option<Vec<String>>,
-    /// Remote settings gate for the `grok workspace` CLI command (Computer Hub workspace exposure).
+    /// Remote settings gate for the `xvora workspace` CLI command (Computer Hub workspace exposure).
     /// It comes from `grok_build_settings.workspace_command_enabled`.
     /// `Some(true)` enables it; `None` or `Some(false)` (the default) keep it off.
     #[serde(default)]
@@ -1098,7 +1098,7 @@ pub struct ContextualHintsRemote {
     /// Export/copy tip after three nearby drag-copies.
     #[serde(default)]
     pub export_copy: Option<bool>,
-    /// SSH wrap session-load tip (recommend `grok wrap ssh` for remote sessions).
+    /// SSH wrap session-load tip (recommend `xvora wrap ssh` for remote sessions).
     #[serde(default)]
     pub ssh_wrap: Option<bool>,
 }
@@ -1183,13 +1183,13 @@ where
     }
 }
 /// A model and the harness whose system prompt and toolset flavor that model must run against.
-/// The pair is the atomic configurable unit because a model is only guaranteed to work with a compatible harness (cursor vs grok-build).
+/// The pair is the atomic configurable unit because a model is only guaranteed to work with a compatible harness (cursor vs xvora-build).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GoalRoleModel {
-    /// Model id, e.g. "grok-4". It resolves against available models at spawn time; unknown or unauthorized fails open to the current model.
+    /// Model id, e.g. "xvora-4". It resolves against available models at spawn time; unknown or unauthorized fails open to the current model.
     pub model: String,
-    /// Harness `agent_type` (e.g. "cursor", "grok-build-plan") whose `AgentDefinition` decides the role subagent's harness flavor.
-    /// The flavor (system prompt and cursor-vs-grok-build toolset) applies regardless of the session or parent agent.
+    /// Harness `agent_type` (e.g. "cursor", "xvora-build-plan") whose `AgentDefinition` decides the role subagent's harness flavor.
+    /// The flavor (system prompt and cursor-vs-xvora-build toolset) applies regardless of the session or parent agent.
     /// It is resolved by name (project/plugin/builtin lookup, then re-flavored by the subagent toolset resolver).
     /// The main session's env/ACP/strict-harness precedence chain plays no part.
     /// It is not a subagent type: the role always spawns `general-purpose`, so the harness only re-flavors that toolset.
@@ -1456,12 +1456,12 @@ mod tests {
     #[test]
     fn remote_settings_goal_planner_model_round_trip() {
         let json =
-            r#"{"goal_planner_model": {"model": "grok-4", "agent_type": "general-purpose"}}"#;
+            r#"{"goal_planner_model": {"model": "xvora-4", "agent_type": "general-purpose"}}"#;
         let s: RemoteSettings = serde_json::from_str(json).unwrap();
         assert_eq!(
             s.goal_planner_model,
             Some(GoalRoleModel {
-                model: "grok-4".to_string(),
+                model: "xvora-4".to_string(),
                 agent_type: "general-purpose".to_string(),
             })
         );
@@ -1472,7 +1472,7 @@ mod tests {
     #[test]
     fn remote_settings_goal_skeptic_models_fully_valid_pool_round_trips() {
         let json = r#"{"goal_skeptic_models": [
-            {"model": "grok-4", "agent_type": "general-purpose"},
+            {"model": "xvora-4", "agent_type": "general-purpose"},
             {"model": "grok-3", "agent_type": "cursor"}
         ]}"#;
         let s: RemoteSettings = serde_json::from_str(json).unwrap();
@@ -1480,7 +1480,7 @@ mod tests {
             s.goal_skeptic_models,
             vec![
                 GoalRoleModel {
-                    model: "grok-4".to_string(),
+                    model: "xvora-4".to_string(),
                     agent_type: "general-purpose".to_string(),
                 },
                 GoalRoleModel {
@@ -1496,8 +1496,8 @@ mod tests {
     #[test]
     fn remote_settings_goal_skeptic_models_one_bad_item_does_not_poison_pool() {
         let json = r#"{"goal_skeptic_models": [
-            {"model": "grok-4", "agent_type": "general-purpose"},
-            {"model": "grok-broken"},
+            {"model": "xvora-4", "agent_type": "general-purpose"},
+            {"model": "xvora-broken"},
             {"model": "grok-3", "agent_type": "cursor"}
         ]}"#;
         let s: RemoteSettings = serde_json::from_str(json).unwrap();
@@ -1505,7 +1505,7 @@ mod tests {
             s.goal_skeptic_models,
             vec![
                 GoalRoleModel {
-                    model: "grok-4".to_string(),
+                    model: "xvora-4".to_string(),
                     agent_type: "general-purpose".to_string(),
                 },
                 GoalRoleModel {
@@ -1560,13 +1560,13 @@ mod tests {
         let json = r#"{"goal_skeptic_models": [
             {"model": 123, "agent_type": "general-purpose"},
             {"model": "grok-3", "agent_type": ["cursor"]},
-            {"model": "grok-4", "agent_type": "general-purpose"}
+            {"model": "xvora-4", "agent_type": "general-purpose"}
         ]}"#;
         let s: RemoteSettings = serde_json::from_str(json).unwrap();
         assert_eq!(
             s.goal_skeptic_models,
             vec![GoalRoleModel {
-                model: "grok-4".to_string(),
+                model: "xvora-4".to_string(),
                 agent_type: "general-purpose".to_string(),
             }]
         );
@@ -1574,13 +1574,13 @@ mod tests {
     #[test]
     fn remote_settings_goal_skeptic_models_extra_unknown_fields_kept() {
         let json = r#"{"goal_skeptic_models": [
-            {"model": "grok-4", "agent_type": "general-purpose", "reasoning_effort": "high"}
+            {"model": "xvora-4", "agent_type": "general-purpose", "reasoning_effort": "high"}
         ]}"#;
         let s: RemoteSettings = serde_json::from_str(json).unwrap();
         assert_eq!(
             s.goal_skeptic_models,
             vec![GoalRoleModel {
-                model: "grok-4".to_string(),
+                model: "xvora-4".to_string(),
                 agent_type: "general-purpose".to_string(),
             }]
         );
@@ -1621,7 +1621,7 @@ mod tests {
         let json = r#"{
             "goal_planner_model": {"model": "broken"},
             "goal_strategist_model": {"model": "grok-4.5", "agent_type": "cursor"},
-            "default_model": "grok-4"
+            "default_model": "xvora-4"
         }"#;
         let s: RemoteSettings = serde_json::from_str(json).unwrap();
         assert_eq!(s.goal_planner_model, None);
@@ -1632,16 +1632,16 @@ mod tests {
                 agent_type: "cursor".to_string(),
             })
         );
-        assert_eq!(s.default_model.as_deref(), Some("grok-4"));
+        assert_eq!(s.default_model.as_deref(), Some("xvora-4"));
     }
     #[test]
     fn remote_settings_goal_role_model_extra_unknown_fields_kept_single_pair() {
-        let json = r#"{"goal_planner_model": {"model": "grok-4", "agent_type": "general-purpose", "future": true}}"#;
+        let json = r#"{"goal_planner_model": {"model": "xvora-4", "agent_type": "general-purpose", "future": true}}"#;
         let s: RemoteSettings = serde_json::from_str(json).unwrap();
         assert_eq!(
             s.goal_planner_model,
             Some(GoalRoleModel {
-                model: "grok-4".to_string(),
+                model: "xvora-4".to_string(),
                 agent_type: "general-purpose".to_string(),
             })
         );

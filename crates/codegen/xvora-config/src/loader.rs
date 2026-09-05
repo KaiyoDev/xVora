@@ -74,7 +74,7 @@ fn line_col(src: &str, byte: usize) -> (usize, usize) {
 }
 
 /// [`load_toml_file`] plus that layer's `[[version_overrides]]`.
-/// Use for grok config files; use [`load_toml_file`] directly for unrelated TOML.
+/// Use for xvora config files; use [`load_toml_file`] directly for unrelated TOML.
 pub fn load_config_file(path: &Path) -> std::io::Result<toml::Value> {
     let mut v = load_toml_file(path)?;
     apply_version_overrides_with_registered(&mut v)?;
@@ -85,7 +85,7 @@ pub fn load_from_disk() -> std::io::Result<toml::Value> {
     load_user_config_layer(user_grok_home().as_deref(), USER_CONFIG_FILENAME)
 }
 
-/// User config filename (`$GROK_HOME/config.toml`), shared by the loaders here.
+/// User config filename (`$xvora_home/config.toml`), shared by the loaders here.
 pub const USER_CONFIG_FILENAME: &str = "config.toml";
 
 /// Managed config filename, shared by the loaders in this module.
@@ -94,17 +94,17 @@ pub const MANAGED_CONFIG_FILENAME: &str = "managed_config.toml";
 /// Requirements (cloud-cache) filename, synced from the server alongside the managed config.
 pub const REQUIREMENTS_FILENAME: &str = "requirements.toml";
 
-/// Unsigned folder-trust store (`$GROK_HOME/trusted_folders.toml`).
+/// Unsigned folder-trust store (`$xvora_home/trusted_folders.toml`).
 pub const TRUSTED_FOLDERS_FILENAME: &str = "trusted_folders.toml";
 
-/// User-global sandbox profile definitions (`$GROK_HOME/sandbox.toml`).
+/// User-global sandbox profile definitions (`$xvora_home/sandbox.toml`).
 pub const SANDBOX_CONFIG_FILENAME: &str = "sandbox.toml";
 
-/// Legacy project-hook trust list (`$GROK_HOME/trusted-hook-projects`).
+/// Legacy project-hook trust list (`$xvora_home/trusted-hook-projects`).
 /// Migrated into [`TRUSTED_FOLDERS_FILENAME`] on the next unsandboxed start.
 pub const TRUSTED_HOOK_PROJECTS_FILENAME: &str = "trusted-hook-projects";
 
-/// Plugin trust list (`$GROK_HOME/trusted-plugins`).
+/// Plugin trust list (`$xvora_home/trusted-plugins`).
 pub const TRUSTED_PLUGINS_FILENAME: &str = "trusted-plugins";
 
 pub fn load_managed_config() -> std::io::Result<toml::Value> {
@@ -112,8 +112,8 @@ pub fn load_managed_config() -> std::io::Result<toml::Value> {
 }
 
 /// Load a user-tier config layer from `<home>/<filename>`.
-/// With no resolvable user home, returns an empty table rather than reading a cwd-relative `.grok/<filename>`.
-/// The cwd fallback would silently promote an untrusted project `.grok` to the user tier.
+/// With no resolvable user home, returns an empty table rather than reading a cwd-relative `.xvora/<filename>`.
+/// The cwd fallback would silently promote an untrusted project `.xvora` to the user tier.
 fn load_user_config_layer(home: Option<&Path>, filename: &str) -> std::io::Result<toml::Value> {
     match home {
         Some(g) => load_config_file(&g.join(filename)),
@@ -135,7 +135,7 @@ pub fn load_system_managed_config() -> std::io::Result<toml::Value> {
 pub struct ManagedConfigLayer {
     pub value: toml::Value,
     pub path: std::path::PathBuf,
-    /// `true` for the root-owned system layer (`/etc/grok`), derived from the load directory.
+    /// `true` for the root-owned system layer (`/etc/xvora`), derived from the load directory.
     pub is_system: bool,
 }
 
@@ -179,15 +179,15 @@ pub fn managed_config_layers_at(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HookProvenance {
-    /// `/etc/grok/managed_config.toml` (root-owned).
+    /// `/etc/xvora/managed_config.toml` (root-owned).
     SystemManaged,
-    /// `$GROK_HOME/managed_config.toml` (server-synced, user-writable).
+    /// `$xvora_home/managed_config.toml` (server-synced, user-writable).
     Managed,
-    /// System-tier `requirements.toml` (root-owned, e.g. `/etc/grok`).
+    /// System-tier `requirements.toml` (root-owned, e.g. `/etc/xvora`).
     Requirements,
-    /// `$GROK_HOME/requirements.toml` (user-writable).
+    /// `$xvora_home/requirements.toml` (user-writable).
     UserRequirements,
-    /// `$GROK_HOME/config.toml`.
+    /// `$xvora_home/config.toml`.
     User,
     /// A JSON hook file (the hooks directory, a vendor settings file, or a configured hooks path).
     File,
@@ -209,14 +209,14 @@ impl Default for HookProvenance {
 impl HookProvenance {
     /// Root-owned admin policy tiers; the user cannot disable or skip their hooks.
     /// Every disable path must consult this predicate rather than re-derive the rule from names or paths.
-    /// `$GROK_HOME` tiers (`Managed`, `UserRequirements`) never qualify: the user owns that directory and can rewrite or repoint it.
+    /// `$xvora_home` tiers (`Managed`, `UserRequirements`) never qualify: the user owns that directory and can rewrite or repoint it.
     /// Exempting them would let any file the user edits grant itself the exemption.
     pub fn is_managed_policy(self) -> bool {
         matches!(self, Self::SystemManaged | Self::Requirements)
     }
 
     /// Authority rank for duplicate resolution: when byte-identical hooks arrive from several tiers, the highest-ranked copy keeps its provenance.
-    /// The provenance carries the no-disable rule and the pinned timeout/env; root-owned tiers outrank `$GROK_HOME` tiers.
+    /// The provenance carries the no-disable rule and the pinned timeout/env; root-owned tiers outrank `$xvora_home` tiers.
     /// Deliberately NOT the config-merge precedence (where user overrides managed).
     /// Merge precedence answers "whose VALUE wins"; this answers "whose copy of one identical hook is authoritative": ownership, not recency.
     pub fn authority_rank(self) -> u8 {
@@ -587,7 +587,7 @@ mod tests {
         assert_eq!(cmd, "${HOME}/u.sh");
     }
 
-    /// The user-writable `$GROK_HOME/requirements.toml` stamps `UserRequirements`, never the exempt `Requirements`.
+    /// The user-writable `$xvora_home/requirements.toml` stamps `UserRequirements`, never the exempt `Requirements`.
     /// A file the user owns cannot grant itself the no-disable exemption.
     #[test]
     fn user_requirements_layer_is_not_managed_policy() {
@@ -799,14 +799,14 @@ mod tests {
 
     #[test]
     fn load_user_config_layer_is_empty_without_user_home() {
-        // No resolvable user home: no user layer, and no cwd-relative .grok read
+        // No resolvable user home: no user layer, and no cwd-relative .xvora read
         let v = load_user_config_layer(None, "config.toml").unwrap();
         assert_eq!(v.as_table().map(|t| t.is_empty()), Some(true));
     }
 
     #[test]
     fn load_user_config_layer_treats_empty_file_as_empty_table() {
-        let dir = std::env::temp_dir().join(format!("grok-load-empty-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("xvora-load-empty-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("config.toml"), b"").unwrap();
         let v = load_user_config_layer(Some(&dir), "config.toml").unwrap();
@@ -818,7 +818,7 @@ mod tests {
     fn load_user_config_layer_reads_file_when_home_present() {
         use std::io::Write;
 
-        let dir = std::env::temp_dir().join(format!("grok-load-layer-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("xvora-load-layer-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let mut f = std::fs::File::create(dir.join("config.toml")).unwrap();
         writeln!(f, "[telemetry]\nmode = \"from_file\"\n").unwrap();
@@ -831,7 +831,7 @@ mod tests {
     /// The returned error keeps the parser's kind and location but never the source snippet, which can carry a secret and would reach clients.
     #[test]
     fn parse_error_keeps_kind_but_not_snippet() {
-        let dir = std::env::temp_dir().join(format!("grok-toml-leak-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("xvora-toml-leak-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("bad.toml");
         // Duplicate key: the message names the key; the secret-bearing source line is only in Display.

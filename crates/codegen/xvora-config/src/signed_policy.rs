@@ -645,7 +645,7 @@ pub enum SignedVerdict {
     /// Under a fail-closed marker that recorded served policy, absence is itself tamper.
     /// Stripping the sidecar must not downgrade enforcement to the forgeable marker path.
     /// A first keyed launch over a pre-signing cache also refuses until one online refetch writes the sidecar; that is deliberate.
-    /// Residual risk: wiping the marker with the sidecar, inherent to user-writable state, covered by the root-owned /etc/grok and MDM layers.
+    /// Residual risk: wiping the marker with the sidecar, inherent to user-writable state, covered by the root-owned /etc/xvora and MDM layers.
     /// Otherwise the marker decides.
     NoAuthenticSidecar,
     /// The sidecar exists but a transient IO error (EACCES-style, never plain absence or a squatting non-file) blocked the read.

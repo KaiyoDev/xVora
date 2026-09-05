@@ -142,7 +142,7 @@ pub enum LocalQuestionKind {
 }
 
 /// Bare `/feedback` pane label (first paragraph of the question chrome).
-pub const FEEDBACK_QUESTION_LABEL: &str = "How can we improve Grok Build?";
+pub const FEEDBACK_QUESTION_LABEL: &str = "How can we improve xvora build?";
 
 /// Trace-consent question shown after the report is submitted.
 /// The wording comes from legal review: it discloses retention/training scope, not just debugging.
@@ -2875,7 +2875,7 @@ mod tests {
     #[test]
     fn chrome_height_option_less_question_drops_the_label_gap() {
         // Nothing under the label to separate it from, so the gap goes: vpad(1) + label(1) + gap(1) = 3. This is the bare `/feedback` card.
-        let q = make_question("How can we improve Grok Build?", &[], false);
+        let q = make_question("How can we improve xvora build?", &[], false);
         assert_eq!(
             chrome_height(
                 &q,

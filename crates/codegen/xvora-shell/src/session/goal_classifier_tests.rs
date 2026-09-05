@@ -214,7 +214,7 @@ fn validate_details_path_in_root_keys_on_injected_temp_root() {
     let mac_like = Path::new("/var/folders/zz/T");
     assert!(
         validate_details_path_in_root(
-            Path::new("/var/folders/zz/T/grok-goal-abc/goal-classifier-abc-1.md"),
+            Path::new("/var/folders/zz/T/xvora-goal-abc/goal-classifier-abc-1.md"),
             mac_like,
         )
         .is_ok(),
@@ -227,7 +227,7 @@ fn validate_details_path_in_root_keys_on_injected_temp_root() {
     );
     assert!(
         validate_details_path_in_root(
-            Path::new("/tmp/grok-goal-abc/goal-classifier-abc-1.md"),
+            Path::new("/tmp/xvora-goal-abc/goal-classifier-abc-1.md"),
             Path::new("/tmp"),
         )
         .is_ok(),
@@ -1128,10 +1128,10 @@ fn gap_fingerprint_is_stable_across_scratch_path_churn() {
     ]);
     assert_eq!(a, b, "scratch-path churn must not break the fingerprint");
     let c = gap_fingerprint(&[
-        "no captured output in /var/folders/x1/T/grok-goal-1/out.log for criterion 2",
+        "no captured output in /var/folders/x1/T/xvora-goal-1/out.log for criterion 2",
     ]);
     let d = gap_fingerprint(&[
-        "no captured output in /var/folders/x1/T/grok-goal-2/out.log for criterion 2",
+        "no captured output in /var/folders/x1/T/xvora-goal-2/out.log for criterion 2",
     ]);
     assert_eq!(c, d);
     // Genuinely different gaps still differ.
@@ -1260,14 +1260,14 @@ fn verifier_template_renders_per_agent_type_and_falls_back() {
     }
     assert_no_tool_placeholders(&cursor);
 
-    // grok-build explicit render: no leftover placeholder either.
-    let grok = RoleToolNames::from_summary(&summary_with(&[
+    // xvora-build explicit render: no leftover placeholder either.
+    let xvora = RoleToolNames::from_summary(&summary_with(&[
         (tools::types::tool::ToolKind::Read, "read_file"),
         (tools::types::tool::ToolKind::ListDir, "list_dir"),
         (tools::types::tool::ToolKind::Search, "grep"),
     ]))
     .apply(GOAL_VERIFIER_PROMPT_TEMPLATE);
-    assert_no_tool_placeholders(&grok);
+    assert_no_tool_placeholders(&xvora);
 
     // Fallback path (e.g. `describe_subagent_type` returns `Unavailable`): the parent-toolset defaults render and no placeholder survives.
     let fallback = RoleToolNames::inherit_defaults().apply(GOAL_VERIFIER_PROMPT_TEMPLATE);
@@ -1423,8 +1423,8 @@ fn render_skeptic_prompt_substitutes_kind_lens_and_leaves_no_placeholder() {
         "/tmp/goal-verifier-details-x-1-0.md",
         "/tmp/goal-verdict-x-1-0.json",
         kind_lens(Some(GoalKind::CodeChange)),
-        "/tmp/grok-goal-x/skeptic-0",
-        "/tmp/grok-goal-x/implementer",
+        "/tmp/xvora-goal-x/skeptic-0",
+        "/tmp/xvora-goal-x/implementer",
         None,
         &RoleToolNames::inherit_defaults(),
         true,
@@ -1434,8 +1434,8 @@ fn render_skeptic_prompt_substitutes_kind_lens_and_leaves_no_placeholder() {
         "the placeholder must be substituted:\n{body}"
     );
     // The skeptic's own scratch dir AND the line pointing at the implementer's scratch dir are both present, with no dangling placeholder
-    assert!(body.contains("/tmp/grok-goal-x/skeptic-0"));
-    assert!(body.contains("/tmp/grok-goal-x/implementer"));
+    assert!(body.contains("/tmp/xvora-goal-x/skeptic-0"));
+    assert!(body.contains("/tmp/xvora-goal-x/implementer"));
     assert!(
         !body.contains("{SKEPTIC_SCRATCH}") && !body.contains("{IMPLEMENTER_SCRATCH}"),
         "scratch placeholders must be substituted:\n{body}"
@@ -1452,8 +1452,8 @@ fn render_skeptic_prompt_substitutes_kind_lens_and_leaves_no_placeholder() {
         "/tmp/goal-verifier-details-x-1-0.md",
         "/tmp/goal-verdict-x-1-0.json",
         kind_lens(None),
-        "/tmp/grok-goal-x/skeptic-1",
-        "/tmp/grok-goal-x/implementer",
+        "/tmp/xvora-goal-x/skeptic-1",
+        "/tmp/xvora-goal-x/implementer",
         None,
         &RoleToolNames::inherit_defaults(),
         true,
@@ -1477,8 +1477,8 @@ fn render_skeptic_prompt_scratch_status_reflects_readiness() {
             "/tmp/goal-verifier-details-x-1-0.md",
             "/tmp/goal-verdict-x-1-0.json",
             kind_lens(Some(GoalKind::CodeChange)),
-            "/tmp/grok-goal-x/skeptic-0",
-            "/tmp/grok-goal-x/implementer",
+            "/tmp/xvora-goal-x/skeptic-0",
+            "/tmp/xvora-goal-x/implementer",
             None,
             &RoleToolNames::inherit_defaults(),
             scratch_ready,
@@ -1498,8 +1498,8 @@ fn render_skeptic_prompt_scratch_status_reflects_readiness() {
         !not_ready.contains("{SCRATCH_STATUS}"),
         "placeholder must resolve"
     );
-    assert!(ready.contains("/tmp/grok-goal-x/skeptic-0"));
-    assert!(ready.contains("/tmp/grok-goal-x/implementer"));
+    assert!(ready.contains("/tmp/xvora-goal-x/skeptic-0"));
+    assert!(ready.contains("/tmp/xvora-goal-x/implementer"));
 }
 
 /// `{PRIOR_GAPS}` renders the gaps when present, the first-round sentinel when absent, and never leaks the placeholder.
@@ -1516,8 +1516,8 @@ fn render_skeptic_prompt_substitutes_prior_gaps() {
             "/tmp/goal-verifier-details-x-2-1.md",
             "/tmp/goal-verdict-x-2-1.json",
             kind_lens(Some(GoalKind::CodeChange)),
-            "/tmp/grok-goal-x/skeptic-1",
-            "/tmp/grok-goal-x/implementer",
+            "/tmp/xvora-goal-x/skeptic-1",
+            "/tmp/xvora-goal-x/implementer",
             prior,
             &RoleToolNames::inherit_defaults(),
             true,
@@ -1549,8 +1549,8 @@ fn render_skeptic_resume_prompt_is_delta_focused_and_substitutes_paths() {
         "/tmp/goal-classifier-x-2-skeptic-0.md",
         "/tmp/goal-verdict-x-2-0.json",
         kind_lens(Some(GoalKind::CodeChange)),
-        "/tmp/grok-goal-x/skeptic-0",
-        "/tmp/grok-goal-x/implementer",
+        "/tmp/xvora-goal-x/skeptic-0",
+        "/tmp/xvora-goal-x/implementer",
         None,
         &RoleToolNames::inherit_defaults(),
         true,
@@ -1563,8 +1563,8 @@ fn render_skeptic_resume_prompt_is_delta_focused_and_substitutes_paths() {
     assert!(body.contains("/tmp/goal-verdict-x-2-0.json"));
     assert!(body.contains("/tmp/goal-classifier-x-2-skeptic-0.md"));
     // Scratch dirs: the skeptic's own and the implementer's, both substituted
-    assert!(body.contains("/tmp/grok-goal-x/skeptic-0"));
-    assert!(body.contains("/tmp/grok-goal-x/implementer"));
+    assert!(body.contains("/tmp/xvora-goal-x/skeptic-0"));
+    assert!(body.contains("/tmp/xvora-goal-x/implementer"));
     assert!(
         !body.contains("{KIND_LENS}")
             && !body.contains("{DETAILS_FILE}")
@@ -1909,11 +1909,11 @@ fn stage_inputs_resume<'a>(
         workspace_root,
         verifier_id,
         attempt,
-        model_id: "grok-test",
+        model_id: "xvora-test",
         goal_created_at: 0,
         plan_file: None,
         plan_baseline_file: None,
-        implementer_scratch_dir: Path::new("/tmp/grok-goal-test/implementer"),
+        implementer_scratch_dir: Path::new("/tmp/xvora-goal-test/implementer"),
         scratch_dir_ready: true,
         skeptic_count,
         max_runs: GOAL_CLASSIFIER_MAX_RUNS_DEFAULT,
@@ -2001,7 +2001,7 @@ async fn verification_stage_n1_not_refuted_returns_achieved() {
     // Scratch slots resolved: the implementer dir (from stage inputs) and this skeptic's own dir (derived from verifier_id) are both present
     // Neither placeholder leaks
     assert!(
-        p.contains("/tmp/grok-goal-test/implementer"),
+        p.contains("/tmp/xvora-goal-test/implementer"),
         "implementer scratch dir missing in prompt",
     );
     assert!(
@@ -3527,7 +3527,7 @@ async fn run_one_skeptic_fails_closed_when_scratch_root_squatted() {
         verifier_id: &vid,
         attempt: 1,
         kind_lens: "",
-        implementer_scratch: "/tmp/grok-goal-test/implementer",
+        implementer_scratch: "/tmp/xvora-goal-test/implementer",
         scratch_dir_ready: true,
         prior_gaps: None,
     };

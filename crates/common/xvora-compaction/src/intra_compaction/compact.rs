@@ -31,7 +31,7 @@ use super::fit::fit_turns_for_summarizer;
 use super::observer::IntraCompactionObserver;
 use super::traits::{CompactionStreamProc, CompactionTarget};
 use super::trigger::{IntraCompactionError, IntraCompactionResult, IntraCompactionTrigger};
-// The `Shared` summarizer reuses grok-build's full-replace summarization core
+// The `Shared` summarizer reuses xvora-build's full-replace summarization core
 // (the shared summarization core lives in `code_compaction`); intra_compaction intentionally
 // depends on `code_compaction` for it.
 use crate::code_compaction::{
@@ -204,14 +204,14 @@ where
     .await
 }
 
-/// `FullReplace` strategy (default): grok-build's full-replace — summarize the
+/// `FullReplace` strategy (default): xvora-build's full-replace — summarize the
 /// *whole* conversation (prior history + accumulated steps) in one pass and
 /// rebuild context from scratch via [`CompactionTarget::FullReplace`].
 ///
 /// Unlike the partial modes there is no tail-keep selection and no
 /// `<grok_user_queries>` preamble: the shared `code_compaction` summarizer
 /// (always [`IntraSummarizer::Shared`] here, regardless of `policy.summarizer`)
-/// preserves user intent itself, matching grok-build. The reduction and
+/// preserves user intent itself, matching xvora-build. The reduction and
 /// `min_compactable_tokens` guards are kept for parity with the partial modes.
 ///
 /// When `summarizer_input_budget` is `Some`, turns are **fitted** via the
@@ -283,7 +283,7 @@ where
         "[IntraCompaction] starting full replace"
     );
 
-    // 2. Summarize (possibly fitted) turns through grok-build's shared core.
+    // 2. Summarize (possibly fitted) turns through xvora-build's shared core.
     //    FullReplace always uses the shared summarizer (it *is* the
     //    `code_compaction` path); `policy.summarizer` is ignored for this mode.
     let summary_text = sample_shared_summary_with_retries(sampler, &llm_turns, policy).await?;
@@ -292,7 +292,7 @@ where
     //     the compaction. FullReplace drops the working tail, so append the
     //     harness-supplied `<system-reminder>` (verbatim ids) to the summary so
     //     the model can keep polling/cancelling them. Empty/None → no change.
-    //     Shared with Grok chat inter-compaction via `append_reminder_block` so
+    //     Shared with xvora chat inter-compaction via `append_reminder_block` so
     //     both inject the reminder into the summary text identically, before the
     //     reduction guard below counts it.
     let summary_text = crate::append_reminder_block(summary_text, active_reminder);
@@ -553,7 +553,7 @@ where
             sample_compaction_with_retries(sampler, &turns_for_llm, &prompt, timeout, policy)
                 .await?
         }
-        // New (default): grok-build's shared summarization core from
+        // New (default): xvora-build's shared summarization core from
         // `code_compaction` — `build_summary_prompt` + degenerate-reject +
         // `format_compact_summary` cleaning — run intra-locally.
         IntraSummarizer::Shared => {
@@ -671,14 +671,14 @@ fn build_prompt_for_target(
 
 /// `Shared` summarizer (default): sample through the shared retry loop
 /// [`sample_summary_with_retries`](crate::code_compaction::sample_summary_with_retries)
-/// — grok-build's summarization core (`build_summary_prompt` + bounded retry +
+/// — xvora-build's summarization core (`build_summary_prompt` + bounded retry +
 /// degenerate-reject + `format_compact_summary` cleaning) — then map the
 /// structured outcome onto [`IntraCompactionError`] and return the *cleaned*
 /// summary on success.
 ///
 /// The classification (degenerate/empty = transient; deterministic vs transient
 /// sampler errors, incl. context-length overflow) lives in the shared loop, so
-/// intra and grok-build stay in lock-step. Outcome mapping:
+/// intra and xvora-build stay in lock-step. Outcome mapping:
 /// - exhausted empty/degenerate run → [`IntraCompactionError::EmptyResponse`];
 /// - context overflow → [`IntraCompactionError::ContextOverflow`] (terminal;
 ///   intra has no input ladder);
@@ -698,7 +698,7 @@ where
     T: Send + Sync,
     P: CompactionSampler<Item = T> + ?Sized,
 {
-    // grok-build appends the summarization prompt as the final user message;
+    // xvora-build appends the summarization prompt as the final user message;
     // there is no separate system prompt for the compaction call.
     let prompt = CompactionPrompt {
         system: String::new(),
@@ -717,7 +717,7 @@ where
     )
     .await
     {
-        // grok-build returns the raw summary and cleans it in its assembler;
+        // xvora-build returns the raw summary and cleans it in its assembler;
         // intra has no assembler, so it cleans here (pre-refactor behavior).
         Ok(SampledSummary { summary, .. }) => Ok(format_compact_summary(&summary)),
         Err(SampleRetryError::Empty { .. }) => Err(IntraCompactionError::EmptyResponse),
@@ -739,7 +739,7 @@ where
 }
 
 /// Map an [`IntraCompactionError`] to a stable, low-cardinality `status`
-/// metric label. Keep these in sync with the doc string on Grok chat's
+/// metric label. Keep these in sync with the doc string on xvora chat's
 /// `IntraCompactionCount` metric.
 pub fn error_status_label(err: &IntraCompactionError) -> &'static str {
     match err {
@@ -799,7 +799,7 @@ where
 /// summarizer).
 ///
 /// Structured variants map directly. The `Other` fallback string-matches
-/// the literal error messages produced by the Grok chat sampler —
+/// the literal error messages produced by the xvora chat sampler —
 /// keep these in sync if either side changes (the
 /// `compaction_sample_error_to_intra*` tests below guard the mapping).
 fn compaction_sample_error_to_intra(err: CompactionSampleError) -> IntraCompactionError {
@@ -931,7 +931,7 @@ mod tests {
 
     #[test]
     fn compaction_sample_error_to_intra_maps_empty_response() {
-        // The literal message emitted by the Grok chat sampler when the
+        // The literal message emitted by the xvora chat sampler when the
         // response channel produces no content.
         let intra = compaction_sample_error_to_intra(CompactionSampleError::Other(
             anyhow::anyhow!("Compaction scheduler returned no response channel content"),
@@ -1626,7 +1626,7 @@ mod tests {
     }
 
     /// `Arc<MockItem>` also satisfies the builder bound via the blanket impl
-    /// — guards the forwarding that Grok chat (`Arc<GrokTurn>`) relies on.
+    /// — guards the forwarding that xvora chat (`Arc<GrokTurn>`) relies on.
     #[test]
     fn arc_blanket_impl_forwards_builder_methods() {
         let item = Arc::new(MockItem::user("hello"));

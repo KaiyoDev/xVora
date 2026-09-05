@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 #![allow(unused_imports)]
 //! Inherent [`MvpAgent`] helpers (MCP/clients/gateway, settings/models, session ops, spawn).
 //! Co-located child of `mvp_agent` (`use super::*`).
@@ -334,7 +334,7 @@ impl MvpAgent {
     }
     /// Resolve folder trust and load launch-dir MCP configs after `initialize` returns.
     /// The walks are synchronous and expensive in large monorepos.
-    /// They must not block the ACP response (grok-desktop sends `initialize` immediately).
+    /// They must not block the ACP response (xvora-desktop sends `initialize` immediately).
     pub(super) fn spawn_initialize_launch_mcp_setup(&self) {
         let cwd = self.launch_cwd.clone();
         let compat = self.cfg.borrow().compat_resolved;
@@ -374,7 +374,7 @@ impl MvpAgent {
     /// Build the launch-dir plugin registry snapshot on first use.
     ///
     /// Boot-time discovery was deferred past ACP `initialize`, leaving `plugin_registry_handle` empty.
-    /// The cwd-to-git-root and user/marketplace walks stalled grok-desktop's first `initialize`.
+    /// The cwd-to-git-root and user/marketplace walks stalled xvora-desktop's first `initialize`.
     /// That shared snapshot still backs the launch-dir plugin MCP/LSP merges read in `resolve_mcp_servers` and the session LSP build.
     /// So populate it lazily, off the `initialize` critical path, on the first session-creating call.
     /// Runs the discovery walk once; per-session `build_for_cwd` still re-resolves project-scoped plugins for each session's own cwd.
@@ -1240,7 +1240,7 @@ impl MvpAgent {
     /// Build the process-lifetime local `WorkspaceOps` on first use.
     ///
     /// Deferred past ACP wiring so `initialize` can respond before folder-trust scans and `WorkspaceHandle::new_minimal` run.
-    /// This is the same boot stall as plugin discovery on grok-desktop Windows.
+    /// This is the same boot stall as plugin discovery on xvora-desktop Windows.
     fn ensure_local_workspace_ops(
         &self,
     ) -> Result<workspace::WorkspaceOps, acp::Error> {
@@ -1313,7 +1313,7 @@ impl MvpAgent {
     ///
     /// Returns `SessionToken` when EITHER:
     ///   - `auth_manager` currently has a live (non-expired) credential, OR
-    ///   - the active auth method is session-based (`cached_token`, `grok.com`, `oidc`), even if the in-memory token is currently expired or missing.
+    ///   - the active auth method is session-based (`cached_token`, `xvora.com`, `oidc`), even if the in-memory token is currently expired or missing.
     ///
     /// Returns `ApiKey` only when the auth method is BYOK (`xvora.api_key`) or no auth method has been selected yet AND no live credential exists.
     ///
@@ -1326,7 +1326,7 @@ impl MvpAgent {
             chat_state::AuthType::ApiKey
         }
     }
-    /// Fall through to `xvora.api_key` if the startup probe still allows it, else `grok.com`.
+    /// Fall through to `xvora.api_key` if the startup probe still allows it, else `xvora.com`.
     /// `None` when `preferred_method` is pinned.
     pub(super) fn cached_token_fallthrough_method_id(
         &self,
@@ -1342,7 +1342,7 @@ impl MvpAgent {
         )?;
         Some(acp::AuthMethodId::new(id))
     }
-    /// Shared exit for missing/expired/legacy `cached_token`: fall through with `use_oauth` only when the target is interactive `grok.com`.
+    /// Shared exit for missing/expired/legacy `cached_token`: fall through with `use_oauth` only when the target is interactive `xvora.com`.
     /// When `preferred_method` is pinned, fail instead of falling through.
     pub(super) async fn authenticate_after_cached_token_unavailable(
         &self,
@@ -1429,7 +1429,7 @@ impl MvpAgent {
     fn reapply_official_marketplace(&self) {
         if self.cfg.borrow().resolve_official_marketplace_auto_register().value {
             crate::extensions::marketplace::ensure_official_marketplace_source(
-                &crate::util::grok_home::grok_home(),
+                &crate::util::xvora_home::xvora_home(),
             );
         }
     }
@@ -2085,7 +2085,7 @@ impl MvpAgent {
         );
         (id.clone(), new_config)
     }
-    /// Whether the current session is a personal grok.com account on a gated tier (free / X Basic).
+    /// Whether the current session is a personal xvora.com account on a gated tier (free / X Basic).
     /// The Imagine tools stay advertised to the model but are flagged tier-restricted.
     /// They then short-circuit at call time with the SuperGrok upsell prose (see `ImageGenConfig`/`VideoGenConfig`'s `tier_restricted`).
     ///
@@ -2325,9 +2325,9 @@ impl MvpAgent {
             "WORKTREE_CONFIG_SHELL: resolved worktree type at agent startup"
         );
         if relay_sync_enabled {
-            tracing::info!("[grok] Relay sync: ENABLED");
+            tracing::info!("[xvora] Relay sync: ENABLED");
         } else if tui_mode && relay_config_enabled && !has_xai_auth {
-            tracing::info!("[grok] Relay sync: DISABLED (no auth - run 'grok login' first)");
+            tracing::info!("[xvora] Relay sync: DISABLED (no auth - run 'xvora login' first)");
         } else if tui_mode && !relay_config_enabled {
             tracing::debug!("Relay sync: DISABLED (not configured in config.toml or env)");
         } else {
@@ -3133,7 +3133,7 @@ impl MvpAgent {
         use crate::upload::turn::TraceUploadReason;
         if self.is_data_collection_disabled() {
             crate::upload::trace::spawn_startup_spill_reconcile(
-                crate::util::grok_home::grok_home(),
+                crate::util::xvora_home::xvora_home(),
                 None,
             );
             return (None, TraceUploadReason::ZdrTeam);
@@ -3766,15 +3766,15 @@ impl MvpAgent {
         let queue = session_handle
             .upload_queue
             .get_or_init(|| {
-                let grok_home = crate::util::grok_home::grok_home();
+                let xvora_home = crate::util::xvora_home::xvora_home();
                 let queue = crate::upload::trace::spawn_upload_queue(
-                    &grok_home,
+                    &xvora_home,
                     &gcs_config,
                     Some(version::VERSION),
                     self.auth_manager.clone(),
                 );
                 crate::upload::trace::spawn_startup_spill_reconcile(
-                    grok_home,
+                    xvora_home,
                     Some(queue.clone()),
                 );
                 session_handle
@@ -3895,7 +3895,7 @@ impl MvpAgent {
         let agent_name = std::env::var("GROK_AGENT").ok();
         let resolved = match agent_name.as_deref() {
             Some("browser-use") | Some("browser_use") => AgentDefinition::browser_use(),
-            Some("grok-build-concise") | Some("grok_build_concise") => {
+            Some("xvora-build-concise") | Some("grok_build_concise") => {
                 AgentDefinition::grok_build_concise()
             }
             Some(path) if std::path::Path::new(path).is_absolute() => {
@@ -4456,9 +4456,9 @@ impl MvpAgent {
             );
             tool_ctx.lsp_server_names = servers.keys().cloned().collect();
             if servers.is_empty() {
-                let user_path = tools::util::grok_home::grok_home()
+                let user_path = tools::util::xvora_home::xvora_home()
                     .join("lsp.json");
-                let project_path = tool_ctx.cwd.as_path().join(".grok").join("lsp.json");
+                let project_path = tool_ctx.cwd.as_path().join(".xvora").join("lsp.json");
                 tracing::debug!(
                     cwd = %tool_ctx.cwd,
                     user_lsp_path = %user_path.display(),

@@ -107,12 +107,12 @@ pub(super) fn maybe_show_x11_primary_paste_hint(
     }
     show_clipboard_toast(target, X11_PRIMARY_PASTE_HINT, app);
 }
-/// Whether a completed clipboard probe should fall through to the `grok wrap` host-image request.
+/// Whether a completed clipboard probe should fall through to the `xvora wrap` host-image request.
 /// A clean `FullMiss` always qualifies; a remote read *error* (`AttachmentRead`) qualifies too.
-/// Inside `grok wrap` the authoritative pasteboard is the local host's, not the (absent) remote one.
+/// Inside `xvora wrap` the authoritative pasteboard is the local host's, not the (absent) remote one.
 /// That error is therefore recoverable over the wrap OSC path.
 /// Every other failure (`TextRead`, `TargetInsertion`, `AlreadyReported`) is a real dead end and must keep toasting.
-/// The request itself still self-gates on `osc52_sink_active()`, so this is inert outside `grok wrap`.
+/// The request itself still self-gates on `osc52_sink_active()`, so this is inert outside `xvora wrap`.
 pub(super) fn wrap_host_image_request_eligible(completion: ClipboardPasteCompletion) -> bool {
     matches!(
         completion,
@@ -442,7 +442,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
                 vec![Effect::DetectForeignResumeHint {
                     canonical_cwd,
                     compat: app.foreign_session_compat,
-                    grok_home: tools::util::grok_home::grok_home(),
+                    xvora_home: tools::util::xvora_home::xvora_home(),
                     launch_token,
                 }]
             } else {
@@ -571,7 +571,7 @@ pub(super) fn dispatch_task_result(result: TaskResult, app: &mut AppView) -> Vec
             }
             if app.workspace_writes_disabled {
                 app.workspace_sync_requested = false;
-                app.show_toast("Dashboard workspace is read-only in this Grok version");
+                app.show_toast("Dashboard workspace is read-only in this xvora version");
             } else {
                 let mut request_retry = false;
                 for member in attempted {

@@ -203,7 +203,7 @@ fn split_exit_plan_tail(
 pub(super) enum PlanEditGate {
     /// Execute normally (plan mode inactive, not an edit, or allowed target).
     Allow,
-    /// Grok-toolset edit outside the plan file (plan-file-only rule).
+    /// xvora-toolset edit outside the plan file (plan-file-only rule).
     RejectNonPlanFile,
 }
 /// Gate edit-class tool calls while plan mode is active.
@@ -214,7 +214,7 @@ pub(super) enum PlanEditGate {
 ///
 /// - **Compat-toolset `Write`/`StrReplace`**: any markdown file is editable in plan mode (plan docs are written with these same tools).
 ///   Everything else is rejected.
-/// - **Compat-toolset `Delete`** is **not** on the markdown carve-out: it maps to `AccessKind::Edit` and is plan-file-only (same as grok edits).
+/// - **Compat-toolset `Delete`** is **not** on the markdown carve-out: it maps to `AccessKind::Edit` and is plan-file-only (same as xvora edits).
 ///   Deleting an arbitrary `.md` in plan mode must not pass.
 /// - **Every other edit tool** (`AccessKind::Edit`) is restricted to the plan file itself.
 ///   The restriction uses [`PlanModeTracker::should_auto_approve_edit`], the same predicate that auto-approves plan-file edits.
@@ -3318,7 +3318,7 @@ mod plan_mode_edit_gate_tests {
             content: "x".into(),
         })
     }
-    /// Grok edit tools are plan-file-only while plan mode is active: the enforcement that makes plan mode read-only even under always-approve.
+    /// xvora edit tools are plan-file-only while plan mode is active: the enforcement that makes plan mode read-only even under always-approve.
     #[test]
     fn grok_edits_outside_plan_file_rejected() {
         let t = active_tracker();
@@ -3329,7 +3329,7 @@ mod plan_mode_edit_gate_tests {
         assert_eq!(
             gate(&t, &write("/tmp/README.md")),
             PlanEditGate::RejectNonPlanFile,
-            "grok tools get no markdown exception — plan file only"
+            "xvora tools get no markdown exception — plan file only"
         );
     }
     /// The carve-out and the permission bypass share `should_auto_approve_edit`, so the plan file itself stays editable.

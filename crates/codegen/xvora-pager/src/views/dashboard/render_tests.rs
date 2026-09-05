@@ -104,7 +104,7 @@ fn workspace_dashboard_renders_snapshot_member_without_delete_control() {
             origin: dashboard_store::MemberOrigin::Local,
             cwd: Some("/tmp/saved".to_owned()),
             title: Some("Saved workspace session".to_owned()),
-            model: Some("grok-test".to_owned()),
+            model: Some("xvora-test".to_owned()),
             last_turn_summary: Some("Stored summary".to_owned()),
             is_worktree: false,
             last_change_unix_ms: 1_725_000_000_000,
@@ -580,7 +580,7 @@ fn header_location_renders_from_staged_cwd() {
     let mut state = DashboardState::new();
     // A distinct absolute path outside $HOME (rendered verbatim) that differs from the process cwd
     // No git cache entry, so no branch span
-    state.cwd = std::path::PathBuf::from("/grok-staged-cwd-marker");
+    state.cwd = std::path::PathBuf::from("/xvora-staged-cwd-marker");
 
     let mut buf = Buffer::empty(area);
     render_header(&mut buf, area, &theme, &rows, &mut state, None);
@@ -589,7 +589,7 @@ fn header_location_renders_from_staged_cwd() {
         .map(|x| buf[(x, 0)].symbol().to_string())
         .collect();
     assert!(
-        top_row.contains("/grok-staged-cwd-marker"),
+        top_row.contains("/xvora-staged-cwd-marker"),
         "header must render the staged cwd, not the process cwd; got: {top_row:?}",
     );
 }
@@ -1706,12 +1706,12 @@ fn feedback_badge_renders_verbatim_in_neutral_color() {
     let theme = Theme::current();
     let mut state = DashboardState::new();
     let check = crate::glyphs::check_mark();
-    state.error_toast = Some(format!("{check} Theme: Grok Day"));
+    state.error_toast = Some(format!("{check} Theme: xvora Day"));
     let _ = render_dispatch(&mut buf, Rect::new(0, 0, 80, 3), &theme, &mut state, None);
 
     let top_row: String = (0..80).map(|x| buf[(x, 0)].symbol().to_string()).collect();
     assert!(
-        top_row.contains(&format!("{check} Theme: Grok Day")),
+        top_row.contains(&format!("{check} Theme: xvora Day")),
         "badge must paint the message verbatim, got: {top_row:?}",
     );
     assert!(
@@ -3043,7 +3043,7 @@ fn render_location_picker_shows_worktree_toggle_in_repo() {
     let theme = Theme::current();
     let area = Rect::new(0, 0, 80, 24);
     // A temp dir with a `.git` child so the toggle is eligible (hermetic, unlike depending on the test's real cwd being a repo)
-    let repo = std::env::temp_dir().join("grok-loc-wt-toggle-repo-test");
+    let repo = std::env::temp_dir().join("xvora-loc-wt-toggle-repo-test");
     std::fs::create_dir_all(repo.join(".git")).expect("mk .git");
     let mut modal =
         LocationPickerState::new(vec![], repo.clone(), std::collections::HashMap::new());
@@ -3101,7 +3101,7 @@ fn render_location_picker_hides_worktree_toggle_outside_repo() {
     let area = Rect::new(0, 0, 80, 24);
     let mut modal = LocationPickerState::new(
         vec![],
-        std::path::PathBuf::from("/grok-not-a-repo-xyz-12345"),
+        std::path::PathBuf::from("/xvora-not-a-repo-xyz-12345"),
         std::collections::HashMap::new(),
     );
     let mut buf = Buffer::empty(area);

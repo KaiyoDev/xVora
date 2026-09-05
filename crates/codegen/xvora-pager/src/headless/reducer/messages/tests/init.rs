@@ -17,7 +17,7 @@ fn messages_init_is_deferred_and_carries_tools() {
     let out = r.reduce(StreamEvent::AgentMessage("hi".into()));
     assert_eq!(out[0]["type"], "system");
     assert_eq!(out[0]["subtype"], "init");
-    assert_eq!(out[0]["model"], "grok-4");
+    assert_eq!(out[0]["model"], "xvora-4");
     assert_eq!(out[0]["permissionMode"], "bypassPermissions");
     assert_eq!(out[0]["tools"][0], "read_file");
     assert_eq!(out[0]["slash_commands"][0], "review");

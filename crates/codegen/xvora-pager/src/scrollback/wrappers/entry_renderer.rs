@@ -397,7 +397,7 @@ impl<'a> EntryRenderer<'a> {
     /// Cheap height ESTIMATE that avoids a markdown render / word-wrap.
     ///
     /// Mirrors `desired_height` but derives the content line count from the block's raw source text (`searchable_text`) instead of laying it out.
-    /// Lets the layout cache size off-screen entries on a bulk load (`grok -r`) without word-wrapping or markdown-rendering every entry (O(history)).
+    /// Lets the layout cache size off-screen entries on a bulk load (`xvora -r`) without word-wrapping or markdown-rendering every entry (O(history)).
     /// On-screen entries get their EXACT `desired_height`, so visible content is never estimated.
     pub fn estimate_height(&self, width: u16) -> u16 {
         if self.thinking_hidden() {
@@ -1678,7 +1678,7 @@ mod tests {
         assert_eq!(h_on, h_off + 1, "the affordance row adds exactly one row");
 
         // The off-screen estimate accounts for the affordance row (one per diagram) and so never under-reserves vs the realized height
-        // That is the invariant a bulk load (`grok -r`) relies on to avoid clipping
+        // That is the invariant a bulk load (`xvora -r`) relies on to avoid clipping
         let est_on = r.estimate_height(80);
         assert_eq!(
             est_on,

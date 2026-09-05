@@ -389,13 +389,13 @@ mod tests {
         write_plugin_json(&source, "demo-plugin");
         write_agent_md(&source, "old");
 
-        let mut registry = InstallRegistry::empty(home.join(".grok").join("installed-plugins"));
+        let mut registry = InstallRegistry::empty(home.join(".xvora").join("installed-plugins"));
         let installed = register_local_install(&mut registry, &source, None);
 
         write_agent_md(&source, "new");
         assert!(!installed.repo_path.join("agents/new.md").exists());
 
-        let trust = TrustStore::load_from(home.join(".grok").join("trusted-plugins"));
+        let trust = TrustStore::load_from(home.join(".xvora").join("trusted-plugins"));
         let summary = refresh_local_installs(&mut registry, &trust, false);
         assert_eq!(summary.refreshed, 1, "{summary:?}");
         assert!(installed.repo_path.join("agents/new.md").exists());
@@ -409,13 +409,13 @@ mod tests {
         write_plugin_json(&source, "demo-plugin");
         write_agent_md(&source, "old");
 
-        let mut registry = InstallRegistry::empty(home.join(".grok").join("installed-plugins"));
+        let mut registry = InstallRegistry::empty(home.join(".xvora").join("installed-plugins"));
         let installed = register_local_install(&mut registry, &source, None);
 
         // No edit to the source: snapshot matches, so refresh is a stat-walk skip with no re-copy
         let snapshot = installed.repo_path.join("agents/old.md");
         let before = std::fs::metadata(&snapshot).unwrap().modified().unwrap();
-        let trust = TrustStore::load_from(home.join(".grok").join("trusted-plugins"));
+        let trust = TrustStore::load_from(home.join(".xvora").join("trusted-plugins"));
         let summary = refresh_local_installs(&mut registry, &trust, false);
         assert_eq!(summary.refreshed, 0, "{summary:?}");
         assert_eq!(summary.skipped, 1, "{summary:?}");
@@ -431,7 +431,7 @@ mod tests {
         write_plugin_json(&source, "demo-plugin");
         write_agent_md(&source, "old");
 
-        let mut registry = InstallRegistry::empty(home.join(".grok").join("installed-plugins"));
+        let mut registry = InstallRegistry::empty(home.join(".xvora").join("installed-plugins"));
         let installed = register_local_install(&mut registry, &source, None);
 
         // Rename keeps file count, total size, and the file's (old) mtime, so only the structural (relpath, len) set catches it
@@ -441,7 +441,7 @@ mod tests {
         )
         .unwrap();
 
-        let trust = TrustStore::load_from(home.join(".grok").join("trusted-plugins"));
+        let trust = TrustStore::load_from(home.join(".xvora").join("trusted-plugins"));
         let summary = refresh_local_installs(&mut registry, &trust, false);
         assert_eq!(
             summary.refreshed, 1,
@@ -459,12 +459,12 @@ mod tests {
         write_plugin_json(&source, "demo-plugin");
         write_agent_md(&source, "old");
 
-        let mut registry = InstallRegistry::empty(home.join(".grok").join("installed-plugins"));
+        let mut registry = InstallRegistry::empty(home.join(".xvora").join("installed-plugins"));
         let installed = register_local_install(&mut registry, &source, None);
 
         // Change the source so a refresh attempts a re-copy, then force the promote rename to fail and assert the prior snapshot is restored
         write_agent_md(&source, "new");
-        let trust = TrustStore::load_from(home.join(".grok").join("trusted-plugins"));
+        let trust = TrustStore::load_from(home.join(".xvora").join("trusted-plugins"));
         let summary = {
             let _fail = EnvVarGuard::set("XAI_GROK_TEST_FAIL_REFRESH_PROMOTE", "1");
             refresh_local_installs(&mut registry, &trust, false)
@@ -525,7 +525,7 @@ mod tests {
         write_plugin_json(&workspace.join("plugins/a"), "plugin-a");
         write_plugin_json(&workspace.join("plugins/b"), "plugin-b");
 
-        let mut registry = InstallRegistry::empty(home.join(".grok/installed-plugins"));
+        let mut registry = InstallRegistry::empty(home.join(".xvora/installed-plugins"));
         let installed = register_local_install(&mut registry, &workspace, Some("plugins/a"));
 
         write_agent_md(&workspace.join("plugins/a"), "x");
@@ -580,7 +580,7 @@ mod tests {
         write_agent_md(&workspace.join("other-dir"), "noise");
 
         // Snapshot the full source (mirrors the install-time copy).
-        let install_dir = home.join(".grok").join("installed-plugins");
+        let install_dir = home.join(".xvora").join("installed-plugins");
         std::fs::create_dir_all(&install_dir).unwrap();
         let dest = install_dir.join("foo-legacy");
         copy_dir_recursive(&workspace, &dest).unwrap();
@@ -613,7 +613,7 @@ mod tests {
         write_agent_md(&workspace.join("plugins/foo"), "added");
 
         // force=true so the skip for unchanged sources can't mask the scope guard
-        let trust = TrustStore::load_from(home.join(".grok").join("trusted-plugins"));
+        let trust = TrustStore::load_from(home.join(".xvora").join("trusted-plugins"));
         let summary = refresh_local_installs(&mut registry, &trust, true);
 
         // Root-scope rediscovery would change the plugin set/scope, so the stale snapshot is kept untouched

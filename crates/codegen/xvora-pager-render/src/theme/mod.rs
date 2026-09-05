@@ -96,9 +96,9 @@ impl ThemeKind {
         let lower = name.to_lowercase();
         match lower.as_str() {
             "auto" | "system" => Some(Self::Auto),
-            "groknight" | "grok-night" | "dark" => Some(Self::GrokNight),
+            "groknight" | "xvora-night" | "dark" => Some(Self::GrokNight),
             "tokyonight" | "tokyo-night" | "tokyo" => Some(Self::TokyoNight),
-            "grokday" | "grok-day" | "light" | "day" => Some(Self::GrokDay),
+            "grokday" | "xvora-day" | "light" | "day" => Some(Self::GrokDay),
             "rosepine" | "rose-pine" | "rosepine-moon" | "rose-pine-moon" => {
                 Some(Self::RosePineMoon)
             }
@@ -129,13 +129,13 @@ pub fn canonical_name(value: &str) -> Option<&'static str> {
     ThemeKind::from_name(value).map(|k| k.display_name())
 }
 
-/// Human-friendly display name for a canonical theme value (e.g. `"groknight"` becomes `"Grok Night"`).
+/// Human-friendly display name for a canonical theme value (e.g. `"groknight"` becomes `"xvora Night"`).
 /// Falls back to `value` verbatim.
 pub fn display_name_for_canonical(value: &str) -> &str {
     match value {
         "auto" => "Auto",
-        "groknight" => "Grok Night",
-        "grokday" => "Grok Day",
+        "groknight" => "xvora Night",
+        "grokday" => "xvora Day",
         "tokyonight" => "Tokyo Night",
         "rosepine-moon" => "Rose Pine Moon",
         other => other,
@@ -242,7 +242,7 @@ impl Theme {
 
     /// Get the current theme, quantized to the terminal's color level.
     ///
-    /// Reads the active theme kind (loaded from `~/.grok/config.toml` on
+    /// Reads the active theme kind (loaded from `~/.xvora/config.toml` on
     /// first call, then cached in memory), builds the theme from its
     /// `const fn` constructor, and quantizes to the terminal's color level.
     ///
@@ -1098,13 +1098,13 @@ mod tests {
             ("auto", ThemeKind::Auto),
             ("system", ThemeKind::Auto),
             ("groknight", ThemeKind::GrokNight),
-            ("grok-night", ThemeKind::GrokNight),
+            ("xvora-night", ThemeKind::GrokNight),
             ("dark", ThemeKind::GrokNight),
             ("tokyonight", ThemeKind::TokyoNight),
             ("tokyo-night", ThemeKind::TokyoNight),
             ("tokyo", ThemeKind::TokyoNight),
             ("grokday", ThemeKind::GrokDay),
-            ("grok-day", ThemeKind::GrokDay),
+            ("xvora-day", ThemeKind::GrokDay),
             ("light", ThemeKind::GrokDay),
             ("day", ThemeKind::GrokDay),
             ("rosepine", ThemeKind::RosePineMoon),

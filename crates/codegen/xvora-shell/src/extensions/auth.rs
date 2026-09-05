@@ -72,21 +72,21 @@ fn handle_get_api_key() -> ExtResult {
 fn handle_set_api_key(args: &acp::ExtRequest) -> ExtResult {
     let params: serde_json::Value = parse_params(args)?;
     let key = params.get("key").and_then(|v| v.as_str());
-    let grok_home = crate::util::grok_home::grok_home();
+    let xvora_home = crate::util::xvora_home::xvora_home();
     if let Some(k) = key {
         if k.is_empty() {
-            crate::auth::clear_api_key(&grok_home)
+            crate::auth::clear_api_key(&xvora_home)
                 .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             // SAFETY: ext_method is single-threaded per agent
             unsafe { std::env::remove_var("XAI_API_KEY") };
         } else {
-            crate::auth::store_api_key(&grok_home, k)
+            crate::auth::store_api_key(&xvora_home, k)
                 .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
             // SAFETY: ext_method is single-threaded per agent
             unsafe { std::env::set_var("XAI_API_KEY", k) };
         }
     } else {
-        crate::auth::clear_api_key(&grok_home)
+        crate::auth::clear_api_key(&xvora_home)
             .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
         // SAFETY: ext_method is single-threaded per agent
         unsafe { std::env::remove_var("XAI_API_KEY") };
@@ -183,7 +183,7 @@ fn handle_info(agent: &MvpAgent) -> ExtResult {
         email: Option<String>,
         first_name: Option<String>,
         last_name: Option<String>,
-        /// `grok-asset://` URL resolved by the Electron protocol handler, or a full `http(s)://` URL passed through unchanged.
+        /// `xvora-asset://` URL resolved by the Electron protocol handler, or a full `http(s)://` URL passed through unchanged.
         profile_image_url: Option<String>,
         team_id: Option<String>,
         team_name: Option<String>,
@@ -206,14 +206,14 @@ fn handle_info(agent: &MvpAgent) -> ExtResult {
     let auth = agent.auth_manager.current_or_expired();
     let raw_asset_id = auth.as_ref().and_then(|a| a.profile_image_asset_id.clone());
 
-    // Return a grok-asset:// URL that the Electron renderer resolves at display time via a custom protocol handler
+    // Return a xvora-asset:// URL that the Electron renderer resolves at display time via a custom protocol handler
     // The handler proxies through cli-chat-proxy's /asset endpoint; Electron's HTTP cache handles reuse
     // Nothing here touches a disk cache or the network
     let profile_image_url = match raw_asset_id.as_deref().filter(|k| !k.is_empty()) {
         Some(key) if key.starts_with("http://") || key.starts_with("https://") => {
             Some(key.to_owned())
         }
-        Some(key) => Some(format!("grok-asset:///{key}")),
+        Some(key) => Some(format!("xvora-asset:///{key}")),
         None => None,
     };
     to_raw_response(&AuthInfoResponse {

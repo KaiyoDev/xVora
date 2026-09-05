@@ -306,7 +306,7 @@ impl WorkspaceRpc for FsDeleteFileReq {
 // Timestamps are `mtimeMs` epoch milliseconds (not RFC 3339 strings)
 // `client_fs_list` paginates with a post-sort `offset`, and reads are binary-safe (base64 chunks)
 // The wire format is camelCase with fixed-width integers only
-// Both the workspace server (`xvora-workspace`) and the grok.com backend compile against the same structs; a field rename breaks both sides
+// Both the workspace server (`xvora-workspace`) and the xvora.com backend compile against the same structs; a field rename breaks both sides
 //
 // The method names use a `client_fs` segment (not `fs`)
 // The `workspace.fs_*` ops above already serve the shell's `x.ai/fs/*` methods with incompatible schemas

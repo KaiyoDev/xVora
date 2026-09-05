@@ -156,7 +156,7 @@ impl SessionSearchIndex {
             .unwrap_or(None);
 
         // One-way ratchet: drop only on UPGRADE (stored < current)
-        // Multiple grok generations share this DB (stable vs alpha)
+        // Multiple xvora generations share this DB (stable vs alpha)
         // An equality check made each binary wipe the other's index in turn, leaving search empty mid-rebootstrap
         // A newer index is safe to read: bumps regenerate content only (the table schema is column-identical)
         // The newer binary re-upserts any rows we write via content-hash mismatch
@@ -456,7 +456,7 @@ impl SessionSearchIndex {
     ///
     /// A query shaped like a session id (a full UUID or a hyphenated hex prefix) matches `session_docs.session_id` directly.
     /// FTS only indexes title and content, and a hyphenated UUID `MATCH` looks for tokens that were never indexed.
-    /// So `/resume` search by id returned nothing while `grok --resume <id>` still loaded the session.
+    /// So `/resume` search by id returned nothing while `xvora --resume <id>` still loaded the session.
     pub fn query(
         &self,
         query: &str,
@@ -934,7 +934,7 @@ mod tests {
             index
                 .upsert_doc(&test_doc("s1", "Rust debugging", "borrow checker"))
                 .unwrap();
-            // Simulate an index owned by a newer grok generation that has completed a bootstrap
+            // Simulate an index owned by a newer xvora generation that has completed a bootstrap
             index.set_meta(META_KEY_SCHEMA_VERSION, "5").unwrap();
             index.set_meta("last_bootstrap_at", "1700000000").unwrap();
         }

@@ -182,7 +182,7 @@ mod merge_roster_tests {
             title: None,
             cwd: format!("/live/{id}"),
             is_worktree: false,
-            model_id: Some("grok-4".into()),
+            model_id: Some("xvora-4".into()),
             reasoning_effort: None,
             yolo: false,
             activity,
@@ -280,7 +280,7 @@ mod merge_roster_tests {
 
     #[test]
     fn headless_summaries_exclude_dormant_and_resident_rows() {
-        let mut headless = summary("oneshot", Some("grok -p run"), 5_000);
+        let mut headless = summary("oneshot", Some("xvora -p run"), 5_000);
         headless.session_kind = Some("headless".into());
         let out = merge_roster(
             vec![resident("oneshot", RosterActivity::Working, 9_000)],

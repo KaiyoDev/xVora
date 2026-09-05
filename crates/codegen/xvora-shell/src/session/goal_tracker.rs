@@ -209,7 +209,7 @@ impl GoalHistoryEntry {
 
 // GoalOrchestration (full persisted state)
 
-/// Generate a short opaque identifier scoping the per-goal scratch root (`<temp_dir>/grok-goal-<id>`) and the verifier verdict/details files in it.
+/// Generate a short opaque identifier scoping the per-goal scratch root (`<temp_dir>/xvora-goal-<id>`) and the verifier verdict/details files in it.
 ///
 /// The id is a 12-char prefix of a UUIDv4 simple form, about 48 bits of entropy.
 /// That is enough to avoid collision between concurrent goals on the same machine.
@@ -220,13 +220,13 @@ pub(crate) fn generate_verifier_id() -> String {
     s
 }
 
-/// Private per-goal scratch root: `<temp_dir>/grok-goal-<verifier_id>`.
+/// Private per-goal scratch root: `<temp_dir>/xvora-goal-<verifier_id>`.
 ///
 /// Rooted at [`std::env::temp_dir`] (respects `TMPDIR`) and namespaced by the goal's `verifier_id`.
 /// So concurrent goals never collide and cleanup of one never touches another.
 /// Removed wholesale on every terminal goal transition.
 pub(crate) fn goal_scratch_root(verifier_id: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("grok-goal-{verifier_id}"))
+    std::env::temp_dir().join(format!("xvora-goal-{verifier_id}"))
 }
 
 /// Create (or verify) the goal's scratch root, locked to the owner (0700 on unix).

@@ -1,4 +1,4 @@
-//! `grok completions <shell>`: generate shell completion scripts.
+//! `xvora completions <shell>`: generate shell completion scripts.
 //!
 //! Used by the installers and npm postinstall; must stay side-effect free (no network, auth, tracing, or tokio).
 
@@ -33,7 +33,7 @@ pub fn run(shell: Shell) {
 ///
 /// The generated root `_arguments` spec emits a `'::prompt …'` slot before the subcommand slot but dispatches subcommands with `case $line[2]`.
 /// zsh assigns the typed subcommand to the *prompt* slot (`$line[1]`), leaves `$line[2]` empty, and the dispatch falls through.
-/// `grok worktree <TAB>` then re-offers every top-level command.
+/// `xvora worktree <TAB>` then re-offers every top-level command.
 /// (`hide = true` on the positional does not change the generated script.)
 ///
 /// Completing an arbitrary prompt string is useless, so drop the prompt slot and shift the root dispatch to `$line[1]`.
@@ -56,8 +56,8 @@ fn fix_zsh_root_prompt_positional(script: &str) -> String {
             r#"words=($line[1] "${words[@]}")"#,
         ),
         (
-            r#"curcontext="${curcontext%:*:*}:grok-command-$line[2]:""#,
-            r#"curcontext="${curcontext%:*:*}:grok-command-$line[1]:""#,
+            r#"curcontext="${curcontext%:*:*}:xvora-command-$line[2]:""#,
+            r#"curcontext="${curcontext%:*:*}:xvora-command-$line[1]:""#,
         ),
         (r#"case $line[2] in"#, r#"case $line[1] in"#),
     ] {
@@ -79,7 +79,7 @@ mod tests {
     }
 
     // The optional `[PROMPT]` positional (app/cli.rs) makes clap_complete emit a `::prompt` slot before the subcommand slot
-    // Dispatch happens on `$line[2]`, so `grok worktree <TAB>` re-offered every top-level command (upstream clap-rs/clap#6282)
+    // Dispatch happens on `$line[2]`, so `xvora worktree <TAB>` re-offered every top-level command (upstream clap-rs/clap#6282)
     #[test]
     fn zsh_completions_drop_prompt_slot_and_dispatch_on_line_1() {
         let raw = zsh_script();
@@ -101,12 +101,12 @@ mod tests {
             "root dispatch must be shifted to $line[1]"
         );
         assert!(
-            fixed.contains(r#"curcontext="${curcontext%:*:*}:grok-command-$line[1]:""#),
+            fixed.contains(r#"curcontext="${curcontext%:*:*}:xvora-command-$line[1]:""#),
             "root dispatch context must use $line[1]"
         );
         // Subcommand dispatch blocks (already on $line[1]) must survive.
         assert!(
-            fixed.contains("grok-worktree-command-$line[1]"),
+            fixed.contains("xvora-worktree-command-$line[1]"),
             "nested subcommand dispatch must be untouched"
         );
         // The subcommand list itself must still be offered at the root.

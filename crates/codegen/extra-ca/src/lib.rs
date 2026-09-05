@@ -1,4 +1,4 @@
-//! TLS policy for the grok CLI: OS roots, Mozilla roots, and opt-in extra roots from `GROK_EXTRA_CA_BUNDLE` (fallback: `SSL_CERT_FILE`).
+//! TLS policy for the xvora CLI: OS roots, Mozilla roots, and opt-in extra roots from `GROK_EXTRA_CA_BUNDLE` (fallback: `SSL_CERT_FILE`).
 //! A bad bundle is logged and skipped, never failing client construction.
 //!
 //! Every client pins rustls: feature unification can otherwise select native-tls, whose untyped errors break the certificate classifier.
@@ -40,7 +40,7 @@ pub fn ensure_default_crypto_provider() {
     });
 }
 
-/// Builds a reqwest client with the grok TLS policy: the shared roots (OS store, Mozilla bundle, and any extra roots).
+/// Builds a reqwest client with the xvora TLS policy: the shared roots (OS store, Mozilla bundle, and any extra roots).
 /// The roots are read once per process instead of on each build.
 /// For HTTP/1.1 only, add `http1_only()` in `configure`.
 #[allow(clippy::disallowed_methods)] // the approved async build path

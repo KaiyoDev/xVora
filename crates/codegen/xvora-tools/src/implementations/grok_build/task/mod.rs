@@ -264,7 +264,7 @@ impl crate::types::tool_metadata::ToolMetadata for TaskTool {
     }
 
     fn description_template(&self) -> &str {
-        // Grok Build normally supplies the description via
+        // xvora build normally supplies the description via
         // `ToolConfig::with_description(...)` using `build_task_description()`
         // in xvora-agent/src/builder.rs (live subagent roster). But a
         // registration without an override must still ship a real

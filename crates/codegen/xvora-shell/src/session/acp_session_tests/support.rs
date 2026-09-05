@@ -120,7 +120,7 @@ async fn test_agent_from_config(
         backend,
         fs,
         cwd: std::path::PathBuf::from("/tmp"),
-        session_folder: std::env::temp_dir().join("grok-test"),
+        session_folder: std::env::temp_dir().join("xvora-test"),
         session_env: std::sync::Arc::new(std::collections::HashMap::new()),
         notification_handle: ToolNotificationHandle::noop(),
         owner_session_id: None,

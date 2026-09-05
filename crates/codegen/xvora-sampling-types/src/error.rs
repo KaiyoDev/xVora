@@ -593,7 +593,7 @@ struct ErrorBody {
     code: Option<String>,
 }
 
-/// Flat error from the Grok proxy/gateway: `{"code": "...", "error": "..."}`.
+/// Flat error from the xvora proxy/gateway: `{"code": "...", "error": "..."}`.
 /// The `code` slot stays strict (`Option<String>`) on purpose.
 /// Flat bodies with a non-string code (e.g. `{"code":429,"error":"... [WKE=...]"}`) must keep failing this parse so they reach the provider fallback.
 /// The fallback strips `[WKE=...]` markers and lifts slugs; routing them through the rigid path would leak raw markers to users.
@@ -670,21 +670,23 @@ pub const MAX_USER_ERROR_BODY_CHARS: usize = 280;
 pub fn status_user_message(status: StatusCode) -> String {
     match status.as_u16() {
         code @ 502..=504 => {
-            format!("Grok is temporarily unavailable. Please try again in a moment. (HTTP {code}).")
+            format!(
+                "xvora is temporarily unavailable. Please try again in a moment. (HTTP {code})."
+            )
         }
         // Upstream capacity, not an edge failure; see [`SamplingError::is_overloaded`]
         code @ 529 => {
-            format!("Grok is temporarily overloaded. Please try again in a moment. (HTTP {code}).")
+            format!("xvora is temporarily overloaded. Please try again in a moment. (HTTP {code}).")
         }
         // Cloudflare edge: origin unreachable or timed out (520-524), or an edge-side 1xxx failure (530)
         code @ 520..=524 | code @ 530 => {
             format!(
-                "Connection to Grok timed out or was interrupted. Please try again. (HTTP {code})."
+                "Connection to xvora timed out or was interrupted. Please try again. (HTTP {code})."
             )
         }
         // Cloudflare origin TLS (handshake / invalid certificate); not transient
         code @ 525 | code @ 526 => {
-            format!("Secure connection to Grok failed. (HTTP {code}).")
+            format!("Secure connection to xvora failed. (HTTP {code}).")
         }
         code if status.is_server_error() => {
             format!("Something went wrong on the server (HTTP {code}).")
@@ -1193,7 +1195,7 @@ mod tests {
     fn parse_error_bytes_rejects_non_json_body() {
         let html = br#"<!DOCTYPE html>
 <html lang="en-US">
-<head><title>grok.com | 524: A timeout occurred</title></head>
+<head><title>xvora.com | 524: A timeout occurred</title></head>
 <body><h1>A timeout occurred Error code 524</h1></body>
 </html>"#;
         let msg = parse_error_bytes(html);

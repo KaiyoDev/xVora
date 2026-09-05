@@ -363,7 +363,7 @@ pub fn canonical_voice_capture_mode(value: Option<&str>) -> &'static str {
 /// Canonicalize a raw voice STT language to a settings choice.
 ///
 /// Delegates to [`xvora_voice::canonicalize_stt_language`] so the pager and
-/// the STT client share one catalog (official Grok STT languages + client-only
+/// the STT client share one catalog (official xvora STT languages + client-only
 /// `auto`). Unknown/blank/`None` → `en`.
 pub fn canonical_voice_stt_language(value: Option<&str>) -> &'static str {
     voice::canonicalize_stt_language(value)

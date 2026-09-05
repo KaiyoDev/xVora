@@ -702,9 +702,9 @@ mod platform {
     {
         let temp_dir = std::env::temp_dir();
         (
-            temp_dir.join("grok-clipboard-probe.png"),
-            temp_dir.join("grok-clipboard-probe.tiff"),
-            temp_dir.join("grok-clipboard-probe.jpg"),
+            temp_dir.join("xvora-clipboard-probe.png"),
+            temp_dir.join("xvora-clipboard-probe.tiff"),
+            temp_dir.join("xvora-clipboard-probe.jpg"),
         )
     }
 

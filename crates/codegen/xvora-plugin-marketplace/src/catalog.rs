@@ -1,6 +1,6 @@
 //! Parse the CI-generated `plugin-index.json` component catalog.
 //!
-//! Directory precedence mirrors `index::load_index`: `.grok-plugin/plugin-index.json` is preferred, then `.claude-plugin/plugin-index.json`.
+//! Directory precedence mirrors `index::load_index`: `.xvora-plugin/plugin-index.json` is preferred, then `.claude-plugin/plugin-index.json`.
 //! Unlike `load_index`, only that one filename is probed per directory.
 //! A preferred catalog that is present but unreadable or unparseable does not fall back to the other directory.
 //! Falling back when the authoritative file is broken could serve stale data.
@@ -60,7 +60,7 @@ impl PluginCatalog {
 pub fn load_catalog(marketplace_root: &Path) -> Option<PluginCatalog> {
     let candidates = [
         marketplace_root
-            .join(".grok-plugin")
+            .join(".xvora-plugin")
             .join("plugin-index.json"),
         marketplace_root
             .join(".claude-plugin")
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn load_catalog_parses_grok_plugin_dir() {
         let dir = tempfile::tempdir().unwrap();
-        write_catalog(dir.path(), ".grok-plugin", BASIC);
+        write_catalog(dir.path(), ".xvora-plugin", BASIC);
         let catalog = load_catalog(dir.path()).unwrap();
         let components = catalog.components_for("superpowers", None).unwrap();
         assert_eq!(components.skills.len(), 1);
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn load_catalog_prefers_grok_dir_over_claude_dir() {
         let dir = tempfile::tempdir().unwrap();
-        write_catalog(dir.path(), ".grok-plugin", BASIC);
+        write_catalog(dir.path(), ".xvora-plugin", BASIC);
         write_catalog(
             dir.path(),
             ".claude-plugin",
@@ -171,14 +171,14 @@ mod tests {
     #[test]
     fn load_catalog_malformed_returns_none() {
         let dir = tempfile::tempdir().unwrap();
-        write_catalog(dir.path(), ".grok-plugin", "not json");
+        write_catalog(dir.path(), ".xvora-plugin", "not json");
         assert!(load_catalog(dir.path()).is_none());
     }
 
     #[test]
     fn load_catalog_broken_preferred_does_not_fall_back() {
         let dir = tempfile::tempdir().unwrap();
-        write_catalog(dir.path(), ".grok-plugin", "not json");
+        write_catalog(dir.path(), ".xvora-plugin", "not json");
         write_catalog(dir.path(), ".claude-plugin", BASIC);
         assert!(load_catalog(dir.path()).is_none());
     }
@@ -188,7 +188,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_catalog(
             dir.path(),
-            ".grok-plugin",
+            ".xvora-plugin",
             r#"{"version": 2, "plugins": {}}"#,
         );
         assert!(load_catalog(dir.path()).is_none());
@@ -199,9 +199,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_catalog(
             dir.path(),
-            ".grok-plugin",
+            ".xvora-plugin",
             r#"{
-                "$schema": "https://x.ai/grok/plugin-index.schema.json",
+                "$schema": "https://x.ai/xvora/plugin-index.schema.json",
                 "version": 1,
                 "generatedAt": "2026-06-09T12:00:00Z",
                 "plugins": {
@@ -221,7 +221,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_catalog(
             dir.path(),
-            ".grok-plugin",
+            ".xvora-plugin",
             r#"{
                 "version": 1,
                 "plugins": {
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn components_for_gates_on_sha() {
         let dir = tempfile::tempdir().unwrap();
-        write_catalog(dir.path(), ".grok-plugin", BASIC);
+        write_catalog(dir.path(), ".xvora-plugin", BASIC);
         let catalog = load_catalog(dir.path()).unwrap();
         let pinned = "61f1903bed7b322c9745f6ba67095bc006de7e63";
         assert!(
@@ -259,7 +259,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_catalog(
             dir.path(),
-            ".grok-plugin",
+            ".xvora-plugin",
             r#"{"version": 1, "plugins": {"p": {"components": {"skills": [{"name": "s"}]}}}}"#,
         );
         let catalog = load_catalog(dir.path()).unwrap();

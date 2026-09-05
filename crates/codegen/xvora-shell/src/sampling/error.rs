@@ -1,7 +1,7 @@
 //! Sampling error types.
 //!
 //! The canonical error types live in `xvora_sampling_types::error`.
-//! This module re-exports them and adds `map_sampling_err_to_acp`, which depends on `agent_client_protocol::Error` (a grok-shell dependency).
+//! This module re-exports them and adds `map_sampling_err_to_acp`, which depends on `agent_client_protocol::Error` (a xvora-shell dependency).
 
 pub use xvora_sampling_types::error::*;
 
@@ -23,7 +23,7 @@ pub const RATE_LIMITED_USER_MESSAGE_OAUTH: &str =
     "You\u{2019}ve hit the rate limit for your plan. Upgrade your account or try again later.";
 
 /// API key / team rate-limit copy.
-/// Personal grok.com upgrades do not raise API team limits; admins purchase credits or a higher spend-based tier.
+/// Personal xvora.com upgrades do not raise API team limits; admins purchase credits or a higher spend-based tier.
 /// See https://docs.x.ai/developers/rate-limits#rate-limit-tiers
 pub const RATE_LIMITED_USER_MESSAGE_API_KEY: &str = "You\u{2019}ve hit your team\u{2019}s API rate limit. Ask a team admin to purchase more credits for higher limits, or try again later. See https://docs.x.ai/developers/rate-limits#rate-limit-tiers";
 
@@ -34,7 +34,7 @@ pub const FREE_USAGE_EXHAUSTED_ERROR_CODE: &str = "subscription:free-usage-exhau
 
 /// User-facing free-usage exhaustion copy (paywall).
 /// Promises no reset duration; the backend config drives the quota window.
-pub const FREE_USAGE_USER_MESSAGE: &str = "You\u{2019}ve reached your free Grok Build usage limit for now. Get SuperGrok for much higher limits, or try again later: https://grok.com/supergrok?referrer=grok-build";
+pub const FREE_USAGE_USER_MESSAGE: &str = "You\u{2019}ve reached your free xvora build usage limit for now. Get SuperGrok for much higher limits, or try again later: https://xvora.com/supergrok?referrer=xvora-build";
 
 /// Whether flattened server detail is free-usage-quota exhaustion (paywall), not transient throttling.
 /// Sniffs the well-known code embedded by `parse_error_bytes`.
@@ -84,11 +84,11 @@ fn strip_sampling_api_error_prefix(detail: &str) -> &str {
     detail.trim()
 }
 
-/// IC sometimes reuses OAuth free-tier upsell copy on 429s ("upgrade to a Grok subscription" / grok.com/supergrok).
+/// IC sometimes reuses OAuth free-tier upsell copy on 429s ("upgrade to a xvora subscription" / xvora.com/supergrok).
 /// That is wrong for API-key / team auth: higher limits come from credits and spend-based rate-limit tiers, not a personal SuperGrok plan.
 fn pushes_consumer_subscription_upsell(detail: &str) -> bool {
     let d = detail.to_ascii_lowercase();
-    d.contains("grok.com/supergrok") || d.contains("upgrade to a grok subscription")
+    d.contains("xvora.com/supergrok") || d.contains("upgrade to a xvora subscription")
 }
 
 /// User-facing copy for capacity/overload failures (stream `overloaded_error`, HTTP 529, proxy-wrapped 5xx).
@@ -122,13 +122,13 @@ pub(crate) fn map_sampling_err_to_acp(err: SamplingError) -> acp::Error {
             // Examples: content-safety blocks, ZDR-gated operations, remote-settings-blocked users
             // Passing the proxy's message via internal_error keeps the explanation visible without triggering the client's re-auth flow on -32000
             StatusCode::FORBIDDEN => {
-                let message = if message.contains("requires a Grok subscription")
+                let message = if message.contains("requires a xvora subscription")
                     && crate::agent::auth_method::has_xai_api_key_env()
                 {
                     format!(
                         "{message}\n\nYou have an API key set (XAI_API_KEY). \
                          Your cached OAuth session is being used instead. \
-                         To use your API key, run `grok logout` or type /logout in the TUI."
+                         To use your API key, run `xvora logout` or type /logout in the TUI."
                     )
                 } else {
                     message
@@ -258,7 +258,7 @@ pub const SERVICE_NAME_REWRITES: &[(&str, &str)] = &[
     ("inference_api", "inference backend"),
     ("research-api", "research backend"),
     ("research_api", "research backend"),
-    ("grok-code-backend", "code backend"),
+    ("xvora-code-backend", "code backend"),
     ("grok_code_backend", "code backend"),
 ];
 
@@ -549,12 +549,12 @@ mod tests {
     #[test]
     fn format_rate_limited_api_key_rewrites_consumer_subscription_upsell() {
         let body = "Some resource has been exhausted: You are sending requests too quickly. \
-             Please slow down, or upgrade to a Grok subscription for higher limits: \
-             https://grok.com/supergrok";
+             Please slow down, or upgrade to a xvora subscription for higher limits: \
+             https://xvora.com/supergrok";
         let wire = format!("API error (status 429 Too Many Requests): {body}");
         // OAuth keeps the IC body (personal plan upgrade is correct).
         assert_eq!(format_rate_limited_user_message(Some(&wire), false), body);
-        // API key must not push grok.com SuperGrok; it gets the team credits / rate-limit tiers copy
+        // API key must not push xvora.com SuperGrok; it gets the team credits / rate-limit tiers copy
         assert_eq!(
             format_rate_limited_user_message(Some(&wire), true),
             RATE_LIMITED_USER_MESSAGE_API_KEY
@@ -802,7 +802,7 @@ mod tests {
         with_api_key_env(Some("xvora-test"), || {
             let err = SamplingError::Api {
                 status: StatusCode::FORBIDDEN,
-                message: "The model 'grok-build' requires a Grok subscription.".into(),
+                message: "The model 'xvora-build' requires a xvora subscription.".into(),
                 model_metadata: None,
                 retry_after_secs: None,
                 should_retry: None,
@@ -812,8 +812,8 @@ mod tests {
             let data = acp_err.data.unwrap();
             let msg = data.as_str().unwrap();
             assert!(
-                msg.contains("grok logout"),
-                "should suggest grok logout when API key is available: {msg}"
+                msg.contains("xvora logout"),
+                "should suggest xvora logout when API key is available: {msg}"
             );
             assert!(
                 msg.contains("/logout"),
@@ -828,7 +828,7 @@ mod tests {
         with_api_key_env(None, || {
             let err = SamplingError::Api {
                 status: StatusCode::FORBIDDEN,
-                message: "The model 'grok-build' requires a Grok subscription.".into(),
+                message: "The model 'xvora-build' requires a xvora subscription.".into(),
                 model_metadata: None,
                 retry_after_secs: None,
                 should_retry: None,
@@ -838,7 +838,7 @@ mod tests {
             let data = acp_err.data.unwrap();
             let msg = data.as_str().unwrap();
             assert!(
-                !msg.contains("grok logout"),
+                !msg.contains("xvora logout"),
                 "should NOT suggest logout when no API key is available: {msg}"
             );
         });
@@ -860,7 +860,7 @@ mod tests {
             let data = acp_err.data.unwrap();
             let msg = data.as_str().unwrap();
             assert!(
-                !msg.contains("grok logout"),
+                !msg.contains("xvora logout"),
                 "should NOT suggest logout for non-subscription 403: {msg}"
             );
         });

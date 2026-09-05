@@ -417,11 +417,11 @@ impl WelcomeLayout {
 
 /// Controls what the version badge renders.
 pub(super) enum VersionBadgeMode<'a> {
-    /// Full badge: team | tier | api_key | **Grok Build** VERSION+channel (right-aligned).
+    /// Full badge: team | tier | api_key | **xvora build** VERSION+channel (right-aligned).
     Full { subscription_tier: Option<&'a str> },
     /// Hero footer: team | api_key | channel (right-aligned, gray).
     HeroFooter,
-    /// Hero inline: **Grok Build**  VERSION (left-aligned).
+    /// Hero inline: **xvora build**  VERSION (left-aligned).
     HeroInline,
 }
 
@@ -478,7 +478,7 @@ pub(super) fn render_version_badge(
     match &mode {
         VersionBadgeMode::Full { .. } => {
             spans.push(Span::styled(
-                "Grok Build  ",
+                "xvora build  ",
                 Style::default()
                     .fg(theme.text_primary)
                     .add_modifier(Modifier::BOLD),
@@ -498,7 +498,7 @@ pub(super) fn render_version_badge(
         }
         VersionBadgeMode::HeroInline => {
             spans.push(Span::styled(
-                "Grok Build  ",
+                "xvora build  ",
                 Style::default()
                     .fg(theme.text_primary)
                     .add_modifier(Modifier::BOLD),
@@ -716,7 +716,7 @@ pub fn render_welcome(
 
     let mut result = match params.auth_state {
         AuthState::Pending { error } => {
-            let label = params.login_label.unwrap_or("grok.com");
+            let label = params.login_label.unwrap_or("xvora.com");
             let login_text = format!("Login with {}", label);
             let menu = [("l", login_text.as_str()), ("q", "Quit")];
             let msg = error.as_deref().map(|e| (e, theme.accent_error));
@@ -770,7 +770,7 @@ pub fn render_welcome(
                 content_area,
                 buf,
                 Some((
-                    "Grok Build is not yet available for this account.",
+                    "xvora build is not yet available for this account.",
                     theme.gray_bright,
                 )),
                 &menu,
@@ -926,7 +926,7 @@ fn render_welcome_blocked(
 
 /// Render the folder-trust question.
 /// Mirrors [`render_welcome_blocked`]'s stacked layout (logo, message, menu, version badge).
-/// Here the message is a multi-line block showing the workspace path and the warning that Grok Build may run or modify contents in this directory.
+/// Here the message is a multi-line block showing the workspace path and the warning that xvora build may run or modify contents in this directory.
 /// The y/N answer is handled by the welcome input interceptor, so this only paints; `menu_rects` are returned for parity with the other welcome arms.
 fn render_welcome_trust(
     content_area: Rect,
@@ -952,7 +952,7 @@ fn render_welcome_trust(
         Line::default(),
         // Two lines so the warning never clips at narrow / compact widths (a single ~78-char line would truncate "...posing security risks")
         Line::from(Span::styled(
-            "Grok Build may run or modify contents in this directory,",
+            "xvora build may run or modify contents in this directory,",
             Style::default().fg(theme.gray),
         ))
         .alignment(Alignment::Center),
@@ -2034,7 +2034,7 @@ fn render_welcome_done(
             let gate_link = p
                 .gate
                 .and_then(|g| g.url.as_deref())
-                .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
+                .unwrap_or("https://xvora.com/supergrok?referrer=xvora-build");
             let url = Line::from(Span::styled(
                 gate_link,
                 Style::default()
@@ -2687,8 +2687,8 @@ mod tests {
                 "badge must not label the product: {rendered:?}"
             );
         }
-        assert!(full.contains("Grok Build"), "full badge: {full:?}");
-        assert!(inline.contains("Grok Build"), "inline badge: {inline:?}");
+        assert!(full.contains("xvora build"), "full badge: {full:?}");
+        assert!(inline.contains("xvora build"), "inline badge: {inline:?}");
         assert!(footer.contains("acme"), "footer keeps the team: {footer:?}");
         assert!(
             !footer.ends_with('\u{2502}'),
@@ -3959,7 +3959,7 @@ mod tests {
         let area = Rect::new(0, 0, 80, 40);
         let mut buf = Buffer::empty(area);
         let theme = Theme::current();
-        let url = "https://accounts.x.ai/oauth2/authorize?client_id=grok";
+        let url = "https://accounts.x.ai/oauth2/authorize?client_id=xvora";
 
         let (copy_rect, fallback_rect) = render_welcome_authenticating(
             area,

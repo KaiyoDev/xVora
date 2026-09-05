@@ -2,7 +2,7 @@
 //!
 //! Compiled instead of `devbox_login.rs` when the devbox auth feature is off, so the remote devbox login helper is not reached.
 //! The API mirrors the real module: `is_devbox_environment()` is always `false`, which short-circuits every auto-recovery/migration call site.
-//! The entry points that can still be reached directly (`grok login --devbox`) return a descriptive error.
+//! The entry points that can still be reached directly (`xvora login --devbox`) return a descriptive error.
 
 use super::manager::AuthManager;
 use super::model::GrokAuth;
@@ -25,7 +25,7 @@ pub(super) async fn mint_devbox_auth_raw() -> anyhow::Result<GrokAuth> {
     anyhow::bail!(UNAVAILABLE)
 }
 
-/// `grok login --devbox` entry point: always errors in this build.
+/// `xvora login --devbox` entry point: always errors in this build.
 pub(crate) async fn run_devbox_login(
     _config: &crate::agent::config::Config,
 ) -> anyhow::Result<GrokAuth> {

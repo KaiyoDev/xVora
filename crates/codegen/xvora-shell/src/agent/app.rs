@@ -6,7 +6,7 @@ use crate::agent::mvp_agent::MvpAgent;
 use crate::auth::AuthMode;
 use crate::auth::{AuthManager, GrokAuth, GrokComConfig, run_auth_flow};
 use crate::leader::protocol::InternalMethod;
-use crate::util::grok_home;
+use crate::util::xvora_home;
 use acp_lib::{
     AcpAgentGatewayReceiver as GatewayReceiver, AcpAgentGatewaySender as GatewaySender,
     LineBufferedRead,
@@ -68,7 +68,7 @@ const LEADER_ACQUIRE_TIMEOUT: Duration = Duration::from_secs(15);
 /// They can reconnect to a new leader with the updated binary (via `connect_or_spawn` and `resolve_exe_for_spawn`).
 ///
 /// Idle means `agent_busy` is false (no IPC client request in flight) AND `activity.is_busy()` is false (no turn, parked interaction, or subagent).
-/// The second signal covers relay-driven (grok.com WebSocket) leaders, whose traffic bypasses the IPC server and never sets `agent_busy`.
+/// The second signal covers relay-driven (xvora.com WebSocket) leaders, whose traffic bypasses the IPC server and never sets `agent_busy`.
 ///
 /// If `check_fn` returns `true` but the agent is busy, the shutdown is deferred until the next interval when the agent may be idle.
 /// [`MAX_AUTO_UPDATE_BUSY_DEFERRALS`] bounds the deferrals; past it the update proceeds anyway (still flushing first).
@@ -242,7 +242,7 @@ pub async fn run_stdio_agent(
     }
     telemetry::unified_log::set_version(version::VERSION);
     file_utils::queue::cleanup_orphaned_uploads(
-        &grok_home::grok_home(),
+        &xvora_home::xvora_home(),
         file_utils::queue::DEFAULT_MAX_AGE,
     );
     if let Ok(version) = std::env::var("GROK_CLIENT_VERSION") {
@@ -318,17 +318,17 @@ pub async fn run_headless(
     crate::http::set_process_client_mode_headless();
     use crate::agent::relay::spawn_relay_connection_with_callback;
     use tokio_util::sync::CancellationToken;
-    const HEADLESS_NO_SESSION: &str = "Headless mode requires a grok.com session. \
-        Run `grok login` to sign in, or use `grok agent stdio` for API-key access.";
+    const HEADLESS_NO_SESSION: &str = "Headless mode requires a xvora.com session. \
+        Run `xvora login` to sign in, or use `xvora agent stdio` for API-key access.";
     file_utils::queue::cleanup_orphaned_uploads(
-        &grok_home::grok_home(),
+        &xvora_home::xvora_home(),
         file_utils::queue::DEFAULT_MAX_AGE,
     );
     let mut agent_config = agent_config.clone();
     agent_config.mode = crate::agent::config::AgentMode::Headless;
     let ctx = &agent_config.grok_com_config;
     let (mut auth, did_browser_flow) = if reauthenticate {
-        let auth_manager = Arc::new(AuthManager::new(&grok_home::grok_home(), ctx.clone()));
+        let auth_manager = Arc::new(AuthManager::new(&xvora_home::xvora_home(), ctx.clone()));
         run_auth_flow(
             &auth_manager,
             ctx,
@@ -340,7 +340,7 @@ pub async fn run_headless(
         )
         .await?
     } else {
-        let auth_manager = Arc::new(AuthManager::new(&grok_home::grok_home(), ctx.clone()));
+        let auth_manager = Arc::new(AuthManager::new(&xvora_home::xvora_home(), ctx.clone()));
         if crate::agent::auth_method::has_xai_api_key_env()
             && ctx.auth_provider_command.is_none()
             && crate::auth::try_ensure_fresh_auth(ctx).await.is_none()
@@ -394,7 +394,7 @@ pub async fn run_headless(
         if !did_browser_flow {
             eprintln!();
             eprintln!(
-                "Open Grok Build: {} (press Enter to open in browser)",
+                "Open xvora build: {} (press Enter to open in browser)",
                 grok_code_url
             );
             eprintln!();
@@ -553,17 +553,17 @@ fn relay_config_for_session(
         Some(shared_auth_manager.clone()),
     )
 }
-/// Start the leader's grok.com relay connection according to the start policy.
+/// Start the leader's xvora.com relay connection according to the start policy.
 /// Parks the [`RelayHandle`](crate::agent::relay::RelayHandle) in `slot` once the connection task is running.
 ///
-/// * `relay_on_demand == false` (default, an explicit `grok agent leader` invocation: devbox / systemd / nohup): connect **eagerly**, right now.
+/// * `relay_on_demand == false` (default, an explicit `xvora agent leader` invocation: devbox / systemd / nohup): connect **eagerly**, right now.
 ///   A bare leader has no local IPC clients; remote prompts arrive *through* the relay, so it must be up before any demand signal could exist.
 ///   Gating it on headless registration is a chicken-and-egg deadlock: the agent never registers and tooling reports "No online agents".
 /// * `relay_on_demand == true` covers leaders auto-spawned by interactive clients via `spawn_leader_subprocess` (`--relay-on-demand`).
 ///   These defer the WebSocket until the IPC server flips `relay_demand_rx`.
 ///   That flip happens on the first [`ClientMode::Headless`](crate::leader::ClientMode::Headless) registration.
 ///   A leader serving only TUI-dashboard / IDE clients never opens the relay.
-///   It then never pays the per-message clone/parse/log/TLS duplication of mirroring every agent message to grok.com.
+///   It then never pays the per-message clone/parse/log/TLS duplication of mirroring every agent message to xvora.com.
 ///
 /// Until the relay starts, `agent_to_ws_tx` stays `None`, so the outbound bridge skips the relay clone entirely.
 /// Messages produced before the relay starts are not buffered for it.
@@ -610,7 +610,7 @@ fn spawn_leader_relay(
         *slot_for_task.borrow_mut() = Some(handle);
     });
 }
-/// Everything needed to arm the leader's grok.com relay *after* startup.
+/// Everything needed to arm the leader's xvora.com relay *after* startup.
 ///
 /// A leader that boots without auth used to disable the relay forever: the decision was made once in [`run_leader`] and never revisited.
 /// On devboxes that turned a transient mint-provider outage at provision time into a permanently invisible box.
@@ -647,7 +647,7 @@ impl DeferredRelayArm {
         ) else {
             return Some(self);
         };
-        info!("Relay-eligible auth token appeared after startup — arming grok.com relay");
+        info!("Relay-eligible auth token appeared after startup — arming xvora.com relay");
         spawn_leader_relay(
             self.slot,
             relay_config,
@@ -678,7 +678,7 @@ pub fn apply_otel_config(auth_manager: &AuthManager, grok_com_config: &GrokComCo
     }
 }
 /// Run the agent in leader mode, accepting IPC connections from multiple clients.
-/// When a grok.com session is present, the leader connects to the websocket relay after startup (post-auth, post-prefetch).
+/// When a xvora.com session is present, the leader connects to the websocket relay after startup (post-auth, post-prefetch).
 /// BYOK / no-session leaders start serving clients over IPC only.
 /// A relay-eligible token hot-reloaded later arms the relay via [`DeferredRelayArm`].
 /// See [`spawn_leader_relay`] for when the relay connection is opened (eager by default, demand-gated with `relay_on_demand`).
@@ -698,7 +698,7 @@ pub fn apply_otel_config(auth_manager: &AuthManager, grok_com_config: &GrokComCo
 ///
 /// * `agent_config`: The agent configuration
 /// * `no_exit_on_disconnect`: If true, the leader will not exit when all clients disconnect
-/// * `relay_on_demand`: If true, defer the grok.com relay WebSocket until the first headless IPC client registers.
+/// * `relay_on_demand`: If true, defer the xvora.com relay WebSocket until the first headless IPC client registers.
 ///   If false (default), connect eagerly at startup; a session acquired later arms it via [`DeferredRelayArm`].
 #[tracing::instrument(level = "debug", skip_all)]
 pub async fn run_leader(
@@ -718,7 +718,7 @@ pub async fn run_leader(
     telemetry::unified_log::set_version(version::VERSION);
     tokio::task::spawn_blocking(|| {
         file_utils::queue::cleanup_orphaned_uploads(
-            &grok_home::grok_home(),
+            &xvora_home::xvora_home(),
             file_utils::queue::DEFAULT_MAX_AGE,
         );
     });
@@ -1034,7 +1034,7 @@ pub async fn run_leader(
                 );
             } else {
                 info!(
-                    "Relay not started: no grok.com session token \
+                    "Relay not started: no xvora.com session token \
                      (BYOK / local-only leader); will arm if an eligible \
                      token is hot-reloaded"
                 );
@@ -1086,7 +1086,7 @@ pub async fn run_leader(
             let watcher_cwd = recursive_config_watch_enabled
                 .then_some(cwd_for_watcher.as_path());
             let _config_watcher = if let Some((watcher, events_rx)) = crate::config::watcher::ConfigFileWatcher::start(
-                &grok_home::grok_home(),
+                &xvora_home::xvora_home(),
                 &watch_paths,
                 watcher_cwd,
                 None,
@@ -1111,7 +1111,7 @@ pub async fn run_leader(
                 let initial_config = crate::config::load_from_disk()
                     .unwrap_or_else(|_| toml::Value::Table(toml::map::Map::new()));
                 let reloader = crate::config::reloader::ConfigReloader::new(
-                    grok_home::grok_home(),
+                    xvora_home::xvora_home(),
                     initial_auth_key_hash,
                     initial_config,
                     auth_scope,
@@ -1487,7 +1487,7 @@ mod tests {
         }
     }
     /// Regression test for the bare-leader relay gating bug.
-    /// A bare `grok agent leader` (devbox/systemd: no local IPC clients, `relay_on_demand == false`) must connect the grok.com relay eagerly.
+    /// A bare `xvora agent leader` (devbox/systemd: no local IPC clients, `relay_on_demand == false`) must connect the xvora.com relay eagerly.
     /// Remote prompts arrive *through* the relay, so on such a leader no headless-registration demand signal can ever fire.
     /// Gating the relay on it means the agent never registers with the backend ("No online agents") even though the box is healthy.
     #[tokio::test]

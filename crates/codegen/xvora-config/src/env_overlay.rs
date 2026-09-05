@@ -31,7 +31,7 @@ pub enum OverlaySource {
     Path(PathBuf),
 }
 
-/// A resolved overlay for the merge and for `grok inspect`.
+/// A resolved overlay for the merge and for `xvora inspect`.
 #[derive(Debug, Clone)]
 pub struct ResolvedOverlay {
     pub source: OverlaySource,
@@ -71,7 +71,7 @@ pub(crate) fn load_env_overlay() -> Option<toml::Value> {
     Some(overlay)
 }
 
-/// The resolved overlay for `grok inspect`.
+/// The resolved overlay for `xvora inspect`.
 pub fn resolved_env_overlay() -> Option<ResolvedOverlay> {
     let (inline, path) = env_overlay_inputs();
     let (value, source, sections) = resolve_overlay_detailed(inline.as_deref(), path.as_deref())?;

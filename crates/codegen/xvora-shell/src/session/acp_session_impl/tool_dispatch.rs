@@ -395,7 +395,7 @@ pub(crate) const MAX_ARGS_IN_ERROR: usize = 2_000;
 /// The message is stored as a `tool_result` in the conversation history, so the model sees it on the very next turn.
 ///
 /// It carries the error description, the original arguments (capped at [`MAX_ARGS_IN_ERROR`] bytes), and the JSON error position for invalid JSON.
-/// Grok-shell sanitizes unparseable arguments to `"{}"` before forwarding to the provider (avoiding 400 errors).
+/// xvora-shell sanitizes unparseable arguments to `"{}"` before forwarding to the provider (avoiding 400 errors).
 /// Without the echoed original, the model would only see that empty object and have to regenerate all its work from scratch.
 /// The JSON position (e.g. a missing `"` before a key name) lets the model fix a one-character typo rather than regenerating a thousand-line file.
 pub(super) fn build_tool_parse_error_message(

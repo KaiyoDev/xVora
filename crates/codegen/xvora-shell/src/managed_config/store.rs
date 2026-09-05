@@ -98,9 +98,9 @@ pub(super) fn eligible_team_principal(auth: GrokAuth) -> Option<GrokAuth> {
     (auth.is_team_principal() && !crate::auth::is_expired(&auth)).then_some(auth)
 }
 
-/// Single-team: managed config is a grok.com feature with one grok.com auth.
+/// Single-team: managed config is a xvora.com feature with one xvora.com auth.
 pub(super) fn read_active_team_auth() -> Option<GrokAuth> {
-    let home = crate::util::grok_home::grok_home();
+    let home = crate::util::xvora_home::xvora_home();
     let store = crate::auth::read_auth_json(&home.join("auth.json")).ok()?;
     let team = store.values().find(|a| a.is_team_principal())?.clone();
     eligible_team_principal(team)
@@ -108,7 +108,7 @@ pub(super) fn read_active_team_auth() -> Option<GrokAuth> {
 
 /// Ignores expiry; `Err` is not a logout — treating it as one would wipe policy on a read blip.
 pub(super) fn team_principal_signed_in() -> std::io::Result<bool> {
-    let home = crate::util::grok_home::grok_home();
+    let home = crate::util::xvora_home::xvora_home();
     match crate::auth::read_auth_json(&home.join("auth.json")) {
         Ok(store) => Ok(store.values().any(|a| a.is_team_principal())),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
@@ -129,7 +129,7 @@ pub fn clear_orphan() {
             return;
         }
     }
-    let home = crate::util::grok_home::grok_home();
+    let home = crate::util::xvora_home::xvora_home();
     let Some(_lock) = try_lock_managed_config(&home) else {
         return; // another process is syncing; retry next call
     };
@@ -213,7 +213,7 @@ fn open_managed_config_lock(home: &std::path::Path) -> std::io::Result<std::fs::
 const GATE_LOCK_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(100);
 
 /// Purge, floor tick, and reads under the caller-held gate lock — one consistent state.
-/// `home` must be the process `grok_home()`: the identity reads resolve it internally.
+/// `home` must be the process `xvora_home()`: the identity reads resolve it internally.
 pub(super) fn gate_snapshot_locked(home: &std::path::Path) -> GateSnapshot {
     // Purge first so an offline team switch isn't misread as a substituted cache.
     purge_prior_tenant_locked(home);
@@ -250,7 +250,7 @@ pub(super) fn bump_managed_rollback_floor() {
     if !config::signed_policy::verification_active() {
         return;
     }
-    let home = crate::util::grok_home::grok_home();
+    let home = crate::util::xvora_home::xvora_home();
     match try_lock_managed_config(&home) {
         Some(_lock) => {
             config::bump_rollback_floor(&home);
@@ -331,7 +331,7 @@ pub(super) fn apply_fetched(
     let signed_deployment_id = verified
         .as_ref()
         .and_then(|v| v.payload.deployment_id.clone());
-    let home = crate::util::grok_home::grok_home();
+    let home = crate::util::xvora_home::xvora_home();
     let Some(_lock) = try_lock_managed_config(&home) else {
         tracing::debug!("managed config locked by another process; skipping apply");
         return Ok(ApplyOutcome::Skipped);
@@ -451,7 +451,7 @@ fn stage_refresh(
 
 /// Bounded local I/O, re-verified through [`apply_fetched`]; an unverifying build deletes it unread.
 pub(super) fn apply_staged_managed_config() {
-    let home = crate::util::grok_home::grok_home();
+    let home = crate::util::xvora_home::xvora_home();
     let path = staged_refresh_path(&home);
     let Ok(json) = std::fs::read_to_string(&path) else {
         return;
@@ -613,7 +613,7 @@ pub fn current_serving_identity() -> crate::config::ServingIdentity {
 
 /// Ignores expiry; no deployment-key special case, or envelope binding would be off for team users.
 pub(super) fn active_team_id_any_expiry() -> Option<String> {
-    let home = crate::util::grok_home::grok_home();
+    let home = crate::util::xvora_home::xvora_home();
     let store = crate::auth::read_auth_json(&home.join("auth.json")).ok()?;
     store
         .values()

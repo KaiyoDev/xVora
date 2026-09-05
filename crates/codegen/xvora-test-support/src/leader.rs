@@ -1,4 +1,4 @@
-//! Leader-mode (`grok agent --leader stdio`) test harness.
+//! Leader-mode (`xvora agent --leader stdio`) test harness.
 //!
 //! The fixture owns only subprocess handles it created: one initial persistent leader and each returned stdio client.
 //! Lock-file PIDs are observations only; a detached replacement leader is never adopted or signaled.
@@ -166,7 +166,7 @@ impl Drop for FixtureClientRegistration {
     }
 }
 
-/// A `grok agent --leader stdio` client subprocess speaking ACP over pipes.
+/// A `xvora agent --leader stdio` client subprocess speaking ACP over pipes.
 pub struct LeaderStdioClient {
     pub conn: acp::ClientSideConnection,
     process: TestProcess,
@@ -233,8 +233,8 @@ impl LeaderFixture {
         sandbox: &TestSandbox,
         readiness_timeout: Duration,
     ) -> io::Result<Self> {
-        let socket = sandbox.grok_home().join("leader.sock");
-        let lock = sandbox.grok_home().join("leader.lock");
+        let socket = sandbox.xvora_home().join("leader.sock");
+        let lock = sandbox.xvora_home().join("leader.lock");
         let mut cmd = std::process::Command::new(binary);
         cmd.args([
             "agent",
@@ -256,7 +256,7 @@ impl LeaderFixture {
             .env("XAI_API_KEY", "test-key-for-ci")
             .env("GROK_LEADER_SOCKET", &socket)
             .env("RUST_LOG", "shell=debug");
-        let log_path = sandbox.grok_home().join("leader.log");
+        let log_path = sandbox.xvora_home().join("leader.log");
         match std::fs::File::create(&log_path) {
             Ok(log) => {
                 cmd.stderr(log);
@@ -269,7 +269,7 @@ impl LeaderFixture {
         #[allow(clippy::disallowed_methods)]
         let mut child = cmd.spawn()?;
         let pid = child.id();
-        let tree = match TestProcessTree::try_attach(pid, "persistent grok test leader") {
+        let tree = match TestProcessTree::try_attach(pid, "persistent xvora test leader") {
             Ok(tree) => tree,
             Err(error) => {
                 let _ = child.kill();
@@ -628,7 +628,7 @@ impl LeaderStdioClient {
             cmd,
             sandbox,
             TestProcessConfig::new()
-                .label("grok leader stdio client")
+                .label("xvora leader stdio client")
                 .stdin(TestStdin::Piped)
                 .stdout(TestOutput::Piped)
                 .env("GROK_CLI_CHAT_PROXY_BASE_URL", base_url)
@@ -831,7 +831,7 @@ impl LeaderStdioClient {
 }
 
 pub fn leader_lock_path(home: &Path) -> PathBuf {
-    home.join(".grok").join("leader.lock")
+    home.join(".xvora").join("leader.lock")
 }
 
 pub fn read_leader_pid(home: &Path) -> Option<u32> {
@@ -879,7 +879,7 @@ pub async fn wait_for_replay_notifications(
 }
 
 pub fn leader_log(home: &Path) -> String {
-    std::fs::read_to_string(home.join(".grok").join("leader.log")).unwrap_or_default()
+    std::fs::read_to_string(home.join(".xvora").join("leader.log")).unwrap_or_default()
 }
 
 #[cfg(test)]

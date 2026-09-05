@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use shell::agent::config::Config as AgentConfig;
 use shell::session::repo_changes::UploadMethod;
-use shell::util::grok_home::grok_home;
+use shell::util::xvora_home::xvora_home;
 
 #[derive(Debug, clap::Args, Clone)]
 pub struct TraceArgs {
@@ -12,7 +12,7 @@ pub struct TraceArgs {
     /// Save locally only, skip remote upload
     #[arg(long)]
     pub local: bool,
-    /// Output path (default: $GROK_HOME/trace-exports/<session-id>.tar.gz)
+    /// Output path (default: $xvora_home/trace-exports/<session-id>.tar.gz)
     #[arg(short, long)]
     pub output: Option<PathBuf>,
     /// Emit machine-readable JSON output
@@ -352,7 +352,7 @@ pub(crate) fn find_session_dir(session_id: &str) -> Result<PathBuf> {
 }
 
 pub fn trace_exports_dir() -> PathBuf {
-    grok_home().join("trace-exports")
+    xvora_home().join("trace-exports")
 }
 
 /// Creates parent directory if needed.
@@ -442,7 +442,7 @@ async fn run_upload(
                 "trace_cmd: no upload credentials available"
             );
             anyhow::bail!(
-                "No upload credentials. Run `grok login` or set a deployment key. \
+                "No upload credentials. Run `xvora login` or set a deployment key. \
                  See {} for upload overrides.",
                 crate::util::display_user_grok_path("docs/user-guide")
             );
@@ -576,7 +576,7 @@ impl UploadAttempt<'_> {
             eprintln!("Trace upload failed: {error}");
             eprintln!("  Bundle: {}", export_path.display());
             eprintln!("  Log:    {}", log_path.display());
-            eprintln!("  Retry:  grok trace {}", self.session_id);
+            eprintln!("  Retry:  xvora trace {}", self.session_id);
             println!("{}", export_path.display());
         }
 
@@ -591,7 +591,7 @@ impl UploadAttempt<'_> {
         let _ = writeln!(log, "Trace upload debug log");
         let _ = writeln!(log, "======================");
         let _ = writeln!(log, "Timestamp:    {}", chrono::Utc::now().to_rfc3339());
-        let _ = writeln!(log, "Grok version: {}", version::full_version());
+        let _ = writeln!(log, "xvora version: {}", version::full_version());
         let _ = writeln!(
             log,
             "OS:           {} {}",

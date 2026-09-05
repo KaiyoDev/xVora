@@ -10,7 +10,7 @@
 //! When the whole-table parse fails, fields that fail to parse on their own are pruned (one warning each) and the table is parsed again.
 //! Non-table values are dropped with a warning.
 //!
-//! Warnings are retained on `Config::config_warnings` and surfaced by `grok inspect`.
+//! Warnings are retained on `Config::config_warnings` and surfaced by `xvora inspect`.
 
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -36,7 +36,7 @@ pub enum ConfigWarningKind {
 }
 
 /// What a [`ConfigWarning`] is about.
-/// Serialize-only: `grok inspect --json` emits it, nothing deserializes it back.
+/// Serialize-only: `xvora inspect --json` emits it, nothing deserializes it back.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(tag = "target", rename_all = "camelCase")]
 pub enum WarningTarget {
@@ -264,7 +264,7 @@ pub(crate) fn log_config_warnings(warnings: &[ConfigWarning]) {
     if !warnings.is_empty() {
         tracing::warn!(
             warnings = warnings.len(),
-            "config: parsed with warnings; run `grok inspect` for details"
+            "config: parsed with warnings; run `xvora inspect` for details"
         );
     }
 }
@@ -637,7 +637,7 @@ mod tests {
 
     #[test]
     fn non_table_model_section_warns_and_is_ignored() {
-        let (models, warnings) = parse_raw(r#"model = "grok-4""#);
+        let (models, warnings) = parse_raw(r#"model = "xvora-4""#);
         assert!(models.is_empty());
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].kind, ConfigWarningKind::NotATable);

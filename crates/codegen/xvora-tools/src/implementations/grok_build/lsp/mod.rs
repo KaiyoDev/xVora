@@ -93,7 +93,7 @@ impl tool_runtime::Tool for LspTool {
                 .ok_or_else(|| {
                     tool_runtime::ToolError::custom(
                         "process_manager",
-                        "LSP tool is unavailable. Configure ~/.grok/lsp.json or <cwd>/.grok/lsp.json and ensure the language server can start.",
+                        "LSP tool is unavailable. Configure ~/.xvora/lsp.json or <cwd>/.xvora/lsp.json and ensure the language server can start.",
                     )
                 })?
                 .clone();

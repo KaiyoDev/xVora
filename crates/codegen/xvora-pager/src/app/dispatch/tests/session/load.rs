@@ -367,7 +367,7 @@ fn session_loaded_without_adoption_finishes_replayed_running_entries() {
         "replayed running entries must be finished when no turn is adopted"
     );
 }
-/// Resume into a cwd with `.git/grok-worktree-source` sets `session.is_worktree`.
+/// Resume into a cwd with `.git/xvora-worktree-source` sets `session.is_worktree`.
 #[test]
 fn load_session_marks_standalone_worktree_cwd() {
     let mut app = test_app();
@@ -379,7 +379,7 @@ fn load_session_marks_standalone_worktree_cwd() {
     );
     assert!(
         app.agents[&AgentId(0)].session.is_worktree,
-        "resume into a standalone grok worktree must set session.is_worktree"
+        "resume into a standalone xvora worktree must set session.is_worktree"
     );
     assert_eq!(app.agents[&AgentId(0)].session.cwd, clone.path);
 }
@@ -2260,7 +2260,7 @@ fn welcome_esc_drops_in_flight_fetch_response() {
     );
 }
 /// Build-mode sibling of the chat Esc test, pinning Esc during load.
-/// The fast foreign fetch has landed (its rows hidden behind the Grok-default CTA) while the native fetch is still in flight.
+/// The fast foreign fetch has landed (its rows hidden behind the xvora-default CTA) while the native fetch is still in flight.
 /// Esc must really dismiss the picker: drop the loading flag and invalidate the fetch so its late response cannot resurrect the picker.
 /// A lingering loading flag holds `show_picker` in a spinner limbo that ignores input.
 #[test]

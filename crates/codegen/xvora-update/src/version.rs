@@ -7,18 +7,18 @@ use tokio::fs;
 use tokio::process::Command;
 
 use shell::env::GrokBuildEnvironment;
-use shell::util::grok_home::grok_home;
+use shell::util::xvora_home::xvora_home;
 
 const TTL_SECONDS_BEFORE_AUTO_UPDATE: Duration = Duration::from_secs(60 * 30);
-const NPM_PACKAGE: &str = "@xvora-official/grok";
-pub const GH_RELEASE_REPO: &str = "xvora-org-shared/grok-build";
+const NPM_PACKAGE: &str = "@xvora-official/xvora";
+pub const GH_RELEASE_REPO: &str = "xvora-org-shared/xvora-build";
 
 /// Primary CLI base URL: Cloudflare-fronted x.ai endpoint with edge caching for binaries and origin-respecting no-cache for channel pointers.
 pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://x.ai/cli";
 
 /// Fallback CLI base URL: direct GCS, used when the primary is unreachable (Cloudflare outage, regional CF egress issue, DNS hijack, etc.).
 pub(crate) const CLI_BASE_URL_FALLBACK: &str =
-    "https://storage.googleapis.com/grok-build-public-artifacts/cli";
+    "https://storage.googleapis.com/xvora-build-public-artifacts/cli";
 
 /// CLI base URLs in preference order.
 /// Callers (channel-pointer fetch, binary download, in-app updater) try each in turn and stop at the first success.
@@ -62,9 +62,9 @@ fn is_loopback_base(base: &str) -> bool {
 /// `auto_update` and `version` never need to know about the `GrokBuildEnvironment` enum directly.
 #[derive(Debug, Clone)]
 pub struct UpdateConfig {
-    /// Chat API proxy base URL (versioned `https://cli-chat-proxy.grok.com/v1` endpoint).
+    /// Chat API proxy base URL (versioned `https://cli-chat-proxy.xvora.com/v1` endpoint).
     pub proxy_base_url: String,
-    /// Auth scope key for `~/.grok/auth.json`.
+    /// Auth scope key for `~/.xvora/auth.json`.
     pub auth_scope: String,
     /// Enterprise deployment key (GROK_DEPLOYMENT_KEY).
     pub deployment_key: Option<String>,
@@ -373,7 +373,7 @@ pub async fn fetch_latest_version(installer: &str, config: &UpdateConfig) -> Res
 ///
 /// `stable_version` records the current stable channel pointer so that `channel_label()` can derive `[alpha]` vs `[stable]` without network I/O.
 pub async fn write_version_cache(version: &str, stable_version: Option<&str>) {
-    let version_path = grok_home().join("version.json");
+    let version_path = xvora_home().join("version.json");
     let now = time::OffsetDateTime::now_utc();
     let json = GrokVersion::new(
         version.to_string(),
@@ -419,7 +419,7 @@ pub async fn get_latest_version(installer: &str, config: &UpdateConfig) -> Resul
 
 /// True if `version.json` exists and is within TTL.
 pub async fn is_version_cache_fresh() -> bool {
-    let version_path = grok_home().join("version.json");
+    let version_path = xvora_home().join("version.json");
     let now = time::OffsetDateTime::now_utc();
     if let Ok(version_str) = fs::read_to_string(&version_path).await
         && let Ok(version) = serde_json::from_str::<GrokVersion>(&version_str)
@@ -432,16 +432,16 @@ pub async fn is_version_cache_fresh() -> bool {
 
 pub use version::installed as get_installed_grok_version;
 
-/// Version of the managed grok binary currently on disk, read from the
-/// `~/.grok/bin/grok` symlink target (`../downloads/grok-<version>-<platform>`)
+/// Version of the managed xvora binary currently on disk, read from the
+/// `~/.xvora/bin/xvora` symlink target (`../downloads/xvora-<version>-<platform>`)
 /// without exec'ing anything.
 ///
-/// Concurrent updaters (TUI background download, leader hourly checker, explicit `grok update`) decide staleness from this.
+/// Concurrent updaters (TUI background download, leader hourly checker, explicit `xvora update`) decide staleness from this.
 /// They use it instead of their own compiled-in version, so a binary another process already installed is never downloaded a second time.
 ///
 /// Returns `None` when there is no parseable managed symlink (Windows
 /// copy-based installs, dev builds) or when the symlink is DANGLING — a
-/// link whose target binary was deleted (e.g. manual `~/.grok/downloads`
+/// link whose target binary was deleted (e.g. manual `~/.xvora/downloads`
 /// cleanup) must not report an installed version, or every updater would
 /// claim "already up to date" forever while no runnable binary exists.
 /// NOTE: the symlink existing does not prove the *active installer* maintains it.
@@ -450,11 +450,11 @@ pub use version::installed as get_installed_grok_version;
 pub fn installed_on_disk_version() -> Option<String> {
     #[cfg(unix)]
     {
-        let app = shell::util::grok_home::grok_application();
+        let app = shell::util::xvora_home::grok_application();
         let target = std::fs::read_link(&app).ok()?;
         // metadata() follows the symlink: Err means the target is gone (dangling link) and the version it names is not actually on disk
         std::fs::metadata(&app).ok()?;
-        version_from_versioned_binary_name(target.file_name()?.to_str()?, "grok")
+        version_from_versioned_binary_name(target.file_name()?.to_str()?, "xvora")
     }
     #[cfg(not(unix))]
     {
@@ -463,9 +463,9 @@ pub fn installed_on_disk_version() -> Option<String> {
 }
 
 /// Everything between the `{bin_prefix}-` prefix and the first platform-OS component is the version, validated as semver.
-/// Handles the internal layout (`grok-0.1.150-macos-aarch64`) and the npm layout without a platform suffix (`grok-0.1.150`).
-/// Pre-releases parse whole: `grok-0.1.150-alpha.1-linux-x86_64` gives `0.1.150-alpha.1`.
-/// Unknown layouts (`grok-latest`, `grok-pager-*` when `bin_prefix` is `grok`) return `None` instead of garbage.
+/// Handles the internal layout (`xvora-0.1.150-macos-aarch64`) and the npm layout without a platform suffix (`xvora-0.1.150`).
+/// Pre-releases parse whole: `xvora-0.1.150-alpha.1-linux-x86_64` gives `0.1.150-alpha.1`.
+/// Unknown layouts (`xvora-latest`, `xvora-pager-*` when `bin_prefix` is `xvora`) return `None` instead of garbage.
 ///
 /// Shared by the disk-version probe above and `cleanup_old_downloads` in `auto_update`; keep it the single place that understands this naming.
 pub(crate) fn version_from_versioned_binary_name(name: &str, bin_prefix: &str) -> Option<String> {
@@ -502,11 +502,11 @@ pub(crate) async fn try_fetch_stable_pointer() -> Option<String> {
     .unwrap_or(None)
 }
 
-/// Read the cached stable version from `~/.grok/version.json` (sync, for display).
+/// Read the cached stable version from `~/.xvora/version.json` (sync, for display).
 ///
 /// Returns `None` if the file doesn't exist, can't be parsed, or has no `stable_version` field (e.g. written by an older binary).
 pub fn cached_stable_version() -> Option<String> {
-    let version_path = grok_home().join("version.json");
+    let version_path = xvora_home().join("version.json");
     let content = std::fs::read_to_string(&version_path).ok()?;
     let gv: GrokVersion = serde_json::from_str(&content).ok()?;
     gv.stable_version
@@ -541,7 +541,7 @@ pub fn channel_name() -> Option<&'static str> {
 /// Channel label derived from the cached stable pointer.
 ///
 /// Compares the compiled-in `VERSION` against the stable pointer stored in
-/// `~/.grok/version.json` (written by the auto-updater):
+/// `~/.xvora/version.json` (written by the auto-updater):
 /// - `" [alpha]"` when the current version is ahead of stable,
 /// - `" [stable]"` when at or behind stable,
 /// - `""` when no cached pointer is available (first launch, old cache format).
@@ -594,36 +594,39 @@ mod tests {
         );
     }
 
-    /// Disk-version probe: parsing the version out of the managed install's symlink-target file name (`grok-<version>-<platform>`).
+    /// Disk-version probe: parsing the version out of the managed install's symlink-target file name (`xvora-<version>-<platform>`).
     #[test]
     fn test_version_from_versioned_binary_name() {
         let cases: &[(&str, Option<&str>)] = &[
-            ("grok-0.2.46-darwin-arm64", Some("0.2.46")),
-            ("grok-0.1.220-linux-x86_64", Some("0.1.220")),
-            ("grok-0.2.5-windows-x86_64.exe", Some("0.2.5")),
+            ("xvora-0.2.46-darwin-arm64", Some("0.2.46")),
+            ("xvora-0.1.220-linux-x86_64", Some("0.1.220")),
+            ("xvora-0.2.5-windows-x86_64.exe", Some("0.2.5")),
             // Pre-releases must round-trip whole
             // Truncating to "0.1.220" would make an alpha install masquerade as the release and mask updates from alpha to stable
-            ("grok-0.1.220-alpha.4-linux-x86_64", Some("0.1.220-alpha.4")),
-            ("grok-0.1.220-alpha.4", Some("0.1.220-alpha.4")), // npm layout
-            ("grok-pager-0.1.5-darwin-arm64", None),           // "pager" is not a version
-            ("grok-garbage-darwin-arm64", None),               // unparseable version
-            ("grok-0.2.46", Some("0.2.46")),                   // no platform suffix
-            ("other-0.2.46-darwin-arm64", None),               // wrong prefix
-            ("grok-latest", None),                             // symlink alias, not a version
-            ("grok", None),                                    // bare name
+            (
+                "xvora-0.1.220-alpha.4-linux-x86_64",
+                Some("0.1.220-alpha.4"),
+            ),
+            ("xvora-0.1.220-alpha.4", Some("0.1.220-alpha.4")), // npm layout
+            ("xvora-pager-0.1.5-darwin-arm64", None),           // "pager" is not a version
+            ("xvora-garbage-darwin-arm64", None),               // unparseable version
+            ("xvora-0.2.46", Some("0.2.46")),                   // no platform suffix
+            ("other-0.2.46-darwin-arm64", None),                // wrong prefix
+            ("xvora-latest", None),                             // symlink alias, not a version
+            ("xvora", None),                                    // bare name
             ("", None),
         ];
         for (name, expected) in cases {
             assert_eq!(
-                version_from_versioned_binary_name(name, "grok").as_deref(),
+                version_from_versioned_binary_name(name, "xvora").as_deref(),
                 *expected,
                 "version_from_versioned_binary_name({name:?})"
             );
         }
 
-        // bin_prefix discrimination: the pager binary parses under its own prefix but not under "grok"
+        // bin_prefix discrimination: the pager binary parses under its own prefix but not under "xvora"
         assert_eq!(
-            version_from_versioned_binary_name("grok-pager-0.1.5-darwin-arm64", "grok-pager")
+            version_from_versioned_binary_name("xvora-pager-0.1.5-darwin-arm64", "xvora-pager")
                 .as_deref(),
             Some("0.1.5")
         );

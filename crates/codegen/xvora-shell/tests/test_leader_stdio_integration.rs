@@ -1175,7 +1175,7 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
     // Two TUIs connected to the same leader, sharing one session.
     let mut invoker = LeaderClient::connect(
         sock_path.clone(),
-        "grok-tui-A",
+        "xvora-tui-A",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -1183,7 +1183,7 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
     .unwrap();
     let mut follower = LeaderClient::connect(
         sock_path,
-        "grok-tui-B",
+        "xvora-tui-B",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -1221,7 +1221,7 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
     // Invoker sends `session/setModel` for the shared session.
     invoker
         .send(format!(
-            r#"{{"jsonrpc":"2.0","id":42,"method":"session/setModel","params":{{"sessionId":"{}","modelId":"grok-4"}}}}"#,
+            r#"{{"jsonrpc":"2.0","id":42,"method":"session/setModel","params":{{"sessionId":"{}","modelId":"xvora-4"}}}}"#,
             shared_sid
         ))
         .unwrap();
@@ -1229,7 +1229,7 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
     let json: serde_json::Value = serde_json::from_str(&received).unwrap();
     let setmodel_ns_id = json["id"].as_str().unwrap().to_string();
     assert_eq!(json["method"], "session/setModel");
-    assert_eq!(json["params"]["modelId"], "grok-4");
+    assert_eq!(json["params"]["modelId"], "xvora-4");
 
     // Simulate the agent's two outputs for a successful switch:
     //
@@ -1238,12 +1238,12 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
     //
     // Order matters: `model_switch::apply` fires the broadcast BEFORE the response, so it arrives at each subscriber's recv() first
     let broadcast = format!(
-        r#"{{"jsonrpc":"2.0","method":"x.ai/session_notification","params":{{"sessionId":"{}","update":{{"sessionUpdate":"model_changed","model_id":"grok-4","reasoning_effort":"high"}}}}}}"#,
+        r#"{{"jsonrpc":"2.0","method":"x.ai/session_notification","params":{{"sessionId":"{}","update":{{"sessionUpdate":"model_changed","model_id":"xvora-4","reasoning_effort":"high"}}}}}}"#,
         shared_sid
     );
     response_tx.send(broadcast.clone()).unwrap();
     let response = format!(
-        r#"{{"jsonrpc":"2.0","result":{{"meta":{{"model":"grok-4"}}}},"id":"{}"}}"#,
+        r#"{{"jsonrpc":"2.0","result":{{"meta":{{"model":"xvora-4"}}}},"id":"{}"}}"#,
         setmodel_ns_id
     );
     response_tx.send(response).unwrap();
@@ -1262,7 +1262,7 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
     assert_eq!(inv1["method"], "x.ai/session_notification");
     assert_eq!(inv1["params"]["sessionId"], shared_sid);
     assert_eq!(inv1["params"]["update"]["sessionUpdate"], "model_changed");
-    assert_eq!(inv1["params"]["update"]["model_id"], "grok-4");
+    assert_eq!(inv1["params"]["update"]["model_id"], "xvora-4");
     assert_eq!(inv1["params"]["update"]["reasoning_effort"], "high");
 
     let invoker_msg2 = tokio::time::timeout(Duration::from_secs(2), invoker.recv())
@@ -1274,7 +1274,7 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
         inv2["id"], 42,
         "response id must be restored to the invoker's original"
     );
-    assert_eq!(inv2["result"]["meta"]["model"], "grok-4");
+    assert_eq!(inv2["result"]["meta"]["model"], "xvora-4");
 
     // --- Follower: must receive the broadcast
     // Without it the follower's status bar, `/model` dropdown, and prompt header stay stuck on the pre-switch model
@@ -1290,7 +1290,7 @@ async fn test_set_model_broadcasts_to_session_subscribers() {
     assert_eq!(f["method"], "x.ai/session_notification");
     assert_eq!(f["params"]["sessionId"], shared_sid);
     assert_eq!(f["params"]["update"]["sessionUpdate"], "model_changed");
-    assert_eq!(f["params"]["update"]["model_id"], "grok-4");
+    assert_eq!(f["params"]["update"]["model_id"], "xvora-4");
     assert_eq!(f["params"]["update"]["reasoning_effort"], "high");
 
     // Follower must NOT see the namespaced setModel response
@@ -1444,7 +1444,7 @@ async fn test_cancel_prompt_id_meta_passes_through_with_two_clients() {
 
     let client_a = LeaderClient::connect(
         sock_path.clone(),
-        "grok-pager",
+        "xvora-pager",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -1452,7 +1452,7 @@ async fn test_cancel_prompt_id_meta_passes_through_with_two_clients() {
     .unwrap();
     let client_b = LeaderClient::connect(
         sock_path,
-        "grok-pager",
+        "xvora-pager",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -1754,7 +1754,7 @@ async fn test_code_nav_capable_client_gets_true_injected_into_session_new() {
     // Web client that advertised code-nav capability during registration.
     let web_client = LeaderClient::connect(
         sock_path,
-        "grok-web",
+        "xvora-web",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: true,
@@ -1790,7 +1790,7 @@ async fn test_non_code_nav_client_gets_false_injected_into_session_new() {
     // TUI client with no code-nav capability.
     let tui_client = LeaderClient::connect(
         sock_path,
-        "grok-tui",
+        "xvora-tui",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: false,
@@ -1828,7 +1828,7 @@ async fn test_leader_code_nav_client_isolation() {
     // Web client with code-nav capability.
     let web_client = LeaderClient::connect(
         sock_path.clone(),
-        "grok-web",
+        "xvora-web",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: true,
@@ -1841,7 +1841,7 @@ async fn test_leader_code_nav_client_isolation() {
     // TUI client without code-nav capability.
     let tui_client = LeaderClient::connect(
         sock_path,
-        "grok-tui",
+        "xvora-tui",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: false,
@@ -1888,7 +1888,7 @@ async fn test_code_nav_capability_injected_into_session_load() {
 
     let web_client = LeaderClient::connect(
         sock_path,
-        "grok-web",
+        "xvora-web",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: true,
@@ -1924,7 +1924,7 @@ async fn test_code_status_ext_request_forwarded_to_agent() {
 
     let web_client = LeaderClient::connect(
         sock_path,
-        "grok-web",
+        "xvora-web",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: true,
@@ -2166,7 +2166,7 @@ async fn test_connect_waits_for_leader_ready() {
     let connect_start = tokio::time::Instant::now();
     let mut client = LeaderClient::connect(
         sock_path,
-        "grok-tui",
+        "xvora-tui",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -2600,7 +2600,7 @@ async fn test_initialize_injected_when_not_first_message() {
 
     let client = LeaderClient::connect(
         sock_path,
-        "grok-tui",
+        "xvora-tui",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -2631,7 +2631,7 @@ async fn test_initialize_injected_when_not_first_message() {
         .and_then(|v| v.as_str());
     assert_eq!(
         client_id,
-        Some("grok-tui"),
+        Some("xvora-tui"),
         "clientIdentifier must be injected into initialize even when it is not the first message"
     );
 
@@ -2649,7 +2649,7 @@ async fn test_leader_code_nav_isolation_end_to_end() {
     // Web client with code-nav capability.
     let web_client = LeaderClient::connect(
         sock_path.clone(),
-        "grok-web",
+        "xvora-web",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: true,
@@ -2662,7 +2662,7 @@ async fn test_leader_code_nav_isolation_end_to_end() {
     // TUI client without code-nav capability.
     let tui_client = LeaderClient::connect(
         sock_path,
-        "grok-tui",
+        "xvora-tui",
         ClientMode::Stdio,
         ClientCapabilities {
             code_nav_enabled: false,
@@ -2901,8 +2901,8 @@ async fn raw_recv_acp(reader: &mut tokio::io::ReadHalf<UnixStream>) -> serde_jso
 /// Namespaced request ids are unique per process (global `ClientId` counter).
 /// The pid filter fences off other test processes appending to the same shared log.
 ///
-/// This binary does not sandbox GROK_HOME, so on a dev machine these entries
-/// land in the real `~/.grok` log — accepted: the server already writes
+/// This binary does not sandbox xvora_home, so on a dev machine these entries
+/// land in the real `~/.xvora` log — accepted: the server already writes
 /// `leader.client.*` lines there from every test in this file, and the
 /// pid+request-id fence keeps the counting sound regardless of what else is
 /// in the file. (Bazel sandboxes HOME, so CI writes stay test-scoped.)

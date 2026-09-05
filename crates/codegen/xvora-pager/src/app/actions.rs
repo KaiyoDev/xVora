@@ -59,7 +59,7 @@ pub enum Action {
     DeleteCurrentSessionAnswered {
         confirmed: bool,
     },
-    /// Open grok.com in the browser for SuperGrok subscription upsell.
+    /// Open xvora.com in the browser for SuperGrok subscription upsell.
     OpenSupergrokUrl,
     /// Re-check subscription status via the shell's `x.ai/auth/check_subscription`.
     CheckSubscription,
@@ -69,7 +69,7 @@ pub enum Action {
     RetryCreditLimitPrompt,
     /// Open a semantic scrollback link.
     OpenLink(crate::render::osc8::LinkTarget),
-    /// Open grok.com managed connectors, appending session teamId when set.
+    /// Open xvora.com managed connectors, appending session teamId when set.
     OpenManagedConnectors,
     /// Cycle to the next visible link (or highlight the first if none selected).
     OpenNextLink,
@@ -327,7 +327,7 @@ pub enum Action {
     /// The inline TUI is suspended for the duration.
     /// The dispatch handler renders and writes the file and arms `AppView::pending_pager_path`; the event loop does the suspend/restore.
     OpenTranscriptPager,
-    /// Minimal mode (`grok --minimal`): re-print the last committed folded block, fully expanded, into native scrollback below the conversation.
+    /// Minimal mode (`xvora --minimal`): re-print the last committed folded block, fully expanded, into native scrollback below the conversation.
     /// Folded means collapsed reasoning or truncated tool output.
     /// Bound to `Ctrl+E` and the `/expand` command. No-op outside minimal mode or when nothing folded remains to expand.
     MinimalExpandLast,
@@ -753,7 +753,7 @@ pub enum Action {
     DoctorFixCancelled(DoctorFixTarget),
     /// Persist the memory modal fullscreen preference to config.toml.
     PersistMemoryFullscreen(bool),
-    /// Open the Agent Dashboard view (`/dashboard`, `Ctrl+\`, `grok dashboard`).
+    /// Open the Agent Dashboard view (`/dashboard`, `Ctrl+\`, `xvora dashboard`).
     OpenDashboard,
     /// Close the dashboard, returning to the previous `ActiveView`.
     ExitDashboard,
@@ -936,7 +936,7 @@ pub struct SharedQueueTarget {
 }
 /// Persist-and-notify behavior for [`Effect::PersistPermissionMode`].
 ///
-/// Both variants write to `~/.grok/config.toml` and route ACP
+/// Both variants write to `~/.xvora/config.toml` and route ACP
 /// `x.ai/yolo_mode_changed` notifications.
 /// The ACP notification is gated on disk-write success when `WithRollback` is used.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1377,7 +1377,7 @@ pub enum Effect {
     ScanForeignSessions {
         cwd: std::path::PathBuf,
         compat: foreign_sessions::EnabledForeignSessionSources,
-        grok_home: std::path::PathBuf,
+        xvora_home: std::path::PathBuf,
         coordinator: crate::app::ForeignScanCoordinator,
         seq: u64,
     },
@@ -1390,7 +1390,7 @@ pub enum Effect {
     DetectForeignResumeHint {
         canonical_cwd: std::path::PathBuf,
         compat: foreign_sessions::EnabledForeignSessionSources,
-        grok_home: std::path::PathBuf,
+        xvora_home: std::path::PathBuf,
         launch_token: u64,
     },
     /// Fetch session list for the welcome screen session picker.
@@ -1544,7 +1544,7 @@ pub enum Effect {
     RecordConsentUpstream { notice_id: String, version: i32 },
     /// Persist memory modal fullscreen preference to `[hints]` in config.toml.
     PersistMemoryFullscreen { fullscreen: bool },
-    /// Persist the dashboard's `[dashboard]` configuration to `~/.grok/config.toml`.
+    /// Persist the dashboard's `[dashboard]` configuration to `~/.xvora/config.toml`.
     /// Multi-pager safe via `config_toml_edit::read_config_document_for_edit`, which loads, modifies, then writes the whole document.
     /// Concurrent pagers may produce last-writer-wins behaviour but never corrupt the file.
     PersistDashboard(crate::views::dashboard::PersistedDashboard),
@@ -1567,7 +1567,7 @@ pub enum Effect {
         session_id: Option<acp::SessionId>,
         persist: PermissionModePersist,
     },
-    /// Persist a typed setting to `~/.grok/config.toml`. On failure,
+    /// Persist a typed setting to `~/.xvora/config.toml`. On failure,
     /// rolls the in-memory cache back to `rollback_value`.
     PersistSetting {
         key: crate::settings::SettingKey,
@@ -1931,7 +1931,7 @@ pub enum Effect {
     /// Clear the auth copy feedback after a delay if its generation is still current.
     ScheduleClearAuthCopyFeedback { generation: u64 },
     /// Register the current session in the active-sessions crash-recovery
-    /// registry (`~/.grok/active_sessions.json`).
+    /// registry (`~/.xvora/active_sessions.json`).
     RegisterActiveSession {
         session_id: acp::SessionId,
         cwd: String,

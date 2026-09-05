@@ -142,7 +142,7 @@ pub struct BashParams {
     pub timeout_secs: Option<f64>,
     /// **Foreground-only** ceiling for model-provided `timeout` (seconds).
     /// None → built-in [`DEFAULT_MAX_TIMEOUT_MS`] (5 minutes); production
-    /// grok-build opts up to 10h via xvora-shell's `BashToolConfig`.
+    /// xvora-build opts up to 10h via xvora-shell's `BashToolConfig`.
     ///
     /// When set:
     /// - Positive model `timeout` values are clamped to this ceiling (ms).
@@ -467,7 +467,7 @@ pub(crate) fn format_default_prompt(bash: &BashOutput) -> String {
 // Default upper bound for model-provided *foreground* command timeouts when
 // `BashParams.max_timeout_secs` is unset: a transport-safe **5 minutes**.
 // Consumers that want longer opt in per session via `max_timeout_secs` — in
-// particular production grok-build sets it to 10h in xvora-shell's
+// particular production xvora-build sets it to 10h in xvora-shell's
 // `BashToolConfig`. `max_timeout_secs` only lowers/raises this *foreground*
 // ceiling; background tasks (`timeout: 0` / omitted in background mode) are
 // always unbounded regardless of this value — the model owns their lifetime via
@@ -4002,7 +4002,7 @@ mod tests {
         #[test]
         fn foreground_positive_clamped_to_default_max() {
             // The built-in default foreground ceiling is 5 min; production
-            // grok-shell opts up to 10h via max_timeout_secs. Background unaffected.
+            // xvora-shell opts up to 10h via max_timeout_secs. Background unaffected.
             assert_eq!(DEFAULT_MAX_TIMEOUT_MS, 300_000);
             let above_max: u64 = 50 * 60 * 60 * 1_000;
             assert_eq!(

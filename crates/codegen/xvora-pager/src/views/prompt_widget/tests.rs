@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
     use super::*;
     use crate::input::key::key;
 
@@ -399,7 +399,7 @@
         use std::path::PathBuf;
 
         let mut img = test_image();
-        img.source_path = Some(PathBuf::from("/tmp/grok-test-image.png"));
+        img.source_path = Some(PathBuf::from("/tmp/xvora-test-image.png"));
 
         let mut pw = ghostty_prompt();
         pw.insert_image(img).unwrap();
@@ -409,12 +409,12 @@
             "chip text should be path-free: {full:?}"
         );
         assert!(
-            !full.contains("/tmp/grok-test-image.png"),
+            !full.contains("/tmp/xvora-test-image.png"),
             "source path must not appear in the buffer chip: {full:?}"
         );
         assert_eq!(
             pw.images[0].source_path.as_deref(),
-            Some(std::path::Path::new("/tmp/grok-test-image.png")),
+            Some(std::path::Path::new("/tmp/xvora-test-image.png")),
             "source_path retained on the PastedImage record"
         );
 
@@ -422,7 +422,7 @@
         let selected = pw.textarea.selected_text().expect("selected text");
         assert!(selected.contains("[Image #1]"));
         assert!(
-            !selected.contains("/tmp/grok-test-image.png"),
+            !selected.contains("/tmp/xvora-test-image.png"),
             "select-all must not copy the filepath from the chip"
         );
     }
@@ -1576,7 +1576,7 @@
         let models = crate::acp::model_state::ModelState::default();
 
         // Cursor inside the command token with args already present.
-        pw.textarea.insert_str("/mod grok-4");
+        pw.textarea.insert_str("/mod xvora-4");
         pw.textarea.set_cursor(3);
         pw.refresh_slash(&models);
 
@@ -1594,7 +1594,7 @@
         assert!(pw.accept_slash_completion(&models));
         assert_eq!(
             pw.textarea.text(),
-            "/model grok-4",
+            "/model xvora-4",
             "the row's trailing space must not stack on the existing separator"
         );
         // Absorb, not trim the insert: the cursor lands after the separator, so the post-accept refresh is in the args phase where Enter chains
@@ -1680,7 +1680,7 @@
         let model_id = agent_client_protocol::ModelId::new(Arc::from("grok-4.5"));
         models.available.insert(
             model_id.clone(),
-            agent_client_protocol::ModelInfo::new(model_id, "Grok 4.5".to_string()),
+            agent_client_protocol::ModelInfo::new(model_id, "xvora 4.5".to_string()),
         );
 
         // Type "/model gr" and position cursor at end (in args).
@@ -1691,11 +1691,11 @@
         assert!(snap.open, "arg suggestions should be open");
         assert!(snap.args_range.is_some());
 
-        // Accepting the arg completion should replace "gr" with "Grok 4.5"
+        // Accepting the arg completion should replace "gr" with "xvora 4.5"
         pw.accept_slash_completion(&models);
         let text = pw.textarea.text().to_string();
         assert!(
-            text.contains("Grok 4.5"),
+            text.contains("xvora 4.5"),
             "arg should be replaced, got: {:?}",
             text
         );

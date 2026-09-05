@@ -3,8 +3,8 @@
 //! Uses `xvora-pager-pty-harness` (`PtyHarness`) and Shift+Tab (CSI Z, compatible with `ptyctl` key injection) to cycle Normal to Plan to Auto.
 //! The mode banner or status line must show Auto as its own mode, distinct from Always-Approve.
 //!
-//! Auth: seeds `HOME/.grok/auth.json` from `GROK_AUTH_JSON` (path) or the
-//! developer's `~/.grok/auth.json` so the pager skips device-login when
+//! Auth: seeds `HOME/.xvora/auth.json` from `GROK_AUTH_JSON` (path) or the
+//! developer's `~/.xvora/auth.json` so the pager skips device-login when
 //! credentials exist. Without auth the test records an environmental
 //! failure (login screen) and still asserts the harness API surface.
 //!
@@ -25,7 +25,7 @@ const WELCOME_SCREEN_SENTINEL: &str = "Quit";
 /// Back-tab (Shift+Tab, CSI Z); the pager binds it to CycleMode.
 const SHIFT_TAB: &[u8] = b"\x1b[Z";
 
-/// Prefer explicit path, else the user's real `~/.grok/auth.json`.
+/// Prefer explicit path, else the user's real `~/.xvora/auth.json`.
 fn auth_json_source() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("GROK_AUTH_JSON") {
         let pb = PathBuf::from(p);
@@ -34,7 +34,7 @@ fn auth_json_source() -> Option<PathBuf> {
         }
     }
     dirs_next_home()
-        .map(|h| h.join(".grok/auth.json"))
+        .map(|h| h.join(".xvora/auth.json"))
         .filter(|p| p.is_file())
 }
 
@@ -51,10 +51,10 @@ fn prepare_sandbox(sandbox: &mut TestSandbox, gate_on: bool) -> Vec<(String, Str
     sandbox.remove_env("XAI_API_KEY");
 
     let home = sandbox.home();
-    let grok = sandbox.grok_home();
-    let _ = std::fs::create_dir_all(grok);
+    let xvora = sandbox.xvora_home();
+    let _ = std::fs::create_dir_all(xvora);
     if let Some(src) = auth_json_source() {
-        let dest = grok.join("auth.json");
+        let dest = xvora.join("auth.json");
         if let Err(e) = std::fs::copy(&src, &dest) {
             eprintln!("pty_auto_mode: could not copy auth.json ({e}); login may block mode cycle");
         } else {
@@ -65,7 +65,7 @@ fn prepare_sandbox(sandbox: &mut TestSandbox, gate_on: bool) -> Vec<(String, Str
             );
         }
     } else {
-        eprintln!("pty_auto_mode: no ~/.grok/auth.json — may hit device login");
+        eprintln!("pty_auto_mode: no ~/.xvora/auth.json — may hit device login");
     }
 
     let home_s = home.display().to_string();

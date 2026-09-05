@@ -10,7 +10,7 @@ use crate::rmcp::transport::auth::{
     OAuthClientConfig,
 };
 
-const MCP_OAUTH_CLIENT_NAME: &str = "Grok";
+const MCP_OAUTH_CLIENT_NAME: &str = "xvora";
 
 const CREDENTIAL_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
 
@@ -232,7 +232,7 @@ fn auth_lock_path(server_name: &str) -> std::path::PathBuf {
             }
         })
         .collect();
-    config::grok_home().join(format!("mcp_auth_{safe}.lock"))
+    config::xvora_home().join(format!("mcp_auth_{safe}.lock"))
 }
 
 /// `readiness` carries a caller's fresh [`ensure_oauth_ready`] result so the flow does not re-probe.
@@ -684,7 +684,7 @@ mod tests {
             .unwrap();
         mgr.set_metadata(require_iss_metadata(token_endpoint));
         mgr.configure_client(
-            OAuthClientConfig::new("grok-test-client", "http://127.0.0.1:0/callback")
+            OAuthClientConfig::new("xvora-test-client", "http://127.0.0.1:0/callback")
                 .with_application_type("native"),
         )
         .unwrap();

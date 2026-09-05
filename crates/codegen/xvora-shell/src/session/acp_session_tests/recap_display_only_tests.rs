@@ -265,12 +265,12 @@ async fn side_question_routes_on_the_session_id_when_the_key_is_not_forwarded() 
             let req = requests.last().expect("a request must be recorded");
             let session_id = actor.session_info.id.to_string();
             assert_eq!(
-                req.header("x-grok-conv-id"),
+                req.header("x-xvora-conv-id"),
                 Some(session_id.as_str()),
                 "on a backend that drops the cache key the conv id must be the parent session id"
             );
             let req_id = req
-                .header("x-grok-req-id")
+                .header("x-xvora-req-id")
                 .expect("req id must still be sent");
             assert!(
                 req_id.starts_with("xvora-btw-"),
@@ -792,7 +792,7 @@ async fn manual_recap_over_budget_trims_persisted_request_and_is_display_only() 
 /// Over-budget recap serializes to a well-formed Anthropic Messages payload:
 /// system preserved, reasoning stripped, no dangling `tool_use`/`tool_result`, no
 /// `tool_result` before the appended instruction. (Messages is the strictest
-/// shape, so it also covers the laxer grok ChatCompletions/Responses shapes.)
+/// shape, so it also covers the laxer xvora ChatCompletions/Responses shapes.)
 #[test]
 fn over_budget_recap_serializes_to_well_formed_messages_request() {
     use crate::session::helpers::session_recap;
@@ -830,7 +830,7 @@ fn over_budget_recap_serializes_to_well_formed_messages_request() {
         ConversationItem::tool_result("c2", "z".repeat(40_000)),     // trailing run
     ];
 
-    // The grok backend sets `strip_reasoning` to false; the over-budget branch strips anyway
+    // The xvora backend sets `strip_reasoning` to false; the over-budget branch strips anyway
     let items = session_recap::budget_recap_items(conv, "system-reminder", false, 8_000);
     let req = ConversationRequest::from_items(items);
     let msg = xvora_sampling_types::build_messages_request(&req);
@@ -925,8 +925,8 @@ async fn recap_request_rides_parent_prompt_cache() {
                 .expect("a responses request must be recorded");
 
             let conv_id = recap_req
-                .header("x-grok-conv-id")
-                .expect("recap must send x-grok-conv-id");
+                .header("x-xvora-conv-id")
+                .expect("recap must send x-xvora-conv-id");
             assert!(
                 conv_id.starts_with("recap-"),
                 "conv id keeps the recap-* label: {conv_id}"
@@ -1325,8 +1325,8 @@ async fn side_question_request_rides_parent_prompt_cache() {
                 .expect("a responses request must be recorded");
 
             let conv_id = btw_req
-                .header("x-grok-conv-id")
-                .expect("side question must send x-grok-conv-id");
+                .header("x-xvora-conv-id")
+                .expect("side question must send x-xvora-conv-id");
             assert!(
                 conv_id.starts_with("btw-"),
                 "conv id keeps the btw-* label: {conv_id}"

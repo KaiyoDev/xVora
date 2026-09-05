@@ -10,14 +10,14 @@ fn default_oidc_scopes() -> Vec<String> {
         "api:access".into(),
     ]
 }
-/// Default scopes for the xAI OAuth2 provider. `grok-cli:access` authorizes the token for API proxy requests.
+/// Default scopes for the xAI OAuth2 provider. `xvora-cli:access` authorizes the token for API proxy requests.
 fn default_oauth2_scopes() -> Vec<String> {
     vec![
         "openid".into(),
         "profile".into(),
         "email".into(),
         "offline_access".into(),
-        "grok-cli:access".into(),
+        "xvora-cli:access".into(),
         "api:access".into(),
         "conversations:read".into(),
         "conversations:write".into(),
@@ -29,7 +29,7 @@ fn default_team_oauth2_scopes() -> Vec<String> {
     vec![
         "profile".into(),
         "offline_access".into(),
-        "grok-cli:access".into(),
+        "xvora-cli:access".into(),
         "api:access".into(),
         "team:read".into(),
         "conversations:read".into(),
@@ -46,7 +46,7 @@ fn default_team_oauth2_scopes() -> Vec<String> {
 pub enum PreferredAuthMethod {
     /// `XAI_API_KEY` / auth.json `xvora::api_key` / per-model BYOK (`xvora.api_key`).
     ApiKey,
-    /// OIDC / OAuth2 session (`cached_token`, interactive `grok.com` / `oidc`, including devbox-minted OIDC).
+    /// OIDC / OAuth2 session (`cached_token`, interactive `xvora.com` / `oidc`, including devbox-minted OIDC).
     Oidc,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,7 +147,7 @@ pub(crate) fn accounts_app_cors_layer(method: axum::http::Method) -> tower_http:
 }
 /// Local-dev OAuth2 issuer (accounts-app running on localhost).
 const XAI_OAUTH2_LOCAL_ISSUER: &str = "http://localhost:22255";
-const DEFAULT_OAUTH2_REFERRER: &str = "grok-build";
+const DEFAULT_OAUTH2_REFERRER: &str = "xvora-build";
 /// Returns `true` when `GROK_LOCAL_AUTH=1` is set, indicating the local accounts-app should be used as the OAuth2 issuer.
 pub(crate) fn use_local_auth() -> bool {
     std::env::var("GROK_LOCAL_AUTH")
@@ -167,7 +167,7 @@ pub fn xvora_oauth2_issuer() -> &'static str {
 pub fn is_xai_oauth2_issuer(issuer: &str) -> bool {
     issuer == XAI_OAUTH2_ISSUER || issuer == XAI_OAUTH2_LOCAL_ISSUER
 }
-/// auth.json scope key used by the pre-OIDC `grok login --legacy` flow.
+/// auth.json scope key used by the pre-OIDC `xvora login --legacy` flow.
 /// Matches the key format produced by the original `accounts.x.ai` relay auth.
 pub(crate) const LEGACY_AUTH_SCOPE: &str = "https://accounts.x.ai/sign-in";
 impl GrokComConfig {
@@ -180,7 +180,7 @@ impl GrokComConfig {
             || env_lockdown_forced()
     }
     /// When `preferred_method = api_key`, automatic OIDC paths (devbox mint, interactive browser login, external auth provider) must not run.
-    /// The pin is fail-closed; explicit `grok login --devbox` and `--api-key` bypass it.
+    /// The pin is fail-closed; explicit `xvora login --devbox` and `--api-key` bypass it.
     pub(crate) fn blocks_automatic_oidc(&self) -> bool {
         matches!(self.preferred_method, Some(PreferredAuthMethod::ApiKey))
     }
@@ -276,7 +276,7 @@ impl Default for GrokComConfig {
         }
     }
 }
-/// Parses a boolean env-var value for grok's on/off flags.
+/// Parses a boolean env-var value for xvora's on/off flags.
 /// Bare presence enables the flag, but falsy spellings (`0`, `false`, `off`, `no`, empty) count as disabled.
 /// `GROK_DISABLE_API_KEY_AUTH=false` therefore does NOT enable the flag.
 fn env_flag_enabled(value: &str) -> bool {
@@ -388,7 +388,7 @@ mod tests {
             scopes: default_team_oauth2_scopes(),
             principal_type: Some("Team".into()),
             principal_id: Some("team-abc".into()),
-            referrer: Some("grok-build".into()),
+            referrer: Some("xvora-build".into()),
         };
         assert_eq!(cfg.auth_scope(), "https://auth.x.ai::client-123");
     }
@@ -409,7 +409,7 @@ mod tests {
             scopes: default_oauth2_scopes(),
             principal_type: None,
             principal_id: None,
-            referrer: Some("grok-build".into()),
+            referrer: Some("xvora-build".into()),
         };
         assert_eq!(cfg.auth_scope(), "https://auth.x.ai::client-123");
     }
@@ -436,7 +436,7 @@ mod tests {
                 "profile",
                 "email",
                 "offline_access",
-                "grok-cli:access",
+                "xvora-cli:access",
                 "api:access",
                 "conversations:read",
                 "conversations:write",

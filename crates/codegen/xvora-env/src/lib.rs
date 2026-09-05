@@ -5,7 +5,7 @@
     unreachable_code,
     dead_code
 )]
-//! Backend environment presets for the Grok CLI crate family: endpoint URL defaults, environment selection, and env-var test support.
+//! Backend environment presets for the xvora CLI crate family: endpoint URL defaults, environment selection, and env-var test support.
 //!
 //! Public builds expose production endpoints.
 //! Values resolve as a `GROK_*` env-var override when set, else the compiled production default.
@@ -19,11 +19,11 @@ pub struct GrokBuildEndpoints {
     pub ws_origin: &'static str,
 }
 const PRODUCTION_ENDPOINTS: GrokBuildEndpoints = GrokBuildEndpoints {
-    cli_chat_proxy_base_url: "https://cli-chat-proxy.grok.com/v1",
-    asset_server_url: "https://assets.grok.com",
-    relay_ws_url: "wss://code.grok.com/ws/code-agent",
-    gateway_ws_url: "wss://grok.com/ws/gw/",
-    ws_origin: "https://grok.com",
+    cli_chat_proxy_base_url: "https://cli-chat-proxy.xvora.com/v1",
+    asset_server_url: "https://assets.xvora.com",
+    relay_ws_url: "wss://code.xvora.com/ws/code-agent",
+    gateway_ws_url: "wss://xvora.com/ws/gw/",
+    ws_origin: "https://xvora.com",
 };
 pub const PROD_CLI_CHAT_PROXY_BASE_URL: &str = PRODUCTION_ENDPOINTS.cli_chat_proxy_base_url;
 pub const PROD_ASSET_SERVER_URL: &str = PRODUCTION_ENDPOINTS.asset_server_url;
@@ -76,7 +76,7 @@ impl GrokBuildEnvironment {
     pub fn asset_server_url(&self) -> String {
         self.resolve("_ASSET_SERVER_URL", self.endpoints().asset_server_url)
     }
-    /// The relay WebSocket URL (Web Frontend at `grok.com/code` driving a local agent).
+    /// The relay WebSocket URL (Web Frontend at `xvora.com/code` driving a local agent).
     /// Not the cloud-sandbox gateway ([`Self::gateway_ws_url`]); the two speak different protocols.
     pub fn relay_ws_url(&self) -> String {
         self.resolve("_WS_URL", self.endpoints().relay_ws_url)
@@ -234,7 +234,7 @@ mod tests {
         let _first = EnvVarGuard::set(KEY, "first");
         let _second = EnvVarGuard::set(KEY, "second");
     }
-    /// Guards against conflating the relay and gateway endpoints (a relay loop mistakenly connecting to `wss://grok.com/ws/gw/`).
+    /// Guards against conflating the relay and gateway endpoints (a relay loop mistakenly connecting to `wss://xvora.com/ws/gw/`).
     #[test]
     fn relay_and_gateway_urls_are_distinct() {
         assert_ne!(

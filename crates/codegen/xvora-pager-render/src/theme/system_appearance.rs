@@ -85,7 +85,7 @@ fn resolve_appearance_chain(
 
 /// Desktop-session APIs only (no env, no OSC 11).
 ///
-/// Used by `grok wrap` to stamp the *local* OS theme into the child env before SSH.
+/// Used by `xvora wrap` to stamp the *local* OS theme into the child env before SSH.
 /// Must not consult env hints; those may be a previous wrap hop's snapshot.
 #[must_use]
 pub fn detect_desktop() -> Option<SystemAppearance> {

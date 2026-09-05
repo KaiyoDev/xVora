@@ -287,7 +287,7 @@ mod bind_config_tests {
     /// Presets are banned: any preset (known or not) is ignored, never resolved to a toolset, and never widened to the default in strict mode.
     #[test]
     fn presets_are_never_resolved() {
-        for preset in ["explore", "grok-computer", "bogus"] {
+        for preset in ["explore", "xvora-computer", "bogus"] {
             let cfg = WorkspaceBindConfig::from_metadata(&serde_json::json!({ "preset": preset }));
             assert!(
                 matches!(cfg.resolve(&all_known, false), ResolvedToolset::UseDefault),
@@ -750,7 +750,7 @@ impl BindMcpConfig {
     }
     /// Mark servers (by configured name) as FIRST-PARTY app endpoints: local
     /// desktop processes addressed by agent id. Only these receive the
-    /// `X-Grok-Agent-ID` header (the bound session id) and the
+    /// `X-xvora-Agent-ID` header (the bound session id) and the
     /// local-agent-endpoint transport posture (no OAuth probe, no proxy, no
     /// redirects). Defaults OFF for every server — a user-configured
     /// third-party MCP server must never receive the session id or lose its
@@ -807,9 +807,9 @@ pub struct WorkspaceConfig {
     pub event_buffer_capacity: usize,
     /// Pluggable [`SessionContext`] / [`ToolRegistryBuilder`] producer.
     pub session_factory: Arc<dyn SessionContextFactory>,
-    /// Global hook sources (e.g. `~/.claude/settings.json`, `~/.grok/hooks/`).
+    /// Global hook sources (e.g. `~/.claude/settings.json`, `~/.xvora/hooks/`).
     pub hook_global_sources: Vec<HookSourceConfig>,
-    /// Project-scoped hook sources (e.g. `<project>/.grok/hooks/`).
+    /// Project-scoped hook sources (e.g. `<project>/.xvora/hooks/`).
     pub hook_project_sources: Vec<HookSourceConfig>,
     /// Extra skill paths and a path-prefix ignore list. Stored on `WorkspaceShared` for `discover_skills` calls.
     pub skills_config: crate::discovery::SkillsConfig,
@@ -826,7 +826,7 @@ pub struct WorkspaceConfig {
     pub server_metadata: Option<serde_json::Value>,
     /// Runtime-tunable timing/threshold config for the tool server.
     pub status_config: crate::status_config::StatusConfig,
-    /// Folder-trust verdict for repo-local (project-scoped) LSP servers from `<cwd>/.grok/lsp.json`.
+    /// Folder-trust verdict for repo-local (project-scoped) LSP servers from `<cwd>/.xvora/lsp.json`.
     /// `false` drops them at load, `true` keeps them.
     /// The shell caller resolves the verdict and threads it in; callers without a folder-trust decision pass `true`.
     pub project_lsp_trusted: bool,
@@ -954,7 +954,7 @@ impl std::fmt::Debug for AgentSessionConfig {
 pub enum HookSourceConfig {
     /// A single JSON settings file (e.g. `~/.claude/settings.json`).
     SettingsFile(PathBuf),
-    /// A directory of `*.json` hook files (e.g. `~/.grok/hooks/`).
+    /// A directory of `*.json` hook files (e.g. `~/.xvora/hooks/`).
     Directory(PathBuf),
 }
 /// Filesystem isolation strategy for a forked session.

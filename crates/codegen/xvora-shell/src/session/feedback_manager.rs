@@ -1840,7 +1840,7 @@ mod author_identity_tests {
             ClientType::Tui,
             FeedbackContent::Text("great session".to_string()),
         );
-        s.model_id = Some("grok-4".to_string());
+        s.model_id = Some("xvora-4".to_string());
         s
     }
 
@@ -1897,7 +1897,7 @@ email = ["$GROK_TEST_WORK_EMAIL"]
         let body = captured.lock().clone().expect("server saw the POST");
         assert_eq!(body["authorName"], "Ada Lovelace");
         assert_eq!(body["authorEmail"], "ada@corp.example");
-        assert_eq!(body["modelId"], "grok-4");
+        assert_eq!(body["modelId"], "xvora-4");
         assert_eq!(body["feedbackText"], "great session");
 
         // The local entry keeps the author fields and the full context.
@@ -1908,7 +1908,7 @@ email = ["$GROK_TEST_WORK_EMAIL"]
         let persisted = entry.submission.expect("submission persisted");
         assert_eq!(persisted.author_name.as_deref(), Some("Ada Lovelace"));
         assert_eq!(persisted.author_email.as_deref(), Some("ada@corp.example"));
-        assert_eq!(persisted.model_id.as_deref(), Some("grok-4"));
+        assert_eq!(persisted.model_id.as_deref(), Some("xvora-4"));
     }
 
     /// `GROK_USER_METADATA` is merged into the submission and travels with it: onto the wire body for triage and onto the local feedback.jsonl entry.

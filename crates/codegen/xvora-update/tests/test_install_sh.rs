@@ -2,7 +2,7 @@
 //! Runs the REAL shipped `install.sh` against a fake `curl` that can serve the good artifact, truncate it, or serve a right-length garbage body.
 //! Asserts the same invariant as the Rust blitz:
 //!
-//! > After any install attempt, `$BIN_DIR/grok` resolves to a binary that runs, OR is still the previous-good binary, never a partial/garbage binary.
+//! > After any install attempt, `$BIN_DIR/xvora` resolves to a binary that runs, OR is still the previous-good binary, never a partial/garbage binary.
 //!
 //! Also covers shell-rc rewrite: stowed/symlinked `~/.bashrc` etc. must survive reinstall without being replaced by a plain file.
 //!
@@ -31,7 +31,7 @@ fn install_sh_path() -> Option<PathBuf> {
 fn desktop_install_sh_path() -> Option<PathBuf> {
     dunce::canonicalize(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../frontend/apps/grok-desktop/scripts/install.sh"),
+            .join("../../../frontend/apps/xvora-desktop/scripts/install.sh"),
     )
     .ok()
     .filter(|p| p.exists())
@@ -52,7 +52,7 @@ fn host_platform() -> String {
 }
 
 const GOOD_SCRIPT: &str = "#!/bin/sh\nexit 0\n";
-const INSTALLER_BLOCK_START: &str = "# >>> grok installer >>>";
+const INSTALLER_BLOCK_START: &str = "# >>> xvora installer >>>";
 
 /// Write a fake `curl` that intercepts every download `install.sh` performs.
 /// `$FAKE_MODE` (full|truncate|garbage) selects the corruption.
@@ -103,36 +103,36 @@ exit 0
 
 /// Seed a valid previous-good binary and symlink in the isolated home.
 fn seed_previous_good(home: &Path, platform: &str) -> PathBuf {
-    let downloads = home.join(".grok").join("downloads");
-    let bin = home.join(".grok").join("bin");
+    let downloads = home.join(".xvora").join("downloads");
+    let bin = home.join(".xvora").join("bin");
     std::fs::create_dir_all(&downloads).unwrap();
     std::fs::create_dir_all(&bin).unwrap();
-    let prev = downloads.join(format!("grok-{platform}"));
+    let prev = downloads.join(format!("xvora-{platform}"));
     std::fs::write(&prev, GOOD_SCRIPT).unwrap();
     std::fs::set_permissions(&prev, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let link = bin.join("grok");
+    let link = bin.join("xvora");
     let _ = std::fs::remove_file(&link);
-    std::os::unix::fs::symlink(format!("../downloads/grok-{platform}"), &link).unwrap();
+    std::os::unix::fs::symlink(format!("../downloads/xvora-{platform}"), &link).unwrap();
     dunce::canonicalize(&prev).unwrap()
 }
 
-/// Re-resolve `$BIN_DIR/grok` from disk and re-run it: the active grok must always execute, and never be a `.tmp`/partial file.
+/// Re-resolve `$BIN_DIR/xvora` from disk and re-run it: the active xvora must always execute, and never be a `.tmp`/partial file.
 fn assert_active_grok_runs(home: &Path) {
-    let link = home.join(".grok").join("bin").join("grok");
-    assert!(link.is_symlink(), "grok must remain a symlink");
+    let link = home.join(".xvora").join("bin").join("xvora");
+    assert!(link.is_symlink(), "xvora must remain a symlink");
     let resolved =
-        dunce::canonicalize(&link).unwrap_or_else(|e| panic!("grok symlink dangles: {e}"));
+        dunce::canonicalize(&link).unwrap_or_else(|e| panic!("xvora symlink dangles: {e}"));
     let name = resolved.file_name().unwrap().to_string_lossy().to_string();
     assert!(
         !name.contains(".tmp"),
-        "active grok must not be a temp file: {name}"
+        "active xvora must not be a temp file: {name}"
     );
     let ok = Command::new(&resolved)
         .arg("--version")
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
-    assert!(ok, "active grok must run: {}", resolved.display());
+    assert!(ok, "active xvora must run: {}", resolved.display());
 }
 
 fn run_installer(install_sh: &Path, home: &Path, fakebin: &Path, mode: &str, shell: &str) -> bool {
@@ -144,7 +144,7 @@ fn run_installer(install_sh: &Path, home: &Path, fakebin: &Path, mode: &str, she
         .env("HOME", home)
         .env("PATH", path_env)
         .env("SHELL", shell)
-        .env("GROK_BIN_DIR", home.join(".grok").join("bin"))
+        .env("GROK_BIN_DIR", home.join(".xvora").join("bin"))
         .env("GROK_CHANNEL", "stable")
         .env("FAKE_MODE", mode)
         .status()
@@ -164,7 +164,7 @@ fn assert_single_installer_block(path: &Path, preserved: Option<&str>) {
     assert_eq!(
         n,
         1,
-        "{} must contain exactly one grok installer block, got {n}:\n{body}",
+        "{} must contain exactly one xvora installer block, got {n}:\n{body}",
         path.display()
     );
     if let Some(marker) = preserved {
@@ -341,7 +341,7 @@ fn install_sh_blitz_keeps_grok_runnable_under_corruption() {
             "install.sh mode={mode} exit success mismatch"
         );
 
-        // The invariant holds on every path: the active grok always runs (new good binary on success, previous-good on rejection)
+        // The invariant holds on every path: the active xvora always runs (new good binary on success, previous-good on rejection)
         assert_active_grok_runs(home.path());
     }
 }
@@ -392,7 +392,7 @@ fn install_urls_on_fake_host(script: &str, host: FakeHost) -> Option<String> {
         .env("HOME", home.path())
         .env("PATH", path_env)
         .env("SHELL", "/bin/bash")
-        .env("GROK_BIN_DIR", home.path().join(".grok").join("bin"))
+        .env("GROK_BIN_DIR", home.path().join(".xvora").join("bin"))
         .env("GROK_CHANNEL", "stable")
         .env("GROK_DEPLOYMENT_KEY", "test-deployment-key")
         .env("FAKE_MODE", "full")
@@ -434,7 +434,7 @@ fn run_with_proxy_url(script: &Path, proxy_url: &str) -> (bool, String, bool) {
         .env("HOME", home.path())
         .env("PATH", &path_env)
         .env("SHELL", "/bin/bash")
-        .env("GROK_BIN_DIR", home.path().join(".grok").join("bin"))
+        .env("GROK_BIN_DIR", home.path().join(".xvora").join("bin"))
         .env("GROK_CHANNEL", "stable")
         .env("GROK_DEPLOYMENT_KEY", "test-deployment-key-must-not-leak")
         .env("GROK_PROXY_URL", proxy_url)
@@ -443,14 +443,14 @@ fn run_with_proxy_url(script: &Path, proxy_url: &str) -> (bool, String, bool) {
         .status()
         .expect("spawn bash install script");
     let urls = std::fs::read_to_string(&url_log).unwrap_or_default();
-    let managed = home.path().join(".grok/managed_config.toml").exists();
+    let managed = home.path().join(".xvora/managed_config.toml").exists();
     (status.success(), urls, managed)
 }
 
 fn assert_no_credentialed_proxy_request(label: &str, proxy_url: &str, urls: &str) {
     assert!(
         !urls.contains("/deployment/config")
-            && !urls.contains("/grok-cli/update")
+            && !urls.contains("/xvora-cli/update")
             && !urls.contains("127.0.0.1")
             && !urls.contains("evil.example"),
         "{label}: must not issue credentialed proxy request for {proxy_url:?}, urls:\n{urls}"
@@ -509,7 +509,7 @@ fn install_sh_rejects_hostile_grok_channel() {
         .env("HOME", home.path())
         .env("PATH", path_env)
         .env("SHELL", "/bin/bash")
-        .env("GROK_BIN_DIR", home.path().join(".grok").join("bin"))
+        .env("GROK_BIN_DIR", home.path().join(".xvora").join("bin"))
         .env("GROK_CHANNEL", hostile)
         .env("FAKE_MODE", "full")
         .env("FAKE_URL_LOG", &url_log)
@@ -524,7 +524,7 @@ fn install_sh_rejects_hostile_grok_channel() {
         stderr.contains("GROK_CHANNEL"),
         "must name GROK_CHANNEL in the error, stderr:\n{stderr}"
     );
-    let config = home.path().join(".grok/config.toml");
+    let config = home.path().join(".xvora/config.toml");
     if config.exists() {
         let body = std::fs::read_to_string(&config).unwrap();
         assert!(
@@ -581,7 +581,7 @@ fn install_scripts_rosetta_shell_installs_arm64() {
             return;
         };
         assert!(
-            urls.contains("grok-0.1.181-macos-aarch64"),
+            urls.contains("xvora-0.1.181-macos-aarch64"),
             "{script}: Rosetta shell must request the arm64 artifact, urls:\n{urls}"
         );
         assert!(
@@ -599,7 +599,7 @@ fn install_scripts_intel_mac_keeps_x86_64() {
             return;
         };
         assert!(
-            urls.contains("grok-0.1.181-macos-x86_64"),
+            urls.contains("xvora-0.1.181-macos-x86_64"),
             "{script}: Intel Mac must keep the x86_64 artifact, urls:\n{urls}"
         );
     }

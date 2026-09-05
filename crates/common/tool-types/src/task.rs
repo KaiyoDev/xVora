@@ -386,7 +386,7 @@ pub struct BackgroundNoticeNaming<'a> {
 }
 
 impl BackgroundNoticeNaming<'static> {
-    /// Canonical grok-build names, for hosts without renaming.
+    /// Canonical xvora-build names, for hosts without renaming.
     pub const CANONICAL: Self = Self {
         task_output_tool: "get_task_output",
         task_ids_param: "task_ids",
@@ -1719,8 +1719,8 @@ mod tests {
     // ── Lifecycle tool descriptions ──────────────────────────────────────
     //
     // These lock the exact model-facing text. The "cli_default" cases must
-    // match what the grok-shell MiniJinja templates render for the default
-    // grok-build toolset (monitor + task + bash + read present, POSIX). The
+    // match what the xvora-shell MiniJinja templates render for the default
+    // xvora-build toolset (monitor + task + bash + read present, POSIX). The
     // "toolbox" cases lock the subagent-only rendering used by the backend toolbox.
 
     #[test]

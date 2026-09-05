@@ -374,7 +374,7 @@ pub(super) fn build_authorize_url(
     let referrer = oauth2
         .and_then(|o| o.referrer.as_deref())
         .filter(|r| !r.is_empty())
-        .unwrap_or("grok-build");
+        .unwrap_or("xvora-build");
     url.push_str(&format!("&referrer={}", urlencoding::encode(referrer)));
     url
 }
@@ -399,7 +399,7 @@ pub(super) async fn exchange_code(
     let resp = with_alpha_test_key(
         crate::http::shared_client()
             .post(token_endpoint)
-            .header("x-grok-client-version", version::VERSION)
+            .header("x-xvora-client-version", version::VERSION)
             .form(&[
                 ("grant_type", "authorization_code"),
                 ("code", code),
@@ -764,7 +764,7 @@ mod tests {
             issuer: "https://example.okta.com".into(),
             client_id: TEST_CLIENT_ID.into(),
             scopes: vec!["openid".into(), "profile".into()],
-            audience: Some("api://grok".into()),
+            audience: Some("api://xvora".into()),
         };
         let discovery = Discovery {
             authorization_endpoint: "https://example.okta.com/authorize".into(),
@@ -796,7 +796,7 @@ mod tests {
             nonce_q.as_str(),
             "scope=openid",
             "audience=api",
-            "referrer=grok-build",
+            "referrer=xvora-build",
         ] {
             assert!(url.contains(required), "missing param: {required}");
         }
@@ -811,16 +811,16 @@ mod tests {
         let config = OidcAuthConfig {
             issuer: "https://auth.x.ai".into(),
             client_id: TEST_CLIENT_ID.into(),
-            scopes: vec!["offline_access".into(), "grok-cli:access".into()],
+            scopes: vec!["offline_access".into(), "xvora-cli:access".into()],
             audience: None,
         };
         let oauth2 = OAuth2ProviderConfig {
             issuer: "https://auth.x.ai".into(),
             client_id: TEST_CLIENT_ID.into(),
-            scopes: vec!["offline_access".into(), "grok-cli:access".into()],
+            scopes: vec!["offline_access".into(), "xvora-cli:access".into()],
             principal_type: Some("Team".into()),
             principal_id: Some("team-123".into()),
-            referrer: Some("grok-build".into()),
+            referrer: Some("xvora-build".into()),
         };
         let discovery = Discovery {
             authorization_endpoint: "https://auth.x.ai/authorize".into(),
@@ -843,7 +843,7 @@ mod tests {
         );
         assert!(url.contains("principal_type=Team"));
         assert!(url.contains("principal_id=team-123"));
-        assert!(url.contains("referrer=grok-build"));
+        assert!(url.contains("referrer=xvora-build"));
         assert_eq!(
             url.matches("referrer=").count(),
             1,
@@ -855,16 +855,16 @@ mod tests {
         let config = OidcAuthConfig {
             issuer: "https://auth.x.ai".into(),
             client_id: TEST_CLIENT_ID.into(),
-            scopes: vec!["offline_access".into(), "grok-cli:access".into()],
+            scopes: vec!["offline_access".into(), "xvora-cli:access".into()],
             audience: None,
         };
         let oauth2 = OAuth2ProviderConfig {
             issuer: "https://auth.x.ai".into(),
             client_id: TEST_CLIENT_ID.into(),
-            scopes: vec!["offline_access".into(), "grok-cli:access".into()],
+            scopes: vec!["offline_access".into(), "xvora-cli:access".into()],
             principal_type: None,
             principal_id: None,
-            referrer: Some("grok-desktop".into()),
+            referrer: Some("xvora-desktop".into()),
         };
         let discovery = Discovery {
             authorization_endpoint: "https://auth.x.ai/authorize".into(),
@@ -885,8 +885,8 @@ mod tests {
             "state123",
             &test_nonce(),
         );
-        assert!(url.contains("referrer=grok-desktop"));
-        assert!(!url.contains("referrer=grok-build"));
+        assert!(url.contains("referrer=xvora-desktop"));
+        assert!(!url.contains("referrer=xvora-build"));
         assert_eq!(
             url.matches("referrer=").count(),
             1,
@@ -1006,7 +1006,7 @@ mod tests {
             "aud": "test-client",
             "exp": 9999999999u64,
             "iat": 1000000000u64,
-            "scope": "offline_access grok-cli:access api:access",
+            "scope": "offline_access xvora-cli:access api:access",
             "principal_type": "Team",
             "principal_id": "team-abc-123",
             "client_id": "test-client",

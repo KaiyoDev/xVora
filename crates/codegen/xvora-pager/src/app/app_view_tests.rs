@@ -742,7 +742,7 @@ fn tick_demand_welcome_is_slow_unless_loading() {
     assert_eq!(app.tick_demand(), TickDemand::Fast);
 }
 /// An open modal session picker that is still fetching keeps fast ticks alive on an otherwise-idle agent (its loading spinner must animate).
-/// That holds even after the fast foreign scan lands rows the default Grok filter hides; once the native list settles the demand parks again.
+/// That holds even after the fast foreign scan lands rows the default xvora filter hides; once the native list settles the demand parks again.
 #[test]
 fn tick_demand_fast_while_modal_session_picker_loads() {
     let mut app = test_app_with_agent();
@@ -797,7 +797,7 @@ fn tick_demand_fast_while_modal_session_picker_loads() {
     assert_eq!(
         app.tick_demand(),
         TickDemand::Fast,
-        "foreign rows hidden by the Grok filter must not end the loading spinner"
+        "foreign rows hidden by the xvora filter must not end the loading spinner"
     );
     if let Some(crate::views::modal::ActiveModal::SessionPicker { loading, .. }) =
         app.agents.get_mut(&id).unwrap().active_modal.as_mut()
@@ -1768,8 +1768,8 @@ fn is_voice_tier_restricted_tracks_tier() {
 fn apply_auth_meta_clears_gate_on_subscription() {
     let mut app = test_app();
     app.gate = Some(shell::auth::GateInfo {
-        message: "Subscribe to use Grok Build".into(),
-        url: Some("https://grok.com/supergrok?referrer=grok-build".into()),
+        message: "Subscribe to use xvora build".into(),
+        url: Some("https://xvora.com/supergrok?referrer=xvora-build".into()),
         label: None,
     });
     assert!(app.is_access_blocked());
@@ -6654,7 +6654,7 @@ fn welcome_picker_f_cycle_disabled_under_chat_mode() {
     let _ = app.handle_input(&f_key);
     assert_eq!(
         app.session_picker_source_filter,
-        crate::views::session_picker::SourceFilter::Grok,
+        crate::views::session_picker::SourceFilter::xvora,
         "f must not cycle the hidden source filter under chat mode"
     );
     assert_eq!(

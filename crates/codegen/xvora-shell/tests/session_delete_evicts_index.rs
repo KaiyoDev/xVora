@@ -1,4 +1,4 @@
-//! One binary, one home: `grok_home()` memoizes the first read for the process, so tests that need a temp home have to share one.
+//! One binary, one home: `xvora_home()` memoizes the first read for the process, so tests that need a temp home have to share one.
 //! `#[serial]` keeps their env writes apart.
 
 use std::sync::{Arc, OnceLock};
@@ -18,7 +18,7 @@ fn home() -> &'static std::path::Path {
     static HOME: OnceLock<(tempfile::TempDir, EnvGuard)> = OnceLock::new();
     HOME.get_or_init(|| {
         let dir = tempfile::TempDir::new().unwrap();
-        let guard = EnvGuard::set("GROK_HOME", dir.path());
+        let guard = EnvGuard::set("xvora_home", dir.path());
         (dir, guard)
     })
     .0
@@ -92,7 +92,7 @@ async fn deleting_a_session_clears_only_its_own_search_row() {
 
     let auth = Arc::new(AuthManager::new(root, GrokComConfig::default()));
 
-    let session_dir = shell::util::grok_home::sessions_cwd_dir_in(root, "/ws-a").join("orphan");
+    let session_dir = shell::util::xvora_home::sessions_cwd_dir_in(root, "/ws-a").join("orphan");
     std::fs::remove_dir_all(&session_dir).unwrap();
     let deletion = delete_session_history("orphan", None, false, auth.clone(), Some(&index))
         .await

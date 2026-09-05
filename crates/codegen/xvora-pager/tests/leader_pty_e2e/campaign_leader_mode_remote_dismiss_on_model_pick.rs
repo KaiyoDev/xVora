@@ -35,15 +35,15 @@ async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
     }));
 
     // Seed config.toml with the user's own default model
-    // Pin the leader socket under the shared GROK_HOME so every spawn elects or attaches to the same leader (mirrors `LeaderCluster`)
-    let grok_home = content.home().join(".grok");
-    std::fs::create_dir_all(&grok_home).expect("create GROK_HOME");
+    // Pin the leader socket under the shared xvora_home so every spawn elects or attaches to the same leader (mirrors `LeaderCluster`)
+    let xvora_home = content.home().join(".xvora");
+    std::fs::create_dir_all(&xvora_home).expect("create xvora_home");
     std::fs::write(
-        grok_home.join("config.toml"),
+        xvora_home.join("config.toml"),
         format!("[models]\ndefault = \"{CONFIG_MODEL}\"\n"),
     )
     .expect("write config.toml");
-    let socket = grok_home.join("leader-e2e.sock");
+    let socket = xvora_home.join("leader-e2e.sock");
     let socket = socket.to_str().expect("socket path is utf-8").to_owned();
 
     // Use session (OAuth) auth instead of the harness's default XAI_API_KEY
@@ -62,7 +62,7 @@ async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
         )
         .expect("spawn leader-mode pager")
     };
-    let state_path = grok_home.join("campaigns_state.json");
+    let state_path = xvora_home.join("campaigns_state.json");
     let dismissed = |state_path: &std::path::Path| {
         std::fs::read_to_string(state_path)
             .map(|s| s.contains(CAMPAIGN_ID))
@@ -119,7 +119,7 @@ async fn campaign_leader_mode_remote_dismiss_on_model_pick() {
     // `dismissed_id_is_dropped_from_override` pins that filter; the sibling remote-settings e2e proves in-process that a reboot does not re-nudge
     // A fresh client on the same leader socket is deliberately not asserted on-screen here
     // Reattach paint timing is the one flaky piece, and it adds no coverage over the on-disk and sibling asserts
-    let config = std::fs::read_to_string(grok_home.join("config.toml")).expect("read config.toml");
+    let config = std::fs::read_to_string(xvora_home.join("config.toml")).expect("read config.toml");
     assert!(
         config.contains(&format!("default = \"{CONFIG_MODEL}\"")),
         "the user's pick must be persisted to config.toml:\n{config}"

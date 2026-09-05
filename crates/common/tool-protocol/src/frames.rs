@@ -1872,7 +1872,7 @@ mod tests {
     fn image_capability_tokens_accepted() {
         for name in [
             IMAGE_CAPABILITIES_V1,
-            "grok-files.occ",
+            "xvora-files.occ",
             "playwright.chromium-headless-shell",
             "app-template.v2",
             "a.b.c",

@@ -4,12 +4,12 @@ use super::common::*;
 
 // ── Reproduction: horizontal resize must not lose the scroll position ─────
 //
-// Bug: the user has scrolled UP into grok's scrollback (NOT pinned to the bottom, not following) and the terminal is resized HORIZONTALLY
-// Grok then loses its scroll position and the view jumps
+// Bug: the user has scrolled UP into xvora's scrollback (NOT pinned to the bottom, not following) and the terminal is resized HORIZONTALLY
+// xvora then loses its scroll position and the view jumps
 // Root cause: `ScrollbackState.scroll_offset` is an ABSOLUTE count of WRAPPED DISPLAY ROWS (`scrollback/state/mod.rs`)
 // On a width change `prepare_layout` re-wraps all content at the new width and rebuilds the row map
 // It LEAVES `scroll_offset` unchanged (Case 1 full rebuild), so the same row number now points at different content and the viewport jumps
-// It only happens when NOT following; in follow/tail mode grok re-pins to the bottom (no jump)
+// It only happens when NOT following; in follow/tail mode xvora re-pins to the bottom (no jump)
 //
 // This test parks the marker in the MIDDLE of the viewport, scrolled into the middle of the transcript (TOP and BOTTOM sentinels both off screen)
 // It then resizes the WIDTH only
@@ -18,9 +18,9 @@ use super::common::*;
 // The fix is `ScrollbackState`'s logical-line scroll anchor, captured before the width rebuild and restored after
 // It re-pins the viewport-top content across the reflow so the marker stays put
 //
-// Runs FULLSCREEN (alt-screen): grok's mode-independent scroll-anchor logic is what's under test
-// `Viewport::Fullscreen` is autoresized on resize with no DSR cursor probe, so grok itself re-wraps at the new width
-// The alt-screen grid is not reflowed by the terminal, so the marker's position reflects grok's own re-layout, with no harness-reflow confound
+// Runs FULLSCREEN (alt-screen): xvora's mode-independent scroll-anchor logic is what's under test
+// `Viewport::Fullscreen` is autoresized on resize with no DSR cursor probe, so xvora itself re-wraps at the new width
+// The alt-screen grid is not reflowed by the terminal, so the marker's position reflects xvora's own re-layout, with no harness-reflow confound
 
 /// Unique marker on its own (non-wrapping) line, with WRAPPING content above it.
 const MARKER: &str = "SCROLL_ANCHOR_MARKER_ZZZ";
@@ -61,7 +61,7 @@ const POS_TOLERANCE: i32 = 2;
 
 /// Build the scripted response: top sentinel, long WRAPPING paragraphs, short guard paragraphs, the marker, short filler, bottom sentinel.
 ///
-/// grok renders markdown with SOFT line breaks (a single `\n` becomes a space).
+/// xvora renders markdown with SOFT line breaks (a single `\n` becomes a space).
 /// Every logical line is thus emitted as its own paragraph (blank line between).
 /// That gives a predictable one-hard-line-per-line layout where only the long paragraphs re-wrap on a width change.
 fn scroll_anchor_response() -> String {
@@ -167,8 +167,8 @@ async fn resize_preserves_scroll_position() {
     content.set_response(scroll_anchor_response());
 
     // Spawn FULLSCREEN (alt-screen). `Viewport::Fullscreen` is autoresized on a terminal resize with NO DSR cursor probe.
-    // Grok thus re-wraps the scrollback at the new width and the stale `scroll_offset` shows the jump in grok's OWN rendered output
-    // The alt-screen grid is not reflowed by the terminal on resize, so this isolates grok's scroll-anchor logic with no harness confound
+    // xvora thus re-wraps the scrollback at the new width and the stale `scroll_offset` shows the jump in xvora's OWN rendered output
+    // The alt-screen grid is not reflowed by the terminal on resize, so this isolates xvora's scroll-anchor logic with no harness confound
     let binary = pager_binary().expect("resolve pager binary");
     let mut harness =
         PtyHarness::spawn_with_content(&binary, DEFAULT_ROWS, WIDE_COLS, &content, &[])

@@ -348,7 +348,7 @@ mod tests {
                 .tools
                 .iter()
                 .any(|tool| tool.kind == Some(ToolKind::Read)),
-            "general-purpose must keep the rest of the grok-build child tools"
+            "general-purpose must keep the rest of the xvora-build child tools"
         );
     }
     #[test]

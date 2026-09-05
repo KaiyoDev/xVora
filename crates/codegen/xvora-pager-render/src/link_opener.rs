@@ -316,7 +316,7 @@ pub fn try_open_url(url: &str, filter: SchemeFilter) -> OpenUrlResult {
 /// If the URL already contains a parameter with that name, its value is left untouched (the caller upstream may have intentionally set one).
 /// On parse failure, the original string is returned unchanged so this is safe to apply to opener input from untrusted sources.
 ///
-/// Used by the SuperGrok upsell flow to attribute clicks to `referrer=grok-build`, matching the OAuth consent screen and x.ai/cli marketing links.
+/// Used by the SuperGrok upsell flow to attribute clicks to `referrer=xvora-build`, matching the OAuth consent screen and x.ai/cli marketing links.
 /// The parameter is added whatever the remote settings `gate_url` value happens to be.
 pub fn ensure_query_param(url: &str, key: &str, value: &str) -> String {
     let Ok(mut parsed) = url::Url::parse(url) else {
@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn open_path_command_passes_path_as_a_single_arg() {
         // Path with spaces must be one argument, never shell-interpolated.
-        let path = std::path::Path::new("/tmp/grok session/image 1.jpg");
+        let path = std::path::Path::new("/tmp/xvora session/image 1.jpg");
         let command = build_open_path_command(path);
         let args: Vec<_> = command.get_args().map(|a| a.to_os_string()).collect();
         assert!(args.contains(&path.as_os_str().to_os_string()));
@@ -482,51 +482,51 @@ mod tests {
 
     #[test]
     fn ensure_query_param_appends_when_missing() {
-        let out = ensure_query_param("https://grok.com/supergrok", "referrer", "grok-build");
-        assert_eq!(out, "https://grok.com/supergrok?referrer=grok-build");
+        let out = ensure_query_param("https://xvora.com/supergrok", "referrer", "xvora-build");
+        assert_eq!(out, "https://xvora.com/supergrok?referrer=xvora-build");
     }
 
     #[test]
     fn ensure_query_param_preserves_existing_value() {
         let out = ensure_query_param(
-            "https://grok.com/supergrok?referrer=other",
+            "https://xvora.com/supergrok?referrer=other",
             "referrer",
-            "grok-build",
+            "xvora-build",
         );
-        assert_eq!(out, "https://grok.com/supergrok?referrer=other");
+        assert_eq!(out, "https://xvora.com/supergrok?referrer=other");
     }
 
     #[test]
     fn ensure_query_param_keeps_other_query_pairs() {
         let out = ensure_query_param(
-            "https://grok.com/supergrok?heavy=1",
+            "https://xvora.com/supergrok?heavy=1",
             "referrer",
-            "grok-build",
+            "xvora-build",
         );
         assert_eq!(
             out,
-            "https://grok.com/supergrok?heavy=1&referrer=grok-build"
+            "https://xvora.com/supergrok?heavy=1&referrer=xvora-build"
         );
     }
 
     #[test]
     fn ensure_query_param_preserves_fragment() {
-        // The current remote settings value uses a hash fragment for client-side routing (`grok.com/#supergrok`)
+        // The current remote settings value uses a hash fragment for client-side routing (`xvora.com/#supergrok`)
         // We still want the referrer attached
-        let out = ensure_query_param("https://grok.com/#supergrok", "referrer", "grok-build");
-        assert_eq!(out, "https://grok.com/?referrer=grok-build#supergrok");
+        let out = ensure_query_param("https://xvora.com/#supergrok", "referrer", "xvora-build");
+        assert_eq!(out, "https://xvora.com/?referrer=xvora-build#supergrok");
     }
 
     #[test]
     fn ensure_query_param_returns_unchanged_on_parse_failure() {
-        let out = ensure_query_param("not a url", "referrer", "grok-build");
+        let out = ensure_query_param("not a url", "referrer", "xvora-build");
         assert_eq!(out, "not a url");
     }
 
     #[test]
     fn ensure_query_param_url_encodes_value() {
-        let out = ensure_query_param("https://grok.com/supergrok", "referrer", "grok build");
-        assert_eq!(out, "https://grok.com/supergrok?referrer=grok+build");
+        let out = ensure_query_param("https://xvora.com/supergrok", "referrer", "xvora build");
+        assert_eq!(out, "https://xvora.com/supergrok?referrer=xvora+build");
     }
 
     #[test]
@@ -590,7 +590,7 @@ mod tests {
 
     #[test]
     fn browser_unavailable_message_includes_full_url() {
-        let url = "https://grok.com/supergrok?referrer=grok-build";
+        let url = "https://xvora.com/supergrok?referrer=xvora-build";
         assert_eq!(
             browser_unavailable_message(url),
             format!("{BROWSER_UNAVAILABLE_NOTICE}:\n{url}")
@@ -599,7 +599,7 @@ mod tests {
 
     #[test]
     fn browser_unavailable_line_is_url_first_single_line() {
-        let url = "https://grok.com/supergrok?referrer=grok-build";
+        let url = "https://xvora.com/supergrok?referrer=xvora-build";
         let plain = browser_unavailable_line(url, false);
         assert!(plain.starts_with(url), "{plain}");
         assert!(!plain.contains('\n'), "{plain}");

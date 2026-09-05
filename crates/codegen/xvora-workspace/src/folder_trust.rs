@@ -3,7 +3,7 @@
 //! This is the client/workspace half of the folder-trust gate: it scans a
 //! workspace for repo-local code-exec configs, resolves the pure trust
 //! [`decide`] precedence, prompts (MVP stderr), and reads/writes the durable
-//! [`crate::trust::TrustStore`] (`~/.grok/trusted_folders.toml`). The
+//! [`crate::trust::TrustStore`] (`~/.xvora/trusted_folders.toml`). The
 //! consume/gating half (the `DECISIONS` cache, `resolve_and_record`,
 //! `project_scope_allowed`, the loader filters) lives in `xvora-shell`.
 //!
@@ -101,13 +101,13 @@ pub fn decide_inputs_with_interactive(
         is_interactive,
         // An over-broad key (home / fs-root / non-absolute) can never be recorded
         // by the store, so decide() trusts it rather than prompt on a key that
-        // can't persist (Case 2: cwd IS $HOME, incl. the default `~/.grok`).
+        // can't persist (Case 2: cwd IS $HOME, incl. the default `~/.xvora`).
         key_recordable: !crate::trust::is_unsafe_trust_root(key),
     }
 }
 
 /// Whether the whole folder-trust system is inert (auto-trusts everything) for this binary: true on a local/dev build (no `GROK_VERSION` stamp).
-/// Every trust auto-grant site calls this; when true grok never prompts, never gates repo-local configs, and does no `trusted_folders.toml` I/O.
+/// Every trust auto-grant site calls this; when true xvora never prompts, never gates repo-local configs, and does no `trusted_folders.toml` I/O.
 pub fn folder_trust_inert() -> bool {
     is_local_build()
 }
@@ -126,7 +126,7 @@ fn is_local_build() -> bool {
 
 /// Resolve whether the folder-trust gate is enabled.
 ///
-/// On a local/dev build (no `GROK_VERSION` release stamp) the feature is OFF regardless of env/config/remote: a self-built grok auto-trusts.
+/// On a local/dev build (no `GROK_VERSION` release stamp) the feature is OFF regardless of env/config/remote: a self-built xvora auto-trusts.
 /// Folder-trust applies only to shipped, release-stamped binaries.
 ///
 /// On a release-stamped build, normal precedence (via `BoolFlag`):
@@ -139,7 +139,7 @@ pub fn feature_enabled(remote: Option<&RemoteSettings>) -> bool {
 /// `feature_enabled` with the local-build flag fed in so both arms are unit-testable.
 fn feature_enabled_for_build(remote: Option<&RemoteSettings>, is_local_build: bool) -> bool {
     // Local/dev builds never gate (auto-trust): folder-trust applies only to shipped, release-stamped binaries
-    // Even an explicit GROK_FOLDER_TRUST/config opt-in is ignored here so a self-built grok never prompts
+    // Even an explicit GROK_FOLDER_TRUST/config opt-in is ignored here so a self-built xvora never prompts
     if is_local_build {
         return false;
     }
@@ -247,7 +247,7 @@ pub fn repo_config_kinds(cwd: &Path) -> Vec<&'static str> {
     collect_repo_config_kinds(cwd, false)
 }
 
-/// Whether a project `.grok/config.toml` `[permission]` value would contribute rules to the permission resolver.
+/// Whether a project `.xvora/config.toml` `[permission]` value would contribute rules to the permission resolver.
 /// Mirrors the shapes `permission::resolution` loads: non-empty `allow`/`deny`/`ask` arrays, or a non-empty verbose `rules` array.
 /// Empty arrays and empty tables do not gate (same as an empty `[mcp_servers]` or `[plugins].paths`).
 fn config_toml_permission_contributes(permission_value: &TomlValue) -> bool {
@@ -314,7 +314,7 @@ fn collect_repo_config_kinds(cwd: &Path, first_only: bool) -> Vec<&'static str> 
     if !crate::project_config::find_mcp_json_files_in(&chain.dirs).is_empty() {
         hit!("mcp");
     }
-    // Project `.grok/config.toml` markers: a non-empty `[mcp_servers]` table or `[plugins].paths` array, or a contributing `[permission]` section
+    // Project `.xvora/config.toml` markers: a non-empty `[mcp_servers]` table or `[plugins].paths` array, or a contributing `[permission]` section
     // `[plugins].paths` loads as auto-trusted ConfigPath plugins; `[permission]` allow/deny/ask rules auto-approve or block tools
     // A clone whose ONLY repo-local config is either must still be gated (else it resolves Trusted and the loader runs ungated)
     for path in crate::project_config::find_project_configs_in(&chain.dirs) {
@@ -343,8 +343,8 @@ fn collect_repo_config_kinds(cwd: &Path, first_only: bool) -> Vec<&'static str> 
             hit!("permission");
         }
     }
-    // Project `.grok/lsp.json`.
-    if cwd.join(".grok").join("lsp.json").is_file() {
+    // Project `.xvora/lsp.json`.
+    if cwd.join(".xvora").join("lsp.json").is_file() {
         hit!("lsp");
     }
     // Project `.cursor/mcp.json`: vendor MCP loading is default-on and tagged `Project`, so a repo shipping ONLY this file must still be gated
@@ -367,35 +367,35 @@ fn collect_repo_config_kinds(cwd: &Path, first_only: bool) -> Vec<&'static str> 
     // Other project HOOK sources are resolved from the git worktree root only (the chain's `git_root`), NOT cwd
     // Hook discovery resolves from the same root via `workspace_key`, so root-level hooks are gated even when launched from a subdir
     // A repo-local hook file/dir is repo-controlled code-exec that must be gated
-    // Otherwise a hooks-only clone (e.g. `.grok/hooks/evil.json`) would resolve trusted and run ungated.
+    // Otherwise a hooks-only clone (e.g. `.xvora/hooks/evil.json`) would resolve trusted and run ungated.
     // Presence mirrors discovery's "something to gate" check
     let hook_root = chain.git_root.as_deref().unwrap_or(cwd);
-    if path_present_or_uncertain(&hook_root.join(".grok").join("hooks"))
+    if path_present_or_uncertain(&hook_root.join(".xvora").join("hooks"))
         || hook_root.join(".cursor").join("hooks.json").is_file()
     {
         hit!("hooks");
     }
     // Project PLUGIN dirs: project-scoped plugins fall under folder-trust too, so a repo-local plugin dir is repo-controlled code-exec (hooks/MCP)
-    // Else a plugin clone (e.g. `.grok/plugins/evil/`, even one in a subdir launched via `cd sub && grok`) would resolve trusted and run ungated.
+    // Else a plugin clone (e.g. `.xvora/plugins/evil/`, even one in a subdir launched via `cd sub && xvora`) would resolve trusted and run ungated.
     // Uses the shared cwd-to-git-root walk so detection matches exactly what `discover_plugins` scans for Project scope, erring on the secure side
     if !agent::plugins::project_plugin_dirs_in(&chain.dirs).is_empty() {
         hit!("plugins");
     }
-    // Project AGENT dirs (`.grok/agents` / `.claude/agents`): an agents-only clone must still be gated
+    // Project AGENT dirs (`.xvora/agents` / `.claude/agents`): an agents-only clone must still be gated
     // A project agent definition can carry an inline `hooks:` block (repo-controlled code-exec) and can shadow a built-in subagent by name
     // Uses the shared cwd-to-git-root walk so detection can't drift from agent discovery (same pattern as the plugin check above)
     if !agent::discovery::project_agent_dirs_in(&chain.dirs).is_empty() {
         hit!("agents");
     }
     // Presence matches exact-cwd discovery without parsing repository content.
-    let grok = cwd.join(".grok");
-    if directory_present_or_uncertain(&grok.join("roles")) {
+    let xvora = cwd.join(".xvora");
+    if directory_present_or_uncertain(&xvora.join("roles")) {
         hit!("roles");
     }
-    if directory_present_or_uncertain(&grok.join("personas")) {
+    if directory_present_or_uncertain(&xvora.join("personas")) {
         hit!("personas");
     }
-    if directory_present_or_uncertain(&hook_root.join(".grok").join("workflows")) {
+    if directory_present_or_uncertain(&hook_root.join(".xvora").join("workflows")) {
         hit!("workflows");
     }
     // `~/.claude.json` `projects.<cwd>.mcpServers`.
@@ -440,7 +440,7 @@ pub fn prompt_for_trust(key: &Path) -> bool {
     let _ = writeln!(err);
     let _ = writeln!(
         err,
-        "This folder contains repo-local config (.mcp.json / .grok/lsp.json / hooks) \
+        "This folder contains repo-local config (.mcp.json / .xvora/lsp.json / hooks) \
          that can run commands on your machine."
     );
     let _ = writeln!(err, "  Folder: {}", key.display());
@@ -548,18 +548,22 @@ mod tests {
     #[test]
     fn repo_configs_present_detects_grok_config_mcp_servers() {
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join("config.toml"), "[mcp_servers.x]\ncommand=\"y\"\n").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(
+            xvora.join("config.toml"),
+            "[mcp_servers.x]\ncommand=\"y\"\n",
+        )
+        .unwrap();
         assert!(repo_configs_present(tmp.path()));
     }
 
     #[test]
     fn repo_configs_present_detects_grok_lsp_json() {
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join("lsp.json"), "{}").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(xvora.join("lsp.json"), "{}").unwrap();
         assert!(repo_configs_present(tmp.path()));
     }
 
@@ -583,10 +587,10 @@ mod tests {
 
     #[test]
     fn repo_configs_present_detects_project_agents() {
-        // A `.grok/agents`-only clone must be gated
+        // A `.xvora/agents`-only clone must be gated
         // A project agent definition can carry an inline `hooks:` block (code-exec) and can shadow a built-in subagent by name
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("agents")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("agents")).unwrap();
         assert!(repo_configs_present(tmp.path()));
     }
 
@@ -603,7 +607,7 @@ mod tests {
         // Agents live at the git root but the session is launched from a subdir
         // Detection walks from cwd to the git root exactly like agent discovery, so it must still fire (a cwd-only probe would miss it)
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("agents")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("agents")).unwrap();
         let subdir = tmp.path().join("crates").join("inner");
         std::fs::create_dir_all(&subdir).unwrap();
         assert!(repo_configs_present(&subdir));
@@ -612,7 +616,7 @@ mod tests {
     #[test]
     fn repo_configs_present_detects_project_roles() {
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("roles")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("roles")).unwrap();
 
         assert!(repo_configs_present(tmp.path()));
         assert!(repo_config_kinds(tmp.path()).contains(&"roles"));
@@ -621,7 +625,7 @@ mod tests {
     #[test]
     fn repo_configs_present_detects_project_personas() {
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("personas")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("personas")).unwrap();
 
         assert!(repo_configs_present(tmp.path()));
         assert!(repo_config_kinds(tmp.path()).contains(&"personas"));
@@ -630,16 +634,16 @@ mod tests {
     #[test]
     fn project_subagent_marker_regular_file_is_absent() {
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join("roles"), "not a directory").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(xvora.join("roles"), "not a directory").unwrap();
         assert!(!repo_configs_present(tmp.path()));
     }
 
     #[test]
     fn project_subagent_marker_at_repo_root_is_absent_from_subdir() {
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok/roles")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora/roles")).unwrap();
         let subdir = tmp.path().join("nested");
         std::fs::create_dir_all(&subdir).unwrap();
         assert!(!repo_configs_present(&subdir));
@@ -650,10 +654,10 @@ mod tests {
     fn project_subagent_marker_symlink_to_directory_is_present() {
         let tmp = repo_tmp();
         let target = tmp.path().join("target-roles");
-        let grok = tmp.path().join(".grok");
+        let xvora = tmp.path().join(".xvora");
         std::fs::create_dir_all(&target).unwrap();
-        std::fs::create_dir_all(&grok).unwrap();
-        std::os::unix::fs::symlink(&target, grok.join("roles")).unwrap();
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::os::unix::fs::symlink(&target, xvora.join("roles")).unwrap();
         assert!(repo_configs_present(tmp.path()));
     }
 
@@ -661,16 +665,16 @@ mod tests {
     #[test]
     fn dangling_project_subagent_marker_is_absent() {
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::os::unix::fs::symlink("missing", grok.join("personas")).unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::os::unix::fs::symlink("missing", xvora.join("personas")).unwrap();
         assert!(!repo_configs_present(tmp.path()));
     }
 
     #[test]
     fn repo_configs_present_detects_project_workflows_from_subdir() {
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("workflows")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("workflows")).unwrap();
         let subdir = tmp.path().join("crates").join("inner");
         std::fs::create_dir_all(&subdir).unwrap();
         assert!(repo_configs_present(&subdir));
@@ -693,16 +697,16 @@ mod tests {
     fn repo_configs_present_detects_project_hooks() {
         // A hooks-only repo (no MCP/LSP configs) must still be gated, so its project hooks don't run ungated when the folder is untrusted
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("hooks")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("hooks")).unwrap();
         assert!(repo_configs_present(tmp.path()));
     }
 
     #[test]
     fn repo_configs_present_detects_project_hooks_file() {
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join("hooks"), "{}").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(xvora.join("hooks"), "{}").unwrap();
 
         assert!(repo_configs_present(tmp.path()));
         assert!(repo_config_kinds(tmp.path()).contains(&"hooks"));
@@ -712,9 +716,9 @@ mod tests {
     #[test]
     fn repo_configs_present_detects_dangling_project_hooks_symlink() {
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::os::unix::fs::symlink("missing-hooks", grok.join("hooks")).unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::os::unix::fs::symlink("missing-hooks", xvora.join("hooks")).unwrap();
 
         assert!(repo_configs_present(tmp.path()));
         assert!(repo_config_kinds(tmp.path()).contains(&"hooks"));
@@ -725,7 +729,7 @@ mod tests {
         // Hooks live at the git root but the session is launched from a subdir
         // The gate must still fire because discovery resolves hooks from the root
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("hooks")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("hooks")).unwrap();
         let subdir = tmp.path().join("crates").join("inner");
         std::fs::create_dir_all(&subdir).unwrap();
         assert!(repo_configs_present(&subdir));
@@ -736,7 +740,7 @@ mod tests {
         // A plugin-only repo (no MCP/LSP/hooks configs) must still be gated
         // Otherwise a project plugin's hooks/MCP would run ungated when the folder is untrusted
         let tmp = repo_tmp();
-        std::fs::create_dir_all(tmp.path().join(".grok").join("plugins").join("x")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora").join("plugins").join("x")).unwrap();
         assert!(repo_configs_present(tmp.path()));
     }
 
@@ -746,7 +750,7 @@ mod tests {
         // Detection walks from cwd to the git root exactly like discover_plugins, so a subdir-only plugin is not a fail-open hole
         let tmp = repo_tmp();
         let subdir = tmp.path().join("packages").join("foo");
-        std::fs::create_dir_all(subdir.join(".grok").join("plugins").join("evil")).unwrap();
+        std::fs::create_dir_all(subdir.join(".xvora").join("plugins").join("evil")).unwrap();
         assert!(repo_configs_present(&subdir));
     }
 
@@ -754,9 +758,9 @@ mod tests {
     fn repo_configs_present_false_for_empty_mcp_servers_table() {
         // A project config whose `[mcp_servers]` table is empty has nothing to gate, so it must not trip the gate
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join("config.toml"), "[mcp_servers]\n").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(xvora.join("config.toml"), "[mcp_servers]\n").unwrap();
         assert!(!repo_configs_present(tmp.path()));
     }
 
@@ -765,9 +769,9 @@ mod tests {
         // A repo whose ONLY repo-local config is `[plugins].paths` (no plugin dir, no MCP/LSP/hooks) must still be gated
         // Those paths load as auto-trusted ConfigPath plugins, so an ungated clone is a live RCE
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join("config.toml"), "[plugins]\npaths = [\"./x\"]\n").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(xvora.join("config.toml"), "[plugins]\npaths = [\"./x\"]\n").unwrap();
         assert!(repo_configs_present(tmp.path()));
     }
 
@@ -775,9 +779,9 @@ mod tests {
     fn repo_configs_present_false_for_empty_plugins_paths() {
         // An empty `[plugins].paths` (or a `[plugins]` table without `paths`) contributes no plugin code-exec, so it must not trip the gate
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join("config.toml"), "[plugins]\npaths = []\n").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(xvora.join("config.toml"), "[plugins]\npaths = []\n").unwrap();
         assert!(!repo_configs_present(tmp.path()));
     }
 
@@ -787,10 +791,10 @@ mod tests {
         // Those allow rules auto-approve tool calls, so an ungated clone loads the attacker's policy
         // Also covers subdir launch (the cwd-to-git-root walk)
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
         std::fs::write(
-            grok.join("config.toml"),
+            xvora.join("config.toml"),
             "[permission]\nallow = [\"Bash(*)\"]\n",
         )
         .unwrap();
@@ -811,10 +815,10 @@ mod tests {
     fn repo_configs_present_false_for_empty_permission() {
         // Empty allow/deny/ask arrays contribute no rules, so they must not trip the gate (mirrors empty `[mcp_servers]` / empty `[plugins].paths`)
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
         std::fs::write(
-            grok.join("config.toml"),
+            xvora.join("config.toml"),
             "[permission]\nallow = []\ndeny = []\n",
         )
         .unwrap();
@@ -824,13 +828,13 @@ mod tests {
     #[test]
     fn repo_config_kinds_matches_gate_and_reports_all_kinds() {
         // Single-source guard: `repo_config_kinds` must agree with the gate (`repo_configs_present == !repo_config_kinds(..).is_empty()`)
-        // It must also report `plugins` via `[plugins].paths`, `claude` via `.claude/settings.json`, and `agents` via `.grok/agents`
+        // It must also report `plugins` via `[plugins].paths`, `claude` via `.claude/settings.json`, and `agents` via `.xvora/agents`
         // Even a SUBDIR launch must report them (the cwd-to-git-root walk that `first_only` shares)
         // Guards against silent drift between the two
         let tmp = repo_tmp();
-        let grok = tmp.path().join(".grok");
-        std::fs::create_dir_all(grok.join("agents")).unwrap();
-        std::fs::write(grok.join("config.toml"), "[plugins]\npaths = [\"./x\"]\n").unwrap();
+        let xvora = tmp.path().join(".xvora");
+        std::fs::create_dir_all(xvora.join("agents")).unwrap();
+        std::fs::write(xvora.join("config.toml"), "[plugins]\npaths = [\"./x\"]\n").unwrap();
         let claude = tmp.path().join(".claude");
         std::fs::create_dir_all(&claude).unwrap();
         std::fs::write(claude.join("settings.json"), r#"{"env":{"X":"1"}}"#).unwrap();
@@ -861,7 +865,7 @@ mod tests {
         );
     }
 
-    // GROK_HOME isolation mirrored from this crate's `permission::claude_compat` tests
+    // xvora_home isolation mirrored from this crate's `permission::claude_compat` tests
     // The workspace crate has no `serial_test` or `xvora-test-support` dev-dep
     // nextest runs each test in its own process; `ENV_LOCK` serializes the rare in-process `cargo test` thread
     // `EnvVarGuard` restores the prior value on drop so a panic can't leak state
@@ -884,7 +888,7 @@ mod tests {
         // (Env/config isolated to unset so the remote flag is unambiguously the only enable being dropped here.)
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _home = EnvVarGuard::set("GROK_HOME", home.path());
+        let _home = EnvVarGuard::set("xvora_home", home.path());
         let _flag = EnvVarGuard::unset("GROK_FOLDER_TRUST");
 
         let remote = RemoteSettings {
@@ -904,11 +908,11 @@ mod tests {
     fn release_build_keeps_gate_when_enabled() {
         // A release-stamped build (is_local_build=false) honors the remote enable
         // Isolate config so neither on-disk user/managed config nor an ambient env flag can override it
-        // That means an empty GROK_HOME (no config.toml/managed_config.toml) and GROK_FOLDER_TRUST unset
-        // nextest's process-per-test makes grok_home()'s OnceLock pick up the temp dir
+        // That means an empty xvora_home (no config.toml/managed_config.toml) and GROK_FOLDER_TRUST unset
+        // nextest's process-per-test makes xvora_home()'s OnceLock pick up the temp dir
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _home = EnvVarGuard::set("GROK_HOME", home.path());
+        let _home = EnvVarGuard::set("xvora_home", home.path());
         let _flag = EnvVarGuard::unset("GROK_FOLDER_TRUST");
 
         let remote = RemoteSettings {
@@ -927,11 +931,11 @@ mod tests {
     #[test]
     fn local_build_ignores_explicit_env_optin() {
         // Auto-trust is absolute on a local build: even an explicit GROK_FOLDER_TRUST=1 does NOT enable the feature
-        // A self-built grok therefore never prompts
-        // GROK_HOME is isolated so on-disk config can't influence it
+        // A self-built xvora therefore never prompts
+        // xvora_home is isolated so on-disk config can't influence it
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _home = EnvVarGuard::set("GROK_HOME", home.path());
+        let _home = EnvVarGuard::set("xvora_home", home.path());
         let _flag = EnvVarGuard::set("GROK_FOLDER_TRUST", Path::new("1"));
 
         assert!(!feature_enabled_for_build(None, true));
@@ -940,10 +944,10 @@ mod tests {
     #[test]
     fn release_build_defaults_on() {
         // A release-stamped build with no env/config/managed/remote signal defaults the feature ON
-        // An empty GROK_HOME (no config.toml/managed config) and GROK_FOLDER_TRUST unset leave only the default
+        // An empty xvora_home (no config.toml/managed config) and GROK_FOLDER_TRUST unset leave only the default
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _home = EnvVarGuard::set("GROK_HOME", home.path());
+        let _home = EnvVarGuard::set("xvora_home", home.path());
         let _flag = EnvVarGuard::unset("GROK_FOLDER_TRUST");
 
         assert!(feature_enabled_for_build(None, false));
@@ -970,10 +974,10 @@ mod tests {
         // On a local/dev build the whole feature is inert
         // Both halves pin a guard via a UNIQUE per-repo key (never store-file existence) so they hold under single-process `cargo test` too
         // Assert ONLY when compiled unstamped (mirrors `is_local_build_honors_test_version_override`)
-        // GROK_HOME is isolated and ENV_LOCK held so toggling GROK_TEST_VERSION is race-safe
+        // xvora_home is isolated and ENV_LOCK held so toggling GROK_TEST_VERSION is race-safe
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _home = EnvVarGuard::set("GROK_HOME", home.path());
+        let _home = EnvVarGuard::set("xvora_home", home.path());
         let _unset = EnvVarGuard::unset(version::TEST_VERSION_ENV);
         if option_env!("GROK_VERSION").is_some() {
             return; // a release-stamped test binary is not a local build
@@ -1016,10 +1020,10 @@ mod tests {
     fn revoke_folder_trust_store_persists_untrust_for_trusted_folder() {
         // This tests the store half of revoke directly (not just via the shell wrapper)
         // A previously-trusted folder reports was_trusted=true AND gets an explicit `set_untrusted` persisted, so it is untrusted on reload
-        // GROK_HOME is isolated so the seed/deny hit a temp store, not the real file
+        // xvora_home is isolated so the seed/deny hit a temp store, not the real file
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _env = EnvVarGuard::set("GROK_HOME", home.path());
+        let _env = EnvVarGuard::set("xvora_home", home.path());
         let _sim = simulate_release_build();
         let tmp = repo_tmp();
         let key = workspace_key(tmp.path());
@@ -1042,7 +1046,7 @@ mod tests {
     fn revoke_folder_trust_store_writes_no_deny_for_never_trusted_folder() {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _env = EnvVarGuard::set("GROK_HOME", home.path());
+        let _env = EnvVarGuard::set("xvora_home", home.path());
         let _sim = simulate_release_build();
         let tmp = repo_tmp();
 
@@ -1061,10 +1065,10 @@ mod tests {
     #[test]
     fn grant_folder_trust_skips_rewrite_when_already_trusted_but_flips_untrust() {
         // Already-trusted grant must not rewrite the store; an explicit untrust record must still persist `--trust`
-        // GROK_HOME is isolated so the seed hits a temp store, not the real file
+        // xvora_home is isolated so the seed hits a temp store, not the real file
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::tempdir().unwrap();
-        let _env = EnvVarGuard::set("GROK_HOME", home.path());
+        let _env = EnvVarGuard::set("xvora_home", home.path());
         let _sim = simulate_release_build();
         let tmp = repo_tmp();
         let key = workspace_key(tmp.path());
@@ -1075,7 +1079,7 @@ mod tests {
             "first grant must persist trust"
         );
 
-        let store_path = TrustStore::default_path().expect("isolated GROK_HOME");
+        let store_path = TrustStore::default_path().expect("isolated xvora_home");
         let after_grant = std::fs::read(&store_path).unwrap();
         // Marker a rewrite would drop.
         let mut marked = after_grant.clone();
@@ -1109,10 +1113,10 @@ mod tests {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let _sim = simulate_release_build();
         let home = tempfile::tempdir().unwrap();
-        let _home = EnvVarGuard::set("GROK_HOME", home.path());
-        // TrustStore writes through user_grok_home(), which reads the grok_home() OnceLock
+        let _home = EnvVarGuard::set("xvora_home", home.path());
+        // TrustStore writes through user_grok_home(), which reads the xvora_home() OnceLock
         // Bazel rust_test is one process, so the test denies persistence at the cached home
-        let store_home = config::user_grok_home().expect("GROK_HOME is set");
+        let store_home = config::user_grok_home().expect("xvora_home is set");
         let deny_path = store_home.join(config::TRUSTED_FOLDERS_FILENAME);
         if deny_path.is_file() {
             std::fs::remove_file(&deny_path).unwrap();

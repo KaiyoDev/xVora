@@ -4399,7 +4399,7 @@ pub async fn connect_local_workspace(
         ))
     })?;
     let api_base_url = std::env::var("GROK_CLI_CHAT_PROXY_BASE_URL")
-        .unwrap_or_else(|_| "https://cli-chat-proxy.grok.com/v1".to_string());
+        .unwrap_or_else(|_| "https://cli-chat-proxy.xvora.com/v1".to_string());
     let data_collection_disabled =
         std::env::var("GROK_WORKSPACE_DATA_COLLECTION_DISABLED").as_deref() != Ok("false");
     let mut factory = WorkspaceSessionContextFactory::with_auth(auth.clone(), api_base_url.clone());
@@ -4516,15 +4516,15 @@ pub async fn connect_local_workspace(
 ///
 /// Precedence:
 /// 1. `$GROK_WORKSPACE_HOME` (operator override).
-/// 2. `<grok_home>/workspace`, where `<grok_home>` honours `$GROK_HOME` and
-///    otherwise falls back to `~/.grok` (see [`config::grok_home`]).
+/// 2. `<xvora_home>/workspace`, where `<xvora_home>` honours `$xvora_home` and
+///    otherwise falls back to `~/.xvora` (see [`config::xvora_home`]).
 pub fn resolve_workspace_home() -> std::path::PathBuf {
     if let Ok(p) = std::env::var("GROK_WORKSPACE_HOME")
         && !p.trim().is_empty()
     {
         return std::path::PathBuf::from(p);
     }
-    config::grok_home().join("workspace")
+    config::xvora_home().join("workspace")
 }
 /// Skill `ignore` entries for the allow-list: subdirs of `dir` not in the comma-separated list (`bundled__` prefix optional).
 /// Unreadable `dir` fails closed (ignore `dir` itself).
@@ -4770,10 +4770,10 @@ fn reduce_enqueue_outcomes(
     }
 }
 /// Per-process ephemeral workspace home for handles constructed without a backing upload queue (tests, local mode).
-/// Never the real grok home: only [`connect_local_workspace`] resolves `$GROK_WORKSPACE_HOME`.
+/// Never the real xvora home: only [`connect_local_workspace`] resolves `$GROK_WORKSPACE_HOME`.
 /// The queue-less default path can therefore never collide with a real workspace's state dir.
 fn ephemeral_workspace_home() -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("grok-workspace-ephemeral-{}", std::process::id()))
+    std::env::temp_dir().join(format!("xvora-workspace-ephemeral-{}", std::process::id()))
 }
 /// Resolve `workspace_rewind_all_outcomes` from `GROK_WORKSPACE_REWIND_ALL_OUTCOMES` (default off).
 fn rewind_all_outcomes_from_env() -> bool {

@@ -218,7 +218,7 @@ pub(super) enum SharingWriteOutcome {
 }
 
 /// Set coding-data-sharing preference.
-/// The shell owns this setting and stores it in auth metadata (persists via ACP ext-request, NOT `~/.grok/config.toml`).
+/// The shell owns this setting and stores it in auth metadata (persists via ACP ext-request, NOT `~/.xvora/config.toml`).
 pub(super) fn set_coding_data_sharing(
     app: &mut AppView,
     opted_in: bool,
@@ -437,7 +437,7 @@ pub(super) fn dispatch_manage_billing(app: &mut AppView) -> Vec<Effect> {
         return vec![];
     }
     super::router::dispatch(
-        crate::app::actions::Action::OpenUrl("https://grok.com/?_s=usage".to_string()),
+        crate::app::actions::Action::OpenUrl("https://xvora.com/?_s=usage".to_string()),
         app,
     )
 }

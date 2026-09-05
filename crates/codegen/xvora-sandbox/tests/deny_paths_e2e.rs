@@ -1,4 +1,4 @@
-//! E2E path-deny and Grok hook write-deny (subprocess; arm64-tagged).
+//! E2E path-deny and xvora hook write-deny (subprocess; arm64-tagged).
 //! Soft-skips when enforcement is unavailable; only `SANDBOX_E2E_REQUIRE_ENFORCEMENT` hard-requires a usable backend.
 #![cfg(all(unix, feature = "enforce"))]
 use std::fs;
@@ -17,18 +17,18 @@ const POSTLAUNCH_ENV: &str = "SANDBOX_E2E_POSTLAUNCH";
 const DATA_STAGED_ENV: &str = "SANDBOX_E2E_DATA_STAGED";
 const MARKER: &str = "deny-paths-e2e-marker-9f3c1a";
 const REQUIRE_ENV: &str = "SANDBOX_E2E_REQUIRE_ENFORCEMENT";
-fn apply_fixture_env(cmd: &mut Command, home: &Path, grok_home: &Path, workspace: &Path) {
+fn apply_fixture_env(cmd: &mut Command, home: &Path, xvora_home: &Path, workspace: &Path) {
     cmd.env(WORKSPACE_ENV, workspace.as_os_str())
         .env(HOME_ENV, home.as_os_str())
-        .env(GROK_HOME_ENV, grok_home.as_os_str())
+        .env(GROK_HOME_ENV, xvora_home.as_os_str())
         .env("HOME", home.as_os_str())
-        .env("GROK_HOME", grok_home.as_os_str());
+        .env("xvora_home", xvora_home.as_os_str());
 }
 /// Re-invoke this test binary as a subprocess driving `profile` over `targets` (denied) and `controls` (must stay readable).
 /// `postlaunch` paths are created AFTER apply to exercise the macOS runtime-regex (post-launch) coverage.
 fn run_scenario(
     home: &Path,
-    grok_home: &Path,
+    xvora_home: &Path,
     workspace: &Path,
     profile: &str,
     targets: &[&str],
@@ -37,7 +37,7 @@ fn run_scenario(
 ) -> (std::process::ExitStatus, String) {
     let exe = std::env::current_exe().expect("current_exe");
     let mut cmd = Command::new(exe);
-    apply_fixture_env(&mut cmd, home, grok_home, workspace);
+    apply_fixture_env(&mut cmd, home, xvora_home, workspace);
     let output = cmd
         .env(SCENARIO_ENV, "block_deny")
         .env(PROFILE_ENV, profile)
@@ -58,13 +58,13 @@ fn run_scenario(
 /// Re-invoke as a subprocess for the direct-hook write-deny scenarios.
 fn run_hook_write_deny_scenario(
     home: &Path,
-    grok_home: &Path,
+    xvora_home: &Path,
     workspace: &Path,
     scenario: &str,
 ) -> (std::process::ExitStatus, String) {
     let exe = std::env::current_exe().expect("current_exe");
     let mut cmd = Command::new(exe);
-    apply_fixture_env(&mut cmd, home, grok_home, workspace);
+    apply_fixture_env(&mut cmd, home, xvora_home, workspace);
     let output = cmd
         .env(SCENARIO_ENV, scenario)
         .arg("--ignored")
@@ -108,7 +108,7 @@ fn skip_if_enforcement_unavailable() -> bool {
 }
 fn unique_temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
-        "grok-sandbox-e2e-{tag}-{}-{}",
+        "xvora-sandbox-e2e-{tag}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -226,16 +226,16 @@ fn subprocess_entry() {
     let workspace = dunce::canonicalize(&workspace).expect("canonicalize workspace");
     let workspace = workspace.as_path();
     let home = PathBuf::from(std::env::var(HOME_ENV).expect(HOME_ENV));
-    let grok_home = PathBuf::from(std::env::var(GROK_HOME_ENV).expect(GROK_HOME_ENV));
+    let xvora_home = PathBuf::from(std::env::var(GROK_HOME_ENV).expect(GROK_HOME_ENV));
     unsafe {
         std::env::set_var("HOME", &home);
-        std::env::set_var("GROK_HOME", &grok_home);
+        std::env::set_var("xvora_home", &xvora_home);
     }
     match scenario.as_str() {
         "block_deny" => subprocess_block_deny(workspace),
         "hook_write_deny" => subprocess_hook_write_deny(workspace, false),
         "hook_write_deny_first_run" => subprocess_hook_write_deny(workspace, true),
-        "hook_write_deny_marker_spoof" => subprocess_hook_write_deny_marker_spoof(&grok_home),
+        "hook_write_deny_marker_spoof" => subprocess_hook_write_deny_marker_spoof(&xvora_home),
         "read_deny_marker_spoof" => subprocess_read_deny_marker_spoof(workspace),
         "read_deny_forged_mounts" => subprocess_read_deny_forged_mounts(workspace),
         "read_deny_empty_set" => subprocess_read_deny_empty_set(workspace),
@@ -632,7 +632,7 @@ fn subprocess_devbox_genuine(workspace: &Path) {
     eprintln!("OK: devbox enforcement applied inside genuine bwrap");
     std::process::exit(0);
 }
-/// Workspace-profile Grok-owned hook write-deny probes (existing sources and first-run).
+/// Workspace-profile xvora-owned hook write-deny probes (existing sources and first-run).
 fn subprocess_hook_write_deny(workspace: &Path, first_run: bool) {
     let home = PathBuf::from(std::env::var(GROK_HOME_ENV).expect(GROK_HOME_ENV));
     let profile = xvora_sandbox::ProfileName::Workspace;
@@ -676,7 +676,7 @@ fn subprocess_hook_write_deny(workspace: &Path, first_run: bool) {
             }
             assert_write_denied(&format!("{name} (first-run)"), path);
         }
-        eprintln!("OK: first-run Grok hook slots denied");
+        eprintln!("OK: first-run xvora hook slots denied");
     } else {
         let keep = hooks_dir.join("keep.json");
         match fs::read_to_string(&keep) {
@@ -810,7 +810,7 @@ fn subprocess_hook_write_deny(workspace: &Path, first_run: bool) {
         }
     }
     assert_write_ok(
-        "grok runtime sibling",
+        "xvora runtime sibling",
         &home.join(format!("leader-{}.lock", std::process::id())),
     );
     assert_write_ok("workspace sibling", &workspace.join("fresh.rs"));
@@ -820,7 +820,7 @@ fn subprocess_hook_write_deny(workspace: &Path, first_run: bool) {
     eprintln!("OK: hook write-deny e2e passed");
     std::process::exit(0);
 }
-/// Create isolated HOME and GROK_HOME fixture dirs for a scenario.
+/// Create isolated HOME and xvora_home fixture dirs for a scenario.
 fn fixture_homes(
     tag: &str,
 ) -> (
@@ -832,15 +832,15 @@ fn fixture_homes(
     TempDirGuard,
 ) {
     let home = unique_temp_dir(&format!("{tag}-home"));
-    let grok = unique_temp_dir(&format!("{tag}-grok"));
+    let xvora = unique_temp_dir(&format!("{tag}-xvora"));
     let workspace = unique_temp_dir(&format!("{tag}-ws"));
-    fs::write(grok.join(config::SANDBOX_CONFIG_FILENAME), "").expect("empty global sandbox.toml");
+    fs::write(xvora.join(config::SANDBOX_CONFIG_FILENAME), "").expect("empty global sandbox.toml");
     (
         home.clone(),
-        grok.clone(),
+        xvora.clone(),
         workspace.clone(),
         TempDirGuard(home),
-        TempDirGuard(grok),
+        TempDirGuard(xvora),
         TempDirGuard(workspace),
     )
 }
@@ -859,20 +859,20 @@ fn run_deny_case(
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, tmp, _ch, _cg, _cw) = fixture_homes(tag);
+    let (home, xvora, tmp, _ch, _cg, _cw) = fixture_homes(tag);
     let deny_list = deny_entries
         .iter()
         .map(|p| format!("\"{p}\""))
         .collect::<Vec<_>>()
         .join(", ");
-    fs::create_dir_all(tmp.join(".grok")).expect("mkdir .grok");
+    fs::create_dir_all(tmp.join(".xvora")).expect("mkdir .xvora");
     fs::write(
-        tmp.join(".grok").join(config::SANDBOX_CONFIG_FILENAME),
+        tmp.join(".xvora").join(config::SANDBOX_CONFIG_FILENAME),
         format!("[profiles.{profile}]\nextends = \"workspace\"\ndeny = [{deny_list}]\n"),
     )
     .expect("write sandbox.toml");
-    fs::create_dir_all(grok.join("hooks")).expect("mkdir fixture hooks");
-    fs::write(grok.join("hooks-paths"), b"").expect("write fixture hooks-paths");
+    fs::create_dir_all(xvora.join("hooks")).expect("mkdir fixture hooks");
+    fs::write(xvora.join("hooks-paths"), b"").expect("write fixture hooks-paths");
     for rel in targets {
         let path = tmp.join(rel);
         if let Some(parent) = path.parent() {
@@ -887,7 +887,8 @@ fn run_deny_case(
         }
         fs::write(&path, "hello workspace").expect("write control");
     }
-    let (status, stderr) = run_scenario(&home, &grok, &tmp, profile, targets, controls, postlaunch);
+    let (status, stderr) =
+        run_scenario(&home, &xvora, &tmp, profile, targets, controls, postlaunch);
     assert!(
         status.success(),
         "[{tag}] custom-profile deny should block read/write/rename\nstderr: {stderr}"
@@ -979,17 +980,17 @@ fn deny_globs_block_read_write_rename() {
 #[test]
 #[cfg(target_os = "linux")]
 fn read_deny_marker_spoof_refused() {
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("read-deny-spoof");
-    fs::create_dir_all(workspace.join(".grok")).expect("mkdir .grok");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("read-deny-spoof");
+    fs::create_dir_all(workspace.join(".xvora")).expect("mkdir .xvora");
     fs::write(
-            workspace.join(".grok").join(config::SANDBOX_CONFIG_FILENAME),
+            workspace.join(".xvora").join(config::SANDBOX_CONFIG_FILENAME),
             "[profiles.netspoof]\nextends = \"devbox\"\nrestrict_network = true\ndeny = [\"secret.pem\"]\n",
         )
         .expect("write sandbox.toml");
     fs::write(workspace.join("secret.pem"), format!("SECRET={MARKER}")).expect("write secret");
     let exe = std::env::current_exe().expect("current_exe");
     let mut cmd = Command::new(exe);
-    apply_fixture_env(&mut cmd, &home, &grok, &workspace);
+    apply_fixture_env(&mut cmd, &home, &xvora, &workspace);
     let output = cmd
         .env(SCENARIO_ENV, "read_deny_marker_spoof")
         .env(PROFILE_ENV, "netspoof")
@@ -1013,11 +1014,11 @@ fn read_deny_forged_mounts_are_refused() {
         return;
     }
     use std::os::unix::fs::PermissionsExt;
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("read-deny-forged");
-    fs::create_dir_all(workspace.join(".grok")).expect("mkdir .grok");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("read-deny-forged");
+    fs::create_dir_all(workspace.join(".xvora")).expect("mkdir .xvora");
     fs::write(
         workspace
-            .join(".grok")
+            .join(".xvora")
             .join(config::SANDBOX_CONFIG_FILENAME),
         "[profiles.forged]\nextends = \"devbox\"\ndeny = [\"secret.pem\"]\n",
     )
@@ -1025,11 +1026,11 @@ fn read_deny_forged_mounts_are_refused() {
     let secret = workspace.join("secret.pem");
     fs::write(&secret, format!("SECRET={MARKER}")).expect("write secret");
     fs::set_permissions(&secret, fs::Permissions::from_mode(0o000)).expect("chmod secret");
-    let sentinel = grok.join("sandbox-bwrap-sentinel");
+    let sentinel = xvora.join("sandbox-bwrap-sentinel");
     fs::create_dir_all(&sentinel).expect("mkdir sentinel");
     let exe = std::env::current_exe().expect("current_exe");
     let mut cmd = Command::new("bwrap");
-    apply_fixture_env(&mut cmd, &home, &grok, &workspace);
+    apply_fixture_env(&mut cmd, &home, &xvora, &workspace);
     let output = cmd
         .env(SCENARIO_ENV, "read_deny_forged_mounts")
         .env(PROFILE_ENV, "forged")
@@ -1059,18 +1060,18 @@ fn read_deny_empty_set_verifies_inside_bwrap() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("read-deny-empty");
-    fs::create_dir_all(workspace.join(".grok")).expect("mkdir .grok");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("read-deny-empty");
+    fs::create_dir_all(workspace.join(".xvora")).expect("mkdir .xvora");
     fs::write(
         workspace
-            .join(".grok")
+            .join(".xvora")
             .join(config::SANDBOX_CONFIG_FILENAME),
         "[profiles.netempty]\nextends = \"devbox\"\nrestrict_network = true\n",
     )
     .expect("write sandbox.toml");
     let exe = std::env::current_exe().expect("current_exe");
     let mut cmd = Command::new(exe);
-    apply_fixture_env(&mut cmd, &home, &grok, &workspace);
+    apply_fixture_env(&mut cmd, &home, &xvora, &workspace);
     let output = cmd
         .env(SCENARIO_ENV, "read_deny_empty_set")
         .env(PROFILE_ENV, "netempty")
@@ -1086,7 +1087,7 @@ fn read_deny_empty_set_verifies_inside_bwrap() {
         "empty deny set must verify via the sentinel inside genuine bwrap\nstderr: {stderr}"
     );
 }
-/// The complete unprivileged forgery: a caller-run bwrap carrying the marker and a read-only sentinel self-bind, but no grok-managed deny mounts.
+/// The complete unprivileged forgery: a caller-run bwrap carrying the marker and a read-only sentinel self-bind, but no xvora-managed deny mounts.
 /// It must not skip devbox enforcement: Landlock still applies and a mount-writable, devbox-excluded path stays write-denied.
 #[test]
 #[cfg(target_os = "linux")]
@@ -1094,8 +1095,8 @@ fn devbox_marker_spoof_does_not_skip_enforcement() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("devbox-spoof");
-    let sentinel = grok.join("sandbox-bwrap-sentinel");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("devbox-spoof");
+    let sentinel = xvora.join("sandbox-bwrap-sentinel");
     fs::create_dir_all(&sentinel).expect("mkdir sentinel");
     let sentinel_s = sentinel.to_string_lossy().to_string();
     let fake_sys = unique_temp_dir("devbox-spoof-sys");
@@ -1104,7 +1105,7 @@ fn devbox_marker_spoof_does_not_skip_enforcement() {
     let stage_data = Path::new("/data").exists();
     let exe = std::env::current_exe().expect("current_exe");
     let mut cmd = Command::new("bwrap");
-    apply_fixture_env(&mut cmd, &home, &grok, &workspace);
+    apply_fixture_env(&mut cmd, &home, &xvora, &workspace);
     cmd.env(SCENARIO_ENV, "devbox_marker_spoof")
         .env("__GROK_INSIDE_BWRAP", "1")
         .args(["--bind", "/", "/"])
@@ -1114,8 +1115,8 @@ fn devbox_marker_spoof_does_not_skip_enforcement() {
             .arg("--remount-ro")
             .arg("/")
             .arg("--bind")
-            .arg(&grok)
-            .arg(&grok);
+            .arg(&xvora)
+            .arg(&xvora);
     }
     let output = cmd
         .args(["--ro-bind", &sentinel_s, &sentinel_s])
@@ -1139,10 +1140,10 @@ fn devbox_genuine_reexec_applies_enforcement() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("devbox-genuine");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("devbox-genuine");
     let exe = std::env::current_exe().expect("current_exe");
     let mut cmd = Command::new(exe);
-    apply_fixture_env(&mut cmd, &home, &grok, &workspace);
+    apply_fixture_env(&mut cmd, &home, &xvora, &workspace);
     let output = cmd
         .env(SCENARIO_ENV, "devbox_genuine")
         .arg("--ignored")
@@ -1164,14 +1165,14 @@ fn hardlinked_hooks_paths_refuses_startup() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("hook-hl");
-    fs::create_dir_all(grok.join("hooks")).unwrap();
-    let reg = grok.join("hooks-paths");
-    let alias = grok.join("hooks-paths-alias");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("hook-hl");
+    fs::create_dir_all(xvora.join("hooks")).unwrap();
+    let reg = xvora.join("hooks-paths");
+    let alias = xvora.join("hooks-paths-alias");
     fs::write(&reg, b"").unwrap();
     fs::hard_link(&reg, &alias).unwrap();
     let (status, stderr) =
-        run_hook_write_deny_scenario(&home, &grok, &workspace, "hook_write_deny");
+        run_hook_write_deny_scenario(&home, &xvora, &workspace, "hook_write_deny");
     assert!(
         !status.success(),
         "hard-linked hooks-paths must refuse startup\nstderr: {stderr}"
@@ -1184,31 +1185,31 @@ fn hardlinked_hooks_paths_refuses_startup() {
         "expected hard-link refusal signal\nstderr: {stderr}"
     );
 }
-/// Workspace profile: Grok-owned direct hook sources are write-denied but readable.
+/// Workspace profile: xvora-owned direct hook sources are write-denied but readable.
 /// Create / overwrite / unlink / rename / mkdir fail; absolute hooks-paths targets are denied; parent rename is blocked.
-/// Grok/CWD/temp siblings stay writable.
+/// xvora/CWD/temp siblings stay writable.
 #[test]
 fn workspace_protects_direct_hook_sources() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("hook");
-    fs::create_dir_all(grok.join("hooks")).expect("mkdir hooks");
-    fs::write(grok.join("hooks").join("keep.json"), r#"{"keep-me":true}"#)
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("hook");
+    fs::create_dir_all(xvora.join("hooks")).expect("mkdir hooks");
+    fs::write(xvora.join("hooks").join("keep.json"), r#"{"keep-me":true}"#)
         .expect("write keep.json");
-    let dynamic = grok.join("sessions").join("extra-hooks");
+    let dynamic = xvora.join("sessions").join("extra-hooks");
     fs::create_dir_all(&dynamic).expect("mkdir dynamic hooks target");
     fs::write(dynamic.join("x.json"), r#"{"x":1}"#).expect("write dynamic hook");
     let ws_hooks = workspace.join("extra-parent").join("vendor-hooks");
     fs::create_dir_all(&ws_hooks).expect("mkdir ws vendor hooks");
     fs::write(ws_hooks.join("x.json"), r#"{"x":1}"#).expect("write ws hook");
     fs::write(
-        grok.join("hooks-paths"),
+        xvora.join("hooks-paths"),
         format!("{}\n{}\n", dynamic.display(), ws_hooks.display()),
     )
     .expect("write hooks-paths");
     let (status, stderr) =
-        run_hook_write_deny_scenario(&home, &grok, &workspace, "hook_write_deny");
+        run_hook_write_deny_scenario(&home, &xvora, &workspace, "hook_write_deny");
     assert!(
         status.success(),
         "hook write-deny e2e failed: {status}\nstderr: {stderr}"
@@ -1229,7 +1230,7 @@ fn workspace_protects_direct_hook_sources() {
         "OK: sessions sibling writable",
         "OK: workspace parent rename denied",
         "OK: workspace sibling under parent writable",
-        "OK: grok runtime sibling writable",
+        "OK: xvora runtime sibling writable",
         "OK: workspace sibling writable",
         "OK: temp sibling writable",
     ] {
@@ -1259,15 +1260,15 @@ fn hardlinked_hooks_json_refuses_startup() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("hook-json-hl");
-    fs::create_dir_all(grok.join("hooks")).unwrap();
-    fs::write(grok.join("hooks-paths"), b"").unwrap();
-    let active = grok.join("hooks").join("active.json");
-    let alias = grok.join("hooks").join("active-alias.json");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("hook-json-hl");
+    fs::create_dir_all(xvora.join("hooks")).unwrap();
+    fs::write(xvora.join("hooks-paths"), b"").unwrap();
+    let active = xvora.join("hooks").join("active.json");
+    let alias = xvora.join("hooks").join("active-alias.json");
     fs::write(&active, r#"{"hooks":{}}"#).unwrap();
     fs::hard_link(&active, &alias).unwrap();
     let (status, stderr) =
-        run_hook_write_deny_scenario(&home, &grok, &workspace, "hook_write_deny");
+        run_hook_write_deny_scenario(&home, &xvora, &workspace, "hook_write_deny");
     assert!(
         !status.success(),
         "hard-linked hooks JSON must refuse startup\nstderr: {stderr}"
@@ -1279,30 +1280,30 @@ fn symlinked_hooks_json_refuses_startup() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("hook-json-sym");
-    fs::create_dir_all(grok.join("hooks")).unwrap();
-    fs::write(grok.join("hooks-paths"), b"").unwrap();
-    let real = grok.join("real-active.json");
-    let active = grok.join("hooks").join("active.json");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("hook-json-sym");
+    fs::create_dir_all(xvora.join("hooks")).unwrap();
+    fs::write(xvora.join("hooks-paths"), b"").unwrap();
+    let real = xvora.join("real-active.json");
+    let active = xvora.join("hooks").join("active.json");
     fs::write(&real, r#"{"hooks":{}}"#).unwrap();
     std::os::unix::fs::symlink(&real, &active).unwrap();
     let (status, stderr) =
-        run_hook_write_deny_scenario(&home, &grok, &workspace, "hook_write_deny");
+        run_hook_write_deny_scenario(&home, &xvora, &workspace, "hook_write_deny");
     assert!(
         !status.success(),
         "symlinked hooks JSON must refuse startup\nstderr: {stderr}"
     );
 }
-/// First-run: missing fixed slots are created as real Grok state before apply, then write-denied.
+/// First-run: missing fixed slots are created as real xvora state before apply, then write-denied.
 /// Parent asserts post-exit host tree is valid (no vendor stubs).
 #[test]
 fn workspace_protects_direct_hook_sources_first_run() {
     if skip_if_enforcement_unavailable() {
         return;
     }
-    let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("hook-fr");
+    let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("hook-fr");
     let (status, stderr) =
-        run_hook_write_deny_scenario(&home, &grok, &workspace, "hook_write_deny_first_run");
+        run_hook_write_deny_scenario(&home, &xvora, &workspace, "hook_write_deny_first_run");
     assert!(
         status.success(),
         "hook write-deny first-run e2e failed: {status}\nstderr: {stderr}"
@@ -1312,11 +1313,11 @@ fn workspace_protects_direct_hook_sources_first_run() {
         "missing pass marker\nstderr: {stderr}"
     );
     for needle in [
-        "OK: first-run Grok hook slots denied",
+        "OK: first-run xvora hook slots denied",
         "OK: hooks-paths (first-run) write denied",
         "OK: hooks nested (first-run) mkdir denied",
         "OK: hooks nested file (first-run) write denied",
-        "OK: grok runtime sibling writable",
+        "OK: xvora runtime sibling writable",
         "OK: workspace sibling writable",
         "OK: temp sibling writable",
     ] {
@@ -1333,21 +1334,21 @@ fn workspace_protects_direct_hook_sources_first_run() {
         );
     }
     assert!(
-        grok.join("hooks").is_dir(),
+        xvora.join("hooks").is_dir(),
         "post-exit: hooks dir must exist as a real directory"
     );
     assert!(
-        grok.join("hooks-paths").is_file(),
+        xvora.join("hooks-paths").is_file(),
         "post-exit: hooks-paths must exist as a real file"
     );
     assert_eq!(
-        fs::read(grok.join("hooks-paths")).expect("read hooks-paths"),
+        fs::read(xvora.join("hooks-paths")).expect("read hooks-paths"),
         b"",
         "post-exit: first-run hooks-paths must be empty"
     );
     for name in config::TRUST_BOUNDARY_FILENAMES {
         assert!(
-            grok.join(name).is_file(),
+            xvora.join(name).is_file(),
             "post-exit: {name} must exist as a real file"
         );
     }
@@ -1367,12 +1368,12 @@ fn hook_write_deny_refuses_marker_spoof() {
     {}
     #[cfg(target_os = "linux")]
     {
-        let (home, grok, workspace, _ch, _cg, _cw) = fixture_homes("hook-spoof");
-        fs::create_dir_all(grok.join("hooks")).unwrap();
-        fs::write(grok.join("hooks").join("x.json"), b"{}").unwrap();
-        fs::write(grok.join("hooks-paths"), b"").unwrap();
+        let (home, xvora, workspace, _ch, _cg, _cw) = fixture_homes("hook-spoof");
+        fs::create_dir_all(xvora.join("hooks")).unwrap();
+        fs::write(xvora.join("hooks").join("x.json"), b"{}").unwrap();
+        fs::write(xvora.join("hooks-paths"), b"").unwrap();
         let (status, stderr) =
-            run_hook_write_deny_scenario(&home, &grok, &workspace, "hook_write_deny_marker_spoof");
+            run_hook_write_deny_scenario(&home, &xvora, &workspace, "hook_write_deny_marker_spoof");
         assert!(
             status.success(),
             "marker spoof e2e failed: {status}\nstderr: {stderr}"

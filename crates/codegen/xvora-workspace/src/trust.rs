@@ -1,6 +1,6 @@
 //! Folder-trust store ("do you trust this folder?").
 //!
-//! Persists per-folder trust decisions to `~/.grok/trusted_folders.toml`.
+//! Persists per-folder trust decisions to `~/.xvora/trusted_folders.toml`.
 //! This is the durable backing store for the VS-Code-style folder-trust gate that decides whether repo-local MCP / LSP servers may spawn.
 //! Those servers run arbitrary commands from repo-controlled config files.
 //!
@@ -16,10 +16,10 @@
 //! Other workspace keys under the path, including nested git roots, are not covered.
 //! The persisted file is written atomically with owner-only (`0600`) permissions.
 //!
-//! The store is rooted at [`config::user_grok_home`], never the cwd-relative `./.grok` fallback.
-//! That home is `None` when neither `$GROK_HOME` nor a home directory is set (e.g. a minimal container / CI).
+//! The store is rooted at [`config::user_grok_home`], never the cwd-relative `./.xvora` fallback.
+//! That home is `None` when neither `$xvora_home` nor a home directory is set (e.g. a minimal container / CI).
 //! In that no-home environment [`TrustStore::load`] yields an empty store that trusts nothing and persists nothing.
-//! So a cloned repo can never ship a `./.grok/trusted_folders.toml` that self-trusts its own checkout (fail closed).
+//! So a cloned repo can never ship a `./.xvora/trusted_folders.toml` that self-trusts its own checkout (fail closed).
 
 use std::collections::BTreeMap;
 use std::io;
@@ -29,7 +29,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-/// Filename of the folder-trust store under `~/.grok/`.
+/// Filename of the folder-trust store under `~/.xvora/`.
 pub const TRUST_FILE_NAME: &str = config::TRUSTED_FOLDERS_FILENAME;
 
 /// A single folder's trust record.
@@ -95,13 +95,13 @@ impl TrustStore {
 
     /// Default on-disk path: `<user_grok_home>/trusted_folders.toml`, or `None` when no user home resolves.
     ///
-    /// Resolves via [`config::user_grok_home`], never [`config::grok_home`], so it never falls back to a cwd-relative `./.grok`.
-    /// That fallback would let an untrusted cloned repo's `.grok` masquerade as the user-global store and self-trust the checkout.
+    /// Resolves via [`config::user_grok_home`], never [`config::xvora_home`], so it never falls back to a cwd-relative `./.xvora`.
+    /// That fallback would let an untrusted cloned repo's `.xvora` masquerade as the user-global store and self-trust the checkout.
     pub fn default_path() -> Option<PathBuf> {
         Self::default_path_in(config::user_grok_home())
     }
 
-    /// Map a resolved user-grok-home to the store path, preserving "no home" as "no path" (never synthesizing a fallback).
+    /// Map a resolved user-xvora-home to the store path, preserving "no home" as "no path" (never synthesizing a fallback).
     /// Split from [`Self::default_path`] so the no-home branch is unit-testable without the process-global home cache.
     fn default_path_in(user_grok_home: Option<PathBuf>) -> Option<PathBuf> {
         Some(user_grok_home?.join(TRUST_FILE_NAME))
@@ -219,7 +219,7 @@ impl TrustStore {
             tracing::warn!(
                 path = %canonical.display(),
                 trusted,
-                "folder trust: no user grok home resolved; trust decision not recorded"
+                "folder trust: no user xvora home resolved; trust decision not recorded"
             );
             return Ok(());
         };
@@ -312,14 +312,14 @@ impl TrustStore {
 ///
 /// The key is the canonicalized git repository root when `cwd` is inside a repo (trust applies to the whole repo), otherwise the canonicalized `cwd`.
 ///
-/// A grok-managed worktree first collapses onto its recorded source repo's git
-/// ROOT (via the `~/.grok/worktrees.db` registry), so every `grok -w` worktree
+/// A xvora-managed worktree first collapses onto its recorded source repo's git
+/// ROOT (via the `~/.xvora/worktrees.db` registry), so every `xvora -w` worktree
 /// shares one trust key regardless of creation mode (including standalone clones
 /// that git can't link back to their source) and regardless of the subdir
-/// `grok -w` was launched from (the recorded source repo may be a repo subdir).
+/// `xvora -w` was launched from (the recorded source repo may be a repo subdir).
 /// Non-registry git worktrees fall through to the git-topology collapse below.
 ///
-/// A linked git worktree collapses onto its MAIN checkout's root so every `grok -w` worktree of a repo shares one trust key.
+/// A linked git worktree collapses onto its MAIN checkout's root so every `xvora -w` worktree of a repo shares one trust key.
 /// The collapse fires ONLY for the conventional `<workdir>/.git` layout, i.e. the common gitdir resolves back to `<main_workdir>/.git`.
 /// For bare or `--separate-git-dir` repos the common gitdir's inferred workdir would be the gitdir's parent, broader than the real checkout.
 /// There the key falls back to the worktree's own workdir, so it is narrow and never widened.
@@ -339,9 +339,9 @@ pub fn workspace_key(cwd: &Path) -> PathBuf {
 
 /// The workspace key derived from git topology, before [`workspace_key`] rejects an over-broad root in favor of the cwd.
 fn git_derived_workspace_key(cwd: &Path) -> PathBuf {
-    // A grok-managed worktree (any creation mode, incl. standalone clones git can't link) collapses onto its recorded source repo so trust is shared.
+    // A xvora-managed worktree (any creation mode, incl. standalone clones git can't link) collapses onto its recorded source repo so trust is shared.
     if let Some(source_repo) = crate::worktree::source_repo_for_cwd(&cwd.to_string_lossy()) {
-        // Key on the source repo's git ROOT so every worktree of one repo shares ONE key regardless of the subdir grok -w was launched from
+        // Key on the source repo's git ROOT so every worktree of one repo shares ONE key regardless of the subdir xvora -w was launched from
         // This matches the git-topology branch below
         // Fall back to the recorded path when the source repo is gone (a standalone worktree whose source was deleted still works)
         let root = git2::Repository::discover(&source_repo)
@@ -402,7 +402,7 @@ fn now_unix() -> Option<i64> {
 /// RAII exclusive advisory lock on a sidecar lock file, released on drop.
 ///
 /// Serializes concurrent `TrustStore` writers (multiple processes / instances
-/// sharing `~/.grok/`) across the whole read-modify-write so updates merge
+/// sharing `~/.xvora/`) across the whole read-modify-write so updates merge
 /// instead of clobbering each other.
 /// The lock is advisory; only writers that take it (i.e. this code) coordinate, which is sufficient since this store is the sole writer of its file.
 struct ExclusiveLock {
@@ -432,10 +432,10 @@ impl Drop for ExclusiveLock {
 /// One-time migration of legacy project-hook trust grants into the unified folder-trust store.
 /// Idempotent and guarded to run at most once per process.
 ///
-/// The legacy `~/.grok/trusted-hook-projects` file listed one canonical project
+/// The legacy `~/.xvora/trusted-hook-projects` file listed one canonical project
 /// path per line; each becomes a folder-trust grant so the unified gate honors prior decisions.
 /// The legacy file is then renamed to `*.migrated` so it is read only once.
-/// A no-op when the legacy file is absent/already migrated or no user grok home resolves.
+/// A no-op when the legacy file is absent/already migrated or no user xvora home resolves.
 pub fn migrate_legacy_hook_trust() {
     // Local/dev builds do NO trust-store I/O: skip the load and the legacy-file rename
     if crate::folder_trust::folder_trust_inert() {
@@ -457,7 +457,7 @@ pub fn migrate_legacy_hook_trust() {
     });
 }
 
-/// [`migrate_legacy_hook_trust`] with explicit paths, so the migration is testable without the process-global grok-home cache.
+/// [`migrate_legacy_hook_trust`] with explicit paths, so the migration is testable without the process-global xvora-home cache.
 /// Returns the number of grants seeded into `store`.
 fn migrate_legacy_hook_trust_in(legacy_file: &Path, store: &mut TrustStore) -> usize {
     // A read error must NOT be mistaken for "no grants": bail without renaming
@@ -653,21 +653,21 @@ mod tests {
     #[test]
     fn default_path_in_maps_home_and_preserves_no_home() {
         // With a resolvable home the store sits at <home>/trusted_folders.toml.
-        let home = PathBuf::from("/home/alice/.grok");
+        let home = PathBuf::from("/home/alice/.xvora");
         assert_eq!(
             TrustStore::default_path_in(Some(home.clone())),
             Some(home.join(TRUST_FILE_NAME))
         );
 
         // With NO resolvable home the path is `None`, never a synthesized fallback
-        // This is the regression guard that keeps the store off the cwd-relative `./.grok` that grok_home() would invent
-        // That is how a cloned repo's own `<repo>/.grok/trusted_folders.toml` could masquerade as the user-global store and self-trust the checkout
+        // This is the regression guard that keeps the store off the cwd-relative `./.xvora` that xvora_home() would invent
+        // That is how a cloned repo's own `<repo>/.xvora/trusted_folders.toml` could masquerade as the user-global store and self-trust the checkout
         assert_eq!(TrustStore::default_path_in(None), None);
     }
 
     #[test]
     fn default_path_sources_from_user_grok_home() {
-        // Pins the source: the production accessor reads user_grok_home() (Option, no cwd fallback), not grok_home()
+        // Pins the source: the production accessor reads user_grok_home() (Option, no cwd fallback), not xvora_home()
         // The real regression guard is `default_path_in(None) == None` above
         assert_eq!(
             TrustStore::default_path(),
@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn no_home_store_trusts_nothing_and_persists_nothing() {
         // Simulate the no-home environment where `default_path()` is `None`: `load()` yields `empty()`, a store with no backing path
-        // It must trust nothing and silently no-op on writes, never touching a cwd-relative `./.grok`
+        // It must trust nothing and silently no-op on writes, never touching a cwd-relative `./.xvora`
         let mut store = TrustStore::empty();
         assert!(store.is_empty());
 
@@ -1271,7 +1271,7 @@ mod tests {
 
     #[test]
     fn workspace_key_collapses_linked_worktrees_onto_main_checkout() {
-        // Every linked `grok -w` worktree of a repo must share ONE trust key: its main checkout's root
+        // Every linked `xvora -w` worktree of a repo must share ONE trust key: its main checkout's root
         // Build a real repo and two linked worktrees and assert each collapses onto the main checkout (trusted once, not re-prompted per worktree)
         let dir = tempfile::tempdir().unwrap();
         let main = dir.path().join("main");
@@ -1403,17 +1403,17 @@ mod tests {
         );
     }
 
-    // ── workspace_key registry collapse (grok-managed worktrees) ─────────
+    // ── workspace_key registry collapse (xvora-managed worktrees) ─────────
 
     // The crate-shared env lock and env guards travel as ONE value
     // Struct field order (see lib.rs) restores the env before the lock releases, no matter how the caller binds the fixture's return
     use crate::LockedTestEnv;
 
-    /// Point `GROK_HOME` at an isolated tempdir and register one grok-managed worktree at `<home>/worktrees/repo/<name>`.
+    /// Point `xvora_home` at an isolated tempdir and register one xvora-managed worktree at `<home>/worktrees/repo/<name>`.
     /// The record stores `source_repo` and `creation_mode`.
     /// The worktree dir is a PLAIN directory (NOT a git linked worktree), so only the registry can collapse it.
     /// Returns `(env, worktree dir)`.
-    /// The [`LockedTestEnv`] holds the lock and restores `GROK_HOME` on drop (before releasing the lock), so the caller may bind it any way.
+    /// The [`LockedTestEnv`] holds the lock and restores `xvora_home` on drop (before releasing the lock), so the caller may bind it any way.
     fn register_grok_worktree(
         temp: &tempfile::TempDir,
         name: &str,
@@ -1424,12 +1424,12 @@ mod tests {
 
         // Canonicalize so macOS's `/var` (a symlink to `/private/var`) agrees between the stored record path and the canonicalized lookup query
         let root = dunce::canonicalize(temp.path()).unwrap();
-        let home = root.join("grok-home");
+        let home = root.join("xvora-home");
         let wt = home.join("worktrees").join("repo").join(name);
         std::fs::create_dir_all(&wt).unwrap();
 
         // Acquire the lock, then set the env under it (LockedTestEnv restores the env before releasing the lock on drop)
-        let env = LockedTestEnv::lock().set("GROK_HOME", &home);
+        let env = LockedTestEnv::lock().set("xvora_home", &home);
 
         let db = WorktreeDb::open(&home).unwrap();
         let record = WorktreeRecord {
@@ -1470,7 +1470,7 @@ mod tests {
         assert_eq!(
             workspace_key(&wt),
             expected,
-            "a standalone grok worktree must collapse onto its recorded source repo"
+            "a standalone xvora worktree must collapse onto its recorded source repo"
         );
         // A cwd nested below the worktree root collapses onto the same key (the registry walk ascends to the registered worktree)
         let nested = wt.join("crates").join("inner");
@@ -1506,10 +1506,10 @@ mod tests {
 
     #[test]
     fn workspace_key_ignores_registry_for_cwd_outside_worktrees_dir() {
-        // A populated registry must NOT collapse a cwd OUTSIDE `<grok_home>/worktrees`
+        // A populated registry must NOT collapse a cwd OUTSIDE `<xvora_home>/worktrees`
         // `worktree_record_for_cwd` skips the registry there, so the key falls back to git/cwd
         // Non-vacuous: the registry IS populated with a real git source repo that WOULD be returned for a worktree cwd
-        // `outside` is its OWN git repo (under grok HOME but not under its `worktrees/`), so the fallback is deterministic (no conditional skip)
+        // `outside` is its OWN git repo (under xvora HOME but not under its `worktrees/`), so the fallback is deterministic (no conditional skip)
         // We assert the key is `outside`'s own root, never the source repo
         let temp = tempfile::TempDir::new().unwrap();
         let root = dunce::canonicalize(temp.path()).unwrap();
@@ -1519,8 +1519,8 @@ mod tests {
 
         let (_env, _wt) = register_grok_worktree(&temp, "wt", &source_repo, "standalone");
 
-        // Under grok HOME but NOT under `<home>/worktrees`, and its own git repo.
-        let outside = root.join("grok-home").join("not-worktrees").join("proj");
+        // Under xvora HOME but NOT under `<home>/worktrees`, and its own git repo.
+        let outside = root.join("xvora-home").join("not-worktrees").join("proj");
         std::fs::create_dir_all(&outside).unwrap();
         git2::Repository::init(&outside).unwrap();
 
@@ -1528,7 +1528,7 @@ mod tests {
         assert_eq!(
             key,
             canonicalize_or_owned(&outside),
-            "a cwd outside <grok_home>/worktrees keys on its own repo root"
+            "a cwd outside <xvora_home>/worktrees keys on its own repo root"
         );
         assert_ne!(
             key,

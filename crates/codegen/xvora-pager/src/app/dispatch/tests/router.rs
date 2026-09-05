@@ -11,11 +11,11 @@ fn auth_copy_dispatch_preserves_all_delivery_states() {
         app.auth_state = AuthState::Authenticating {
             request_seq: 1,
             handle: None,
-            auth_url: Some("https://grok.com/auth".to_owned()),
+            auth_url: Some("https://xvora.com/auth".to_owned()),
             mode: AuthMode::Command,
         };
         let effects = crate::app::dispatch::router::dispatch_copy_auth_url(&mut app, |url| {
-            assert_eq!(url, "https://grok.com/auth");
+            assert_eq!(url, "https://xvora.com/auth");
             delivery
         });
         assert_eq!(app.auth_clipboard_delivery, Some(delivery));
@@ -609,7 +609,7 @@ fn shown_banner_id(app: &AppView) -> Option<String> {
 #[test]
 fn announcements_open_cta_opens_promo_and_noops_under_critical() {
     use telemetry::events::AnnouncementCtaSurface;
-    let url_file = std::env::temp_dir().join(format!("grok-cta-open-{}.txt", std::process::id()));
+    let url_file = std::env::temp_dir().join(format!("xvora-cta-open-{}.txt", std::process::id()));
     let _ = std::fs::remove_file(&url_file);
     unsafe { std::env::set_var("GROK_TEST_OPEN_URL_FILE", &url_file) };
     let opened = || std::fs::read_to_string(&url_file).unwrap_or_default();
@@ -1405,7 +1405,7 @@ fn tick_propagates_available_commands_to_bootstrap() {
     app.active_view = crate::app::app_view::ActiveView::Agent(id);
     let skill_meta = serde_json::json!({
         "scope": "user",
-        "path": "/home/user/.grok/skills/pick-best/SKILL.md",
+        "path": "/home/user/.xvora/skills/pick-best/SKILL.md",
     });
     app.agents.get_mut(&id).unwrap().session.available_commands = vec![
         acp::AvailableCommand::new("compact".to_string(), "Builtin".to_string()),
@@ -2758,7 +2758,7 @@ fn welcome_expand_skips_conversation_and_routes_build_card_detail() {
     assert_eq!(
         welcome_card_detail(&app),
         None,
-        "Headless must not resurrect a cleared Grok row from card detail"
+        "Headless must not resurrect a cleared xvora row from card detail"
     );
 }
 fn system_texts(app: &AppView, id: AgentId) -> Vec<String> {

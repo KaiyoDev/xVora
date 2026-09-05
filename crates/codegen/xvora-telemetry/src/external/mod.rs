@@ -1,6 +1,6 @@
 //! Opt-in, content-redacted **external OTEL** telemetry stream.
 //!
-//! Enterprise customers point the Grok CLI at *their own* OpenTelemetry collector through the standard `OTEL_*` env vars.
+//! Enterprise customers point the xvora CLI at *their own* OpenTelemetry collector through the standard `OTEL_*` env vars.
 //! `GROK_EXTERNAL_OTEL` is the master switch.
 //! The stream is independent of ZDR: it ships only to the customer's collector
 //! under an explicit double opt-in. Default content-free (~6 counters and ~17

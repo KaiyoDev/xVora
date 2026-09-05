@@ -366,8 +366,8 @@ async fn build_session_routed_handlers_skips_invalid_client_name_without_panic()
 }
 /// Regression for the deleted catalog intersection.
 /// Reproduces the `session.bind` resolver tail: `build_session_routed_handlers` for the session toolset, plus the one RPC handler from the catalog.
-/// It proves a session tool whose client name is ABSENT from that (grok-build) catalog is still advertised.
-/// The old catalog-intersection filter silently dropped exactly such tools (grok-build renames: 6 of 11).
+/// It proves a session tool whose client name is ABSENT from that (xvora-build) catalog is still advertised.
+/// The old catalog-intersection filter silently dropped exactly such tools (xvora-build renames: 6 of 11).
 #[tokio::test]
 async fn resolver_advertises_tool_absent_from_connect_catalog() {
     let handle = make_handle();
@@ -1726,7 +1726,7 @@ async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
             sid,
             &BeforeTurnPayload {
                 turn_number: 7,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: false,
                 conversation_message_count: 5,
                 session_relationship: "subagent".to_owned(),
@@ -1756,7 +1756,7 @@ async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
                 outcome: TurnHookOutcome::Completed,
                 duration_ms: 1234,
                 tool_call_count: 1,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 written_repo_paths: Vec::new(),
                 cancellation_category: None,
                 cancellation_context: None,
@@ -1779,7 +1779,7 @@ async fn events_jsonl_captures_turn_tool_toggle_and_mcp_variants() {
     let ts = by_type("turn_started");
     assert_eq!(ts["session_id"], sid);
     assert_eq!(ts["turn_number"], 7);
-    assert_eq!(ts["model_id"], "grok-4");
+    assert_eq!(ts["model_id"], "xvora-4");
     assert_eq!(ts["yolo_mode"], false);
     assert_eq!(ts["conversation_message_count"], 5);
     assert_eq!(ts["session_relationship"], "subagent");
@@ -1818,7 +1818,7 @@ async fn before_turn_hooks_sync_session_yolo_mode() {
             "main",
             &BeforeTurnPayload {
                 turn_number: 1,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: true,
                 ..Default::default()
             },
@@ -1830,7 +1830,7 @@ async fn before_turn_hooks_sync_session_yolo_mode() {
             "main",
             &TurnHookRequest::Before(BeforeTurnPayload {
                 turn_number: 2,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: false,
                 ..Default::default()
             }),
@@ -1850,7 +1850,7 @@ async fn before_turn_hooks_sync_session_yolo_mode() {
             "never-bound",
             &TurnHookRequest::Before(BeforeTurnPayload {
                 turn_number: 1,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: true,
                 ..Default::default()
             }),
@@ -1872,7 +1872,7 @@ async fn before_turn_yolo_transition_emits_yolo_toggled_event() {
                 sid,
                 &BeforeTurnPayload {
                     turn_number: turn,
-                    model_id: "grok-4".to_owned(),
+                    model_id: "xvora-4".to_owned(),
                     yolo_mode: yolo,
                     ..Default::default()
                 },
@@ -1923,7 +1923,7 @@ async fn events_disabled_keeps_noop_and_writes_nothing() {
             sid,
             &BeforeTurnPayload {
                 turn_number: 1,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: false,
                 conversation_message_count: 0,
                 session_relationship: "primary".to_owned(),
@@ -1944,7 +1944,7 @@ async fn events_disabled_keeps_noop_and_writes_nothing() {
                 outcome: TurnHookOutcome::Completed,
                 duration_ms: 1,
                 tool_call_count: 1,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 written_repo_paths: Vec::new(),
                 cancellation_category: None,
                 cancellation_context: None,
@@ -1973,7 +1973,7 @@ async fn session_end_evicts_event_writer_without_data_loss() {
             sid,
             &BeforeTurnPayload {
                 turn_number: 1,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: false,
                 conversation_message_count: 0,
                 session_relationship: "primary".to_owned(),
@@ -5961,7 +5961,7 @@ async fn the_configure_path_caps_advertised_tools() {
     server_task.abort();
 }
 /// The legacy client-driven path (`workspace.configure_mcp`, used when
-/// `bind_mcp` is None: sandbox, standalone, Grok Build) across the full
+/// `bind_mcp` is None: sandbox, standalone, xvora build) across the full
 /// lifecycle: configure → hub unbind teardown → REBIND (which must re-open
 /// the `Closed` binding even without a machine-owned config) → configure
 /// again succeeds. Without the re-open, the drive fails closed on `Closed`
@@ -6428,7 +6428,7 @@ async fn strict_bind_without_explicit_toolset_fails_closed_end_to_end() {
     let resolved = resolver(
         tool_protocol::SessionId::new("bind-e2e-strict").unwrap(),
         Some(serde_json::json!({
-            "metadata": {"preset": "grok-computer", "capability_mode": "all"},
+            "metadata": {"preset": "xvora-computer", "capability_mode": "all"},
         })),
     )
     .await
@@ -6578,7 +6578,7 @@ async fn strict_rebind_with_corrected_toolset_heals_end_to_end() {
     let sid = tool_protocol::SessionId::new("bind-e2e-heal").unwrap();
     let first = resolver(
         sid.clone(),
-        Some(serde_json::json!({"metadata": {"preset": "grok-computer"}})),
+        Some(serde_json::json!({"metadata": {"preset": "xvora-computer"}})),
     )
     .await
     .expect("fail-closed bind still succeeds with an RPC-only advertise");
@@ -7074,7 +7074,7 @@ async fn no_upload_queue_registers_no_inflight_enqueue() {
             "main",
             &BeforeTurnPayload {
                 turn_number: 1,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: false,
                 conversation_message_count: 0,
                 session_relationship: "primary".to_owned(),
@@ -7106,7 +7106,7 @@ async fn compute_turn_injections_after_returns_skipped_ack_without_queue() {
                 outcome: TurnHookOutcome::Completed,
                 duration_ms: 10,
                 tool_call_count: 0,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 written_repo_paths: Vec::new(),
                 cancellation_category: None,
                 cancellation_context: None,
@@ -7136,7 +7136,7 @@ async fn compute_turn_injections_after_returns_skipped_ack_without_queue() {
                 outcome: TurnHookOutcome::Completed,
                 duration_ms: 10,
                 tool_call_count: 0,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 written_repo_paths: Vec::new(),
                 cancellation_category: None,
                 cancellation_context: None,
@@ -7186,7 +7186,7 @@ async fn after_turn_decodes_cancellation_fields_into_events_jsonl() {
             sid,
             &BeforeTurnPayload {
                 turn_number: 2,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 yolo_mode: false,
                 conversation_message_count: 0,
                 session_relationship: "primary".to_owned(),
@@ -7202,7 +7202,7 @@ async fn after_turn_decodes_cancellation_fields_into_events_jsonl() {
                 outcome: TurnHookOutcome::Cancelled,
                 duration_ms: 10,
                 tool_call_count: 0,
-                model_id: "grok-4".to_owned(),
+                model_id: "xvora-4".to_owned(),
                 written_repo_paths: Vec::new(),
                 cancellation_category: Some("permission_rejected".to_owned()),
                 cancellation_context: Some(serde_json::json!({ "recovery": false })),
@@ -7436,7 +7436,7 @@ fn bundled_allowlist_unreadable_dir_fails_closed() {
     let got = bundled_allowlist_ignore_dirs("/nonexistent/bundled-skills", Some("pdf"));
     assert_eq!(got, vec!["/nonexistent/bundled-skills".to_string()]);
 }
-/// Unique skill names: discovery also reads the dev machine's `~/.grok`.
+/// Unique skill names: discovery also reads the dev machine's `~/.xvora`.
 #[tokio::test]
 async fn bundled_allowlist_filters_discovery() {
     let tmp = tempfile::tempdir().expect("tempdir");

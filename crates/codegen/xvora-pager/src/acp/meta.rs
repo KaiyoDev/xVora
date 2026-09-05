@@ -1,7 +1,7 @@
 //! Strongly-typed notification metadata.
 //!
 //! Parses the `_meta` JSON from `SessionNotification` into a struct with typed fields.
-//! All fields are `Option`, so parsing degrades gracefully when grok-shell hasn't been updated or meta is absent.
+//! All fields are `Option`, so parsing degrades gracefully when xvora-shell hasn't been updated or meta is absent.
 
 use serde::{Deserialize, Serialize};
 
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn parse_missing_new_fields() {
-        // Simulate old grok-shell that doesn't send streamStartMs/turnStartMs
+        // Simulate old xvora-shell that doesn't send streamStartMs/turnStartMs
         let meta_json = json!({
             "totalTokens": 1000u64,
             "agentTimestampMs": 1700000000000i64,

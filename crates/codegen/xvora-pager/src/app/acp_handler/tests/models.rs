@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
     use super::*;
 
     /// Regression: a machine-wide `x.ai/models/update` broadcast carries each model's static catalog-default effort (`high`).
@@ -83,7 +83,7 @@
         app.models.available.insert(id.clone(), make_model_info("grok-3"));
         app.models.current = Some(id);
 
-        let notif = make_models_update_notif("grok-4", &["grok-3", "grok-4"]);
+        let notif = make_models_update_notif("xvora-4", &["grok-3", "xvora-4"]);
         handle_models_update(&notif, &mut app);
 
         assert_eq!(
@@ -101,12 +101,12 @@
         app.models.available.insert(old.clone(), make_model_info("opus"));
         app.models.current = Some(old);
 
-        let notif = make_models_update_notif("grok-4", &["grok-3", "grok-4"]);
+        let notif = make_models_update_notif("xvora-4", &["grok-3", "xvora-4"]);
         handle_models_update(&notif, &mut app);
 
         assert_eq!(
             app.models.current.as_ref().map(|id| id.0.as_ref()),
-            Some("grok-4"),
+            Some("xvora-4"),
             "app-level current adopts the broadcast default when dropped from the catalog"
         );
     }
@@ -138,7 +138,7 @@
             agent_b.session.models.current = Some(id);
         }
 
-        let notif = make_models_update_notif("grok-4", &["grok-3", "grok-4"]);
+        let notif = make_models_update_notif("xvora-4", &["grok-3", "xvora-4"]);
         handle_models_update(&notif, &mut app);
 
         let agent_a = app.agents.get(&AgentId(0)).unwrap();
@@ -172,12 +172,12 @@
     fn model_changed_updates_state_silently_on_follower() {
         let mut app = make_app_with_agent("sess-1");
         let agent = app.agents.get_mut(&AgentId(0)).unwrap();
-        seed_models(agent, "grok-3", &["grok-3", "grok-4"]);
+        seed_models(agent, "grok-3", &["grok-3", "xvora-4"]);
         let scrollback_before = agent.scrollback.len();
         // Follower: no local switch in flight.
         assert!(!agent.session.model_switch_pending);
 
-        let notif = model_changed_ext("sess-1", "grok-4", None);
+        let notif = model_changed_ext("sess-1", "xvora-4", None);
         let changed = handle_ext_notification(&notif, &mut app);
         assert!(
             changed,
@@ -192,7 +192,7 @@
                 .current
                 .as_ref()
                 .map(|id| id.0.as_ref()),
-            Some("grok-4"),
+            Some("xvora-4"),
             "follower must mirror the remote switch into its local model state",
         );
         assert_eq!(
@@ -259,12 +259,12 @@
     fn model_changed_skipped_when_local_switch_in_flight() {
         let mut app = make_app_with_agent("sess-1");
         let agent = app.agents.get_mut(&AgentId(0)).unwrap();
-        seed_models(agent, "grok-3", &["grok-3", "grok-4"]);
+        seed_models(agent, "grok-3", &["grok-3", "xvora-4"]);
         // Invoker: a local switch is in flight (set by Action::SwitchModel or set_default_model before the SetSessionModelRequest is sent)
         agent.session.model_switch_pending = true;
         let scrollback_before = agent.scrollback.len();
 
-        let notif = model_changed_ext("sess-1", "grok-4", None);
+        let notif = model_changed_ext("sess-1", "xvora-4", None);
         let changed = handle_ext_notification(&notif, &mut app);
         assert!(
             !changed,
@@ -301,9 +301,9 @@
     fn model_changed_dropped_when_model_unknown_to_catalog() {
         let mut app = make_app_with_agent("sess-1");
         let agent = app.agents.get_mut(&AgentId(0)).unwrap();
-        seed_models(agent, "grok-3", &["grok-3", "grok-4"]);
+        seed_models(agent, "grok-3", &["grok-3", "xvora-4"]);
 
-        let notif = model_changed_ext("sess-1", "grok-99-unknown", None);
+        let notif = model_changed_ext("sess-1", "xvora-99-unknown", None);
         let changed = handle_ext_notification(&notif, &mut app);
         assert!(
             !changed,
@@ -330,9 +330,9 @@
         use shell::sampling::types::ReasoningEffort;
         let mut app = make_app_with_agent("sess-1");
         let agent = app.agents.get_mut(&AgentId(0)).unwrap();
-        seed_models(agent, "grok-3", &["grok-3", "grok-4"]);
+        seed_models(agent, "grok-3", &["grok-3", "xvora-4"]);
 
-        let notif = model_changed_ext("sess-1", "grok-4", Some("high"));
+        let notif = model_changed_ext("sess-1", "xvora-4", Some("high"));
         assert!(handle_ext_notification(&notif, &mut app));
 
         let agent = app.agents.get(&AgentId(0)).unwrap();
@@ -349,9 +349,9 @@
     fn model_changed_dropped_for_unknown_session_id() {
         let mut app = make_app_with_agent("sess-1");
         let agent = app.agents.get_mut(&AgentId(0)).unwrap();
-        seed_models(agent, "grok-3", &["grok-3", "grok-4"]);
+        seed_models(agent, "grok-3", &["grok-3", "xvora-4"]);
 
-        let notif = model_changed_ext("sess-OTHER", "grok-4", None);
+        let notif = model_changed_ext("sess-OTHER", "xvora-4", None);
         let changed = handle_ext_notification(&notif, &mut app);
         assert!(!changed);
 

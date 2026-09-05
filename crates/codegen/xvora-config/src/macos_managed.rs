@@ -1,17 +1,17 @@
 //! macOS MDM managed-preferences layer.
 //!
-//! Admins push a device profile with standard-base64 (padded) TOML under preference domain `ai.x.grok` (`requirements_toml_base64`).
+//! Admins push a device profile with standard-base64 (padded) TOML under preference domain `ai.x.xvora` (`requirements_toml_base64`).
 //! Only admin-*forced* values are read, so a local user can't forge it via their own preference domain.
 //! The layer is trusted on every launch, independent of network or cache.
 //! Off macOS the layer is `None`.
 
 #[cfg(target_os = "macos")]
-const MANAGED_PREFERENCES_DOMAIN: &str = "ai.x.grok";
+const MANAGED_PREFERENCES_DOMAIN: &str = "ai.x.xvora";
 #[cfg(target_os = "macos")]
 const REQUIREMENTS_KEY: &str = "requirements_toml_base64";
 
 /// Synthetic source label for the MDM layer (no file on disk); diagnostics only.
-pub const MDM_REQUIREMENTS_SOURCE: &str = "ai.x.grok:requirements_toml_base64";
+pub const MDM_REQUIREMENTS_SOURCE: &str = "ai.x.xvora:requirements_toml_base64";
 
 /// The MDM-forced requirements TOML, or `None` when none is forced (or not macOS).
 pub(crate) fn managed_preferences_requirements() -> Option<toml::Value> {
@@ -82,7 +82,7 @@ fn read_forced_requirements() -> Option<String> {
     let cf_app = CFString::new(MANAGED_PREFERENCES_DOMAIN);
 
     // Trust only admin-forced values: otherwise the lookup falls through to the per-user domain
-    // A local user can set that domain (`defaults write ai.x.grok`) to forge an `is_system`-trusted layer
+    // A local user can set that domain (`defaults write ai.x.xvora`) to forge an `is_system`-trusted layer
     let forced = unsafe {
         CFPreferencesAppValueIsForced(cf_key.as_concrete_TypeRef(), cf_app.as_concrete_TypeRef())
     };

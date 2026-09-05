@@ -1,5 +1,5 @@
 //! Sandbox profiles. Built-in: `workspace`, `devbox`, `read-only`, `strict`,
-//! `off`. Custom profiles via `~/.grok/sandbox.toml` or `.grok/sandbox.toml`.
+//! `off`. Custom profiles via `~/.xvora/sandbox.toml` or `.xvora/sandbox.toml`.
 //! A custom profile's `deny` list is kernel-enforced (read and write/rename) on both platforms.
 
 #[cfg(all(feature = "enforce", unix))]
@@ -15,7 +15,7 @@ use crate::deny::{
     apply_write_deny_paths_to_capability_set, effective_deny_paths, partition_deny_entries,
 };
 use crate::hook_write_deny::profile_hook_write_deny;
-use crate::paths::grok_home;
+use crate::paths::xvora_home;
 #[cfg(all(feature = "enforce", unix))]
 use crate::paths::{DEVICE_DIRS, DEVICE_FILES};
 use crate::paths::{
@@ -111,7 +111,7 @@ impl std::str::FromStr for ProfileName {
     }
 }
 
-/// Load sandbox config from `~/.grok/sandbox.toml` and `.grok/sandbox.toml`.
+/// Load sandbox config from `~/.xvora/sandbox.toml` and `.xvora/sandbox.toml`.
 ///
 /// Project config may **add** new profile names only.
 /// It cannot redefine a name already present in the global config.
@@ -120,14 +120,14 @@ impl std::str::FromStr for ProfileName {
 pub fn load_sandbox_config(workspace: &Path) -> SandboxConfig {
     let mut config = SandboxConfig::default();
 
-    // Global config: ~/.grok/sandbox.toml
-    let global_path = grok_home().join(SANDBOX_CONFIG_FILENAME);
+    // Global config: ~/.xvora/sandbox.toml
+    let global_path = xvora_home().join(SANDBOX_CONFIG_FILENAME);
     if let Some(global) = load_config_file(&global_path) {
         config = global;
     }
 
-    // Project config: <workspace>/.grok/sandbox.toml (additive only)
-    let project_path = workspace.join(".grok").join(SANDBOX_CONFIG_FILENAME);
+    // Project config: <workspace>/.xvora/sandbox.toml (additive only)
+    let project_path = workspace.join(".xvora").join(SANDBOX_CONFIG_FILENAME);
     if let Some(project) = load_config_file(&project_path) {
         merge_project_profiles(&mut config, project);
     }
@@ -136,8 +136,8 @@ pub fn load_sandbox_config(workspace: &Path) -> SandboxConfig {
 }
 
 pub fn sandbox_profile_conflicts(workspace: &Path) -> Vec<String> {
-    let global = load_config_file(&grok_home().join(SANDBOX_CONFIG_FILENAME)).unwrap_or_default();
-    let project = load_config_file(&workspace.join(".grok").join(SANDBOX_CONFIG_FILENAME))
+    let global = load_config_file(&xvora_home().join(SANDBOX_CONFIG_FILENAME)).unwrap_or_default();
+    let project = load_config_file(&workspace.join(".xvora").join(SANDBOX_CONFIG_FILENAME))
         .unwrap_or_default();
     mismatched_profile_names(&global, &project)
 }
@@ -241,7 +241,7 @@ impl ProfileName {
                     return Some(real);
                 }
                 let default_sessions =
-                    dirs::home_dir().map(|user_home| user_home.join(".grok").join("sessions"));
+                    dirs::home_dir().map(|user_home| user_home.join(".xvora").join("sessions"));
                 if path.file_name() == Some(std::ffi::OsStr::new("sessions"))
                     && default_sessions.as_ref() == Some(&real)
                 {
@@ -287,10 +287,10 @@ impl ProfileName {
         // Read-write paths. nono/Landlock need the path to exist at
         // apply time (it opens an O_PATH fd), but new files within a
         // granted directory can be created freely after the sandbox is
-        // applied. Pre-create directories like ~/.grok/ that may not exist
-        // on first run. Symlink children of grok_home fail closed unless the
-        // canonical dir is this home's same-named child or default ~/.grok/sessions.
-        let home = grok_home();
+        // applied. Pre-create directories like ~/.xvora/ that may not exist
+        // on first run. Symlink children of xvora_home fail closed unless the
+        // canonical dir is this home's same-named child or default ~/.xvora/sessions.
+        let home = xvora_home();
         for path in &profile.read_write {
             let Some(grant) = Self::read_write_grant_path(path, &home) else {
                 tracing::warn!(path = ?path, "skipping read_write grant");
@@ -479,9 +479,9 @@ impl ProfileName {
                 .filter(|p| p.exists())
                 .chain(std::iter::once(workspace.to_path_buf()))
                 // Read-only: AuthManager/config/hooks need the parent
-                // Landlock cannot carve children out of a write grant, so grok_home itself stays off read_write
+                // Landlock cannot carve children out of a write grant, so xvora_home itself stays off read_write
                 // Only sessions/ is writable; events JSONL lives there
-                .chain(std::iter::once(grok_home()))
+                .chain(std::iter::once(xvora_home()))
                 .collect();
 
                 Ok(SandboxProfile {
@@ -499,7 +499,7 @@ impl ProfileName {
                 let profile_config = config.profiles.get(name).ok_or_else(|| {
                     anyhow::anyhow!(
                         "Custom sandbox profile '{name}' not found. \
-                         Define it in ~/.grok/sandbox.toml or .grok/sandbox.toml:\n\n\
+                         Define it in ~/.xvora/sandbox.toml or .xvora/sandbox.toml:\n\n\
                          [profiles.{name}]\n\
                          extends = \"workspace\"\n\
                          read_only = [\"/data\"]\n"
@@ -691,7 +691,7 @@ mod tests {
             return;
         }
         let workspace = std::env::temp_dir();
-        let home = grok_home();
+        let home = xvora_home();
         let sessions = home.join("sessions");
 
         let cases = [
@@ -709,7 +709,7 @@ mod tests {
             let profile = resolved.unwrap_or_else(|e| panic!("{label} resolves: {e}"));
             assert!(
                 profile.read_only.iter().any(|p| p == &home),
-                "{label} read_only must include grok_home: {:?}",
+                "{label} read_only must include xvora_home: {:?}",
                 profile.read_only
             );
             // Post-apply hook write-deny opens hooks-paths and lists hooks at startup.
@@ -725,7 +725,7 @@ mod tests {
             }
             assert!(
                 !profile.read_write.iter().any(|p| p == &home),
-                "{label} read_write must not include grok_home itself: {:?}",
+                "{label} read_write must not include xvora_home itself: {:?}",
                 profile.read_write
             );
             let events = crate::paths::sandbox_events_log_path();
@@ -736,7 +736,7 @@ mod tests {
                 }
                 assert!(
                     p.starts_with(&sessions),
-                    "{label} read_write path under grok_home must be under sessions/: {p:?}"
+                    "{label} read_write path under xvora_home must be under sessions/: {p:?}"
                 );
             }
             assert!(
@@ -754,14 +754,14 @@ mod tests {
         }
         let workspace = std::env::temp_dir();
         let config = SandboxConfig::default();
-        let home = grok_home();
+        let home = xvora_home();
         for name in [ProfileName::Workspace, ProfileName::ReadOnly] {
             let profile = name
                 .resolve_profile(&workspace, &config)
                 .unwrap_or_else(|e| panic!("{name} resolves: {e}"));
             assert!(
                 profile.read_write.iter().any(|p| p == &home),
-                "{name} read_write must include grok_home: {:?}",
+                "{name} read_write must include xvora_home: {:?}",
                 profile.read_write
             );
         }
@@ -942,7 +942,7 @@ read_write = ["/tmp/ci-artifacts"]
             return;
         }
         let root = std::env::temp_dir().join(format!(
-            "grok-sandbox-starstar-capset-{}",
+            "xvora-sandbox-starstar-capset-{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&root);
@@ -1100,7 +1100,7 @@ read_write = ["/tmp/ci-artifacts"]
         // Directories must stay grantable
         // On Linux, File::open returns EISDIR; on macOS it often succeeds
         // Either way the probe must return true so directory devices (e.g. /dev/fd via DEVICE_DIRS) are not dropped.
-        let dir = std::env::temp_dir().join(format!("grok-sbx-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("xvora-sbx-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         match std::fs::File::open(&dir) {
             Err(e) => {

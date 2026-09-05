@@ -2209,14 +2209,14 @@ mod tests {
             tool_calls: 3,
             turns: 1,
             duration_ms: 2000,
-            worktree_path: Some("/tmp/grok-worktree/wt-agent".into()),
+            worktree_path: Some("/tmp/xvora-worktree/wt-agent".into()),
             persona: None,
             resume_from_hint: "wt-agent".into(),
             persona_hint: None,
         });
         let rendered = output.to_prompt_format();
         assert!(
-            rendered.contains("<worktree_path>/tmp/grok-worktree/wt-agent</worktree_path>"),
+            rendered.contains("<worktree_path>/tmp/xvora-worktree/wt-agent</worktree_path>"),
             "worktree_path preserved"
         );
         assert!(

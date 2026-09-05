@@ -2,7 +2,7 @@ use super::{TabDataState, WorkflowInfo, cmp_str_ci, fuzzy_matches};
 
 /// Placeholder row when the catalog comes back empty (also what a disabled workflows feature looks like on the wire, hence the hedged phrasing).
 pub(super) const WORKFLOWS_EMPTY_PLACEHOLDER: &str =
-    "No workflows available. Ask Grok to help make you one!";
+    "No workflows available. Ask xvora to help make you one!";
 
 /// One picker row for the Workflows tab (flat, browse-only catalog).
 #[derive(Debug)]
@@ -88,7 +88,7 @@ mod tests {
                 description: "touches ci".into(),
                 when_to_use: None,
                 source: "user".into(),
-                path: Some("/home/u/.grok/workflows/alpha-wf.rhai".into()),
+                path: Some("/home/u/.xvora/workflows/alpha-wf.rhai".into()),
             },
             WorkflowInfo {
                 name: "beta-wf".into(),
@@ -104,7 +104,7 @@ mod tests {
             by_desc[0].fields,
             [(
                 "path".to_string(),
-                "/home/u/.grok/workflows/alpha-wf.rhai".to_string()
+                "/home/u/.xvora/workflows/alpha-wf.rhai".to_string()
             )]
         );
         let by_name = build_workflows_picker_rows(&workflows, "beta");

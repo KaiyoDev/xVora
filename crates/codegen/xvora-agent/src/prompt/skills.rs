@@ -48,11 +48,11 @@ pub struct SkillsConfig {
 
 /// List all discovered skills with their metadata.
 ///
-/// Priority order: Local (cwd/.grok/skills, cwd/.agents/skills, cwd/.claude/skills) → Intermediate dirs →
-/// Repo (repo_root/.grok/skills, repo_root/.agents/skills, repo_root/.claude/skills) → User (~/.grok/skills, ~/.agents/skills, ~/.claude/skills)
+/// Priority order: Local (cwd/.xvora/skills, cwd/.agents/skills, cwd/.claude/skills) → Intermediate dirs →
+/// Repo (repo_root/.xvora/skills, repo_root/.agents/skills, repo_root/.claude/skills) → User (~/.xvora/skills, ~/.agents/skills, ~/.claude/skills)
 /// → additional paths from `config.paths`
 /// → Server (injected `config.server_skill_dirs`)
-/// → Bundled (injected `config.bundled_skill_dirs` + `~/.grok/bundled`; lowest precedence).
+/// → Bundled (injected `config.bundled_skill_dirs` + `~/.xvora/bundled`; lowest precedence).
 ///
 /// `config.ignore` globs are applied across all sources after collection.
 /// Skills with the same name from higher-priority sources override lower-priority ones.
@@ -72,7 +72,7 @@ pub async fn list_skills(
 /// List all discovered skills including plugin-provided skills.
 ///
 /// When `plugins` is `Some`, skills from enabled plugins are appended with `plugin_name: Some(...)`.
-/// Their `scope` is the plugin's origin (e.g. `Repo` for `.grok/plugins/`).
+/// Their `scope` is the plugin's origin (e.g. `Repo` for `.xvora/plugins/`).
 /// Native skills always win bare-name resolution, but qualified plugin entries (`my-plugin:hello`) are preserved even on collision.
 pub async fn list_skills_with_plugins(
     working_directory: Option<&str>,
@@ -86,7 +86,7 @@ pub async fn list_skills_with_plugins(
     let mut skills = list_skills_with_options(
         working_directory,
         workspace_user_dir.as_deref(),
-        &tools::util::grok_home::grok_home(),
+        &tools::util::xvora_home::xvora_home(),
         compat,
     )
     .await;
@@ -142,7 +142,7 @@ pub fn collect_skill_config_dirs(
     config_paths: &[String],
     compat: CompatConfig,
 ) -> Vec<PathBuf> {
-    let grok_home = global_dir.to_path_buf();
+    let xvora_home = global_dir.to_path_buf();
     let git_root = cwd.and_then(|c| {
         git2::Repository::discover(c)
             .ok()
@@ -163,8 +163,8 @@ pub fn collect_skill_config_dirs(
         }
     };
 
-    // Vendor dirs (`.claude`/`.cursor`) are gated by the resolved compat config; `.grok` and `.agents` are always present
-    // When all cells are on, this list equals the historical `[".grok", ".agents", ".claude", ".cursor"]`
+    // Vendor dirs (`.claude`/`.cursor`) are gated by the resolved compat config; `.xvora` and `.agents` are always present
+    // When all cells are on, this list equals the historical `[".xvora", ".agents", ".claude", ".cursor"]`
     let config_dir_names = compat.skill_config_dirs();
 
     // Priority 1 & 2: Walk from cwd up to the git root.
@@ -194,9 +194,9 @@ pub fn collect_skill_config_dirs(
         }
     }
 
-    // Priority 3: Global user dirs. `.grok` comes from `grok_home` (which may be overridden), so it's handled separately.
+    // Priority 3: Global user dirs. `.xvora` comes from `xvora_home` (which may be overridden), so it's handled separately.
     // `.agents` is always added, while `.claude`/`.cursor` are gated by the skills compat cells
-    try_add(grok_home);
+    try_add(xvora_home);
     if let Some(home) = dirs::home_dir() {
         try_add(home.join(".agents"));
         if compat.claude.skills {
@@ -224,7 +224,7 @@ pub fn collect_skill_config_dirs(
 
 /// Determine the skill scope for a config directory based on its location relative to `cwd`, `git_root`, and the user's home directory.
 fn scope_for_config_dir(dir: &Path, cwd: Option<&Path>, git_root: Option<&Path>) -> SkillScope {
-    // Home-level dirs (e.g. ~/.grok/, ~/.agents/, ~/.claude/) are User scope.
+    // Home-level dirs (e.g. ~/.xvora/, ~/.agents/, ~/.claude/) are User scope.
     if let Some(home) = dirs::home_dir()
         && dir.parent() == Some(home.as_path())
     {
@@ -251,7 +251,7 @@ fn scope_for_config_dir(dir: &Path, cwd: Option<&Path>, git_root: Option<&Path>)
 /// Collect paths into `out`, deduplicating by canonical path.
 ///
 /// Skill/command discovery does **not** consult `.gitignore`.
-/// Auto-discovery only visits known config roots (`.grok`, `.agents`, `.claude`, `.cursor`), which teams often gitignore but still expect to load.
+/// Auto-discovery only visits known config roots (`.xvora`, `.agents`, `.claude`, `.cursor`), which teams often gitignore but still expect to load.
 /// Hiding a skill uses `[skills] ignore` in config, not repo ignore rules.
 /// AGENTS.md discovery still honors gitignore: that is content, not skill roots.
 fn collect_discovered_paths(
@@ -705,7 +705,7 @@ mod tests {
         write_skill_md(&server.path().join("dup"), "dup");
 
         let cwd = tempfile::tempdir().unwrap();
-        write_skill_md(&cwd.path().join(".grok").join("skills").join("dup"), "dup");
+        write_skill_md(&cwd.path().join(".xvora").join("skills").join("dup"), "dup");
 
         let config = SkillsConfig {
             server_skill_dirs: vec![server.path().to_string_lossy().into_owned()],
@@ -741,7 +741,7 @@ mod tests {
         write_skill_md(&bundled.path().join("dup"), "dup");
 
         let cwd = tempfile::tempdir().unwrap();
-        write_skill_md(&cwd.path().join(".grok").join("skills").join("dup"), "dup");
+        write_skill_md(&cwd.path().join(".xvora").join("skills").join("dup"), "dup");
 
         let config = SkillsConfig {
             bundled_skill_dirs: vec![bundled.path().to_string_lossy().into_owned()],
@@ -802,7 +802,7 @@ mod tests {
     fn find_skill_paths_flat_layout() {
         // Traditional flat layout: skills/<name>/SKILL.md
         let tmp = tempfile::tempdir().unwrap();
-        let grok_dir = tmp.path().join(".grok");
+        let grok_dir = tmp.path().join(".xvora");
 
         write_skill_md(&grok_dir.join("skills").join("alpha"), "alpha");
         write_skill_md(&grok_dir.join("skills").join("beta"), "beta");
@@ -816,7 +816,7 @@ mod tests {
     fn find_skill_paths_nested_layout() {
         // Nested: skills/team/infra/SKILL.md, skills/team/training/SKILL.md
         let tmp = tempfile::tempdir().unwrap();
-        let grok_dir = tmp.path().join(".grok");
+        let grok_dir = tmp.path().join(".xvora");
         let skills = grok_dir.join("skills");
 
         write_skill_md(&skills.join("team").join("infra"), "infra");
@@ -833,7 +833,7 @@ mod tests {
     #[test]
     fn find_skill_paths_mixed_flat_and_nested() {
         let tmp = tempfile::tempdir().unwrap();
-        let grok_dir = tmp.path().join(".grok");
+        let grok_dir = tmp.path().join(".xvora");
         let skills = grok_dir.join("skills");
 
         // Flat
@@ -850,7 +850,7 @@ mod tests {
     #[test]
     fn find_skill_paths_dir_without_skill_md_is_skipped() {
         let tmp = tempfile::tempdir().unwrap();
-        let grok_dir = tmp.path().join(".grok");
+        let grok_dir = tmp.path().join(".xvora");
         let skills = grok_dir.join("skills");
 
         write_skill_md(&skills.join("valid"), "valid");
@@ -867,9 +867,9 @@ mod tests {
 
     #[test]
     fn find_skill_paths_no_skills_dir() {
-        // .grok exists but no skills/ subdirectory
+        // .xvora exists but no skills/ subdirectory
         let tmp = tempfile::tempdir().unwrap();
-        let grok_dir = tmp.path().join(".grok");
+        let grok_dir = tmp.path().join(".xvora");
         fs::create_dir_all(&grok_dir).unwrap();
 
         let paths = find_skill_paths(&grok_dir);
@@ -909,7 +909,7 @@ mod tests {
     #[test]
     fn find_skill_paths_parent_and_child_both_have_skill_md() {
         let tmp = tempfile::tempdir().unwrap();
-        let grok_dir = tmp.path().join(".grok");
+        let grok_dir = tmp.path().join(".xvora");
         let skills = grok_dir.join("skills");
 
         // Parent skill
@@ -1248,7 +1248,7 @@ mod tests {
         // Create workspace user dir with a skill
         let user_dir = repo_root.join("x").join("testuser");
         write_skill_md(
-            &user_dir.join(".grok").join("skills").join("my-tool"),
+            &user_dir.join(".xvora").join("skills").join("my-tool"),
             "my-tool",
         );
 
@@ -1278,7 +1278,7 @@ mod tests {
         // User dir with a skill
         let user_dir = repo_root.join("x").join("testuser");
         write_skill_md(
-            &user_dir.join(".grok").join("skills").join("dedup-skill"),
+            &user_dir.join(".xvora").join("skills").join("dedup-skill"),
             "dedup-skill",
         );
 
@@ -1305,7 +1305,7 @@ mod tests {
         // Create a skill that would only be found via workspace user path
         let user_dir = repo_root.join("x").join("ghost");
         write_skill_md(
-            &user_dir.join(".grok").join("skills").join("ghost-skill"),
+            &user_dir.join(".xvora").join("skills").join("ghost-skill"),
             "ghost-skill",
         );
 
@@ -1334,7 +1334,7 @@ mod tests {
 
         // User dir with nested skills
         let user_dir = repo_root.join("x").join("nested-user");
-        let skills_base = user_dir.join(".grok").join("skills");
+        let skills_base = user_dir.join(".xvora").join("skills");
         write_skill_md(&skills_base.join("flat-skill"), "flat-skill");
         write_skill_md(&skills_base.join("team").join("deep-skill"), "deep-skill");
 
@@ -1775,14 +1775,14 @@ mod tests {
         fs::create_dir_all(&repo_root).unwrap();
         init_git_repo(&repo_root);
 
-        let auto_dir = repo_root.join(".grok").join("skills").join("dup-skill");
+        let auto_dir = repo_root.join(".xvora").join("skills").join("dup-skill");
         write_skill_md(&auto_dir, "dup-skill");
 
         // Add the same auto-discovered skills root as a config path.
         let config = SkillsConfig {
             paths: vec![
                 repo_root
-                    .join(".grok")
+                    .join(".xvora")
                     .join("skills")
                     .to_str()
                     .unwrap()
@@ -1814,13 +1814,16 @@ mod tests {
         fs::create_dir_all(&repo_root).unwrap();
         init_git_repo(&repo_root);
 
-        let auto_dir = repo_root.join(".grok").join("skills").join("overlap-skill");
+        let auto_dir = repo_root
+            .join(".xvora")
+            .join("skills")
+            .join("overlap-skill");
         write_skill_md(&auto_dir, "overlap-skill");
 
         let config = SkillsConfig {
             paths: vec![
                 repo_root
-                    .join(".grok")
+                    .join(".xvora")
                     .join("skills")
                     .to_str()
                     .unwrap()
@@ -1893,15 +1896,15 @@ mod tests {
         init_git_repo(&repo_root);
 
         // Same skill name in local (higher-priority) and repo (lower-priority) sources.
-        write_skill_md(&cwd.join(".grok").join("skills").join("same"), "same");
-        let repo_skill_dir = repo_root.join(".grok").join("skills").join("same");
+        write_skill_md(&cwd.join(".xvora").join("skills").join("same"), "same");
+        let repo_skill_dir = repo_root.join(".xvora").join("skills").join("same");
         write_skill_md(&repo_skill_dir, "same");
 
         // Ignore the local skill path. Repo fallback should remain visible.
         let config = SkillsConfig {
             paths: vec![],
             ignore: vec![
-                cwd.join(".grok")
+                cwd.join(".xvora")
                     .join("skills")
                     .to_str()
                     .unwrap()
@@ -1944,11 +1947,11 @@ mod tests {
         init_git_repo(&repo_root);
 
         write_skill_md(
-            &repo_root.join(".grok").join("skills").join("commit"),
+            &repo_root.join(".xvora").join("skills").join("commit"),
             "commit",
         );
         write_skill_md(
-            &repo_root.join(".grok").join("skills").join("review"),
+            &repo_root.join(".xvora").join("skills").join("review"),
             "review",
         );
 
@@ -1992,7 +1995,7 @@ mod tests {
         init_git_repo(&repo_root);
 
         write_skill_md(
-            &repo_root.join(".grok").join("skills").join("deploy"),
+            &repo_root.join(".xvora").join("skills").join("deploy"),
             "deploy",
         );
 
@@ -2358,7 +2361,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path();
         // Not a git repo, so it falls to the cwd-only branch (no upward walk)
-        for name in [".grok", ".agents", ".claude", ".cursor"] {
+        for name in [".xvora", ".agents", ".claude", ".cursor"] {
             fs::create_dir_all(cwd.join(name)).unwrap();
         }
 
@@ -2379,7 +2382,7 @@ mod tests {
             "cursor must be gated off: {dirs:?}"
         );
         assert!(ends_with(&dirs, ".claude"), "claude must remain: {dirs:?}");
-        assert!(ends_with(&dirs, ".grok"), "grok must remain: {dirs:?}");
+        assert!(ends_with(&dirs, ".xvora"), "xvora must remain: {dirs:?}");
     }
 
     // ── Same-scope frontmatter-name collisions (copied skill dirs) ──────
@@ -2478,11 +2481,11 @@ mod tests {
 
     #[test]
     fn dedupe_same_scope_cross_harness_loser_resurfaces() {
-        // A `.claude` skill claiming a `.grok`-owned name (both User scope) re-keys to its dir basename instead of being silently hidden
+        // A `.claude` skill claiming a `.xvora`-owned name (both User scope) re-keys to its dir basename instead of being silently hidden
         let out = dedupe_skills(vec![
             named_skill(
                 "review",
-                "/u/.grok/skills/review/SKILL.md",
+                "/u/.xvora/skills/review/SKILL.md",
                 SkillScope::User,
             ),
             named_skill(
@@ -2501,12 +2504,12 @@ mod tests {
         let out = dedupe_skills(vec![
             named_skill(
                 "japandi",
-                "/u/.grok/skills/japandi/SKILL.md",
+                "/u/.xvora/skills/japandi/SKILL.md",
                 SkillScope::User,
             ),
             named_skill(
                 "japandi",
-                "/u/.grok/skills/japandi2/SKILL.md",
+                "/u/.xvora/skills/japandi2/SKILL.md",
                 SkillScope::User,
             ),
             named_skill(
@@ -2528,7 +2531,7 @@ mod tests {
         let out = dedupe_skills(vec![
             named_skill(
                 "japandi",
-                "/repo/.grok/skills/japandi/SKILL.md",
+                "/repo/.xvora/skills/japandi/SKILL.md",
                 SkillScope::Repo,
             ),
             named_skill("japandi", "/u/skills/japandi2/SKILL.md", SkillScope::User),
@@ -2540,11 +2543,11 @@ mod tests {
     #[test]
     fn dedupe_same_scope_same_basename_still_drops() {
         // Same name AND same dir basename across two same-scope roots
-        // (e.g. ~/.grok/skills and ~/.agents/skills): first-seen wins.
+        // (e.g. ~/.xvora/skills and ~/.agents/skills): first-seen wins.
         let out = dedupe_skills(vec![
             named_skill(
                 "japandi",
-                "/u/.grok/skills/japandi/SKILL.md",
+                "/u/.xvora/skills/japandi/SKILL.md",
                 SkillScope::User,
             ),
             named_skill(
@@ -2554,19 +2557,19 @@ mod tests {
             ),
         ]);
         assert_eq!(out.len(), 1);
-        assert!(out[0].path.contains(".grok"));
+        assert!(out[0].path.contains(".xvora"));
     }
 
     #[tokio::test]
     async fn copied_skill_dir_with_stale_frontmatter_name_surfaces_both() {
         // Name-dedup runs in `list_skills` (via `merge_skills_with_plugins`), not in `list_skills_with_options`
-        // Names are prefixed to be collision-proof against real user-scope skills (`list_skills` scans grok_home)
+        // Names are prefixed to be collision-proof against real user-scope skills (`list_skills` scans xvora_home)
         let tmp = tempfile::tempdir().unwrap();
         let repo_root = tmp.path().join("repo");
         fs::create_dir_all(&repo_root).unwrap();
         init_git_repo(&repo_root);
 
-        let skills_dir = repo_root.join(".grok").join("skills");
+        let skills_dir = repo_root.join(".xvora").join("skills");
         write_skill_md(&skills_dir.join("zz-copyfix-japandi"), "zz-copyfix-japandi");
         // The copy keeps the original's frontmatter name.
         write_skill_md(

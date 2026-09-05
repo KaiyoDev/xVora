@@ -1,9 +1,9 @@
-//! Data APIs for `grok models`. Rendering is the client's job.
+//! Data APIs for `xvora models`. Rendering is the client's job.
 use crate::agent::config::Config as AgentConfig;
 use acp_lib::{AcpAgentTx, acp_send};
 use agent_client_protocol as acp;
 use anyhow::Result;
-/// Status for the `grok models` banner (the display order is not the sampling priority; see [`AuthStatus::resolve`]).
+/// Status for the `xvora models` banner (the display order is not the sampling priority; see [`AuthStatus::resolve`]).
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthStatus {
     ApiKey,
@@ -101,7 +101,7 @@ mod tests {
     use crate::auth::{AuthMode, GrokAuth};
     use serial_test::serial;
     use test_support::EnvGuard;
-    const EXPECTED_LOGIN_HOST: &str = "grok.com";
+    const EXPECTED_LOGIN_HOST: &str = "xvora.com";
     /// A session the compiled-in backend recognises as its own, which `AuthBackend::owns` requires.
     fn session_credential() -> GrokAuth {
         GrokAuth {
@@ -111,7 +111,7 @@ mod tests {
         }
     }
     /// Isolate process-global auth sources that `AuthStatus::resolve` consults.
-    /// Uses `GROK_AUTH_PATH` (not `GROK_HOME`) so a OnceLock-cached real home with `auth.json` cannot leak into these tests.
+    /// Uses `GROK_AUTH_PATH` (not `xvora_home`) so a OnceLock-cached real home with `auth.json` cannot leak into these tests.
     fn isolate_auth_sources() -> (tempfile::TempDir, [EnvGuard; 7]) {
         let dir = tempfile::tempdir().unwrap();
         let auth_path = dir.path().join("no-auth.json");
@@ -220,14 +220,14 @@ mod tests {
     #[test]
     fn models_list_response_round_trips() {
         let state = acp::SessionModelState::new(
-            acp::ModelId::new("grok-4"),
-            vec![acp::ModelInfo::new(acp::ModelId::new("grok-4"), "Grok 4")],
+            acp::ModelId::new("xvora-4"),
+            vec![acp::ModelInfo::new(acp::ModelId::new("xvora-4"), "xvora 4")],
         );
         let ok = crate::session::ExtMethodResult::success(state)
             .to_ext_response()
             .unwrap();
         let parsed = parse_models_list_response(ok.0.get()).unwrap();
-        assert_eq!(parsed.current_model_id.0.as_ref(), "grok-4");
+        assert_eq!(parsed.current_model_id.0.as_ref(), "xvora-4");
         assert_eq!(parsed.available_models.len(), 1);
         let err = crate::session::ExtMethodResult::<acp::SessionModelState>::failure("boom")
             .to_ext_response()

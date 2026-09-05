@@ -127,14 +127,14 @@ fn ensure_figma_user_agent_sets_grok_cli_when_missing() {
     ensure_figma_user_agent(&mut headers, "figma", "https://mcp.figma.com/mcp");
     assert_eq!(
         headers.get(reqwest::header::USER_AGENT).unwrap(),
-        "grok-cli"
+        "xvora-cli"
     );
 
     let mut host_only = reqwest::header::HeaderMap::new();
     ensure_figma_user_agent(&mut host_only, "other", "https://mcp.figma.com/mcp");
     assert_eq!(
         host_only.get(reqwest::header::USER_AGENT).unwrap(),
-        "grok-cli"
+        "xvora-cli"
     );
 }
 
@@ -180,7 +180,7 @@ fn parse_config_headers_skips_invalid_and_keeps_last_duplicate() {
 fn apply_user_agent_policy_sets_versioned_grok_cli() {
     let mut headers = reqwest::header::HeaderMap::new();
     apply_user_agent_policy(&mut headers, "linear", "https://mcp.linear.app/mcp");
-    let expected = format!("grok-cli/{}", version::VERSION);
+    let expected = format!("xvora-cli/{}", version::VERSION);
     assert_eq!(
         headers.get(reqwest::header::USER_AGENT).unwrap(),
         expected.as_str()
@@ -207,7 +207,7 @@ fn apply_user_agent_policy_preserves_figma_attribution() {
     apply_user_agent_policy(&mut headers, "other", "https://mcp.figma.com/mcp");
     assert_eq!(
         headers.get(reqwest::header::USER_AGENT).unwrap(),
-        "grok-cli"
+        "xvora-cli"
     );
 }
 
@@ -1944,7 +1944,7 @@ async fn http_transport_sends_default_user_agent_on_initialize() {
     client.ensure_initialized().await.expect("handshake");
     assert_eq!(
         *handles.init_user_agents.lock(),
-        vec![format!("grok-cli/{}", version::VERSION)]
+        vec![format!("xvora-cli/{}", version::VERSION)]
     );
 }
 
@@ -3458,7 +3458,7 @@ async fn anonymous_access_probe_sends_default_user_agent() {
         .expect("probe POST must reach the fake server");
     assert_eq!(
         header_values(&captured, axum::http::header::USER_AGENT),
-        vec![format!("grok-cli/{}", version::VERSION)]
+        vec![format!("xvora-cli/{}", version::VERSION)]
     );
     assert_eq!(
         header_values(&captured, axum::http::header::CONTENT_TYPE),
@@ -3647,7 +3647,7 @@ async fn grok_agent_id_header_rejects_invalid_session_id() {
         Ok(_) => panic!("invalid header value must fail closed"),
         Err(error) => error,
     };
-    assert!(error.to_string().contains("invalid X-Grok-Agent-ID value"));
+    assert!(error.to_string().contains("invalid X-xvora-Agent-ID value"));
 }
 
 #[test]

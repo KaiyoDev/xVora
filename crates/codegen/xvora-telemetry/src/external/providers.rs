@@ -145,8 +145,8 @@ fn build_resource(cfg: &ExternalOtelConfig) -> opentelemetry_sdk::Resource {
         attrs.push(opentelemetry::KeyValue::new("terminal.type", terminal_type));
     }
     opentelemetry_sdk::Resource::builder_empty()
-        // `grok-cli` is a wire commitment
-        .with_service_name("grok-cli")
+        // `xvora-cli` is a wire commitment
+        .with_service_name("xvora-cli")
         .with_attributes(attrs)
         .build()
 }

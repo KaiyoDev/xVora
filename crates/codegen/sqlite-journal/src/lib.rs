@@ -2,7 +2,7 @@
 //!
 //! WAL keeps its wal-index in an mmap'd `-shm` file and relies on coherent
 //! shared memory plus reliable POSIX locks — guarantees network filesystems
-//! do not provide. When `$HOME` (and thus `~/.grok`) is NFS-mounted on
+//! do not provide. When `$HOME` (and thus `~/.xvora`) is NFS-mounted on
 //! several machines at once, a peer host truncating/rebuilding the `-shm`
 //! during WAL recovery or close rips the backing out from under our mapping
 //! and the next wal-index read dies with SIGBUS. On such mounts we use a
@@ -625,11 +625,11 @@ mod tests {
 
     #[test]
     fn windows_unc_classifies() {
-        assert!(is_windows_unc(r"\\server\share\grok"));
-        assert!(is_windows_unc(r"\\?\UNC\server\share\grok"));
+        assert!(is_windows_unc(r"\\server\share\xvora"));
+        assert!(is_windows_unc(r"\\?\UNC\server\share\xvora"));
         assert!(is_windows_unc(r"\\?\unc\server\share"));
         assert!(!is_windows_unc(r"\\?\C:\Users\x"));
-        assert!(!is_windows_unc(r"\\.\pipe\grok"));
+        assert!(!is_windows_unc(r"\\.\pipe\xvora"));
         assert!(!is_windows_unc(r"C:\Users\x"));
         assert!(!is_windows_unc("/home/x"));
     }

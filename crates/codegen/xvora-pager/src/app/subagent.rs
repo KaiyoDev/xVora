@@ -216,10 +216,10 @@ struct SubagentMetaSlice {
     worktree_path: Option<String>,
 }
 
-/// Grok home for the replay path (overridable in tests).
+/// xvora home for the replay path (overridable in tests).
 #[cfg(not(test))]
 fn effective_grok_home() -> std::path::PathBuf {
-    shell::util::grok_home::grok_home()
+    shell::util::xvora_home::xvora_home()
 }
 
 #[cfg(test)]
@@ -228,7 +228,7 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
-/// Override grok home for disk-replay unit tests (thread-local).
+/// Override xvora home for disk-replay unit tests (thread-local).
 #[cfg(test)]
 pub(crate) fn set_replay_grok_home_for_tests(home: Option<std::path::PathBuf>) {
     REPLAY_GROK_HOME.with(|h| *h.borrow_mut() = home);
@@ -239,7 +239,7 @@ fn effective_grok_home() -> std::path::PathBuf {
     if let Some(home) = REPLAY_GROK_HOME.with(|h| h.borrow().clone()) {
         return home;
     }
-    shell::util::grok_home::grok_home()
+    shell::util::xvora_home::xvora_home()
 }
 
 /// Best-effort enrichment from the shell's on-disk `meta.json`.
@@ -253,11 +253,11 @@ pub(crate) fn enrich_from_meta(
 
 fn enrich_from_meta_with_home(
     info: &mut SubagentInfo,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     parent_cwd: &std::path::Path,
     parent_session_id: &str,
 ) {
-    let meta_path = grok_home
+    let meta_path = xvora_home
         .join("sessions")
         .join(urlencoding::encode(&parent_cwd.to_string_lossy()).as_ref())
         .join(parent_session_id)

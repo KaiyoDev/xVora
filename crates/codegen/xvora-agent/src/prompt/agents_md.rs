@@ -1,10 +1,10 @@
 //! AGENTS.md / Claude.md / rules directory discovery and loading.
 //!
-//! Searches from cwd to repo root, plus `~/.grok/`. Also discovers
-//! `*.md` files in rules directories: vendor-prefixed `.grok/rules/`,
+//! Searches from cwd to repo root, plus `~/.xvora/`. Also discovers
+//! `*.md` files in rules directories: vendor-prefixed `.xvora/rules/`,
 //! `.claude/rules/`, and `.cursor/rules/` in project directories, and a
 //! plain `rules/` directly under the vendor-qualified home-scope roots
-//! (`~/.grok/rules/`, `~/.claude/rules/`, `~/.cursor/rules/`).
+//! (`~/.xvora/rules/`, `~/.claude/rules/`, `~/.cursor/rules/`).
 
 use std::path::{Path, PathBuf};
 
@@ -33,7 +33,7 @@ fn find_agent_files(dir: &Path, filenames: &[&str]) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Find `*.md` files in `.grok/rules/`, `.claude/rules/`, and `.cursor/rules/`, sorted alphabetically.
+/// Find `*.md` files in `.xvora/rules/`, `.claude/rules/`, and `.cursor/rules/`, sorted alphabetically.
 /// `rules_subdirs` is the (compat-gated) list, precomputed once by the caller so the walk doesn't re-allocate it per directory.
 fn find_rules_files(dir: &Path, rules_subdirs: &[&str]) -> Vec<PathBuf> {
     let mut results = Vec::new();
@@ -133,7 +133,7 @@ fn add_discovered_candidate(
     });
 }
 
-/// Read Agents.md from ~/.grok/, git repo root, and session cwd.
+/// Read Agents.md from ~/.xvora/, git repo root, and session cwd.
 ///
 /// `compat` gates which vendor (`.claude`/`.cursor`) directories are scanned for rules and project-instruction files.
 /// Pass `CompatConfig::default()` to preserve the historical all-vendors behavior.
@@ -155,7 +155,7 @@ async fn read_agents_config_with_options(
         working_directory,
         workspace_user_dir,
         compat,
-        tools::util::grok_home::grok_home(),
+        tools::util::xvora_home::xvora_home(),
         dirs::home_dir(),
     )
     .await
@@ -167,7 +167,7 @@ async fn read_agents_config_with_roots(
     working_directory: &str,
     workspace_user_dir: Option<&Path>,
     compat: CompatConfig,
-    grok_home: PathBuf,
+    xvora_home: PathBuf,
     home_dir: Option<PathBuf>,
 ) -> Vec<AgentConfigFile> {
     let cwd = PathBuf::from(working_directory);
@@ -179,7 +179,7 @@ async fn read_agents_config_with_roots(
     let project_rules_dirs = compat.rules_dirs();
 
     let mut home_roots = Vec::new();
-    add_discovery_root(&mut home_roots, grok_home, true, HOME_RULES_DIRS);
+    add_discovery_root(&mut home_roots, xvora_home, true, HOME_RULES_DIRS);
     if let Some(home) = home_dir {
         if compat.claude.agents || compat.claude.rules {
             add_discovery_root(
@@ -306,7 +306,7 @@ pub fn format_agents_md_section(configs: &[AgentConfigFile]) -> Option<String> {
 pub const LEGACY_AGENTS_MD_REMINDER_PREFIX: &str =
     "\n\n<system-reminder>\nAs you answer the user's questions, you can use the following context";
 
-/// Open/close `system-reminder` (Grok) or `system_reminder` (Cursor/IDE), case-insensitive.
+/// Open/close `system-reminder` (xvora) or `system_reminder` (Cursor/IDE), case-insensitive.
 /// Shared with unit tests so CI fails if the pattern is ever invalid or too narrow.
 const SYSTEM_REMINDER_TAG_PATTERN: &str = r"(?i)<(\s*/?\s*system[-_]reminder)";
 
@@ -595,31 +595,31 @@ mod tests {
     #[tokio::test]
     async fn home_and_project_rules_have_stable_order_without_doubled_paths() {
         let tmp = tempfile::tempdir().unwrap();
-        let grok_home = tmp.path().join("custom-grok-home");
+        let xvora_home = tmp.path().join("custom-xvora-home");
         let home = tmp.path().join("home");
         let repo = tmp.path().join("repo");
-        fs::create_dir_all(grok_home.join("rules")).unwrap();
+        fs::create_dir_all(xvora_home.join("rules")).unwrap();
         fs::create_dir_all(home.join(".claude/rules")).unwrap();
         fs::create_dir_all(home.join(".cursor/rules")).unwrap();
-        fs::create_dir_all(repo.join(".grok/rules")).unwrap();
+        fs::create_dir_all(repo.join(".xvora/rules")).unwrap();
         fs::create_dir_all(repo.join(".claude/rules")).unwrap();
         fs::create_dir_all(repo.join(".cursor/rules")).unwrap();
         init_git_repo(&repo);
 
         for (path, content) in [
-            (grok_home.join("rules/b.md"), "grok-b"),
-            (grok_home.join("rules/a.md"), "grok-a"),
+            (xvora_home.join("rules/b.md"), "xvora-b"),
+            (xvora_home.join("rules/a.md"), "xvora-a"),
             (home.join(".claude/rules/a.md"), "claude-a"),
             (home.join(".cursor/rules/a.md"), "cursor-a"),
             (repo.join("AGENTS.md"), "repo-named"),
-            (repo.join(".grok/rules/a.md"), "repo-grok"),
+            (repo.join(".xvora/rules/a.md"), "repo-xvora"),
             (repo.join(".claude/rules/a.md"), "repo-claude"),
             (repo.join(".cursor/rules/a.md"), "repo-cursor"),
         ] {
             fs::write(path, content).unwrap();
         }
         for path in [
-            grok_home.join(".grok/rules/doubled.md"),
+            xvora_home.join(".xvora/rules/doubled.md"),
             home.join(".claude/.claude/rules/doubled.md"),
             home.join(".cursor/.cursor/rules/doubled.md"),
         ] {
@@ -631,7 +631,7 @@ mod tests {
             repo.to_str().unwrap(),
             None,
             CompatConfig::default(),
-            grok_home,
+            xvora_home,
             Some(home),
         )
         .await;
@@ -642,12 +642,12 @@ mod tests {
         assert_eq!(
             contents,
             vec![
-                "grok-a",
-                "grok-b",
+                "xvora-a",
+                "xvora-b",
                 "claude-a",
                 "cursor-a",
                 "repo-named",
-                "repo-grok",
+                "repo-xvora",
                 "repo-claude",
                 "repo-cursor",
             ]
@@ -662,10 +662,10 @@ mod tests {
     #[tokio::test]
     async fn vendor_home_agents_and_rules_cells_are_independent() {
         let tmp = tempfile::tempdir().unwrap();
-        let grok_home = tmp.path().join("grok-home");
+        let xvora_home = tmp.path().join("xvora-home");
         let home = tmp.path().join("home");
         let cwd = tmp.path().join("project");
-        fs::create_dir_all(&grok_home).unwrap();
+        fs::create_dir_all(&xvora_home).unwrap();
         fs::create_dir_all(&cwd).unwrap();
         for vendor in [".claude", ".cursor"] {
             let vendor_home = home.join(vendor);
@@ -681,7 +681,7 @@ mod tests {
             cwd.to_str().unwrap(),
             None,
             rules_only,
-            grok_home.clone(),
+            xvora_home.clone(),
             Some(home.clone()),
         )
         .await;
@@ -705,7 +705,7 @@ mod tests {
             cwd.to_str().unwrap(),
             None,
             agents_only,
-            grok_home,
+            xvora_home,
             Some(home),
         )
         .await;
@@ -729,12 +729,16 @@ mod tests {
         let repo = tmp.path().join("repo");
         let nested = repo.join("nested");
         fs::create_dir_all(nested.join("rules")).unwrap();
-        fs::create_dir_all(nested.join(".grok/rules")).unwrap();
+        fs::create_dir_all(nested.join(".xvora/rules")).unwrap();
         init_git_repo(&repo);
         fs::write(nested.join("rules/home.md"), "nested-home-rule").unwrap();
         fs::write(repo.join("AGENTS.md"), "repo-named").unwrap();
         fs::write(nested.join("AGENTS.md"), "nested-named").unwrap();
-        fs::write(nested.join(".grok/rules/project.md"), "nested-project-rule").unwrap();
+        fs::write(
+            nested.join(".xvora/rules/project.md"),
+            "nested-project-rule",
+        )
+        .unwrap();
 
         let configs = read_agents_config_with_roots(
             nested.to_str().unwrap(),
@@ -763,14 +767,14 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path().join("repo");
         fs::create_dir_all(repo.join("rules")).unwrap();
-        fs::create_dir_all(repo.join(".grok/rules")).unwrap();
+        fs::create_dir_all(repo.join(".xvora/rules")).unwrap();
         fs::create_dir_all(repo.join(".claude/rules")).unwrap();
         init_git_repo(&repo);
         fs::write(repo.join("rules/home.md"), "home-rule").unwrap();
-        fs::write(repo.join(".grok/rules/project.md"), "project-grok-rule").unwrap();
+        fs::write(repo.join(".xvora/rules/project.md"), "project-xvora-rule").unwrap();
         fs::write(repo.join(".claude/rules/project.md"), "project-claude-rule").unwrap();
-        fs::create_dir_all(repo.join(".grok/.grok/rules")).unwrap();
-        fs::write(repo.join(".grok/.grok/rules/doubled.md"), "doubled").unwrap();
+        fs::create_dir_all(repo.join(".xvora/.xvora/rules")).unwrap();
+        fs::write(repo.join(".xvora/.xvora/rules/doubled.md"), "doubled").unwrap();
 
         let configs = read_agents_config_with_roots(
             repo.to_str().unwrap(),
@@ -780,7 +784,7 @@ mod tests {
             None,
         )
         .await;
-        for expected in ["home-rule", "project-grok-rule", "project-claude-rule"] {
+        for expected in ["home-rule", "project-xvora-rule", "project-claude-rule"] {
             assert_eq!(
                 configs
                     .iter()
@@ -796,10 +800,10 @@ mod tests {
     #[tokio::test]
     async fn vendor_home_repo_overlap_keeps_project_named_role() {
         let tmp = tempfile::tempdir().unwrap();
-        let grok_home = tmp.path().join("grok-home");
+        let xvora_home = tmp.path().join("xvora-home");
         let home = tmp.path().join("home");
         let repo = home.join(".claude");
-        fs::create_dir_all(&grok_home).unwrap();
+        fs::create_dir_all(&xvora_home).unwrap();
         fs::create_dir_all(repo.join("rules")).unwrap();
         fs::create_dir_all(repo.join(".claude/rules")).unwrap();
         init_git_repo(&repo);
@@ -813,7 +817,7 @@ mod tests {
             repo.to_str().unwrap(),
             None,
             compat,
-            grok_home,
+            xvora_home,
             Some(home),
         )
         .await;
@@ -860,23 +864,23 @@ mod tests {
     #[tokio::test]
     async fn rule_frontmatter_is_stripped_but_named_frontmatter_is_preserved() {
         let tmp = tempfile::tempdir().unwrap();
-        let grok_home = tmp.path().join("custom-grok-home");
+        let xvora_home = tmp.path().join("custom-xvora-home");
         let home = tmp.path().join("home");
         let repo = tmp.path().join("repo");
-        fs::create_dir_all(grok_home.join("rules")).unwrap();
+        fs::create_dir_all(xvora_home.join("rules")).unwrap();
         fs::create_dir_all(home.join(".claude/rules")).unwrap();
         fs::create_dir_all(home.join(".cursor/rules")).unwrap();
-        fs::create_dir_all(repo.join(".grok/rules")).unwrap();
+        fs::create_dir_all(repo.join(".xvora/rules")).unwrap();
         fs::create_dir_all(repo.join(".claude/rules")).unwrap();
         fs::create_dir_all(repo.join(".cursor/rules")).unwrap();
         init_git_repo(&repo);
 
         let frontmatter = |body: &str| format!("---\nglobs: ['*.rs']\n---\n{body}");
         for (path, body) in [
-            (grok_home.join("rules/global.md"), "custom-home-body"),
+            (xvora_home.join("rules/global.md"), "custom-home-body"),
             (home.join(".claude/rules/global.md"), "claude-body"),
             (home.join(".cursor/rules/global.md"), "cursor-body"),
-            (repo.join(".grok/rules/project.md"), "grok-project-body"),
+            (repo.join(".xvora/rules/project.md"), "xvora-project-body"),
             (repo.join(".claude/rules/project.md"), "claude-project-body"),
             (repo.join(".cursor/rules/project.md"), "cursor-project-body"),
         ] {
@@ -888,7 +892,7 @@ mod tests {
             repo.to_str().unwrap(),
             None,
             CompatConfig::default(),
-            grok_home,
+            xvora_home,
             Some(home),
         )
         .await;
@@ -896,7 +900,7 @@ mod tests {
             "custom-home-body",
             "claude-body",
             "cursor-body",
-            "grok-project-body",
+            "xvora-project-body",
             "claude-project-body",
             "cursor-project-body",
         ] {

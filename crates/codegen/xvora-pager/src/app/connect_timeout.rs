@@ -12,7 +12,7 @@ macro_rules! connect_ui_timeout_env {
 pub(super) const CONNECT_UI_TIMEOUT_ENV: &str = connect_ui_timeout_env!();
 /// Runnable form for the startup-failure `Try` row, which keeps commands out of wrappable prose.
 pub(super) const CONNECT_UI_TIMEOUT_TRY_COMMAND: &str =
-    concat!(connect_ui_timeout_env!(), "=60 grok");
+    concat!(connect_ui_timeout_env!(), "=60 xvora");
 pub(super) const DEFAULT_CONNECT_UI_TIMEOUT: Duration = Duration::from_secs(30);
 // Floor: startup auth alone (bounded, without minting a token) can take ~5s
 const MIN_CONNECT_UI_TIMEOUT_SECS: u64 = 5;

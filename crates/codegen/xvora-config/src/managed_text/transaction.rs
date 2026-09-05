@@ -129,7 +129,7 @@ pub(super) fn apply(
             observe(observer, TransactionPhase::BeforeBackupReserve, &plan)?;
             let (path, mut file) = reserve_artifact(
                 &plan.target_path,
-                "grok-backup",
+                "xvora-backup",
                 plan.backup_path_hint.as_deref(),
                 plan.original.mode,
             )?;
@@ -141,7 +141,7 @@ pub(super) fn apply(
         observe(observer, TransactionPhase::BeforeTempReserve, &plan)?;
         let (temp_path, mut temp_file) = reserve_artifact(
             &plan.target_path,
-            "grok-tmp",
+            "xvora-tmp",
             plan.temp_path_hint.as_deref(),
             plan.original.mode,
         )?;
@@ -352,8 +352,12 @@ fn rollback(
     observe(observer, TransactionPhase::BeforeRollback, plan)?;
     parent_anchor.revalidate()?;
     if let Some(original) = &plan.original.bytes {
-        let (rollback_path, mut rollback_file) =
-            reserve_artifact(&plan.target_path, "grok-rollback", None, plan.original.mode)?;
+        let (rollback_path, mut rollback_file) = reserve_artifact(
+            &plan.target_path,
+            "xvora-rollback",
+            None,
+            plan.original.mode,
+        )?;
         if let Err(error) = write_reserved(
             &rollback_path,
             &mut rollback_file,

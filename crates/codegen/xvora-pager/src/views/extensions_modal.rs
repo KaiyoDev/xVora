@@ -401,7 +401,7 @@ pub fn plugin_group(plugin: &hooks_plugins_types::PluginInfo) -> PluginGroup {
             ..
         }) => PluginGroup {
             rank: 5,
-            key: format!("grok-mp:{source}"),
+            key: format!("xvora-mp:{source}"),
             label: source.clone(),
         },
         Some(PluginOrigin::MarketplaceInstall {
@@ -417,7 +417,7 @@ pub fn plugin_group(plugin: &hooks_plugins_types::PluginInfo) -> PluginGroup {
                 }
                 Some(source) => PluginGroup {
                     rank: 5,
-                    key: format!("grok-mp:{source}"),
+                    key: format!("xvora-mp:{source}"),
                     label: source.to_string(),
                 },
                 None => PluginGroup::new(2, "origin:user", "User"),
@@ -643,7 +643,7 @@ pub enum ButtonAction {
     ReloadSkills,
     /// Refresh MCP server list (re-fetch from shell).
     RefreshMcpList,
-    /// Open grok.com connectors page (MCP tab: press `o`).
+    /// Open xvora.com connectors page (MCP tab: press `o`).
     OpenManagedConnectors,
     /// Update (fetch latest from source) the selected plugin.
     UpdateSelectedPlugin,
@@ -2321,9 +2321,9 @@ pub fn derive_source_label(source_dir: &str) -> (String, bool) {
 
 /// Classify a hooks `source_dir` into a display label and stable kind rank.
 fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
-    let grok = config::grok_home();
+    let xvora = config::xvora_home();
     let source_path = std::path::Path::new(source_dir);
-    // Plugin / installed-plugin dirs, under the user grok home (GROK_HOME-aware) or a project-scoped `{cwd}/.grok/<subdir>/`
+    // Plugin / installed-plugin dirs, under the user xvora home (xvora_home-aware) or a project-scoped `{cwd}/.xvora/<subdir>/`
     // Returns the first path component after the subdir (the plugin's install directory name)
     let plugin_name = |subdir: &str| -> Option<String> {
         let first_comp = |p: &std::path::Path| {
@@ -2332,13 +2332,13 @@ fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
                 .map(|c| c.as_os_str().to_string_lossy().into_owned())
                 .filter(|s| !s.is_empty())
         };
-        // User grok home (GROK_HOME-aware).
-        if let Ok(rest) = source_path.strip_prefix(grok.join(subdir))
+        // User xvora home (xvora_home-aware).
+        if let Ok(rest) = source_path.strip_prefix(xvora.join(subdir))
             && let Some(name) = first_comp(rest)
         {
             return Some(name);
         }
-        // Project-scoped `.grok/<subdir>/<name>` anywhere in the path.
+        // Project-scoped `.xvora/<subdir>/<name>` anywhere in the path.
         // Component-based so it works regardless of path separator.
         let comps: Vec<_> = source_path
             .components()
@@ -2346,7 +2346,7 @@ fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
             .collect();
         comps
             .windows(3)
-            .find(|w| w[0] == ".grok" && w[1] == subdir && !w[2].is_empty())
+            .find(|w| w[0] == ".xvora" && w[1] == subdir && !w[2].is_empty())
             .map(|w| w[2].clone())
     };
     if let Some(name) = plugin_name("plugins").or_else(|| plugin_name("installed-plugins")) {
@@ -2355,8 +2355,8 @@ fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
             kind: HookSourceKind::Plugin,
         };
     }
-    // Global hooks under $GROK_HOME/hooks
-    let global_hooks = grok.join("hooks");
+    // Global hooks under $xvora_home/hooks
+    let global_hooks = xvora.join("hooks");
     let global_str = global_hooks.display().to_string();
     if source_dir == global_str || source_dir.starts_with(&format!("{global_str}/")) {
         return HookSourceMeta {
@@ -2372,7 +2372,7 @@ fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
         };
     }
     // Project hooks
-    if source_dir.ends_with("/.grok/hooks") || source_dir.contains("/.grok/hooks/") {
+    if source_dir.ends_with("/.xvora/hooks") || source_dir.contains("/.xvora/hooks/") {
         return HookSourceMeta {
             label: "Project hooks".into(),
             kind: HookSourceKind::Project,
@@ -2380,7 +2380,7 @@ fn classify_hook_source(source_dir: &str) -> HookSourceMeta {
     }
     // Custom directory (removable)
     let display = {
-        if let Ok(rest) = source_path.strip_prefix(&grok) {
+        if let Ok(rest) = source_path.strip_prefix(&xvora) {
             let prefix = crate::util::display_grok_home_prefix();
             let rest_str = rest.to_string_lossy();
             let rest_trimmed = rest_str.strip_prefix('/').unwrap_or(&rest_str);
@@ -2504,8 +2504,8 @@ fn skill_source_str(skill: &SkillInfo) -> String {
             }
             tools::types::config_source::ConfigSource::Project { path } => {
                 let s = path.display().to_string();
-                if s.contains("/.grok/") {
-                    ".grok/skills".into()
+                if s.contains("/.xvora/") {
+                    ".xvora/skills".into()
                 } else if s.contains("/.claude/") {
                     ".claude/skills".into()
                 } else {
@@ -4119,14 +4119,14 @@ mod tests {
 
     #[test]
     fn derive_source_label_detects_project_scoped_plugins() {
-        // Regression: project-scoped `{cwd}/.grok/plugins/<name>/` must label as a (non-removable) plugin, not a removable "Custom" source
-        // The user grok-home branch is GROK_HOME-aware; this covers the project fallback
-        let (label, is_custom) = derive_source_label("/repo/work/.grok/plugins/my-plugin/hooks");
+        // Regression: project-scoped `{cwd}/.xvora/plugins/<name>/` must label as a (non-removable) plugin, not a removable "Custom" source
+        // The user xvora-home branch is xvora_home-aware; this covers the project fallback
+        let (label, is_custom) = derive_source_label("/repo/work/.xvora/plugins/my-plugin/hooks");
         assert_eq!(label, "Plugin: my-plugin");
         assert!(!is_custom);
 
         let (label, is_custom) =
-            derive_source_label("/repo/work/.grok/installed-plugins/vendor-abc123/skills");
+            derive_source_label("/repo/work/.xvora/installed-plugins/vendor-abc123/skills");
         assert_eq!(label, "Plugin: vendor-abc123");
         assert!(!is_custom);
     }
@@ -4504,7 +4504,7 @@ mod tests {
         assert!(
             rows.labels
                 .iter()
-                .any(|l| l.starts_with("Managed by grok.com")),
+                .any(|l| l.starts_with("Managed by xvora.com")),
             "managed section header must appear"
         );
         assert!(
@@ -5196,27 +5196,27 @@ mod tests {
     /// The remove gate is source-level: a pinned hook blocks its whole source, and only its own source.
     #[test]
     fn hook_source_pinned_is_source_level() {
-        let mut pinned = make_hook("policy/a", "/etc/grok", false);
+        let mut pinned = make_hook("policy/a", "/etc/xvora", false);
         pinned.pinned = true;
-        let sibling = make_hook("user/b", "/etc/grok", false);
-        let elsewhere = make_hook("user/c", "/home/u/.grok", false);
+        let sibling = make_hook("user/b", "/etc/xvora", false);
+        let elsewhere = make_hook("user/c", "/home/u/.xvora", false);
         let hooks = vec![pinned, sibling, elsewhere];
 
-        assert!(hook_source_pinned(&hooks, "/etc/grok"));
-        assert!(!hook_source_pinned(&hooks, "/home/u/.grok"));
+        assert!(hook_source_pinned(&hooks, "/etc/xvora"));
+        assert!(!hook_source_pinned(&hooks, "/home/u/.xvora"));
         assert!(!hook_source_pinned(&hooks, "/nonexistent"));
     }
 
     /// The Space hint is suppressed for policy-enforced selections; mixed groups and unpinned rows keep it.
     #[test]
     fn policy_enforced_selection_suppresses_space_hint() {
-        let mut pinned = make_hook("policy/a", "/etc/grok", false);
+        let mut pinned = make_hook("policy/a", "/etc/xvora", false);
         pinned.pinned = true;
-        let mut user = make_hook("user/b", "/home/u/.grok", false);
+        let mut user = make_hook("user/b", "/home/u/.xvora", false);
         user.removable = true;
 
         // Entry maps as the picker builds them (headers carry a group key, no data index):
-        //   0: header /etc/grok, 1: pinned row, 2: header user, 3: user row
+        //   0: header /etc/xvora, 1: pinned row, 2: header user, 3: user row
         let mut state = ExtensionsModalState::new(ExtensionsTab::Hooks);
         state.hooks_data = TabDataState::Loaded(hooks_plugins_types::HooksListResponse {
             hooks: vec![pinned, user],
@@ -5225,9 +5225,9 @@ mod tests {
         });
         let data_indices = vec![None, Some(0), None, Some(1)];
         let group_keys = vec![
-            Some("/etc/grok".to_string()),
+            Some("/etc/xvora".to_string()),
             None,
-            Some("/home/u/.grok".to_string()),
+            Some("/home/u/.xvora".to_string()),
             None,
         ];
 
@@ -6034,17 +6034,17 @@ mod tests {
     /// An all-pinned group reads enabled (everything in it always runs).
     #[test]
     fn hook_group_direction_ignores_pinned_hooks() {
-        let mut pinned = make_hook("policy", "/etc/grok", false);
+        let mut pinned = make_hook("policy", "/etc/xvora", false);
         pinned.pinned = true;
 
         // Mixed group, all unpinned disabled: direction is "enable" even though the pinned hook always reports enabled
-        let disabled_user = make_hook("user", "/etc/grok", true);
+        let disabled_user = make_hook("user", "/etc/xvora", true);
         assert!(!hook_group_any_enabled(
             [&pinned, &disabled_user].into_iter()
         ));
 
         // Mixed group with an enabled unpinned hook: "disable".
-        let enabled_user = make_hook("user2", "/etc/grok", false);
+        let enabled_user = make_hook("user2", "/etc/xvora", false);
         assert!(hook_group_any_enabled([&pinned, &enabled_user].into_iter()));
 
         // All-pinned group: reads enabled, never "off".
@@ -6781,7 +6781,7 @@ mod tests {
                     git_url: Some("https://example.com/r.git".into()),
                 },
                 5,
-                "grok-mp:xAI Official",
+                "xvora-mp:xAI Official",
                 "xAI Official",
             ),
             (
@@ -6841,7 +6841,7 @@ mod tests {
         let mut mp = make_plugin("mp-tool");
         mp.marketplace_source = Some("xAI Official".into());
         let group = plugin_group(&mp);
-        assert_eq!(group.key, "grok-mp:xAI Official");
+        assert_eq!(group.key, "xvora-mp:xAI Official");
         assert_eq!(group.label, "xAI Official");
 
         let mut direct = make_plugin("direct-tool");
@@ -6856,7 +6856,7 @@ mod tests {
         assert_eq!(plugin_group(&unknown).key, "origin:user");
 
         unknown.marketplace_source = Some("xAI Official".into());
-        assert_eq!(plugin_group(&unknown).key, "grok-mp:xAI Official");
+        assert_eq!(plugin_group(&unknown).key, "xvora-mp:xAI Official");
     }
 
     #[test]
@@ -7303,14 +7303,14 @@ mod tests {
         let mut project_z = make_skill("zzz-proj", "project skill");
         project_z.scope = tools::implementations::skills::types::SkillScope::Local;
         project_z.config_source = Some(tools::types::config_source::ConfigSource::Project {
-            path: std::path::PathBuf::from("/repo/.grok/skills/zzz"),
+            path: std::path::PathBuf::from("/repo/.xvora/skills/zzz"),
         });
         project_z.display_name = Some("zeta-proj".into());
 
         let mut project_a = make_skill("aaa-proj", "other project");
         project_a.scope = tools::implementations::skills::types::SkillScope::Repo;
         project_a.config_source = Some(tools::types::config_source::ConfigSource::Project {
-            path: std::path::PathBuf::from("/repo/.grok/skills/aaa"),
+            path: std::path::PathBuf::from("/repo/.xvora/skills/aaa"),
         });
         project_a.display_name = Some("alpha-proj".into());
 
@@ -7402,7 +7402,7 @@ mod tests {
         let hooks = vec![
             make_hook("c", "/zzz/custom", false),
             h_stop,
-            make_hook("a", "/repo/.grok/hooks", false),
+            make_hook("a", "/repo/.xvora/hooks", false),
             h_pre,
             h_notify,
             make_hook("b", "/aaa/custom", false),
@@ -7413,7 +7413,7 @@ mod tests {
         assert_eq!(
             dirs,
             [
-                "/repo/.grok/hooks",
+                "/repo/.xvora/hooks",
                 "/aaa/custom",
                 "/tmp/hooks-src",
                 "/zzz/custom"

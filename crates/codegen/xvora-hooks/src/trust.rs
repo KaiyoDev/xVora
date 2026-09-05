@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
 // Project-hook trust is no longer stored here: the shell's folder-trust store
-// (`~/.grok/trusted_folders.toml`) is the single authority for whether a repo's
+// (`~/.xvora/trusted_folders.toml`) is the single authority for whether a repo's
 // project hooks run (the same gate as repo-local MCP/LSP). The helpers below
 // exist only to migrate prior grants out of the legacy file.
 
-/// Path to the legacy project-hook trust file (`<user_grok_home>/trusted-hook-projects`), or `None` when no user grok home resolves.
+/// Path to the legacy project-hook trust file (`<user_grok_home>/trusted-hook-projects`), or `None` when no user xvora home resolves.
 /// It is retained only for the one-time migration into folder-trust.
 pub fn legacy_trust_file_path() -> Option<PathBuf> {
     Some(config::user_grok_home()?.join(config::TRUSTED_HOOK_PROJECTS_FILENAME))
@@ -31,7 +31,7 @@ pub fn list_trusted_projects_with_file(trust_file: &Path) -> std::io::Result<Vec
 
 // ── Hook enable/disable ─────────────────────────────────────────────────
 
-/// Disabled hooks are listed in `$GROK_HOME/disabled-hooks`, one hook name per line.
+/// Disabled hooks are listed in `$xvora_home/disabled-hooks`, one hook name per line.
 pub fn is_hook_disabled(hook_name: &str) -> bool {
     match disabled_hooks_file_path() {
         Some(file) => is_hook_disabled_with_file(hook_name, &file),
@@ -93,10 +93,10 @@ fn is_hook_disabled_with_file(hook_name: &str, file: &Path) -> bool {
         .any(|l| !l.trim().is_empty() && !l.trim().starts_with('#') && l.trim() == hook_name)
 }
 
-/// Disable a hook by name (append to `$GROK_HOME/disabled-hooks`).
+/// Disable a hook by name (append to `$xvora_home/disabled-hooks`).
 pub fn disable_hook(hook_name: &str) -> Result<(), String> {
     let file = disabled_hooks_file_path()
-        .ok_or_else(|| "no user grok home (set $GROK_HOME or $HOME)".to_string())?;
+        .ok_or_else(|| "no user xvora home (set $xvora_home or $HOME)".to_string())?;
     disable_hook_with_file(hook_name, &file)
 }
 
@@ -117,7 +117,7 @@ fn disable_hook_with_file(hook_name: &str, file: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Enable a hook by name (remove from `$GROK_HOME/disabled-hooks`).
+/// Enable a hook by name (remove from `$xvora_home/disabled-hooks`).
 pub fn enable_hook(hook_name: &str) -> Result<bool, String> {
     match disabled_hooks_file_path() {
         Some(file) => enable_hook_with_file(hook_name, &file),
@@ -159,7 +159,7 @@ fn enable_hook_with_file(hook_name: &str, file: &Path) -> Result<bool, String> {
     Ok(true)
 }
 
-/// Returns the path to `$GROK_HOME/disabled-hooks`, or `None` when no user grok home resolves.
+/// Returns the path to `$xvora_home/disabled-hooks`, or `None` when no user xvora home resolves.
 fn disabled_hooks_file_path() -> Option<PathBuf> {
     Some(config::user_grok_home()?.join("disabled-hooks"))
 }
@@ -170,7 +170,7 @@ mod tests {
 
     /// Each test creates its own legacy file in its own temp dir, so no state is shared.
     fn trust_file_in(dir: &Path) -> PathBuf {
-        let grok_dir = dir.join(".grok");
+        let grok_dir = dir.join(".xvora");
         std::fs::create_dir_all(&grok_dir).unwrap();
         grok_dir.join("trusted-hook-projects")
     }

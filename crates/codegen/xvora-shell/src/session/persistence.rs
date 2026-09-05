@@ -33,7 +33,7 @@ use crate::session::storage::relocation::{RelocationError, RelocationView};
 use crate::session::storage::{JsonlStorageAdapter, StorageAdapter};
 use crate::session::visibility::ClassifiedSessionKind;
 use crate::tools::todo::TodoState;
-use crate::util::grok_home::grok_home;
+use crate::util::xvora_home::xvora_home;
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
 use agent_client_protocol as acp;
 use xvora_sampling_types::ReasoningEffort;
@@ -154,7 +154,7 @@ fn default_btw_attempts() -> u32 {
 
 // Local feedback persistence types
 
-/// A feedback entry persisted to `~/.grok/sessions/.../feedback.jsonl`.
+/// A feedback entry persisted to `~/.xvora/sessions/.../feedback.jsonl`.
 ///
 /// Uses a tagged enum so different feedback types are self-describing in the JSONL file (currently only `UserFeedback`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -232,7 +232,7 @@ pub enum PersistenceMsg {
     },
     CurrentModel {
         model_id: acp::ModelId,
-        /// The active agent definition name (e.g. `"grok-build"`).
+        /// The active agent definition name (e.g. `"xvora-build"`).
         /// Persisted in `summary.agent_name` so session resume doesn't depend on the mutable model catalog.
         agent_name: Option<String>,
         reasoning_effort: Option<Option<ReasoningEffort>>,
@@ -348,7 +348,7 @@ fn storage_view(sessions_root: &Path) -> RelocationResult<RelocationView> {
 /// A session is only "already local" if it lives under the **same** cwd as the current invocation.
 /// A session stored under a different cwd does NOT satisfy this check; the caller must still run the remote restore into the requested cwd.
 pub fn session_exists_for_cwd(session_id: &str, cwd: &str) -> bool {
-    let sessions_root = crate::util::grok_home::grok_home().join("sessions");
+    let sessions_root = crate::util::xvora_home::xvora_home().join("sessions");
     session_exists_for_cwd_in_root(session_id, cwd, &sessions_root)
 }
 
@@ -361,7 +361,7 @@ fn is_persisted_session_dir(session_path: &Path) -> bool {
 /// Inner implementation of `session_exists_for_cwd` with an injectable root.
 /// Separated for deterministic tempdir-based tests.
 fn session_exists_for_cwd_in_root(session_id: &str, cwd: &str, sessions_root: &Path) -> bool {
-    let encoded = crate::util::grok_home::encode_cwd_dirname(cwd);
+    let encoded = crate::util::xvora_home::encode_cwd_dirname(cwd);
     let session_path = sessions_root.join(&encoded).join(session_id);
     is_persisted_session_dir(&session_path)
 }
@@ -369,7 +369,7 @@ fn session_exists_for_cwd_in_root(session_id: &str, cwd: &str, sessions_root: &P
 /// Find the local child session id that was previously restored from `remote_session_id` in the given `cwd`.
 ///
 /// When a remote session is restored, a new local child is created with `summary.parent_session_id == remote_session_id`.
-/// On a second `grok -r <remote_id>` in the same cwd, this function returns the already-restored child so no duplicate restore is performed.
+/// On a second `xvora -r <remote_id>` in the same cwd, this function returns the already-restored child so no duplicate restore is performed.
 ///
 /// If multiple children match (e.g., from older duplicate restores), the most recently used one is returned.
 /// Selection is fully deterministic:
@@ -379,7 +379,7 @@ fn session_exists_for_cwd_in_root(session_id: &str, cwd: &str, sessions_root: &P
 ///
 /// Returns `Some(local_child_id)` when at least one matching child is found.
 pub fn find_local_child_for_remote(remote_session_id: &str, cwd: &str) -> Option<String> {
-    let sessions_root = crate::util::grok_home::grok_home().join("sessions");
+    let sessions_root = crate::util::xvora_home::xvora_home().join("sessions");
     find_local_child_for_remote_in_root(remote_session_id, cwd, &sessions_root)
 }
 
@@ -425,7 +425,7 @@ pub(crate) fn resolve_local_session_for_repo(
     session_id: &str,
     candidate_cwds: &[&str],
 ) -> Option<ResolvedLocalSession> {
-    let sessions_root = crate::util::grok_home::grok_home().join("sessions");
+    let sessions_root = crate::util::xvora_home::xvora_home().join("sessions");
     resolve_local_session_for_repo_in_root(session_id, candidate_cwds, &sessions_root)
 }
 
@@ -469,14 +469,14 @@ fn find_local_child_for_remote_in_root(
     cwd: &str,
     sessions_root: &Path,
 ) -> Option<String> {
-    let encoded = crate::util::grok_home::encode_cwd_dirname(cwd);
+    let encoded = crate::util::xvora_home::encode_cwd_dirname(cwd);
     let cwd_dir = sessions_root.join(&encoded);
     if !cwd_dir.exists() {
         return None;
     }
 
     // Collect all matching children
-    // Multiple can exist from older versions that restored a duplicate on each `grok -r <remote_id>`
+    // Multiple can exist from older versions that restored a duplicate on each `xvora -r <remote_id>`
     // Tuple: (updated_at, dir_mtime_nanos, session_id), all sorted descending
     let mut candidates: Vec<(String, u128, String)> = Vec::new();
 
@@ -520,10 +520,10 @@ fn find_local_child_for_remote_in_root(
 }
 
 /// Check if a session exists locally by session ID.
-/// Searches across ALL cwd directories under `~/.grok/sessions/`.
+/// Searches across ALL cwd directories under `~/.xvora/sessions/`.
 ///
 /// Use `session_exists_for_cwd` instead when the target cwd is known (e.g., the `-r` resume path) to avoid false-positive matches.
-/// Find a session by ID across **all** CWD directories under `~/.grok/sessions/`.
+/// Find a session by ID across **all** CWD directories under `~/.xvora/sessions/`.
 ///
 /// Unlike [`resolve_local_session`] which only checks a single CWD, this scans every encoded-CWD subdirectory.
 /// Returns the decoded CWD path that contains the session, or `None` if not found anywhere.
@@ -536,7 +536,7 @@ pub fn resolve_local_session_any_cwd(session_id: &str) -> Option<String> {
 }
 
 pub(crate) fn resolve_local_session_any_cwd_result(session_id: &str) -> io::Result<Option<String>> {
-    resolve_local_session_any_cwd_in_root(session_id, &grok_home().join("sessions"))
+    resolve_local_session_any_cwd_in_root(session_id, &xvora_home().join("sessions"))
         .map_err(io::Error::other)
 }
 
@@ -550,7 +550,7 @@ fn resolve_local_session_any_cwd_in_root(
     };
     Ok(session_path
         .parent()
-        .and_then(crate::util::grok_home::decode_cwd_from_dirname))
+        .and_then(crate::util::xvora_home::decode_cwd_from_dirname))
 }
 
 /// Scan all CWD directories for a session and return its directory path.
@@ -561,7 +561,7 @@ pub fn find_session_dir_by_id(session_id: &str) -> Option<PathBuf> {
 pub(crate) fn find_persisted_session_dir_by_id_result(
     session_id: &str,
 ) -> io::Result<Option<PathBuf>> {
-    find_persisted_session_dir_by_id_in_root_result(session_id, &grok_home().join("sessions"))
+    find_persisted_session_dir_by_id_in_root_result(session_id, &xvora_home().join("sessions"))
 }
 
 pub(crate) fn find_persisted_session_dir_by_id_in_root_result(
@@ -574,7 +574,7 @@ pub(crate) fn find_persisted_session_dir_by_id_in_root_result(
 }
 
 pub(crate) fn find_any_session_dir_by_id_result(session_id: &str) -> io::Result<Option<PathBuf>> {
-    storage_view(&grok_home().join("sessions"))
+    storage_view(&xvora_home().join("sessions"))
         .and_then(|view| view.find_any_session_dir(session_id))
         .map_err(io::Error::other)
 }
@@ -596,7 +596,7 @@ pub(crate) fn title_is_manual_in_dir(session_dir: &Path) -> bool {
 
 /// Find and read a session summary given only its ID (scans all CWD directories).
 pub(crate) fn find_summary_by_session_id(session_id: &str) -> Option<Summary> {
-    find_summary_by_session_id_in_root(session_id, &grok_home().join("sessions"))
+    find_summary_by_session_id_in_root(session_id, &xvora_home().join("sessions"))
 }
 
 /// Inner implementation with injectable root for testing.
@@ -631,7 +631,7 @@ pub(crate) struct SessionKindIndex {
 
 impl SessionKindIndex {
     pub(crate) fn load() -> io::Result<Self> {
-        Self::load_in_root(&grok_home().join("sessions"))
+        Self::load_in_root(&xvora_home().join("sessions"))
     }
 
     pub(crate) fn load_in_root(sessions_root: &Path) -> io::Result<Self> {
@@ -730,7 +730,7 @@ pub fn local_summaries_for_cwd_sync(
     cwd: &str,
     selection: RecentSessionSelection,
 ) -> io::Result<Vec<Summary>> {
-    local_summaries_for_cwd_sync_in_root(cwd, selection, &grok_home().join("sessions"))
+    local_summaries_for_cwd_sync_in_root(cwd, selection, &xvora_home().join("sessions"))
 }
 
 fn local_summaries_for_cwd_sync_in_root(
@@ -761,7 +761,7 @@ pub fn resumed_session_sandbox_profile(
     session_id: Option<&str>,
     cwd: Option<&str>,
 ) -> Option<String> {
-    resumed_session_sandbox_profile_in_root(session_id, cwd, &grok_home().join("sessions"))
+    resumed_session_sandbox_profile_in_root(session_id, cwd, &xvora_home().join("sessions"))
 }
 
 /// Resolve the saved profile for the same typed most-recent view used at startup.
@@ -771,7 +771,7 @@ pub fn resolve_recent_session_sandbox_profile(
 ) -> Option<String> {
     most_recent_local_summary_for_cwd_in_view(
         cwd?,
-        &storage_view(&grok_home().join("sessions")).ok()?,
+        &storage_view(&xvora_home().join("sessions")).ok()?,
         read_summary_from_dir,
         selection,
     )
@@ -810,13 +810,13 @@ fn resumed_session_sandbox_profile_in_root(
 /// Owner-only and durable session dir for writers that bypass `init_session` (chat-kind, pre-init fork stamp).
 /// A later occupied `init_session` will not re-sync the encoded-cwd direntry.
 pub(crate) fn ensure_owner_only_session_dir(info: &Info) -> std::io::Result<PathBuf> {
-    ensure_owner_only_session_dir_in(&grok_home(), info)
+    ensure_owner_only_session_dir_in(&xvora_home(), info)
 }
 
-/// Inner implementation with an injectable grok home for tests.
-fn ensure_owner_only_session_dir_in(grok_home: &Path, info: &Info) -> std::io::Result<PathBuf> {
+/// Inner implementation with an injectable xvora home for tests.
+fn ensure_owner_only_session_dir_in(xvora_home: &Path, info: &Info) -> std::io::Result<PathBuf> {
     ensure_owner_only_session_dir_in_with(
-        grok_home,
+        xvora_home,
         info,
         crate::session::storage::sync_dir_durable,
         crate::session::storage::sync_file_durable,
@@ -824,47 +824,47 @@ fn ensure_owner_only_session_dir_in(grok_home: &Path, info: &Info) -> std::io::R
 }
 
 fn ensure_owner_only_session_dir_in_with(
-    grok_home: &Path,
+    xvora_home: &Path,
     info: &Info,
     sync_dir: impl Fn(&Path) -> std::io::Result<()>,
     sync_file: impl Fn(&std::fs::File) -> std::io::Result<()>,
 ) -> std::io::Result<PathBuf> {
-    let dir = session_dir_in(grok_home, info);
+    let dir = session_dir_in(xvora_home, info);
     crate::session::storage::create_dir_all_durable_with(
         &dir,
         |dir| {
             // Keep swallowing ensure errors: other failures must not block session-dir create
             // But fsync `.cwd` on Ok so a later parent-dir sync cannot freeze a torn marker
             if let Ok(cwd_dir) =
-                crate::util::grok_home::ensure_sessions_cwd_dir_in(grok_home, &info.cwd)
+                crate::util::xvora_home::ensure_sessions_cwd_dir_in(xvora_home, &info.cwd)
             {
                 crate::session::storage::sync_cwd_marker_if_present_with(&cwd_dir, &sync_file)?;
             }
-            crate::util::grok_home::create_dir_all_owner_only(dir)
+            crate::util::xvora_home::create_dir_all_owner_only(dir)
         },
         sync_dir,
     )?;
     Ok(dir)
 }
 
-/// `session_dir` with an injectable grok home (pure path computation).
-fn session_dir_in(grok_home: &Path, info: &Info) -> PathBuf {
-    crate::util::grok_home::sessions_cwd_dir_in(grok_home, &info.cwd).join(info.id.to_string())
+/// `session_dir` with an injectable xvora home (pure path computation).
+fn session_dir_in(xvora_home: &Path, info: &Info) -> PathBuf {
+    crate::util::xvora_home::sessions_cwd_dir_in(xvora_home, &info.cwd).join(info.id.to_string())
 }
 
 /// Get file path for storing a large prompt.
 /// Creates the prompts subdirectory if it doesn't exist.
 /// Path format: `{session_dir}/prompts/prompt_{prompt_index}.txt`
 pub(crate) fn get_prompt_file_path(info: &Info, prompt_index: usize) -> PathBuf {
-    get_prompt_file_path_in(&grok_home(), info, prompt_index)
+    get_prompt_file_path_in(&xvora_home(), info, prompt_index)
 }
 
-/// Inner implementation with an injectable grok home for tests.
-fn get_prompt_file_path_in(grok_home: &Path, info: &Info, prompt_index: usize) -> PathBuf {
+/// Inner implementation with an injectable xvora home for tests.
+fn get_prompt_file_path_in(xvora_home: &Path, info: &Info, prompt_index: usize) -> PathBuf {
     // Best-effort; failures surface on the prompt-file write itself.
-    let _ = ensure_owner_only_session_dir_in(grok_home, info);
-    let prompts_dir = session_dir_in(grok_home, info).join("prompts");
-    let _ = crate::util::grok_home::create_dir_all_owner_only(&prompts_dir);
+    let _ = ensure_owner_only_session_dir_in(xvora_home, info);
+    let prompts_dir = session_dir_in(xvora_home, info).join("prompts");
+    let _ = crate::util::xvora_home::create_dir_all_owner_only(&prompts_dir);
     prompts_dir.join(format!("prompt_{}.txt", prompt_index))
 }
 
@@ -961,9 +961,9 @@ pub struct Summary {
     pub head_branch: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_id: Option<String>,
-    /// Absolute path to the `.grok` directory, used by reconstruction.
+    /// Absolute path to the `.xvora` directory, used by reconstruction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub grok_home: Option<String>,
+    pub xvora_home: Option<String>,
     /// When the session last had content added (user or model messages).
     /// Only advanced locally by `append_update` / `append_chat_message`; never touched by remote registry operations or metadata-only writes.
     /// `None` for sessions created before this field was added.
@@ -1008,13 +1008,13 @@ pub struct Summary {
     pub last_recap: Option<String>,
 }
 
-/// `Summary::session_kind` for sessions whose cwd is inside a grok-managed worktree.
+/// `Summary::session_kind` for sessions whose cwd is inside a xvora-managed worktree.
 /// `source_workspace_dir` is only ever set alongside this kind.
 pub(crate) const WORKTREE_SESSION_KIND: &str = "worktree";
 
-/// Current `grok_home` as a UTF-8 string, or `None` if the path isn't valid UTF-8.
+/// Current `xvora_home` as a UTF-8 string, or `None` if the path isn't valid UTF-8.
 pub(crate) fn grok_home_string() -> Option<String> {
-    crate::util::grok_home::grok_home()
+    crate::util::xvora_home::xvora_home()
         .to_str()
         .map(String::from)
 }
@@ -1057,7 +1057,7 @@ impl Summary {
             head_commit: git_metadata.head_commit,
             head_branch: git_metadata.head_branch,
             request_id: None,
-            grok_home: grok_home_string(),
+            xvora_home: grok_home_string(),
             last_active_at: None,
             generated_title: None,
             title_is_manual: false,
@@ -1094,7 +1094,7 @@ impl Summary {
         )
     }
 
-    /// Whether this is a one-shot `grok -p` session.
+    /// Whether this is a one-shot `xvora -p` session.
     /// Deliberately not part of [`Self::is_hidden`]: headless sessions stay listable (the picker's Headless page, the search index).
     /// They are only excluded from the default pages by `HeadlessPolicy`.
     /// Unstamped summaries (`session_kind` absent) are interactive, including pre-stamp one-shots and remote twins the registry has not classified.
@@ -2251,9 +2251,9 @@ impl SessionPersistence {
     }
 }
 
-/// Collect MCP server stderr logs from `~/.grok/logs/mcp/` for inclusion in the session archive.
+/// Collect MCP server stderr logs from `~/.xvora/logs/mcp/` for inclusion in the session archive.
 fn collect_mcp_stderr_logs(files: &mut Vec<CopiedSessionFile>) {
-    let mcp_log_dir = config::grok_home().join("logs").join("mcp");
+    let mcp_log_dir = config::xvora_home().join("logs").join("mcp");
     let Ok(entries) = std::fs::read_dir(&mcp_log_dir) else {
         return;
     };
@@ -2345,7 +2345,7 @@ fn init_remote_sync(
             let auth_manager = auth_manager.ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::PermissionDenied,
-                    "Writeback storage mode requires authentication. Run 'grok login' first.",
+                    "Writeback storage mode requires authentication. Run 'xvora login' first.",
                 )
             })?;
             if let Some(auth) = auth_manager.current_or_expired() {
@@ -2450,7 +2450,7 @@ pub(crate) fn io_error_to_acp(e: &io::Error) -> acp::Error {
 mod io_error_to_acp_tests;
 
 /// Best-effort worktree liveness touch: stamp `last_accessed_at` on the worktree containing this session's cwd.
-/// `grok worktree gc` then expires by last use, not creation time.
+/// `xvora worktree gc` then expires by last use, not creation time.
 /// Lives here (not in a `StorageAdapter`) so every session create/load path shares it regardless of backend.
 fn spawn_worktree_touch(info: &Info) -> tokio::task::JoinHandle<()> {
     let cwd = info.cwd.clone();
@@ -2513,7 +2513,7 @@ pub(crate) async fn new(
         search_index,
         session_kind,
     } = deps;
-    let root_dir = grok_home();
+    let root_dir = xvora_home();
     let storage: Box<dyn StorageAdapter> = Box::new(JsonlStorageAdapter::with_root(root_dir));
 
     let mut summary = storage.init_session(info, model_id.clone()).await?;
@@ -2702,7 +2702,7 @@ pub(crate) async fn load_light(
         search_index,
         session_kind: _,
     } = deps;
-    let root_dir = grok_home();
+    let root_dir = xvora_home();
     let storage: Box<dyn StorageAdapter> =
         Box::new(JsonlStorageAdapter::with_root(root_dir.clone()));
 
@@ -2782,7 +2782,7 @@ pub(crate) async fn load_light(
 /// List session summaries, optionally filtered by cwd (absolute path string).
 /// Returns summaries sorted by `last_active_at` (else `updated_at`) descending.
 pub async fn list_summaries(cwd: Option<&str>) -> io::Result<Vec<Summary>> {
-    let root_dir = crate::util::grok_home::grok_home();
+    let root_dir = crate::util::xvora_home::xvora_home();
     let storage: Box<dyn StorageAdapter> = Box::new(JsonlStorageAdapter::with_root(root_dir));
     storage.list_sessions(cwd).await
 }
@@ -2880,7 +2880,7 @@ pub async fn delete_session_history(
     // Also evict when no workspace was named: that row outlives the directory and nothing else prunes it
     if local_removed || cwd.is_none() {
         crate::session::storage::search::evict_session(
-            &crate::util::grok_home::grok_home(),
+            &crate::util::xvora_home::xvora_home(),
             session_id,
         )
         .await;
@@ -2930,7 +2930,7 @@ mod worktree_stamp_tests;
 /// List the `limit` most recently modified session summaries across all workspaces.
 /// Uses stat-based mtime sorting to avoid reading every summary file on disk; final order uses `last_active_at` else `updated_at`.
 pub async fn list_recent_summaries(limit: usize) -> io::Result<Vec<Summary>> {
-    let root_dir = crate::util::grok_home::grok_home();
+    let root_dir = crate::util::xvora_home::xvora_home();
     let storage = JsonlStorageAdapter::with_root(root_dir);
     storage.list_sessions_recent(limit).await
 }
@@ -2941,7 +2941,7 @@ static CLEANUP_SESSIONS_ONCE: std::sync::Once = std::sync::Once::new();
 
 const DEFAULT_CLEANUP_TTL_DAYS: u32 = 30;
 
-/// Walk `~/.grok/sessions/` and delete files with mtime older than `ttl_days`.
+/// Walk `~/.xvora/sessions/` and delete files with mtime older than `ttl_days`.
 /// Removes empty session directories after file cleanup.
 /// Skips `skip_session_dir` if provided (current session).
 ///
@@ -2951,7 +2951,7 @@ const DEFAULT_CLEANUP_TTL_DAYS: u32 = 30;
 pub(crate) fn cleanup_stale_sessions(skip_session_dir: Option<&Path>) {
     CLEANUP_SESSIONS_ONCE.call_once(|| {
         let ttl_days = resolve_cleanup_ttl_days();
-        let sessions_root = grok_home().join("sessions");
+        let sessions_root = xvora_home().join("sessions");
 
         tracing::info!(
             target: "shell::session::persistence",

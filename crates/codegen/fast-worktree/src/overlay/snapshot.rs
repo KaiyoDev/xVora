@@ -622,7 +622,7 @@ mod tests {
             snapshot_root: PathBuf::from("/var/lib/repo-fuse/instance/worktrees/abc/root"),
             work_dir: PathBuf::from("/var/lib/repo-fuse/instance/worktrees/abc/work"),
             lower_dir: PathBuf::from("/var/lib/repo-fuse/instance/fuse-lower"),
-            mount_target: PathBuf::from("/home/user/.grok/worktrees/abc"),
+            mount_target: PathBuf::from("/home/user/.xvora/worktrees/abc"),
             created_at: "2026-02-19T22:38:00Z".to_string(),
         };
 
@@ -649,7 +649,7 @@ mod tests {
             "snapshot_upper": "/var/lib/repo-fuse/instance/worktrees/abc123/upper",
             "work_dir": "/var/lib/repo-fuse/instance/worktrees/abc123/work",
             "lower_dir": "/var/lib/repo-fuse/instance/fuse-lower",
-            "mount_target": "/home/user/.grok/worktrees/abc123",
+            "mount_target": "/home/user/.xvora/worktrees/abc123",
             "created_at": "2026-02-19T22:38:00Z"
         }"#;
 

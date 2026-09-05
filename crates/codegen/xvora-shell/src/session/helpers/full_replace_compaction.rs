@@ -1,8 +1,8 @@
-//! grok-build's L5 wiring onto the shared full-replace engine (`compaction::code_compaction`).
+//! xvora-build's L5 wiring onto the shared full-replace engine (`compaction::code_compaction`).
 //!
 //! The shared engine drives the loop: sample, retry, then classify the result as degenerate or failed.
 //! The loop lives in [`sample_full_replace_summary`](compaction::sample_full_replace_summary).
-//! This module adapts grok-build's transport and telemetry to the engine's two traits: [`ShellCompactionSampler`] and [`ShellFullReplaceObserver`].
+//! This module adapts xvora-build's transport and telemetry to the engine's two traits: [`ShellCompactionSampler`] and [`ShellFullReplaceObserver`].
 //!
 //! The **input ladder** (verbatim, then fitted, then lossy) and auto-compaction suppression stay in L5 (`compaction.rs`).
 //! Both are driven by the `context_overflow` / `deterministic` flags on [`FullReplaceError`](compaction::FullReplaceError).
@@ -45,13 +45,13 @@ impl SamplerState {
     }
 }
 
-/// Wraps `generate_session_compact` as the shared engine's [`CompactionSampler`] for grok-build's full-replace pass.
+/// Wraps `generate_session_compact` as the shared engine's [`CompactionSampler`] for xvora-build's full-replace pass.
 ///
 /// Holds the per-call request context the trait call does not carry (tools, client, session, config).
 /// It also stashes the last successful [`CompactOutput`] so the caller can recover the streaming telemetry not modeled by [`LlmCompactionOutput`].
 ///
 /// The summarization prompt is selected here by `use_short_prompt`.
-/// The short-prompt harness uses the short self-summarization prompt; everyone else gets the structured grok-build prompt.
+/// The short-prompt harness uses the short self-summarization prompt; everyone else gets the structured xvora-build prompt.
 /// The shared `CompactionPrompt` the engine passes is therefore ignored.
 /// The engine's prompt equals what [`build_compaction_chat_history`] appends, and the short-prompt harness needs a variant the engine can't produce.
 pub(crate) struct ShellCompactionSampler {
@@ -126,7 +126,7 @@ impl CompactionSampler for ShellCompactionSampler {
         _prompt: &CompactionPrompt,
         _timeout: Duration,
     ) -> Result<LlmCompactionOutput, CompactionSampleError> {
-        // Append the harness-selected summarization prompt as the final user message (compat short vs structured grok-build)
+        // Append the harness-selected summarization prompt as the final user message (compat short vs structured xvora-build)
         // The shared engine's `_prompt` is ignored (see the struct doc)
         let chat_history = build_compaction_chat_history(
             turns.to_vec(),
@@ -164,7 +164,7 @@ impl CompactionSampler for ShellCompactionSampler {
     }
 }
 
-/// Map grok-build's [`CompactFailure`] onto the shared engine's [`CompactionSampleError`].
+/// Map xvora-build's [`CompactFailure`] onto the shared engine's [`CompactionSampleError`].
 /// The shared retry loop then classifies it the same way the in-shell loop did:
 ///
 /// - `Overflow` → [`CompactionSampleError::ContextOverflow`] — sets the
@@ -214,7 +214,7 @@ struct ObserverState {
     last_error_msg: Option<String>,
 }
 
-/// [`FullReplaceObserver`] that reproduces grok-build's per-attempt telemetry without the shared engine depending on a telemetry backend.
+/// [`FullReplaceObserver`] that reproduces xvora-build's per-attempt telemetry without the shared engine depending on a telemetry backend.
 /// It records `CompactionAttempt` rows, rejection counters, the `CompactionRetryDegraded` event, and the warn/error tracing.
 pub(crate) struct ShellFullReplaceObserver {
     trigger: CompactionTrigger,

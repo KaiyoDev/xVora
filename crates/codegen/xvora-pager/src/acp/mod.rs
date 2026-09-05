@@ -68,7 +68,7 @@ pub struct AcpConnection {
     pub rx: AcpClientRx,
     /// Available models and current selection.
     pub models: ModelState,
-    /// Whether the agent is a grok-shell instance.
+    /// Whether the agent is a xvora-shell instance.
     pub is_grok_shell: bool,
     /// Auth methods advertised by the agent.
     pub auth_methods: Vec<acp::AuthMethod>,
@@ -83,9 +83,9 @@ pub struct AcpConnection {
     // NOTE: Startup announcements from InitializeResponse.meta are not yet supported.
     // Requires the shell to include announcements in initialize metadata
     // When available, add field: startup_announcements: Option<Vec<announcements::RemoteAnnouncement>>
-    /// Whether interactive login is required (deferred auth for `grok.com`).
+    /// Whether interactive login is required (deferred auth for `xvora.com`).
     pub needs_login: bool,
-    /// Login button label from `AuthMethod.name` (e.g., "grok.com", "Acme Corp").
+    /// Login button label from `AuthMethod.name` (e.g., "xvora.com", "Acme Corp").
     pub login_label: Option<String>,
     /// The auth method ID to use for login (copied from the first advertised method).
     pub login_method_id: Option<acp::AuthMethodId>,
@@ -365,7 +365,7 @@ pub async fn connect_via_leader(
     // A second refresher would race rotation and could clear credentials on failure
     // This one just reads the valid token, and on expiry adopts the agent's disk-rotated token under the file lock (`try_adopt_disk_token`)
     let auth_manager = std::sync::Arc::new(shell::auth::AuthManager::new(
-        &shell::util::grok_home::grok_home(),
+        &shell::util::xvora_home::xvora_home(),
         agent_config.grok_com_config.clone(),
     ));
 
@@ -435,7 +435,7 @@ fn unsupported_leader_flags(flags: &ConnectFlags) -> Vec<&'static str> {
 /// Write config.toml fields based on CLI flags.
 fn apply_config_writes(flags: &ConnectFlags) {
     // Use toml_edit to preserve existing config structure
-    let config_path = shell::util::grok_home::grok_home().join(config::USER_CONFIG_FILENAME);
+    let config_path = shell::util::xvora_home::xvora_home().join(config::USER_CONFIG_FILENAME);
     let content = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut doc = content
         .parse::<toml_edit::DocumentMut>()
@@ -603,7 +603,7 @@ pub fn parse_feedback_trace_offer(meta: Option<&acp::Meta>) -> bool {
 
 /// Determine whether interactive login is needed based on the advertised auth methods.
 ///
-/// Matches TUI startup behavior: if the first method is `grok.com`, defer auth and show the login-aware welcome flow.
+/// Matches TUI startup behavior: if the first method is `xvora.com`, defer auth and show the login-aware welcome flow.
 /// Otherwise, authenticate eagerly.
 ///
 /// Returns `(needs_login, login_label, login_method_id, auth_start_mode)`.
@@ -646,7 +646,7 @@ pub fn startup_auth_metadata(
 /// Find an interactive login method from the auth methods list.
 ///
 /// Used when eager auth (cached_token or API key) fails and we need to fall back to the welcome screen with a working login button.
-/// Scans the list for a `grok.com` or `oidc` method; these are the ones that can trigger a browser-based re-auth flow.
+/// Scans the list for a `xvora.com` or `oidc` method; these are the ones that can trigger a browser-based re-auth flow.
 pub fn find_interactive_login_method(
     auth_methods: &[acp::AuthMethod],
 ) -> (Option<String>, Option<acp::AuthMethodId>, AuthStartMode) {
@@ -935,22 +935,22 @@ mod tests {
 
     #[test]
     fn startup_auth_grok_com_no_provider_needs_login_pending() {
-        let methods = vec![make_auth_method("grok.com", "grok.com", None)];
+        let methods = vec![make_auth_method("xvora.com", "xvora.com", None)];
         let (needs, label, method_id, mode) = startup_auth_metadata(&methods);
         assert!(needs);
-        assert_eq!(label.as_deref(), Some("grok.com"));
-        assert_eq!(method_id.as_ref().unwrap().0.as_ref(), "grok.com");
+        assert_eq!(label.as_deref(), Some("xvora.com"));
+        assert_eq!(method_id.as_ref().unwrap().0.as_ref(), "xvora.com");
         assert_eq!(mode, AuthStartMode::Pending);
     }
 
     #[test]
     fn startup_auth_grok_com_with_external_provider_command() {
         let meta = serde_json::json!({ "external_provider": true });
-        let methods = vec![make_auth_method("grok.com", "Acme Corp", Some(meta))];
+        let methods = vec![make_auth_method("xvora.com", "Acme Corp", Some(meta))];
         let (needs, label, method_id, mode) = startup_auth_metadata(&methods);
         assert!(needs);
         assert_eq!(label.as_deref(), Some("Acme Corp"));
-        assert_eq!(method_id.as_ref().unwrap().0.as_ref(), "grok.com");
+        assert_eq!(method_id.as_ref().unwrap().0.as_ref(), "xvora.com");
         assert_eq!(mode, AuthStartMode::Command);
     }
 
@@ -966,7 +966,7 @@ mod tests {
 
     /// CROSS-CRATE REGRESSION GUARD:
     ///
-    /// Enterprise/BYOK configs (e.g. an enterprise `~/.grok/config.toml` with a
+    /// Enterprise/BYOK configs (e.g. an enterprise `~/.xvora/config.toml` with a
     /// `[model.*]` table containing `env_key = "ANTHROPIC_AUTH_TOKEN"`) MUST
     /// NOT send the user to the login screen at startup.
     ///
@@ -986,7 +986,7 @@ mod tests {
         let built = build_auth_methods(AuthMethodsBuildInputs {
             // Enterprise-style: model has `env_key` set and the env var resolves, so the shell-side predicate returns true
             has_external_api_key: true,
-            // Realistic enterprise user: no cached session token, default `grok.com` login (no enterprise OIDC)
+            // Realistic enterprise user: no cached session token, default `xvora.com` login (no enterprise OIDC)
             has_cached_token: false,
             has_enterprise_oidc: false,
             enterprise_oidc_issuer: None,
@@ -1019,20 +1019,20 @@ mod tests {
         use shell::agent::auth_method::{GROK_COM_METHOD_ID, XAI_API_KEY_METHOD_ID};
 
         let methods = vec![
-            make_auth_method(GROK_COM_METHOD_ID, "Grok", None),
+            make_auth_method(GROK_COM_METHOD_ID, "xvora", None),
             make_auth_method(XAI_API_KEY_METHOD_ID, "xvora.api_key", None),
         ];
         let (needs, _, _, _) = startup_auth_metadata(&methods);
         assert!(
             needs,
-            "with grok.com first, the pager must require login -- pinning \
+            "with xvora.com first, the pager must require login -- pinning \
              the BAD-ordering failure mode (xvora.api_key not first)",
         );
     }
 
     #[test]
     fn startup_auth_method_id_is_copied_not_synthesized() {
-        let methods = vec![make_auth_method("grok.com", "My Login", None)];
+        let methods = vec![make_auth_method("xvora.com", "My Login", None)];
         let (_, _, method_id, _) = startup_auth_metadata(&methods);
         assert_eq!(&method_id.unwrap(), methods[0].id());
     }
@@ -1040,7 +1040,7 @@ mod tests {
     #[test]
     fn startup_auth_external_provider_false_is_pending() {
         let meta = serde_json::json!({ "external_provider": false });
-        let methods = vec![make_auth_method("grok.com", "grok.com", Some(meta))];
+        let methods = vec![make_auth_method("xvora.com", "xvora.com", Some(meta))];
         let (_, _, _, mode) = startup_auth_metadata(&methods);
         assert_eq!(mode, AuthStartMode::Pending);
     }

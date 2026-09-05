@@ -1,4 +1,4 @@
-//! Full-text search over local grok sessions, backed by a rebuildable SQLite FTS5 cache under `<grok home>/sessions/session_search.sqlite`.
+//! Full-text search over local xvora sessions, backed by a rebuildable SQLite FTS5 cache under `<xvora home>/sessions/session_search.sqlite`.
 //!
 //! Layering, bottom up:
 //!

@@ -501,7 +501,7 @@ pub(crate) async fn run_shell_child(
                     "Could not resolve worktree base dir, using temp dir for subagent worktree"
                 );
                 std::env::temp_dir()
-                    .join("grok-subagent-worktrees")
+                    .join("xvora-subagent-worktrees")
                     .join(&request.id)
             }
         };
@@ -717,7 +717,7 @@ pub(crate) async fn run_shell_child(
         cwd: effective_cwd,
     };
     let child_session_dir = session::persistence::session_dir(&child_session_info);
-    if let Err(e) = crate::util::grok_home::ensure_sessions_cwd_dir(&child_session_info.cwd) {
+    if let Err(e) = crate::util::xvora_home::ensure_sessions_cwd_dir(&child_session_info.cwd) {
         tracing::warn!(?e, "failed to ensure sessions cwd dir for subagent session");
     }
     let parent_session_dir = session::persistence::session_dir(&SessionInfo {
@@ -2013,7 +2013,7 @@ pub(crate) async fn dispose_worktree_after_completion(
     final_status: &str,
     subagent_id: &str,
 ) -> Disposal {
-    let ref_name = format!("refs/grok/subagents/{subagent_id}");
+    let ref_name = format!("refs/xvora/subagents/{subagent_id}");
     let snapshot_ref = match crate::session::worktree::snapshot_subagent_worktree(
         worktree,
         source_repo,

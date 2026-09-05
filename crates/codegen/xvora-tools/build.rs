@@ -215,7 +215,7 @@ fn compress_and_pin(
 ///
 /// No auto-download (unlike ripgrep): bfs/ugrep publish no prebuilt static
 /// release assets, so the release pipeline supplies the path. Unset → not
-/// bundled (the runtime resolver falls back to `~/.grok/vendor` / `$PATH`);
+/// bundled (the runtime resolver falls back to `~/.xvora/vendor` / `$PATH`);
 /// never a hard failure, so an un-wired build still succeeds.
 fn bundle_search_tool(
     name: &str,

@@ -291,7 +291,7 @@ mod tests {
             worktree_id: victim_id.into(),
             dest: victim_dest,
             source_repo: tmp.path().join("repo"),
-            pin_ref: format!("refs/grok/worktrees/{victim_id}"),
+            pin_ref: format!("refs/xvora/worktrees/{victim_id}"),
             mount_id: 1,
             created_at: 1,
         };
@@ -300,7 +300,7 @@ mod tests {
             worktree_id: victim_id.into(),
             dest: harmless.clone(),
             source_repo: tmp.path().join("repo"),
-            pin_ref: format!("refs/grok/worktrees/{decoy_id}"),
+            pin_ref: format!("refs/xvora/worktrees/{decoy_id}"),
             mount_id: 1,
             created_at: 1,
         };
@@ -344,7 +344,7 @@ mod tests {
             worktree_id: id.into(),
             dest: dest.clone(),
             source_repo: tmp.path().join("repo"),
-            pin_ref: format!("refs/grok/worktrees/{id}"),
+            pin_ref: format!("refs/xvora/worktrees/{id}"),
             mount_id: 1,
             created_at: 1,
         };
@@ -376,7 +376,7 @@ mod tests {
             worktree_id: id.into(),
             dest: dest.clone(),
             source_repo: tmp.path().join("repo"),
-            pin_ref: format!("refs/grok/worktrees/{id}"),
+            pin_ref: format!("refs/xvora/worktrees/{id}"),
             mount_id: 1,
             created_at: 1,
         };

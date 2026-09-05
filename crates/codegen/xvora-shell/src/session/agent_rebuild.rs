@@ -472,7 +472,7 @@ mod tests {
             .expect("GrokBuild Task description should be present")
     }
     /// The `[toolset.web_search]` policy is authoritative on the backend-hosted path.
-    /// Agent frontmatter is model-writable (`.grok/agents/*.md`), so a configured blocklist must survive a frontmatter allowlist.
+    /// Agent frontmatter is model-writable (`.xvora/agents/*.md`), so a configured blocklist must survive a frontmatter allowlist.
     #[tokio::test(flavor = "current_thread")]
     async fn config_web_search_domains_beat_agent_frontmatter() {
         use xvora_sampling_types::{HostedTool, ToolOverrides, WebSearchOptions};
@@ -501,7 +501,7 @@ mod tests {
             spec_mut.web_search_config = WebSearchConfig::Enabled {
                 api_key: "test-key".to_string(),
                 base_url: "https://api.x.ai/v1".to_string(),
-                model: "grok-4".to_string(),
+                model: "xvora-4".to_string(),
                 extra_headers: Default::default(),
                 alpha_test_key: None,
                 allowed_domains: None,

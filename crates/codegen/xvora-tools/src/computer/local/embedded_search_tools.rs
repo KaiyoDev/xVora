@@ -12,8 +12,8 @@
 //! parses the flags itself.
 //!
 //! Resolve (host side, memoized): env override if a regular file → bundled binary
-//! (release builds, self-extracted to `~/.grok/vendor/<name>-<ver>-<target>`) →
-//! `~/.grok/vendor/{name}` if a regular file → `which` on the agent `$PATH`.
+//! (release builds, self-extracted to `~/.xvora/vendor/<name>-<ver>-<target>`) →
+//! `~/.xvora/vendor/{name}` if a regular file → `which` on the agent `$PATH`.
 //! Env/vendor only require `is_file()` as a lenient hint (no `--version` probe).
 //! This memoized path is only a *hint*: the injected shadow re-resolves at
 //! **call time** — it uses the hint when it's still *executable* (`[ -x ]`), else
@@ -180,13 +180,13 @@ fn resolve_tool(
     resolve_tool_from(
         std::env::var_os(env_override).map(PathBuf::from),
         bundled,
-        crate::util::grok_home().join("vendor").join(bin_name),
+        crate::util::xvora_home().join("vendor").join(bin_name),
         bin_name,
     )
 }
 
 /// Resolution order: explicit env path → bundled (self-extracted) →
-/// `~/.grok/vendor/<bin>` → `which`. Env and vendor only require `is_file()` here
+/// `~/.xvora/vendor/<bin>` → `which`. Env and vendor only require `is_file()` here
 /// (a lenient hint, no `+x` probe) so an odd-permission copy still resolves; the
 /// injected shadow gates on `[ -x ]` at call time and falls back to the OS binary
 /// if the hint isn't executable, so a non-exec path can't hard-fail `find`/`grep`.
@@ -431,7 +431,7 @@ mod tests {
     #[test]
     fn env_override_accepts_regular_file_without_exec_bit() {
         let bin = std::env::temp_dir().join(format!(
-            "grok-bfs-noexec-{}-{}",
+            "xvora-bfs-noexec-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -461,13 +461,14 @@ mod tests {
     #[test]
     fn resolve_tool_precedence() {
         // Real temp files so the is_file() checks pass.
-        let dir = std::env::temp_dir().join(format!("grok-resolve-{}-{:?}", std::process::id(), {
-            use std::time::{SystemTime, UNIX_EPOCH};
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        }));
+        let dir =
+            std::env::temp_dir().join(format!("xvora-resolve-{}-{:?}", std::process::id(), {
+                use std::time::{SystemTime, UNIX_EPOCH};
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            }));
         std::fs::create_dir_all(&dir).unwrap();
         let envp = dir.join("env");
         let bundled = dir.join("bundled");
@@ -508,11 +509,11 @@ mod tests {
 
     /// Only compiled when the binaries are actually bundled (release pipeline, or
     /// `GROK_TOOLS_BUNDLE_{BFS,UGREP}_PATH` at build time). Verifies the embedded
-    /// bytes self-extract under `~/.grok/vendor` and the extracted `bfs` runs.
+    /// bytes self-extract under `~/.xvora/vendor` and the extracted `bfs` runs.
     #[cfg(all(bundle_bfs, bundle_ugrep))]
     #[test]
     fn bundled_binaries_extract_and_run() {
-        let vendor = crate::util::grok_home().join("vendor");
+        let vendor = crate::util::xvora_home().join("vendor");
         let bfs = bundled_bfs()
             .expect("bfs resolves")
             .expect("bfs should be bundled");
@@ -661,7 +662,7 @@ mod tests {
             return;
         };
         let dir = std::env::temp_dir().join(format!(
-            "grok-selfheal-{}-{}",
+            "xvora-selfheal-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -733,7 +734,7 @@ mod tests {
             return;
         };
         let dir = std::env::temp_dir().join(format!(
-            "grok-noexec-{}-{}",
+            "xvora-noexec-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

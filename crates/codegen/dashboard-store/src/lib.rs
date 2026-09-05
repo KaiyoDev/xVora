@@ -47,9 +47,9 @@ pub use types::{
     WorkspaceSnapshot,
 };
 
-/// The canonical store path under a grok home.
-/// The caller resolves the grok home (nothing in this crate reads `GROK_HOME`); tests pass a temp dir.
+/// The canonical store path under a xvora home.
+/// The caller resolves the xvora home (nothing in this crate reads `xvora_home`); tests pass a temp dir.
 /// [`WorkspaceStore::open`] creates the dedicated subdirectory 0700, and every sibling file the store ever creates lives inside it.
-pub fn default_db_path(grok_home: &Path) -> PathBuf {
-    grok_home.join("dashboard").join("workspace.db")
+pub fn default_db_path(xvora_home: &Path) -> PathBuf {
+    xvora_home.join("dashboard").join("workspace.db")
 }

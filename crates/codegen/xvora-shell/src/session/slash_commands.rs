@@ -567,7 +567,7 @@ pub const PAGER_COMMAND_KEYS: &[&str] = &[
     "workflows",
     "yolo",
 ];
-/// Unconditional reservations for `grok inspect`.
+/// Unconditional reservations for `xvora inspect`.
 /// Live advertising still includes currently gated-on shell builtins plus [`PAGER_COMMAND_KEYS`].
 static RESERVED_SLASH_NAMES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut taken: HashSet<&'static str> = PAGER_COMMAND_KEYS.iter().copied().collect();
@@ -856,7 +856,7 @@ pub(crate) struct ListCommandsRequest {
     pub session_id: Option<acp::SessionId>,
     #[serde(default)]
     pub cwd: Option<String>,
-    /// Product lane: `"chat"` filters to Grok Chat / Grok Computer first-party skills only.
+    /// Product lane: `"chat"` filters to xvora Chat / xvora Computer first-party skills only.
     /// Omitted or any other value keeps the full Build catalog.
     #[serde(default)]
     pub kind: Option<String>,
@@ -884,7 +884,7 @@ static PRODUCT_SKILLS_NEGATIVE_CACHE: parking_lot::Mutex<Option<ProductSkillsIde
 /// Callers re-check caches after acquiring the gate.
 static PRODUCT_SKILLS_FETCH_GATE: std::sync::OnceLock<tokio::sync::Mutex<()>> =
     std::sync::OnceLock::new();
-/// Fresh successful catalog is reused without another REST round-trip so ACU, list, and per-turn resolve do not stampede grok.com.
+/// Fresh successful catalog is reused without another REST round-trip so ACU, list, and per-turn resolve do not stampede xvora.com.
 const PRODUCT_SKILLS_SUCCESS_TTL: std::time::Duration = std::time::Duration::from_secs(60);
 /// Bounded negative cache for user-list failure (bundled-only).
 /// Keeps consumers from re-paying the full retry ladder during a short outage.
@@ -1012,7 +1012,7 @@ pub(crate) fn clear_product_skills_cache_for_test() {
     *PRODUCT_SKILLS_DEGRADED_CACHE.lock() = None;
     *PRODUCT_SKILLS_NEGATIVE_CACHE.lock() = None;
 }
-/// Product (grok.com) Skills catalog as SkillInfo rows for slash advertising and chat-kind slash resolve / skill expansion.
+/// Product (xvora.com) Skills catalog as SkillInfo rows for slash advertising and chat-kind slash resolve / skill expansion.
 ///
 /// Shared by `list_commands(kind=chat)`, chat-session `available_commands_update`, and turn/interjection skill resolution.
 /// Never substitutes Build disk skills.
@@ -1156,7 +1156,7 @@ pub(crate) fn acu_skill_source(is_chat_kind: bool) -> AcuSkillSource {
 /// Build the available commands list, optionally scoped to a working directory.
 /// - `Some(cwd)`: full skill discovery (Local, Repo, and User) plus builtins.
 /// - `None`: builtins plus global (User-scoped) skills only.
-/// - `kind == Some("chat")` (feature `chat` only): **product Skills REST catalog** (same as grok-web) plus builtins, not Build disk skills.
+/// - `kind == Some("chat")` (feature `chat` only): **product Skills REST catalog** (same as xvora-web) plus builtins, not Build disk skills.
 ///   Without the feature, returns `Err` (invalid params).
 ///   Product REST failure still advertises builtins only (empty product skills).
 pub(crate) async fn list_commands(
@@ -1367,7 +1367,7 @@ impl BuiltinAction {
 }
 /// How to rewrite the user's prompt when a slash command resolves to a skill.
 ///
-/// - `RewriteToRun` (default): replace `/foo args` with `"run /foo args"`, matching today's Grok Build flow that calls our dedicated `skill` tool.
+/// - `RewriteToRun` (default): replace `/foo args` with `"run /foo args"`, matching today's xvora build flow that calls our dedicated `skill` tool.
 /// - `Passthrough`: leave the prompt verbatim.
 ///   Some templates use this: the model is trained to spot a leading `/<name>` and look it up in the `<agent_skills>` listing.
 ///   It then calls the Read tool on `fullPath`.

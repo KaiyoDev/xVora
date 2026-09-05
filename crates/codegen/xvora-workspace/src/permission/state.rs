@@ -3,7 +3,7 @@
 use crate::permission::types::EditPolicy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use tools::util::grok_home::grok_home;
+use tools::util::xvora_home::xvora_home;
 use xvora_paths::AbsPathBuf;
 
 const VALIDATED_MCP_SERVER_GRANTS_VERSION: i64 = 1;
@@ -365,7 +365,7 @@ async fn persist_state_to_dir(
     let path = state_file_path(dir, client_identifier);
     let dir = dir.to_path_buf();
     // Owner-only dir creation runs inside the writer's spawn_blocking
-    // GROK_HOME may sit on a slow filesystem, so no blocking fs work on the async worker
+    // xvora_home may sit on a slow filesystem, so no blocking fs work on the async worker
     let result = persist_state_to_path_with_writer(&path, state, move |path, contents| {
         config::create_dir_all_owner_only(&dir)?;
         config::fs_atomic::write_atomically(path, contents, None)
@@ -413,7 +413,7 @@ pub(crate) async fn replace_state_on_disk(
 }
 
 pub async fn cleanup_stale_permission_state(max_age: std::time::Duration) {
-    let sessions_dir = grok_home().join("sessions");
+    let sessions_dir = xvora_home().join("sessions");
     let Ok(mut entries) = tokio::fs::read_dir(&sessions_dir).await else {
         return;
     };

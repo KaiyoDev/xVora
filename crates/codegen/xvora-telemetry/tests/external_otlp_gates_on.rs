@@ -18,7 +18,7 @@ use telemetry::external::{self, ExternalOtelRemotePolicy, IdentityAttrs};
 
 // Secret shapes that MUST be scrubbed everywhere, even inside gated content
 const SECRET_KEY: &str = "sk-LEAKaaaaaaaaaaaaaaaa1234567890";
-const SECRET_MODEL: &str = "grok-4-sk-LEAKmodel1234567890abcd";
+const SECRET_MODEL: &str = "xvora-4-sk-LEAKmodel1234567890abcd";
 // Benign markers: with the gate ON these MUST appear on the wire (proving the gated field is actually exported, not just that the scrub ran)
 const PROMPT_MARK: &str = "promptbodymarker";
 const PARAM_MARK: &str = "parammarker";
@@ -81,9 +81,9 @@ fn external_stream_gates_on_end_to_end() {
 
     telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-gates-on".into(),
-        client_identifier: Some("grok-pager".into()),
-        model_id: "grok-4".into(),
-        agent_name: "grok-build-plan".into(),
+        client_identifier: Some("xvora-pager".into()),
+        model_id: "xvora-4".into(),
+        agent_name: "xvora-build-plan".into(),
         permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec!["internal-mcp".into()],
         plugin_names: vec![],
@@ -98,7 +98,7 @@ fn external_stream_gates_on_end_to_end() {
     });
     telemetry::log_event(telemetry::events::PromptSubmitted {
         prompt_length: 100,
-        model_id: "grok-4".into(),
+        model_id: "xvora-4".into(),
         client_identifier: None,
         screen_mode: None,
         prompt_text: Some(format!("refactor {PROMPT_MARK} with key {SECRET_KEY} now")),
@@ -195,8 +195,8 @@ fn external_stream_gates_on_end_to_end() {
             .resource
             .get("service.name")
             .and_then(|v| v.as_str()),
-        Some("grok-cli"),
-        "service.name=grok-cli is a wire commitment"
+        Some("xvora-cli"),
+        "service.name=xvora-cli is a wire commitment"
     );
     assert_eq!(
         harness
@@ -438,7 +438,7 @@ fn external_stream_gates_on_end_to_end() {
     );
     telemetry::log_event(telemetry::events::PromptSubmitted {
         prompt_length: 1,
-        model_id: "grok-4".into(),
+        model_id: "xvora-4".into(),
         client_identifier: None,
         screen_mode: None,
         prompt_text: Some("post-kill".into()),

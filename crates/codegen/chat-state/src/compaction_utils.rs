@@ -967,17 +967,17 @@ pub struct CompactedHistoryInput<'a> {
     /// summary. `None` means no state reminder is appended.
     pub system_reminder: Option<String>,
     /// When `true`, emit the compaction summary *before* recent messages.
-    /// When `false` (the default), recent messages come first (grok-build
+    /// When `false` (the default), recent messages come first (xvora-build
     /// ordering).
     pub summary_before_recent: bool,
     /// Pre-built transcript hint appended to the summary (caller builds it via
     /// [`crate::CompactionMode::transcript_hint`] or
     /// [`format_transcript_location`]). `None` to omit. Appended to BOTH the
-    /// carrier and the grok-build summary.
+    /// carrier and the xvora-build summary.
     pub transcript_hint: Option<String>,
     /// Number of summaries generated so far for this user query, *including*
     /// the one being built. Rendered verbatim into the carrier's
-    /// "Total summaries generated so far …" footer. Ignored by the grok-build
+    /// "Total summaries generated so far …" footer. Ignored by the xvora-build
     /// (`summary_before_recent == false`) path. Callers that don't track a
     /// counter pass `1`.
     pub summary_count: u64,

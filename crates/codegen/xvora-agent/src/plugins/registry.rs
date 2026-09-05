@@ -75,9 +75,9 @@ pub struct LoadedPlugin {
 }
 
 impl LoadedPlugin {
-    /// Data directory for this plugin: `~/.grok/plugin-data/<plugin_id>/`.
+    /// Data directory for this plugin: `~/.xvora/plugin-data/<plugin_id>/`.
     pub fn data_dir(&self) -> PathBuf {
-        config::grok_home().join("plugin-data").join(&self.id.0)
+        config::xvora_home().join("plugin-data").join(&self.id.0)
     }
 
     /// Plugin root path as a string (for env var substitution).
@@ -842,7 +842,7 @@ mod tests {
         let reg = PluginRegistry::from_discovered(vec![dp], &[], &[]);
         let plugin = reg.get("my-plugin").unwrap();
         let data_dir = plugin.data_dir();
-        // Should be under ~/.grok/plugin-data/<plugin_id>/
+        // Should be under ~/.xvora/plugin-data/<plugin_id>/
         let data_dir_str = data_dir.to_string_lossy();
         assert!(data_dir_str.contains("plugin-data"));
         assert!(data_dir_str.contains("user/"));

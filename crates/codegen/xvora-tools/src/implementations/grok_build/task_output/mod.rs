@@ -817,7 +817,7 @@ impl crate::types::tool_metadata::ToolMetadata for TaskOutputTool {
     fn description_template(&self) -> &str {
         // Canonical wording lives in the shared builder; `versioned_definition`
         // renders it context-aware from the finalized toolset. This static
-        // fallback mirrors the default grok-build toolset.
+        // fallback mirrors the default xvora-build toolset.
         static DESC: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
             tool_types::build_task_output_description(&tool_types::TaskOutputToolNaming {
                 monitor_tool: Some("monitor"),
@@ -1181,7 +1181,7 @@ mod tests {
     fn tool_name_and_description() {
         let tool = TaskOutputTool;
         assert_eq!(tool_runtime::Tool::id(&tool).as_str(), "get_task_output");
-        // The static fallback is the shared builder's default grok-build
+        // The static fallback is the shared builder's default xvora-build
         // rendering (monitor + task + bash + read present): concrete names, no
         // leftover template markers.
         let desc = ToolMetadata::description_template(&tool);

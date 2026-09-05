@@ -3,7 +3,7 @@
 //! and `xvora-fast-worktree`.
 //!
 //! Which function to call:
-//! - [`grok_home`]: the usual choice, a cached, created path to build on.
+//! - [`xvora_home`]: the usual choice, a cached, created path to build on.
 //! - [`user_grok_home`]: `None` instead of a cwd fallback when no home resolves.
 //! - [`default_grok_home`]: the `<home>/.xvora` default, ignoring `$XVORA_HOME`, so callers can detect an override.
 //! - [`resolve_grok_home`]: a fresh, uncached resolve.
@@ -22,7 +22,7 @@ use std::sync::OnceLock;
 /// environment at the asking site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GrokHomeSource {
-    /// A non-empty `$XVORA_HOME` / `$GROK_HOME` override.
+    /// A non-empty `$XVORA_HOME` / `$xvora_home` override.
     EnvOverride,
     /// `<home>/.xvora` derived from the home directory.
     HomeDefault,
@@ -33,8 +33,8 @@ pub enum GrokHomeSource {
 ///
 /// Deliberately not `dirs::home_dir()`: on Windows `dirs` asks the
 /// known-folder API and ignores a redirected `USERPROFILE`, while this crate
-/// resolves `~/.grok` from the profile variable — mixing the two sources puts
-/// the grok directory and other home-anchored dot directories in different
+/// resolves `~/.xvora` from the profile variable — mixing the two sources puts
+/// the xvora directory and other home-anchored dot directories in different
 /// trees. Every home-anchored path must come from this one function.
 #[allow(deprecated, clippy::disallowed_methods)] // the one sanctioned std::env::home_dir call
 pub fn home_dir() -> Option<PathBuf> {
@@ -64,19 +64,19 @@ fn resolve_grok_home_from(
 }
 
 /// Resolve the home dir from the environment (fresh, no cache); `None` if neither resolves.
-/// Supports both `$XVORA_HOME` and legacy `$GROK_HOME`.
+/// Supports both `$XVORA_HOME` and legacy `$xvora_home`.
 pub fn resolve_grok_home() -> Option<PathBuf> {
     resolve_grok_home_with_source().map(|(home, _)| home)
 }
 
 /// [`resolve_grok_home`] plus the [`GrokHomeSource`] the path came from.
 pub fn resolve_grok_home_with_source() -> Option<(PathBuf, GrokHomeSource)> {
-    // Try XVORA_HOME first, then fall back to GROK_HOME for backward compat
+    // Try XVORA_HOME first, then fall back to xvora_home for backward compat
     let xvora_home = std::env::var_os("XVORA_HOME");
-    let grok_home = std::env::var_os("GROK_HOME");
+    let xvora_home = std::env::var_os("xvora_home");
     let resolved = if let Some(env) = xvora_home.filter(|v| !v.is_empty()) {
         Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
-    } else if let Some(env) = grok_home.filter(|v| !v.is_empty()) {
+    } else if let Some(env) = xvora_home.filter(|v| !v.is_empty()) {
         Some((PathBuf::from(env), GrokHomeSource::EnvOverride))
     } else {
         home_dir().map(|home| (grok_home_in(&home), GrokHomeSource::HomeDefault))
@@ -89,24 +89,24 @@ pub fn default_grok_home() -> PathBuf {
     grok_home_in(&home_dir().unwrap_or_else(|| PathBuf::from(".")))
 }
 
-/// The grok home, created if missing and cached for the process; falls back to
-/// [`default_grok_home`] when neither `$GROK_HOME` nor a home resolves.
-pub fn grok_home() -> PathBuf {
-    static GROK_HOME: OnceLock<PathBuf> = OnceLock::new();
-    GROK_HOME
+/// The xvora home, created if missing and cached for the process; falls back to
+/// [`default_grok_home`] when neither `$xvora_home` nor a home resolves.
+pub fn xvora_home() -> PathBuf {
+    static xvora_home: OnceLock<PathBuf> = OnceLock::new();
+    xvora_home
         .get_or_init(|| {
             let home = resolve_grok_home().unwrap_or_else(default_grok_home);
             if let Err(err) = std::fs::create_dir_all(&home) {
-                tracing::warn!(path = %home.display(), %err, "failed to create grok home");
+                tracing::warn!(path = %home.display(), %err, "failed to create xvora home");
             }
             home
         })
         .clone()
 }
 
-/// Like [`grok_home`], but `None` when no home resolves (no cwd fallback).
+/// Like [`xvora_home`], but `None` when no home resolves (no cwd fallback).
 pub fn user_grok_home() -> Option<PathBuf> {
-    resolve_grok_home().is_some().then(grok_home)
+    resolve_grok_home().is_some().then(xvora_home)
 }
 
 #[cfg(test)]
@@ -144,7 +144,7 @@ mod tests {
         assert_eq!(
             resolved,
             Some((
-                dunce::canonicalize(tmp.path()).unwrap().join(".grok"),
+                dunce::canonicalize(tmp.path()).unwrap().join(".xvora"),
                 GrokHomeSource::HomeDefault
             ))
         );
@@ -157,7 +157,7 @@ mod tests {
         // comparisons. No-op assertion on Unix.
         let home = default_grok_home();
         assert!(!home.to_string_lossy().starts_with(r"\\?\"));
-        assert!(home.ends_with(".grok"));
+        assert!(home.ends_with(".xvora"));
     }
 
     #[test]

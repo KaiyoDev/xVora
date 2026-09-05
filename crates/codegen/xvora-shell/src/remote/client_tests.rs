@@ -80,9 +80,9 @@ async fn start_login_config_server(
                         authorization: header_str(&headers, "authorization"),
                         user_id: header_str(&headers, "x-userid"),
                         email: header_str(&headers, "x-email"),
-                        agent_id: header_str(&headers, "x-grok-agent-id"),
-                        client_identifier: header_str(&headers, "x-grok-client-identifier"),
-                        client_version: header_str(&headers, "x-grok-client-version"),
+                        agent_id: header_str(&headers, "x-xvora-agent-id"),
+                        client_identifier: header_str(&headers, "x-xvora-client-identifier"),
+                        client_version: header_str(&headers, "x-xvora-client-version"),
                     });
                     (state.status_code, state.body)
                 },
@@ -137,15 +137,15 @@ async fn fetch_login_device_flow_sends_only_unauthenticated_headers() {
         .expect("server should have received one request");
     assert!(
         h.agent_id.as_deref().is_some_and(|v| !v.is_empty()),
-        "must send x-grok-agent-id (the bucketing key)"
+        "must send x-xvora-agent-id (the bucketing key)"
     );
     assert!(
         h.client_identifier.is_some(),
-        "must send x-grok-client-identifier"
+        "must send x-xvora-client-identifier"
     );
     assert!(
         h.client_version.is_some(),
-        "must send x-grok-client-version"
+        "must send x-xvora-client-version"
     );
     assert_eq!(h.authorization, None, "must not send Authorization");
     assert_eq!(h.user_id, None, "must not send x-userid");
@@ -256,7 +256,7 @@ async fn start_bundle_server(
                             None
                         },
                         client_version: headers
-                            .get("x-grok-client-version")
+                            .get("x-xvora-client-version")
                             .and_then(|v| v.to_str().ok())
                             .map(str::to_owned),
                     });
@@ -292,7 +292,7 @@ async fn start_bundle_server(
                             None
                         },
                         client_version: headers
-                            .get("x-grok-client-version")
+                            .get("x-xvora-client-version")
                             .and_then(|v| v.to_str().ok())
                             .map(str::to_owned),
                     });
@@ -550,7 +550,7 @@ fn parse_reads_meta_fallback_fields() {
 #[test]
 fn parse_remote_model_value_no_laziness_detector_block_yields_default() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
     });
     let result = parse_remote_model_value(&value, "https://default.url").unwrap();
@@ -562,7 +562,7 @@ fn parse_remote_model_value_no_laziness_detector_block_yields_default() {
 #[test]
 fn parse_remote_model_value_parses_camelcase_key() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": {
             "enabled": true,
@@ -584,7 +584,7 @@ fn parse_remote_model_value_parses_camelcase_key() {
 #[test]
 fn parse_remote_model_value_parses_snake_case_laziness_detector() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "laziness_detector": {
             "enabled": true,
@@ -606,7 +606,7 @@ fn parse_remote_model_value_parses_snake_case_laziness_detector() {
 #[test]
 fn parse_remote_model_value_parses_meta_laziness_detector() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "_meta": {
             "lazinessDetector": {
@@ -630,7 +630,7 @@ fn parse_remote_model_value_parses_meta_laziness_detector() {
 #[test]
 fn parse_remote_model_value_partial_block_uses_field_defaults() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": {
             "enabled": true,
@@ -649,7 +649,7 @@ fn parse_remote_model_value_partial_block_uses_field_defaults() {
 #[test]
 fn parse_remote_model_value_malformed_block_falls_back_to_default() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": {
             "enabled": true,
@@ -665,7 +665,7 @@ fn parse_remote_model_value_malformed_block_falls_back_to_default() {
 #[test]
 fn parse_remote_model_value_non_object_value_falls_back_to_default() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": "not-an-object",
     });
@@ -678,7 +678,7 @@ fn parse_remote_model_value_non_object_value_falls_back_to_default() {
 #[test]
 fn parse_remote_model_value_top_level_camelcase_wins_over_snake_case() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": {
             "enabled": true,
@@ -704,7 +704,7 @@ fn parse_remote_model_value_top_level_camelcase_wins_over_snake_case() {
 #[test]
 fn parse_remote_model_value_parses_include_reasoning_under_camelcase_wrapper() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": {
             "enabled": true,
@@ -717,7 +717,7 @@ fn parse_remote_model_value_parses_include_reasoning_under_camelcase_wrapper() {
 #[test]
 fn parse_remote_model_value_parses_include_reasoning_under_snake_case_wrapper() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "laziness_detector": {
             "enabled": true,
@@ -730,7 +730,7 @@ fn parse_remote_model_value_parses_include_reasoning_under_snake_case_wrapper() 
 #[test]
 fn parse_remote_model_value_omitted_include_reasoning_defaults_to_none() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": {
             "enabled": true,
@@ -746,7 +746,7 @@ fn parse_remote_model_value_omitted_include_reasoning_defaults_to_none() {
 #[test]
 fn parse_remote_model_value_top_level_wins_over_meta() {
     let value = serde_json::json!({
-        "model": "grok-4",
+        "model": "xvora-4",
         "context_window": 256_000,
         "lazinessDetector": {
             "enabled": true,
@@ -772,21 +772,21 @@ fn parse_remote_model_value_top_level_wins_over_meta() {
 #[test]
 fn parse_reads_show_model_fingerprint_field() {
     let value = serde_json::json!({
-        "model": "grok-build",
+        "model": "xvora-build",
         "context_window": 256_000,
         "show_model_fingerprint": true
     });
     let result = parse_remote_model_value(&value, "https://default.url").unwrap();
     assert!(result.show_model_fingerprint);
     let value = serde_json::json!({
-        "model": "grok-build",
+        "model": "xvora-build",
         "contextWindow": 256_000,
         "showModelFingerprint": true
     });
     let result = parse_remote_model_value(&value, "https://default.url").unwrap();
     assert!(result.show_model_fingerprint);
     let value = serde_json::json!({
-        "model": "grok-build",
+        "model": "xvora-build",
         "context_window": 256_000,
         "_meta": { "showModelFingerprint": true }
     });
@@ -838,13 +838,16 @@ fn endpoints(
 }
 #[test]
 fn inference_url_defaults_to_proxy() {
-    let ep = endpoints("https://proxy.grok.com/v1", None, None);
-    assert_eq!(ep.resolve_inference_base_url(), "https://proxy.grok.com/v1");
+    let ep = endpoints("https://proxy.xvora.com/v1", None, None);
+    assert_eq!(
+        ep.resolve_inference_base_url(),
+        "https://proxy.xvora.com/v1"
+    );
 }
 #[test]
 fn inference_url_uses_models_base_url() {
     let ep = endpoints(
-        "https://proxy.grok.com/v1",
+        "https://proxy.xvora.com/v1",
         Some("https://enterprise.acme.com/v1"),
         None,
     );
@@ -856,7 +859,7 @@ fn inference_url_uses_models_base_url() {
 #[test]
 fn inference_url_base_url_wins_over_proxy() {
     let ep = endpoints(
-        "https://proxy.grok.com/v1",
+        "https://proxy.xvora.com/v1",
         Some("https://inference.acme.com/v1"),
         Some("https://registry.acme.com/api/models"),
     );
@@ -867,16 +870,16 @@ fn inference_url_base_url_wins_over_proxy() {
 }
 #[test]
 fn list_url_defaults_to_proxy_models() {
-    let ep = endpoints("https://proxy.grok.com/v1", None, None);
+    let ep = endpoints("https://proxy.xvora.com/v1", None, None);
     assert_eq!(
         ep.resolve_models_list_url(),
-        "https://proxy.grok.com/v1/models"
+        "https://proxy.xvora.com/v1/models"
     );
 }
 #[test]
 fn list_url_derived_from_base_url() {
     let ep = endpoints(
-        "https://proxy.grok.com/v1",
+        "https://proxy.xvora.com/v1",
         Some("https://api.x.ai/v1"),
         None,
     );
@@ -885,7 +888,7 @@ fn list_url_derived_from_base_url() {
 #[test]
 fn list_url_explicit_overrides_derivation() {
     let ep = endpoints(
-        "https://proxy.grok.com/v1",
+        "https://proxy.xvora.com/v1",
         Some("https://inference.acme.com/v1"),
         Some("https://registry.acme.com/api/list-models"),
     );
@@ -894,7 +897,7 @@ fn list_url_explicit_overrides_derivation() {
         "https://registry.acme.com/api/list-models"
     );
 }
-/// REGRESSION: `grok setup` must send the deployment key to the proxy, never the inference endpoint.
+/// REGRESSION: `xvora setup` must send the deployment key to the proxy, never the inference endpoint.
 #[test]
 #[serial_test::serial]
 fn deployment_config_url_uses_cli_chat_proxy_when_not_overridden() {
@@ -914,7 +917,7 @@ fn deployment_config_url_uses_cli_chat_proxy_when_not_overridden() {
     )
     .unwrap();
     let url = EndpointsConfig::from_config_value(&managed).resolve_managed_config_url();
-    assert_eq!(url, "https://cli-chat-proxy.grok.com/v1/deployment/config");
+    assert_eq!(url, "https://cli-chat-proxy.xvora.com/v1/deployment/config");
     assert!(
         !url.contains("acme-corp"),
         "deployment key would be sent to the inference host: {url}"

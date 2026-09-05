@@ -55,9 +55,9 @@ pub struct PermissionResolution {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum ClientType {
     #[default]
-    #[serde(rename = "generic", alias = "grok-shell", alias = "grok_shell")]
+    #[serde(rename = "generic", alias = "xvora-shell", alias = "grok_shell")]
     Generic,
-    #[serde(rename = "grok-tui", alias = "grok_tui")]
+    #[serde(rename = "xvora-tui", alias = "grok_tui")]
     GrokTUI,
     #[serde(rename = "grok_web")]
     GrokWeb,
@@ -65,7 +65,7 @@ pub enum ClientType {
     Nebula,
     #[serde(rename = "extension")]
     Extension,
-    #[serde(rename = "grok-pager", alias = "grok_pager")]
+    #[serde(rename = "xvora-pager", alias = "grok_pager")]
     GrokPager,
     #[serde(rename = "grok_desktop")]
     Desktop,
@@ -73,22 +73,22 @@ pub enum ClientType {
 impl ClientType {
     pub fn user_agent_label(&self) -> &'static str {
         match self {
-            Self::Generic => "grok-shell",
-            Self::GrokTUI => "grok-tui",
-            Self::GrokWeb => "grok-web",
+            Self::Generic => "xvora-shell",
+            Self::GrokTUI => "xvora-tui",
+            Self::GrokWeb => "xvora-web",
             Self::Nebula => "nebula",
-            Self::Extension => "grok-code-extension",
-            Self::GrokPager => "grok-pager",
-            Self::Desktop => "grok-desktop",
+            Self::Extension => "xvora-code-extension",
+            Self::GrokPager => "xvora-pager",
+            Self::Desktop => "xvora-desktop",
         }
     }
     pub fn from_client_identifier(id: Option<&str>) -> Self {
         match id {
-            Some("grok-web") => Self::GrokWeb,
+            Some("xvora-web") => Self::GrokWeb,
             Some("nebula") => Self::Nebula,
-            Some("grok-code-extension") => Self::Extension,
-            Some("grok-desktop") => Self::Desktop,
-            Some("grok-pager") => Self::GrokPager,
+            Some("xvora-code-extension") => Self::Extension,
+            Some("xvora-desktop") => Self::Desktop,
+            Some("xvora-pager") => Self::GrokPager,
             _ => Self::Generic,
         }
     }
@@ -816,7 +816,7 @@ mod tests {
     #[test]
     fn client_type_deserializes_grok_shell_as_generic() {
         assert_eq!(
-            serde_json::from_value::<ClientType>("grok-shell".into()).unwrap(),
+            serde_json::from_value::<ClientType>("xvora-shell".into()).unwrap(),
             ClientType::Generic,
         );
         assert_eq!(

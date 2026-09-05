@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 use shell::extensions::billing::{BillingConfig, Cent, UsagePeriod};
 /// The invalid-params server detail survives `attach_prompt_usage` wrapping `error.data` as `{message, promptUsage}`.
@@ -69,10 +69,10 @@ fn format_acp_error_rate_limit_surfaces_detail_or_fallback() {
         ));
     assert_eq!(format_acp_error(&capacity, false), cap_body);
     assert_eq!(format_acp_error(&capacity, true), cap_body);
-    let rpm_body = "You are sending requests too quickly. Please slow down, or upgrade to a Grok subscription for higher limits: https://grok.com/supergrok";
+    let rpm_body = "You are sending requests too quickly. Please slow down, or upgrade to a xvora subscription for higher limits: https://xvora.com/supergrok";
     let rpm = acp::Error::new(RATE_LIMITED_ERROR_CODE, "Rate limited")
         .data(format!("API error (status 429 Too Many Requests): {rpm_body}"));
-    assert!(format_acp_error(&rpm, false).contains("grok.com/supergrok"));
+    assert!(format_acp_error(&rpm, false).contains("xvora.com/supergrok"));
     assert_eq!(format_acp_error(&rpm, true), RATE_LIMITED_USER_MESSAGE_API_KEY);
     let empty = acp::Error::new(RATE_LIMITED_ERROR_CODE, "Rate limited");
     assert_eq!(format_acp_error(&empty, false), RATE_LIMITED_USER_MESSAGE_OAUTH);
@@ -194,7 +194,7 @@ fn picker_drops_local_with_missing_updated_at() {
             "local rows still require a parseable updatedAt"
         );
 }
-/// Untitled grok.com chats must stay listed, rendered as "Untitled".
+/// Untitled xvora.com chats must stay listed, rendered as "Untitled".
 #[test]
 fn picker_keeps_untitled_conversation_as_untitled() {
     let payload = serde_json::json!({
@@ -923,11 +923,11 @@ fn spawn_fake_acp_agent(
     });
     counter
 }
-/// Redirect `GROK_HOME` to a tempdir for test isolation.
+/// Redirect `xvora_home` to a tempdir for test isolation.
 fn setup_grok_home_in_tempdir() -> tempfile::TempDir {
     let tmp = tempfile::tempdir().expect("tempdir creation");
     unsafe {
-        std::env::set_var("GROK_HOME", tmp.path());
+        std::env::set_var("xvora_home", tmp.path());
     }
     tmp
 }
@@ -1477,7 +1477,7 @@ async fn foreign_scan_task_echoes_sequence_without_enabled_sources() {
         Effect::ScanForeignSessions {
             cwd: PathBuf::from("/path/that/must/not/be-read"),
             compat: foreign_sessions::EnabledForeignSessionSources::default(),
-            grok_home: PathBuf::from("/path/that/must/not/be-read"),
+            xvora_home: PathBuf::from("/path/that/must/not/be-read"),
             coordinator: app_coordinator.clone(),
             seq: 41,
         },
@@ -1530,7 +1530,7 @@ async fn foreign_resume_detection_runs_as_task_result() {
         Effect::DetectForeignResumeHint {
             canonical_cwd: canonical_cwd.clone(),
             compat: foreign_sessions::EnabledForeignSessionSources::default(),
-            grok_home: PathBuf::from("/path/that/must/not-be-read"),
+            xvora_home: PathBuf::from("/path/that/must/not-be-read"),
             launch_token: 8,
         },
         &mut tasks,
@@ -1985,7 +1985,7 @@ fn agent_profile_names_are_valid_builtins() {
                 ask_user: false,
                 ..Default::default()
             },
-            "grok-build-plan",
+            "xvora-build-plan",
         ),
         (
             SessionFlags {
@@ -1994,7 +1994,7 @@ fn agent_profile_names_are_valid_builtins() {
                 ask_user: false,
                 ..Default::default()
             },
-            "grok-build-plan-no-subagents",
+            "xvora-build-plan-no-subagents",
         ),
         (
             SessionFlags {
@@ -2003,7 +2003,7 @@ fn agent_profile_names_are_valid_builtins() {
                 ask_user: true,
                 ..Default::default()
             },
-            "grok-build-plan",
+            "xvora-build-plan",
         ),
         (
             SessionFlags {
@@ -2012,7 +2012,7 @@ fn agent_profile_names_are_valid_builtins() {
                 ask_user: true,
                 ..Default::default()
             },
-            "grok-build-plan-no-subagents",
+            "xvora-build-plan-no-subagents",
         ),
         (
             SessionFlags {
@@ -2021,7 +2021,7 @@ fn agent_profile_names_are_valid_builtins() {
                 ask_user: true,
                 ..Default::default()
             },
-            "grok-build-ask-user",
+            "xvora-build-ask-user",
         ),
         (
             SessionFlags {
@@ -2030,7 +2030,7 @@ fn agent_profile_names_are_valid_builtins() {
                 ask_user: true,
                 ..Default::default()
             },
-            "grok-build-ask-user",
+            "xvora-build-ask-user",
         ),
     ];
     for (flags, expected_name) in test_cases {
@@ -2048,13 +2048,13 @@ fn agent_profile_names_are_valid_builtins() {
             );
     }
 }
-/// Default flags produce no agent profile (uses grok-build default).
+/// Default flags produce no agent profile (uses xvora-build default).
 #[test]
 fn default_flags_produce_no_profile() {
     let flags = SessionFlags::default();
     assert_eq!(flags.agent_profile(), None);
 }
-/// --subagents alone produces no profile (grok-build already has TaskTool).
+/// --subagents alone produces no profile (xvora-build already has TaskTool).
 #[test]
 fn subagents_without_plan_produces_no_profile() {
     let flags = SessionFlags {
@@ -2086,7 +2086,7 @@ fn runtime_default_flags_produce_plan_meta() {
         ..Default::default()
     };
     let meta = flags.to_meta().unwrap();
-    assert_eq!(meta["agentProfile"], "grok-build-plan");
+    assert_eq!(meta["agentProfile"], "xvora-build-plan");
     assert!(meta.get("askUserQuestion").is_none());
     assert_eq!(meta["yoloMode"], false);
 }
@@ -2102,7 +2102,7 @@ fn plan_only_meta() {
         ..Default::default()
     };
     let meta = flags.to_meta().unwrap();
-    assert_eq!(meta["agentProfile"], "grok-build-plan-no-subagents");
+    assert_eq!(meta["agentProfile"], "xvora-build-plan-no-subagents");
     assert_eq!(meta["askUserQuestion"], false);
     assert_eq!(meta["yoloMode"], false);
 }
@@ -2118,11 +2118,11 @@ fn plan_with_subagents_meta() {
         ..Default::default()
     };
     let meta = flags.to_meta().unwrap();
-    assert_eq!(meta["agentProfile"], "grok-build-plan");
+    assert_eq!(meta["agentProfile"], "xvora-build-plan");
     assert_eq!(meta["askUserQuestion"], false);
     assert_eq!(meta["yoloMode"], false);
 }
-/// --ask-user alone selects the grok-build-ask-user profile.
+/// --ask-user alone selects the xvora-build-ask-user profile.
 #[serial_test::serial(GROK_AGENT)]
 #[test]
 fn ask_user_alone_meta() {
@@ -2134,7 +2134,7 @@ fn ask_user_alone_meta() {
         ..Default::default()
     };
     let meta = flags.to_meta().unwrap();
-    assert_eq!(meta["agentProfile"], "grok-build-ask-user");
+    assert_eq!(meta["agentProfile"], "xvora-build-ask-user");
     assert!(meta.get("askUserQuestion").is_none());
     assert_eq!(meta["yoloMode"], false);
 }
@@ -2150,13 +2150,13 @@ fn plan_with_ask_user_uses_plan_profile() {
         ..Default::default()
     };
     let meta = flags.to_meta().unwrap();
-    assert_eq!(meta["agentProfile"], "grok-build-plan-no-subagents");
+    assert_eq!(meta["agentProfile"], "xvora-build-plan-no-subagents");
     assert!(meta.get("askUserQuestion").is_none());
     assert_eq!(meta["yoloMode"], false);
 }
 /// --no-plan --no-subagents --no-ask-user picks the default profile.
 /// It must still emit `askUserQuestion: false` so the shell can strip the tool at the builder.
-/// Mirrors the runtime: the `subagents` toggle alone does not need an `agentProfile` (default `grok-build` already has it).
+/// Mirrors the runtime: the `subagents` toggle alone does not need an `agentProfile` (default `xvora-build` already has it).
 #[test]
 fn subagents_alone_emits_only_ask_user_question_disable() {
     let flags = SessionFlags {
@@ -2169,7 +2169,7 @@ fn subagents_alone_emits_only_ask_user_question_disable() {
     assert!(meta.get("agentProfile").is_none());
     assert_eq!(meta["askUserQuestion"], false);
 }
-/// All three flags on at the runtime default produce grok-build-plan and no `askUserQuestion` field.
+/// All three flags on at the runtime default produce xvora-build-plan and no `askUserQuestion` field.
 #[serial_test::serial(GROK_AGENT)]
 #[test]
 fn all_flags_meta() {
@@ -2181,7 +2181,7 @@ fn all_flags_meta() {
         ..Default::default()
     };
     let meta = flags.to_meta().unwrap();
-    assert_eq!(meta["agentProfile"], "grok-build-plan");
+    assert_eq!(meta["agentProfile"], "xvora-build-plan");
     assert!(meta.get("askUserQuestion").is_none());
     assert_eq!(meta["yoloMode"], false);
 }
@@ -2528,9 +2528,9 @@ fn agent_profile_definitions_have_correct_names() {
     use std::str::FromStr;
     use agent::config::BuiltinAgentName;
     for name in [
-        "grok-build-plan",
-        "grok-build-plan-no-subagents",
-        "grok-build-ask-user",
+        "xvora-build-plan",
+        "xvora-build-plan-no-subagents",
+        "xvora-build-ask-user",
     ] {
         let builtin = BuiltinAgentName::from_str(name).unwrap();
         let def = builtin.definition();
@@ -2578,7 +2578,7 @@ fn format_session_info_session_auth_ignores_api_key_env() {
     assert!(!text.contains("Manage account and credits"), "{text}");
     assert!(!text.contains("Also present: XAI_API_KEY"), "{text}");
     assert!(!text.contains("console.x.ai"), "{text}");
-    assert!(!text.contains("grok login"), "{text}");
+    assert!(!text.contains("xvora login"), "{text}");
 }
 #[test]
 fn format_session_info_api_key_without_env() {
@@ -2588,10 +2588,10 @@ fn format_session_info_api_key_without_env() {
     assert!(!text.contains("XAI_API_KEY"), "{text}");
     assert!(!text.contains("Manage account and credits"), "{text}");
     assert!(
-            text.contains("Run `grok login` to use your SuperGrok subscription instead."),
+            text.contains("Run `xvora login` to use your SuperGrok subscription instead."),
             "{text}"
         );
-    assert!(!text.contains("grok.com"), "{text}");
+    assert!(!text.contains("xvora.com"), "{text}");
 }
 #[test]
 fn format_session_info_api_key_auth_suggests_grok_login() {
@@ -2600,12 +2600,12 @@ fn format_session_info_api_key_auth_suggests_grok_login() {
     assert!(text.contains("Auth method: API key (XAI_API_KEY)"), "{text}");
     assert!(!text.contains("Manage account and credits"), "{text}");
     assert!(
-            text.contains("Run `grok login` to use your SuperGrok subscription instead."),
+            text.contains("Run `xvora login` to use your SuperGrok subscription instead."),
             "{text}"
         );
     assert!(!text.contains("Also present: XAI_API_KEY"), "{text}");
     assert!(!text.contains("console.x.ai"), "{text}");
-    assert!(!text.contains("grok.com"), "{text}");
+    assert!(!text.contains("xvora.com"), "{text}");
 }
 #[test]
 fn format_session_info_session_only_shows_oauth() {
@@ -2615,7 +2615,7 @@ fn format_session_info_session_only_shows_oauth() {
     assert!(!text.contains("Manage account and credits"), "{text}");
     assert!(!text.contains("Also present: XAI_API_KEY"), "{text}");
     assert!(!text.contains("console.x.ai"), "{text}");
-    assert!(!text.contains("grok login"), "{text}");
+    assert!(!text.contains("xvora login"), "{text}");
 }
 #[test]
 fn format_session_info_shows_conversation_id_when_present() {
@@ -2646,7 +2646,7 @@ async fn lookup_session_title_loads_single_summary_by_cwd() {
     let dir = root
         .path()
         .join("sessions")
-        .join(shell::util::grok_home::encode_cwd_dirname(cwd))
+        .join(shell::util::xvora_home::encode_cwd_dirname(cwd))
         .join("sess-1");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -2813,7 +2813,7 @@ fn session_picker_entry_maps_to_dormant_roster_row() {
         cwd: "/repo/app".to_string(),
         hostname: Some("box".to_string()),
         source: "local".to_string(),
-        model_id: Some("grok-4".to_string()),
+        model_id: Some("xvora-4".to_string()),
         num_messages: 3,
         last_active_at: Some(updated),
         branch: None,
@@ -2829,7 +2829,7 @@ fn session_picker_entry_maps_to_dormant_roster_row() {
     assert_eq!(roster.title.as_deref(), Some("Wire up dashboard"));
     assert_eq!(roster.cwd, "/repo/app");
     assert!(roster.is_worktree, "worktree_label present → is_worktree");
-    assert_eq!(roster.model_id.as_deref(), Some("grok-4"));
+    assert_eq!(roster.model_id.as_deref(), Some("xvora-4"));
     assert_eq!(roster.activity, RosterActivity::Dormant);
     assert_eq!(
             roster.last_turn_summary.as_deref(),

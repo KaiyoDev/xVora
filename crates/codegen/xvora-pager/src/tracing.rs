@@ -391,7 +391,7 @@ pub fn init_tracing() -> TracingHandle {
         .with_writer(make_writer);
     let otel_layer = telemetry::otel_layer::build_otel_layer(
         telemetry::otel_layer::OtelClientInfo {
-            client_name: "grok-pager",
+            client_name: "xvora-pager",
             client_version: version::VERSION,
             service_version: version::full_version(),
             app_entrypoint: "tui",

@@ -1,4 +1,4 @@
-//! Tracing layer for `target: "sampling_log"` → `~/.grok/logs/sampling.jsonl`.
+//! Tracing layer for `target: "sampling_log"` → `~/.xvora/logs/sampling.jsonl`.
 //! Enable with `--log-sampling` or `GROK_LOG_SAMPLING=1`.
 
 use std::sync::Mutex;
@@ -8,7 +8,7 @@ use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::registry::LookupSpan;
 
-use config::grok_home;
+use config::xvora_home;
 
 use crate::instrumentation::{NoOpLayer, TargetFilterLayer};
 
@@ -27,7 +27,9 @@ where
         return Box::new(NoOpLayer::new());
     }
 
-    let path = grok_home().join(crate::unified_log::LOG_DIR).join(LOG_FILE);
+    let path = xvora_home()
+        .join(crate::unified_log::LOG_DIR)
+        .join(LOG_FILE);
 
     if let Some(parent) = path.parent()
         && let Err(e) = std::fs::create_dir_all(parent)

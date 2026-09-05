@@ -140,10 +140,10 @@ fn pump_until(
 /// That keeps the test hermetic, with no CI-network flake.
 /// Pair with `GROK_LOCAL_AUTH=1` in the spawn env so the shell's scope-key lookup resolves this entry.
 fn seed_fake_oauth_local_issuer(content: &ContentController, user: &str) {
-    let grok_home = content.home().join(".grok");
-    std::fs::create_dir_all(&grok_home).expect("create temp .grok");
+    let xvora_home = content.home().join(".xvora");
+    std::fs::create_dir_all(&xvora_home).expect("create temp .xvora");
     std::fs::write(
-        grok_home.join("auth.json"),
+        xvora_home.join("auth.json"),
         format!(
             r#"{{
   "http://localhost:22255::b1a00492-073a-47ea-816f-4c329264a828": {{
@@ -309,7 +309,7 @@ async fn startup_gate_shows_paywall_for_free_user_after_live_check() {
     content.server().set_settings(json!({
         "allow_access": false,
         "gate_message": GATE_MSG,
-        "gate_url": "https://grok.com/supergrok?referrer=grok-build",
+        "gate_url": "https://xvora.com/supergrok?referrer=xvora-build",
         "gate_label": "Subscribe",
     }));
 

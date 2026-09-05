@@ -13,7 +13,7 @@ use mcp::servers::parse_mcp_qualified_name;
 use session_events::{Event, EventWriter, PermissionDecision};
 use tools::implementations::grok_build::web_fetch::domain_from_url;
 
-const REJECT_ONCE_LABEL: &str = "No, and tell Grok what to do differently";
+const REJECT_ONCE_LABEL: &str = "No, and tell xvora what to do differently";
 
 /// Stable option id for the edit prompt's "Yes, allow all edits during this session" choice.
 /// Distinct from the generic `"always-allow"` id so [`map_selected_outcome`] can map it to [`PromptOutcome::AllowEditsForSession`].
@@ -28,7 +28,7 @@ pub const ALLOW_EDITS_SESSION_OPTION_ID: &str = "allow-edits-session";
 ///     1. Flips local YOLO state on the active agent
 ///     2. Drains any queued permission requests with `AllowOnce` responses
 ///     3. Persists `[ui] permission_mode = "always-approve"` to
-///        `~/.grok/config.toml` via the `Effect::PersistPermissionMode` effect
+///        `~/.xvora/config.toml` via the `Effect::PersistPermissionMode` effect
 ///     4. Sends the existing `x.ai/yolo_mode_changed` ACP notification so the agent's permission manager flips its `yolo_mode` flag
 ///
 /// This split keeps the wire protocol plain ACP: no new methods, no extensions, no new `PermissionOptionKind` variant.
@@ -1838,7 +1838,7 @@ mod tests {
     fn mcp_titleize_segment_handles_snake_camel_kebab() {
         // snake_case: split into words, each title-cased
         assert_eq!(mcp_titleize_segment("list_issues"), "List Issues");
-        assert_eq!(mcp_titleize_segment("grok_com_notion"), "Grok Com Notion");
+        assert_eq!(mcp_titleize_segment("grok_com_notion"), "xvora Com Notion");
         // single word: capitalize first letter
         assert_eq!(mcp_titleize_segment("linear"), "Linear");
         // camelCase preserved (no `_` to split on, only first letter touched)

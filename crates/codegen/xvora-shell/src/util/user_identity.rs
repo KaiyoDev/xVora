@@ -653,9 +653,9 @@ mod tests {
     #[test]
     fn command_failure_falls_back_to_declarative_sources() {
         for command in [
-            "/nonexistent/grok-identity-binary", // command not found: sh exits 127
-            "exit 3",                            // nonzero exit
-            "echo not-json",                     // unparseable stdout
+            "/nonexistent/xvora-identity-binary", // command not found: sh exits 127
+            "exit 3",                             // nonzero exit
+            "echo not-json",                      // unparseable stdout
         ] {
             let resolved = resolve(FeedbackUserConfig {
                 name: vec!["decl-user".into()],

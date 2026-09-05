@@ -1,4 +1,4 @@
-//! On-disk cache for the subagent bundle xAI publishes: personas, roles, agents, skills, and workflows written under `<grok home>/bundled`.
+//! On-disk cache for the subagent bundle xAI publishes: personas, roles, agents, skills, and workflows written under `<xvora home>/bundled`.
 //!
 //! `manifest.json` records a checksum for every file this crate writes, so a file the user edited by hand is never overwritten and never pruned.
 //! Archive extraction is bounded (entry count, per-entry size, total decompressed size).
@@ -95,7 +95,7 @@ struct BundleFile<'a> {
 }
 
 pub fn bundled_root() -> PathBuf {
-    config::grok_home().join(BUNDLED_DIR_NAME)
+    config::xvora_home().join(BUNDLED_DIR_NAME)
 }
 
 pub fn read_cached_manifest(root: &Path) -> Result<Option<BundleManifest>> {

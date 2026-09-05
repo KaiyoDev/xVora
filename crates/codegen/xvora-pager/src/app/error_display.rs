@@ -764,7 +764,7 @@ mod tests {
         let formatted = format_request_failure(
             Some(401),
             Some(WireErrorType::Api),
-            r#"Unauthorized (401) from https://cli-chat-proxy.grok.com/v1/responses: {"error":"Invalid or expired credentials (auth_kind=bearer)"}"#,
+            r#"Unauthorized (401) from https://cli-chat-proxy.xvora.com/v1/responses: {"error":"Invalid or expired credentials (auth_kind=bearer)"}"#,
         );
         assert_eq!(formatted.status, Some(401));
         assert!(formatted.detail.contains("Invalid or expired credentials"));
@@ -862,12 +862,12 @@ mod tests {
         let formatted = format_request_failure(
             None,
             Some(WireErrorType::Api),
-            "API error (status 404 Not Found): model does not exist\n\n  Model:     grok-foo\n  Auth:      ApiKey\n  Version:   0.1.0\n  Available: grok-build\n\n  'grok-foo' is not in your available models.\n  Switch models with /model or start a new session.",
+            "API error (status 404 Not Found): model does not exist\n\n  Model:     xvora-foo\n  Auth:      ApiKey\n  Version:   0.1.0\n  Available: xvora-build\n\n  'xvora-foo' is not in your available models.\n  Switch models with /model or start a new session.",
         );
         assert_eq!(formatted.status, Some(404));
         assert_eq!(
             formatted.message(),
-            "Not found (404): 'grok-foo' is not in your available models. \
+            "Not found (404): 'xvora-foo' is not in your available models. \
              Run /model to pick another."
         );
         assert!(!formatted.message().contains("Available:"));
@@ -893,7 +893,7 @@ mod tests {
         let formatted = format_request_failure(
             None,
             Some(WireErrorType::Http),
-            "error sending request for url (https://server.grok.com/v1/responses)",
+            "error sending request for url (https://server.xvora.com/v1/responses)",
         );
         assert!(
             !formatted.message().contains("http"),

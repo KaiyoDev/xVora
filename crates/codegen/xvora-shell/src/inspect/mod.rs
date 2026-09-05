@@ -1,6 +1,6 @@
-//! `grok inspect`: configuration introspection.
+//! `xvora inspect`: configuration introspection.
 //!
-//! Shows everything Grok discovers in the current directory.
+//! Shows everything xvora discovers in the current directory.
 //! That covers project instructions, permissions, hooks, skills, agents, plugins, MCP servers, LSP config, and config.toml sources.
 //! Supports `--json` for machine output.
 
@@ -122,7 +122,7 @@ pub(crate) struct PermissionsReport {
     /// always-approve lock; other requirements-pinned fields are not listed.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub enforced: Vec<EnforcedPolicy>,
-    /// A Claude managed-settings `disableBypassPermissionsMode` request, which grok
+    /// A Claude managed-settings `disableBypassPermissionsMode` request, which xvora
     /// deliberately does not enforce
     /// ([`claude_bypass_lock_request`](workspace::permission::resolution::claude_bypass_lock_request)).
     /// Always emitted so "no request" is distinguishable from an old binary.
@@ -287,7 +287,7 @@ pub(crate) struct ConfigSources {
     pub layers: Vec<ConfigLayer>,
 }
 
-/// A single config layer entry for `grok inspect`.
+/// A single config layer entry for `xvora inspect`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ConfigLayer {
@@ -305,7 +305,7 @@ pub async fn inspect(cwd: &Path, json: bool) -> anyhow::Result<()> {
     write_inspect(&report, json, &mut std::io::stdout().lock())
 }
 
-/// A closed stdout (`grok inspect | head`) is a clean stop.
+/// A closed stdout (`xvora inspect | head`) is a clean stop.
 fn write_inspect(report: &InspectReport, json: bool, out: &mut impl Write) -> anyhow::Result<()> {
     let written = if json {
         writeln!(out, "{}", serde_json::to_string_pretty(report)?)
@@ -474,13 +474,13 @@ fn has_rules_directory(file_path: &str, config_dir: &str) -> bool {
 
 fn instruction_scope(
     file_path: &str,
-    grok_home: &Path,
+    xvora_home: &Path,
     vendor_homes: &[(PathBuf, bool)],
     workspace_root: &Path,
 ) -> Scope {
     if crate::util::is_user_instruction_path(
         Path::new(file_path),
-        grok_home,
+        xvora_home,
         vendor_homes,
         &[workspace_root],
     ) {
@@ -492,15 +492,15 @@ fn instruction_scope(
 
 fn instruction_file_type(
     file_path: &str,
-    grok_home: &Path,
+    xvora_home: &Path,
     claude_imported: bool,
     extra_rule_prefixes: &[PathBuf],
 ) -> &'static str {
     let path = Path::new(file_path);
     if path
         .parent()
-        .is_some_and(|parent| parent == grok_home.join("rules"))
-        || has_rules_directory(file_path, ".grok")
+        .is_some_and(|parent| parent == xvora_home.join("rules"))
+        || has_rules_directory(file_path, ".xvora")
         || has_rules_directory(file_path, ".cursor")
         || (!claude_imported && has_rules_directory(file_path, ".claude"))
         || extra_rule_prefixes
@@ -522,7 +522,7 @@ async fn list_instructions(cwd: &Path) -> Vec<InstructionFile> {
     )
     .await;
 
-    let grok_home = crate::util::grok_home::grok_home();
+    let xvora_home = crate::util::xvora_home::xvora_home();
     let vendor_homes = dirs::home_dir()
         .map(|home_dir| {
             vec![
@@ -561,8 +561,9 @@ async fn list_instructions(cwd: &Path) -> Vec<InstructionFile> {
         .into_iter()
         .map(|c| {
             let file_type =
-                instruction_file_type(&c.file_path, &grok_home, imported, &extra_rule_prefixes);
-            let scope = instruction_scope(&c.file_path, &grok_home, &vendor_homes, &workspace_root);
+                instruction_file_type(&c.file_path, &xvora_home, imported, &extra_rule_prefixes);
+            let scope =
+                instruction_scope(&c.file_path, &xvora_home, &vendor_homes, &workspace_root);
             let size = c.content.len();
             let vendor = derive_vendor(&c.file_path).map(String::from);
             InstructionFile {
@@ -1050,7 +1051,7 @@ fn list_lsp_servers(
 
     // Folder-trust gate, display-only: inspect never spawns servers
     // Mark the repo-local (project-scoped) entries a session would skip in an untrusted clone, so the listing matches the live gate
-    // `remote = None` mirrors `grok mcp doctor` (no loaded RemoteSettings in a standalone command)
+    // `remote = None` mirrors `xvora mcp doctor` (no loaded RemoteSettings in a standalone command)
     crate::agent::folder_trust::resolve_and_record(cwd, None, false);
     let project_allowed = crate::agent::folder_trust::project_scope_allowed(cwd);
 
@@ -1072,7 +1073,7 @@ fn list_lsp_servers(
 
 /// Locates the config files that contribute to the effective config, probing the locations `ConfigLayers::load` and `requirements_layers` use.
 /// Probed: system and user `managed_config.toml`, user `config.toml`, and user and system `requirements.toml`.
-/// Project `.grok/config.toml` files come via `find_project_configs`.
+/// Project `.xvora/config.toml` files come via `find_project_configs`.
 /// The macOS MDM managed-preferences layer has no file on disk, so it is sourced directly from `requirements_layers()` rather than a path probe.
 ///
 /// Only on-disk files (plus the synthetic MDM layer) are emitted.
@@ -1320,7 +1321,7 @@ fn enforced_label(p: &EnforcedPolicy) -> String {
 /// to the caller.
 fn claude_bypass_advisory_message(p: &PermissionsReport) -> Option<&'static str> {
     p.claude_bypass_lock_advisory.then_some(
-        "Claude disableBypassPermissionsMode: advisory only -- not enforced for grok \
+        "Claude disableBypassPermissionsMode: advisory only -- not enforced for xvora \
          (lock via requirements.toml [ui] disable_bypass_permissions_mode)",
     )
 }
@@ -1577,7 +1578,7 @@ fn print_human(r: &InspectReport, out: &mut impl Write) -> std::io::Result<()> {
     if r.mcp_servers.is_empty() {
         writeln!(out)?;
         writeln!(out, "  MCP Servers (0)")?;
-        writeln!(out, "  {TREE} (none) \u{2014} see `grok mcp add --help`")?;
+        writeln!(out, "  {TREE} (none) \u{2014} see `xvora mcp add --help`")?;
     } else {
         print_columns(
             out,
@@ -1763,7 +1764,7 @@ mod tests {
             ("claude", "/repo/.claude/rules/team.md"),
             ("claude", r"C:\repo\.claude\rules\team.md"),
         ] {
-            let file_type = instruction_file_type(path, Path::new("/home/user/.grok"), false, &[]);
+            let file_type = instruction_file_type(path, Path::new("/home/user/.xvora"), false, &[]);
             assert_eq!(file_type, "rules");
             assert_eq!(
                 instruction_compat_status(&Some(vendor.to_owned()), file_type, &report),
@@ -1771,9 +1772,12 @@ mod tests {
             );
         }
 
-        for path in ["/repo/.grok/rules/team.md", r"C:\repo\.grok\rules\team.md"] {
+        for path in [
+            "/repo/.xvora/rules/team.md",
+            r"C:\repo\.xvora\rules\team.md",
+        ] {
             assert_eq!(
-                instruction_file_type(path, Path::new("/home/user/.grok"), false, &[]),
+                instruction_file_type(path, Path::new("/home/user/.xvora"), false, &[]),
                 "rules"
             );
         }
@@ -1782,7 +1786,7 @@ mod tests {
             r"C:\repo\.cursor\rules\team.md",
         ] {
             assert_eq!(
-                instruction_file_type(path, Path::new("/home/user/.grok"), true, &[]),
+                instruction_file_type(path, Path::new("/home/user/.xvora"), true, &[]),
                 "rules"
             );
         }
@@ -1790,7 +1794,7 @@ mod tests {
             "/repo/.claude/rules/team.md",
             r"C:\repo\.claude\rules\team.md",
         ] {
-            let file_type = instruction_file_type(path, Path::new("/home/user/.grok"), true, &[]);
+            let file_type = instruction_file_type(path, Path::new("/home/user/.xvora"), true, &[]);
             assert_eq!(file_type, "agents_md");
             assert_eq!(
                 instruction_compat_status(&Some("claude".to_owned()), file_type, &report),
@@ -1802,7 +1806,7 @@ mod tests {
             r"C:\repo\.cursor\ruleset\team.md",
         ] {
             assert_eq!(
-                instruction_file_type(path, Path::new("/home/user/.grok"), false, &[]),
+                instruction_file_type(path, Path::new("/home/user/.xvora"), false, &[]),
                 "agents_md"
             );
         }
@@ -1810,20 +1814,20 @@ mod tests {
 
     #[test]
     fn grok_home_nested_in_workspace_keeps_direct_surfaces_global() {
-        let grok_home = Path::new("/repo/config");
+        let xvora_home = Path::new("/repo/config");
         let workspace = Path::new("/repo");
         for path in ["/repo/config/AGENTS.md", "/repo/config/rules/global.md"] {
             assert!(matches!(
-                instruction_scope(path, grok_home, &[], workspace),
+                instruction_scope(path, xvora_home, &[], workspace),
                 Scope::Global
             ));
         }
         for path in [
-            "/repo/config/.grok/rules/project.md",
+            "/repo/config/.xvora/rules/project.md",
             "/repo/config/src/AGENTS.md",
         ] {
             assert!(matches!(
-                instruction_scope(path, grok_home, &[], workspace),
+                instruction_scope(path, xvora_home, &[], workspace),
                 Scope::Project
             ));
         }
@@ -1835,7 +1839,7 @@ mod tests {
         let workspace = Path::new("/repo");
         for path in ["/repo/.claude/rules/global.md", "/repo/.claude/CLAUDE.md"] {
             assert!(matches!(
-                instruction_scope(path, Path::new("/other/grok"), &vendor_homes, workspace),
+                instruction_scope(path, Path::new("/other/xvora"), &vendor_homes, workspace),
                 Scope::Global
             ));
         }
@@ -1844,7 +1848,7 @@ mod tests {
             "/repo/.claude/src/AGENTS.md",
         ] {
             assert!(matches!(
-                instruction_scope(path, Path::new("/other/grok"), &vendor_homes, workspace),
+                instruction_scope(path, Path::new("/other/xvora"), &vendor_homes, workspace),
                 Scope::Project
             ));
         }
@@ -1852,19 +1856,19 @@ mod tests {
 
     #[test]
     fn workspace_scope_wins_inside_grok_home() {
-        let grok_home = Path::new("/custom/grok");
-        let workspace = Path::new("/custom/grok/worktrees/repo");
+        let xvora_home = Path::new("/custom/xvora");
+        let workspace = Path::new("/custom/xvora/worktrees/repo");
         for path in [
-            "/custom/grok/worktrees/repo/.cursor/rules/project.md",
-            "/custom/grok/worktrees/repo/src/AGENTS.md",
+            "/custom/xvora/worktrees/repo/.cursor/rules/project.md",
+            "/custom/xvora/worktrees/repo/src/AGENTS.md",
         ] {
             assert!(matches!(
-                instruction_scope(path, grok_home, &[], workspace),
+                instruction_scope(path, xvora_home, &[], workspace),
                 Scope::Project
             ));
         }
         assert!(matches!(
-            instruction_scope("/custom/grok/rules/global.md", grok_home, &[], workspace,),
+            instruction_scope("/custom/xvora/rules/global.md", xvora_home, &[], workspace,),
             Scope::Global
         ));
     }
@@ -1936,7 +1940,7 @@ mod tests {
     #[test]
     fn requirements_layer_contributes_requires_non_empty_post_strip_table() {
         // A `fail_closed`-only file is kept by the loader but with an empty post-strip table, so it must not count as contributing
-        let path = "/home/u/.grok/requirements.toml";
+        let path = "/home/u/.xvora/requirements.toml";
         let layer = |v| crate::config::RequirementsLayer {
             value: v,
             source: crate::config::RequirementsSource::File(std::path::PathBuf::from(path)),
@@ -2003,7 +2007,7 @@ mod tests {
         let row = EnforcedPolicy {
             setting: EnforcedSetting::AlwaysApprove,
             enabled: false,
-            source: "/etc/grok/requirements.toml".to_string(),
+            source: "/etc/xvora/requirements.toml".to_string(),
         };
         let json = serde_json::to_value(permissions_report(true, vec![row])).unwrap();
         assert_eq!(json["claudeBypassLockAdvisory"], serde_json::json!(true));
@@ -2012,7 +2016,7 @@ mod tests {
             serde_json::json!([{
                 "setting": "alwaysApprove",
                 "enabled": false,
-                "source": "/etc/grok/requirements.toml",
+                "source": "/etc/xvora/requirements.toml",
             }])
         );
     }
@@ -2074,13 +2078,13 @@ mod tests {
         assert_eq!(enforced[1].source, "/etc/claude-code/managed-settings.json");
     }
 
-    /// The enforced alwaysApprove row comes from grok's own requirements lock,
+    /// The enforced alwaysApprove row comes from xvora's own requirements lock,
     /// attributed to the pinning layer, independent of any Claude
     /// managed-settings file.
     #[test]
     fn requirements_lock_reports_always_approve_enforced() {
         let lock = workspace::permission::resolution::YoloPolicyLock {
-            source_label: "/etc/grok/requirements.toml".to_string(),
+            source_label: "/etc/xvora/requirements.toml".to_string(),
             reason: workspace::permission::resolution::YoloPinReason::DisableBypassPermissionsMode,
         };
         let PermissionPolicyReport {
@@ -2091,7 +2095,7 @@ mod tests {
         assert_eq!(enforced.len(), 1);
         assert_eq!(enforced[0].setting, EnforcedSetting::AlwaysApprove);
         assert!(!enforced[0].enabled);
-        assert_eq!(enforced[0].source, "/etc/grok/requirements.toml");
+        assert_eq!(enforced[0].source, "/etc/xvora/requirements.toml");
 
         // Both present: the real lock row + the advisory flag, no duplicate row.
         let PermissionPolicyReport {
@@ -2100,7 +2104,7 @@ mod tests {
         } = permission_policy_report(&managed_features(Some(true), None, None), Some(&lock));
         assert!(advisory);
         assert_eq!(enforced.len(), 1);
-        assert_eq!(enforced[0].source, "/etc/grok/requirements.toml");
+        assert_eq!(enforced[0].source, "/etc/xvora/requirements.toml");
     }
 
     /// An MDM-only lockdown has no requirements.toml; the enforced row must
@@ -2220,24 +2224,24 @@ mod tests {
 
     #[test]
     fn skill_entry_source_maps_scopes() {
-        let s = skill_fixture("a", "/repo/.grok/skills/a/SKILL.md", SkillScope::Local);
+        let s = skill_fixture("a", "/repo/.xvora/skills/a/SKILL.md", SkillScope::Local);
         assert!(matches!(
             skill_entry_source(&s),
             ConfigSource::Project { .. }
         ));
 
-        let s = skill_fixture("b", "/repo/.grok/skills/b/SKILL.md", SkillScope::Repo);
+        let s = skill_fixture("b", "/repo/.xvora/skills/b/SKILL.md", SkillScope::Repo);
         assert!(matches!(
             skill_entry_source(&s),
             ConfigSource::Project { .. }
         ));
 
-        let s = skill_fixture("c", "/home/u/.grok/skills/c/SKILL.md", SkillScope::User);
+        let s = skill_fixture("c", "/home/u/.xvora/skills/c/SKILL.md", SkillScope::User);
         assert!(matches!(skill_entry_source(&s), ConfigSource::User { .. }));
 
         let s = skill_fixture(
             "d",
-            "/home/u/.grok/server-skills/d/SKILL.md",
+            "/home/u/.xvora/server-skills/d/SKILL.md",
             SkillScope::Server,
         );
         assert!(matches!(
@@ -2245,7 +2249,11 @@ mod tests {
             ConfigSource::Server { .. }
         ));
 
-        let s = skill_fixture("e", "/home/u/.grok/bundled/e/SKILL.md", SkillScope::Bundled);
+        let s = skill_fixture(
+            "e",
+            "/home/u/.xvora/bundled/e/SKILL.md",
+            SkillScope::Bundled,
+        );
         assert!(matches!(
             skill_entry_source(&s),
             ConfigSource::Bundled { .. }
@@ -2352,7 +2360,7 @@ mod tests {
             )
             .unwrap();
         };
-        // Test-unique names: discovery also reads this machine's real ~/.grok dirs.
+        // Test-unique names: discovery also reads this machine's real ~/.xvora dirs.
         let extra = tempfile::tempdir().unwrap();
         write(&extra.path().join("inspect-cfg-extra"), "inspect-cfg-extra");
         write(

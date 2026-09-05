@@ -211,7 +211,7 @@ pub fn generate_tls_material() -> TestTlsMaterial {
 
     let client_key = KeyPair::generate().expect("generate client key");
     let client_params =
-        CertificateParams::new(vec!["grok-client".to_string()]).expect("client params");
+        CertificateParams::new(vec!["xvora-client".to_string()]).expect("client params");
     let client_cert = client_params
         .signed_by(&client_key, &ca_cert, &ca_key)
         .expect("sign client cert");

@@ -11,7 +11,7 @@ mod tests {
     use std::sync::Arc;
 
     fn load_prod_auth() -> Option<GrokAuth> {
-        let path = crate::util::grok_home::grok_home().join("auth.json");
+        let path = crate::util::xvora_home::xvora_home().join("auth.json");
         let contents = std::fs::read_to_string(&path).ok()?;
         let store: BTreeMap<String, GrokAuth> = serde_json::from_str(&contents).ok()?;
         let scope = crate::auth::GrokComConfig::default().auth_scope();
@@ -30,9 +30,9 @@ mod tests {
             ContentBlock, ContentChunk, SessionNotification, SessionUpdate, TextContent,
         };
 
-        let auth = load_prod_auth().expect("No auth.json — run `grok login`");
+        let auth = load_prod_auth().expect("No auth.json — run `xvora login`");
         let am = Arc::new(crate::auth::AuthManager::new(
-            &crate::util::grok_home::grok_home(),
+            &crate::util::xvora_home::xvora_home(),
             crate::auth::GrokComConfig::default(),
         ));
         am.hot_swap(auth);

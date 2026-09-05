@@ -226,7 +226,7 @@ fn headless_response_started_parses_per_response_fields() {
         serde_json::json!({
             "sessionUpdate": "response_started",
             "message_id": "msg_01",
-            "model": "grok-4",
+            "model": "xvora-4",
             "input_tokens": 42,
             "cache_read_input_tokens": 7,
             "cache_creation_input_tokens": 3,
@@ -246,7 +246,7 @@ fn headless_response_started_parses_per_response_fields() {
         panic!("expected ResponseStarted");
     };
     assert_eq!(message_id.as_deref(), Some("msg_01"));
-    assert_eq!(model.as_deref(), Some("grok-4"));
+    assert_eq!(model.as_deref(), Some("xvora-4"));
     assert_eq!(input_tokens, 42);
     assert_eq!(cache_read_input_tokens, 7);
     assert_eq!(cache_creation_input_tokens, 3);
@@ -417,7 +417,7 @@ fn headless_version_mismatch_logs_warn_with_both_versions() {
         "log names the method: {logs}"
     );
     let banner = crate::glyphs::sanitize_toast_message(
-        "⚠ Version mismatch: client 0.1.157, leader 0.1.150. Restart grok to match",
+        "⚠ Version mismatch: client 0.1.157, leader 0.1.150. Restart xvora to match",
     );
     assert!(
         logs.contains(banner.as_ref()),
@@ -441,7 +441,7 @@ fn headless_version_mismatch_without_message_still_warns() {
     assert!(is_none);
     assert!(logs.contains("WARN"), "logged at warn level: {logs}");
     let banner = crate::glyphs::sanitize_toast_message(
-        "⚠ Version mismatch: client 0.1.157, leader 0.1.150. Restart grok to match",
+        "⚠ Version mismatch: client 0.1.157, leader 0.1.150. Restart xvora to match",
     );
     assert!(
         logs.contains(banner.as_ref()),

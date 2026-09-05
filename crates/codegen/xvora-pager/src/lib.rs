@@ -5,7 +5,7 @@
     unreachable_code,
     dead_code
 )]
-//! xvora-pager: Grok Build TUI.
+//! xvora-pager: xvora build TUI.
 //!
 //! A clean-room implementation built on the v3 pager rendering engine.
 pub mod acp;

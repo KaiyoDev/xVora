@@ -152,11 +152,11 @@ pub enum TraceUploadReason {
     ZdrTeam,
     /// `[telemetry] trace_upload = false` in config.
     FeatureOff,
-    /// No grok.com auth or deployment key.
+    /// No xvora.com auth or deployment key.
     NoCredentials,
     /// Direct-to-bucket S3 upload.
     DirectS3,
-    /// Proxy mode via grok.com auth.
+    /// Proxy mode via xvora.com auth.
     Proxy,
     /// Direct GCS with service account key.
     DirectGcs,
@@ -240,7 +240,7 @@ mod tests {
         );
         let value = serde_json::to_value(super::SessionContextSnapshot {
             session_id: "s1".to_string(),
-            model_id: "grok-4".to_string(),
+            model_id: "xvora-4".to_string(),
             context_window: 1_000_000,
             used_tokens: 40_000,
             usage_pct: 4,
@@ -263,7 +263,7 @@ mod tests {
             value,
             serde_json::json!({
                 "session_id": "s1",
-                "model_id": "grok-4",
+                "model_id": "xvora-4",
                 "context_window": 1_000_000,
                 "used_tokens": 40_000,
                 "usage_pct": 4,
@@ -284,7 +284,7 @@ mod tests {
         );
     }
 
-    /// The `grok-shell-doom_loop_recovery` Mixpanel event's name and property keys are dashboard contracts; pin them.
+    /// The `xvora-shell-doom_loop_recovery` Mixpanel event's name and property keys are dashboard contracts; pin them.
     #[test]
     fn doom_loop_recovery_event_shape_is_stable() {
         use crate::events::TelemetryEvent;

@@ -94,7 +94,7 @@ pub struct PtyController {
 }
 
 impl PtyController {
-    /// Inherit the parent environment for terminal-brand probes, grok-wrap tests, and other fixtures that test inherited host env.
+    /// Inherit the parent environment for terminal-brand probes, xvora-wrap tests, and other fixtures that test inherited host env.
     /// Content-backed pager launches must use [`Self::spawn_in_sandbox`].
     pub fn spawn_inherited_env(
         binary: &Path,
@@ -175,7 +175,7 @@ impl PtyController {
             .or_else(|| pair.master.process_group_leader().map(|pid| pid as u32));
         #[cfg(windows)]
         let process_pid = child.process_id();
-        let process_tree = process_pid.map(|pid| TestProcessTree::attach(pid, "grok PTY child"));
+        let process_tree = process_pid.map(|pid| TestProcessTree::attach(pid, "xvora PTY child"));
         // Attachment failures remain recorded by TestProcessTree and show up in process_tree_diagnostics() on every harness timeout
         // Drop the slave so we get EOF when the child exits.
         drop(pair.slave);

@@ -1,6 +1,6 @@
 //! Emits `tracing` events with `target: "sampling_log"`.
 //! A dedicated layer in `xvora-telemetry` routes these to
-//! `~/.grok/logs/sampling.jsonl`. Enable with `--log-sampling`.
+//! `~/.xvora/logs/sampling.jsonl`. Enable with `--log-sampling`.
 
 use crate::types::RequestId;
 

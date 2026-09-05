@@ -49,7 +49,7 @@ pub(crate) fn skill_source_label(skill_path: &str, cwd: &str) -> &'static str {
     let depth_if_under =
         |base: std::path::PathBuf| p.starts_with(&base).then(|| base.components().count());
     let project = depth_if_under(canon(std::path::Path::new(cwd)));
-    let user = crate::util::grok_home::grok_home()
+    let user = crate::util::xvora_home::xvora_home()
         .parent()
         .and_then(|home| depth_if_under(canon(home)));
     match (project, user) {
@@ -214,16 +214,16 @@ mod is_same_skill_file_tests {
     #[test]
     fn matches_identical_paths() {
         assert!(is_same_skill_file(
-            Path::new("/home/u/.grok/skills/review/SKILL.md"),
-            Path::new("/home/u/.grok/skills/review/SKILL.md")
+            Path::new("/home/u/.xvora/skills/review/SKILL.md"),
+            Path::new("/home/u/.xvora/skills/review/SKILL.md")
         ));
     }
 
     #[test]
     fn rejects_a_different_skill() {
         assert!(!is_same_skill_file(
-            Path::new("/home/u/.grok/skills/review/SKILL.md"),
-            Path::new("/home/u/.grok/skills/design/SKILL.md")
+            Path::new("/home/u/.xvora/skills/review/SKILL.md"),
+            Path::new("/home/u/.xvora/skills/design/SKILL.md")
         ));
     }
 

@@ -146,29 +146,29 @@ mod tests {
         }
     }
 
-    /// Git repo with project `.grok/config.toml` so discovery is bounded to cwd.
+    /// Git repo with project `.xvora/config.toml` so discovery is bounded to cwd.
     fn project_repo(toml: &str) -> tempfile::TempDir {
         let tmp = tempfile::tempdir().unwrap();
         git2::Repository::init(tmp.path()).unwrap();
         // Pin trust so ambient GROK_CLI_VERSION cannot drop project MCP names.
         crate::agent::folder_trust::record_for_test(tmp.path(), true);
-        std::fs::create_dir_all(tmp.path().join(".grok")).unwrap();
-        std::fs::write(tmp.path().join(".grok").join("config.toml"), toml).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora")).unwrap();
+        std::fs::write(tmp.path().join(".xvora").join("config.toml"), toml).unwrap();
         tmp
     }
 
-    /// Isolate HOME/GROK_HOME so ambient user MCP config cannot pad discovery.
+    /// Isolate HOME/xvora_home so ambient user MCP config cannot pad discovery.
     fn isolated_home() -> (
         tempfile::TempDir,
         test_support::EnvGuard,
         test_support::EnvGuard,
     ) {
         let home = tempfile::tempdir().unwrap();
-        let grok_home = home.path().join(".grok");
-        std::fs::create_dir_all(&grok_home).unwrap();
-        std::fs::write(grok_home.join("config.toml"), "").unwrap();
+        let xvora_home = home.path().join(".xvora");
+        std::fs::create_dir_all(&xvora_home).unwrap();
+        std::fs::write(xvora_home.join("config.toml"), "").unwrap();
         let home_guard = test_support::EnvGuard::set("HOME", home.path());
-        let grok_guard = test_support::EnvGuard::set("GROK_HOME", &grok_home);
+        let grok_guard = test_support::EnvGuard::set("xvora_home", &xvora_home);
         (home, home_guard, grok_guard)
     }
 

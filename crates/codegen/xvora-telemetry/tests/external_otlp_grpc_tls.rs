@@ -62,9 +62,9 @@ fn external_stream_grpc_over_tls_end_to_end() {
     });
     telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-grpc-tls-1".into(),
-        client_identifier: Some("grok-pager".into()),
-        model_id: "grok-4".into(),
-        agent_name: "grok-build-plan".into(),
+        client_identifier: Some("xvora-pager".into()),
+        model_id: "xvora-4".into(),
+        agent_name: "xvora-build-plan".into(),
         permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![],
         plugin_names: vec![],

@@ -30,7 +30,7 @@ impl From<WorktreeType> for ShellWorktreeType {
 }
 /// Create a worktree for the resume-session flow, detecting jj vs git automatically.
 ///
-/// When `git_ref` is set, forces a clean checkout of that ref (same as the manual `create_from_worktree_sync` path used by `grok -w --ref`).
+/// When `git_ref` is set, forces a clean checkout of that ref (same as the manual `create_from_worktree_sync` path used by `xvora -w --ref`).
 #[tracing::instrument(skip_all)]
 async fn create_worktree_for_resume(
     source_cwd: &str,
@@ -430,7 +430,7 @@ pub(crate) async fn rehydrate_session_in_worktree(
             req.repo_root
         );
     }
-    let session_summary_exists = crate::util::grok_home::sessions_cwd_dir(&req.source_cwd)
+    let session_summary_exists = crate::util::xvora_home::sessions_cwd_dir(&req.source_cwd)
         .join(&req.session_id)
         .join("summary.json")
         .exists();
@@ -868,7 +868,7 @@ mod tests {
         let root = tmp.path();
         let exact_cwd = "/project/main";
         let sibling_cwd = "/project/worktree-1";
-        let encoded = crate::util::grok_home::encode_cwd_dirname(sibling_cwd);
+        let encoded = crate::util::xvora_home::encode_cwd_dirname(sibling_cwd);
         let session_dir = root.join(&encoded).join("sess-remote-123");
         std::fs::create_dir_all(&session_dir).unwrap();
         std::fs::write(session_dir.join("summary.json"), b"{}").unwrap();
@@ -1148,7 +1148,7 @@ mod tests {
             .unwrap();
         let list_out = String::from_utf8_lossy(&stash_list.stdout).into_owned();
         assert!(
-            list_out.contains("grok: pre-restore-code sess-dirty-wt"),
+            list_out.contains("xvora: pre-restore-code sess-dirty-wt"),
             "stash list missing session label: {list_out}"
         );
     }

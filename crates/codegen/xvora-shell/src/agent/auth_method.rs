@@ -93,13 +93,13 @@ pub struct AuthMethodsBuildInputs<'a> {
     /// True if a cached session token is available (either present at startup or recovered via silent refresh).
     pub has_cached_token: bool,
     /// True if enterprise OIDC is configured.
-    /// Mutually exclusive with the default `grok.com` method.
+    /// Mutually exclusive with the default `xvora.com` method.
     pub has_enterprise_oidc: bool,
     /// Required when `has_enterprise_oidc` is true; ignored otherwise.
     pub enterprise_oidc_issuer: Option<&'a str>,
-    /// Optional display label for the login method (`grok.com` or `oidc`).
+    /// Optional display label for the login method (`xvora.com` or `oidc`).
     pub login_label: Option<&'a str>,
-    /// True if `grok_com_config.auth_provider_command` is configured (sets `meta.external_provider = true` on the `grok.com` method).
+    /// True if `grok_com_config.auth_provider_command` is configured (sets `meta.external_provider = true` on the `xvora.com` method).
     pub has_auth_provider_command: bool,
     /// Config pin (`[auth] preferred_method`).
     /// `None` keeps multi-method fallthrough; `Some` is fail-closed (only that method family).
@@ -128,7 +128,7 @@ pub struct BuiltAuthMethods {
 /// 2. `cached_token`    (if `has_cached_token`)
 /// 3. exactly one of:
 ///    - `oidc`          (if `has_enterprise_oidc`)
-///    - `grok.com`      (otherwise)
+///    - `xvora.com`      (otherwise)
 ///
 /// Unpinned `default_auth_method_id`:
 /// - `cached_token` if `has_cached_token`
@@ -309,7 +309,7 @@ impl AuthMethodKind {
         matches!(self, Self::XaiApiKey)
     }
 
-    /// `true` for session-based methods (cached_token, grok.com, oidc).
+    /// `true` for session-based methods (cached_token, xvora.com, oidc).
     pub(crate) fn is_session_based(self) -> bool {
         matches!(self, Self::CachedToken | Self::GrokCom | Self::Oidc)
     }
@@ -320,7 +320,7 @@ impl AuthMethodKind {
     }
 }
 
-/// `true` for session-based ACP methods (cached_token, grok.com, oidc).
+/// `true` for session-based ACP methods (cached_token, xvora.com, oidc).
 pub(crate) fn is_session_based_method(method_id: &acp::AuthMethodId) -> bool {
     AuthMethodKind::from_id(method_id).is_session_based()
 }
@@ -373,13 +373,13 @@ pub(crate) fn session_token_auth_gate(
 }
 
 pub const AUTH_ERROR_SESSION_EXPIRED: &str =
-    "Session expired. Run `grok login` to re-authenticate.";
+    "Session expired. Run `xvora login` to re-authenticate.";
 
-pub const AUTH_ERROR_API_KEY: &str = "Authentication failed. Run `grok login`, set XAI_API_KEY, or add api_key to ~/.grok/config.toml.";
+pub const AUTH_ERROR_API_KEY: &str = "Authentication failed. Run `xvora login`, set XAI_API_KEY, or add api_key to ~/.xvora/config.toml.";
 
 /// Next ACP method id when `cached_token` cannot proceed (missing / expired / legacy WebLogin), or `None` when fallthrough is forbidden.
 ///
-/// Unpinned: prefer non-interactive `xvora.api_key` when advertiseable, else interactive `grok.com`.
+/// Unpinned: prefer non-interactive `xvora.api_key` when advertiseable, else interactive `xvora.com`.
 ///
 /// Pinned `oidc`: **no** fallthrough to api_key; return `None` so the caller fails auth.
 /// Pinned `api_key` should not reach this path (cached_token is not advertised).
@@ -402,7 +402,7 @@ pub const PREFERRED_API_KEY_UNAVAILABLE: &str = "preferred_method=api_key but no
 
 /// Error when `preferred_method=oidc` but the session path cannot proceed.
 pub const PREFERRED_OIDC_UNAVAILABLE: &str =
-    "preferred_method=oidc but no session is available. Run `grok login` to authenticate.";
+    "preferred_method=oidc but no session is available. Run `xvora login` to authenticate.";
 
 pub const XAI_API_KEY_METHOD_ID: &str = "xvora.api_key";
 pub(crate) fn xvora_api_key_auth_method() -> acp::AuthMethod {
@@ -424,13 +424,13 @@ pub(crate) fn cached_token_auth_method() -> acp::AuthMethod {
             acp::AuthMethodId::new(CACHED_TOKEN_AUTH_METHOD_ID),
             "cached_token".to_string(),
         )
-        .description(Some("Cached token from ~/.grok/auth.json".to_string())),
+        .description(Some("Cached token from ~/.xvora/auth.json".to_string())),
     )
 }
 
-pub const GROK_COM_METHOD_ID: &str = "grok.com";
+pub const GROK_COM_METHOD_ID: &str = "xvora.com";
 
-/// xAI OAuth2/OIDC auth. Method id `"grok.com"` kept for ACP wire compatibility.
+/// xAI OAuth2/OIDC auth. Method id `"xvora.com"` kept for ACP wire compatibility.
 pub(crate) fn grok_com_auth_method(
     label: Option<&str>,
     has_auth_provider_command: bool,
@@ -480,7 +480,7 @@ mod tests {
         );
     }
 
-    /// With no advertiseable API-key credentials, fall to interactive `grok.com`.
+    /// With no advertiseable API-key credentials, fall to interactive `xvora.com`.
     #[test]
     fn after_cached_token_unavailable_falls_to_grok_com_without_api_key() {
         assert_eq!(
@@ -633,7 +633,7 @@ mod tests {
         );
     }
 
-    /// Session-only user (no API key anywhere): cached_token first, then `grok.com`.
+    /// Session-only user (no API key anywhere): cached_token first, then `xvora.com`.
     /// `auth_methods.first()` does NOT need interactive login, so this user also skips the login screen at startup.
     #[test]
     fn session_only_user_first_method_is_cached_token() {
@@ -657,7 +657,7 @@ mod tests {
         );
     }
 
-    /// Brand-new user (no API key, no cached token): only `grok.com` is advertised, and the pager will (correctly) show the login screen.
+    /// Brand-new user (no API key, no cached token): only `xvora.com` is advertised, and the pager will (correctly) show the login screen.
     /// `default_auth_method_id` is None so the pager falls back to the advertised login method.
     #[test]
     fn fresh_user_only_advertises_grok_com_and_requires_login() {
@@ -668,7 +668,7 @@ mod tests {
         assert_eq!(built.methods.len(), 1);
     }
 
-    /// Enterprise OIDC replaces `grok.com` (mutually exclusive).
+    /// Enterprise OIDC replaces `xvora.com` (mutually exclusive).
     /// xvora.api_key, when present, still leads.
     #[test]
     fn enterprise_oidc_replaces_grok_com_but_xai_api_key_still_first() {
@@ -694,11 +694,11 @@ mod tests {
                 .methods
                 .iter()
                 .any(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::GrokCom),
-            "grok.com and oidc are mutually exclusive",
+            "xvora.com and oidc are mutually exclusive",
         );
     }
 
-    /// `has_auth_provider_command` reaches the `grok.com` method as `meta.external_provider = true`.
+    /// `has_auth_provider_command` reaches the `xvora.com` method as `meta.external_provider = true`.
     /// Pinned here so the pager's `AuthStartMode::Command` path keeps working.
     #[test]
     fn auth_provider_command_sets_external_provider_meta() {
@@ -709,13 +709,13 @@ mod tests {
         };
         let built = build_auth_methods(inputs);
 
-        let grok = built
+        let xvora = built
             .methods
             .iter()
             .find(|m| AuthMethodKind::from_id(m.id()) == AuthMethodKind::GrokCom)
-            .expect("grok.com must be advertised");
-        assert_eq!(grok.name(), "Acme Corp");
-        let meta = grok.meta().expect("meta should be set");
+            .expect("xvora.com must be advertised");
+        assert_eq!(xvora.name(), "Acme Corp");
+        let meta = xvora.meta().expect("meta should be set");
         assert_eq!(
             meta.get("external_provider").and_then(|v| v.as_bool()),
             Some(true),
@@ -725,7 +725,7 @@ mod tests {
     // ── End-to-end: enterprise TOML to resolved models to build_auth_methods ─
 
     /// END-TO-END REGRESSION TEST: parses the literal enterprise-style
-    /// `~/.grok/config.toml` skeleton from the bug report, walks it through
+    /// `~/.xvora/config.toml` skeleton from the bug report, walks it through
     /// the same predicate (`should_advertise_xai_api_key`) and the same
     /// list-builder (`build_auth_methods`) that `MvpAgent::initialize()` uses
     /// in production, and asserts that `auth_methods.first()` is `xvora.api_key`
@@ -786,7 +786,7 @@ mod tests {
             assert!(has_external_api_key);
             let built = build_auth_methods(AuthMethodsBuildInputs {
                 has_external_api_key,
-                // Realistic enterprise user: no cached session token, default grok.com login (no enterprise OIDC)
+                // Realistic enterprise user: no cached session token, default xvora.com login (no enterprise OIDC)
                 has_cached_token: false,
                 ..default_inputs()
             });
@@ -944,9 +944,9 @@ mod tests {
         assert_eq!(read_xai_api_key_env().unwrap(), "new-key");
     }
 
-    // -- grok login --legacy regression coverage ------------------------
+    // -- xvora login --legacy regression coverage ------------------------
     //
-    // `grok login --legacy` produces a GrokAuth with `auth_mode: WebLogin`, `oidc_issuer: None`, and no `expires_at` (30-day hardcoded TTL)
+    // `xvora login --legacy` produces a GrokAuth with `auth_mode: WebLogin`, `oidc_issuer: None`, and no `expires_at` (30-day hardcoded TTL)
     // When this token is in the `GROK_AUTH` env var (or the legacy scope fallback in auth.json), `AuthManager::new` returns it from `current()`
     // That feeds `has_cached_token = true` into `build_auth_methods`, which puts `cached_token` first
     // `startup_auth_metadata()` then returns `needs_login = false`: legacy users get frictionless auth, no login screen
@@ -966,7 +966,7 @@ mod tests {
         let _g1 = EnvGuard::unset("GROK_AUTH_PATH");
         let _g2 = EnvGuard::unset(XAI_API_KEY_ENV_VAR);
 
-        // Construct a legacy-style token exactly as `grok login --legacy` produces it
+        // Construct a legacy-style token exactly as `xvora login --legacy` produces it
         // That means WebLogin mode, no OIDC fields, no refresh_token, no expires_at (is_expired falls back to the 30-day age check)
         let legacy_token = GrokAuth {
             key: "legacy-relay-token".into(),
@@ -1058,7 +1058,7 @@ mod tests {
         assert_eq!(
             first_kind(&built.methods),
             Some(AuthMethodKind::GrokCom),
-            "no cached token AND no api key: pager must show login (grok.com first)",
+            "no cached token AND no api key: pager must show login (xvora.com first)",
         );
     }
 

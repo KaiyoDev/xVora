@@ -2540,7 +2540,7 @@ fn render_empty_state(buf: &mut Buffer, area: Rect, theme: &Theme, loading: bool
 /// `reply_label` flips the placeholder between `Dispatch a new agent` (`None`) and `Reply to {label}` (`Some`).
 /// The chrome then reflects what Enter will do: dispatch a new session, or enqueue / send a prompt to the currently-selected agent.
 /// Paint a short right-aligned feedback badge onto the dispatch box's **top border**, in a neutral accent colour.
-/// Examples: `✗ Session no longer exists`, `✓ Theme: Grok Day`.
+/// Examples: `✗ Session no longer exists`, `✓ Theme: xvora Day`.
 /// The message is painted VERBATIM: it already carries its own status glyph.
 /// Errors are built via [`DashboardState::set_error_toast`] (`✗`), while successes and info arrive from the `show_toast` builders (`✓` / `⚠`).
 /// The badge therefore neither prepends a glyph nor forces a colour.

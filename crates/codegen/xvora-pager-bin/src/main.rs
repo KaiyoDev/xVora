@@ -158,7 +158,7 @@ fn resolve_agent_profile_path(path: &std::path::Path) -> std::path::PathBuf {
 /// Print startup information for the serve command.
 fn print_serve_startup_info(bind_addr: SocketAddr, secret: &str) {
     eprintln!();
-    eprintln!("   Grok agent server starting...");
+    eprintln!("   xvora agent server starting...");
     eprintln!();
     eprintln!("   Address:  {}:{}", bind_addr.ip(), bind_addr.port());
     eprintln!("   Secret:   {}", secret);
@@ -169,7 +169,7 @@ fn print_serve_startup_info(bind_addr: SocketAddr, secret: &str) {
     );
     eprintln!();
 }
-/// Entrypoint tag for `grok -p`; keys the quiet stderr default in `init_tracing_simple`.
+/// Entrypoint tag for `xvora -p`; keys the quiet stderr default in `init_tracing_simple`.
 const HEADLESS_ENTRYPOINT: &str = "headless";
 /// Initialize simple tracing for non-TUI agent modes.
 fn init_tracing_simple(app_entrypoint: &'static str) {
@@ -200,7 +200,7 @@ fn init_tracing_simple(app_entrypoint: &'static str) {
         .with(telemetry::hooks_log::layer())
         .with(telemetry::otel_layer::build_otel_layer(
             telemetry::otel_layer::OtelClientInfo {
-                client_name: "grok-pager",
+                client_name: "xvora-pager",
                 client_version: version::VERSION,
                 service_version: env!("VERSION_WITH_COMMIT"),
                 app_entrypoint,
@@ -216,7 +216,7 @@ fn init_tracing_simple(app_entrypoint: &'static str) {
         },
     ));
 }
-/// `grok setup`: rendering and exit codes only; fetch logic lives in `shell::managed_config`.
+/// `xvora setup`: rendering and exit codes only; fetch logic lives in `shell::managed_config`.
 /// `json` prints the served configuration instead of installing it.
 #[tracing::instrument(level = "debug", skip_all)]
 async fn run_setup_command(json: bool) {
@@ -224,7 +224,7 @@ async fn run_setup_command(json: bool) {
     if !managed_config::has_principal() {
         eprintln!("No deployment key or team sign-in found.");
         eprintln!();
-        eprintln!("To install managed configuration, sign in with a team using `grok login`,");
+        eprintln!("To install managed configuration, sign in with a team using `xvora login`,");
         eprintln!("or set a deployment key:");
         eprintln!();
         if cfg!(unix) {
@@ -232,15 +232,15 @@ async fn run_setup_command(json: bool) {
         } else {
             eprintln!("  $env:GROK_DEPLOYMENT_KEY=\"<your-key>\"");
         }
-        eprintln!("  grok setup");
+        eprintln!("  xvora setup");
         eprintln!();
-        eprintln!("Or add the key to ~/.grok/config.toml:");
+        eprintln!("Or add the key to ~/.xvora/config.toml:");
         eprintln!();
         eprintln!("  [endpoints]");
         eprintln!("  deployment_key = \"<your-key>\"");
         eprintln!();
         eprintln!(
-            "If you don't have a deployment key, contact your organization's Grok administrator."
+            "If you don't have a deployment key, contact your organization's xvora administrator."
         );
         std::process::exit(1);
     }
@@ -272,12 +272,12 @@ async fn run_setup_command(json: bool) {
         }
         SetupOutcome::Skipped => {
             eprintln!(
-                "Managed configuration was not applied this run (another process held the apply lock, or the credential changed during the fetch). Run `grok setup` again."
+                "Managed configuration was not applied this run (another process held the apply lock, or the credential changed during the fetch). Run `xvora setup` again."
             );
         }
         SetupOutcome::Staged => {
             eprintln!(
-                "Managed configuration update verified; it takes effect the next time Grok starts."
+                "Managed configuration update verified; it takes effect the next time xvora starts."
             );
         }
         SetupOutcome::Failed(e) => {
@@ -348,7 +348,7 @@ async fn kill_leaders() -> Result<()> {
         };
         if !shell::util::is_grok_process(pid) {
             if let Some(ref lock) = d.lock_path {
-                eprintln!("  PID {pid} is not a grok process, removing stale lock");
+                eprintln!("  PID {pid} is not a xvora process, removing stale lock");
                 let _ = std::fs::remove_file(lock);
                 cleaned += 1;
             }
@@ -392,7 +392,7 @@ async fn connect_to_leader(
         .ok_or_else(|| anyhow::anyhow!("resolved leader target did not include a socket path"))?;
     let client = shell::leader::LeaderClient::connect(
         socket_path.to_path_buf(),
-        "grok-pager-leader-cli",
+        "xvora-pager-leader-cli",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -443,10 +443,10 @@ fn ensure_control_caps(reg: &LeaderRegistration) -> Result<&LeaderCapabilities> 
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("Leader does not advertise capabilities (legacy version)"))
 }
-/// Env override for the `grok workspace` gate: any truthy value enables the command locally, a falsy one disables it.
+/// Env override for the `xvora workspace` gate: any truthy value enables the command locally, a falsy one disables it.
 /// Either way it bypasses the remote settings flag.
 const WORKSPACE_COMMAND_ENV: &str = "GROK_WORKSPACE_COMMAND";
-/// Resolution of the `grok workspace` gate.
+/// Resolution of the `xvora workspace` gate.
 /// `Unknown` is kept separate from `Disabled` so we don't tell the user the flag is off when the settings were never read.
 /// Both fail closed, but `Unknown` earns an honest message.
 #[derive(Debug, PartialEq, Eq)]
@@ -480,7 +480,7 @@ fn workspace_command_gate(
         None => WorkspaceGate::Unknown,
     }
 }
-/// Truthy parse for grok on/off env vars: everything enables except the common falsy spellings (`0`, `false`, `off`, `no`, empty).
+/// Truthy parse for xvora on/off env vars: everything enables except the common falsy spellings (`0`, `false`, `off`, `no`, empty).
 fn env_flag_enabled(value: &str) -> bool {
     !matches!(
         value.trim().to_ascii_lowercase().as_str(),
@@ -503,7 +503,7 @@ async fn run_workspace_mgmt(args: WorkspaceMgmtArgs) -> Result<()> {
     ) && let Some(profile) = xvora_sandbox::requested_confinement_profile()
     {
         anyhow::bail!(
-            "`grok workspace` start/restart/resume is unavailable under sandbox profile '{profile}': \
+            "`xvora workspace` start/restart/resume is unavailable under sandbox profile '{profile}': \
              those commands (re)activate shared-leader workspace exposure that this session cannot \
              prove is confined by that profile. Disable the profile at the source that selected it \
              (CLI, env, config, or a managed requirement)."
@@ -519,14 +519,14 @@ async fn run_workspace_mgmt(args: WorkspaceMgmtArgs) -> Result<()> {
         WorkspaceGate::Enabled => {}
         WorkspaceGate::Disabled => {
             anyhow::bail!(
-                "`grok workspace` is not enabled for this account \
+                "`xvora workspace` is not enabled for this account \
              (gated by a server-side feature flag that is currently off)."
             )
         }
         WorkspaceGate::Unknown => {
             anyhow::bail!(
-                "Could not load your settings for `grok workspace`. Check your \
-             network connection (run `grok login` if you are signed out), then \
+                "Could not load your settings for `xvora workspace`. Check your \
+             network connection (run `xvora login` if you are signed out), then \
              try again."
             )
         }
@@ -575,7 +575,7 @@ async fn connect_workspace_control(
     let socket = socket_path_for_ws_url(ws_url);
     LeaderClient::connect(
         socket,
-        "grok-workspace-cli",
+        "xvora-workspace-cli",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -583,7 +583,7 @@ async fn connect_workspace_control(
     .map_err(|e| {
         anyhow::anyhow!(
             "no running leader for this environment ({e}). \
-             Start a grok session, or run `grok workspace start`."
+             Start a xvora session, or run `xvora workspace start`."
         )
     })
 }
@@ -624,14 +624,14 @@ async fn workspace_start(
     );
     if !use_leader {
         anyhow::bail!(
-            "`grok workspace` requires leader mode (the workspace is shared via the leader).\n\
-             Enable it with `[cli] use_leader = true` in ~/.grok/config.toml, or pass --leader."
+            "`xvora workspace` requires leader mode (the workspace is shared via the leader).\n\
+             Enable it with `[cli] use_leader = true` in ~/.xvora/config.toml, or pass --leader."
         );
     }
     ensure_authenticated(
         &agent_config.grok_com_config,
         false,
-        Some("No cached credentials found. Run `grok login` first."),
+        Some("No cached credentials found. Run `xvora login` first."),
     )
     .await?;
     let env_urls = LeaderEnvUrls::from(&agent_config.grok_com_config);
@@ -640,7 +640,7 @@ async fn workspace_start(
         ..Default::default()
     };
     let conn = connect_or_spawn(
-        "grok-workspace-cli",
+        "xvora-workspace-cli",
         ClientMode::Stdio,
         &env_urls,
         capabilities,
@@ -1087,7 +1087,7 @@ fn shutdown_and_flush_telemetry(exit_code: i32) -> ! {
 }
 fn finalize_span_profile() {
     if let Some(path) = telemetry::span_profile::finalize() {
-        eprintln!("grok: span profile written to {}", path.display());
+        eprintln!("xvora: span profile written to {}", path.display());
     }
 }
 #[tracing::instrument(level = "debug", skip_all)]
@@ -1122,7 +1122,7 @@ async fn forward_stdio_line_to_leader(
     }
 }
 /// Emitted by both leader guards (server mode and leader-connect) so the two sites can't drift.
-const PLUGIN_DIR_LEADER_WARNING: &str = "grok: --plugin-dir is ignored in leader mode; run with --no-leader to \
+const PLUGIN_DIR_LEADER_WARNING: &str = "xvora: --plugin-dir is ignored in leader mode; run with --no-leader to \
      load per-process plugins";
 /// Run the `agent` subcommand, dispatching to the appropriate mode.
 #[tracing::instrument(level = "debug", skip_all)]
@@ -1174,7 +1174,7 @@ async fn run_agent_command(
     let is_leader = matches!(agent_args.mode, Some(AgentCmd::Leader(_)));
     if !is_stdio && !is_leader {
         eprintln!(
-            "Grok Build (pager) - v{}",
+            "xvora build (pager) - v{}",
             version::display_version_with_commit(
                 env!("VERSION_WITH_COMMIT"),
                 update::channel_label(),
@@ -1212,7 +1212,7 @@ async fn run_agent_command(
         None,
     );
     if let Some(warning) = launch_yolo.blocked_warning {
-        eprintln!("grok: {warning}");
+        eprintln!("xvora: {warning}");
     }
     agent_config.default_yolo_mode = launch_yolo.yolo;
     agent_config.default_auto_mode = shell::util::config::effective_auto_for_launch(
@@ -1291,7 +1291,7 @@ async fn run_agent_command(
     });
     let managed_install = is_managed_install(
         std::env::current_exe().ok(),
-        &shell::util::grok_home::grok_home(),
+        &shell::util::xvora_home::xvora_home(),
     );
     if stdio_auto_update_enabled(
         is_stdio,
@@ -1627,11 +1627,11 @@ fn raise_fd_limit() {
 #[cfg(not(unix))]
 fn raise_fd_limit() {}
 /// Single audit point for the `Command::Dashboard` soft-subcommand.
-/// Sets `GROK_OPEN_DASHBOARD_AT_STARTUP=1` if the user asked for `grok dashboard`.
+/// Sets `GROK_OPEN_DASHBOARD_AT_STARTUP=1` if the user asked for `xvora dashboard`.
 /// Clears `args.command` so the regular subcommand match doesn't try to handle it.
 ///
 /// The dashboard is independent of leader mode: it renders local sessions and, when a leader happens to be present, shows the leader roster too.
-/// So `grok dashboard` does NOT force leader mode and is compatible with `--no-leader`.
+/// So `xvora dashboard` does NOT force leader mode and is compatible with `--no-leader`.
 ///
 /// The only gate is the feature flag: a disabled dashboard (`[dashboard].enabled = false` / `GROK_AGENT_DASHBOARD=0`) is a CLI error.
 /// It fires here, before the TUI starts, because the welcome view silently drops the equivalent runtime toast.
@@ -1642,7 +1642,7 @@ fn flag_dashboard_at_startup_if_requested(args: &mut PagerArgs) -> Result<()> {
     if !xvora_pager::views::dashboard::dashboard_enabled() {
         anyhow::bail!(
             "the Agent Dashboard is disabled. Enable it by removing \
-             `[dashboard] enabled = false` from ~/.grok/config.toml and \
+             `[dashboard] enabled = false` from ~/.xvora/config.toml and \
              unsetting GROK_AGENT_DASHBOARD=0."
         );
     }
@@ -1684,10 +1684,10 @@ impl WorkerCount {
                 used,
                 cores,
             } => Some(format!(
-                "grok: clamped {GROK_WORKER_THREADS_ENV}={requested} to {used} (valid range is 1..={cores})"
+                "xvora: clamped {GROK_WORKER_THREADS_ENV}={requested} to {used} (valid range is 1..={cores})"
             )),
             Self::Ignored { value, .. } => Some(format!(
-                "grok: ignoring {GROK_WORKER_THREADS_ENV}={value:?} (not a valid integer)"
+                "xvora: ignoring {GROK_WORKER_THREADS_ENV}={value:?} (not a valid integer)"
             )),
         }
     }
@@ -1864,7 +1864,7 @@ fn install_heap_profile_hooks() {
 }
 fn version_text(channel_label: &str) -> String {
     format!(
-        "grok {}\n",
+        "xvora {}\n",
         version::display_version_with_commit(version::full_version(), channel_label,)
     )
 }
@@ -1925,26 +1925,26 @@ fn main() {
     xvora_pager::memory_trace::start(xvora_pager::memory_trace::default_dir());
     raise_fd_limit();
     if let Err(e) = config::validate_requirements() {
-        eprintln!("Couldn't start Grok: {e}");
+        eprintln!("Couldn't start xvora: {e}");
         eprintln!();
         eprintln!(
-            "Update Grok to a version the policy allows, or ask your administrator \
+            "Update xvora to a version the policy allows, or ask your administrator \
              to fix the managed requirements."
         );
         std::process::exit(2);
     }
     let _sentry_guard = telemetry::sentry::init(telemetry::sentry::Config {
-        client: "grok-pager",
+        client: "xvora-pager",
         client_version: PAGER_CLIENT_VERSION,
         release: env!("VERSION_WITH_COMMIT"),
         disabled: shell::agent::config::is_error_reporting_disabled_sync(),
     });
-    xvora_pager::docs::extract_user_guide_docs(&shell::util::grok_home::grok_home());
+    xvora_pager::docs::extract_user_guide_docs(&shell::util::xvora_home::xvora_home());
     crash_handler::install_terminal_restore_only();
     if shell::util::config::load_crash_handler_enabled_sync() {
-        let crash_dir = shell::util::grok_home::grok_home().join("crash");
+        let crash_dir = shell::util::xvora_home::xvora_home().join("crash");
         if let Some(report) = crash_handler::check_previous_crash(&crash_dir) {
-            eprintln!("Grok crashed during your last session.");
+            eprintln!("xvora crashed during your last session.");
             eprintln!("  Signal:  {}", report.signal_name);
             eprintln!("  Version: {}", report.app_version);
             eprintln!("  Report:  {}", report.report_path.display());
@@ -1971,7 +1971,7 @@ fn main() {
     let mut builder = tokio::runtime::Builder::new_multi_thread();
     builder.worker_threads(workers.get()).enable_all();
     let runtime = tty_utils::runtime::build_with_blocking_pool(&mut builder).unwrap_or_else(|e| {
-        eprintln!("grok: failed to start tokio runtime: {e}");
+        eprintln!("xvora: failed to start tokio runtime: {e}");
         shutdown_and_flush_telemetry(1);
     });
     let result = run_and_shutdown(runtime, async_main(args), RUNTIME_SHUTDOWN_GRACE);
@@ -2053,7 +2053,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
         match shell::config::load_agent_config_disk_only() {
             Ok(agent_cfg) => {
                 let auth_manager = std::sync::Arc::new(shell::auth::AuthManager::new(
-                    &shell::util::grok_home::grok_home(),
+                    &shell::util::xvora_home::xvora_home(),
                     agent_cfg.grok_com_config.clone(),
                 ));
                 auth_manager.configure_refresher(
@@ -2108,7 +2108,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
                     };
                     anyhow::bail!(
                         "top-level {flag} applies to the pager TUI, not the agent subcommand. \
-                         Use `grok-pager agent {flag}` instead."
+                         Use `xvora-pager agent {flag}` instead."
                     );
                 }
                 enforce_version_policy_or_exit();
@@ -2290,7 +2290,7 @@ async fn async_main(args: PagerArgs) -> Result<()> {
             None,
         );
         if let Some(warning) = launch_yolo.blocked_warning {
-            eprintln!("grok: {warning}");
+            eprintln!("xvora: {warning}");
         }
         let json_schema = args
             .json_schema
@@ -2370,9 +2370,9 @@ async fn async_main(args: PagerArgs) -> Result<()> {
         Ok(true) => {
             let adopted = bg_update_wait.lock().await.take();
             if finish_update_on_exit(adopted, &update_config).await {
-                eprintln!("Update installed. Run `grok` to start.");
+                eprintln!("Update installed. Run `xvora` to start.");
             } else {
-                eprintln!("Update did not complete. Run `grok update` to retry.");
+                eprintln!("Update did not complete. Run `xvora update` to retry.");
             }
             Ok(())
         }
@@ -2383,8 +2383,8 @@ async fn async_main(args: PagerArgs) -> Result<()> {
 /// Complete the update after a quit-for-update (Ctrl+U) exit.
 /// Returns `true` when an update path completed without a reported failure.
 ///
-/// Prefers awaiting the parked waiter for the background `grok update` child spawned at startup; the download is usually already done or in flight.
-/// It falls back to a fresh blocking `grok update` only when there is no waiter or the child failed.
+/// Prefers awaiting the parked waiter for the background `xvora update` child spawned at startup; the download is usually already done or in flight.
+/// It falls back to a fresh blocking `xvora update` only when there is no waiter or the child failed.
 /// (No waiter means the spawn failed or no download was needed because the target was already on disk.)
 /// The blocking run itself resolves to "Already up to date" without downloading when the disk is current.
 #[tracing::instrument(level = "debug", skip_all)]
@@ -2473,18 +2473,18 @@ fn stdio_auto_update_enabled(
 ) -> bool {
     is_stdio && !use_leader && updates_enabled && managed_install
 }
-/// True when `exe` is the binary `<grok_home>/bin/grok` resolves to, the
+/// True when `exe` is the binary `<xvora_home>/bin/xvora` resolves to, the
 /// install that adopts a staged update on respawn. Both sides are
 /// canonicalized; any failure reports unmanaged and skips the update. The
-/// npm shim hardcodes `~/.grok`, so a custom `GROK_HOME` skips here too.
-fn is_managed_install(exe: Option<std::path::PathBuf>, grok_home: &std::path::Path) -> bool {
-    if grok_home.as_os_str().is_empty() {
+/// npm shim hardcodes `~/.xvora`, so a custom `xvora_home` skips here too.
+fn is_managed_install(exe: Option<std::path::PathBuf>, xvora_home: &std::path::Path) -> bool {
+    if xvora_home.as_os_str().is_empty() {
         return false;
     }
     let Some(exe) = exe else {
         return false;
     };
-    let managed = config::grok_application_in(grok_home);
+    let managed = config::grok_application_in(xvora_home);
     match (dunce::canonicalize(&exe), dunce::canonicalize(&managed)) {
         (Ok(exe), Ok(managed)) => exe == managed,
         _ => false,
@@ -2503,7 +2503,7 @@ fn get_channel_switch(alpha: bool, stable: bool, enterprise: bool) -> Option<&'s
         None
     }
 }
-/// Handle `grok-pager update [--check] [--json] [--force-reinstall] [--version X] [--alpha|--stable|--enterprise]`.
+/// Handle `xvora-pager update [--check] [--json] [--force-reinstall] [--version X] [--alpha|--stable|--enterprise]`.
 /// --trigger is the one representation; --auto is the compat alias from older parents.
 /// Unknown values fall back to user_command (a human is the only caller that can produce them).
 fn resolve_update_trigger(flag: Option<&str>, auto: bool) -> auto_update::CliUpdateTrigger {
@@ -2551,11 +2551,11 @@ async fn run_update_command(
         );
     }
     let telemetry_cfg = shell::config::load_agent_config_disk_only()
-        .map_err(|e| tracing::warn!("grok update: telemetry init skipped (agent config: {e})"))
+        .map_err(|e| tracing::warn!("xvora update: telemetry init skipped (agent config: {e})"))
         .ok();
     if let Some(agent_cfg) = telemetry_cfg {
         let auth_manager = std::sync::Arc::new(shell::auth::AuthManager::new(
-            &shell::util::grok_home::grok_home(),
+            &shell::util::xvora_home::xvora_home(),
             agent_cfg.grok_com_config.clone(),
         ));
         shell::agent::init::update_telemetry_config(&agent_cfg, &auth_manager);
@@ -2575,7 +2575,7 @@ async fn run_update_command(
     result?;
     Ok(())
 }
-/// After a successful `grok update`, ask any running leader on this machine that is older than `installed_version` to relaunch onto the new binary.
+/// After a successful `xvora update`, ask any running leader on this machine that is older than `installed_version` to relaunch onto the new binary.
 /// (Bounded grace; running sessions close and reconnect via `session/load`.)
 ///
 /// Best-effort and non-fatal: discovery/connect/control failures are logged and skipped.
@@ -2596,7 +2596,7 @@ async fn signal_leaders_to_relaunch(installed_version: &str) {
         }
         let client = match shell::leader::LeaderClient::connect(
             socket_path,
-            "grok-pager-update",
+            "xvora-pager-update",
             ClientMode::Stdio,
             ClientCapabilities::default(),
         )
@@ -2645,11 +2645,11 @@ mod tests {
     #[test]
     fn embedded_agent_commands_heal_managed_policy_before_sandboxing() {
         for args in [
-            vec!["grok"],
-            vec!["grok", "agent", "stdio"],
-            vec!["grok", "dashboard"],
-            vec!["grok", "models"],
-            vec!["grok", "worktree", "list"],
+            vec!["xvora"],
+            vec!["xvora", "agent", "stdio"],
+            vec!["xvora", "dashboard"],
+            vec!["xvora", "models"],
+            vec!["xvora", "worktree", "list"],
         ] {
             let args = PagerArgs::try_parse_from(args).unwrap();
             assert!(
@@ -2661,10 +2661,10 @@ mod tests {
     #[test]
     fn utility_commands_skip_managed_policy_heal() {
         for args in [
-            vec!["grok", "inspect"],
-            vec!["grok", "mcp", "list"],
-            vec!["grok", "sessions", "list"],
-            vec!["grok", "version"],
+            vec!["xvora", "inspect"],
+            vec!["xvora", "mcp", "list"],
+            vec!["xvora", "sessions", "list"],
+            vec!["xvora", "version"],
         ] {
             let args = PagerArgs::try_parse_from(args).unwrap();
             assert!(
@@ -2737,7 +2737,7 @@ mod tests {
         );
         assert_eq!(
             resolve_worker_override("100000", cores).notice().unwrap(),
-            "grok: clamped GROK_WORKER_THREADS=100000 to 360 (valid range is 1..=360)"
+            "xvora: clamped GROK_WORKER_THREADS=100000 to 360 (valid range is 1..=360)"
         );
     }
     #[test]
@@ -2750,7 +2750,7 @@ mod tests {
         }
         assert_eq!(
             resolve_worker_override("abc", cores).notice().unwrap(),
-            "grok: ignoring GROK_WORKER_THREADS=\"abc\" (not a valid integer)"
+            "xvora: ignoring GROK_WORKER_THREADS=\"abc\" (not a valid integer)"
         );
     }
     #[test]
@@ -2764,20 +2764,20 @@ mod tests {
             let mut output = Vec::new();
             write_version(&mut output, label).unwrap();
             let output = String::from_utf8(output).unwrap();
-            assert!(output.starts_with("grok "));
+            assert!(output.starts_with("xvora "));
             assert!(output.contains(env!("VERSION_WITH_COMMIT")));
             assert!(output.ends_with(expected_suffix), "{output:?}");
         }
     }
     #[test]
     fn version_flags_and_doctor_are_distinct_early_intents() {
-        let version = PagerArgs::try_parse_from(["grok", "--version"]).unwrap();
+        let version = PagerArgs::try_parse_from(["xvora", "--version"]).unwrap();
         assert!(version.version);
         assert!(version.command.is_none());
-        let short = PagerArgs::try_parse_from(["grok", "-v"]).unwrap();
+        let short = PagerArgs::try_parse_from(["xvora", "-v"]).unwrap();
         assert!(short.version);
         assert!(short.command.is_none());
-        let subcommand = PagerArgs::try_parse_from(["grok", "version"]).unwrap();
+        let subcommand = PagerArgs::try_parse_from(["xvora", "version"]).unwrap();
         assert!(!subcommand.version);
         assert!(matches!(
             subcommand.command,
@@ -2790,7 +2790,7 @@ mod tests {
     impl TempHeapDump {
         fn new(label: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
-                "grok-jemalloc-{label}-{}-{}.heap",
+                "xvora-jemalloc-{label}-{}-{}.heap",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -2895,7 +2895,7 @@ mod tests {
         if !require_opt_prof() {
             return;
         }
-        let path = Path::new(OsStr::from_bytes(b"/tmp/grok-jemalloc-\0.heap"));
+        let path = Path::new(OsStr::from_bytes(b"/tmp/xvora-jemalloc-\0.heap"));
         let err = jemalloc_dump_to_path(path).expect_err("interior NUL must fail");
         assert!(
             err.to_ascii_lowercase().contains("nul"),
@@ -2930,29 +2930,31 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn is_managed_install_matches_only_the_bin_grok_target() {
-        let home =
-            std::env::temp_dir().join(format!("grok-pager-managed-install-{}", std::process::id()));
+        let home = std::env::temp_dir().join(format!(
+            "xvora-pager-managed-install-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&home);
         std::fs::create_dir_all(home.join("bin")).unwrap();
         std::fs::create_dir_all(home.join("downloads")).unwrap();
         assert!(!is_managed_install(
-            Some(home.join("bin").join("grok")),
+            Some(home.join("bin").join("xvora")),
             &home
         ));
         assert!(!is_managed_install(None, &home));
         assert!(!is_managed_install(
-            Some(home.join("bin").join("grok")),
+            Some(home.join("bin").join("xvora")),
             std::path::Path::new("")
         ));
-        let target = home.join("downloads").join("grok-1.2.3");
+        let target = home.join("downloads").join("xvora-1.2.3");
         std::fs::write(&target, b"binary").unwrap();
-        std::os::unix::fs::symlink(&target, home.join("bin").join("grok")).unwrap();
+        std::os::unix::fs::symlink(&target, home.join("bin").join("xvora")).unwrap();
         assert!(is_managed_install(
-            Some(home.join("bin").join("grok")),
+            Some(home.join("bin").join("xvora")),
             &home
         ));
         assert!(is_managed_install(Some(target.clone()), &home));
-        let pinned = home.join("bin").join("grok-9.9.9");
+        let pinned = home.join("bin").join("xvora-9.9.9");
         std::fs::write(&pinned, b"binary").unwrap();
         assert!(!is_managed_install(Some(pinned), &home));
         let _ = std::fs::remove_dir_all(&home);
@@ -2979,12 +2981,12 @@ mod tests {
         );
     }
     use clap::Parser as _;
-    /// `grok dashboard` flags the startup hook without forcing leader mode.
+    /// `xvora dashboard` flags the startup hook without forcing leader mode.
     /// The dashboard is independent of leader mode, so the launch keeps whatever leader setting the user (or config) chose.
     #[serial_test::serial(GROK_AGENT_DASHBOARD)]
     #[test]
     fn dashboard_subcommand_flags_startup_without_forcing_leader() {
-        let mut args = PagerArgs::try_parse_from(["grok", "dashboard"]).unwrap();
+        let mut args = PagerArgs::try_parse_from(["xvora", "dashboard"]).unwrap();
         assert!(!args.leader, "fixture: no explicit --leader");
         flag_dashboard_at_startup_if_requested(&mut args).unwrap();
         assert!(!args.leader, "dashboard must NOT force leader mode");
@@ -2999,12 +3001,12 @@ mod tests {
         );
         unsafe { std::env::remove_var("GROK_OPEN_DASHBOARD_AT_STARTUP") };
     }
-    /// `grok dashboard --no-leader` is allowed.
+    /// `xvora dashboard --no-leader` is allowed.
     /// The dashboard does not require a leader, so the combination launches into the dashboard in non-leader mode.
     #[serial_test::serial(GROK_AGENT_DASHBOARD)]
     #[test]
     fn dashboard_subcommand_allows_no_leader() {
-        let mut args = PagerArgs::try_parse_from(["grok", "--no-leader", "dashboard"]).unwrap();
+        let mut args = PagerArgs::try_parse_from(["xvora", "--no-leader", "dashboard"]).unwrap();
         flag_dashboard_at_startup_if_requested(&mut args)
             .expect("--no-leader + dashboard must be allowed");
         assert!(args.no_leader, "--no-leader must be preserved");
@@ -3025,7 +3027,7 @@ mod tests {
     #[test]
     fn dashboard_subcommand_errors_when_disabled() {
         unsafe { std::env::set_var("GROK_AGENT_DASHBOARD", "0") };
-        let mut args = PagerArgs::try_parse_from(["grok", "dashboard"]).unwrap();
+        let mut args = PagerArgs::try_parse_from(["xvora", "dashboard"]).unwrap();
         let result = flag_dashboard_at_startup_if_requested(&mut args);
         unsafe { std::env::remove_var("GROK_AGENT_DASHBOARD") };
         let err = result.expect_err("disabled dashboard must error");

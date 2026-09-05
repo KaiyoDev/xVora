@@ -129,14 +129,14 @@ fn doctor_planning_opens_refuses_remote_and_rejects_stale_identity() {
         TaskResult::DoctorFixPlanned {
             target: target.clone(),
             result: Ok(crate::app::actions::DoctorPlanningOutcome::RunLocally(
-                "grok doctor fix ssh-wrap".to_owned(),
+                "xvora doctor fix ssh-wrap".to_owned(),
             )),
         },
         &mut app,
     );
     assert!(
         last_system_text(&app, id)
-            .contains("On your local computer, run: grok doctor fix ssh-wrap")
+            .contains("On your local computer, run: xvora doctor fix ssh-wrap")
     );
 
     app.agents
@@ -275,7 +275,7 @@ fn stale_auth_copy_timeout_does_not_clear_newer_feedback() {
     app.auth_state = AuthState::Authenticating {
         request_seq: 1,
         handle: None,
-        auth_url: Some("https://grok.com/auth".to_owned()),
+        auth_url: Some("https://xvora.com/auth".to_owned()),
         mode: AuthMode::Command,
     };
 
@@ -525,7 +525,7 @@ fn wrap_host_image_request_eligible_covers_full_miss_and_attachment_error_only()
     use crate::app::actions::{ClipboardPasteCompletion, ClipboardPasteFailure};
 
     // A clean empty miss and a remote read *error* both fall through to the wrap host-image request
-    // That request is how `grok wrap` pastes images over headless SSH
+    // That request is how `xvora wrap` pastes images over headless SSH
     assert!(wrap_host_image_request_eligible(
         ClipboardPasteCompletion::FullMiss
     ));
@@ -999,7 +999,7 @@ fn switch_model_complete_success_updates_model_and_pushes_message() {
         .available
         .insert(
             model_id.clone(),
-            acp::ModelInfo::new(model_id.clone(), "Grok 4.5".to_string()),
+            acp::ModelInfo::new(model_id.clone(), "xvora 4.5".to_string()),
         );
     app.agents
         .get_mut(&id)
@@ -1044,7 +1044,7 @@ fn switch_model_complete_skips_message_and_persist_when_unchanged() {
     let agent = app.agents.get_mut(&id).unwrap();
     agent.session.models.available.insert(
         model_id.clone(),
-        acp::ModelInfo::new(model_id.clone(), "Grok 4.5".to_string()),
+        acp::ModelInfo::new(model_id.clone(), "xvora 4.5".to_string()),
     );
     agent.session.models.current = Some(model_id.clone());
     agent.session.models.reasoning_effort = None;
@@ -1163,7 +1163,7 @@ fn switch_to_non_reasoning_model_clears_persisted_effort() {
         .available
         .insert(
             model_id.clone(),
-            acp::ModelInfo::new(model_id.clone(), "Grok Build".to_string()),
+            acp::ModelInfo::new(model_id.clone(), "xvora build".to_string()),
         );
     app.agents
         .get_mut(&id)
@@ -1248,7 +1248,7 @@ fn switch_model_incompatible_agent_shows_question_modal() {
 
     let err = shell::agent::config::ModelSwitchIncompatibleAgentError {
         code: "MODEL_SWITCH_INCOMPATIBLE_AGENT".into(),
-        active_agent_type: "grok-build".into(),
+        active_agent_type: "xvora-build".into(),
         required_agent_type: "cursor".into(),
         model_id: "cursor-model".into(),
         suggestion: "start_new_session".into(),
@@ -1309,7 +1309,7 @@ fn incompatible_agent_rollback_restores_previous_model() {
 
     let err = shell::agent::config::ModelSwitchIncompatibleAgentError {
         code: "MODEL_SWITCH_INCOMPATIBLE_AGENT".into(),
-        active_agent_type: "grok-build".into(),
+        active_agent_type: "xvora-build".into(),
         required_agent_type: "cursor".into(),
         model_id: "cursor-model".into(),
         suggestion: "start_new_session".into(),
@@ -1354,7 +1354,7 @@ fn incompatible_agent_closes_active_modal() {
 
     let err = shell::agent::config::ModelSwitchIncompatibleAgentError {
         code: "MODEL_SWITCH_INCOMPATIBLE_AGENT".into(),
-        active_agent_type: "grok-build".into(),
+        active_agent_type: "xvora-build".into(),
         required_agent_type: "cursor".into(),
         model_id: "cursor-model".into(),
         suggestion: "start_new_session".into(),
@@ -1388,19 +1388,19 @@ fn same_agent_type_switch_no_modal() {
     // Switching between two models with the same (or no) agent type succeeds normally: no modal, no IncompatibleAgent error
     let mut app = test_app_with_agent();
     let id = AgentId(0);
-    let model_a = acp::ModelId::new(std::sync::Arc::from("grok-build-a"));
-    let model_b = acp::ModelId::new(std::sync::Arc::from("grok-build-b"));
+    let model_a = acp::ModelId::new(std::sync::Arc::from("xvora-build-a"));
+    let model_b = acp::ModelId::new(std::sync::Arc::from("xvora-build-b"));
 
-    // Add both models to the catalog (no agentType, so both use grok-build)
+    // Add both models to the catalog (no agentType, so both use xvora-build)
     let agent = app.agents.get_mut(&id).unwrap();
     agent.session.models.available.insert(
         model_a.clone(),
-        acp::ModelInfo::new(model_a.clone(), "Grok Build A".to_string()),
+        acp::ModelInfo::new(model_a.clone(), "xvora build A".to_string()),
     );
     agent.session.models.set_current(model_a, None);
     agent.session.models.available.insert(
         model_b.clone(),
-        acp::ModelInfo::new(model_b.clone(), "Grok Build B".to_string()),
+        acp::ModelInfo::new(model_b.clone(), "xvora build B".to_string()),
     );
     agent.session.model_switch_pending = true;
 
@@ -2159,7 +2159,7 @@ fn gate_refreshed_emits_check_subscription_on_gate_lift() {
     // User starts gated (no subscription).
     app.gate = Some(shell::auth::GateInfo {
         message: "SuperGrok subscription required".into(),
-        url: Some("https://grok.com/supergrok".into()),
+        url: Some("https://xvora.com/supergrok".into()),
         label: Some("Subscribe".into()),
     });
     assert!(!app.has_access());

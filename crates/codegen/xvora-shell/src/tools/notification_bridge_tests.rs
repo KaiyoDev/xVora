@@ -1236,7 +1236,7 @@ async fn same_session_monitor_event_is_injected() {
 
 #[tokio::test]
 async fn legacy_monitor_event_without_owner_is_injected() {
-    // Legacy / non-grok-build backends record no owner; such events must pass through unchanged for backwards compatibility
+    // Legacy / non-xvora-build backends record no owner; such events must pass through unchanged for backwards compatibility
     let (config, mut cmd_rx) = make_test_config();
     let notification = make_monitor_event_notification("mon-legacy", None);
     let mut offsets = HashMap::new();
@@ -1587,7 +1587,7 @@ async fn plan_mode_exited_emits_current_mode_update_default() {
     ));
 }
 
-/// With the default (grok) configuration, the exit_plan_mode tool result is the model's only exit signal.
+/// With the default (xvora) configuration, the exit_plan_mode tool result is the model's only exit signal.
 /// So an approved `PlanModeExited` must NOT queue the deferred exit reminder, in memory or in the persisted snapshot.
 /// Sibling of `plan_mode_exited_arms_exit_reminder_when_gated`.
 #[tokio::test]
@@ -1601,7 +1601,7 @@ async fn plan_mode_exited_does_not_arm_exit_reminder_by_default() {
 
     let notification =
         ToolNotification::PlanModeExited(tools::notification::types::PlanModeExited {
-            tool_call_id: "tc-exit-grok".into(),
+            tool_call_id: "tc-exit-xvora".into(),
             plan_content: Some("- step 1".into()),
             plan_file_path: "/tmp/test-session/plan.md".into(),
         });

@@ -1,4 +1,4 @@
-//! `ToolMetadata` — grok-tools-specific metadata for tools.
+//! `ToolMetadata` — xvora-tools-specific metadata for tools.
 //!
 //! Each tool implements two traits:
 //! 1. `tool_runtime::Tool` — typed Args/Output, `run()` with actual logic
@@ -24,7 +24,7 @@ use crate::types::resources::SharedResources;
 use crate::types::template_renderer::TemplateRenderer;
 use crate::types::tool::{ToolKind, ToolNamespace};
 
-/// Grok-tools-specific metadata trait.
+/// xvora-tools-specific metadata trait.
 ///
 /// Each tool struct implements this alongside `tool_runtime::Tool`.
 /// Only `kind()`, `namespace()`, and `description_template()` are required;

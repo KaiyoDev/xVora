@@ -20,7 +20,7 @@ pub struct ClaudeSettings {
     #[serde(default)]
     pub permissions: Option<ParsedPermissions>,
 
-    /// Raw `defaultMode` string when present (canonical under `permissions`, or grok-only root legacy).
+    /// Raw `defaultMode` string when present (canonical under `permissions`, or xvora-only root legacy).
     /// Recognized values: `acceptEdits`, `bypassPermissions`, `default`, `plan`, `dontAsk`, `auto`.
     #[serde(default)]
     pub default_mode: Option<String>,
@@ -71,7 +71,7 @@ impl ParsedPermissions {
 
 /// Returns `None` only when the file is missing, unreadable, or unparseable JSON.
 /// A `Some(ClaudeSettings)` may lack the `permissions` key, so callers still see `defaultMode` and `additionalDirectories`.
-/// Non-string array entries are skipped with warnings, and the canonical `permissions.*` keys win over the grok-legacy root keys.
+/// Non-string array entries are skipped with warnings, and the canonical `permissions.*` keys win over the xvora-legacy root keys.
 pub fn load_claude_settings(path: &Path) -> Option<ClaudeSettings> {
     // Opening a FIFO for read blocks until a writer appears; this runs on the session actor, so refuse non-regular files up front
     match std::fs::metadata(path) {
@@ -131,7 +131,7 @@ pub fn load_claude_settings(path: &Path) -> Option<ClaudeSettings> {
 
 /// Canonical key is `permissions.defaultMode`.
 ///
-/// Root `defaultMode` is grok-only back-compat for older tests / hand-written configs.
+/// Root `defaultMode` is xvora-only back-compat for older tests / hand-written configs.
 /// Fall back to root only when the nested key is **absent**.
 /// If nested is present but not a string, do not resurrect a root value (a malformed canonical key must not revive stale legacy).
 pub(crate) fn extract_default_mode(value: &serde_json::Value, path: &Path) -> Option<String> {
@@ -151,7 +151,7 @@ pub(crate) fn extract_default_mode(value: &serde_json::Value, path: &Path) -> Op
         };
     }
 
-    // Nested key absent, fall back to the optional grok legacy root
+    // Nested key absent, fall back to the optional xvora legacy root
     match value.get("defaultMode") {
         Some(dm) => match dm.as_str() {
             Some(s) => Some(s.to_string()),
@@ -159,7 +159,7 @@ pub(crate) fn extract_default_mode(value: &serde_json::Value, path: &Path) -> Op
                 warn!(
                     path = %path.display(),
                     actual_type = %dm.type_of(),
-                    "root defaultMode (grok legacy): expected string, ignoring"
+                    "root defaultMode (xvora legacy): expected string, ignoring"
                 );
                 None
             }
@@ -172,7 +172,7 @@ pub(crate) fn extract_default_mode(value: &serde_json::Value, path: &Path) -> Op
 /// Nested wins when both are present.
 fn extract_additional_directories(value: &serde_json::Value, path: &Path) -> Option<Vec<String>> {
     // Mirror `extract_default_mode`: prefer the Claude-canonical nested key
-    // A nested key of the wrong type does *not* resurrect the grok-legacy root value
+    // A nested key of the wrong type does *not* resurrect the xvora-legacy root value
     let arr = if let Some(nested) = value
         .get("permissions")
         .and_then(|p| p.get("additionalDirectories"))

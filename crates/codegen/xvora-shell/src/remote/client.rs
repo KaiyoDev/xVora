@@ -5,9 +5,9 @@ use indexmap::IndexMap;
 use prod_mc_cli_chat_proxy_types::SubagentBundle;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-const GROK_CODE_BACKEND_URL: &str = "https://code.grok.com";
+const GROK_CODE_BACKEND_URL: &str = "https://code.xvora.com";
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
-const GROK_CODE_WEB_URL: &str = "https://grok.com";
+const GROK_CODE_WEB_URL: &str = "https://xvora.com";
 pub fn share_url(permission_id: &str) -> String {
     let web_url =
         std::env::var("GROK_CODE_WEB_URL").unwrap_or_else(|_| GROK_CODE_WEB_URL.to_string());
@@ -23,14 +23,14 @@ fn add_cli_chat_proxy_headers_blocking(
         .header("Authorization", format!("Bearer {}", &auth.key))
         .header("X-XAI-Token-Auth", GrokComConfig::default().token_header)
         .header("x-userid", &auth.user_id)
-        .header("x-grok-client-version", version::VERSION);
+        .header("x-xvora-client-version", version::VERSION);
     if let Some(email) = &auth.email {
         builder = builder.header("x-email", email);
     }
     let _ = (alpha_test_key, url);
     builder
         .header(
-            "x-grok-client-identifier",
+            "x-xvora-client-identifier",
             crate::http::process_client_identifier(),
         )
         .header(
@@ -62,7 +62,7 @@ async fn add_bundle_fetch_headers(
     credentials.alpha_test_key = alpha_test_key.map(str::to_owned);
     let mut builder = credentials
         .apply(builder, url)
-        .header("x-grok-client-version", version::VERSION);
+        .header("x-xvora-client-version", version::VERSION);
     if deployment_key.is_none()
         && let Some(auth) = &resolved_auth
     {
@@ -73,7 +73,7 @@ async fn add_bundle_fetch_headers(
     }
     builder = builder
         .header(
-            "x-grok-client-identifier",
+            "x-xvora-client-identifier",
             crate::http::process_client_identifier(),
         )
         .header(
@@ -163,7 +163,7 @@ async fn fetch_bundle_inner(
     let mut request = client
         .get(&archive_url)
         .timeout(std::time::Duration::from_secs(30))
-        .header("x-grok-client-version", version::VERSION)
+        .header("x-xvora-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),
@@ -393,14 +393,14 @@ impl BackendClient {
             headers.insert("x-email", v);
         }
         if let Ok(v) = HeaderValue::from_str(&crate::http::process_client_identifier()) {
-            headers.insert("x-grok-client-identifier", v);
+            headers.insert("x-xvora-client-identifier", v);
         }
         headers.insert(
             crate::http::CLIENT_MODE_HEADER,
             HeaderValue::from_static(crate::http::process_client_mode()),
         );
         headers.insert(
-            "x-grok-client-version",
+            "x-xvora-client-version",
             HeaderValue::from_static(version::VERSION),
         );
         Ok(headers)
@@ -629,7 +629,7 @@ struct LoginConfigResponse {
 }
 /// Fetch `grok_build_login_device_flow` from cli-chat-proxy `GET /v1/login-config`.
 ///
-/// Unauthenticated (pre-login); `x-grok-agent-id` is the per-install bucketing key.
+/// Unauthenticated (pre-login); `x-xvora-agent-id` is the per-install bucketing key.
 /// Best-effort: any error or unset flag returns `None` so the caller keeps the loopback default.
 /// Caps at 1.5s with no retries since it's on the login path.
 pub async fn fetch_login_device_flow(cli_chat_proxy_base_url: &str) -> Option<bool> {
@@ -641,10 +641,10 @@ pub async fn fetch_login_device_flow(cli_chat_proxy_base_url: &str) -> Option<bo
     let response = client
         .get(&url)
         .timeout(std::time::Duration::from_millis(1500))
-        .header("x-grok-agent-id", agent_id)
-        .header("x-grok-client-version", version::VERSION)
+        .header("x-xvora-agent-id", agent_id)
+        .header("x-xvora-client-version", version::VERSION)
         .header(
-            "x-grok-client-identifier",
+            "x-xvora-client-identifier",
             crate::http::process_client_identifier(),
         )
         .header(

@@ -26,7 +26,7 @@ pub struct ConfigLayers {
     /// Values are confined at [`crate::env_overlay`]'s `finalize_overlay` choke point.
     /// Both producers return confined overlays.
     /// `load_env_overlay` feeds the merge path via [`Self::load`].
-    /// `resolved_env_overlay` serves hints (which constructs this field directly) and `grok inspect`.
+    /// `resolved_env_overlay` serves hints (which constructs this field directly) and `xvora inspect`.
     /// Construct this field only from one of those producers.
     /// Tests that assign an unconfined value do so deliberately, to exercise a gate independent of the allowlist.
     ///
@@ -302,12 +302,12 @@ pub struct CampaignsState {
     pub dismissed_ids: Vec<String>,
 }
 
-/// Path to `$GROK_HOME/campaigns_state.json` under `home`.
+/// Path to `$xvora_home/campaigns_state.json` under `home`.
 pub fn campaigns_state_path(home: &std::path::Path) -> std::path::PathBuf {
     home.join(CAMPAIGNS_STATE_FILE)
 }
 
-/// Fail-open dismissed ids from `$GROK_HOME/campaigns_state.json`.
+/// Fail-open dismissed ids from `$xvora_home/campaigns_state.json`.
 pub fn load_dismissed_ids_from_home() -> std::collections::HashSet<String> {
     let Some(home) = crate::user_grok_home() else {
         return std::collections::HashSet::new();

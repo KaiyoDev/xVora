@@ -1,4 +1,4 @@
-//! Project config-file discovery: locating repo-local `.mcp.json` and `.grok/config.toml` files by walking from `cwd` up to the git root.
+//! Project config-file discovery: locating repo-local `.mcp.json` and `.xvora/config.toml` files by walking from `cwd` up to the git root.
 //!
 //! These pure `git2` and filesystem walks are shared by the shell's config loaders and the folder-trust gate's `repo_configs_present`.
 
@@ -38,7 +38,7 @@ pub(crate) fn find_mcp_json_files_in(chain_dirs: &[PathBuf]) -> Vec<PathBuf> {
         .collect()
 }
 
-/// True when `config_path` is `$GROK_HOME/config.toml` (user tier, not project).
+/// True when `config_path` is `$xvora_home/config.toml` (user tier, not project).
 fn is_user_grok_config_file(config_path: &Path) -> bool {
     let Some(user_home) = config::user_grok_home() else {
         return false;
@@ -54,11 +54,11 @@ fn is_user_grok_config_file(config_path: &Path) -> bool {
     canonical_config == canonical_user
 }
 
-/// Find all `.grok/config.toml` files from `cwd` upward to the git repo root.
+/// Find all `.xvora/config.toml` files from `cwd` upward to the git repo root.
 /// Returns paths ordered from repo root (lowest priority) to cwd (highest priority), matching the convention used by skills and AGENTS.md discovery.
 ///
-/// If no git repo is found, only checks `cwd/.grok/config.toml`. Excludes the
-/// user-global config so `cwd == $HOME` does not treat `~/.grok/config.toml` as
+/// If no git repo is found, only checks `cwd/.xvora/config.toml`. Excludes the
+/// user-global config so `cwd == $HOME` does not treat `~/.xvora/config.toml` as
 /// a project overlay.
 pub fn find_project_configs(cwd: &Path) -> Vec<PathBuf> {
     find_project_configs_in(&RepoDirChain::resolve(cwd).dirs)
@@ -66,14 +66,14 @@ pub fn find_project_configs(cwd: &Path) -> Vec<PathBuf> {
 
 /// [`find_project_configs`] over a precomputed cwd-to-git-root dir chain ([`RepoDirChain`]), repo-root-first.
 /// Excludes the user-global config so
-/// `cwd == $HOME` does not treat `~/.grok/config.toml` as a project overlay.
+/// `cwd == $HOME` does not treat `~/.xvora/config.toml` as a project overlay.
 /// `pub(crate)` so the folder-trust gate's `repo_configs_present` can call it.
 pub(crate) fn find_project_configs_in(chain_dirs: &[PathBuf]) -> Vec<PathBuf> {
     // `dirs` is cwd-first; reverse so repo root comes first (lowest priority) and cwd last (highest)
     chain_dirs
         .iter()
         .rev()
-        .map(|dir| dir.join(".grok").join("config.toml"))
+        .map(|dir| dir.join(".xvora").join("config.toml"))
         .filter(|config_path| config_path.is_file() && !is_user_grok_config_file(config_path))
         .collect()
 }
@@ -100,8 +100,8 @@ mod tests {
 
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path().join("repo");
-        std::fs::create_dir_all(project.join(".grok")).unwrap();
-        std::fs::write(project.join(".grok/config.toml"), "# project\n").unwrap();
+        std::fs::create_dir_all(project.join(".xvora")).unwrap();
+        std::fs::write(project.join(".xvora/config.toml"), "# project\n").unwrap();
         let found = find_project_configs(&project);
         assert_eq!(found.len(), 1);
         assert!(!is_user_grok_config_file(&found[0]));

@@ -413,7 +413,7 @@ fn upsell_non_max_upgrade_url_is_supergrok() {
         .as_deref()
         .unwrap();
     assert!(url.contains("supergrok"), "got: {url}");
-    assert!(url.contains("referrer=grok-build"), "got: {url}");
+    assert!(url.contains("referrer=xvora-build"), "got: {url}");
 }
 
 #[test]
@@ -469,7 +469,7 @@ fn upsell_non_max_unified_shows_buy_credits() {
     assert_eq!(q.options[1].label, "Buy more credits");
     assert_eq!(
         q.options[1].description,
-        "Purchase credits to keep using Grok Build"
+        "Purchase credits to keep using xvora build"
     );
     assert_eq!(q.options[2].label, "Try Again");
 }
@@ -538,7 +538,7 @@ fn is_credit_limit_error_matches_legacy_403_and_pool_402() {
     assert!(is_credit_limit_error(Some(402), "anything"));
     assert!(is_credit_limit_error(
         None,
-        "API error (status 402 Payment Required): Grok Build usage balance exhausted"
+        "API error (status 402 Payment Required): xvora build usage balance exhausted"
     ));
     assert!(is_credit_limit_error(
         None,
@@ -786,14 +786,14 @@ fn team_auth_disables_agent_billing_surface() {
 #[serial_test::serial(GROK_TEST_OPEN_URL_FILE)]
 #[test]
 fn manage_billing_gates_on_consumer_billing_surface() {
-    let out = std::env::temp_dir().join(format!("grok-manage-billing-{}.txt", std::process::id()));
+    let out = std::env::temp_dir().join(format!("xvora-manage-billing-{}.txt", std::process::id()));
     let _ = std::fs::remove_file(&out);
     // SAFETY: serialized via `serial_test` so no other test races the env var.
     unsafe { std::env::set_var("GROK_TEST_OPEN_URL_FILE", &out) };
     let mut app = test_app_with_agent();
     dispatch(Action::ManageBilling, &mut app);
     let opened = std::fs::read_to_string(&out).unwrap_or_default();
-    assert!(opened.contains("grok.com/?_s=usage"), "got: {opened}");
+    assert!(opened.contains("xvora.com/?_s=usage"), "got: {opened}");
     let _ = std::fs::remove_file(&out);
 
     // Non-consumer: silent no-op (slash command never offers manage).
@@ -1246,7 +1246,7 @@ fn free_usage_upsell_shows_three_options_with_exact_labels() {
         ),
         (
             "Upgrade to SuperGrok Heavy",
-            "Get the most out of Grok Build. Highest usage limits.",
+            "Get the most out of xvora build. Highest usage limits.",
             Some(UPSELL_URL_UPGRADE),
         ),
     ];
@@ -1480,7 +1480,7 @@ fn unknown_non_restricted_command_still_passes_through() {
 fn open_url_shows_manual_url_when_browser_unavailable() {
     // Point `GROK_TEST_OPEN_URL_FILE` at a path whose parent dir does not exist so the write fails and `open_url` returns false (BrowserUnavailable)
     let bad = std::env::temp_dir().join(format!(
-        "grok-open-url-missing-{}/out.txt",
+        "xvora-open-url-missing-{}/out.txt",
         std::process::id()
     ));
     // SAFETY: serialized via `serial_test` so no other test races the env var.
@@ -1517,7 +1517,7 @@ fn open_url_shows_manual_url_when_browser_unavailable() {
 #[test]
 fn open_url_does_not_show_fallback_when_opener_succeeds() {
     let url_file =
-        std::env::temp_dir().join(format!("grok-open-url-ok-{}.txt", std::process::id()));
+        std::env::temp_dir().join(format!("xvora-open-url-ok-{}.txt", std::process::id()));
     let _ = std::fs::remove_file(&url_file);
     // SAFETY: serialized via `serial_test`.
     unsafe { std::env::set_var("GROK_TEST_OPEN_URL_FILE", &url_file) };
@@ -1549,7 +1549,7 @@ fn open_url_does_not_show_fallback_when_opener_succeeds() {
 #[test]
 fn open_url_welcome_toasts_single_line_url_when_browser_unavailable() {
     let bad = std::env::temp_dir().join(format!(
-        "grok-open-url-welcome-missing-{}/out.txt",
+        "xvora-open-url-welcome-missing-{}/out.txt",
         std::process::id()
     ));
     // SAFETY: serialized via `serial_test` so no other test races the env var.
@@ -1608,7 +1608,7 @@ fn credit_limit_upsell_submit_shows_url_when_browser_unavailable() {
     use crate::views::question_view::{LocalQuestionKind, QuestionSelection};
 
     let bad = std::env::temp_dir().join(format!(
-        "grok-open-url-upsell-missing-{}/out.txt",
+        "xvora-open-url-upsell-missing-{}/out.txt",
         std::process::id()
     ));
     // SAFETY: serialized via `serial_test`.

@@ -32,7 +32,7 @@ async fn handle_record(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     agent.auth_manager.auth().await.map_err(|e| {
         tracing::warn!(error = %e, "consent: auth resolution failed");
         acp::Error::auth_required()
-            .data("Authentication required. Run `grok login` to re-authenticate.")
+            .data("Authentication required. Run `xvora login` to re-authenticate.")
     })?;
 
     let proxy_url = agent.cfg.borrow().endpoints.proxy_url();
@@ -53,11 +53,11 @@ async fn handle_record(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
         .timeout(RECORD_TIMEOUT)
         // The server re-runs the same targeting rules, and those read this header.
         .header(
-            "x-grok-client-identifier",
+            "x-xvora-client-identifier",
             crate::http::process_client_identifier(),
         )
         .header("X-XAI-Token-Auth", &token_header)
-        .header("x-grok-client-version", version::VERSION)
+        .header("x-xvora-client-version", version::VERSION)
         .header(
             crate::http::CLIENT_MODE_HEADER,
             crate::http::process_client_mode(),

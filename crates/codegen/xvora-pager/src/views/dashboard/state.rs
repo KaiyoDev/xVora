@@ -346,7 +346,7 @@ pub enum FilterValue {
     Substring(String),
 }
 
-/// Persisted dashboard configuration stored under `[dashboard]` in `~/.grok/config.toml`.
+/// Persisted dashboard configuration stored under `[dashboard]` in `~/.xvora/config.toml`.
 /// Lenient: corrupted fields fall back to defaults.
 ///
 /// The pinned and reorder lists are keyed by stable session ids (see [`PersistedRowId`]), not by per-process `AgentId`.
@@ -4276,7 +4276,7 @@ pub fn load_persisted_enabled() -> Option<bool> {
         .and_then(|v| v.as_bool())
 }
 
-/// Load the full persisted dashboard from `~/.grok/config.toml`.
+/// Load the full persisted dashboard from `~/.xvora/config.toml`.
 ///
 /// Returns `None` only when the file is missing or completely unreadable.
 /// Malformed individual fields fall back to defaults silently.
@@ -4326,12 +4326,12 @@ pub fn load_persisted_from_path(path: &std::path::Path) -> Option<PersistedDashb
 /// Short-circuits when `read_config_document_for_edit` returns `None`.
 /// That helper returns `None` only when the file is non-empty AND unparseable, meaning we
 /// MUST NOT overwrite it (the file may contain user data we cannot interpret).
-/// Without this guard, a single dashboard pin would clobber every other table in `~/.grok/config.toml` (`[ui]`, `[hints]`, `[mcpServers]`, …).
+/// Without this guard, a single dashboard pin would clobber every other table in `~/.xvora/config.toml` (`[ui]`, `[hints]`, `[mcpServers]`, …).
 ///
 /// Atomic write via `<path>.dashboard.tmp.<pid>` then rename, so concurrent readers never observe a half-truncated file.
 pub fn write_persisted(p: &PersistedDashboard) -> std::io::Result<()> {
     let path = config_path()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no grok home"))?;
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no xvora home"))?;
     write_persisted_to_path(&path, p)
 }
 
@@ -4414,7 +4414,7 @@ fn atomic_write(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 }
 
 fn config_path() -> Option<PathBuf> {
-    let home = shell::util::grok_home::grok_home();
+    let home = shell::util::xvora_home::xvora_home();
     Some(home.join(config::USER_CONFIG_FILENAME))
 }
 

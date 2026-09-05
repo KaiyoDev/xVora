@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 /// Build an unsigned JWT with a `tier` claim (header.payload.sig base64url).
 fn jwt_with_tier(tier: u64) -> String {
     use base64::Engine;
@@ -648,7 +648,7 @@ fn resolve_agent_definition_defaults_to_grok_build() {
         unsafe { std::env::set_var("GROK_AGENT", v) }
     }
 }
-/// When model_agent_type = Some("codex"), the codex agent is selected even though the default chain would return grok-build.
+/// When model_agent_type = Some("codex"), the codex agent is selected even though the default chain would return xvora-build.
 #[test]
 #[serial_test::serial]
 fn resolve_agent_definition_model_agent_type_overrides_default() {
@@ -721,9 +721,9 @@ fn resolve_agent_definition_acp_profile_wins_when_model_agent_type_is_default() 
         unsafe { std::env::set_var("GROK_AGENT", v) }
     }
 }
-/// Regression: `DEFAULT_AGENT_TYPE` flipped to `grok-build-plan`.
-/// Models in the catalog that still declare `agent_type = "grok-build"` explicitly must NOT preempt an ACP profile.
-/// Any value in the `grok-build*` family is the stock harness with no strict requirement.
+/// Regression: `DEFAULT_AGENT_TYPE` flipped to `xvora-build-plan`.
+/// Models in the catalog that still declare `agent_type = "xvora-build"` explicitly must NOT preempt an ACP profile.
+/// Any value in the `xvora-build*` family is the stock harness with no strict requirement.
 #[test]
 #[serial_test::serial]
 fn resolve_agent_definition_acp_profile_wins_for_explicit_grok_build_family() {
@@ -737,7 +737,7 @@ fn resolve_agent_definition_acp_profile_wins_for_explicit_grok_build_family() {
         "description": "Custom devbox profile",
     }))
     .expect("agent definition must parse");
-    for family_variant in ["grok-build", "grok-build-plan", "grok-build-concise"] {
+    for family_variant in ["xvora-build", "xvora-build-plan", "xvora-build-concise"] {
         let def = MvpAgent::resolve_agent_definition(
             tmp.path(),
             None,
@@ -747,7 +747,7 @@ fn resolve_agent_definition_acp_profile_wins_for_explicit_grok_build_family() {
         );
         assert_eq!(
             def.name, "custom-devbox-profile",
-            "ACP profile must win for grok-build family variant `{family_variant}`"
+            "ACP profile must win for xvora-build family variant `{family_variant}`"
         );
     }
     if let Some(v) = prev {
@@ -812,7 +812,7 @@ fn resolve_agent_definition_agent_profile_with_model_override() {
         std::env::remove_var("GROK_AGENT");
     }
     let tmp = tempfile::tempdir().unwrap();
-    let agents_dir = tmp.path().join(".grok").join("agents");
+    let agents_dir = tmp.path().join(".xvora").join("agents");
     std::fs::create_dir_all(&agents_dir).unwrap();
     std::fs::write(
             agents_dir.join("test-architect.md"),
@@ -971,59 +971,59 @@ fn enqueue_replace_system_prompt_override_noop_when_absent_or_empty() {
     );
 }
 /// Regression for the web-client flow where `_meta.agentProfile` drives `set_session_model`.
-/// A zero-turn switch from `grok-build` (a client profile name) to `grok-build-plan` (the default model agent_type) must be treated as compatible.
+/// A zero-turn switch from `xvora-build` (a client profile name) to `xvora-build-plan` (the default model agent_type) must be treated as compatible.
 /// Compatible means the harness rebuild is skipped and the custom prompt body preserved.
 #[test]
 fn harnesses_are_compatible_for_stock_family_pairs() {
-    assert!(harnesses_are_compatible("grok-build", "grok-build-plan"));
-    assert!(harnesses_are_compatible("grok-build-plan", "grok-build"));
-    assert!(harnesses_are_compatible("grok-build", "grok-build"));
+    assert!(harnesses_are_compatible("xvora-build", "xvora-build-plan"));
+    assert!(harnesses_are_compatible("xvora-build-plan", "xvora-build"));
+    assert!(harnesses_are_compatible("xvora-build", "xvora-build"));
     assert!(harnesses_are_compatible(
-        "grok-build-concise",
-        "grok-build-plan"
+        "xvora-build-concise",
+        "xvora-build-plan"
     ));
     assert!(harnesses_are_compatible(
         "remote-sidebar",
-        "grok-build-plan"
+        "xvora-build-plan"
     ));
 }
 #[test]
 fn harnesses_are_compatible_rejects_strict_mismatches() {
     assert!(harnesses_are_compatible("codex", "codex"));
-    assert!(!harnesses_are_compatible("grok-build-plan", "codex"));
+    assert!(!harnesses_are_compatible("xvora-build-plan", "codex"));
 }
 #[test]
 fn explicit_agent_type_wins_over_session_default() {
     assert_eq!(
-        resolve_required_agent_type(Some("cursor"), "grok-build-plan"),
+        resolve_required_agent_type(Some("cursor"), "xvora-build-plan"),
         "cursor"
     );
 }
 #[test]
 fn null_agent_type_falls_back_to_session_default_grok_build_plan() {
     assert_eq!(
-        resolve_required_agent_type(None, "grok-build-plan"),
-        "grok-build-plan"
+        resolve_required_agent_type(None, "xvora-build-plan"),
+        "xvora-build-plan"
     );
 }
 #[test]
 fn null_agent_type_falls_back_to_session_default_grok_build() {
     assert_eq!(
-        resolve_required_agent_type(None, "grok-build"),
-        "grok-build"
+        resolve_required_agent_type(None, "xvora-build"),
+        "xvora-build"
     );
 }
 #[test]
 fn null_agent_type_returns_to_session_default_after_cursor_switch() {
-    let session_default = "grok-build-plan";
+    let session_default = "xvora-build-plan";
     let required_after_null = resolve_required_agent_type(None, session_default);
-    assert_eq!(required_after_null, "grok-build-plan");
+    assert_eq!(required_after_null, "xvora-build-plan");
     assert_ne!(required_after_null, "cursor");
 }
 /// Compatible stock switches (no rebuild) must NOT mutate `agent_name`, preserving the session's original ACP `agentProfile`.
 #[test]
 fn agent_name_unchanged_without_harness_rebuild() {
-    let unchanged = agent_name_after_model_switch(false, "grok-build-plan", "remote-sidebar");
+    let unchanged = agent_name_after_model_switch(false, "xvora-build-plan", "remote-sidebar");
     assert_eq!(
         unchanged, "remote-sidebar",
         "a compatible stock switch must preserve the original agent profile name"
@@ -1176,7 +1176,7 @@ fn make_test_handle(
         force_compact: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         permission_handle: workspace::permission::PermissionHandle::allow_all(),
         attribution_callback: None,
-        agent_name: "grok-build".to_string(),
+        agent_name: "xvora-build".to_string(),
         managed_mcp_proxy_base_url: String::new(),
         session_default_agent_profile: None,
         allowed_subagent_types: None,
@@ -1650,16 +1650,16 @@ async fn yolo_toggle_scoped_by_client_identifier() {
     let mut sessions: HashMap<acp::SessionId, crate::session::SessionHandle> = [
         (
             sid_tui.clone(),
-            make_test_handle("grok-3", false, Some("grok-tui")),
+            make_test_handle("grok-3", false, Some("xvora-tui")),
         ),
         (
             sid_vscode.clone(),
-            make_test_handle("grok-3", false, Some("grok-code-extension")),
+            make_test_handle("grok-3", false, Some("xvora-code-extension")),
         ),
     ]
     .into();
     let updated =
-        apply_yolo_mode_to_matching_sessions(sessions.values_mut(), Some("grok-tui"), true);
+        apply_yolo_mode_to_matching_sessions(sessions.values_mut(), Some("xvora-tui"), true);
     assert_eq!(updated, 1, "exactly one matching session should be updated");
     assert!(
         sessions[&sid_tui].yolo_mode,
@@ -1678,16 +1678,16 @@ async fn yolo_toggle_can_disable_session_started_with_yolo_enabled() {
     let mut sessions: HashMap<acp::SessionId, crate::session::SessionHandle> = [
         (
             sid_tui.clone(),
-            make_test_handle("grok-3", true, Some("grok-tui")),
+            make_test_handle("grok-3", true, Some("xvora-tui")),
         ),
         (
             sid_other.clone(),
-            make_test_handle("grok-3", true, Some("grok-code-extension")),
+            make_test_handle("grok-3", true, Some("xvora-code-extension")),
         ),
     ]
     .into();
     let updated =
-        apply_yolo_mode_to_matching_sessions(sessions.values_mut(), Some("grok-tui"), false);
+        apply_yolo_mode_to_matching_sessions(sessions.values_mut(), Some("xvora-tui"), false);
     assert_eq!(updated, 1, "only the sender's session should be updated");
     assert!(
         !sessions[&sid_tui].yolo_mode,
@@ -1819,12 +1819,12 @@ fn parse_code_nav_capability_false_returns_false() {
 #[tokio::test]
 async fn test_per_session_code_nav_isolation() {
     let web_handle = {
-        let mut h = make_test_handle("model", false, Some("grok-web"));
+        let mut h = make_test_handle("model", false, Some("xvora-web"));
         h.code_nav_enabled = true;
         h
     };
     let tui_handle = {
-        let mut h = make_test_handle("model", false, Some("grok-tui"));
+        let mut h = make_test_handle("model", false, Some("xvora-tui"));
         h.code_nav_enabled = false;
         h
     };
@@ -2257,8 +2257,8 @@ async fn ensure_plugin_registry_lazily_populates_snapshot() {
     use crate::agent::config::Config as AgentConfig;
     use crate::auth::{AuthManager, GrokComConfig};
     use test_support::EnvGuard;
-    let grok_home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", grok_home.path());
+    let xvora_home = tempfile::tempdir().unwrap();
+    let _env = EnvGuard::set("xvora_home", xvora_home.path());
     let plugin_dir = tempfile::tempdir().unwrap();
     std::fs::write(
         plugin_dir.path().join("plugin.json"),
@@ -2537,7 +2537,7 @@ fn check_nav_eligibility_from_sessions(
 #[tokio::test]
 async fn test_web_session_with_capability_is_eligible() {
     let sid = acp::SessionId::new("sess-web");
-    let mut handle = make_test_handle("model", false, Some("grok-web"));
+    let mut handle = make_test_handle("model", false, Some("xvora-web"));
     handle.code_nav_enabled = true;
     let sessions = [(sid.clone(), handle)].into();
     assert!(
@@ -2549,7 +2549,7 @@ async fn test_web_session_with_capability_is_eligible() {
 #[tokio::test]
 async fn test_tui_session_is_rejected() {
     let sid = acp::SessionId::new("sess-tui");
-    let mut handle = make_test_handle("model", false, Some("grok-tui"));
+    let mut handle = make_test_handle("model", false, Some("xvora-tui"));
     handle.code_nav_enabled = true;
     let sessions = [(sid.clone(), handle)].into();
     assert_eq!(
@@ -2562,7 +2562,7 @@ async fn test_tui_session_is_rejected() {
 #[tokio::test]
 async fn test_web_session_without_capability_is_rejected() {
     let sid = acp::SessionId::new("sess-web-no-cap");
-    let mut handle = make_test_handle("model", false, Some("grok-web"));
+    let mut handle = make_test_handle("model", false, Some("xvora-web"));
     handle.code_nav_enabled = false;
     let sessions = [(sid.clone(), handle)].into();
     assert_eq!(
@@ -2576,9 +2576,9 @@ async fn test_web_session_without_capability_is_rejected() {
 async fn test_leader_mode_two_sessions_stay_isolated() {
     let web_sid = acp::SessionId::new("web");
     let tui_sid = acp::SessionId::new("tui");
-    let mut web_handle = make_test_handle("model", false, Some("grok-web"));
+    let mut web_handle = make_test_handle("model", false, Some("xvora-web"));
     web_handle.code_nav_enabled = true;
-    let mut tui_handle = make_test_handle("model", false, Some("grok-tui"));
+    let mut tui_handle = make_test_handle("model", false, Some("xvora-tui"));
     tui_handle.code_nav_enabled = false;
     let sessions = [(web_sid.clone(), web_handle), (tui_sid.clone(), tui_handle)].into();
     assert!(
@@ -2596,7 +2596,7 @@ async fn test_leader_mode_two_sessions_stay_isolated() {
 #[tokio::test]
 async fn test_unknown_session_id_returns_session_required() {
     let known_sid = acp::SessionId::new("known");
-    let mut known_handle = make_test_handle("model", false, Some("grok-web"));
+    let mut known_handle = make_test_handle("model", false, Some("xvora-web"));
     known_handle.code_nav_enabled = true;
     let sessions = [(known_sid.clone(), known_handle)].into();
     let stale_sid = acp::SessionId::new("stale-or-evicted");
@@ -2963,7 +2963,7 @@ async fn cached_token_fallthrough_prefers_api_key_for_deployment_key() {
          through to xvora.api_key on a dead cached_token -- not interactive login",
     );
 }
-/// Forced-IdP deployment: even with `XAI_API_KEY` present, the admin kill switch keeps the fallthrough on interactive `grok.com`.
+/// Forced-IdP deployment: even with `XAI_API_KEY` present, the admin kill switch keeps the fallthrough on interactive `xvora.com`.
 /// Api-key auth is neither advertised nor an eligible fallthrough.
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
@@ -2980,11 +2980,11 @@ async fn cached_token_fallthrough_respects_kill_switch() {
             .map(|id| id.0.as_ref()),
         Some(GROK_COM_METHOD_ID),
         "disable_api_key_auth must keep the cached_token fallthrough on \
-         interactive grok.com so XAI_API_KEY can't bypass forced IdP login",
+         interactive xvora.com so XAI_API_KEY can't bypass forced IdP login",
     );
 }
 /// No advertiseable credentials at all (no env key, no kill switch): the user genuinely needs to log in.
-/// The fallthrough is interactive `grok.com`.
+/// The fallthrough is interactive `xvora.com`.
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
 async fn cached_token_fallthrough_falls_to_grok_com_without_credentials() {
@@ -3002,7 +3002,7 @@ async fn cached_token_fallthrough_falls_to_grok_com_without_credentials() {
             .as_ref()
             .map(|id| id.0.as_ref()),
         Some(GROK_COM_METHOD_ID),
-        "no API-key creds and no kill switch -> interactive grok.com login",
+        "no API-key creds and no kill switch -> interactive xvora.com login",
     );
 }
 /// Verifies the 4-state matrix of `(disable_zdr_incompatible_tools, zdr_video_output_s3)`:
@@ -3023,7 +3023,7 @@ async fn prepare_video_gen_config_disabled_when_zdr_flag_set() {
             bucket: "team-videos".into(),
             endpoint: "https://s3.example.com".into(),
             region: "us-east-1".into(),
-            key_prefix: "grok-videos/".into(),
+            key_prefix: "xvora-videos/".into(),
             expires_secs: 900,
             read_write: S3AccessCredentials {
                 access_key_id: "AKIA...".into(),
@@ -3107,7 +3107,7 @@ async fn prepare_image_gen_config_fails_open_without_auth() {
     );
 }
 /// The imagine tools bypass cli-chat-proxy (direct API calls).
-/// The server can only scope the coding data-retention opt-out (`/privacy opt-out`) to Build traffic via the `x-grok-client-identifier` header.
+/// The server can only scope the coding data-retention opt-out (`/privacy opt-out`) to Build traffic via the `x-xvora-client-identifier` header.
 /// If this header is dropped, opted-out users' imagine prompts are logged/retained server-side.
 #[tokio::test(flavor = "current_thread")]
 async fn prepare_image_gen_config_sends_client_identifier_header() {
@@ -3119,7 +3119,7 @@ async fn prepare_image_gen_config_sends_client_identifier_header() {
     };
     assert_eq!(
         extra_headers
-            .get("x-grok-client-identifier")
+            .get("x-xvora-client-identifier")
             .map(String::as_str),
         Some(crate::http::process_client_identifier().as_str()),
         "imagine API calls must carry the client identifier so the server \
@@ -3137,7 +3137,7 @@ async fn prepare_video_gen_config_sends_client_identifier_header() {
     };
     assert_eq!(
         extra_headers
-            .get("x-grok-client-identifier")
+            .get("x-xvora-client-identifier")
             .map(String::as_str),
         Some(crate::http::process_client_identifier().as_str()),
         "video gen API calls must carry the client identifier so the server \
@@ -3384,14 +3384,14 @@ async fn diagnostic_upload_skipped_after_mid_session_trace_upload_kill_switch() 
     );
 }
 use crate::session::storage::search::IndexDecision;
-/// A grok home of its own, with the switch left at its registered default.
+/// A xvora home of its own, with the switch left at its registered default.
 /// `decide_search_index` stops short of a session store, but do not reach `bootstrap_once`.
-/// `bootstrap_once` takes the process-cached `grok_home()`, which these guards cannot redirect, so it could index the developer's own store.
+/// `bootstrap_once` takes the process-cached `xvora_home()`, which these guards cannot redirect, so it could index the developer's own store.
 fn search_index_env() -> (tempfile::TempDir, [test_support::EnvGuard; 2]) {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
     let guards = [
-        EnvGuard::set("GROK_HOME", home.path()),
+        EnvGuard::set("xvora_home", home.path()),
         EnvGuard::unset("GROK_SESSION_SEARCH"),
     ];
     (home, guards)
@@ -3457,7 +3457,7 @@ async fn search_before_the_decision_asks_the_caller_to_retry() {
     );
     let resp = crate::session::storage::search::execute_search(
         agent.search_index(),
-        &crate::util::grok_home::grok_home(),
+        &crate::util::xvora_home::xvora_home(),
         &crate::session::storage::search::SessionSearchRequest {
             query: "zzqqpending".to_string(),
             cwd: None,
@@ -3691,13 +3691,13 @@ fn chat_new_session_model_state_matrix() {
     let cases: &[(&str, acp::SessionModelState, Option<&str>, &str)] = &[
         (
             "requested_in_catalog",
-            state_with("auto", &["auto", "grok-4"]),
-            Some("grok-4"),
-            "grok-4",
+            state_with("auto", &["auto", "xvora-4"]),
+            Some("xvora-4"),
+            "xvora-4",
         ),
         (
             "no_request_keeps_catalog_default",
-            state_with("auto", &["auto", "grok-4"]),
+            state_with("auto", &["auto", "xvora-4"]),
             None,
             "auto",
         ),
@@ -3710,8 +3710,8 @@ fn chat_new_session_model_state_matrix() {
         (
             "requested_with_empty_catalog",
             state_with("", &[]),
-            Some("grok-4"),
-            "grok-4",
+            Some("xvora-4"),
+            "xvora-4",
         ),
     ];
     for (label, state, requested, expected) in cases {
@@ -4144,7 +4144,7 @@ fn cancel_does_not_forward_to_bridge_in_local_mode() {
     });
 }
 /// Regression (post-cancel slot hang, first bad release 0.2.101; see `dispatch_lock`).
-/// SDK e2e shape: `test_cancel_ends_in_flight_turn_and_frees_slot` (grok-agent-sdk).
+/// SDK e2e shape: `test_cancel_ends_in_flight_turn_and_frees_slot` (xvora-agent-sdk).
 #[test]
 fn cancel_never_overtakes_in_flight_prompt_intake() {
     use crate::session::SessionCommand;
@@ -4289,7 +4289,7 @@ fn make_live_session_handle(
     tokio::sync::mpsc::UnboundedReceiver<TestSessionCommand>,
 ) {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
-    let mut handle = make_test_handle("test-model", false, Some("grok-tui"));
+    let mut handle = make_test_handle("test-model", false, Some("xvora-tui"));
     handle.cmd_tx = cmd_tx.clone();
     handle.info = crate::session::info::Info {
         id: sid.clone(),
@@ -4386,7 +4386,7 @@ async fn ext_notification_forwards_each_queue_method_to_session_actor() {
                 "sessionId": session_id,
                 "id": "p-remove",
                 "expectedVersion": 3,
-                "owner": "grok-tui",
+                "owner": "xvora-tui",
             }),
         ),
         (
@@ -4400,7 +4400,7 @@ async fn ext_notification_forwards_each_queue_method_to_session_actor() {
             "x.ai/queue/clear",
             serde_json::json!({
                 "sessionId": session_id,
-                "clientIdentifier": "grok-desktop",
+                "clientIdentifier": "xvora-desktop",
             }),
         ),
         (
@@ -4409,7 +4409,7 @@ async fn ext_notification_forwards_each_queue_method_to_session_actor() {
                 "sessionId": session_id,
                 "id": "p-edit",
                 "newText": "rewritten",
-                "owner": "grok-vscode",
+                "owner": "xvora-vscode",
             }),
         ),
         (
@@ -4418,7 +4418,7 @@ async fn ext_notification_forwards_each_queue_method_to_session_actor() {
                 "sessionId": session_id,
                 "id": "p-interject",
                 "expectedVersion": 2,
-                "owner": "grok-tui",
+                "owner": "xvora-tui",
                 "newText": "now",
             }),
         ),
@@ -4457,13 +4457,13 @@ async fn ext_notification_forwards_each_queue_method_to_session_actor() {
             ) => {
                 assert_eq!(id, "p-remove");
                 assert_eq!(expected_version, 3);
-                assert_eq!(owner.as_deref(), Some("grok-tui"));
+                assert_eq!(owner.as_deref(), Some("xvora-tui"));
             }
             ("x.ai/queue/reorder", SessionCommand::ReorderQueue { ordered_ids }) => {
                 assert_eq!(ordered_ids, vec!["a", "b"]);
             }
             ("x.ai/queue/clear", SessionCommand::ClearQueue { owner }) => {
-                assert_eq!(owner.as_deref(), Some("grok-desktop"));
+                assert_eq!(owner.as_deref(), Some("xvora-desktop"));
             }
             (
                 "x.ai/queue/edit",
@@ -4475,7 +4475,7 @@ async fn ext_notification_forwards_each_queue_method_to_session_actor() {
             ) => {
                 assert_eq!(id, "p-edit");
                 assert_eq!(new_text, "rewritten");
-                assert_eq!(editor.as_deref(), Some("grok-vscode"));
+                assert_eq!(editor.as_deref(), Some("xvora-vscode"));
             }
             (
                 "x.ai/queue/interject",
@@ -4488,7 +4488,7 @@ async fn ext_notification_forwards_each_queue_method_to_session_actor() {
             ) => {
                 assert_eq!(id, "p-interject");
                 assert_eq!(expected_version, 2);
-                assert_eq!(owner.as_deref(), Some("grok-tui"));
+                assert_eq!(owner.as_deref(), Some("xvora-tui"));
                 assert_eq!(new_text.as_deref(), Some("now"));
             }
             ("x.ai/queue/hold_edit", SessionCommand::HoldEdit { id }) => {
@@ -5201,7 +5201,7 @@ fn post_auth_settings_not_coalesced_by_in_flight_reapply() {
 /// The tier re-check work is single-flight across every caller: back-to-back gated initializes run at most one live check.
 /// An awaited authenticate-path check skips (rather than doubles or waits out) a check already wedged on a stalled subscription endpoint.
 /// Drives the exact block `initialize` runs when `tier_allowed` is false.
-/// The full `initialize` fires once-per-process GROK_HOME cleanup work that a unit test must not run against the developer's real home.
+/// The full `initialize` fires once-per-process xvora_home cleanup work that a unit test must not run against the developer's real home.
 #[test]
 fn gated_reconnect_tier_recheck_is_single_flight() {
     run_local_for_bridge_test(|| async {
@@ -5617,7 +5617,7 @@ async fn settings_self_heal_refetches_after_token_rotation() {
     use crate::auth::{GrokAuth, XAI_OAUTH2_ISSUER};
     let _restore = RestoreOtelGate;
     let server = test_support::MockInferenceServer::start_with_required_auth(
-        vec![test_support::MockModelEntry::new("grok-build")],
+        vec![test_support::MockModelEntry::new("xvora-build")],
         "rotated-key",
     )
     .await
@@ -5759,8 +5759,8 @@ fn repo_with_project_mcp_server() -> tempfile::TempDir {
     tmp
 }
 fn write_project_subagent_definitions(cwd: &std::path::Path) {
-    let roles = cwd.join(".grok/roles");
-    let personas = cwd.join(".grok/personas");
+    let roles = cwd.join(".xvora/roles");
+    let personas = cwd.join(".xvora/personas");
     std::fs::create_dir_all(&roles).unwrap();
     std::fs::create_dir_all(&personas).unwrap();
     std::fs::write(roles.join("probe.toml"), "description = \"Project role\"").unwrap();
@@ -5837,7 +5837,7 @@ fn subagent_spawn_context_reloads_project_definitions_after_trust_changes() {
         assert!(!revoked.subagent_personas.contains_key("probe"));
     });
 }
-/// End-to-end gate wiring: project `.grok/roles` / `personas` alone must drive the real `resolve_and_record` untrusted.
+/// End-to-end gate wiring: project `.xvora/roles` / `personas` alone must drive the real `resolve_and_record` untrusted.
 /// No forced `record_for_test` verdict.
 /// Project defs stay out of Task spawn context, then are re-admitted after grant.
 #[test]
@@ -5845,7 +5845,7 @@ fn subagent_spawn_context_reloads_project_definitions_after_trust_changes() {
 fn project_roles_personas_gated_via_resolve_and_record_chain() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = tempfile::tempdir().unwrap();
@@ -5927,7 +5927,7 @@ fn interactive_trust_prompt_grant_reloads_project_mcp() {
     use test_support::EnvGuard;
     use workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();
@@ -6006,7 +6006,7 @@ fn interactive_trust_prompt_reject_keeps_gated() {
     use test_support::EnvGuard;
     use workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();
@@ -6043,7 +6043,7 @@ fn interactive_trust_prompt_reject_keeps_gated() {
 fn interactive_trust_prompt_dormant_when_feature_off() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();
@@ -6073,7 +6073,7 @@ fn interactive_trust_prompt_dormant_when_feature_off() {
 fn interactive_trust_prompt_no_request_without_capability() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();
@@ -6101,7 +6101,7 @@ fn interactive_trust_prompt_client_error_fails_closed() {
     use test_support::EnvGuard;
     use workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();
@@ -6142,7 +6142,7 @@ fn interactive_trust_prompt_client_error_fails_closed() {
 fn interactive_trust_prompt_dedups_same_workspace() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();
@@ -6216,7 +6216,7 @@ async fn drain_reload_commands(
 fn interactive_trust_prompt_reloads_all_same_workspace_sessions() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();
@@ -6278,7 +6278,7 @@ fn interactive_trust_prompt_reprompts_after_untrust() {
     use test_support::EnvGuard;
     use hooks_plugins_types::HooksAction;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _sim = EnvGuard::set(version::TEST_VERSION_ENV, "0.0-sim");
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let repo = repo_with_project_mcp_server();

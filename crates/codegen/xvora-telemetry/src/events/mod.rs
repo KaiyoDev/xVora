@@ -66,7 +66,7 @@ pub enum ContextualTipKind {
     WordSelect,
     /// Three nearby drag-copies → tip naming /copy and /export.
     ExportCopy,
-    /// An SSH session without `grok wrap` shows a tip to wrap the ssh command locally.
+    /// An SSH session without `xvora wrap` shows a tip to wrap the ssh command locally.
     SshWrap,
 }
 
@@ -163,12 +163,12 @@ impl CliUpdateInstaller {
 /// The trigger crosses the process boundary as `--trigger=<value>`.
 /// [`CliUpdateTrigger::as_str`] and `FromStr` are the only rendering; tests pin the round trip with the wire values.
 ///
-/// Volume caveat: one-shot `grok update` resolves telemetry from disk and env only.
+/// Volume caveat: one-shot `xvora update` resolves telemetry from disk and env only.
 /// So `user_command` under-reports relative to the in-process `leader_converge`; the triggers are not directly comparable.
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CliUpdateTrigger {
-    /// A human ran `grok update` or accepted an update prompt.
+    /// A human ran `xvora update` or accepted an update prompt.
     UserCommand,
     /// TUI/stdio launch check spawned a detached update child.
     AutoBackground,
@@ -1993,7 +1993,7 @@ pub struct ClipboardCopy {
     pub osc52_ok: bool,
     /// Evidence classification: `confirmed` | `unverified` | `failed`.
     pub delivery: &'static str,
-    /// An explicit `grok wrap` OSC 52 sink was active.
+    /// An explicit `xvora wrap` OSC 52 sink was active.
     pub osc52_sink: bool,
     /// The process was inside a container without a display server.
     pub container_no_display: bool,
@@ -2221,15 +2221,15 @@ pub struct CreditLimitUpsellClicked {
 // Subscription conversion
 // ---------------------------------------------------------------------------
 
-/// Emitted when a previously access-gated user re-authenticates and the gate is lifted, i.e. they subscribed (externally on grok.com) and came back.
-/// This is the actual conversion signal for SuperGrok Heavy subscriptions attributed to Grok Build.
-/// The user saw the gate in Grok Build, went and paid, then returned with access.
+/// Emitted when a previously access-gated user re-authenticates and the gate is lifted, i.e. they subscribed (externally on xvora.com) and came back.
+/// This is the actual conversion signal for SuperGrok Heavy subscriptions attributed to xvora build.
+/// The user saw the gate in xvora build, went and paid, then returned with access.
 #[derive(Serialize)]
 pub struct SubscriptionActivated {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_method: Option<String>,
     /// Whether the subscribe CTA was shown in this session before the gate was lifted (`access_gate_shown_logged`).
-    /// When `true`, the conversion is strongly attributable to Grok Build's upsell surface.
+    /// When `true`, the conversion is strongly attributable to xvora build's upsell surface.
     pub upsell_shown_this_session: bool,
 }
 
@@ -2276,8 +2276,8 @@ pub enum AuthTokenKind {
 /// KPI: a user-facing 401 recovery (`Turn`/`Relay`) terminally failed, forcing a manual re-login.
 /// Product-events only (no external export).
 ///
-/// Alerting contract: the event lands under the Shell-origin name `grok-shell-manual_auth`.
-/// The `manual_auth` binding gets the `grok-shell-` prefix at emit.
+/// Alerting contract: the event lands under the Shell-origin name `xvora-shell-manual_auth`.
+/// The `manual_auth` binding gets the `xvora-shell-` prefix at emit.
 /// Count `distinct(principal)`, never raw events.
 /// The debounce is a single slot per process; it repeats on the most-recent dead credential collapse, and alternating credentials can re-emit.
 /// `trigger` is whichever surface fired first, not a reliable per-surface split.
@@ -2317,8 +2317,8 @@ impl CliUpdateChannel {
     }
 }
 
-/// One attempt to download and activate a new `grok` binary.
-/// Analytics name: `grok-shell-cli_update`.
+/// One attempt to download and activate a new `xvora` binary.
+/// Analytics name: `xvora-shell-cli_update`.
 /// Emitted on failure too; failures carry the typed `error_kind` only (freeform strings leak home paths).
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct CliUpdate {
@@ -2338,7 +2338,7 @@ pub struct CliUpdate {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// grok clone (utility process)
+// xvora clone (utility process)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// History shape requested by the client or produced by the daemon.
@@ -2349,7 +2349,7 @@ pub enum CloneHistoryMode {
     Full,
 }
 
-/// Whether `grok clone` finished the mount.
+/// Whether `xvora clone` finished the mount.
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CloneOutcome {
@@ -2357,7 +2357,7 @@ pub enum CloneOutcome {
     Failed,
 }
 
-/// Where a failed `grok clone` stopped.
+/// Where a failed `xvora clone` stopped.
 /// Closed set: no freeform strings.
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -2368,7 +2368,7 @@ pub enum CloneFailureStage {
     Daemon,
 }
 
-/// One `grok clone` attempt. Content-free: no URL, dest, store, or repo name.
+/// One `xvora clone` attempt. Content-free: no URL, dest, store, or repo name.
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct CloneEnded {
     pub requested_history: CloneHistoryMode,
@@ -3245,7 +3245,7 @@ mod tests {
             tokens_used: 100_000,
             context_window: 128_000,
             percentage: 78,
-            model_id: "grok-4".into(),
+            model_id: "xvora-4".into(),
             user_context_provided: false,
             compaction_id: "cid-1".into(),
             compaction_mode: CompactionModeLabel::Segments,
@@ -3260,7 +3260,7 @@ mod tests {
                 "tokens_used": 100_000,
                 "context_window": 128_000,
                 "percentage": 78,
-                "model_id": "grok-4",
+                "model_id": "xvora-4",
                 "user_context_provided": false,
                 "compaction_id": "cid-1",
                 "compaction_mode": "segments",
@@ -3274,7 +3274,7 @@ mod tests {
             tokens_used: 10_000,
             context_window: 128_000,
             percentage: 8,
-            model_id: "grok-4".into(),
+            model_id: "xvora-4".into(),
             user_context_provided: false,
             compaction_id: "cid-2".into(),
             compaction_mode: CompactionModeLabel::Summary,
@@ -3289,7 +3289,7 @@ mod tests {
                 "tokens_used": 10_000,
                 "context_window": 128_000,
                 "percentage": 8,
-                "model_id": "grok-4",
+                "model_id": "xvora-4",
                 "user_context_provided": false,
                 "compaction_id": "cid-2",
                 "compaction_mode": "summary",
@@ -3306,7 +3306,7 @@ mod tests {
             duration_ms: 63_000,
             tokens_before: 399_000,
             tokens_after: 15_000,
-            model_id: Some("grok-4".into()),
+            model_id: Some("xvora-4".into()),
             compaction_id: "cid-1".into(),
             compaction_mode: CompactionModeLabel::Summary,
             two_pass: TwoPassOutcome::TwoPass,
@@ -3325,7 +3325,7 @@ mod tests {
                 "duration_ms": 63_000,
                 "tokens_before": 399_000,
                 "tokens_after": 15_000,
-                "model_id": "grok-4",
+                "model_id": "xvora-4",
                 "compaction_id": "cid-1",
                 "compaction_mode": "summary",
                 "two_pass": "two_pass",

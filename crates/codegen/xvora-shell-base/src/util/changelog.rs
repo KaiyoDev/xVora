@@ -59,18 +59,18 @@ impl Default for ChangelogManager {
 
 impl ChangelogManager {
     pub fn new() -> Self {
-        // Prefer the live `$GROK_HOME` over the `grok_home()` OnceLock
+        // Prefer the live `$xvora_home` over the `xvora_home()` OnceLock
         // A home injected by the PTY e2e harness must beat a path some earlier init cached in the same process
         Self::from_env_home()
     }
 
-    /// Resolve cache paths from the live process environment (not the `grok_home()` OnceLock).
-    /// A seeded `$GROK_HOME` set on the pager process is always honoured even if some earlier init path cached a different home.
+    /// Resolve cache paths from the live process environment (not the `xvora_home()` OnceLock).
+    /// A seeded `$xvora_home` set on the pager process is always honoured even if some earlier init path cached a different home.
     fn from_env_home() -> Self {
-        let home = std::env::var_os("GROK_HOME")
+        let home = std::env::var_os("xvora_home")
             .map(std::path::PathBuf::from)
             .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or_else(crate::util::grok_home::grok_home);
+            .unwrap_or_else(crate::util::xvora_home::xvora_home);
         Self {
             md_cache: home.join("CHANGELOG.md"),
             json_cache: home.join("CHANGELOG.json"),
@@ -91,7 +91,7 @@ impl ChangelogManager {
     /// Fetch using this manager's already-resolved cache paths, an explicit offline flag, and an explicit CDN base.
     ///
     /// Split out of [`fetch`] so unit tests can drive it against a temp home without touching process-global env.
-    /// Mutating `GROK_HOME` / `GROK_CHANGELOG_OFFLINE` races across the parallel test harness.
+    /// Mutating `xvora_home` / `GROK_CHANGELOG_OFFLINE` races across the parallel test harness.
     /// Passing an unreachable `base` forces a deterministic CDN miss instead of depending on whether the sandbox happens to block network.
     /// Production callers always go through [`fetch`].
     fn fetch_with(&self, offline: bool, base: &str) -> Changelog {
@@ -115,7 +115,7 @@ impl ChangelogManager {
             entries = json_handle.join().ok().flatten();
         });
 
-        // If the CDN is unreachable (CI sandboxes, airplane mode), fall back to any on-disk seed under `$GROK_HOME`
+        // If the CDN is unreachable (CI sandboxes, airplane mode), fall back to any on-disk seed under `$xvora_home`
         // This applies even when offline mode was not requested, keeping PTY/integration tests deterministic
         if markdown.is_none() {
             markdown = read_cache(&self.md_cache);
@@ -221,7 +221,7 @@ fn fetch_blocking(url: &str) -> anyhow::Result<String> {
 mod tests {
     use super::*;
 
-    /// Build a manager pointing at `home` directly, bypassing the global `$GROK_HOME` env so tests never race the parallel harness.
+    /// Build a manager pointing at `home` directly, bypassing the global `$xvora_home` env so tests never race the parallel harness.
     fn manager_for(home: &std::path::Path) -> ChangelogManager {
         ChangelogManager {
             md_cache: home.join("CHANGELOG.md"),
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn offline_mode_reads_seeded_disk_cache_only() {
         let tmp = tempfile::tempdir().unwrap();
-        let home = tmp.path().join("grok-home");
+        let home = tmp.path().join("xvora-home");
         std::fs::create_dir_all(&home).unwrap();
         std::fs::write(home.join("CHANGELOG.md"), "# seeded offline md\n").unwrap();
         std::fs::write(
@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn cdn_miss_falls_back_to_env_home_disk_cache() {
         let tmp = tempfile::tempdir().unwrap();
-        let home = tmp.path().join("grok-home-fallback");
+        let home = tmp.path().join("xvora-home-fallback");
         std::fs::create_dir_all(&home).unwrap();
         std::fs::write(home.join("CHANGELOG.md"), "# fallback md\n").unwrap();
 

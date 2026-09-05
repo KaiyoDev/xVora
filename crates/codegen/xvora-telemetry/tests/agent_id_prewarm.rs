@@ -3,10 +3,10 @@
 #[test]
 fn prefetched_agent_id_resolves_and_persists() {
     let home = tempfile::tempdir().expect("tempdir");
-    // SAFETY: single-threaded here; set before anything caches `grok_home()`.
+    // SAFETY: single-threaded here; set before anything caches `xvora_home()`.
     unsafe {
         std::env::remove_var("GROK_AGENT_ID");
-        std::env::set_var("GROK_HOME", home.path());
+        std::env::set_var("xvora_home", home.path());
     }
     telemetry::id::prefetch_agent_id();
     let id = telemetry::id::agent_id();

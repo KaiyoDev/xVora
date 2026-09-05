@@ -2,7 +2,7 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// Signal-death e2e: SIGTERM delivered to `grok wrap` itself (an external kill, or the HUP a closing terminal sends) must not skip cleanup.
+/// Signal-death e2e: SIGTERM delivered to `xvora wrap` itself (an external kill, or the HUP a closing terminal sends) must not skip cleanup.
 /// Drop handlers never run on signal death, so wrap needs an explicit signal path.
 /// It forwards the signal to the child, emits the resets for whatever the child left latched, and exits with the conventional 128+N code.
 ///

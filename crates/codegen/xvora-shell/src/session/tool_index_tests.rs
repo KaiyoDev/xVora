@@ -898,7 +898,7 @@ fn split_numbers_in_identifiers() {
 fn split_mixed_formats() {
     assert_eq!(
         split_identifier("grok_com_slack__slack_send_message"),
-        vec!["grok", "com", "slack", "slack", "send", "message"]
+        vec!["xvora", "com", "slack", "slack", "send", "message"]
     );
 }
 

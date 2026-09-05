@@ -120,13 +120,13 @@ impl Drop for EnvVarGuard {
         }
     }
 }
-/// Shared GROK_HOME boundary fixture for the resume-by-title startup and pre-sandbox tests.
+/// Shared xvora_home boundary fixture for the resume-by-title startup and pre-sandbox tests.
 ///
-/// `grok_home()` is OnceLock-cached process-wide, so summaries land under the
-/// *resolved* home (possibly the real `~/.grok` when another test pinned the
+/// `xvora_home()` is OnceLock-cached process-wide, so summaries land under the
+/// *resolved* home (possibly the real `~/.xvora` when another test pinned the
 /// cache first); cwd-encoded dirnames are tempdir-unique, and cleanup runs on
 /// drop so it survives assertion panics.
-/// Callers must hold `#[serial_test::serial(GROK_HOME)]`.
+/// Callers must hold `#[serial_test::serial(xvora_home)]`.
 pub struct GrokHomeFixture {
     _home: tempfile::TempDir,
     cwd: tempfile::TempDir,
@@ -147,7 +147,7 @@ impl Default for GrokHomeFixture {
 impl GrokHomeFixture {
     pub fn new() -> Self {
         let home = tempfile::tempdir().expect("home tempdir");
-        unsafe { std::env::set_var("GROK_HOME", home.path()) };
+        unsafe { std::env::set_var("xvora_home", home.path()) };
         let cwd = tempfile::tempdir().expect("cwd tempdir");
         Self {
             _home: home,
@@ -177,7 +177,7 @@ impl GrokHomeFixture {
             "created_at": "2026-07-01T00:00:00Z",
             "updated_at": "2026-07-01T00:00:00Z",
             "num_messages": 1,
-            "current_model_id": "grok-build",
+            "current_model_id": "xvora-build",
         });
         if let Some(map) = extra.as_object() {
             for (k, val) in map {
@@ -191,8 +191,8 @@ impl GrokHomeFixture {
         let _ = std::fs::remove_dir_all(Self::sessions_cwd_dir(cwd).join(id));
     }
     fn sessions_cwd_dir(cwd: &str) -> std::path::PathBuf {
-        let encoded = shell::util::grok_home::encode_cwd_dirname(cwd);
-        shell::util::grok_home::grok_home()
+        let encoded = shell::util::xvora_home::encode_cwd_dirname(cwd);
+        shell::util::xvora_home::xvora_home()
             .join("sessions")
             .join(&encoded)
     }
@@ -209,14 +209,14 @@ impl TempGitRepo {
         init_git_repo_on_branch(&path, branch);
         Self { _dir: dir, path }
     }
-    /// CoW-style standalone clone: `.git` is a directory plus `grok-worktree-source`.
+    /// CoW-style standalone clone: `.git` is a directory plus `xvora-worktree-source`.
     pub fn standalone_clone(&self, branch: &str) -> Self {
         let dir = tempfile::tempdir().expect("temp clone root");
         let path = dir.path().join("clone");
         copy_dir_all(&self.path, &path);
         checkout_named_branch(&path, branch);
         std::fs::write(
-            path.join(".git").join("grok-worktree-source"),
+            path.join(".git").join("xvora-worktree-source"),
             self.path.to_string_lossy().as_bytes(),
         )
         .unwrap();

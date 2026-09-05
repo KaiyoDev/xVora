@@ -153,8 +153,8 @@ fn test_app() -> AppView {
         agent_override: None,
         bootstrap_acp_commands: Vec::new(),
         auth_methods: vec![acp::AuthMethod::Agent(acp::AuthMethodAgent::new(
-            acp::AuthMethodId::new("grok.com"),
-            "Grok".to_string(),
+            acp::AuthMethodId::new("xvora.com"),
+            "xvora".to_string(),
         ))],
         auth_state: AuthState::Done,
         trust_state: TrustState::Done,
@@ -551,11 +551,11 @@ pub(super) fn end_turn() -> Action {
         prompt_id: None,
     })
 }
-/// Plant a Build session under the process `grok_home()` (OnceLock-cached; do not rely on setting `GROK_HOME` mid-process).
+/// Plant a Build session under the process `xvora_home()` (OnceLock-cached; do not rely on setting `xvora_home` mid-process).
 /// Caller must remove `sess_dir`.
 fn plant_local_build_session(cwd: &std::path::Path, session_id: &str) -> std::path::PathBuf {
-    let home = shell::util::grok_home::grok_home();
-    let encoded = shell::util::grok_home::encode_cwd_dirname(&cwd.to_string_lossy());
+    let home = shell::util::xvora_home::xvora_home();
+    let encoded = shell::util::xvora_home::encode_cwd_dirname(&cwd.to_string_lossy());
     let sess_dir = home.join("sessions").join(encoded).join(session_id);
     std::fs::create_dir_all(&sess_dir).expect("plant session dir");
     std::fs::write(sess_dir.join("summary.json"), b"{}").expect("plant summary");

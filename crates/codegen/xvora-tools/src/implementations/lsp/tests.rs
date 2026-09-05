@@ -2145,7 +2145,7 @@ async fn drop_reaps_server_child_without_shutdown() {
 ///
 /// Drives `LspManager` the way a session does — edit, drain, repeat — and
 /// watches the three things the bug showed up in: the server's lifecycle id
-/// (which changes only when grok restarts it), the number of server processes,
+/// (which changes only when xvora restarts it), the number of server processes,
 /// and whether real C# diagnostics keep arriving.
 ///
 /// Requires `Microsoft.CodeAnalysis.LanguageServer`. Run with:

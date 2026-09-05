@@ -1,4 +1,4 @@
-//! Shared API definitions for Grok tools: protobuf types, config validation,
+//! Shared API definitions for xvora tools: protobuf types, config validation,
 //! and canonical slash-command wording.
 //!
 //! Used by both the tools library and the gRPC server, and by host services
@@ -8,7 +8,7 @@
 
 /// Generated protobuf types.
 pub mod pb {
-    include!(concat!(env!("OUT_DIR"), "/xvora.grok.tools.v1.rs"));
+    include!(concat!(env!("OUT_DIR"), "/xvora.xvora.tools.v1.rs"));
 }
 
 pub mod config_validation;

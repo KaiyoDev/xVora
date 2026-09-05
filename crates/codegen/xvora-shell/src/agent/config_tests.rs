@@ -386,7 +386,7 @@ fn finalize_image_describe_sampler_none_uses_active_session_model_not_forced_hel
     let (model, cfg) = finalize_image_describe_sampler_config(None, &active, None, Some(3));
     assert_eq!(model, "composer-session-model");
     assert_eq!(cfg.model, "composer-session-model");
-    assert_ne!(cfg.model, "grok-build");
+    assert_ne!(cfg.model, "xvora-build");
 }
 #[test]
 fn finalize_image_describe_sampler_some_stamps_session_fields() {
@@ -395,13 +395,13 @@ fn finalize_image_describe_sampler_some_stamps_session_fields() {
         ..Default::default()
     };
     let aux = SamplerConfig {
-        model: "grok-build".into(),
+        model: "xvora-build".into(),
         ..Default::default()
     };
     let (model, cfg) =
         finalize_image_describe_sampler_config(Some(aux), &active, Some("cli".into()), Some(7));
-    assert_eq!(model, "grok-build");
-    assert_eq!(cfg.model, "grok-build");
+    assert_eq!(model, "xvora-build");
+    assert_eq!(cfg.model, "xvora-build");
     assert_eq!(cfg.client_identifier.as_deref(), Some("cli"));
     assert_eq!(cfg.max_retries, Some(7));
 }
@@ -410,7 +410,7 @@ fn resolve_aux_model_honors_grok_build_override() {
     let endpoints = EndpointsConfig::default();
     let mut catalog = IndexMap::new();
     catalog.insert(
-        "grok-build".to_string(),
+        "xvora-build".to_string(),
         test_model_entry(
             "v9m-rl-learnability-tp8",
             "https://vendor.example/v1",
@@ -420,7 +420,7 @@ fn resolve_aux_model_honors_grok_build_override() {
         ),
     );
     let resolved = resolve_aux_model_sampling_config(
-        "grok-build",
+        "xvora-build",
         &catalog,
         &endpoints,
         None,
@@ -1665,7 +1665,7 @@ fn user_override_adds_api_key_to_default_model() {
     assert_eq!(model.api_key, Some("user-custom-api-key".to_string()));
     assert_eq!(model.info.model, dm);
     assert_eq!(
-        model.info.base_url, "https://cli-chat-proxy.grok.com/v1",
+        model.info.base_url, "https://cli-chat-proxy.xvora.com/v1",
         "base_url should inherit from default, not be stale"
     );
 }
@@ -2623,11 +2623,11 @@ fn allowed_models_empty_is_unrestricted() {
 #[test]
 fn invalid_glob_is_rejected_by_validation() {
     use crate::agent::models::ModelGlobSet;
-    assert!(ModelGlobSet::compile(Some(["grok[".to_string()].as_slice())).is_err());
+    assert!(ModelGlobSet::compile(Some(["xvora[".to_string()].as_slice())).is_err());
     let raw: toml::Value = toml::from_str(
         r#"
             [models]
-            allowed_models = ["grok["]
+            allowed_models = ["xvora["]
             "#,
     )
     .unwrap();
@@ -2695,7 +2695,7 @@ fn inference_idle_timeout_secs_absent_defaults_to_none() {
     let raw_config: toml::Value = toml::from_str(
         r#"
             [model.default-model]
-            model = "grok-fast"
+            model = "xvora-fast"
             base_url = "https://api.x.ai/v1"
             context_window = 200000
             "#,
@@ -3149,7 +3149,7 @@ fn config_models_default_is_not_overwritten_by_default_models_json() {
 fn config_models_default_custom_model_is_in_resolved_model_list() {
     let (_, models) = resolve_models_from_toml(
         r#"
-            [model.acme-grok]
+            [model.acme-xvora]
             model = "grok-4.5"
             base_url = "https://inference.example.com/v1"
             context_window = 256000
@@ -3158,10 +3158,10 @@ fn config_models_default_custom_model_is_in_resolved_model_list() {
         None,
     );
     assert!(
-        models.contains_key("acme-grok"),
+        models.contains_key("acme-xvora"),
         "user-defined model must be in the resolved model list"
     );
-    let model = models.get("acme-grok").unwrap();
+    let model = models.get("acme-xvora").unwrap();
     assert_eq!(model.info.model, "grok-4.5");
     assert_eq!(model.info.base_url, "https://inference.example.com/v1");
 }
@@ -3174,7 +3174,7 @@ fn e2e_default_model_with_session_routes_to_proxy() {
     let sampling = resolve_sampling(model, Some("session-token-123"));
     assert_eq!(sampling.api_key.as_deref(), Some("session-token-123"));
     assert_eq!(
-        sampling.base_url, "https://cli-chat-proxy.grok.com/v1",
+        sampling.base_url, "https://cli-chat-proxy.xvora.com/v1",
         "session auth should route to cli-chat-proxy, not api.x.ai"
     );
 }
@@ -3200,7 +3200,7 @@ fn e2e_user_config_overrides_prefetched_model() {
     let mut prefetched = IndexMap::new();
     prefetched.insert(
         dm.to_string(),
-        test_model_entry(dm, "https://cli-chat-proxy.grok.com/v1", None, None, None),
+        test_model_entry(dm, "https://cli-chat-proxy.xvora.com/v1", None, None, None),
     );
     let (_, models) = resolve_models_from_toml(
         &format!(
@@ -3288,7 +3288,7 @@ fn e2e_duplicate_model_field_both_entries_survive() {
     let (_, models) = resolve_models_from_toml(
         &format!(
             r#"
-            [model.acme-grok]
+            [model.acme-xvora]
             model = "{dm}"
             base_url = "https://inference.example.com/v1"
             context_window = 200000
@@ -3299,11 +3299,11 @@ fn e2e_duplicate_model_field_both_entries_survive() {
     );
     assert!(models.contains_key(dm), "default entry should still exist");
     assert!(
-        models.contains_key("acme-grok"),
+        models.contains_key("acme-xvora"),
         "user entry with different key should also exist"
     );
     let default = models.get(dm).unwrap();
-    let user = models.get("acme-grok").unwrap();
+    let user = models.get("acme-xvora").unwrap();
     assert_eq!(default.info.model, user.info.model, "same model field");
     assert_ne!(
         default.info.base_url, user.info.base_url,
@@ -3314,7 +3314,7 @@ fn e2e_duplicate_model_field_both_entries_survive() {
     assert_eq!(sampling.base_url, "https://inference.example.com/v1");
     let sampling = resolve_sampling(default, Some("session-key"));
     assert_eq!(sampling.api_key.as_deref(), Some("session-key"));
-    assert_eq!(sampling.base_url, "https://cli-chat-proxy.grok.com/v1",);
+    assert_eq!(sampling.base_url, "https://cli-chat-proxy.xvora.com/v1",);
 }
 #[test]
 fn e2e_enterprise_custom_endpoint_skips_xai_defaults() {
@@ -3355,17 +3355,17 @@ fn e2e_default_endpoint_still_injects_defaults() {
 fn e2e_acp_model_info_no_dedup_on_model_field() {
     let mut models = IndexMap::new();
     models.insert(
-        "default-grok".to_string(),
+        "default-xvora".to_string(),
         test_model_entry(
             crate::models::default_model(),
-            "https://cli-chat-proxy.grok.com/v1",
+            "https://cli-chat-proxy.xvora.com/v1",
             None,
             None,
             Some("https://api.x.ai/v1"),
         ),
     );
     models.insert(
-        "acme-grok".to_string(),
+        "acme-xvora".to_string(),
         test_model_entry(
             crate::models::default_model(),
             "https://inference.example.com/v1",
@@ -3381,11 +3381,11 @@ fn e2e_acp_model_info_no_dedup_on_model_field() {
         "both entries should survive in ACP model list"
     );
     assert!(
-        acp_models.contains_key(&acp::ModelId::new("default-grok")),
+        acp_models.contains_key(&acp::ModelId::new("default-xvora")),
         "default entry should be addressable by map key"
     );
     assert!(
-        acp_models.contains_key(&acp::ModelId::new("acme-grok")),
+        acp_models.contains_key(&acp::ModelId::new("acme-xvora")),
         "user entry should be addressable by map key"
     );
 }
@@ -4267,13 +4267,13 @@ fn resolve_image_gen_model_override_remote_settings_or_config() {
     };
     assert_eq!(Config::default().resolve_image_gen_model_override(), None);
     assert_eq!(
-        with(None, Some("grok-imagine-image")).resolve_image_gen_model_override(),
-        Some("grok-imagine-image".to_owned())
+        with(None, Some("xvora-imagine-image")).resolve_image_gen_model_override(),
+        Some("xvora-imagine-image".to_owned())
     );
     assert_eq!(
-        with(Some("grok-imagine-image-pro"), Some("grok-imagine-image"))
+        with(Some("xvora-imagine-image-pro"), Some("xvora-imagine-image"))
             .resolve_image_gen_model_override(),
-        Some("grok-imagine-image-pro".to_owned())
+        Some("xvora-imagine-image-pro".to_owned())
     );
 }
 #[test]
@@ -4293,17 +4293,17 @@ fn resolve_image_edit_model_override_remote_settings_or_config() {
     };
     assert_eq!(Config::default().resolve_image_edit_model_override(), None);
     assert_eq!(
-        with(None, Some("grok-imagine-image")).resolve_image_edit_model_override(),
-        Some("grok-imagine-image".to_owned())
+        with(None, Some("xvora-imagine-image")).resolve_image_edit_model_override(),
+        Some("xvora-imagine-image".to_owned())
     );
     assert_eq!(
-        with(Some("grok-imagine-image-pro"), Some("grok-imagine-image"))
+        with(Some("xvora-imagine-image-pro"), Some("xvora-imagine-image"))
             .resolve_image_edit_model_override(),
-        Some("grok-imagine-image-pro".to_owned())
+        Some("xvora-imagine-image-pro".to_owned())
     );
     let gen_only = Config {
         remote_settings: Some(crate::util::config::RemoteSettings {
-            image_gen_model_override: Some("grok-imagine-image".to_owned()),
+            image_gen_model_override: Some("xvora-imagine-image".to_owned()),
             ..Default::default()
         }),
         ..Default::default()
@@ -4805,7 +4805,7 @@ fn clear_goal_model_env() {
 }
 fn planner_pair() -> crate::util::config::GoalRoleModel {
     crate::util::config::GoalRoleModel {
-        model: "grok-4".to_string(),
+        model: "xvora-4".to_string(),
         agent_type: "general-purpose".to_string(),
     }
 }
@@ -5011,15 +5011,15 @@ fn goal_model_pins_parse_from_toml() {
     let toml_str = r#"
 [goal]
 enabled = true
-planner_model = { model = "grok-build", agent_type = "grok-build-plan" }
+planner_model = { model = "xvora-build", agent_type = "xvora-build-plan" }
 
 [goal.strategist_model]
 model = "test-model-fast"
 agent_type = "cursor"
 
 [[goal.skeptic_models]]
-model = "grok-build"
-agent_type = "grok-build-plan"
+model = "xvora-build"
+agent_type = "xvora-build-plan"
 
 [[goal.skeptic_models]]
 model = "test-model-fast"
@@ -5027,13 +5027,16 @@ agent_type = "cursor"
 "#;
     let raw: toml::Value = toml::from_str(toml_str).unwrap();
     let cfg = Config::new_from_toml_cfg(&raw).unwrap();
-    assert_eq!(cfg.goal.planner_model.as_ref().unwrap().model, "grok-build");
+    assert_eq!(
+        cfg.goal.planner_model.as_ref().unwrap().model,
+        "xvora-build"
+    );
     assert_eq!(
         cfg.goal.strategist_model.as_ref().unwrap().agent_type,
         "cursor"
     );
     assert_eq!(cfg.goal.skeptic_models.len(), 2);
-    assert_eq!(cfg.goal.skeptic_models[0].model, "grok-build");
+    assert_eq!(cfg.goal.skeptic_models[0].model, "xvora-build");
     assert_eq!(
         cfg.resolve_goal_planner_model(false).source,
         ConfigSource::Config
@@ -5046,7 +5049,7 @@ fn goal_model_pin_malformed_is_dropped_not_fatal() {
 [goal]
 enabled = true
 classifier_max_runs = 6
-planner_model = { agent_type = "grok-build-plan" }
+planner_model = { agent_type = "xvora-build-plan" }
 "#;
     let raw: toml::Value = toml::from_str(toml_str).unwrap();
     let cfg = Config::new_from_toml_cfg(&raw)
@@ -5061,8 +5064,8 @@ fn goal_skeptic_models_drop_malformed_entry_keep_rest() {
 enabled = true
 
 [[goal.skeptic_models]]
-model = "grok-build"
-agent_type = "grok-build-plan"
+model = "xvora-build"
+agent_type = "xvora-build-plan"
 
 [[goal.skeptic_models]]
 agent_type = "cursor"
@@ -5074,7 +5077,7 @@ agent_type = "cursor"
     let raw: toml::Value = toml::from_str(toml_str).unwrap();
     let cfg = Config::new_from_toml_cfg(&raw).unwrap();
     assert_eq!(cfg.goal.skeptic_models.len(), 2);
-    assert_eq!(cfg.goal.skeptic_models[0].model, "grok-build");
+    assert_eq!(cfg.goal.skeptic_models[0].model, "xvora-build");
     assert_eq!(cfg.goal.skeptic_models[1].model, "test-model-fast");
 }
 /// Acceptance test: a full managed-config `[goal]` block resolves end-to-end, every value sourced from config (not remote/default).
@@ -5091,12 +5094,12 @@ classifier_enabled = true
 planner_enabled = true
 verifier_count = 3
 classifier_max_runs = 6
-planner_model = { model = "grok-build", agent_type = "grok-build-plan" }
+planner_model = { model = "xvora-build", agent_type = "xvora-build-plan" }
 strategist_model = { model = "test-model-fast", agent_type = "cursor" }
 
 [[goal.skeptic_models]]
-model = "grok-build"
-agent_type = "grok-build-plan"
+model = "xvora-build"
+agent_type = "xvora-build-plan"
 
 [[goal.skeptic_models]]
 model = "test-model-fast"
@@ -5106,8 +5109,8 @@ agent_type = "cursor"
     .unwrap();
     let cfg = Config::new_from_toml_cfg(&raw).expect("[goal] config must parse");
     let grok_build = crate::util::config::GoalRoleModel {
-        model: "grok-build".into(),
-        agent_type: "grok-build-plan".into(),
+        model: "xvora-build".into(),
+        agent_type: "xvora-build-plan".into(),
     };
     let composer = crate::util::config::GoalRoleModel {
         model: "test-model-fast".into(),
@@ -5313,7 +5316,7 @@ fn config_accepts_all_known_sections() {
             name = ["os_user"]
             email = ["git_email", "team@example.com"]
             email_domain = "example.com"
-            command = "/opt/bin/grok-identity"
+            command = "/opt/bin/xvora-identity"
             [repo_changes_dedup]
             enabled = false
             [relay]
@@ -6959,7 +6962,7 @@ fn version_overrides_apply_into_typed_config() {
     let mut value: toml::Value = toml::from_str(
         r#"
 [models]
-default = "grok-build"
+default = "xvora-build"
 
 [[version_overrides]]
 minimum_version = "1.8.0"
@@ -6973,9 +6976,9 @@ default = "grok-4.5"
     let cfg = Config::new_from_toml_cfg(&value).unwrap();
     assert_eq!(cfg.models.default.as_deref(), Some("grok-4.5"));
 }
-/// Reproduce the enterprise managed config bug: [model.grok-build] sets context_window=500k for model="grok-4.5".
+/// Reproduce the enterprise managed config bug: [model.xvora-build] sets context_window=500k for model="grok-4.5".
 /// [models].default="grok-4.5" still resolves to the bare prefetched entry (256k).
-/// Layer 3 only overrides key "grok-build", not key "grok-4.5".
+/// Layer 3 only overrides key "xvora-build", not key "grok-4.5".
 ///
 /// After the Layer 4 slug propagation fix, both keys should have 500k.
 #[test]
@@ -6986,7 +6989,7 @@ fn slug_propagation_enterprise_managed_config_key_mismatch() {
             [models]
             default = "grok-4.5"
 
-            [model.grok-build]
+            [model.xvora-build]
             model = "grok-4.5"
             context_window = 500000
             base_url = "https://inference.example.com/v1"
@@ -7007,8 +7010,8 @@ fn slug_propagation_enterprise_managed_config_key_mismatch() {
     prefetched.insert("grok-4.5".to_owned(), entry);
     let resolved = resolve_model_list(&cfg, Some(prefetched));
     let by_key = resolved
-        .get("grok-build")
-        .expect("grok-build key must exist");
+        .get("xvora-build")
+        .expect("xvora-build key must exist");
     assert_eq!(by_key.info.context_window.get(), 500_000);
     assert_eq!(by_key.info.model, "grok-4.5");
     let by_latest = resolved.get("grok-4.5").expect("grok-4.5 key must exist");
@@ -7016,7 +7019,7 @@ fn slug_propagation_enterprise_managed_config_key_mismatch() {
         by_latest.info.context_window.get(),
         500_000,
         "BUG: prefetched 'grok-4.5' should inherit 500k from \
-         sibling 'grok-build' (same model slug), not stay at {default_cw}"
+         sibling 'xvora-build' (same model slug), not stay at {default_cw}"
     );
 }
 /// Slug propagation should carry over api_backend but NOT agent_type.
@@ -7025,12 +7028,12 @@ fn slug_propagation_inherits_api_backend_but_not_agent_type() {
     let default_cw = DEFAULT_CONTEXT_WINDOW;
     let raw: toml::Value = toml::from_str(
         r#"
-            [model.grok-build]
+            [model.xvora-build]
             model = "grok-4.5"
             context_window = 500000
             base_url = "https://test.example.com/v1"
             api_backend = "responses"
-            agent_type = "grok-build"
+            agent_type = "xvora-build"
             "#,
     )
     .unwrap();
@@ -7059,7 +7062,7 @@ fn slug_propagation_inherits_api_backend_but_not_agent_type() {
 fn slug_propagation_does_not_overwrite_explicit_context_window() {
     let raw: toml::Value = toml::from_str(
         r#"
-            [model.grok-build]
+            [model.xvora-build]
             model = "grok-4.5"
             context_window = 500000
             base_url = "https://test.example.com/v1"
@@ -7379,13 +7382,13 @@ fn config_model_reasoning_efforts_parses_inline_tables_and_bare_strings() {
 fn resolve_model_list_config_reasoning_efforts_beats_remote() {
     let raw_config: toml::Value = toml::from_str(
         r#"
-            [model.grok-x]
+            [model.xvora-x]
             reasoning_efforts = ["low"]
             "#,
     )
     .unwrap();
     let cfg = Config::new_from_toml_cfg(&raw_config).expect("config should parse");
-    let mut entry = prefetch_model_entry("grok-x", 200_000, ApiBackend::default());
+    let mut entry = prefetch_model_entry("xvora-x", 200_000, ApiBackend::default());
     entry.info.reasoning_efforts = vec![ReasoningEffortOption {
         id: "high".to_string(),
         value: ReasoningEffort::High,
@@ -7394,11 +7397,11 @@ fn resolve_model_list_config_reasoning_efforts_beats_remote() {
         default: false,
     }];
     let mut prefetched = IndexMap::new();
-    prefetched.insert("grok-x".to_owned(), entry);
+    prefetched.insert("xvora-x".to_owned(), entry);
     let resolved = resolve_model_list(&cfg, Some(prefetched));
     let efforts = &resolved
-        .get("grok-x")
-        .expect("grok-x")
+        .get("xvora-x")
+        .expect("xvora-x")
         .info
         .reasoning_efforts;
     assert_eq!(efforts.len(), 1);

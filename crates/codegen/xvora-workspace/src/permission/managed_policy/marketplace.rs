@@ -10,7 +10,7 @@ use super::mcp::PolicySubjectOrigin;
 pub struct MarketplaceAllowlist {
     pub allowed_urls: Vec<String>,
     pub source_path: Option<std::path::PathBuf>,
-    /// Whether this source's restrictions bind grok-native marketplaces.
+    /// Whether this source's restrictions bind xvora-native marketplaces.
     pub authority: PolicySourceAuthority,
 }
 
@@ -62,7 +62,7 @@ impl MarketplacePolicy {
     }
 
     /// Restriction active for a subject of `origin` (advisory strict lists
-    /// don't bind grok-native marketplaces).
+    /// don't bind xvora-native marketplaces).
     pub fn is_restricted_for(&self, origin: PolicySubjectOrigin) -> bool {
         self.sources
             .iter()
@@ -94,9 +94,9 @@ impl MarketplacePolicy {
 
     /// Fail-closed add/install gate: `Some(reason)` when restricted and
     /// `identity` isn't allowed (local paths never match — intentional).
-    /// The subject of an add/install is by definition not yet grok-native, so
+    /// The subject of an add/install is by definition not yet xvora-native, so
     /// every policy source binds — including advisory ones. The advisory
-    /// carve-out covers what grok config already defines, never the
+    /// carve-out covers what xvora config already defines, never the
     /// acquisition of new sources.
     pub fn add_block_reason(&self, identity: &str) -> Option<String> {
         let origin = PolicySubjectOrigin::Foreign;

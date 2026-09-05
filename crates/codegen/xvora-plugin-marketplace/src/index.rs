@@ -1,6 +1,6 @@
 //! Parse repo-level marketplace index.
 //!
-//! Catalog files are probed in order: `.grok-plugin/marketplace.json` (preferred), then `.grok-plugin/plugin.json`.
+//! Catalog files are probed in order: `.xvora-plugin/marketplace.json` (preferred), then `.xvora-plugin/plugin.json`.
 //! The `.claude-plugin/` copies of both follow, for compatibility with the alternate layout.
 //!
 //! When present, an index is preferred over filesystem scanning: it is faster and provides curated metadata (category, tags, homepage).
@@ -193,15 +193,15 @@ impl IndexEntry {
 /// Attempt to load the marketplace index from the given root directory.
 ///
 /// Checks (in order):
-/// 1. `.grok-plugin/marketplace.json` (preferred xAI convention)
-/// 2. `.grok-plugin/plugin.json`
+/// 1. `.xvora-plugin/marketplace.json` (preferred xAI convention)
+/// 2. `.xvora-plugin/plugin.json`
 /// 3. `.claude-plugin/marketplace.json` (alternate layout compatibility)
 /// 4. `.claude-plugin/plugin.json`
 ///
 /// Returns `None` if no file exists.
 /// Returns `Err` if a file exists but can't be parsed.
 pub fn load_index(marketplace_root: &Path) -> Result<Option<MarketplaceIndex>, String> {
-    let grok_dir = marketplace_root.join(".grok-plugin");
+    let grok_dir = marketplace_root.join(".xvora-plugin");
     let claude_dir = marketplace_root.join(".claude-plugin");
     let candidates = [
         grok_dir.join("marketplace.json"),
@@ -285,22 +285,22 @@ mod tests {
     #[test]
     fn load_index_valid_grok_dir() {
         let dir = tempfile::tempdir().unwrap();
-        let grok_dir = dir.path().join(".grok-plugin");
+        let grok_dir = dir.path().join(".xvora-plugin");
         std::fs::create_dir_all(&grok_dir).unwrap();
         std::fs::write(
             grok_dir.join("marketplace.json"),
-            r#"{"name": "grok", "plugins": []}"#,
+            r#"{"name": "xvora", "plugins": []}"#,
         )
         .unwrap();
         let result = load_index(dir.path()).unwrap();
         assert!(result.is_some());
-        assert_eq!(result.unwrap().name, "grok");
+        assert_eq!(result.unwrap().name, "xvora");
     }
 
     #[test]
     fn load_index_grok_dir_takes_precedence_over_claude_dir() {
         let dir = tempfile::tempdir().unwrap();
-        for (sub, name) in [(".grok-plugin", "grok"), (".claude-plugin", "claude")] {
+        for (sub, name) in [(".xvora-plugin", "xvora"), (".claude-plugin", "claude")] {
             let d = dir.path().join(sub);
             std::fs::create_dir_all(&d).unwrap();
             std::fs::write(
@@ -309,7 +309,7 @@ mod tests {
             )
             .unwrap();
         }
-        assert_eq!(load_index(dir.path()).unwrap().unwrap().name, "grok");
+        assert_eq!(load_index(dir.path()).unwrap().unwrap().name, "xvora");
     }
 
     #[test]

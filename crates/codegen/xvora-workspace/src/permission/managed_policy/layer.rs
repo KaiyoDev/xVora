@@ -19,13 +19,13 @@ pub(super) enum PolicyLayerTier {
     SystemManaged,
     UserRequirements,
     UserManaged,
-    /// The Claude `managed-settings.json`; sorts (applies) after every grok
+    /// The Claude `managed-settings.json`; sorts (applies) after every xvora
     /// layer.
     Vendor,
 }
 
 impl PolicyLayerTier {
-    /// Vendor files configure Claude, not grok — advisory to grok-native
+    /// Vendor files configure Claude, not xvora — advisory to xvora-native
     /// subjects.
     pub fn authority(self) -> PolicySourceAuthority {
         match self {
@@ -35,7 +35,7 @@ impl PolicyLayerTier {
     }
 
     /// Who can write the layer: MDM/system TOML and the root-owned vendor
-    /// file are admin-controlled; `~/.grok` layers are user-writable.
+    /// file are admin-controlled; `~/.xvora` layers are user-writable.
     pub fn ownership(self) -> PolicyLayerOwnership {
         match self {
             Self::UserRequirements | Self::UserManaged => PolicyLayerOwnership::User,
@@ -57,11 +57,11 @@ pub(super) struct PolicyLayer {
 
 /// Whether a policy source binds every server or is advisory.
 ///
-/// grok's own signed TOML layers (`managed_config.toml`, `requirements.toml`)
+/// xvora's own signed TOML layers (`managed_config.toml`, `requirements.toml`)
 /// are [`Native`](Self::Native) and bind everything. The vendor Claude
 /// `managed-settings.json` is [`Advisory`](Self::Advisory): hosts ship that
-/// file to configure Claude, not grok, so its restrictions bind
-/// only subjects grok did not natively define — foreign-sourced MCP servers
+/// file to configure Claude, not xvora, so its restrictions bind
+/// only subjects xvora did not natively define — foreign-sourced MCP servers
 /// and marketplaces. Grants are deliberately authority- AND ownership-blind
 /// (known limitation; admin-vs-user grant rules are a named follow-up).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -98,7 +98,7 @@ impl PolicyPin {
 
 /// Who can write the layer a policy value came from: an administrator
 /// (MDM, root-owned system TOML, the root-owned Claude managed-settings.json)
-/// or the user (`~/.grok` layers). Privileges that carve exceptions out of a
+/// or the user (`~/.xvora` layers). Privileges that carve exceptions out of a
 /// lockdown — e.g. a Local marketplace pin surviving a strict list — must
 /// require `Admin`, or a user-writable file re-opens the hole.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

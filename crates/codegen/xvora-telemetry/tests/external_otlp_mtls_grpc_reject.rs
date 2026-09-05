@@ -49,9 +49,9 @@ fn external_stream_grpc_mtls_fails_without_client_identity() {
 
     telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-grpc-mtls-no-client".into(),
-        client_identifier: Some("grok-pager".into()),
-        model_id: "grok-4".into(),
-        agent_name: "grok-build-plan".into(),
+        client_identifier: Some("xvora-pager".into()),
+        model_id: "xvora-4".into(),
+        agent_name: "xvora-build-plan".into(),
         permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![],
         plugin_names: vec![],

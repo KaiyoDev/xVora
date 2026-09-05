@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use fs2::FileExt;
 use workspace::util::is_lock_contended;
 
-use crate::util::grok_home::grok_home;
+use crate::util::xvora_home::xvora_home;
 
 /// Compute a short hash suffix from a WS URL for differentiating leader instances.
 /// Returns empty string for the default/production URL.
@@ -34,7 +34,7 @@ pub fn compute_ws_url_suffix(ws_url: &str) -> String {
 /// Env var that overrides the leader socket path and, by extension, the sibling `.lock` path.
 /// Set by the `--leader-socket` flag, or exported directly.
 /// Lets a developer sandbox a leader instance away from the default
-/// `~/.grok/leader.sock` — e.g. run a local branch build's leader without
+/// `~/.xvora/leader.sock` — e.g. run a local branch build's leader without
 /// colliding with an installed stable leader on the same machine.
 /// Both the client (`connect_or_spawn`) and the leader (`run_leader`) honor it, and the spawned leader subprocess inherits it.
 /// All parties therefore bind the same path.
@@ -75,7 +75,7 @@ pub fn lock_path_for_ws_url_in(root: &Path, ws_url: &str) -> PathBuf {
 }
 
 pub fn lock_path_for_ws_url(ws_url: &str) -> PathBuf {
-    resolve_lock_path(leader_socket_override(), &grok_home(), ws_url)
+    resolve_lock_path(leader_socket_override(), &xvora_home(), ws_url)
 }
 
 pub fn socket_path_for_ws_url_in(root: &Path, ws_url: &str) -> PathBuf {
@@ -84,7 +84,7 @@ pub fn socket_path_for_ws_url_in(root: &Path, ws_url: &str) -> PathBuf {
 }
 
 pub fn socket_path_for_ws_url(ws_url: &str) -> PathBuf {
-    resolve_socket_path(leader_socket_override(), &grok_home(), ws_url)
+    resolve_socket_path(leader_socket_override(), &xvora_home(), ws_url)
 }
 
 pub fn ws_url_suffix_from_paths(lock_path: &Path, socket_path: &Path) -> Option<String> {
@@ -140,7 +140,7 @@ pub struct LeaderLock {
 }
 
 impl LeaderLock {
-    /// Create a new LeaderLock using the default paths in grok home.
+    /// Create a new LeaderLock using the default paths in xvora home.
     /// If ws_url differs from the default production URL, a hash suffix is added to the lock and socket file names to differentiate leader instances.
     pub fn new(ws_url: &str) -> Self {
         Self {
@@ -312,8 +312,8 @@ mod tests {
 
     #[test]
     fn override_socket_path_wins_over_ws_url_derivation() {
-        let root = Path::new("/home/u/.grok");
-        let override_sock = PathBuf::from("/home/u/.grok/leader-branch.sock");
+        let root = Path::new("/home/u/.xvora");
+        let override_sock = PathBuf::from("/home/u/.xvora/leader-branch.sock");
 
         // With an override, the path is taken verbatim and the WS-URL suffix is ignored (a non-default ws_url would otherwise add a hash suffix)
         assert_eq!(
@@ -323,13 +323,13 @@ mod tests {
         // The lock is the sibling `.lock`, NOT a ws-url-derived name.
         assert_eq!(
             resolve_lock_path(Some(override_sock), root, "wss://custom.example/ws"),
-            PathBuf::from("/home/u/.grok/leader-branch.lock")
+            PathBuf::from("/home/u/.xvora/leader-branch.lock")
         );
     }
 
     #[test]
     fn no_override_falls_back_to_ws_url_derivation() {
-        let root = Path::new("/home/u/.grok");
+        let root = Path::new("/home/u/.xvora");
         // The default (empty) ws_url yields bare leader.sock / leader.lock under root
         assert_eq!(
             resolve_socket_path(None, root, ""),

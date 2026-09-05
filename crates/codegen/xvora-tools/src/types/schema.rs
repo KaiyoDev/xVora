@@ -170,7 +170,7 @@ where
 }
 /// Deserialize `Option<String>` from a JSON string, number, or boolean —
 /// scalar values are coerced to their string form. Mirrors zod's
-/// `z.coerce.string()` used by the TypeScript grok-computer tools, where
+/// `z.coerce.string()` used by the TypeScript xvora-computer tools, where
 /// models routinely send numeric-looking IDs (e.g. CDP request IDs such as
 /// `62576.34`) as JSON numbers.
 pub fn deserialize_lenient_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

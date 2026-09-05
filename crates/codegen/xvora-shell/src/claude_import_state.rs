@@ -1,6 +1,6 @@
 // Tracks what Claude settings have been imported/dismissed so we don't re-prompt.
 //
-// State is persisted to `~/.grok/claude_import_state.json`.
+// State is persisted to `~/.xvora/claude_import_state.json`.
 // Hash is SHA-256 over sorted, concatenated contents of all Claude settings files at a given scope (global or project)
 
 use std::collections::HashMap;
@@ -14,7 +14,7 @@ use workspace::permission::claude_settings::find_claude_settings_paths;
 
 // Types
 
-/// Persistent import state, loaded from / saved to `~/.grok/claude_import_state.json`.
+/// Persistent import state, loaded from / saved to `~/.xvora/claude_import_state.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ImportState {
     /// Schema version for forward compatibility.
@@ -50,7 +50,7 @@ impl Default for ImportState {
 
 /// Path to the import state file.
 fn state_path() -> PathBuf {
-    crate::util::grok_home::grok_home().join("claude_import_state.json")
+    crate::util::xvora_home::xvora_home().join("claude_import_state.json")
 }
 
 /// Load the import state from disk. Returns default if missing or unreadable.

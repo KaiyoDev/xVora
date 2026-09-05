@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 use crate::session::SessionThread;
 use super::spawn::{
@@ -253,7 +253,7 @@ fn wedged_child_handle() -> (
         force_compact: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         permission_handle: workspace::permission::PermissionHandle::allow_all(),
         attribution_callback: None,
-        agent_name: "grok-build".to_string(),
+        agent_name: "xvora-build".to_string(),
         managed_mcp_proxy_base_url: String::new(),
         session_default_agent_profile: None,
         allowed_subagent_types: None,
@@ -642,11 +642,11 @@ fn subagent_max_turns_definition_wins_else_inherits_parent() {
 fn resume_worktree_action_covers_three_outcomes() {
     use super::{ResumeWorktreeAction, resume_worktree_action};
     assert_eq!(
-            resume_worktree_action(true, Some("refs/grok/subagents/x")),
+            resume_worktree_action(true, Some("refs/xvora/subagents/x")),
             ResumeWorktreeAction::Rehydrate
         );
     assert_eq!(
-            resume_worktree_action(false, Some("refs/grok/subagents/x")),
+            resume_worktree_action(false, Some("refs/xvora/subagents/x")),
             ResumeWorktreeAction::Rehydrate
         );
     assert_eq!(
@@ -1946,7 +1946,7 @@ fn describe_subagent_type_unknown_returns_sorted_available() {
         other => panic!("expected Unknown, got {other:?}"),
     }
 }
-/// Regression guard for the DEFAULT grok-build host, the primary `/goal` host.
+/// Regression guard for the DEFAULT xvora-build host, the primary `/goal` host.
 /// There the only `general-purpose` tool that edits files is `search_replace` (`ToolKind::Edit`).
 /// The `write` tool (`ToolKind::Write`) is only injected later, so the pre-injection describe probe never lists it.
 /// The planner gate must therefore key on the Edit capability.
@@ -2370,8 +2370,8 @@ fn subagent_auth_type_rule() {
     use chat_state::AuthType;
     let session = acp::AuthMethodId::new(CACHED_TOKEN_AUTH_METHOD_ID);
     let api_key = acp::AuthMethodId::new(XAI_API_KEY_METHOD_ID);
-    let byok = byok_model_entry("grok-byok");
-    let plain = test_model_entry("grok-plain");
+    let byok = byok_model_entry("xvora-byok");
+    let plain = test_model_entry("xvora-plain");
     assert_eq!(
             super::subagent_auth_type(Some(&byok), &session),
             AuthType::ApiKey
@@ -2505,7 +2505,7 @@ fn fresh_tool_model_rejects_unknown_and_nonavailable_entries() {
                      Omit `model` to inherit the parent model."
                 )
             );
-        assert!(!error.contains("grok models"));
+        assert!(!error.contains("xvora models"));
     }
     assert!(
             super::handle_request::task_model_override_error(

@@ -171,7 +171,7 @@ pub(crate) fn try_grove_worktree(plan: &WorktreePlan) -> Result<Option<CreateWor
             let backing = resolved_backing_path(opts, &plan.worktree_id)
                 .map(|p| p.display().to_string())
                 .filter(|s| !s.is_empty());
-            let pin = format!("refs/grok/worktrees/{}", plan.worktree_id);
+            let pin = format!("refs/xvora/worktrees/{}", plan.worktree_id);
             let transport = grove_transport_name(&adopted.transport);
             let mut grove = serde_json::json!({
                 "transport": transport,

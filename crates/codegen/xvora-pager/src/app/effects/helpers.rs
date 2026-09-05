@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 use std::path::Path;
 use agent_client_protocol as acp;
 use tokio::task::JoinSet;
@@ -303,14 +303,14 @@ pub(crate) fn sanitize_user_error(raw: &str) -> String {
 ///
 /// | plan  | subagents | ask-user | agentProfile                   | askUserQuestion    |
 /// |-------|-----------|----------|--------------------------------|--------------------|
-/// | false | false     | false    | `grok-build` (default)         | `false`            |
-/// | false | true      | false    | `grok-build` (default)         | `false`            |
-/// | false | false     | true     | `grok-build-ask-user`          | omitted (shell gate) |
-/// | false | true      | true     | `grok-build-ask-user`          | omitted (shell gate) |
-/// | true  | false     | false    | `grok-build-plan-no-subagents` | `false`            |
-/// | true  | true      | false    | `grok-build-plan`              | `false`            |
-/// | true  | false     | true     | `grok-build-plan-no-subagents` | omitted (shell gate) |
-/// | true  | true      | true     | `grok-build-plan`              | omitted (shell gate) |
+/// | false | false     | false    | `xvora-build` (default)         | `false`            |
+/// | false | true      | false    | `xvora-build` (default)         | `false`            |
+/// | false | false     | true     | `xvora-build-ask-user`          | omitted (shell gate) |
+/// | false | true      | true     | `xvora-build-ask-user`          | omitted (shell gate) |
+/// | true  | false     | false    | `xvora-build-plan-no-subagents` | `false`            |
+/// | true  | true      | false    | `xvora-build-plan`              | `false`            |
+/// | true  | false     | true     | `xvora-build-plan-no-subagents` | omitted (shell gate) |
+/// | true  | true      | true     | `xvora-build-plan`              | omitted (shell gate) |
 ///
 /// When [`Self::chat_mode`] is set (gateway light-frontend / `--chat`), Build `agentProfile` injection is omitted.
 /// `_meta["x.ai/session"].kind` is stamped `"chat"` so the shell takes the `require_gateway` / thin profile.
@@ -349,16 +349,16 @@ pub(crate) struct SessionFlags {
 impl SessionFlags {
     /// Resolve the agent profile name from the flags.
     ///
-    /// Returns `None` for the default `grok-build` profile (no `_meta` needed; it already includes TaskTool).
+    /// Returns `None` for the default `xvora-build` profile (no `_meta` needed; it already includes TaskTool).
     /// Chat mode never injects a Build profile (remote owns agent behavior).
     pub(super) fn agent_profile(&self) -> Option<&'static str> {
         if self.chat_mode {
             return None;
         }
         match (self.plan_mode, self.subagents, self.ask_user) {
-            (true, true, _) => Some("grok-build-plan"),
-            (true, false, _) => Some("grok-build-plan-no-subagents"),
-            (false, _, true) => Some("grok-build-ask-user"),
+            (true, true, _) => Some("xvora-build-plan"),
+            (true, false, _) => Some("xvora-build-plan-no-subagents"),
+            (false, _, true) => Some("xvora-build-ask-user"),
             (false, _, false) => None,
         }
     }
@@ -1727,12 +1727,12 @@ pub(super) fn parse_auto_topup_response(
         Err(_) => AutoTopupFetch::Unchanged,
     }
 }
-/// A blocking flock on the shared, possibly-network `~/.grok` lock must never
+/// A blocking flock on the shared, possibly-network `~/.xvora` lock must never
 /// stall the event-loop thread (and would hang exit on `/quit`); the registry
 /// is best-effort, so skip on contention.
 pub(super) fn unregister_active_session_best_effort(session_id: &acp::SessionId) {
     unregister_active_session_best_effort_in(
-        &shell::util::grok_home::grok_home(),
+        &shell::util::xvora_home::xvora_home(),
         session_id,
     );
 }

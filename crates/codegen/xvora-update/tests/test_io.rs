@@ -1,5 +1,5 @@
-//! These tests must run serially: they touch `GROK_HOME` (a `OnceLock` in `xvora-config`), `GROK_TEST_VERSION`, and `NPM_TOKEN`.
-//! Once `GROK_HOME` is initialized for a process, it can't be changed.
+//! These tests must run serially: they touch `xvora_home` (a `OnceLock` in `xvora-config`), `GROK_TEST_VERSION`, and `NPM_TOKEN`.
+//! Once `xvora_home` is initialized for a process, it can't be changed.
 //! We set it from a single shared `OnceLock` and reset the contents of the directory between tests.
 
 mod common;
@@ -103,7 +103,7 @@ async fn write_version_cache_records_recent_timestamp() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// version.json wire format — the on-disk file is read by every grok launch.
+// version.json wire format — the on-disk file is read by every xvora launch.
 // ─────────────────────────────────────────────────────────────────────────────
 #[tokio::test]
 #[serial]

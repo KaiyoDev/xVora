@@ -19,7 +19,7 @@ use acp_lib::{
 use shell::{
     agent::{MvpAgent, activity::SESSION_FLUSH_GRACE, config::Config as AgentConfig},
     auth::AuthManager,
-    util::grok_home::grok_home,
+    util::xvora_home::xvora_home,
 };
 
 /// Extra slack when joining the agent OS thread after cancel so the flush
@@ -199,7 +199,7 @@ pub async fn spawn_grok_shell(
     memory_config: Option<shell::config::MemoryConfig>,
 ) -> Result<SpawnedAgent> {
     let auth_manager = std::sync::Arc::new(AuthManager::new(
-        &grok_home(),
+        &xvora_home(),
         agent_config.grok_com_config.clone(),
     ));
     auth_manager.configure_refresher(

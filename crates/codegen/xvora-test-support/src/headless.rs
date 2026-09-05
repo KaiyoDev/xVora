@@ -1,4 +1,4 @@
-//! Headless mode (`grok -p`) test runner.
+//! Headless mode (`xvora -p`) test runner.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
@@ -20,14 +20,14 @@ pub struct HeadlessResult {
     pub elapsed: Duration,
 }
 
-/// Timeout for one headless grok invocation: 60 seconds, multiplied by [`crate::scaled`]'s `GROK_TEST_TIMEOUT_SCALE`.
+/// Timeout for one headless xvora invocation: 60 seconds, multiplied by [`crate::scaled`]'s `GROK_TEST_TIMEOUT_SCALE`.
 fn headless_timeout() -> Duration {
     crate::scaled(Duration::from_secs(60))
 }
 
 const HEADLESS_DRAIN_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Run `grok` with the given args against the mock server, bounded by the scaled headless timeout.
+/// Run `xvora` with the given args against the mock server, bounded by the scaled headless timeout.
 /// Uses an isolated HOME and disables telemetry.
 pub async fn run_headless(
     server: &MockInferenceServer,

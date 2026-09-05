@@ -201,7 +201,7 @@ impl SessionPickerLanes {
 
 /// Loading gate for a session picker's spinner.
 /// True while no loaded entry passes the source filter and the native fetch or foreign scan is still in flight.
-/// The filter check (not `entries.is_none()`) matters: the fast foreign scan can land rows the default Grok view hides before the native list
+/// The filter check (not `entries.is_none()`) matters: the fast foreign scan can land rows the default xvora view hides before the native list
 /// arrives.
 /// The empty state must wait until both lanes settle.
 /// Shared by rendering, redraw forcing, and tick demand so the three cannot drift.
@@ -240,17 +240,17 @@ pub(crate) fn loading_spinner_active(
 
 /// Filter session entries by native, headless, remote, or external source.
 ///
-/// Default is [`Self::Grok`]: native Grok sessions only (local / remote / conversation).
-/// That keeps Claude/Codex/Cursor foreign sessions and `grok -p` one-shots out of `/resume`.
-/// `f` cycles Grok, Headless, External, All, Local, Remote, then back to Grok.
+/// Default is [`Self::xvora`]: native xvora sessions only (local / remote / conversation).
+/// That keeps Claude/Codex/Cursor foreign sessions and `xvora -p` one-shots out of `/resume`.
+/// `f` cycles xvora, Headless, External, All, Local, Remote, then back to xvora.
 /// Entering or leaving `Headless` refetches.
 /// The shell excludes headless rows from every other page's fetch, so a client-side refilter of the cached page could never populate it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SourceFilter {
-    /// Native Grok sessions only; excludes Claude/Codex/Cursor foreign rows.
+    /// Native xvora sessions only; excludes Claude/Codex/Cursor foreign rows.
     #[default]
-    Grok,
-    /// `grok -p` one-shots only (`session_kind == "headless"`).
+    xvora,
+    /// `xvora -p` one-shots only (`session_kind == "headless"`).
     Headless,
     Local,
     Remote,
@@ -262,7 +262,7 @@ pub enum SourceFilter {
 impl SourceFilter {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Grok => "Grok",
+            Self::xvora => "xvora",
             Self::Headless => "Headless",
             Self::Local => "Local",
             Self::Remote => "Remote",
@@ -273,18 +273,18 @@ impl SourceFilter {
 
     pub fn next(self) -> Self {
         match self {
-            Self::Grok => Self::Headless,
+            Self::xvora => Self::Headless,
             Self::Headless => Self::External,
             Self::External => Self::All,
             Self::All => Self::Local,
             Self::Local => Self::Remote,
-            Self::Remote => Self::Grok,
+            Self::Remote => Self::xvora,
         }
     }
 
     /// Returns `true` when a non-default filter is selected.
     pub fn is_active(self) -> bool {
-        self != Self::Grok
+        self != Self::xvora
     }
 
     /// Whether the deep content search is unavailable on this page: foreign stores are not FTS-indexed.
@@ -306,14 +306,14 @@ impl SourceFilter {
 
     /// Returns `true` if a session with the given `source` string and `session_kind` passes the filter.
     ///
-    /// grok.com conversations carry `source == "conversation"` and live remotely, so they pass the `Remote` filter (and `Grok` / `All`) but not
+    /// xvora.com conversations carry `source == "conversation"` and live remotely, so they pass the `Remote` filter (and `xvora` / `All`) but not
     /// `Local`.
     /// Foreign sources (`claude` / `codex` / `cursor`) only pass `External` and `All`.
     /// Headless rows pass only `Headless`; every other page excludes them, mirroring the server-side fetch policy.
     pub fn matches(self, source: &str, session_kind: Option<&str>) -> bool {
         let is_headless = session_kind == Some("headless");
         match self {
-            Self::Grok => !crate::app::is_foreign_picker_source(source) && !is_headless,
+            Self::xvora => !crate::app::is_foreign_picker_source(source) && !is_headless,
             Self::Headless => is_headless && !crate::app::is_foreign_picker_source(source),
             Self::Local => (source == "local" || source == "both") && !is_headless,
             Self::Remote => {
@@ -1452,14 +1452,14 @@ mod tests {
 
     #[test]
     fn source_filter_matches() {
-        // Default Grok filter: native only (not Claude/Codex/Cursor).
-        assert!(SourceFilter::Grok.matches("local", None));
-        assert!(SourceFilter::Grok.matches("remote", None));
-        assert!(SourceFilter::Grok.matches("both", None));
-        assert!(SourceFilter::Grok.matches("conversation", None));
-        assert!(!SourceFilter::Grok.matches("claude", None));
-        assert!(!SourceFilter::Grok.matches("codex", None));
-        assert!(!SourceFilter::Grok.matches("cursor", None));
+        // Default xvora filter: native only (not Claude/Codex/Cursor).
+        assert!(SourceFilter::xvora.matches("local", None));
+        assert!(SourceFilter::xvora.matches("remote", None));
+        assert!(SourceFilter::xvora.matches("both", None));
+        assert!(SourceFilter::xvora.matches("conversation", None));
+        assert!(!SourceFilter::xvora.matches("claude", None));
+        assert!(!SourceFilter::xvora.matches("codex", None));
+        assert!(!SourceFilter::xvora.matches("cursor", None));
 
         assert!(SourceFilter::All.matches("local", None));
         assert!(SourceFilter::All.matches("remote", None));
@@ -1478,7 +1478,7 @@ mod tests {
         assert!(!SourceFilter::Remote.matches("local", None));
         assert!(!SourceFilter::Remote.matches("cursor", None));
 
-        // grok.com conversations are remote: visible under Grok, All, and Remote, not Local
+        // xvora.com conversations are remote: visible under xvora, All, and Remote, not Local
         assert!(SourceFilter::All.matches("conversation", None));
         assert!(SourceFilter::Remote.matches("conversation", None));
         assert!(!SourceFilter::Local.matches("conversation", None));
@@ -1494,16 +1494,16 @@ mod tests {
 
     #[test]
     fn source_filter_cycles() {
-        assert_eq!(SourceFilter::Grok.next(), SourceFilter::Headless);
+        assert_eq!(SourceFilter::xvora.next(), SourceFilter::Headless);
         assert_eq!(SourceFilter::Headless.next(), SourceFilter::External);
         assert_eq!(SourceFilter::External.next(), SourceFilter::All);
         assert_eq!(SourceFilter::All.next(), SourceFilter::Local);
         assert_eq!(SourceFilter::Local.next(), SourceFilter::Remote);
-        assert_eq!(SourceFilter::Remote.next(), SourceFilter::Grok);
-        assert_eq!(SourceFilter::Grok.label(), "Grok");
+        assert_eq!(SourceFilter::Remote.next(), SourceFilter::xvora);
+        assert_eq!(SourceFilter::xvora.label(), "xvora");
         assert_eq!(SourceFilter::Headless.label(), "Headless");
         assert_eq!(SourceFilter::External.label(), "External");
-        assert_eq!(SourceFilter::default(), SourceFilter::Grok);
+        assert_eq!(SourceFilter::default(), SourceFilter::xvora);
     }
 
     #[test]
@@ -1524,8 +1524,8 @@ mod tests {
         ];
         entries[6].session_kind = Some("headless".into());
 
-        let grok = filter_session_entries(Some(&entries), "", SourceFilter::Grok);
-        assert_eq!(grok, vec![0, 1, 2]);
+        let xvora = filter_session_entries(Some(&entries), "", SourceFilter::xvora);
+        assert_eq!(xvora, vec![0, 1, 2]);
 
         let headless = filter_session_entries(Some(&entries), "", SourceFilter::Headless);
         assert_eq!(headless, vec![6]);
@@ -1546,14 +1546,14 @@ mod tests {
     #[test]
     fn source_filter_empty_and_unknown_source() {
         // Empty / unknown source (e.g. from old data or test fixtures) is not foreign.
-        // It passes Grok and All but never Local, Remote, or External
-        assert!(SourceFilter::Grok.matches("", None));
+        // It passes xvora and All but never Local, Remote, or External
+        assert!(SourceFilter::xvora.matches("", None));
         assert!(SourceFilter::All.matches("", None));
         assert!(!SourceFilter::Local.matches("", None));
         assert!(!SourceFilter::Remote.matches("", None));
         assert!(!SourceFilter::External.matches("", None));
 
-        assert!(SourceFilter::Grok.matches("unknown", None));
+        assert!(SourceFilter::xvora.matches("unknown", None));
         assert!(SourceFilter::All.matches("unknown", None));
         assert!(!SourceFilter::Local.matches("unknown", None));
         assert!(!SourceFilter::Remote.matches("unknown", None));
@@ -1562,7 +1562,7 @@ mod tests {
 
     #[test]
     fn source_filter_is_active() {
-        assert!(!SourceFilter::Grok.is_active());
+        assert!(!SourceFilter::xvora.is_active());
         assert!(SourceFilter::Headless.is_active());
         assert!(SourceFilter::Local.is_active());
         assert!(SourceFilter::Remote.is_active());
@@ -1583,7 +1583,7 @@ mod tests {
             entry_with_source("s2", "codex"),
         ];
 
-        assert!(hidden_external_hint(Some(&entries), SourceFilter::Grok).is_none());
+        assert!(hidden_external_hint(Some(&entries), SourceFilter::xvora).is_none());
         assert!(hidden_external_hint(Some(&entries), SourceFilter::Local).is_none());
         assert!(hidden_external_hint(Some(&entries), SourceFilter::Remote).is_none());
         assert!(hidden_external_hint(Some(&entries), SourceFilter::Headless).is_some());

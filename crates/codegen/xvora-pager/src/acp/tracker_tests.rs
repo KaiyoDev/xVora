@@ -1,6 +1,6 @@
 use super::*;
 use std::sync::Arc;
-/// Default meta with no timestamps (simulates old grok-shell or tests that don't care about timing).
+/// Default meta with no timestamps (simulates old xvora-shell or tests that don't care about timing).
 fn meta() -> NotificationMeta {
     NotificationMeta::default()
 }
@@ -2131,7 +2131,7 @@ fn stream_start_breaks_agent_msg_to_agent_msg() {
         "stream A message should be finished"
     );
 }
-/// No stream_start_ms (old grok-shell) should not break anything.
+/// No stream_start_ms (old xvora-shell) should not break anything.
 #[test]
 fn no_stream_start_ms_preserves_existing_behavior() {
     let mut sb = ScrollbackState::new();
@@ -4685,7 +4685,7 @@ fn media_gen_ref_skips_uploaded_only_video() {
 #[test]
 fn tier_restricted_media_shows_upsell_text_not_error() {
     let upsell = "Image generation is a SuperGrok feature. Upgrade at \
-         https://grok.com/supergrok?referrer=grok-build";
+         https://xvora.com/supergrok?referrer=xvora-build";
     let output = ToolOutput::Text(tools::types::output::TextOutput::from(upsell));
     let tc = acp::ToolCall::new(
         acp::ToolCallId::new(Arc::from("tier-restricted-img")),

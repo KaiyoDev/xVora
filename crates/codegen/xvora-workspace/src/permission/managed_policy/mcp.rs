@@ -9,10 +9,10 @@ use super::url_match::{AllowUrlMatcher, DenyUrlMatcher, argv_matches, mcp_server
 
 /// What defined the server or marketplace a policy is being applied to.
 ///
-/// `GrokNative` covers grok's own user/system `config.toml`, plugin-provided
+/// `GrokNative` covers xvora's own user/system `config.toml`, plugin-provided
 /// definitions, and admin pins — exempt from [`Advisory`]
 /// (PolicySourceAuthority::Advisory) sources. Everything else — project files
-/// (repo-checked-in `.grok/config.toml`, `.mcp.json`, `.cursor/mcp.json`),
+/// (repo-checked-in `.xvora/config.toml`, `.mcp.json`, `.cursor/mcp.json`),
 /// imported Claude configs, CLI overrides, client-injected connectors — is
 /// `Foreign` and subject to every policy source. Ambiguity must classify as
 /// `Foreign` (fail closed).
@@ -49,7 +49,7 @@ pub struct McpServerAllowlist {
     /// `allowManagedMcpServersOnly`: a positive allow-entry match is required.
     managed_only: bool,
     pub source_path: Option<std::path::PathBuf>,
-    /// Whether this source's restrictions bind grok-native servers.
+    /// Whether this source's restrictions bind xvora-native servers.
     authority: PolicySourceAuthority,
 }
 
@@ -314,7 +314,7 @@ impl McpServerPolicy {
     }
 
     /// Lockdown active for a subject of `origin` (advisory lockdowns don't
-    /// bind grok-native servers).
+    /// bind xvora-native servers).
     pub fn managed_only(&self, origin: PolicySubjectOrigin) -> bool {
         self.binding_sources(origin)
             .any(McpServerAllowlist::managed_only)

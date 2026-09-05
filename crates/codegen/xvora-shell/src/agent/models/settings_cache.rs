@@ -6,7 +6,7 @@ pub(crate) const SETTINGS_CACHE_TTL: std::time::Duration = std::time::Duration::
 const SETTINGS_CACHE_MAX_BYTES: u64 = 1 << 20;
 
 const SETTINGS_CACHE_HMAC_KEY: &[u8] =
-    b"grok-shell-settings-cache-hmac-v1-ba6c43d3-404f-4b5c-b0cd-df09b2f5bdf4";
+    b"xvora-shell-settings-cache-hmac-v1-ba6c43d3-404f-4b5c-b0cd-df09b2f5bdf4";
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SettingsCache {
@@ -42,7 +42,7 @@ pub(crate) struct SettingsCacheManager {
 impl SettingsCacheManager {
     pub(crate) fn new() -> Self {
         Self {
-            path: crate::util::grok_home::grok_home().join(SETTINGS_CACHE_FILE),
+            path: crate::util::xvora_home::xvora_home().join(SETTINGS_CACHE_FILE),
             ttl: SETTINGS_CACHE_TTL,
         }
     }

@@ -6,26 +6,26 @@ use std::path::PathBuf;
 /// Top-level commands for the pager binary.
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
-    /// Run Grok without the interactive UI
+    /// Run xvora without the interactive UI
     Agent(Box<AgentArgs>),
-    /// Show the configuration Grok discovers for this directory
+    /// Show the configuration xvora discovers for this directory
     Inspect {
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
     },
-    /// Check terminal, clipboard, color, and input support without starting Grok
+    /// Check terminal, clipboard, color, and input support without starting xvora
     Doctor(crate::doctor_cmd::DoctorArgs),
     /// Manage running leader processes
     Leader(LeaderMgmtArgs),
     /// Sign out and clear cached credentials
     Logout,
-    /// Sign in to Grok
+    /// Sign in to xvora
     Login {
         /// Ignored (kept for backwards compatibility). OAuth2 is now the only auth method.
         #[arg(long, hide = true)]
         legacy: bool,
-        /// Use Grok OAuth via auth.x.ai.
+        /// Use xvora OAuth via auth.x.ai.
         #[arg(long = "oauth", alias = "oidc", conflicts_with_all = ["device_auth"])]
         oauth: bool,
         /// Use device-code authentication for headless/remote environments.
@@ -57,7 +57,7 @@ pub enum Command {
     Usage(crate::usage_cmd::UsageArgs),
     /// Fetch and install managed configuration
     Setup {
-        /// Print the fetched configuration as JSON instead of installing it; writes nothing to ~/.grok.
+        /// Print the fetched configuration as JSON instead of installing it; writes nothing to ~/.xvora.
         #[arg(long)]
         json: bool,
     },
@@ -78,10 +78,10 @@ clipboard (containers, SSH) and your terminal does not handle OSC 52 itself
 sync with your window size.
 
 Examples:
-  grok wrap docker exec -it my-container bash
-  grok wrap kubectl exec -it my-pod -- bash
+  xvora wrap docker exec -it my-container bash
+  xvora wrap kubectl exec -it my-pod -- bash
 
-See ~/.grok/README.md for more information.
+See ~/.xvora/README.md for more information.
 ")]
     Wrap(WrapArgs),
     /// Export a session transcript as Markdown
@@ -111,7 +111,7 @@ See ~/.grok/README.md for more information.
         /// Switch to the enterprise release channel.
         #[arg(long, conflicts_with_all = ["alpha", "stable"], hide = true)]
         enterprise: bool,
-        /// Internal: what spawned this `grok update` (`user_command`, `auto_background`, `leader_converge`). Hidden.
+        /// Internal: what spawned this `xvora update` (`user_command`, `auto_background`, `leader_converge`). Hidden.
         #[arg(long, hide = true)]
         trigger: Option<String>,
         /// Internal compat alias for `--trigger=auto_background` (older parents still spawn children with it).
@@ -133,7 +133,7 @@ See ~/.grok/README.md for more information.
     },
     /// Manage git worktrees
     Worktree(crate::worktree_cmd::WorktreeArgs),
-    /// Show what the grok home (~/.grok) uses on disk
+    /// Show what the xvora home (~/.xvora) uses on disk
     #[command(name = "du", visible_alias = "disk-usage")]
     DiskUsage(crate::disk_usage_cmd::DiskUsageArgs),
     /// Expose this workspace to the Computer Hub (via the leader).
@@ -144,7 +144,7 @@ See ~/.grok/README.md for more information.
     /// Open the Agent Dashboard view at startup.
     ///
     /// The dashboard shows every session, top-level and subagents.
-    /// Disabled when `[dashboard].enabled = false` in `~/.grok/config.toml` or when the `GROK_AGENT_DASHBOARD=0` env var is set.
+    /// Disabled when `[dashboard].enabled = false` in `~/.xvora/config.toml` or when the `GROK_AGENT_DASHBOARD=0` env var is set.
     Dashboard,
 }
 /// Arguments for the `wrap` subcommand: the command to run, then its args.
@@ -160,10 +160,10 @@ pub struct WrapArgs {
     )]
     pub command: Vec<String>,
 }
-/// Targets a running leader process by PID (used by `grok leader` / `grok workspace`).
+/// Targets a running leader process by PID (used by `xvora leader` / `xvora workspace`).
 #[derive(Debug, clap::Args, Clone, Default)]
 pub struct LeaderTargetArgs {
-    /// Leader process ID from `grok leader list`.
+    /// Leader process ID from `xvora leader list`.
     #[arg(long)]
     pub pid: Option<u32>,
 }
@@ -334,7 +334,7 @@ impl AgentArgs {
 pub enum AgentCmd {
     /// Run the agent over stdio
     Stdio,
-    /// Run the agent headlessly over the Grok WebSocket relay
+    /// Run the agent headlessly over the xvora WebSocket relay
     Headless(HeadlessArgs),
     /// Run the agent as a WebSocket server
     Serve(ServeArgs),
@@ -344,9 +344,9 @@ pub enum AgentCmd {
 /// WebSocket URL override arguments, used by headless / leader / serve modes.
 #[derive(Debug, clap::Args, Clone, Default)]
 pub struct HeadlessArgs {
-    #[arg(long = "grok-ws-origin")]
+    #[arg(long = "xvora-ws-origin")]
     pub grok_ws_origin: Option<String>,
-    #[arg(long = "grok-ws-url")]
+    #[arg(long = "xvora-ws-url")]
     pub grok_ws_url: Option<String>,
 }
 /// Arguments for the `agent serve` subcommand.
@@ -384,7 +384,7 @@ pub struct LeaderArgs {
     /// Keep the leader running after the last client disconnects.
     #[arg(long)]
     pub no_exit_on_disconnect: bool,
-    /// Defer the grok.com relay WebSocket until the first headless IPC client registers.
+    /// Defer the xvora.com relay WebSocket until the first headless IPC client registers.
     /// Without this flag the leader connects the relay eagerly at startup.
     /// Bare leaders (headless remote env / systemd) need the eager connect: they receive remote prompts *through* the relay.
     /// Passed by leaders auto-spawned from interactive clients (TUI/IDE), which only need the relay if a headless client appears.
@@ -425,7 +425,7 @@ pub struct PagerArgs {
     /// Working directory.
     #[arg(long)]
     pub cwd: Option<PathBuf>,
-    /// Use a custom leader socket path instead of the default `~/.grok/leader.sock`.
+    /// Use a custom leader socket path instead of the default `~/.xvora/leader.sock`.
     #[arg(
         long = "leader-socket",
         value_name = "PATH",
@@ -685,7 +685,7 @@ pub struct PagerArgs {
     #[arg(long = "disable-web-search")]
     pub disable_web_search: bool,
     /// Exit as soon as the first agent turn ends, without waiting for pending background bash/monitor tasks or background subagents (headless only).
-    /// Default for all `grok -p` runs is to wait (up to `--background-wait-timeout`) so eval harnesses see full task completion.
+    /// Default for all `xvora -p` runs is to wait (up to `--background-wait-timeout`) so eval harnesses see full task completion.
     /// Use this for fast scripts that only need the first turn's text.
     /// Does not wait for server-side auto-wake output or persistent monitors (those hit the timeout).
     #[arg(long = "no-wait-for-background", hide = true)]
@@ -743,7 +743,7 @@ pub struct PagerArgs {
     /// Finalized blocks are printed into the terminal's native scrollback (use the terminal's own scroll / selection).
     /// A small pinned region holds the prompt and running turn.
     /// Session-scoped only, does not write config.
-    /// To default plain `grok` to minimal, set `[ui] screen_mode = "minimal"` in ~/.grok/config.toml.
+    /// To default plain `xvora` to minimal, set `[ui] screen_mode = "minimal"` in ~/.xvora/config.toml.
     #[arg(long = "minimal")]
     pub minimal: bool,
     /// Open in the standard fullscreen TUI for this session, overriding a config `[ui] screen_mode = "minimal"` preference.
@@ -751,7 +751,7 @@ pub struct PagerArgs {
     /// Fullscreen-vs-inline still follows the alt-screen policy (--no-alt-screen, [terminal] alt_screen, terminal auto-detection).
     #[arg(long = "fullscreen", conflicts_with = "minimal")]
     pub fullscreen: bool,
-    /// Write sampling events to ~/.grok/logs/sampling.jsonl.
+    /// Write sampling events to ~/.xvora/logs/sampling.jsonl.
     #[arg(long = "log-sampling", env = "GROK_LOG_SAMPLING", hide = true)]
     pub log_sampling: bool,
     /// Show the login screen even when credentials are already available.
@@ -766,7 +766,7 @@ pub struct PagerArgs {
     /// Run standalone even when leader mode is configured.
     #[arg(long, conflicts_with = "leader", hide = true)]
     pub no_leader: bool,
-    /// Initial prompt for the interactive session, e.g. `grok "fix the bug"` or `grok --worktree=feat "create this feature"`.
+    /// Initial prompt for the interactive session, e.g. `xvora "fix the bug"` or `xvora --worktree=feat "create this feature"`.
     #[arg(
         value_name = "PROMPT",
         conflicts_with_all = &["single",
@@ -839,7 +839,7 @@ impl PagerArgs {
             .map(std::path::Path::new)
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .filter(|n| *n == "xvora" || *n == "grok" || *n == "agent")
+            .filter(|n| *n == "xvora" || *n == "xvora" || *n == "agent")
             .unwrap_or("xvora")
             .to_owned();
         Self::parse_from(std::iter::once(bin_name).chain(std::env::args().skip(1)))
@@ -1036,7 +1036,7 @@ impl PagerArgs {
     }
     /// The initial interactive prompt from the positional argument, trimmed.
     /// Returns `None` when no positional prompt was given or it is only whitespace.
-    /// This is the `grok "<prompt>"` launch form; the headless `-p`/`--single` path is handled separately.
+    /// This is the `xvora "<prompt>"` launch form; the headless `-p`/`--single` path is handled separately.
     pub fn initial_prompt(&self) -> Option<&str> {
         self.prompt
             .as_deref()
@@ -1050,21 +1050,21 @@ mod tests {
     #[test]
     fn version_flags_parse_as_early_intent_without_exiting() {
         for flag in ["--version", "-v", "-V"] {
-            let args = PagerArgs::try_parse_from(["grok", flag]).expect("version flag parses");
+            let args = PagerArgs::try_parse_from(["xvora", flag]).expect("version flag parses");
             assert!(args.version, "{flag} must set the early version intent");
             assert!(args.command.is_none());
         }
     }
     #[test]
     fn ordinary_and_doctor_parsing_do_not_set_version_intent() {
-        assert!(!PagerArgs::try_parse_from(["grok"]).unwrap().version);
+        assert!(!PagerArgs::try_parse_from(["xvora"]).unwrap().version);
         assert!(
-            !PagerArgs::try_parse_from(["grok", "doctor"])
+            !PagerArgs::try_parse_from(["xvora", "doctor"])
                 .unwrap()
                 .version
         );
         assert!(matches!(
-            PagerArgs::try_parse_from(["grok", "version"])
+            PagerArgs::try_parse_from(["xvora", "version"])
                 .unwrap()
                 .command,
             Some(Command::Version { json: false })
@@ -1072,7 +1072,7 @@ mod tests {
     }
     #[test]
     fn doctor_accepts_report_and_explicit_fix_forms() {
-        let bare = PagerArgs::try_parse_from(["grok", "doctor"]).expect("bare doctor parses");
+        let bare = PagerArgs::try_parse_from(["xvora", "doctor"]).expect("bare doctor parses");
         assert!(matches!(
             bare.command,
             Some(Command::Doctor(crate::doctor_cmd::DoctorArgs {
@@ -1081,7 +1081,7 @@ mod tests {
             }))
         ));
         let json =
-            PagerArgs::try_parse_from(["grok", "doctor", "--json"]).expect("doctor --json parses");
+            PagerArgs::try_parse_from(["xvora", "doctor", "--json"]).expect("doctor --json parses");
         assert!(matches!(
             json.command,
             Some(Command::Doctor(crate::doctor_cmd::DoctorArgs {
@@ -1095,7 +1095,7 @@ mod tests {
             "terminal.dcs-passthrough",
             "tmux-extended-keys",
         ] {
-            let fix = PagerArgs::try_parse_from(["grok", "doctor", "fix", id, "--yes"])
+            let fix = PagerArgs::try_parse_from(["xvora", "doctor", "fix", id, "--yes"])
                 .expect("doctor fix parses");
             assert!(matches!(
                 fix.command,
@@ -1107,7 +1107,7 @@ mod tests {
                 })) if parsed == id
             ));
         }
-        let list = PagerArgs::try_parse_from(["grok", "doctor", "fix"])
+        let list = PagerArgs::try_parse_from(["xvora", "doctor", "fix"])
             .expect("doctor fix without an ID lists applicable fixes");
         assert!(matches!(
             list.command,
@@ -1122,10 +1122,10 @@ mod tests {
             }))
         ));
         for unsupported in [
-            vec!["grok", "doctor", "all"],
-            vec!["grok", "doctor", "fix", "ssh-wrap", "extra"],
-            vec!["grok", "doctor", "fix", "--yes"],
-            vec!["grok", "doctor", "--json", "fix", "terminal.ssh-wrap"],
+            vec!["xvora", "doctor", "all"],
+            vec!["xvora", "doctor", "fix", "ssh-wrap", "extra"],
+            vec!["xvora", "doctor", "fix", "--yes"],
+            vec!["xvora", "doctor", "--json", "fix", "terminal.ssh-wrap"],
         ] {
             let error = PagerArgs::try_parse_from(unsupported)
                 .expect_err("unsupported doctor form must fail");
@@ -1135,35 +1135,37 @@ mod tests {
     #[test]
     fn resume_target_classifies_flags() {
         assert_eq!(
-            PagerArgs::try_parse_from(["grok"]).unwrap().resume_target(),
+            PagerArgs::try_parse_from(["xvora"])
+                .unwrap()
+                .resume_target(),
             ResumeTarget::None
         );
         assert_eq!(
-            PagerArgs::try_parse_from(["grok", "-c"])
+            PagerArgs::try_parse_from(["xvora", "-c"])
                 .unwrap()
                 .resume_target(),
             ResumeTarget::MostRecentForCwd
         );
         assert_eq!(
-            PagerArgs::try_parse_from(["grok", "--resume"])
+            PagerArgs::try_parse_from(["xvora", "--resume"])
                 .unwrap()
                 .resume_target(),
             ResumeTarget::MostRecentForCwd
         );
         assert_eq!(
-            PagerArgs::try_parse_from(["grok", "--resume", "sess-1"])
+            PagerArgs::try_parse_from(["xvora", "--resume", "sess-1"])
                 .unwrap()
                 .resume_target(),
             ResumeTarget::SessionId("sess-1".to_string())
         );
         assert_eq!(
-            PagerArgs::try_parse_from(["grok", "-s", "sess-2"])
+            PagerArgs::try_parse_from(["xvora", "-s", "sess-2"])
                 .unwrap()
                 .resume_target(),
             ResumeTarget::None
         );
         assert_eq!(
-            PagerArgs::try_parse_from(["grok", "-r", "old", "--fork-session"])
+            PagerArgs::try_parse_from(["xvora", "-r", "old", "--fork-session"])
                 .unwrap()
                 .resume_target(),
             ResumeTarget::SessionId("old".to_string())
@@ -1173,11 +1175,11 @@ mod tests {
     /// The pair exists so one can override the other's sticky config value; accepting both in one invocation would be ambiguous.
     #[test]
     fn minimal_and_fullscreen_flags_conflict() {
-        let args = PagerArgs::try_parse_from(["grok", "--minimal"]).unwrap();
+        let args = PagerArgs::try_parse_from(["xvora", "--minimal"]).unwrap();
         assert!(args.minimal && !args.fullscreen);
-        let args = PagerArgs::try_parse_from(["grok", "--fullscreen"]).unwrap();
+        let args = PagerArgs::try_parse_from(["xvora", "--fullscreen"]).unwrap();
         assert!(args.fullscreen && !args.minimal);
-        let err = PagerArgs::try_parse_from(["grok", "--minimal", "--fullscreen"]).unwrap_err();
+        let err = PagerArgs::try_parse_from(["xvora", "--minimal", "--fullscreen"]).unwrap_err();
         assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
     }
     #[test]
@@ -1189,7 +1191,7 @@ mod tests {
         std::fs::write(&file, "x").unwrap();
         let missing = tmp.path().join("missing");
         let args = PagerArgs::try_parse_from([
-            "grok".as_ref(),
+            "xvora".as_ref(),
             "agent".as_ref(),
             "--no-leader".as_ref(),
             "--plugin-dir".as_ref(),
@@ -1247,19 +1249,19 @@ mod tests {
     #[test]
     fn startup_sandbox_profile_no_resume() {
         assert_eq!(
-            PagerArgs::try_parse_from(["grok", "--sandbox", "strict"])
+            PagerArgs::try_parse_from(["xvora", "--sandbox", "strict"])
                 .unwrap()
                 .startup_sandbox_profile(None),
             SandboxStartup::Apply(Some("strict".to_string()))
         );
         assert_eq!(
-            PagerArgs::try_parse_from(["grok", "--sandbox", ""])
+            PagerArgs::try_parse_from(["xvora", "--sandbox", ""])
                 .unwrap()
                 .startup_sandbox_profile(None),
             SandboxStartup::Apply(None)
         );
         assert_eq!(
-            PagerArgs::try_parse_from(["grok"])
+            PagerArgs::try_parse_from(["xvora"])
                 .unwrap()
                 .startup_sandbox_profile(None),
             SandboxStartup::Apply(None)
@@ -1268,7 +1270,7 @@ mod tests {
     #[test]
     fn launch_directory_anchoring_precedes_cwd_change() {
         let args = PagerArgs::try_parse_from([
-            "grok",
+            "xvora",
             "--leader-socket",
             "relative.sock",
             "--debug-file",
@@ -1302,7 +1304,7 @@ mod tests {
     }
     #[test]
     fn leader_socket_flag_parses_at_root() {
-        let args = PagerArgs::try_parse_from(["grok", "--leader-socket", "/tmp/leader-x.sock"])
+        let args = PagerArgs::try_parse_from(["xvora", "--leader-socket", "/tmp/leader-x.sock"])
             .expect("--leader-socket parses at the root");
         assert_eq!(
             args.leader_socket.as_deref(),
@@ -1312,7 +1314,7 @@ mod tests {
     #[test]
     fn leader_socket_flag_is_global_for_subcommands() {
         let args = PagerArgs::try_parse_from([
-            "grok",
+            "xvora",
             "agent",
             "leader",
             "--leader-socket",
@@ -1326,21 +1328,21 @@ mod tests {
     }
     #[test]
     fn leader_socket_flag_defaults_to_none() {
-        let args = PagerArgs::try_parse_from(["grok"]).expect("bare grok parses");
+        let args = PagerArgs::try_parse_from(["xvora"]).expect("bare xvora parses");
         assert!(args.leader_socket.is_none());
     }
     #[test]
     fn leader_mgmt_list_info_kill_parse() {
-        let list = PagerArgs::try_parse_from(["grok", "leader", "list", "--json"])
-            .expect("grok leader list --json");
+        let list = PagerArgs::try_parse_from(["xvora", "leader", "list", "--json"])
+            .expect("xvora leader list --json");
         assert!(matches!(
             list.command,
             Some(Command::Leader(LeaderMgmtArgs {
                 command: LeaderMgmtCommand::List { json: true },
             }))
         ));
-        let info = PagerArgs::try_parse_from(["grok", "leader", "info", "--pid", "42"])
-            .expect("grok leader info --pid");
+        let info = PagerArgs::try_parse_from(["xvora", "leader", "info", "--pid", "42"])
+            .expect("xvora leader info --pid");
         assert!(matches!(
             info.command,
             Some(Command::Leader(LeaderMgmtArgs {
@@ -1350,25 +1352,26 @@ mod tests {
                 },
             }))
         ));
-        let kill = PagerArgs::try_parse_from(["grok", "leader", "kill"]).expect("grok leader kill");
+        let kill =
+            PagerArgs::try_parse_from(["xvora", "leader", "kill"]).expect("xvora leader kill");
         assert!(matches!(
             kill.command,
             Some(Command::Leader(LeaderMgmtArgs {
                 command: LeaderMgmtCommand::Kill,
             }))
         ));
-        assert!(PagerArgs::try_parse_from(["grok", "leader", "profile"]).is_err());
+        assert!(PagerArgs::try_parse_from(["xvora", "leader", "profile"]).is_err());
     }
     #[test]
     fn debug_file_flag_parses_and_is_global() {
-        let root = PagerArgs::try_parse_from(["grok", "--debug-file", "/tmp/fire.txt"])
+        let root = PagerArgs::try_parse_from(["xvora", "--debug-file", "/tmp/fire.txt"])
             .expect("--debug-file parses at the root");
         assert_eq!(
             root.debug_file.as_deref(),
             Some(std::path::Path::new("/tmp/fire.txt"))
         );
         let sub =
-            PagerArgs::try_parse_from(["grok", "agent", "stdio", "--debug-file", "/tmp/f.txt"])
+            PagerArgs::try_parse_from(["xvora", "agent", "stdio", "--debug-file", "/tmp/f.txt"])
                 .expect("--debug-file parses after a subcommand (global)");
         assert_eq!(
             sub.debug_file.as_deref(),
@@ -1377,39 +1380,40 @@ mod tests {
     }
     #[test]
     fn debug_file_flag_defaults_to_none() {
-        let args = PagerArgs::try_parse_from(["grok"]).expect("bare grok parses");
+        let args = PagerArgs::try_parse_from(["xvora"]).expect("bare xvora parses");
         assert!(args.debug_file.is_none());
     }
     #[test]
     fn positional_prompt_seeds_interactive_session() {
         let args =
-            PagerArgs::try_parse_from(["grok", "fix the bug"]).expect("positional prompt parses");
+            PagerArgs::try_parse_from(["xvora", "fix the bug"]).expect("positional prompt parses");
         assert_eq!(args.initial_prompt(), Some("fix the bug"));
         assert!(args.command.is_none());
         assert!(args.single.is_none());
     }
     #[test]
     fn bare_grok_has_no_initial_prompt() {
-        let args = PagerArgs::try_parse_from(["grok"]).expect("bare grok parses");
+        let args = PagerArgs::try_parse_from(["xvora"]).expect("bare xvora parses");
         assert_eq!(args.initial_prompt(), None);
     }
     #[test]
     fn initial_prompt_trims_and_ignores_whitespace_only() {
-        let args = PagerArgs::try_parse_from(["grok", "  spaced  "]).expect("padded prompt parses");
+        let args =
+            PagerArgs::try_parse_from(["xvora", "  spaced  "]).expect("padded prompt parses");
         assert_eq!(args.initial_prompt(), Some("spaced"));
-        let blank = PagerArgs::try_parse_from(["grok", "   "]).expect("blank prompt parses");
+        let blank = PagerArgs::try_parse_from(["xvora", "   "]).expect("blank prompt parses");
         assert_eq!(blank.initial_prompt(), None);
     }
     #[test]
     fn subcommand_takes_precedence_over_positional_prompt() {
-        let args = PagerArgs::try_parse_from(["grok", "logout"]).expect("subcommand parses");
+        let args = PagerArgs::try_parse_from(["xvora", "logout"]).expect("subcommand parses");
         assert!(matches!(args.command, Some(Command::Logout)));
         assert!(args.prompt.is_none());
     }
     #[test]
     fn usage_command_parses_session_and_optional_turn() {
-        let session_only = PagerArgs::try_parse_from(["grok", "usage", "sess-1"])
-            .expect("grok usage <session-id>");
+        let session_only = PagerArgs::try_parse_from(["xvora", "usage", "sess-1"])
+            .expect("xvora usage <session-id>");
         assert!(matches!(
             session_only.command,
             Some(Command::Usage(crate::usage_cmd::UsageArgs {
@@ -1417,8 +1421,8 @@ mod tests {
                 turn: None,
             })) if session_id == "sess-1"
         ));
-        let with_turn = PagerArgs::try_parse_from(["grok", "usage", "sess-1", "3"])
-            .expect("grok usage <session-id> <turn>");
+        let with_turn = PagerArgs::try_parse_from(["xvora", "usage", "sess-1", "3"])
+            .expect("xvora usage <session-id> <turn>");
         assert!(matches!(
             with_turn.command,
             Some(Command::Usage(crate::usage_cmd::UsageArgs {
@@ -1429,65 +1433,65 @@ mod tests {
     }
     #[test]
     fn positional_prompt_conflicts_with_headless_single() {
-        let err = PagerArgs::try_parse_from(["grok", "-p", "headless", "interactive"])
+        let err = PagerArgs::try_parse_from(["xvora", "-p", "headless", "interactive"])
             .expect_err("positional prompt + --single must conflict");
         assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
     }
     #[test]
     fn worktree_flag_and_initial_prompt_combine() {
-        let a = PagerArgs::try_parse_from(["grok", "do the thing", "-w"])
+        let a = PagerArgs::try_parse_from(["xvora", "do the thing", "-w"])
             .expect("prompt then bare -w parses");
         assert_eq!(a.initial_prompt(), Some("do the thing"));
         assert_eq!(a.worktree.as_deref(), Some(""));
-        let b = PagerArgs::try_parse_from(["grok", "--worktree=feat", "do the thing"])
+        let b = PagerArgs::try_parse_from(["xvora", "--worktree=feat", "do the thing"])
             .expect("--worktree=name + positional parses");
         assert_eq!(b.initial_prompt(), Some("do the thing"));
         assert_eq!(b.worktree.as_deref(), Some("feat"));
-        let c = PagerArgs::try_parse_from(["grok", "-w", "x"]).expect("-w x parses");
+        let c = PagerArgs::try_parse_from(["xvora", "-w", "x"]).expect("-w x parses");
         assert_eq!(c.worktree.as_deref(), Some("x"));
         assert_eq!(c.initial_prompt(), None);
     }
     #[test]
     fn trust_flag_parses_on_pager_and_alias() {
-        let bare = PagerArgs::try_parse_from(["grok"]).expect("bare grok parses");
+        let bare = PagerArgs::try_parse_from(["xvora"]).expect("bare xvora parses");
         assert!(!bare.trust);
-        let long = PagerArgs::try_parse_from(["grok", "--trust"]).expect("--trust parses");
+        let long = PagerArgs::try_parse_from(["xvora", "--trust"]).expect("--trust parses");
         assert!(long.trust);
         let alias =
-            PagerArgs::try_parse_from(["grok", "--trust-folder"]).expect("--trust-folder parses");
+            PagerArgs::try_parse_from(["xvora", "--trust-folder"]).expect("--trust-folder parses");
         assert!(alias.trust);
     }
     #[test]
     fn reasoning_effort_and_effort_alias_parse_same_field() {
-        let long = PagerArgs::try_parse_from(["grok", "--reasoning-effort", "high"])
+        let long = PagerArgs::try_parse_from(["xvora", "--reasoning-effort", "high"])
             .expect("--reasoning-effort parses");
         assert_eq!(long.reasoning_effort.as_deref(), Some("high"));
-        let alias =
-            PagerArgs::try_parse_from(["grok", "--effort", "high"]).expect("--effort alias parses");
+        let alias = PagerArgs::try_parse_from(["xvora", "--effort", "high"])
+            .expect("--effort alias parses");
         assert_eq!(alias.reasoning_effort.as_deref(), Some("high"));
     }
     #[test]
     fn reasoning_effort_accepts_max_and_remapped_ids() {
-        let max = PagerArgs::try_parse_from(["grok", "--effort", "max"]).expect("max parses");
+        let max = PagerArgs::try_parse_from(["xvora", "--effort", "max"]).expect("max parses");
         assert_eq!(max.reasoning_effort.as_deref(), Some("max"));
-        let deep =
-            PagerArgs::try_parse_from(["grok", "--reasoning-effort", "deep"]).expect("deep parses");
+        let deep = PagerArgs::try_parse_from(["xvora", "--reasoning-effort", "deep"])
+            .expect("deep parses");
         assert_eq!(deep.reasoning_effort.as_deref(), Some("deep"));
     }
     #[test]
     fn reasoning_effort_last_flag_wins_when_both_names_set() {
         let args =
-            PagerArgs::try_parse_from(["grok", "--reasoning-effort", "low", "--effort", "high"])
+            PagerArgs::try_parse_from(["xvora", "--reasoning-effort", "low", "--effort", "high"])
                 .expect("both effort flag names parse");
         assert_eq!(args.reasoning_effort.as_deref(), Some("high"));
         let reverse =
-            PagerArgs::try_parse_from(["grok", "--effort", "high", "--reasoning-effort", "low"])
+            PagerArgs::try_parse_from(["xvora", "--effort", "high", "--reasoning-effort", "low"])
                 .expect("both effort flag names parse (reverse order)");
         assert_eq!(reverse.reasoning_effort.as_deref(), Some("low"));
     }
     #[test]
     fn agent_args_effort_alias_parses() {
-        let args = PagerArgs::try_parse_from(["grok", "agent", "--effort", "max", "stdio"])
+        let args = PagerArgs::try_parse_from(["xvora", "agent", "--effort", "max", "stdio"])
             .expect("agent --effort parses");
         let Command::Agent(agent) = args.command.expect("agent subcommand") else {
             panic!("expected agent subcommand");

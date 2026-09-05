@@ -1048,7 +1048,7 @@ mod tests {
             origin: dashboard_store::MemberOrigin::Local,
             cwd: Some(format!("/tmp/{session_id}")),
             title: Some(title.to_owned()),
-            model: Some("grok-test".to_owned()),
+            model: Some("xvora-test".to_owned()),
             last_turn_summary: summary.map(str::to_owned),
             is_worktree: false,
             last_change_unix_ms: 1_725_000_000_000,
@@ -1125,7 +1125,7 @@ mod tests {
                 session_id: "second".to_owned()
             }
         );
-        assert_eq!(rows[1].secondary_line.as_deref(), Some("grok-test"));
+        assert_eq!(rows[1].secondary_line.as_deref(), Some("xvora-test"));
         assert!(rows[1].badges.contains(&RowBadge::Worktree));
     }
     fn make_subagent(child_id: &str, finished: bool, status: Option<&str>) -> SubagentInfo {
@@ -1845,7 +1845,7 @@ mod tests {
     #[test]
     fn subtitle_worktree_shows_label_branch_and_marker() {
         let mut agent = make_idle_agent_with_model(None);
-        agent.session.cwd = PathBuf::from("/home/me/.grok/worktrees/x/location-picker");
+        agent.session.cwd = PathBuf::from("/home/me/.xvora/worktrees/x/location-picker");
         agent.is_worktree = true;
         agent.worktree_label = Some("location-picker".to_string());
         agent.current_branch = Some("kevin/feature".to_string());

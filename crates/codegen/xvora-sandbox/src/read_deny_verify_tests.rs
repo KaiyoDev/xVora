@@ -8,10 +8,10 @@ fn temp_workspace(tag: &str, toml_body: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let ws = std::env::temp_dir().join(format!("grok-rdv-{tag}-{}-{nanos}", std::process::id()));
-    let grok = ws.join(".grok");
-    std::fs::create_dir_all(&grok).unwrap();
-    std::fs::write(grok.join(config::SANDBOX_CONFIG_FILENAME), toml_body).unwrap();
+    let ws = std::env::temp_dir().join(format!("xvora-rdv-{tag}-{}-{nanos}", std::process::id()));
+    let xvora = ws.join(".xvora");
+    std::fs::create_dir_all(&xvora).unwrap();
+    std::fs::write(xvora.join(config::SANDBOX_CONFIG_FILENAME), toml_body).unwrap();
     ws
 }
 
@@ -195,7 +195,7 @@ fn temp_parent(tag: &str) -> PathBuf {
         .unwrap()
         .as_nanos();
     let dir = std::env::temp_dir().join(format!(
-        "grok-sentinel-{tag}-{}-{nanos}",
+        "xvora-sentinel-{tag}-{}-{nanos}",
         std::process::id()
     ));
     std::fs::create_dir_all(&dir).unwrap();

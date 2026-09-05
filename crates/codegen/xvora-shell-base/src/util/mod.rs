@@ -1,9 +1,9 @@
 pub mod changelog;
 pub mod event_id;
-pub mod grok_home;
 pub mod secure_file;
 pub mod tips;
 pub mod uname;
+pub mod xvora_home;
 pub use shared::clipboard;
 pub use shared::stderr::{stderr_lock, with_locked_stderr};
 /// Generate a pseudo-random f64 in [0.0, 1.0).
@@ -259,14 +259,14 @@ pub fn process_cmdline_args(pid: u32) -> Option<Vec<String>> {
         None
     }
 }
-/// True if `pid` is a grok process; pairs with [`kill_process_by_pid`] to avoid killing a recycled PID.
+/// True if `pid` is a xvora process; pairs with [`kill_process_by_pid`] to avoid killing a recycled PID.
 /// Best-effort on macOS/BSD (liveness-only via `kill -0`), exact on Linux (/proc cmdline) and Windows (image path).
 pub fn is_grok_process(pid: u32) -> bool {
     #[cfg(target_os = "linux")]
     {
         let cmdline_path = format!("/proc/{pid}/cmdline");
         match std::fs::read(&cmdline_path) {
-            Ok(data) => String::from_utf8_lossy(&data).contains("grok"),
+            Ok(data) => String::from_utf8_lossy(&data).contains("xvora"),
             Err(_) => false,
         }
     }
@@ -298,7 +298,7 @@ pub fn is_grok_process(pid: u32) -> bool {
         }
         String::from_utf16_lossy(&buf[..size as usize])
             .to_ascii_lowercase()
-            .contains("grok")
+            .contains("xvora")
     }
     #[cfg(all(not(target_os = "linux"), not(windows)))]
     {
@@ -314,7 +314,7 @@ pub fn is_grok_process(pid: u32) -> bool {
 /// Stricter [`is_grok_process`] for the path that auto-kills zombie leaders.
 /// On macOS/BSD it matches the name via `ps` instead of liveness-only, so it never SIGKILLs a recycled PID now owned by an unrelated process.
 /// Linux/Windows already match exactly, so this delegates there.
-/// Use the permissive [`is_grok_process`] for operator-driven `grok leaders kill`.
+/// Use the permissive [`is_grok_process`] for operator-driven `xvora leaders kill`.
 pub fn is_grok_process_strict(pid: u32) -> bool {
     #[cfg(all(not(target_os = "linux"), not(windows)))]
     {
@@ -332,7 +332,7 @@ pub fn is_grok_process_strict(pid: u32) -> bool {
                     .filter(|line| !line.is_empty())
                     .and_then(|line| std::path::Path::new(line).file_name())
                     .and_then(|name| name.to_str())
-                    .is_some_and(|name| name.to_ascii_lowercase().contains("grok"))
+                    .is_some_and(|name| name.to_ascii_lowercase().contains("xvora"))
             }
             _ => false,
         }
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn test_is_cli_chat_proxy_url_accepts_proxy_subpath() {
         assert!(is_cli_chat_proxy_url(
-            "https://cli-chat-proxy.grok.com/v1/chat/completions"
+            "https://cli-chat-proxy.xvora.com/v1/chat/completions"
         ));
     }
     #[test]
@@ -358,13 +358,13 @@ mod tests {
     #[test]
     fn test_is_cli_chat_proxy_url_rejects_spoofed_hostname() {
         assert!(!is_cli_chat_proxy_url(
-            "https://cli-chat-proxy.grok.com.evil.example/v1"
+            "https://cli-chat-proxy.xvora.com.evil.example/v1"
         ));
     }
     #[test]
     fn test_is_cli_chat_proxy_url_rejects_v11_prefix_confusion() {
         assert!(!is_cli_chat_proxy_url(
-            "https://cli-chat-proxy.grok.com/v11/chat/completions"
+            "https://cli-chat-proxy.xvora.com/v11/chat/completions"
         ));
     }
     #[test]
@@ -373,7 +373,7 @@ mod tests {
         assert!(is_xai_api_url("https://api.x.ai/v1/chat/completions"));
         assert!(is_xai_api_url("https://x.ai"));
         assert!(is_xai_api_url(
-            "https://cli-chat-proxy.grok.com/v1/chat/completions"
+            "https://cli-chat-proxy.xvora.com/v1/chat/completions"
         ));
         assert!(!is_xai_api_url("https://api.openai.com/v1"));
         assert!(!is_xai_api_url("https://api.anthropic.com/v1"));

@@ -1,4 +1,4 @@
-//! `grok models` subcommand.
+//! `xvora models` subcommand.
 
 use anyhow::Result;
 use shell::agent::config::Config as AgentConfig;

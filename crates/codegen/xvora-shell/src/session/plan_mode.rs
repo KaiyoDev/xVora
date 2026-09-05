@@ -53,7 +53,7 @@ pub struct PlanModeTracker {
     /// Not persisted: a restart loses the buffer, and the next turn's Active-state injection covers it.
     pending_activation: Option<PendingActivation>,
     /// Lives inside the session directory:
-    /// `~/.grok/sessions/<cwd>/<session_id>/plan.md`
+    /// `~/.xvora/sessions/<cwd>/<session_id>/plan.md`
     plan_file_path: PathBuf,
 }
 /// A buffered mid-turn activation reminder plus the state needed to roll the activation back if it is withdrawn before delivery.
@@ -78,7 +78,7 @@ pub struct PlanModeSnapshot {
 }
 impl PlanModeTracker {
     /// Create a new tracker. `session_dir` is the session's storage
-    /// directory (e.g., `~/.grok/sessions/<encoded-cwd>/<session-id>/`).
+    /// directory (e.g., `~/.xvora/sessions/<encoded-cwd>/<session-id>/`).
     pub fn new(session_dir: PathBuf) -> Self {
         Self {
             state: PlanModeState::Inactive,
@@ -499,10 +499,10 @@ mod tests {
     }
     #[test]
     fn plan_file_in_session_dir() {
-        let t = PlanModeTracker::new(PathBuf::from("/home/user/.grok/sessions/proj/abc-123"));
+        let t = PlanModeTracker::new(PathBuf::from("/home/user/.xvora/sessions/proj/abc-123"));
         assert_eq!(
             t.plan_file_path(),
-            Path::new("/home/user/.grok/sessions/proj/abc-123/plan.md")
+            Path::new("/home/user/.xvora/sessions/proj/abc-123/plan.md")
         );
     }
     #[test]
@@ -590,7 +590,7 @@ mod tests {
     use std::collections::HashMap;
     use tools::types::template_renderer::TemplateRenderer;
     use tools::types::tool::ToolKind;
-    /// Build a test TemplateRenderer with standard Grok Build tool mappings.
+    /// Build a test TemplateRenderer with standard xvora build tool mappings.
     fn test_renderer() -> TemplateRenderer {
         let tools: HashMap<ToolKind, String> = [
             (ToolKind::Edit, "search_replace".to_owned()),
@@ -782,13 +782,13 @@ mod tests {
     }
     #[test]
     fn is_plan_file_write_exact_match() {
-        let plan = Path::new("/home/user/.grok/sessions/proj/abc/plan.md");
-        let target = Path::new("/home/user/.grok/sessions/proj/abc/plan.md");
+        let plan = Path::new("/home/user/.xvora/sessions/proj/abc/plan.md");
+        let target = Path::new("/home/user/.xvora/sessions/proj/abc/plan.md");
         assert!(is_plan_file_write(target, plan));
     }
     #[test]
     fn is_plan_file_write_different_path() {
-        let plan = Path::new("/home/user/.grok/sessions/proj/abc/plan.md");
+        let plan = Path::new("/home/user/.xvora/sessions/proj/abc/plan.md");
         let target = Path::new("/home/user/project/src/main.rs");
         assert!(!is_plan_file_write(target, plan));
     }

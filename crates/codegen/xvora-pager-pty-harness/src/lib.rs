@@ -99,7 +99,7 @@ pub struct PtyHarness {
 }
 
 impl PtyHarness {
-    /// Inherit the parent environment for terminal/shell behavior tests (XTVERSION probes and grok wrap).
+    /// Inherit the parent environment for terminal/shell behavior tests (XTVERSION probes and xvora wrap).
     /// Content-backed launches must use [`Self::new_in_sandbox`].
     pub fn new_inherited_env(
         binary: &Path,
@@ -345,10 +345,10 @@ impl PtyHarness {
         }
     }
 
-    /// Feed bytes **directly into the virtual screen only**, bypassing the child (grok).
+    /// Feed bytes **directly into the virtual screen only**, bypassing the child (xvora).
     ///
-    /// Simulates an outer layer (tmux, or an nvim/vim `:terminal`) repainting the screen without going through grok's stdout.
-    /// Used to reproduce the doubled-line class of bugs where grok's diff renderer never re-asserts a region it didn't write itself.
+    /// Simulates an outer layer (tmux, or an nvim/vim `:terminal`) repainting the screen without going through xvora's stdout.
+    /// Used to reproduce the doubled-line class of bugs where xvora's diff renderer never re-asserts a region it didn't write itself.
     /// The harness is a single faithful emulator and cannot nest a real tmux/nvim.
     pub fn feed_screen(&mut self, bytes: &[u8]) {
         self.screen.feed(bytes);

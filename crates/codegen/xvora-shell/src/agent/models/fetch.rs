@@ -225,8 +225,8 @@ pub(in crate::agent::models) fn prefetch_env(auth: Option<GrokAuth>) -> Option<P
 pub(in crate::agent::models) fn resolve_disk_auth(
     grok_com_config: Option<GrokComConfig>,
 ) -> Option<GrokAuth> {
-    let grok_home = crate::util::grok_home::grok_home();
-    AuthManager::new(&grok_home, grok_com_config.unwrap_or_default()).current()
+    let xvora_home = crate::util::xvora_home::xvora_home();
+    AuthManager::new(&xvora_home, grok_com_config.unwrap_or_default()).current()
 }
 
 pub(in crate::agent::models) fn run_prefetch(

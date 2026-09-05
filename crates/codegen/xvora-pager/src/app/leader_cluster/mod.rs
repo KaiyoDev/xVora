@@ -6,12 +6,12 @@
 //! Inbound ACP is pumped through `acp_handler::handle` and user intent is driven through `dispatch`.
 //! Effects run through the real `effects::execute` (the same loop `event_loop::run` performs, minus the terminal).
 //!
-//! Env sandboxing follows this crate's `serial(GROK_HOME)` idiom.
-//! `grok_home()` is process-cached (OnceLock), so disk assertions always go through [`effective_grok_home`] rather than assuming the temp dir won.
+//! Env sandboxing follows this crate's `serial(xvora_home)` idiom.
+//! `xvora_home()` is process-cached (OnceLock), so disk assertions always go through [`effective_grok_home`] rather than assuming the temp dir won.
 //!
 //! The scenarios are `#[ignore]`d in the shared lib test binary.
-//! The harness mutates process-global env (proxy URLs, `XAI_API_KEY`, `GROK_LEADER_SOCKET`, `GROK_HOME`) for a real agent's whole lifetime.
-//! In a several-thousand-test process that mutation poisons concurrently-running tests; `grok_home()`'s OnceLock is usually already pinned too.
+//! The harness mutates process-global env (proxy URLs, `XAI_API_KEY`, `GROK_LEADER_SOCKET`, `xvora_home`) for a real agent's whole lifetime.
+//! In a several-thousand-test process that mutation poisons concurrently-running tests; `xvora_home()`'s OnceLock is usually already pinned too.
 //! Run on demand:
 //!
 //! ```bash
@@ -59,9 +59,9 @@ async fn bounded<T>(what: &str, fut: impl std::future::Future<Output = T>) -> T 
         .unwrap_or_else(|_| panic!("leader-cluster bring-up timed out: {what}"))
 }
 
-/// The grok home the agent actually persisted under: `grok_home()` is process-cached, so an earlier test in this binary may have pinned it.
+/// The xvora home the agent actually persisted under: `xvora_home()` is process-cached, so an earlier test in this binary may have pinned it.
 fn effective_grok_home() -> PathBuf {
-    config::grok_home()
+    config::xvora_home()
 }
 
 /// Concatenated agent-message text across a view's scrollback (copy of the acp_handler tests' helper; that one is test-mod private).
@@ -247,7 +247,7 @@ struct PagerLeaderCluster {
     server: MockInferenceServer,
     server_cancel: CancellationToken,
     /// The current generation's server/agent/bridge tasks.
-    /// `kill_leader` aborts and drains them so a respawn can never race a still-running old agent on the same GROK_HOME.
+    /// `kill_leader` aborts and drains them so a respawn can never race a still-running old agent on the same xvora_home.
     /// (Two agents writing one updates.jsonl is the corruption the real leader's flock exists to prevent.)
     generation_tasks: Vec<tokio::task::JoinHandle<()>>,
     client_count: Arc<AtomicUsize>,
@@ -265,17 +265,17 @@ struct PagerLeaderCluster {
 
 impl PagerLeaderCluster {
     /// Stand up the cluster.
-    /// Callers MUST be `#[serial_test::serial(GROK_HOME)]` (env mutation) and run inside a current-thread `LocalSet`.
+    /// Callers MUST be `#[serial_test::serial(xvora_home)]` (env mutation) and run inside a current-thread `LocalSet`.
     async fn start() -> Self {
         extra_ca::ensure_default_crypto_provider();
 
         let server = MockInferenceServer::start().await.expect("mock server");
-        let grok_home = TempDir::new().unwrap();
+        let xvora_home = TempDir::new().unwrap();
         let workdir = TempDir::new().unwrap();
-        let sock_path = grok_home.path().join("leader-cluster.sock");
+        let sock_path = xvora_home.path().join("leader-cluster.sock");
 
         let env = vec![
-            crate::test_util::EnvVarGuard::set("GROK_HOME", grok_home.path()),
+            crate::test_util::EnvVarGuard::set("xvora_home", xvora_home.path()),
             crate::test_util::EnvVarGuard::set("GROK_CLI_CHAT_PROXY_BASE_URL", server.url()),
             crate::test_util::EnvVarGuard::set("GROK_XAI_API_BASE_URL", server.url()),
             crate::test_util::EnvVarGuard::set("XAI_API_KEY", "test-key-for-ci"),
@@ -305,7 +305,7 @@ impl PagerLeaderCluster {
             authenticated: false,
             _flock: flock,
             _env: env,
-            _grok_home: grok_home,
+            _grok_home: xvora_home,
         };
         cluster.spawn_leader_generation().await;
         cluster
@@ -377,7 +377,7 @@ impl PagerLeaderCluster {
         );
         // Abort and drain the generation's agent/bridge tasks (the server task has already run its socket cleanup above)
         // Channel-closure teardown is only eventual
-        // Without the drain an old agent task could still run against the same GROK_HOME when the next generation's agent starts
+        // Without the drain an old agent task could still run against the same xvora_home when the next generation's agent starts
         // Two writers on one updates.jsonl is the corruption the real leader's flock prevents
         for task in self.generation_tasks.drain(..) {
             task.abort();

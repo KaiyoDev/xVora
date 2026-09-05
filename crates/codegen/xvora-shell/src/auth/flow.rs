@@ -2,7 +2,7 @@ use crate::auth::backend::{ActiveAuthBackend, AuthBackend, LoginRequest};
 use crate::auth::config::LEGACY_AUTH_SCOPE;
 use crate::auth::{AuthManager, GrokAuth, GrokComConfig, parse_output};
 use crate::http::TransportFailureKind;
-use crate::util::grok_home;
+use crate::util::xvora_home;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -624,7 +624,7 @@ pub(super) async fn run_auth_flow_steps(
         "auth: no OAuth2 configuration available (neither enterprise OIDC nor xAI OAuth2 configured)"
     );
     anyhow::bail!(
-        "No OAuth2 configuration available. Run `grok login` to authenticate, or contact your administrator if you use enterprise SSO."
+        "No OAuth2 configuration available. Run `xvora login` to authenticate, or contact your administrator if you use enterprise SSO."
     )
 }
 /// Non-interactive auth refresh: returns valid credentials if available without ever triggering interactive login (browser, device code, etc.).
@@ -636,7 +636,7 @@ pub async fn try_ensure_fresh_auth(grok_com_config: &GrokComConfig) -> Option<Gr
 /// Builds and configures the startup `AuthManager`; the policy helpers below take it injected so tests can substitute their own.
 fn build_startup_auth_manager(grok_com_config: &GrokComConfig) -> Arc<AuthManager> {
     let auth_manager = Arc::new(AuthManager::new(
-        &grok_home::grok_home(),
+        &xvora_home::xvora_home(),
         grok_com_config.clone(),
     ));
     auth_manager.configure_refresher(grok_com_config.auth_provider_command.clone(), None);
@@ -768,8 +768,8 @@ pub async fn ensure_authenticated_with_override(
     message_prefix: Option<&str>,
     login_override: LoginTransportOverride,
 ) -> anyhow::Result<GrokAuth> {
-    let grok_home = grok_home::grok_home();
-    let auth_manager = Arc::new(AuthManager::new(&grok_home, grok_com_config.clone()));
+    let xvora_home = xvora_home::xvora_home();
+    let auth_manager = Arc::new(AuthManager::new(&xvora_home, grok_com_config.clone()));
     if !reauth && let Some(auth) = auth_manager.current() {
         if auth.auth_mode != super::AuthMode::WebLogin {
             return Ok(auth);
@@ -811,7 +811,7 @@ pub async fn ensure_authenticated_or_noninteractive(
             .map(Some)
     }
 }
-/// Unified `grok login` handler for CLI entry points (tui, pager).
+/// Unified `xvora login` handler for CLI entry points (tui, pager).
 ///
 /// Precedence: `--oauth` forces loopback, `--device-auth` forces device.
 /// Otherwise `GROK_LOGIN_DEVICE_FLOW` env, then `[auth] login_device_flow` config, then the loopback default.
@@ -830,7 +830,7 @@ pub async fn run_cli_login(
         return apply_post_login_config(auth).await;
     }
     let auth_manager = Arc::new(AuthManager::new(
-        &grok_home::grok_home(),
+        &xvora_home::xvora_home(),
         config.grok_com_config.clone(),
     ));
     crate::agent::init::update_telemetry_config(config, &auth_manager);
@@ -887,7 +887,7 @@ async fn run_cli_login_steps(
 }
 /// Sync this principal's config now rather than waiting for the background tick.
 /// Stay quiet about absence or failure during login; confirm only when config was actually applied.
-/// `grok setup` reports the no-config case.
+/// `xvora setup` reports the no-config case.
 pub(crate) async fn apply_post_login_config(authenticated: GrokAuth) -> anyhow::Result<()> {
     let outcome = crate::managed_config::post_login_sync(Some(authenticated)).await;
     match outcome {
@@ -899,7 +899,7 @@ pub(crate) async fn apply_post_login_config(authenticated: GrokAuth) -> anyhow::
         }
         crate::managed_config::ManagedConfigSync::Staged => {
             eprintln!(
-                "Managed configuration update verified; it takes effect the next time Grok starts."
+                "Managed configuration update verified; it takes effect the next time xvora starts."
             );
         }
         _ => {}
@@ -953,8 +953,8 @@ pub fn perform_logout(
     })
 }
 pub fn run_cli_logout(config: &crate::agent::config::Config) -> anyhow::Result<()> {
-    let grok_home = grok_home::grok_home();
-    let auth_manager = AuthManager::new(&grok_home, config.grok_com_config.clone());
+    let xvora_home = xvora_home::xvora_home();
+    let auth_manager = AuthManager::new(&xvora_home, config.grok_com_config.clone());
     let result = perform_logout(&auth_manager, None)
         .map_err(|e| anyhow::anyhow!("Failed to clear auth: {e}"))?;
     if !result.was_logged_in {
@@ -1755,7 +1755,7 @@ mod tests {
         };
         assert_eq!(
             extract(
-                "Visit the following link to sign into Grok: https://auth.example.com/login?code=abc"
+                "Visit the following link to sign into xvora: https://auth.example.com/login?code=abc"
             ),
             "https://auth.example.com/login?code=abc"
         );
@@ -1769,7 +1769,7 @@ mod tests {
         );
         assert_eq!(extract("some opaque output"), "some opaque output");
     }
-    /// CLI `grok login` passes `on_stderr=None`; stderr must be inherited so sign-in URLs appear in real time.
+    /// CLI `xvora login` passes `on_stderr=None`; stderr must be inherited so sign-in URLs appear in real time.
     /// Piped stderr with no reader deadlocks once the child writes past the pipe buffer (~64 KiB).
     #[tokio::test]
     async fn external_provider_cli_path_does_not_deadlock_on_large_stderr() {

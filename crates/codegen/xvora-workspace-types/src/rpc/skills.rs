@@ -37,13 +37,13 @@ impl WorkspaceRpc for DiscoverPluginsReq {
 /// A scope string from a newer server deserializes into `Unknown(original)` and re-serializes back to the original string.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SkillScope {
-    /// cwd/.grok/skills
+    /// cwd/.xvora/skills
     Local,
-    /// repo_root/.grok/skills
+    /// repo_root/.xvora/skills
     Repo,
-    /// ~/.grok/skills
+    /// ~/.xvora/skills
     User,
-    /// ~/.grok/server-skills (synced from the skill store)
+    /// ~/.xvora/server-skills (synced from the skill store)
     Server,
     /// platform built-in skills
     Bundled,
@@ -156,7 +156,7 @@ mod tests {
         let raw = serde_json::json!({
             "name": "my-skill",
             "description": "A test skill",
-            "path": "/workspace/.grok/skills/my-skill/SKILL.md",
+            "path": "/workspace/.xvora/skills/my-skill/SKILL.md",
             "scope": "local",
         });
         let info: SkillInfo = serde_json::from_value(raw).unwrap();
@@ -185,15 +185,15 @@ mod tests {
             "license": "Apache-2.0",
             "compatibility": "Requires kubectl",
             "metadata": {"team": "infra"},
-            "path": "/root/.grok/server-skills/deploy/SKILL.md",
+            "path": "/root/.xvora/server-skills/deploy/SKILL.md",
             "scope": "server",
-            "config_source": {"type": "user", "path": "/root/.grok/skills"},
+            "config_source": {"type": "user", "path": "/root/.xvora/skills"},
             "plugin_name": "infra-plugin",
             "plugin_version": "1.0.0",
-            "plugin_root": "/root/.grok/plugins/infra-plugin",
-            "plugin_data": "/root/.grok/plugin-data/infra-plugin",
+            "plugin_root": "/root/.xvora/plugins/infra-plugin",
+            "plugin_data": "/root/.xvora/plugin-data/infra-plugin",
             "allowed_tools": ["bash"],
-            "model": "grok-4",
+            "model": "xvora-4",
             "effort": "high",
             "user_invocable": true,
             "disable_model_invocation": false,

@@ -3,7 +3,7 @@ use toml::Value as TomlValue;
 
 /// Machine-readable channel name derived from the GCS stable pointer cache.
 ///
-/// Reads `stable_version` from `~/.grok/version.json` (written by the
+/// Reads `stable_version` from `~/.xvora/version.json` (written by the
 /// auto-updater) and compares the compiled-in version against it:
 /// - `Some("alpha")` when the current version is ahead of stable,
 /// - `Some("stable")` when at or behind stable,
@@ -14,7 +14,7 @@ pub(crate) fn channel_name_from_cache() -> Option<&'static str> {
     use std::sync::OnceLock;
     static NAME: OnceLock<Option<&'static str>> = OnceLock::new();
     *NAME.get_or_init(|| {
-        let version_path = crate::util::grok_home::grok_home().join("version.json");
+        let version_path = crate::util::xvora_home::xvora_home().join("version.json");
         let content = std::fs::read_to_string(&version_path).ok()?;
         let parsed: serde_json::Value = serde_json::from_str(&content).ok()?;
         let stable = parsed.get("stable_version")?.as_str()?;

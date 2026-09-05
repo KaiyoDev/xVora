@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 use crate::acp::model_state::ModelState;
 use crate::acp::tracker::AcpUpdateTracker;
@@ -1633,22 +1633,22 @@ pub(super) fn run_subagent_lifecycle_via_method(
     let finish = snapshot_after_subagent_finish(&app, child_sid);
     (spawn, finish)
 }
-/// Shared temp `GROK_HOME` for disk-replay tests.
-/// `grok_home()` uses a process-wide `OnceLock`, so parallel tests must not each set `GROK_HOME` to a different tempdir.
+/// Shared temp `xvora_home` for disk-replay tests.
+/// `xvora_home()` uses a process-wide `OnceLock`, so parallel tests must not each set `xvora_home` to a different tempdir.
 pub(super) fn replay_disk_test_home() -> &'static std::path::Path {
     use std::sync::OnceLock;
     static HOME: OnceLock<tempfile::TempDir> = OnceLock::new();
     HOME.get_or_init(|| {
             let tmp = tempfile::tempdir().expect("tempdir creation");
             unsafe {
-                std::env::set_var("GROK_HOME", tmp.path());
+                std::env::set_var("xvora_home", tmp.path());
             }
             tmp
         })
         .path()
 }
-/// Runs `f` with a thread-local grok home override.
-/// Disk replay tests then do not depend on process-wide `grok_home()` cache order when the full suite runs.
+/// Runs `f` with a thread-local xvora home override.
+/// Disk replay tests then do not depend on process-wide `xvora_home()` cache order when the full suite runs.
 pub(super) fn with_replay_disk_home<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     let home = replay_disk_test_home();
     crate::app::subagent::set_replay_grok_home_for_tests(Some(home.to_path_buf()));
@@ -1657,19 +1657,19 @@ pub(super) fn with_replay_disk_home<R>(f: impl FnOnce(&std::path::Path) -> R) ->
     out
 }
 pub(super) fn write_child_updates_jsonl(
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     child_sid: &str,
     content: &str,
 ) {
-    write_child_updates_jsonl_under_cwd(grok_home, "/tmp", child_sid, content);
+    write_child_updates_jsonl_under_cwd(xvora_home, "/tmp", child_sid, content);
 }
 pub(super) fn write_child_updates_jsonl_under_cwd(
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     cwd: &str,
     child_sid: &str,
     content: &str,
 ) {
-    let sessions_dir = grok_home
+    let sessions_dir = xvora_home
         .join("sessions")
         .join(config::encode_cwd_dirname(cwd))
         .join(child_sid);
@@ -1718,12 +1718,12 @@ pub(super) fn child_user_message_line(child_sid: &str, text: &str) -> String {
         )
 }
 pub(super) fn write_subagent_meta_json(
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     parent_sid: &str,
     subagent_id: &str,
     prompt: &str,
 ) {
-    let sessions_dir = grok_home
+    let sessions_dir = xvora_home
         .join("sessions")
         .join(urlencoding::encode("/tmp").as_ref())
         .join(parent_sid)

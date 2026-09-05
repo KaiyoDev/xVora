@@ -5,7 +5,7 @@
     unreachable_code,
     dead_code
 )]
-//! OS-level sandboxing for Grok Build via [nono](https://crates.io/crates/nono).
+//! OS-level sandboxing for xvora build via [nono](https://crates.io/crates/nono).
 //!
 //! Applied once at process startup. Covers in-process `tokio::fs` calls and child processes.
 //! Network is left open at the process level (agent needs LLM API); child network is blocked per-subprocess via seccomp.
@@ -185,7 +185,7 @@ impl SandboxManager {
             return Ok(());
         }
         if requires_hook_write_deny(&self.profile, workspace) {
-            config::ensure_grok_hook_slots(paths::grok_home().as_path())
+            config::ensure_grok_hook_slots(paths::xvora_home().as_path())
                 .map_err(|e| anyhow::anyhow!("hook write-deny ensure failed: {e}"))?;
         }
         hook_write_deny::maybe_install_namespace_lockdown_inside_bwrap(&self.profile, workspace)
@@ -391,14 +391,14 @@ fn chmod_000(path: &Path) -> Option<()> {
     std::fs::set_permissions(path, perms).ok()?;
     Some(())
 }
-/// Zero-permission placeholder (file or dir) under `grok_home` used by bwrap bind-over.
+/// Zero-permission placeholder (file or dir) under `xvora_home` used by bwrap bind-over.
 ///
-/// The placeholder name is suffixed with the current PID so concurrent grok processes don't race each other's create/remove/chmod on a shared path.
+/// The placeholder name is suffixed with the current PID so concurrent xvora processes don't race each other's create/remove/chmod on a shared path.
 /// A lost race could yield `None`, silently dropping the bind and failing open.
 #[cfg(all(feature = "enforce", target_os = "linux"))]
 fn bwrap_blocked_placeholder(name: &str, want_dir: bool) -> Option<PathBuf> {
     use std::fs::OpenOptions;
-    let path = paths::grok_home().join(format!("{name}.{}", std::process::id()));
+    let path = paths::xvora_home().join(format!("{name}.{}", std::process::id()));
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok()?;
     }
@@ -797,7 +797,7 @@ mod tests {
     fn bwrap_hook_plan_binds_ancestors_then_leaves() {
         let _g = EnvGuard::remove(BWRAP_ENV_VAR);
         let root = std::env::temp_dir().join(format!(
-            "grok-bwrap-hook-plan-{}-{}",
+            "xvora-bwrap-hook-plan-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -916,7 +916,7 @@ mod tests {
             "arming must not require applied=true"
         );
     }
-    /// Create a temp workspace whose `.grok/sandbox.toml` contains `toml_body`.
+    /// Create a temp workspace whose `.xvora/sandbox.toml` contains `toml_body`.
     /// Returns the workspace path (caller removes it).
     #[cfg(all(feature = "enforce", unix))]
     fn temp_workspace_with_sandbox_toml(tag: &str, toml_body: &str) -> PathBuf {
@@ -924,10 +924,10 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let ws = std::env::temp_dir().join(format!("grok-{tag}-{}-{nanos}", std::process::id()));
-        let grok = ws.join(".grok");
-        std::fs::create_dir_all(&grok).unwrap();
-        std::fs::write(grok.join(config::SANDBOX_CONFIG_FILENAME), toml_body).unwrap();
+        let ws = std::env::temp_dir().join(format!("xvora-{tag}-{}-{nanos}", std::process::id()));
+        let xvora = ws.join(".xvora");
+        std::fs::create_dir_all(&xvora).unwrap();
+        std::fs::write(xvora.join(config::SANDBOX_CONFIG_FILENAME), toml_body).unwrap();
         ws
     }
     /// Create a temp workspace defining a `denytest` profile (extends `workspace`) with the given `deny` list.
@@ -1064,7 +1064,7 @@ mod tests {
     #[cfg(all(feature = "enforce", target_os = "linux"))]
     fn bwrap_reexec_uses_dir_placeholder_for_directories() {
         let _g = EnvGuard::remove(BWRAP_ENV_VAR);
-        let dir = std::env::temp_dir().join(format!("grok-deny-dir-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("xvora-deny-dir-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let dir_str = dir.to_string_lossy().to_string();
         let result = bwrap_reexec_command(&[], &[&dir_str]);
@@ -1073,7 +1073,7 @@ mod tests {
             .get_args()
             .map(|a| a.to_string_lossy().to_string())
             .collect();
-        let blocked_dir = paths::grok_home()
+        let blocked_dir = paths::xvora_home()
             .join(format!("sandbox-blocked-dir.{}", std::process::id()))
             .to_string_lossy()
             .to_string();

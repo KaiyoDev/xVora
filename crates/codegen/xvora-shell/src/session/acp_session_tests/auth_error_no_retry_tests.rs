@@ -522,7 +522,7 @@ async fn proactive_refresh_makes_per_turn_refresh_a_cache_hit() {
 fn model_not_found_error() -> sampler::SamplingErrorInfo {
     sampler::SamplingErrorInfo {
             kind: sampler::SamplingErrorKind::Api,
-            message: "API error (status 404 Not Found): The model grok-build does not exist or your team does not have access".into(),
+            message: "API error (status 404 Not Found): The model xvora-build does not exist or your team does not have access".into(),
             status_code: Some(404),
             is_retryable: false,
             retry_after_secs: None,
@@ -570,19 +570,19 @@ async fn legacy_auth_hint_on_404_model_not_found() {
                 "404 with WebLogin must include deprecation message, got: {msg}"
             );
             assert!(
-                msg.contains("grok update"),
-                "hint must mention `grok update` before re-login, got: {msg}"
+                msg.contains("xvora update"),
+                "hint must mention `xvora update` before re-login, got: {msg}"
             );
             assert!(
-                msg.contains("grok logout"),
-                "hint must mention `grok logout`, got: {msg}"
+                msg.contains("xvora logout"),
+                "hint must mention `xvora logout`, got: {msg}"
             );
             assert!(
-                msg.contains("grok login"),
-                "hint must mention `grok login`, got: {msg}"
+                msg.contains("xvora login"),
+                "hint must mention `xvora login`, got: {msg}"
             );
-            let update_at = msg.find("grok update").expect("grok update");
-            let logout_at = msg.find("grok logout").expect("grok logout");
+            let update_at = msg.find("xvora update").expect("xvora update");
+            let logout_at = msg.find("xvora logout").expect("xvora logout");
             assert!(
                 update_at < logout_at,
                 "update must come before logout, got: {msg}"
@@ -606,7 +606,7 @@ async fn legacy_auth_hint_on_404_model_not_found() {
 fn unauthorized_401_error() -> sampler::SamplingErrorInfo {
     sampler::SamplingErrorInfo {
             kind: sampler::SamplingErrorKind::Api,
-            message: "Unauthorized (401) from https://cli-chat-proxy.grok.com/v1/responses: {\"error\":\"Invalid or expired credentials (auth_kind=bearer, x_xai_token_auth=xvora-cli, upstream=Unauthenticated, reason=no auth context)\"}".into(),
+            message: "Unauthorized (401) from https://cli-chat-proxy.xvora.com/v1/responses: {\"error\":\"Invalid or expired credentials (auth_kind=bearer, x_xai_token_auth=xvora-cli, upstream=Unauthenticated, reason=no auth context)\"}".into(),
             status_code: Some(401),
             is_retryable: false,
             retry_after_secs: None,
@@ -654,19 +654,19 @@ async fn legacy_auth_hint_on_401_unauthorized() {
                 "401 with WebLogin must include deprecation message, got: {msg}"
             );
             assert!(
-                msg.contains("grok update"),
-                "hint must mention `grok update` before re-login, got: {msg}"
+                msg.contains("xvora update"),
+                "hint must mention `xvora update` before re-login, got: {msg}"
             );
             assert!(
-                msg.contains("grok logout"),
-                "hint must mention `grok logout`, got: {msg}"
+                msg.contains("xvora logout"),
+                "hint must mention `xvora logout`, got: {msg}"
             );
             assert!(
-                msg.contains("grok login"),
-                "hint must mention `grok login`, got: {msg}"
+                msg.contains("xvora login"),
+                "hint must mention `xvora login`, got: {msg}"
             );
-            let update_at = msg.find("grok update").expect("grok update");
-            let logout_at = msg.find("grok logout").expect("grok logout");
+            let update_at = msg.find("xvora update").expect("xvora update");
+            let logout_at = msg.find("xvora logout").expect("xvora logout");
             assert!(
                 update_at < logout_at,
                 "update must come before logout, got: {msg}"

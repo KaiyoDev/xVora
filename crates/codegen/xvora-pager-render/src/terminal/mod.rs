@@ -82,8 +82,8 @@ pub enum TerminalName {
     /// The Classic and Reworked 2025 engines are indistinguishable, and all capabilities are conservative/Unknown.
     #[strum(to_string = "JetBrains")]
     JetBrains,
-    /// Grok Desktop (Electron app).
-    #[strum(to_string = "Grok Desktop")]
+    /// xvora Desktop (Electron app).
+    #[strum(to_string = "xvora Desktop")]
     GrokDesktop,
     /// VTE-based terminal (GNOME Terminal, kgx/GNOME Console, Tilix, etc.).
     #[strum(to_string = "VTE")]
@@ -233,7 +233,7 @@ pub struct TerminalContext {
     pub multiplexer: MultiplexerKind,
     /// Whether Byobu is wrapping the session, and which backend it uses.
     pub byobu: Option<ByobuBackend>,
-    /// Which embedded editor `:terminal` grok is running inside, if any.
+    /// Which embedded editor `:terminal` xvora is running inside, if any.
     pub embedded_editor: Option<EmbeddedEditor>,
     /// tmux client metadata (populated only when `multiplexer == Tmux`).
     pub tmux_meta: TmuxClientMeta,
@@ -285,7 +285,7 @@ impl TerminalContext {
     }
 
     /// Whether an outer layer (embedded-editor :terminal or multiplexer) can repaint our pane out of band, stranding rows until a full clear.
-    /// A heal keyed off this only fires when a FocusGained actually reaches grok.
+    /// A heal keyed off this only fires when a FocusGained actually reaches xvora.
     /// That needs focus reporting enabled upstream (e.g. tmux `focus-events on`, off by default).
     pub fn repaints_pane_out_of_band(&self) -> bool {
         self.embedded_editor.is_some() || self.multiplexer != MultiplexerKind::Undetected
@@ -600,7 +600,7 @@ fn detect_terminal_context() -> TerminalContext {
     // NOTE: brand is usually Unknown in tmux (it overwrites TERM_PROGRAM and per-pane vars don't survive) and over SSH (not forwarded)
     // Brands with SSH-surviving markers are the exception (the VS Code family, and iTerm2 via LC_TERMINAL)
     // tmux -g global env is stale (reflects the server's first client, not the current one)
-    // Revisit when `grok ssh` can forward env vars
+    // Revisit when `xvora ssh` can forward env vars
     let mut ctx = build_terminal_context_from_env(&env);
     ctx.brand = refine_unknown_brand_for_host(ctx.brand, HostOs::current());
     if ctx.is_tmux_backed() {
@@ -945,7 +945,7 @@ fn terminal_name_from_term_program(value: &str) -> Option<TerminalName> {
 
 /// User-configured alt-screen (fullscreen) mode.
 ///
-/// Parsed from `[terminal] alt_screen` in `~/.grok/pager.toml` and
+/// Parsed from `[terminal] alt_screen` in `~/.xvora/pager.toml` and
 /// overridden by the `--no-alt-screen` CLI flag.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum AltScreenMode {

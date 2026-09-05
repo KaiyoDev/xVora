@@ -263,7 +263,7 @@ fn write_truncated(buf: &mut String, s: &str, max: usize) {
 /// Build the escape sequence for setting the terminal title without writing it to stderr.
 /// The caller is responsible for routing these bytes through the frame pipeline.
 ///
-/// Control characters are stripped here: title parts include strings from remote sources (e.g. grok.com conversation titles).
+/// Control characters are stripped here: title parts include strings from remote sources (e.g. xvora.com conversation titles).
 /// Those must not terminate the OSC sequence early or inject escapes into the terminal.
 fn build_title_escape(title: &str) -> String {
     let sanitized: String = title.chars().filter(|c| !c.is_control()).collect();
@@ -843,7 +843,7 @@ mod tests {
         mgr.update(&state);
         assert_eq!(
             mgr.last_title,
-            "Thinking - proj - grok-3 - workspace - grok"
+            "Thinking - proj - grok-3 - workspace - xvora"
         );
     }
 

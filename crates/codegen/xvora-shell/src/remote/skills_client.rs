@@ -1,4 +1,4 @@
-//! grok.com product Skills catalog, served by the same REST sources grok-web uses:
+//! xvora.com product Skills catalog, served by the same REST sources xvora-web uses:
 //! - `POST /rest/skills`: first-party bundled skills (docx, pdf, ffmpeg, …)
 //! - `GET  /rest/user-skills`: enabled user-uploaded skills
 //!
@@ -24,7 +24,7 @@ use tools::implementations::skills::types::{SkillInfo, SkillScope};
 
 use crate::auth::AuthManager;
 
-const GROK_WEB_URL: &str = "https://grok.com";
+const GROK_WEB_URL: &str = "https://xvora.com";
 
 /// Marker stored on SkillInfo.metadata / AvailableCommand._meta so clients can tell product Skills from Build disk discovery without name allowlists.
 pub const CHAT_PRODUCT_META_VALUE: &str = "chat";
@@ -33,7 +33,7 @@ pub const CHAT_PRODUCT_META_KEY: &str = "product";
 const LIST_CATALOG_ATTEMPTS: u32 = 3;
 const LIST_CATALOG_BACKOFF: Duration = Duration::from_millis(100);
 /// Per-request budget for product Skills REST.
-/// The shared client only sets a connect timeout; without this a hung grok.com stalls the session actor.
+/// The shared client only sets a connect timeout; without this a hung xvora.com stalls the session actor.
 const LIST_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -85,7 +85,7 @@ pub struct ListUserSkillsResponse {
     pub skills: Vec<UserSkill>,
 }
 
-/// Combined product catalog matching grok-web's Skills menu composition.
+/// Combined product catalog matching xvora-web's Skills menu composition.
 #[derive(Debug, Clone, Default)]
 pub struct ProductSkillsCatalog {
     pub bundled: Vec<BundledSkill>,
@@ -98,7 +98,7 @@ pub struct ProductSkillsCatalog {
 impl ProductSkillsCatalog {
     /// Map to agent SkillInfo rows for slash advertising.
     ///
-    /// Mirrors grok-web: enabled user skills first (and hide same-named bundled entries they override), then remaining bundled skills.
+    /// Mirrors xvora-web: enabled user skills first (and hide same-named bundled entries they override), then remaining bundled skills.
     pub(crate) fn to_skill_infos(&self) -> Vec<SkillInfo> {
         let enabled_user: Vec<(String, &UserSkill)> = self
             .user
@@ -265,7 +265,7 @@ fn product_skill_info(
 
 #[derive(Debug, thiserror::Error)]
 pub enum SkillsError {
-    #[error("no grok.com credentials")]
+    #[error("no xvora.com credentials")]
     NoAuth,
     #[error("network error: {0}")]
     Network(#[from] reqwest::Error),
@@ -358,7 +358,7 @@ fn skills_auth_alt_candidates<'a>(
     out
 }
 
-/// Stateless transport for product Skills REST (grok-web `skillsApi`).
+/// Stateless transport for product Skills REST (xvora-web `skillsApi`).
 pub struct SkillsClient {
     http: reqwest::Client,
     base_url: String,
@@ -402,9 +402,9 @@ impl SkillsClient {
                 self.auth.grok_com_config().token_header.clone(),
             )
             .header("x-userid", user_id)
-            .header("x-grok-client-version", version::VERSION)
+            .header("x-xvora-client-version", version::VERSION)
             .header(
-                "x-grok-client-identifier",
+                "x-xvora-client-identifier",
                 crate::http::process_client_identifier(),
             )
             .header(
@@ -418,7 +418,7 @@ impl SkillsClient {
         file_utils::trace_context::inject_trace_context_into_request(builder)
     }
 
-    /// Grok.com product Skills require first-party session auth (the same gate as managed MCP and sibling grok.com clients), not plain BYOK API keys.
+    /// xvora.com product Skills require first-party session auth (the same gate as managed MCP and sibling xvora.com clients), not plain BYOK API keys.
     async fn require_skills_auth(&self) -> Result<crate::auth::GrokAuth, SkillsError> {
         let auth = self.auth.auth().await.map_err(|_| SkillsError::NoAuth)?;
         if !auth.is_managed_mcp_eligible() {
@@ -427,10 +427,10 @@ impl SkillsClient {
         Ok(auth)
     }
 
-    /// Credentials to try for grok.com product Skills REST.
+    /// Credentials to try for xvora.com product Skills REST.
     ///
     /// Primary first.
-    /// When primary is OIDC on the default grok.com host, also try non-OIDC keys for the same user from this AuthManager's `auth.json`.
+    /// When primary is OIDC on the default xvora.com host, also try non-OIDC keys for the same user from this AuthManager's `auth.json`.
     /// Team OIDC is often rejected with `oauth2-auth-forbidden`.
     ///
     /// Order / isolation (see [`skills_auth_alt_candidates`]):
@@ -510,7 +510,7 @@ impl SkillsClient {
         Ok(serde_json::from_slice(&bytes)?)
     }
 
-    /// Bundled first-party skills (`POST /rest/skills`), gated by backend feature-flag allow-list (same as grok-web attach menu).
+    /// Bundled first-party skills (`POST /rest/skills`), gated by backend feature-flag allow-list (same as xvora-web attach menu).
     ///
     /// Returns `(response, used_untagged_recovery)`.
     async fn list_bundled(

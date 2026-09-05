@@ -92,9 +92,9 @@ fn external_stream_end_to_end() {
     });
     telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-int-1".into(),
-        client_identifier: Some("grok-pager".into()),
-        model_id: "grok-4".into(),
-        agent_name: "grok-build-plan".into(),
+        client_identifier: Some("xvora-pager".into()),
+        model_id: "xvora-4".into(),
+        agent_name: "xvora-build-plan".into(),
         permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![CANARY_MCP.into()],
         plugin_names: vec![],
@@ -109,7 +109,7 @@ fn external_stream_end_to_end() {
     });
     telemetry::log_event(telemetry::events::PromptSubmitted {
         prompt_length: CANARY_PROMPT.len(),
-        model_id: "grok-4".into(),
+        model_id: "xvora-4".into(),
         client_identifier: None,
         screen_mode: None,
         prompt_text: Some(CANARY_PROMPT.into()),
@@ -183,8 +183,8 @@ fn external_stream_end_to_end() {
     assert!(
         resource_service_name
             .as_deref()
-            .is_some_and(|s| s.contains("grok-cli")),
-        "service.name=grok-cli is a wire commitment: {resource_service_name:?}"
+            .is_some_and(|s| s.contains("xvora-cli")),
+        "service.name=xvora-cli is a wire commitment: {resource_service_name:?}"
     );
     for expected in [
         "grok_code.session_start",
@@ -309,7 +309,7 @@ fn external_stream_end_to_end() {
     let logs_before = collected.logs_len();
     telemetry::log_event(telemetry::events::PromptSubmitted {
         prompt_length: 1,
-        model_id: "grok-4".into(),
+        model_id: "xvora-4".into(),
         client_identifier: None,
         screen_mode: None,
         prompt_text: None,

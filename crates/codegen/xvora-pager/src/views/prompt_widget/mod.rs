@@ -1235,7 +1235,7 @@ impl PromptWidget {
                     && self.textarea.text().is_char_boundary(range.end)
                 {
                     // The row's trailing space is its args separator; absorb an existing plain-text one
-                    // Accepting mid-token in `/mod grok-4` then yields `/model grok-4`, not `/model  grok-4`
+                    // Accepting mid-token in `/mod xvora-4` then yields `/model xvora-4`, not `/model  xvora-4`
                     // Absorbing (rather than trimming the insert) lands the cursor after the separator, in the args phase
                     // Never absorb an element's byte: a chip's leading space is chip data
                     // replace_range expands any overlap to the whole element, so the absorb would swallow the chip
@@ -1259,7 +1259,7 @@ impl PromptWidget {
                 false
             }
         } else {
-            // Replace the args range (e.g., "gr" becomes "Grok 4 Fast")
+            // Replace the args range (e.g., "gr" becomes "xvora 4 Fast")
             if let Some(ref range) = snap.args_range
                 && range.end <= text_len
                 && self.textarea.text().is_char_boundary(range.start)
