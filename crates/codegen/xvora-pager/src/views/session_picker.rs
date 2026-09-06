@@ -240,7 +240,7 @@ pub(crate) fn loading_spinner_active(
 
 /// Filter session entries by native, headless, remote, or external source.
 ///
-/// Default is [`Self::xvora`]: native xvora sessions only (local / remote / conversation).
+/// Default is [`Self::Xvora`]: native xvora sessions only (local / remote / conversation).
 /// That keeps Claude/Codex/Cursor foreign sessions and `xvora -p` one-shots out of `/resume`.
 /// `f` cycles xvora, Headless, External, All, Local, Remote, then back to xvora.
 /// Entering or leaving `Headless` refetches.
@@ -249,7 +249,7 @@ pub(crate) fn loading_spinner_active(
 pub enum SourceFilter {
     /// Native xvora sessions only; excludes Claude/Codex/Cursor foreign rows.
     #[default]
-    xvora,
+    Xvora,
     /// `xvora -p` one-shots only (`session_kind == "headless"`).
     Headless,
     Local,
@@ -262,7 +262,7 @@ pub enum SourceFilter {
 impl SourceFilter {
     pub fn label(self) -> &'static str {
         match self {
-            Self::xvora => "xvora",
+            Self::Xvora => "xvora",
             Self::Headless => "Headless",
             Self::Local => "Local",
             Self::Remote => "Remote",
@@ -273,18 +273,18 @@ impl SourceFilter {
 
     pub fn next(self) -> Self {
         match self {
-            Self::xvora => Self::Headless,
+            Self::Xvora => Self::Headless,
             Self::Headless => Self::External,
             Self::External => Self::All,
             Self::All => Self::Local,
             Self::Local => Self::Remote,
-            Self::Remote => Self::xvora,
+            Self::Remote => Self::Xvora,
         }
     }
 
     /// Returns `true` when a non-default filter is selected.
     pub fn is_active(self) -> bool {
-        self != Self::xvora
+        self != Self::Xvora
     }
 
     /// Whether the deep content search is unavailable on this page: foreign stores are not FTS-indexed.
@@ -313,7 +313,7 @@ impl SourceFilter {
     pub fn matches(self, source: &str, session_kind: Option<&str>) -> bool {
         let is_headless = session_kind == Some("headless");
         match self {
-            Self::xvora => !crate::app::is_foreign_picker_source(source) && !is_headless,
+            Self::Xvora => !crate::app::is_foreign_picker_source(source) && !is_headless,
             Self::Headless => is_headless && !crate::app::is_foreign_picker_source(source),
             Self::Local => (source == "local" || source == "both") && !is_headless,
             Self::Remote => {
@@ -1453,13 +1453,13 @@ mod tests {
     #[test]
     fn source_filter_matches() {
         // Default xvora filter: native only (not Claude/Codex/Cursor).
-        assert!(SourceFilter::xvora.matches("local", None));
-        assert!(SourceFilter::xvora.matches("remote", None));
-        assert!(SourceFilter::xvora.matches("both", None));
-        assert!(SourceFilter::xvora.matches("conversation", None));
-        assert!(!SourceFilter::xvora.matches("claude", None));
-        assert!(!SourceFilter::xvora.matches("codex", None));
-        assert!(!SourceFilter::xvora.matches("cursor", None));
+        assert!(SourceFilter::Xvora.matches("local", None));
+        assert!(SourceFilter::Xvora.matches("remote", None));
+        assert!(SourceFilter::Xvora.matches("both", None));
+        assert!(SourceFilter::Xvora.matches("conversation", None));
+        assert!(!SourceFilter::Xvora.matches("claude", None));
+        assert!(!SourceFilter::Xvora.matches("codex", None));
+        assert!(!SourceFilter::Xvora.matches("cursor", None));
 
         assert!(SourceFilter::All.matches("local", None));
         assert!(SourceFilter::All.matches("remote", None));
@@ -1494,16 +1494,16 @@ mod tests {
 
     #[test]
     fn source_filter_cycles() {
-        assert_eq!(SourceFilter::xvora.next(), SourceFilter::Headless);
+        assert_eq!(SourceFilter::Xvora.next(), SourceFilter::Headless);
         assert_eq!(SourceFilter::Headless.next(), SourceFilter::External);
         assert_eq!(SourceFilter::External.next(), SourceFilter::All);
         assert_eq!(SourceFilter::All.next(), SourceFilter::Local);
         assert_eq!(SourceFilter::Local.next(), SourceFilter::Remote);
-        assert_eq!(SourceFilter::Remote.next(), SourceFilter::xvora);
-        assert_eq!(SourceFilter::xvora.label(), "xvora");
+        assert_eq!(SourceFilter::Remote.next(), SourceFilter::Xvora);
+        assert_eq!(SourceFilter::Xvora.label(), "xvora");
         assert_eq!(SourceFilter::Headless.label(), "Headless");
         assert_eq!(SourceFilter::External.label(), "External");
-        assert_eq!(SourceFilter::default(), SourceFilter::xvora);
+        assert_eq!(SourceFilter::default(), SourceFilter::Xvora);
     }
 
     #[test]
@@ -1524,7 +1524,7 @@ mod tests {
         ];
         entries[6].session_kind = Some("headless".into());
 
-        let xvora = filter_session_entries(Some(&entries), "", SourceFilter::xvora);
+        let xvora = filter_session_entries(Some(&entries), "", SourceFilter::Xvora);
         assert_eq!(xvora, vec![0, 1, 2]);
 
         let headless = filter_session_entries(Some(&entries), "", SourceFilter::Headless);
@@ -1547,13 +1547,13 @@ mod tests {
     fn source_filter_empty_and_unknown_source() {
         // Empty / unknown source (e.g. from old data or test fixtures) is not foreign.
         // It passes xvora and All but never Local, Remote, or External
-        assert!(SourceFilter::xvora.matches("", None));
+        assert!(SourceFilter::Xvora.matches("", None));
         assert!(SourceFilter::All.matches("", None));
         assert!(!SourceFilter::Local.matches("", None));
         assert!(!SourceFilter::Remote.matches("", None));
         assert!(!SourceFilter::External.matches("", None));
 
-        assert!(SourceFilter::xvora.matches("unknown", None));
+        assert!(SourceFilter::Xvora.matches("unknown", None));
         assert!(SourceFilter::All.matches("unknown", None));
         assert!(!SourceFilter::Local.matches("unknown", None));
         assert!(!SourceFilter::Remote.matches("unknown", None));
@@ -1562,7 +1562,7 @@ mod tests {
 
     #[test]
     fn source_filter_is_active() {
-        assert!(!SourceFilter::xvora.is_active());
+        assert!(!SourceFilter::Xvora.is_active());
         assert!(SourceFilter::Headless.is_active());
         assert!(SourceFilter::Local.is_active());
         assert!(SourceFilter::Remote.is_active());
@@ -1583,7 +1583,7 @@ mod tests {
             entry_with_source("s2", "codex"),
         ];
 
-        assert!(hidden_external_hint(Some(&entries), SourceFilter::xvora).is_none());
+        assert!(hidden_external_hint(Some(&entries), SourceFilter::Xvora).is_none());
         assert!(hidden_external_hint(Some(&entries), SourceFilter::Local).is_none());
         assert!(hidden_external_hint(Some(&entries), SourceFilter::Remote).is_none());
         assert!(hidden_external_hint(Some(&entries), SourceFilter::Headless).is_some());

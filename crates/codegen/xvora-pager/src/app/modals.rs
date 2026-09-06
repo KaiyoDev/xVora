@@ -2671,7 +2671,7 @@ mod session_picker_delete_tests {
         };
         assert_eq!(
             filter,
-            crate::views::session_picker::SourceFilter::xvora,
+            crate::views::session_picker::SourceFilter::Xvora,
             "f must not cycle the hidden source filter under chat mode"
         );
     }

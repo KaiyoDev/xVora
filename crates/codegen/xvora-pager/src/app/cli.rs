@@ -839,7 +839,7 @@ impl PagerArgs {
             .map(std::path::Path::new)
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .filter(|n| *n == "xvora" || *n == "xvora" || *n == "agent")
+            .filter(|n| *n == "xvora" || *n == "agent")
             .unwrap_or("xvora")
             .to_owned();
         Self::parse_from(std::iter::once(bin_name).chain(std::env::args().skip(1)))

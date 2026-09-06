@@ -71,16 +71,15 @@ pub fn init_locale_from_raw_config() {
     if std::env::var("XVORA_LANG").is_ok() || std::env::var("GROK_LANG").is_ok() {
         return;
     }
-    if let Ok(root) = shell::config::load_effective_config() {
-        if let Some(ui_value) = root.get("ui") {
-            if let Some(language) = ui_value.get("language").and_then(|v| v.as_str()) {
-                let raw = language.trim();
-                if raw.eq_ignore_ascii_case("vi") || raw.eq_ignore_ascii_case("vietnamese") {
-                    set_locale("vi");
-                } else if raw.eq_ignore_ascii_case("en") || raw.eq_ignore_ascii_case("english") {
-                    set_locale("en");
-                }
-            }
+    if let Ok(root) = shell::config::load_effective_config()
+        && let Some(ui_value) = root.get("ui")
+        && let Some(language) = ui_value.get("language").and_then(|v| v.as_str())
+    {
+        let raw = language.trim();
+        if raw.eq_ignore_ascii_case("vi") || raw.eq_ignore_ascii_case("vietnamese") {
+            set_locale("vi");
+        } else if raw.eq_ignore_ascii_case("en") || raw.eq_ignore_ascii_case("english") {
+            set_locale("en");
         }
     }
 }

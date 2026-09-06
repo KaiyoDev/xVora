@@ -6654,7 +6654,7 @@ fn welcome_picker_f_cycle_disabled_under_chat_mode() {
     let _ = app.handle_input(&f_key);
     assert_eq!(
         app.session_picker_source_filter,
-        crate::views::session_picker::SourceFilter::xvora,
+        crate::views::session_picker::SourceFilter::Xvora,
         "f must not cycle the hidden source filter under chat mode"
     );
     assert_eq!(
