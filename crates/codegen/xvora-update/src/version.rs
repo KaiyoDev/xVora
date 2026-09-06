@@ -13,12 +13,12 @@ const TTL_SECONDS_BEFORE_AUTO_UPDATE: Duration = Duration::from_secs(60 * 30);
 const NPM_PACKAGE: &str = "@xvora-official/xvora";
 pub const GH_RELEASE_REPO: &str = "xvora-org-shared/xvora-build";
 
-/// Primary CLI base URL: Cloudflare-fronted x.ai endpoint with edge caching for binaries and origin-respecting no-cache for channel pointers.
-pub(crate) const CLI_BASE_URL_PRIMARY: &str = "https://x.ai/cli";
-
-/// Fallback CLI base URL: direct GCS, used when the primary is unreachable (Cloudflare outage, regional CF egress issue, DNS hijack, etc.).
-pub(crate) const CLI_BASE_URL_FALLBACK: &str =
+/// Primary CLI base URL: direct GCS bucket with edge caching for binaries and origin-respecting no-cache for channel pointers.
+pub(crate) const CLI_BASE_URL_PRIMARY: &str =
     "https://storage.googleapis.com/xvora-build-public-artifacts/cli";
+
+/// Fallback CLI base URL: Cloudflare-fronted x.ai endpoint, used when GCS is unreachable.
+pub(crate) const CLI_BASE_URL_FALLBACK: &str = "https://x.ai/cli";
 
 /// CLI base URLs in preference order.
 /// Callers (channel-pointer fetch, binary download, in-app updater) try each in turn and stop at the first success.

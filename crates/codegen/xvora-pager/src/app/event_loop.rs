@@ -1373,6 +1373,33 @@ pub(crate) async fn run(
         }
     }
 
+    // Warn when no model provider is configured: no API key, no external auth, and all endpoints at defaults.
+    if !app.is_api_key_auth && !app.has_external_auth_provider {
+        if let Ok(raw) = shell::config::load_effective_config() {
+            if let Ok(cfg) = shell::agent::config::Config::new_from_toml_cfg(&raw) {
+                let endpoints = &cfg.endpoints;
+                let api_base_is_default =
+                    endpoints.xvora_api_base_url == shell::agent::config::XAI_API_BASE_URL_DEFAULT
+                        && std::env::var("GROK_XAI_API_BASE_URL").is_err();
+                let proxy_is_default = endpoints
+                    .cli_chat_proxy_base_url
+                    .as_deref()
+                    .map_or(true, |v| {
+                        v == shell::agent::config::CLI_CHAT_PROXY_BASE_URL_DEFAULT
+                    });
+                if api_base_is_default && proxy_is_default {
+                    app.startup_warnings.push(crate::startup::StartupWarning {
+                        severity: crate::startup::WarningSeverity::Info,
+                        message: "No model provider configured. Set XAI_API_KEY or configure \
+                                  [endpoints] xvora_api_base_url in ~/.xvora/config.toml."
+                            .into(),
+                        action: Some("Run `xvora doctor` for setup help.".into()),
+                    });
+                }
+            }
+        }
+    }
+
     // After auth so API-key and managed policy resolve correctly
     let voice_mode_enabled = crate::app::resolve_voice_mode_live(
         remote_settings.as_ref().and_then(|s| s.voice_mode_enabled),
