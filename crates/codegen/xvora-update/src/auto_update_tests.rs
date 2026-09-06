@@ -964,24 +964,22 @@ fn test_reinstall_hint_gh_release_mentions_gh_command() {
 fn test_reinstall_hint_internal_mentions_platform_installer() {
     let hint = reinstall_hint("internal", "stable");
     if cfg!(windows) {
-        assert!(hint.contains("irm"), "should suggest irm install: {hint}");
         assert!(
-            hint.contains("install.ps1"),
-            "should reference install.ps1: {hint}"
+            hint.contains("gh release download"),
+            "should suggest gh release download: {hint}"
         );
         assert!(
-            !hint.contains("GROK_CHANNEL"),
-            "stable must not set channel: {hint}"
+            hint.contains("xvora-org-shared/xvora-build"),
+            "should name the repo: {hint}"
         );
     } else {
-        assert!(hint.contains("curl"), "should suggest curl install: {hint}");
         assert!(
-            hint.contains("install.sh"),
-            "should reference install.sh: {hint}"
+            hint.contains("curl"),
+            "should suggest curl install: {hint}"
         );
         assert!(
-            !hint.contains("GROK_CHANNEL"),
-            "stable must not set channel: {hint}"
+            hint.contains("github.com"),
+            "should reference GitHub Releases: {hint}"
         );
     }
 }
@@ -991,40 +989,39 @@ fn test_reinstall_hint_internal_alpha_sets_channel() {
     let hint = reinstall_hint("internal", "alpha");
     if cfg!(windows) {
         assert!(
-            hint.contains("$env:GROK_CHANNEL='alpha'"),
-            "alpha should set GROK_CHANNEL: {hint}"
+            hint.contains("--tag valpha"),
+            "alpha should set tag in gh command: {hint}"
         );
     } else {
         assert!(
-            hint.contains("| GROK_CHANNEL='alpha' bash"),
-            "alpha must set GROK_CHANNEL on bash (the process running \
-             install.sh), not curl: {hint}"
+            hint.contains("/releases/download/valpha/"),
+            "alpha must set version in URL: {hint}"
         );
     }
 }
 
 #[test]
-fn test_reinstall_hint_enterprise_uses_enterprise_script() {
-    // Enterprise ships via its own bootstrap script (channel hardcoded there), never install.sh with GROK_CHANNEL
+fn test_reinstall_hint_enterprise_uses_github_release() {
+    // Enterprise is treated like stable (no channel env needed).
     let hint = reinstall_hint("internal", "enterprise");
     assert!(
-        hint.contains("/enterprise-install."),
-        "enterprise must use the published enterprise-install script: {hint}"
+        hint.contains("github.com"),
+        "enterprise must use GitHub Releases: {hint}"
     );
     assert!(
         !hint.contains("GROK_CHANNEL"),
-        "enterprise script needs no channel env: {hint}"
+        "enterprise needs no channel env: {hint}"
     );
 }
 
 #[test]
 fn test_reinstall_hint_malformed_channel_falls_back_to_stable() {
-    // Free-text config channels never reach the shell one-liner unless they are plain [A-Za-z0-9._-] tokens
+    // Free-text config channels never reach the one-liner unless they are plain [A-Za-z0-9._-] tokens
     for bad in ["al pha", "x'; rm -rf ~;'", "a\"b", ""] {
         let hint = reinstall_hint("internal", bad);
         assert!(
-            !hint.contains("GROK_CHANNEL"),
-            "malformed channel {bad:?} must fall back to stable: {hint}"
+            !hint.contains("--tag v"),
+            "malformed channel {bad:?} must fall back to stable (no version tag): {hint}"
         );
     }
 }

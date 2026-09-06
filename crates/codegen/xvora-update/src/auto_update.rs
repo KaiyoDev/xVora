@@ -37,35 +37,35 @@ fn is_stable_channel(channel: &str) -> bool {
 
 /// Manual-install one-liner for this platform's bootstrap installer.
 ///
-/// On Unix the variable must prefix `bash` (which runs install.sh), not `curl`.
-/// In `VAR=x curl … | bash` the assignment applies to `curl` only and install.sh would fall back to stable.
+/// Falls back to a GitHub Releases command using the `gh` CLI, which works on
+/// any platform without needing an external install script.
 fn manual_install_cmd(channel: &str) -> String {
-    // Only interpolate a well-formed channel ([A-Za-z0-9._-]) into the shell one-liner
-    // Anything else falls back to stable (a working installer beats a broken quoted command)
     let channel = channel.trim();
     let safe = !channel.is_empty()
         && channel
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
-    if channel == "enterprise" {
-        // Enterprise has its own bootstrap script; it needs no channel env.
-        return if cfg!(windows) {
-            "irm https://x.ai/cli/enterprise-install.ps1 | iex".to_string()
-        } else {
-            "curl -fsSL https://x.ai/cli/enterprise-install.sh | bash".to_string()
-        };
-    }
+    let repo = crate::version::GH_RELEASE_REPO;
     if is_stable_channel(channel) || !safe {
-        return if cfg!(windows) {
-            "irm https://x.ai/cli/install.ps1 | iex".to_string()
+        if cfg!(windows) {
+            format!(
+                "gh release download --repo {repo} --pattern 'xvora-*' --output xvora && .\\xvora"
+            )
         } else {
-            "curl -fsSL https://x.ai/cli/install.sh | bash".to_string()
-        };
-    }
-    if cfg!(windows) {
-        format!("$env:GROK_CHANNEL='{channel}'; irm https://x.ai/cli/install.ps1 | iex")
+            format!(
+                "curl -fsSL \"https://github.com/{repo}/releases/latest/download/xvora-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')\" -o /tmp/xvora && chmod +x /tmp/xvora && /tmp/xvora"
+            )
+        }
     } else {
-        format!("curl -fsSL https://x.ai/cli/install.sh | GROK_CHANNEL='{channel}' bash")
+        if cfg!(windows) {
+            format!(
+                "gh release download --repo {repo} --tag v{channel} --pattern 'xvora-*' --output xvora && .\\xvora"
+            )
+        } else {
+            format!(
+                "curl -fsSL \"https://github.com/{repo}/releases/download/v{channel}/xvora-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')\" -o /tmp/xvora && chmod +x /tmp/xvora && /tmp/xvora"
+            )
+        }
     }
 }
 
