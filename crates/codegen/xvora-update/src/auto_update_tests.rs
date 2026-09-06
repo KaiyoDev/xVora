@@ -973,10 +973,7 @@ fn test_reinstall_hint_internal_mentions_platform_installer() {
             "should name the repo: {hint}"
         );
     } else {
-        assert!(
-            hint.contains("curl"),
-            "should suggest curl install: {hint}"
-        );
+        assert!(hint.contains("curl"), "should suggest curl install: {hint}");
         assert!(
             hint.contains("github.com"),
             "should reference GitHub Releases: {hint}"

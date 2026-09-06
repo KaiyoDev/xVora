@@ -1378,9 +1378,9 @@ pub(crate) async fn run(
         if let Ok(raw) = shell::config::load_effective_config() {
             if let Ok(cfg) = shell::agent::config::Config::new_from_toml_cfg(&raw) {
                 let endpoints = &cfg.endpoints;
-                let api_base_is_default =
-                    endpoints.xvora_api_base_url == shell::agent::config::XAI_API_BASE_URL_DEFAULT
-                        && std::env::var("GROK_XAI_API_BASE_URL").is_err();
+                let api_base_is_default = endpoints.xvora_api_base_url
+                    == shell::agent::config::XAI_API_BASE_URL_DEFAULT
+                    && std::env::var("GROK_XAI_API_BASE_URL").is_err();
                 let proxy_is_default = endpoints
                     .cli_chat_proxy_base_url
                     .as_deref()
