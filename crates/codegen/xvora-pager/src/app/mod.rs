@@ -625,8 +625,8 @@ pub async fn run(
             shell::auth::GrokComConfig::default()
         }
     };
-    if !shell::auth::is_no_auth_mode() {
-        if matches!(
+    if !shell::auth::is_no_auth_mode()
+        && matches!(
             shell::auth::maybe_run_pre_tui_external_login(
                 &grok_com_config,
                 args.force_login,
@@ -634,9 +634,9 @@ pub async fn run(
             )
             .await?,
             shell::auth::PreTuiLoginOutcome::SignedIn(_)
-        ) {
-            args.force_login = false;
-        }
+        )
+    {
+        args.force_login = false;
     }
     tty_utils::redirect_native_stderr();
     let refreshed_auth = tokio::time::timeout(
