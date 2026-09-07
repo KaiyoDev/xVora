@@ -355,10 +355,6 @@ impl acp::Agent for MvpAgent {
                 SilentRefresh::Failed(remedy) => remedy.is_self_healing(),
             };
         }
-        let skip_interactive_login = crate::auth::config::is_no_auth_mode()
-            && !has_external_api_key
-            && !has_cached_token_after_refresh
-            && !has_enterprise_oidc;
         let init_has_current = init_has_current; // reuse for downstream telemetry
         let init_is_expired = init_is_expired;
         let mut has_cached_token = has_cached_token_after_refresh;
@@ -399,6 +395,10 @@ impl acp::Agent for MvpAgent {
                 "auth: advertising xvora.com auth method",
             );
         }
+        let skip_interactive_login = crate::auth::is_no_auth_mode()
+            && !has_external_api_key
+            && !has_cached_token_after_refresh
+            && !has_enterprise_oidc;
         let preferred_method = preferred_method_early;
         let has_external_api_key = match preferred_method {
             Some(crate::auth::PreferredAuthMethod::Oidc) => false,

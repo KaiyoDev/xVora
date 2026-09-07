@@ -21,9 +21,9 @@ use ratatui::text::Span;
 
 use crate::theme::ThemeKind;
 
-static SYNTECT_XvoNight: OnceLock<Syntect> = OnceLock::new();
+static SYNTECT_XVO_NIGHT: OnceLock<Syntect> = OnceLock::new();
 static SYNTECT_TOKYONIGHT: OnceLock<Syntect> = OnceLock::new();
-static SYNTECT_XvoDay: OnceLock<Syntect> = OnceLock::new();
+static SYNTECT_XVO_DAY: OnceLock<Syntect> = OnceLock::new();
 
 /// Convert syntect style to ratatui foreground-only style, quantized for terminal color support (or polarity-safe under the terminal-native lock).
 pub fn syntect_to_ratatui_fg(style: syntect::highlighting::Style) -> Style {
@@ -130,11 +130,11 @@ pub fn get_syntect() -> &'static Syntect {
         ThemeKind::XvoNight
         | ThemeKind::RosePineMoon
         | ThemeKind::OscuraMidnight
-        | ThemeKind::Auto => SYNTECT_XvoNight
+        | ThemeKind::Auto => SYNTECT_XVO_NIGHT
             .get_or_init(|| Syntect::new(include_bytes!("../assets/xvora-night.tmTheme"))),
         ThemeKind::TokyoNight => SYNTECT_TOKYONIGHT
             .get_or_init(|| Syntect::new(include_bytes!("../assets/tokyo-night.tmTheme"))),
-        ThemeKind::XvoDay => SYNTECT_XvoDay
+        ThemeKind::XvoDay => SYNTECT_XVO_DAY
             .get_or_init(|| Syntect::new(include_bytes!("../assets/xvora-day.tmTheme"))),
     }
 }
