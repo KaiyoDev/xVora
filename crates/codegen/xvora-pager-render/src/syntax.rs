@@ -1,4 +1,4 @@
-﻿//! Provides lazily-initialized `Syntect` instances for code highlighting.
+//! Provides lazily-initialized `Syntect` instances for code highlighting.
 //! Dark themes (XvoNight, TokyoNight) share `xvora-night.tmTheme`; XvoDay uses `xvora-day.tmTheme` with deepened colors for light backgrounds.
 //!
 //! ## Minimal / terminal-native lock

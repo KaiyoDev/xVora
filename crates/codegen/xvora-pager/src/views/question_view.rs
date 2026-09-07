@@ -1,4 +1,4 @@
-﻿//! Question view state and helpers.
+//! Question view state and helpers.
 //!
 //! When the agent calls `AskUserQuestion`, the pager takes over the prompt
 //! area and shows a structured question UI. This module contains:

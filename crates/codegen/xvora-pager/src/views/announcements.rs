@@ -1487,10 +1487,7 @@ mod tests {
         let anns = [promo(
             "p",
             "msg",
-            Some((
-                "Upgrade for the exclusive preview",
-                "https://x.ai",
-            )),
+            Some(("Upgrade for the exclusive preview", "https://x.ai")),
         )];
         let area = Rect::new(0, 0, 50, 1);
         let mut buf = Buffer::empty(area);

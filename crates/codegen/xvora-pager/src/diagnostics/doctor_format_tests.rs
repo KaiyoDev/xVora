@@ -1,4 +1,4 @@
-﻿//! In-TUI `/doctor` formatter tests.
+//! In-TUI `/doctor` formatter tests.
 
 use super::format_doctor;
 use crate::clipboard::ClipboardRoute;

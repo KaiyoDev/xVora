@@ -1,4 +1,4 @@
-﻿use super::task_status_line;
+use super::task_status_line;
 use crate::theme::Theme;
 use crate::views::tasks_pane::TaskStatusCounts;
 use ratatui::style::Modifier;

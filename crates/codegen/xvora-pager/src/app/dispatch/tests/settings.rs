@@ -1,4 +1,4 @@
-﻿//! Tests for settings setters, toggles, resets, and rollback.
+//! Tests for settings setters, toggles, resets, and rollback.
 use super::*;
 /// `Action::ToggleVimMode` flips the active agent's `vim_mode` field and the in-process pager cache (`load_vim_mode`) that seeds future agents.
 /// It emits `Effect::PersistSetting` so the new value lands in `[ui].vim_mode` in config.toml, and a second toggle restores the original.
@@ -3058,10 +3058,7 @@ fn set_auto_light_theme_emits_persist_setting_with_correct_payload() {
             }
             other => panic!("expected PersistSetting, got {other:?}"),
         }
-        assert_eq!(
-            app.current_ui.auto_light_theme.as_deref(),
-            Some("XvoNight"),
-        );
+        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("XvoNight"),);
     });
 }
 /// PREVIEW Actions emit ZERO `Effect::PersistSetting` and do NOT mutate `app.current_ui.theme`.
@@ -3365,10 +3362,7 @@ fn rollback_auto_light_theme_reverts_current_ui() {
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
         let _ = dispatch(Action::SetAutoLightTheme("XvoNight".into()), &mut app);
-        assert_eq!(
-            app.current_ui.auto_light_theme.as_deref(),
-            Some("XvoNight"),
-        );
+        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("XvoNight"),);
         let _ = dispatch(
             Action::TaskComplete(TaskResult::SettingPersistFailed {
                 key: "auto_light_theme",
@@ -3411,10 +3405,7 @@ fn rollback_auto_light_theme_with_auto_value_clears_to_none() {
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
         let _ = dispatch(Action::SetAutoLightTheme("XvoNight".into()), &mut app);
-        assert_eq!(
-            app.current_ui.auto_light_theme.as_deref(),
-            Some("XvoNight"),
-        );
+        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("XvoNight"),);
         let _ = dispatch(
             Action::TaskComplete(TaskResult::SettingPersistFailed {
                 key: "auto_light_theme",

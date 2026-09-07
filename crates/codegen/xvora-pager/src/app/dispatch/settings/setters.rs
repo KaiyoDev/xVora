@@ -1,4 +1,4 @@
-﻿//! Individual setting setters with persistence effects and toasts.
+//! Individual setting setters with persistence effects and toasts.
 
 use super::ui::{refresh_open_settings_modals, save_success_toast};
 use crate::app::actions::Effect;

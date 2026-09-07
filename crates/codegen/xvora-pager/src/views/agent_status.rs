@@ -1,4 +1,4 @@
-﻿//! [`AgentStatusBar`] collects items as `Line<'static>` spans, lays them out right-aligned with dim `│` separators, and renders into a buffer row.
+//! [`AgentStatusBar`] collects items as `Line<'static>` spans, lays them out right-aligned with dim `│` separators, and renders into a buffer row.
 //! Returns hit-test areas keyed by item ID.
 //!
 //! # Example

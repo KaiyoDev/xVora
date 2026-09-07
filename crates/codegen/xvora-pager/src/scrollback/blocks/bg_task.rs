@@ -1,4 +1,4 @@
-﻿//! Three kinds: Started, Completed, Failed.
+//! Three kinds: Started, Completed, Failed.
 //! All render as always-collapsed, groupable blocks with dimmed colored bullets (same dimming as execute blocks).
 //! Enter / Ctrl-F opens the block viewer with stdout from the central store.
 

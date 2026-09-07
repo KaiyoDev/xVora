@@ -1,4 +1,4 @@
-﻿//! Application actions, effects, and task results.
+//! Application actions, effects, and task results.
 //!
 //! This module defines the three enums that form the backbone of the pipeline from input event to dispatch to effect:
 //!

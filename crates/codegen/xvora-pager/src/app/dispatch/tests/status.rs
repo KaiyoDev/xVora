@@ -1,4 +1,4 @@
-﻿//! Tests for session status, sharing, privacy, and coding-data-sharing dispatchers.
+//! Tests for session status, sharing, privacy, and coding-data-sharing dispatchers.
 
 use super::*;
 

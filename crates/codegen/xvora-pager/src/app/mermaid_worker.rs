@@ -1,4 +1,4 @@
-﻿//! Off-draw-thread Mermaid render worker, per-session disk cache, and the [`AgentView`] lazy render-on-click glue (`[Open]` and `[Copy path]`).
+//! Off-draw-thread Mermaid render worker, per-session disk cache, and the [`AgentView`] lazy render-on-click glue (`[Open]` and `[Copy path]`).
 //!
 //! Mirrors the existing inline-video worker model (`std::thread::spawn` and `std::sync::mpsc`, polled each tick via `try_recv`) rather than tokio.
 //! A single worker thread renders a requested diagram in a short-lived child process (see below).
@@ -1929,12 +1929,8 @@ mod tests {
     fn per_theme_renders_land_in_distinct_files() {
         let dir = tempfile::tempdir().unwrap();
         let src = "flowchart LR\nA-->B";
-        let dark_key = MermaidCacheKey::derive(
-            src,
-            ThemeKind::XvoNight,
-            80,
-            MermaidRenderQuality::Terminal,
-        );
+        let dark_key =
+            MermaidCacheKey::derive(src, ThemeKind::XvoNight, 80, MermaidRenderQuality::Terminal);
         let light_key =
             MermaidCacheKey::derive(src, ThemeKind::XvoDay, 80, MermaidRenderQuality::Terminal);
         assert_ne!(

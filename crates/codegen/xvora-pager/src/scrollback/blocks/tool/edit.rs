@@ -1,4 +1,4 @@
-﻿//! # Progressive highlight
+//! # Progressive highlight
 //!
 //! First paint uses per-hunk syntect (fast).
 //! When the post-edit file is available and under size/line caps, a background worker upgrades to full-file-scoped styles.

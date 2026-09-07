@@ -1,4 +1,4 @@
-﻿//! All colors come from the `Theme` struct. No hardcoded colors elsewhere.
+//! All colors come from the `Theme` struct. No hardcoded colors elsewhere.
 //! The default theme is XvoNight (neutral gray base with TokyoNight accents).
 //!
 //! ## Color support
@@ -10,8 +10,6 @@
 pub mod cache;
 pub mod color_support;
 pub mod env_appearance;
-mod xvoday;
-mod xvonight;
 pub mod md_style;
 pub mod osc11;
 mod oscura;
@@ -19,6 +17,8 @@ mod rosepine;
 pub mod system_appearance;
 mod terminal_default;
 pub mod tokyonight;
+mod xvoday;
+mod xvonight;
 
 pub use color_support::quantize;
 pub use tokyonight::{Theme, pulse_brightness, wave_brightness};
@@ -1065,10 +1065,7 @@ mod tests {
 
     #[test]
     fn from_name_concrete_variants_still_work() {
-        assert_eq!(
-            ThemeKind::from_name("xvonight"),
-            Some(ThemeKind::XvoNight)
-        );
+        assert_eq!(ThemeKind::from_name("xvonight"), Some(ThemeKind::XvoNight));
         assert_eq!(ThemeKind::from_name("dark"), Some(ThemeKind::XvoNight));
         assert_eq!(ThemeKind::from_name("xvoday"), Some(ThemeKind::XvoDay));
         assert_eq!(ThemeKind::from_name("light"), Some(ThemeKind::XvoDay));

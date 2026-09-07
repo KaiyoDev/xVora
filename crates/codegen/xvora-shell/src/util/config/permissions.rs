@@ -1,4 +1,4 @@
-﻿use toml::Value as TomlValue;
+use toml::Value as TomlValue;
 
 pub use telemetry::enums::PermissionMode;
 

@@ -1,4 +1,4 @@
-﻿use super::persist::update_config;
+use super::persist::update_config;
 use anyhow::Result;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;

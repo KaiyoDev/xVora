@@ -1,4 +1,4 @@
-﻿//! Mermaid diagram detection and the on-screen affordance row.
+//! Mermaid diagram detection and the on-screen affordance row.
 //!
 //! The markdown renderer draws ` ```mermaid ` blocks inline as Unicode box-drawing art.
 //! This module detects those blocks in an agent message via the generic [`CodeBlockSpan`](markdown::CodeBlockSpan) API.
@@ -598,12 +598,8 @@ mod tests {
     #[test]
     fn cache_key_width_bucketing() {
         // Widths within the same bucket collapse to one key.
-        let a = MermaidCacheKey::derive(
-            "x",
-            ThemeKind::XvoNight,
-            80,
-            MermaidRenderQuality::Terminal,
-        );
+        let a =
+            MermaidCacheKey::derive("x", ThemeKind::XvoNight, 80, MermaidRenderQuality::Terminal);
         let b = MermaidCacheKey::derive(
             "x",
             ThemeKind::XvoNight,

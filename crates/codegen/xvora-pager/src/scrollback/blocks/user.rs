@@ -1,4 +1,4 @@
-﻿use std::ops::Range;
+use std::ops::Range;
 
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};

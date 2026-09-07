@@ -1,4 +1,4 @@
-﻿//! In-memory theme cache and resolution.
+//! In-memory theme cache and resolution.
 //!
 //! The pager reads the active `ThemeKind` on every render frame, so the
 //! lookup must be cheaper than re-loading from `~/.xvora/config.toml`.

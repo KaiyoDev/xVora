@@ -1,4 +1,4 @@
-﻿use std::borrow::Cow;
+use std::borrow::Cow;
 use std::cell::OnceCell;
 use std::path::Path;
 

@@ -9,11 +9,15 @@ pub enum AuthError {
     NotLoggedIn,
 
     /// The token expired and no refresh authority is available.
-    #[error("Token expired. Run `xvora login` to re-authenticate, or set XVORA_NO_AUTH=1 to skip authentication.")]
+    #[error(
+        "Token expired. Run `xvora login` to re-authenticate, or set XVORA_NO_AUTH=1 to skip authentication."
+    )]
     TokenExpiredNoRefresh,
 
     /// Server rejected the token (401) with no recovery path.
-    #[error("Authentication rejected by server. Run `xvora login` to re-authenticate, or set XVORA_NO_AUTH=1 to skip authentication.")]
+    #[error(
+        "Authentication rejected by server. Run `xvora login` to re-authenticate, or set XVORA_NO_AUTH=1 to skip authentication."
+    )]
     ServerRejectedNoRecovery,
 
     /// All recovery strategies are exhausted.
@@ -22,11 +26,15 @@ pub enum AuthError {
 
     /// A session's team principal violates the `force_login_team_uuid` pin.
     /// `message` states which team is required and which was returned.
-    #[error("{message} Run `xvora login` to sign in with the required team, or set XVORA_NO_AUTH=1 to skip authentication.")]
+    #[error(
+        "{message} Run `xvora login` to sign in with the required team, or set XVORA_NO_AUTH=1 to skip authentication."
+    )]
     PinnedTeamMismatch { message: String },
 
     /// The cached API-key session was rejected because API-key auth is disabled.
-    #[error("API-key auth is disabled by your administrator. Run `xvora login` to authenticate, or set XVORA_NO_AUTH=1 to skip authentication.")]
+    #[error(
+        "API-key auth is disabled by your administrator. Run `xvora login` to authenticate, or set XVORA_NO_AUTH=1 to skip authentication."
+    )]
     ApiKeyAuthDisabled,
 
     /// Outcome of a refresh-authority attempt.

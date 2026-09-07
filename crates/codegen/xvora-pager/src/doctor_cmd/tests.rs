@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::clipboard::{
     ClipboardDelivery, ClipboardRoute, NativeClipboardPreflight, Osc52Capability,
 };

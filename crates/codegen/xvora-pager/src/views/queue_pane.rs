@@ -1,4 +1,4 @@
-﻿//! Queue pane: renders queued prompts in a `ListPane`.
+//! Queue pane: renders queued prompts in a `ListPane`.
 //!
 //! Similar to [`super::todo_pane::TodoPane`] but for queued prompts.
 //! Shows `#1`, `#2`, … prefixes (positional, 1-based) with the first line of each prompt's text.

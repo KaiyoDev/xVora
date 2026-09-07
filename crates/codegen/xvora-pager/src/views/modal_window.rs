@@ -1,4 +1,4 @@
-﻿//! Provides a single `ModalWindow` that handles the visual frame: border, title, close button, optional tab bar, footer shortcuts.
+//! Provides a single `ModalWindow` that handles the visual frame: border, title, close button, optional tab bar, footer shortcuts.
 //! It also routes common input: Esc to close, tab switching, shortcut clicks.
 //! Each popup modal in the pager becomes an instance of `ModalWindow` with different features enabled via [`ModalWindowConfig`].
 //!

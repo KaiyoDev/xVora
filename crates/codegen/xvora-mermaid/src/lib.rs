@@ -1,4 +1,4 @@
-﻿//! Render [Mermaid](https://mermaid.js.org/) diagram source to a rasterized PNG, behind a swappable [`MermaidEngine`] trait.
+//! Render [Mermaid](https://mermaid.js.org/) diagram source to a rasterized PNG, behind a swappable [`MermaidEngine`] trait.
 //!
 //! The crate turns Mermaid text into PNG bytes with no Node, no headless browser, and no network.
 //! The trait boundary lets the rest of the CLI swap engines or fall back to a code block without caring how a diagram is produced.

@@ -1,4 +1,4 @@
-﻿//! `RawAppearanceConfig` is the serde-friendly shape of pager.toml.
+//! `RawAppearanceConfig` is the serde-friendly shape of pager.toml.
 //! `AppearanceConfig` is the resolved runtime form (ratatui::Color, BlockBackground, etc.).
 
 use documented::{Documented, DocumentedFields};

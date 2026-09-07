@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::views::dashboard::DashboardRowId;
 use crate::views::dashboard::state::DashboardState;
 

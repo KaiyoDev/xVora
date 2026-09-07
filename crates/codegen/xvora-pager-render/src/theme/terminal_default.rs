@@ -1,4 +1,4 @@
-﻿//! Terminal-native palette for minimal mode.
+//! Terminal-native palette for minimal mode.
 //!
 //! Any RGB theme is designed for one background polarity.
 //! Composited on the terminal's own canvas it can land dark-on-dark or light-on-light (e.g. macOS in Light Mode with a dark terminal profile).

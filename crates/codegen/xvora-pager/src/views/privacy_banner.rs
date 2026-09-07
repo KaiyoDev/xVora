@@ -1,4 +1,4 @@
-﻿//! Coding-data sharing upsell banner (the Figma "Data Sharing Upsell" design).
+//! Coding-data sharing upsell banner (the Figma "Data Sharing Upsell" design).
 //! Shared by the welcome tip slot and the agent-view banner slot; visibility is gated by `AppView::privacy_banner_should_show`.
 
 use crate::theme::Theme;

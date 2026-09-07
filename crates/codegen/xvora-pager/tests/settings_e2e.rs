@@ -1,4 +1,4 @@
-﻿//! End-to-end integration tests for the settings modal.
+//! End-to-end integration tests for the settings modal.
 //!
 //! Every new `SettingMeta` in `default_settings()` MUST add an entry to `ALL_SETTINGS_EXERCISED` and a test for its keyboard AND mouse paths.
 //!
