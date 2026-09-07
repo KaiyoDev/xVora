@@ -45,7 +45,7 @@ pub use tools_api::slash_commands::{
 /// Prose returned to the model (as a normal, successful tool result) when a
 /// free / X Basic user calls `image_gen` or `image_edit`. The model relays it
 /// to the user. The deliberate `/imagine` slash command shows the richer
-/// SuperGrok upsell modal instead; this covers the natural-language path.
+/// paid subscription upsell modal instead; this covers the natural-language path.
 pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Image generation is a premium feature and isn't available on the free or X Basic tier. Let the user know they can unlock image and video generation by upgrading to a paid plan: https://xvora.com/supergrok?referrer=xvora-build. Do not retry this tool.";
 
 /// HTTP client for xAI Imagine API. Cloned per-request; shares `Arc` state.
@@ -725,7 +725,7 @@ mod tests {
 
         match result {
             ToolOutput::Text(t) => {
-                assert!(t.text.contains("SuperGrok"), "got: {}", t.text);
+                assert!(t.text.contains("premium feature"), "got: {}", t.text);
                 assert!(t.text.contains("supergrok?referrer=xvora-build"));
             }
             other => panic!("expected Text upsell, got {other:?}"),

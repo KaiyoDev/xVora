@@ -756,7 +756,7 @@ impl VideoGenConfig {
 
 /// Prose returned to the model (as a normal, successful tool result) when a
 /// free / X Basic user calls a video tool. The model relays it to the user;
-/// the deliberate `/imagine-video` slash command shows the SuperGrok upsell
+/// the deliberate `/imagine-video` slash command shows the paid subscription
 /// modal instead.
 pub(crate) const TIER_RESTRICTED_UPSELL: &str = "Video generation is a premium feature and isn't available on the free or X Basic tier. Let the user know they can unlock image and video generation by upgrading to a paid plan: https://xvora.com/supergrok?referrer=xvora-build. Do not retry this tool.";
 
