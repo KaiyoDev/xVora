@@ -332,6 +332,11 @@ impl acp::Agent for MvpAgent {
             self.models_manager.models().values(),
             first_party_env_ok,
         );
+        // No-auth mode: force xvora.api_key advertising so the pager shows
+        // needs_login=false and skips the interactive login screen.
+        if crate::auth::config::is_no_auth_mode() {
+            has_external_api_key = true;
+        }
         let init_token_state = self.auth_manager.cached_token_state();
         let init_has_current = matches!(init_token_state, CachedTokenState::Valid(_));
         let init_is_expired = matches!(init_token_state, CachedTokenState::Expired);

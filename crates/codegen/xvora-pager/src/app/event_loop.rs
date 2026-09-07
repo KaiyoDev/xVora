@@ -1285,7 +1285,8 @@ pub(crate) async fn run(
     // Seed auth state from ACP connection metadata.
     // --force-login overrides: show the login screen even when credentials exist.
     let force_login = args.force_login && !connection.auth_methods.is_empty();
-    let needs_interactive_login = connection.needs_login || force_login;
+    let needs_interactive_login =
+        (!shell::auth::config::is_no_auth_mode()) && (connection.needs_login || force_login);
     if needs_interactive_login {
         app.welcome_prompt_focused = false;
 
