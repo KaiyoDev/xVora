@@ -33,7 +33,7 @@ use acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
 use agent_client_protocol as acp;
 use shell::agent::auth_method::AuthMethodKind;
 use shell::agent::config::Config as AgentConfig;
-use shell::auth::config::is_no_auth_mode;
+use shell::auth::is_no_auth_mode;
 use shell::sampling::types::ReasoningEffort;
 
 pub use model_state::ModelState;
