@@ -355,8 +355,6 @@ impl acp::Agent for MvpAgent {
                 SilentRefresh::Failed(remedy) => remedy.is_self_healing(),
             };
         }
-        let init_has_current = init_has_current; // reuse for downstream telemetry
-        let init_is_expired = init_is_expired;
         let mut has_cached_token = has_cached_token_after_refresh;
         let (
             login_label,
